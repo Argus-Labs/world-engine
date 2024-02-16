@@ -2,7 +2,6 @@ package query
 
 import (
 	"fmt"
-
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/sys"
 	"pkg.world.dev/world-engine/cardinal"
@@ -17,7 +16,7 @@ type LocationReply struct {
 }
 
 func RegisterLocationQuery(world *cardinal.World) error {
-	return cardinal.RegisterQueryWithEVMSupport[LocationRequest, LocationReply](
+	return cardinal.RegisterQuery[LocationRequest, LocationReply](
 		world,
 		"location",
 		func(ctx cardinal.WorldContext, req *LocationRequest) (*LocationReply, error) {
@@ -37,5 +36,6 @@ func RegisterLocationQuery(world *cardinal.World) error {
 				X: loc.X,
 				Y: loc.Y,
 			}, nil
-		})
+		},
+		cardinal.WithQueryEVMSupport[LocationRequest, LocationReply]())
 }

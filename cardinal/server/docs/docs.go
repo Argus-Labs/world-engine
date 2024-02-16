@@ -62,7 +62,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/ecs.debugStateElement"
+                                "$ref": "#/definitions/cardinal.debugStateElement"
                             }
                         }
                     }
@@ -86,7 +86,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ecs.CQLQueryRequest"
+                            "$ref": "#/definitions/cardinal.CQLQueryRequest"
                         }
                     }
                 ],
@@ -94,7 +94,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ecs.CQLQueryResponse"
+                            "$ref": "#/definitions/cardinal.CQLQueryResponse"
                         }
                     }
                 }
@@ -187,7 +187,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ecs.QueryPersonaSignerRequest"
+                            "$ref": "#/definitions/cardinal.QueryPersonaSignerRequest"
                         }
                     }
                 ],
@@ -195,7 +195,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ecs.QueryPersonaSignerResponse"
+                            "$ref": "#/definitions/cardinal.QueryPersonaSignerResponse"
                         }
                     },
                     "400": {
@@ -224,7 +224,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ecs.ListTxReceiptsRequest"
+                            "$ref": "#/definitions/cardinal.ListTxReceiptsRequest"
                         }
                     }
                 ],
@@ -232,7 +232,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/ecs.ListTxReceiptsReply"
+                            "$ref": "#/definitions/cardinal.ListTxReceiptsReply"
                         }
                     },
                     "400": {
@@ -331,7 +331,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "ecs.CQLQueryRequest": {
+        "cardinal.CQLQueryRequest": {
             "type": "object",
             "properties": {
                 "cql": {
@@ -339,18 +339,18 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.CQLQueryResponse": {
+        "cardinal.CQLQueryResponse": {
             "type": "object",
             "properties": {
                 "results": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/ecs.cqlData"
+                        "$ref": "#/definitions/cardinal.cqlData"
                     }
                 }
             }
         },
-        "ecs.ListTxReceiptsReply": {
+        "cardinal.ListTxReceiptsReply": {
             "type": "object",
             "properties": {
                 "endTick": {
@@ -359,7 +359,7 @@ const docTemplate = `{
                 "receipts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/ecs.Receipt"
+                        "$ref": "#/definitions/cardinal.Receipt"
                     }
                 },
                 "startTick": {
@@ -367,7 +367,7 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.ListTxReceiptsRequest": {
+        "cardinal.ListTxReceiptsRequest": {
             "type": "object",
             "properties": {
                 "startTick": {
@@ -375,7 +375,7 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.QueryPersonaSignerRequest": {
+        "cardinal.QueryPersonaSignerRequest": {
             "type": "object",
             "properties": {
                 "personaTag": {
@@ -386,7 +386,7 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.QueryPersonaSignerResponse": {
+        "cardinal.QueryPersonaSignerResponse": {
             "type": "object",
             "properties": {
                 "signerAddress": {
@@ -397,7 +397,7 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.Receipt": {
+        "cardinal.Receipt": {
             "type": "object",
             "properties": {
                 "errors": {
@@ -413,7 +413,7 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.cqlData": {
+        "cardinal.cqlData": {
             "type": "object",
             "properties": {
                 "data": {
@@ -424,7 +424,7 @@ const docTemplate = `{
                 }
             }
         },
-        "ecs.debugStateElement": {
+        "cardinal.debugStateElement": {
             "type": "object",
             "properties": {
                 "components": {

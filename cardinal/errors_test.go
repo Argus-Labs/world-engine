@@ -3,15 +3,16 @@ package cardinal_test
 import (
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
@@ -20,88 +21,88 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 	const nonExistentEntityID = 999
 	testCases := []struct {
 		name    string
-		testFn  func(cardinal.WorldContext) error
+		testFn  func(engine.Context) error
 		wantErr error
 	}{
 		{
 			name: "AddComponentTo_BadEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				return cardinal.AddComponentTo[Foo](worldCtx, nonExistentEntityID)
+			testFn: func(wCtx engine.Context) error {
+				return cardinal.AddComponentTo[Foo](wCtx, nonExistentEntityID)
 			},
 			wantErr: cardinal.ErrEntityDoesNotExist,
 		},
 		{
 			name: "AddComponentTo_ComponentAlreadyOnEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			testFn: func(wCtx engine.Context) error {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				return cardinal.AddComponentTo[Foo](worldCtx, id)
+				return cardinal.AddComponentTo[Foo](wCtx, id)
 			},
 			wantErr: cardinal.ErrComponentAlreadyOnEntity,
 		},
 		{
 			name: "RemoveComponentFrom_BadEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				return cardinal.RemoveComponentFrom[Foo](worldCtx, nonExistentEntityID)
+			testFn: func(wCtx engine.Context) error {
+				return cardinal.RemoveComponentFrom[Foo](wCtx, nonExistentEntityID)
 			},
 			wantErr: cardinal.ErrEntityDoesNotExist,
 		},
 		{
 			name: "RemoveComponentFrom_ComponentNotOnEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			testFn: func(wCtx engine.Context) error {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				return cardinal.RemoveComponentFrom[Bar](worldCtx, id)
+				return cardinal.RemoveComponentFrom[Bar](wCtx, id)
 			},
 			wantErr: cardinal.ErrComponentNotOnEntity,
 		},
 		{
 			name: "RemoveComponentFrom_EntityMustHaveAtLeastOneComponent",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			testFn: func(wCtx engine.Context) error {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				return cardinal.RemoveComponentFrom[Foo](worldCtx, id)
+				return cardinal.RemoveComponentFrom[Foo](wCtx, id)
 			},
 			wantErr: cardinal.ErrEntityMustHaveAtLeastOneComponent,
 		},
 		{
-			name: "GetComponent_BadEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				_, err := cardinal.GetComponent[Foo](worldCtx, nonExistentEntityID)
+			name: "cardinal.GetComponent_BadEntity",
+			testFn: func(wCtx engine.Context) error {
+				_, err := cardinal.GetComponent[Foo](wCtx, nonExistentEntityID)
 				return err
 			},
 			wantErr: cardinal.ErrEntityDoesNotExist,
 		},
 		{
-			name: "GetComponent_ComponentNotOnEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			name: "cardinal.GetComponent_ComponentNotOnEntity",
+			testFn: func(wCtx engine.Context) error {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				_, err = cardinal.GetComponent[Bar](worldCtx, id)
+				_, err = cardinal.GetComponent[Bar](wCtx, id)
 				return err
 			},
 			wantErr: cardinal.ErrComponentNotOnEntity,
 		},
 		{
 			name: "SetComponent_BadEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				return cardinal.SetComponent[Foo](worldCtx, nonExistentEntityID, &Foo{})
+			testFn: func(wCtx engine.Context) error {
+				return cardinal.SetComponent[Foo](wCtx, nonExistentEntityID, &Foo{})
 			},
 			wantErr: cardinal.ErrEntityDoesNotExist,
 		},
 		{
 			name: "SetComponent_ComponentNotOnEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			testFn: func(wCtx engine.Context) error {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				return cardinal.SetComponent[Bar](worldCtx, id, &Bar{})
+				return cardinal.SetComponent[Bar](wCtx, id, &Bar{})
 			},
 			wantErr: cardinal.ErrComponentNotOnEntity,
 		},
 		{
 			name: "UpdateComponent_BadEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				return cardinal.UpdateComponent[Foo](worldCtx, nonExistentEntityID, func(f *Foo) *Foo {
+			testFn: func(wCtx engine.Context) error {
+				return cardinal.UpdateComponent[Foo](wCtx, nonExistentEntityID, func(f *Foo) *Foo {
 					return f
 				})
 			},
@@ -109,10 +110,10 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 		},
 		{
 			name: "UpdateComponent_ComponentNotOnEntity",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			testFn: func(wCtx engine.Context) error {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				return cardinal.UpdateComponent[Bar](worldCtx, id, func(b *Bar) *Bar {
+				return cardinal.UpdateComponent[Bar](wCtx, id, func(b *Bar) *Bar {
 					return b
 				})
 			},
@@ -120,8 +121,8 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 		},
 		{
 			name: "Remove_EntityDoesNotExist",
-			testFn: func(worldCtx cardinal.WorldContext) error {
-				return cardinal.Remove(worldCtx, nonExistentEntityID)
+			testFn: func(wCtx engine.Context) error {
+				return cardinal.Remove(wCtx, nonExistentEntityID)
 			},
 			wantErr: cardinal.ErrEntityDoesNotExist,
 		},
@@ -133,7 +134,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
-			world.Init(func(worldCtx cardinal.WorldContext) error {
+			err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
 				defer func() {
 					// In Systems, Cardinal is designed to panic when a fatal error is encountered.
 					// This test is not supposed to panic, but if it does panic it happens in a non-main thread which
@@ -144,11 +145,12 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 					assert.Check(t, err == nil, "got fatal error \"%v\"", err)
 				}()
 
-				err := tc.testFn(worldCtx)
+				err := tc.testFn(wCtx)
 				isWantError := errors.Is(err, tc.wantErr)
 				assert.Check(t, isWantError, "expected %v but got %v", tc.wantErr, err)
 				return nil
 			})
+			assert.NilError(t, err)
 			tick()
 		})
 	}
@@ -164,60 +166,61 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	testCases := []struct {
 		name string
 		// Every test is expected to panic, so no return error is needed
-		panicFn func(cardinal.WorldContext)
+		panicFn func(engine.Context)
 	}{
 		{
-			name: "AddComponentTo",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			name: "cardinal.AddComponentTo",
+			panicFn: func(wCtx engine.Context) {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				_ = cardinal.AddComponentTo[UnregisteredComp](worldCtx, id)
+				_ = cardinal.AddComponentTo[UnregisteredComp](wCtx, id)
 			},
 		},
 		{
-			name: "RemoveComponentFrom",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				id, err := cardinal.Create(worldCtx, Foo{}, Bar{})
+			name: "cardinal.RemoveComponentFrom",
+			panicFn: func(wCtx engine.Context) {
+				id, err := cardinal.Create(wCtx, Foo{}, Bar{})
 				assert.Check(t, err == nil)
-				_ = cardinal.RemoveComponentFrom[UnregisteredComp](worldCtx, id)
+				_ = cardinal.RemoveComponentFrom[UnregisteredComp](wCtx, id)
 			},
 		},
 		{
-			name: "GetComponent",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			name: "cardinal.GetComponent",
+			panicFn: func(wCtx engine.Context) {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				_, _ = cardinal.GetComponent[UnregisteredComp](worldCtx, id)
+				_, _ = cardinal.GetComponent[UnregisteredComp](wCtx, id)
 			},
 		},
 		{
-			name: "SetComponent",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			name: "cardinal.SetComponent",
+			panicFn: func(wCtx engine.Context) {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				_ = cardinal.SetComponent[UnregisteredComp](worldCtx, id, &UnregisteredComp{})
+				_ = cardinal.SetComponent[UnregisteredComp](wCtx, id, &UnregisteredComp{})
 			},
 		},
 		{
-			name: "UpdateComponent",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				id, err := cardinal.Create(worldCtx, Foo{})
+			name: "cardinal.UpdateComponent",
+			panicFn: func(wCtx engine.Context) {
+				id, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
-				_ = cardinal.UpdateComponent[UnregisteredComp](worldCtx, id, func(u *UnregisteredComp) *UnregisteredComp {
-					return u
-				})
+				_ = cardinal.UpdateComponent[UnregisteredComp](wCtx, id,
+					func(u *UnregisteredComp) *UnregisteredComp {
+						return u
+					})
 			},
 		},
 		{
-			name: "Create",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				_, _ = cardinal.Create(worldCtx, Foo{}, UnregisteredComp{})
+			name: "cardinal.Create",
+			panicFn: func(wCtx engine.Context) {
+				_, _ = cardinal.Create(wCtx, Foo{}, UnregisteredComp{})
 			},
 		},
 		{
-			name: "CreateMany",
-			panicFn: func(worldCtx cardinal.WorldContext) {
-				_, _ = cardinal.CreateMany(worldCtx, 10, Foo{}, UnregisteredComp{})
+			name: "cardinal.CreateMany",
+			panicFn: func(wCtx engine.Context) {
+				_, _ = cardinal.CreateMany(wCtx, 10, Foo{}, UnregisteredComp{})
 			},
 		},
 	}
@@ -227,7 +230,7 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			tf := testutils.NewTestFixture(t, nil)
 			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-			world.Init(func(worldCtx cardinal.WorldContext) error {
+			err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
 				defer func() {
 					err := recover()
 					// assert.Check is required here because this is happening in a non-main thread.
@@ -241,10 +244,11 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 							cardinal.ErrComponentNotRegistered.Error()))
 				}()
 				// This should panic every time
-				tc.panicFn(worldCtx)
+				tc.panicFn(wCtx)
 				assert.Check(t, false, "should not reach this line")
 				return nil
 			})
+			assert.NilError(t, err)
 			tick()
 		})
 	}
@@ -258,16 +262,16 @@ type QueryResponse struct{}
 func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	testCases := []struct {
 		name   string
-		testFn func(cardinal.WorldContext) error
+		testFn func(engine.Context) error
 	}{
 		{
-			name: "GetComponent",
-			testFn: func(worldCtx cardinal.WorldContext) error {
+			name: "cardinal.GetComponent",
+			testFn: func(wCtx engine.Context) error {
 				// Get a valid entity to ensure the error we find is related to the component and NOT
 				// due to an invalid entity.
-				id, err := worldCtx.NewSearch(cardinal.Exact(Foo{})).First(worldCtx)
+				id, err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).First()
 				assert.Check(t, err == nil)
-				_, err = cardinal.GetComponent[UnregisteredComp](worldCtx, id)
+				_, err = cardinal.GetComponent[UnregisteredComp](wCtx, id)
 				return err
 			},
 		},
@@ -286,28 +290,29 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			tf := testutils.NewTestFixture(t, nil)
 			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-			world.Init(func(worldCtx cardinal.WorldContext) error {
+			err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
 				// Make an entity so the test functions are operating on a valid entity.
-				_, err := cardinal.Create(worldCtx, Foo{})
+				_, err := cardinal.Create(wCtx, Foo{})
 				assert.Check(t, err == nil)
 				return nil
 			})
-			err := cardinal.RegisterQuery[QueryRequest, QueryResponse](
+			assert.NilError(t, err)
+			err = cardinal.RegisterQuery[QueryRequest, QueryResponse](
 				world,
 				queryName,
-				func(worldCtx cardinal.WorldContext, req *QueryRequest) (*QueryResponse, error) {
-					return nil, tc.testFn(worldCtx)
+				func(wCtx engine.Context, req *QueryRequest) (*QueryResponse, error) {
+					return nil, tc.testFn(wCtx)
 				})
 			assert.Check(t, err == nil)
 
-			// Do an initial tick so that the single entity can be created.
+			// Do an initial tick so that the single entity can be cardinal.Created.
 			tick()
 
-			query, err := world.Engine().GetQueryByName(queryName)
+			query, err := world.GetQueryByName(queryName)
 			assert.Check(t, err == nil)
 
-			readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
-			_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
+			readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
+			_, err = query.HandleQuery(readOnlyWorldCtx, QueryRequest{})
 			// Each test case is meant to generate a "ErrComponentNotRegistered" error
 			assert.Check(t, errors.Is(err, cardinal.ErrComponentNotRegistered),
 				"expected a component not registered error, got %v", err)
@@ -321,36 +326,36 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 	testCases := []struct {
 		name string
 		// the failFn will be called at a time when the ECB is empty of cached data and redis is down.
-		failFn func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID)
+		failFn func(wCtx engine.Context, goodID types.EntityID)
 	}{
 		{
-			name: "AddComponentTo",
-			failFn: func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID) {
-				_ = cardinal.AddComponentTo[Qux](worldCtx, goodID)
+			name: "cardinal.AddComponentTo",
+			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+				_ = cardinal.AddComponentTo[Qux](wCtx, goodID)
 			},
 		},
 		{
-			name: "RemoveComponentFrom",
-			failFn: func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID) {
-				_ = cardinal.RemoveComponentFrom[Bar](worldCtx, goodID)
+			name: "cardinal.RemoveComponentFrom",
+			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+				_ = cardinal.RemoveComponentFrom[Bar](wCtx, goodID)
 			},
 		},
 		{
-			name: "GetComponent",
-			failFn: func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID) {
-				_, _ = cardinal.GetComponent[Foo](worldCtx, goodID)
+			name: "cardinal.GetComponent",
+			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+				_, _ = cardinal.GetComponent[Foo](wCtx, goodID)
 			},
 		},
 		{
-			name: "SetComponent",
-			failFn: func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID) {
-				_ = cardinal.SetComponent[Foo](worldCtx, goodID, &Foo{})
+			name: "cardinal.SetComponent",
+			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+				_ = cardinal.SetComponent[Foo](wCtx, goodID, &Foo{})
 			},
 		},
 		{
-			name: "UpdateComponent",
-			failFn: func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID) {
-				_ = cardinal.UpdateComponent[Foo](worldCtx, goodID, func(f *Foo) *Foo {
+			name: "cardinal.UpdateComponent",
+			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+				_ = cardinal.UpdateComponent[Foo](wCtx, goodID, func(f *Foo) *Foo {
 					return f
 				})
 			},
@@ -366,18 +371,18 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
 			assert.NilError(t, cardinal.RegisterComponent[Qux](world))
 
-			// This system will be called 2 times. The first time, a single entity is created. The second time,
-			// the previously created entity is fetched, and then miniRedis is closed. Subsequent attempts to access
+			// This system will be called 2 times. The first time, a single entity is cardinal.Created. The second time,
+			// the previously cardinal.Created entity is fetched, and then miniRedis is closed. Subsequent attempts to access
 			// data should panic.
-			assert.NilError(t, cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+			assert.NilError(t, cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
 				// Set up the entity in the first tick
-				if worldCtx.CurrentTick() == 0 {
-					_, err := cardinal.Create(worldCtx, Foo{}, Bar{})
+				if wCtx.CurrentTick() == 0 {
+					_, err := cardinal.Create(wCtx, Foo{}, Bar{})
 					assert.Check(t, err == nil)
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := worldCtx.NewSearch(cardinal.Exact(Foo{}, Bar{})).First(worldCtx)
+				id, err := cardinal.NewSearch(wCtx, filter.Exact(Foo{}, Bar{})).First()
 				assert.Check(t, err == nil)
 				assert.Check(t, id != iterators.BadID)
 
@@ -390,7 +395,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 					assert.Check(t, err != nil, "expected panic")
 				}()
 
-				tc.failFn(worldCtx, id)
+				tc.failFn(wCtx, id)
 				assert.Check(t, false, "should never reach here")
 				return nil
 			}))
@@ -407,38 +412,39 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	world, tick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
-	world.Init(func(worldCtx cardinal.WorldContext) error {
-		_, err := cardinal.Create(worldCtx, Foo{})
+	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+		_, err := cardinal.Create(wCtx, Foo{})
 		assert.Check(t, err == nil)
 		return nil
 	})
+	assert.NilError(t, err)
 
 	const queryName = "some_query"
 	assert.NilError(t, cardinal.RegisterQuery[QueryRequest, QueryResponse](
 		world,
 		queryName,
-		func(worldCtx cardinal.WorldContext, req *QueryRequest) (*QueryResponse, error) {
-			id, err := worldCtx.NewSearch(cardinal.Exact(Foo{})).First(worldCtx)
+		func(wCtx engine.Context, req *QueryRequest) (*QueryResponse, error) {
+			id, err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).First()
 			assert.Check(t, err == nil)
-			_, err = cardinal.GetComponent[Foo](worldCtx, id)
+			_, err = cardinal.GetComponent[Foo](wCtx, id)
 			return nil, err
 		}))
 
-	// Tick so the entity can be created
+	// Tick so the entity can be cardinal.Created
 	tick()
 
-	query, err := world.Engine().GetQueryByName(queryName)
+	query, err := world.GetQueryByName(queryName)
 	assert.NilError(t, err)
 
 	// Uhoh, redis is now broken.
 	miniRedis.Close()
 
-	readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
+	readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
 	// This will fail with a redis connection error, and since we're in a Query, we should NOT panic
 	defer func() {
 		assert.Check(t, recover() == nil, "expected no panic in a query")
 	}()
 
-	_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
+	_, err = query.HandleQuery(readOnlyWorldCtx, QueryRequest{})
 	assert.ErrorContains(t, err, "connection refused", "expected a connection error")
 }
