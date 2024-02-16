@@ -19,9 +19,7 @@ jobs:
       - name: Setup Namespace cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
-          path: |
-            /home/runner/go/pkg/mod
-            /home/runner/.cache/go-build
+          cache: go
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
@@ -49,9 +47,7 @@ jobs:
       - name: Setup Namespace cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
-          path: |
-            /home/runner/go/pkg/mod
-            /home/runner/.cache/go-build
+          cache: go
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:

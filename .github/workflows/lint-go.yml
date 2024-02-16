@@ -22,8 +22,9 @@ jobs:
       - name: Setup Namespace cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
+          cache: go
           path: |
-            /home/runner/go/pkg/mod
+            /home/runner/go/pkg
             /home/runner/.cache/go-build
             /home/runner/.cache/golangci-lint
       - name: Setup Golang
