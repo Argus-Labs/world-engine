@@ -171,7 +171,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
-	pkg.world.dev/world-engine/evm v1.0.2-beta // indirect
+	pkg.world.dev/world-engine/evm v1.0.3 // indirect
 	pkg.world.dev/world-engine/rift v1.0.2-beta // indirect
 	pkg.world.dev/world-engine/sign v1.0.0-beta.0.20240127015309-7b7aa2336821 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

@@ -17,9 +17,6 @@ import (
 )
 
 func TestEvents(t *testing.T) {
-	// Note if this test is failing it could be because redis is not refreshed
-	// This test assumes that your redis is brand new and empty.
-	// Test persona
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -39,36 +36,34 @@ func TestEvents(t *testing.T) {
 	}
 	payload := JoinInput{}
 
-	// create three players.
+	// Emit events by creating players
 	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.RPC("tx/game/join", payload) // should emit an event.
+		resp, err = c.RPC("tx/game/join", payload)
 		assert.NilError(t, err)
-		body := clientutils.CopyBody(resp)
-		assert.Equal(t, 200, resp.StatusCode, body)
+		assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 	}
 
-	_, events, err := c.ListNotifications(amountOfPlayers + 1)
-	assert.NilError(t, err)
-	for len(events) != amountOfPlayers { // loop until notification sent.
+	// Fetch events and verify
+	var events []*clientutils.Event
+	for attempt := 0; attempt < 5; attempt++ {
+		events, err = c.ListEvents(amountOfPlayers + 1)
+		if err != nil {
+			t.Fatalf("Error listing events: %v", err)
+		}
+		if len(events) == amountOfPlayers {
+			break
+		}
 		time.Sleep(1 * time.Second)
-		_, events, err = c.ListNotifications(amountOfPlayers + 1)
-		assert.NilError(t, err)
 	}
 
-	// Assert three player creation events were sent
-	assert.Equal(t, len(events), amountOfPlayers)
-	for i := 1; i < amountOfPlayers; i++ {
-		message := events[i].Message
-		assert.Contains(t, message, "player created")
+	assert.Equal(t, len(events), amountOfPlayers, "Expected number of player creation events does not match")
+	for _, event := range events {
+		assert.Contains(t, event.Message, "player created", "Event message does not contain expected text")
 	}
 }
 
 func TestReceipts(t *testing.T) {
-	// Note: If this test is failing it could be because redis is not refreshed
-	// This test assumes that your redis is brand new and empty.
-
-	// 1: Create new Nakama Client and Register with Nakama Server
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -76,7 +71,6 @@ func TestReceipts(t *testing.T) {
 	c := clientutils.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(username, deviceID))
 
-	// 2: Make RPC call to claim a persona tag
 	resp, err := c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag":    personaTag,
 		"signerAddress": signerAddr,
@@ -84,41 +78,34 @@ func TestReceipts(t *testing.T) {
 	assert.NilError(t, err, "claim-persona failed")
 	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
-	// 3: Wait a bit to make sure the persona tag is accepted
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
+
 	type JoinInput struct {
 	}
 	payload := JoinInput{}
 
-	// 4: Add 3 players to the game via the tx/game/join endpoint
+	// Emit events and thus generate receipts by creating players
 	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.RPC("tx/game/join", payload) // should emit an event.
+		resp, err = c.RPC("tx/game/join", payload)
 		assert.NilError(t, err)
-		body := clientutils.CopyBody(resp)
-		assert.Equal(t, 200, resp.StatusCode, body)
+		assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 	}
 
-	// Try to get the Cardinal Receipts for the three tx/game/join calls
-	timeout := time.After(3 * time.Second)
-	retry := time.Tick(1 * time.Second)
+	// Fetch receipts and verify
 	var receipts []*clientutils.Receipt
-	for {
-		receipts, _, err = c.ListNotifications(20)
-		assert.NilError(t, err)
-		if len(receipts) == 4 {
+	for attempt := 0; attempt < 5; attempt++ {
+		receipts, err = c.ListReceipts(20) // Assuming 20 is a sufficient limit
+		if err != nil {
+			t.Fatalf("Error listing receipts: %v", err)
+		}
+		if len(receipts) >= amountOfPlayers {
 			break
 		}
-		select {
-		case <-timeout:
-			t.Error("Failed to receive the four expected receipts.")
-		case <-retry:
-			continue
-		}
+		time.Sleep(1 * time.Second)
 	}
 
-	// 5a: Assert that number of receipts received is expected
-	assert.Equal(t, len(receipts), amountOfPlayers+1)
+	assert.Equal(t, len(receipts), amountOfPlayers+1, "Expected number of receipts does not match")
 	for i, receipt := range receipts {
 		if i == 0 {
 			// 5b: Assert that the persona creation receipt was successful
