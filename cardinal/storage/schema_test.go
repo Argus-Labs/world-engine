@@ -1,4 +1,4 @@
-package metastorage_test
+package storage_test
 
 import (
 	"testing"
