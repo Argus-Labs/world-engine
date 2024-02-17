@@ -77,6 +77,14 @@ func (r *RedisStorage) Set(ctx context.Context, key string, value any) error {
 	return eris.Wrap(r.currentClient.Set(ctx, key, value, 0).Err(), "")
 }
 
+// Underlying type is a string. Unfortunately this is the way redis works and this is the most generic return value.
+func (r *RedisStorage) Get(ctx context.Context, key string) (any, error) {
+	var res any
+	var err error
+	res, err = r.currentClient.Get(ctx, key).Result()
+	return res, eris.Wrap(err, "")
+}
+
 func (r *RedisStorage) Incr(ctx context.Context, key string) error {
 	return eris.Wrap(r.currentClient.Incr(ctx, key).Err(), "")
 }
@@ -95,6 +103,10 @@ func (r *RedisStorage) Close(ctx context.Context) error {
 
 func (r *RedisStorage) Keys(ctx context.Context) ([]string, error) {
 	return r.currentClient.Keys(ctx, "*").Result()
+}
+
+func (r *RedisStorage) Clear(ctx context.Context) error {
+	return eris.Wrap(r.currentClient.FlushAll(ctx).Err(), "")
 }
 
 func (r *RedisStorage) StartTransaction(_ context.Context) (Transaction[string], error) {
@@ -203,9 +215,16 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 			return eris.Wrap(err, "")
 		}
 	}
-
-	for key, value := range m.compValues {
+	keys, err := m.compValues.Keys(ctx)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
 		cType := m.typeToComponent[key.typeID]
+		value, err := m.compValues.Get(ctx, key)
+		if err != nil {
+			return err
+		}
 		bz, err := cType.Encode(value)
 		if err != nil {
 			return err

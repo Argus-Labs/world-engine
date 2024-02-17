@@ -22,7 +22,7 @@ var _ Manager = &EntityCommandBuffer{}
 type EntityCommandBuffer struct {
 	dbStorage PrimitiveStorage[string]
 
-	compValues         map[compKey]any
+	compValues         PrimitiveStorage[compKey]
 	compValuesToDelete map[compKey]bool
 	typeToComponent    map[types.ComponentID]types.ComponentMetadata
 
@@ -53,7 +53,7 @@ var (
 func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuffer, error) {
 	m := &EntityCommandBuffer{
 		dbStorage:          storage,
-		compValues:         map[compKey]any{},
+		compValues:         NewMapStorage[compKey, any](),
 		compValuesToDelete: map[compKey]bool{},
 
 		activeEntities: map[types.ArchetypeID]activeEntities{},
@@ -81,8 +81,12 @@ func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata
 }
 
 // DiscardPending discards any pending state changes.
-func (m *EntityCommandBuffer) DiscardPending() {
-	clear(m.compValues)
+func (m *EntityCommandBuffer) DiscardPending() error {
+	ctx := context.Background()
+	err := m.compValues.Clear(ctx)
+	if err != nil {
+		return err
+	}
 
 	// Any entity archetypes movements need to be undone
 	clear(m.activeEntities)
@@ -98,6 +102,7 @@ func (m *EntityCommandBuffer) DiscardPending() {
 		delete(m.archIDToComps, archID)
 	}
 	m.pendingArchIDs = m.pendingArchIDs[:0]
+	return nil
 }
 
 // RemoveEntity removes the given entity from the ECS data model.
@@ -122,9 +127,13 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 	delete(m.entityIDToArchID, idToRemove)
 
 	comps := m.GetComponentTypesForArchID(archID)
+	ctx := context.Background()
 	for _, comp := range comps {
 		key := compKey{comp.ID(), idToRemove}
-		delete(m.compValues, key)
+		err = m.compValues.Delete(ctx, key)
+		if err != nil {
+			return err
+		}
 		m.compValuesToDelete[key] = true
 	}
 
@@ -182,16 +191,17 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 	}
 
 	key := compKey{cType.ID(), id}
-	m.compValues[key] = value
-	return nil
+	ctx := context.Background()
+	return m.compValues.Set(ctx, key, value)
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
 func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error) {
+	ctx := context.Background()
 	key := compKey{cType.ID(), id}
-	value, ok := m.compValues[key]
-	if ok {
-		return value, nil
+	value, err := m.compValues.Get(ctx, key)
+	if err == nil {
+		return value, err
 	}
 	// Make sure this entity has this component
 	comps, err := m.GetComponentTypesForEntity(id)
@@ -204,7 +214,6 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 
 	// Fetch the value from redis
 	redisKey := storageComponentKey(cType.ID(), id)
-	ctx := context.Background()
 
 	bz, err := m.dbStorage.GetBytes(ctx, redisKey)
 	if err != nil {
@@ -221,8 +230,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	if err != nil {
 		return nil, err
 	}
-	m.compValues[key] = value
-	return value, nil
+	return value, m.compValues.Set(ctx, key, value)
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
@@ -285,7 +293,11 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 		return eris.Wrap(iterators.ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
-	delete(m.compValues, key)
+	ctx := context.Background()
+	err = m.compValues.Delete(ctx, key)
+	if err != nil {
+		return err
+	}
 	m.compValuesToDelete[key] = true
 	fromArchID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 )
 
 // PrimitiveStorage is the interface for all available stores related to the game loop
-// there is another store like interface for other logistical values located in `ecs.metastorage`
+// there is another store like interface for other logistical values located in `ecs.storage`
 type PrimitiveStorage[K comparable] interface {
 	GetFloat64(ctx context.Context, key K) (float64, error)
 	GetFloat32(ctx context.Context, key K) (float32, error)
@@ -14,6 +14,7 @@ type PrimitiveStorage[K comparable] interface {
 	GetInt(ctx context.Context, key K) (int, error)
 	GetBool(ctx context.Context, key K) (bool, error)
 	GetBytes(ctx context.Context, key K) ([]byte, error)
+	Get(ctx context.Context, key K) (any, error)
 	Set(ctx context.Context, key K, value any) error
 	Incr(ctx context.Context, key K) error
 	Decr(ctx context.Context, key K) error
@@ -21,6 +22,7 @@ type PrimitiveStorage[K comparable] interface {
 	StartTransaction(ctx context.Context) (Transaction[K], error)
 	EndTransaction(ctx context.Context) error
 	Close(ctx context.Context) error
+	Clear(ctx context.Context) error
 	Keys(ctx context.Context) ([]K, error)
 }
 

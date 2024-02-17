@@ -28,10 +28,15 @@ func (m *MapStorage[K, V]) Get(_ context.Context, key K) (any, error) {
 	var resAny any
 	res, ok := m.internalMap[key]
 	if !ok {
-		return nil, eris.New("does not exist in map")
+		return nil, eris.New("key does not exist in storage")
 	}
 	resAny = res
 	return resAny, nil
+}
+
+func (m *MapStorage[K, V]) Clear(_ context.Context) error {
+	m.internalMap = make(map[K]V)
+	return nil
 }
 
 func (m *MapStorage[K, V]) GetFloat64(_ context.Context, key K) (float64, error) {
@@ -258,13 +263,6 @@ func (m *MapStorage[K, V]) StartTransaction(_ context.Context) (Transaction[K], 
 
 // Does nothing fow now
 func (m *MapStorage[K, V]) EndTransaction(_ context.Context) error {
-	return nil
-}
-
-func (m *MapStorage[K, V]) Clear(_ context.Context) error {
-	for k := range m.internalMap {
-		delete(m.internalMap, k)
-	}
 	return nil
 }
 

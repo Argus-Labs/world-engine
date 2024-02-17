@@ -130,7 +130,8 @@ func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 	assert.Equal(t, badValue, gotValue)
 
 	// Calling LayerDiscard will discard all changes since the last Layer* call
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 	// The value should not be the original 'wantValue'
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
 	assert.NilError(t, err)
