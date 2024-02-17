@@ -25,14 +25,14 @@ func (p *cqlPlugin) Register(world *World) error {
 }
 
 func (p *cqlPlugin) RegisterQueries(world *World) error {
-	err := RegisterQuery[cqlQueryRequest, cqlQueryResponse](world, "cql", queryCQL)
+	err := RegisterQuery[CQLQueryRequest, CQLQueryResponse](world, "cql", queryCQL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type cqlQueryRequest struct {
+type CQLQueryRequest struct {
 	CQL string
 }
 
@@ -41,7 +41,7 @@ type cqlData struct {
 	Data []json.RawMessage `json:"data" swaggertype:"object"`
 }
 
-type cqlQueryResponse struct {
+type CQLQueryResponse struct {
 	Results []cqlData `json:"results"`
 }
 
@@ -50,10 +50,10 @@ type cqlQueryResponse struct {
 // @Description	Query the ecs with CQL (cardinal query language)
 // @Accept			application/json
 // @Produce		application/json
-// @Param			cql	body		cqlQueryRequest	true	"cql (cardinal query language)"
-// @Success		200	{object}	cqlQueryResponse
+// @Param			cql	body		CQLQueryRequest	true	"cql (cardinal query language)"
+// @Success		200	{object}	CQLQueryResponse
 // @Router			/query/game/cql [post]
-func queryCQL(ctx engine.Context, req *cqlQueryRequest) (*cqlQueryResponse, error) {
+func queryCQL(ctx engine.Context, req *CQLQueryRequest) (*CQLQueryResponse, error) {
 	cqlString := req.CQL
 
 	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.GetComponentByName
@@ -102,5 +102,5 @@ func queryCQL(ctx engine.Context, req *cqlQueryRequest) (*cqlQueryResponse, erro
 	if eachError != nil {
 		return nil, err
 	}
-	return &cqlQueryResponse{Results: result}, nil
+	return &CQLQueryResponse{Results: result}, nil
 }

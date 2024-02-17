@@ -7,7 +7,6 @@ import (
 )
 
 import (
-	"encoding/json"
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"strings"
@@ -254,20 +253,11 @@ func Parse(
 ) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrap(err, "failed to parse CQL string")
 	}
 	resultFilter, err := termToComponentFilter(term, stringToComponent)
 	if err != nil {
 		return nil, err
 	}
 	return resultFilter, nil
-}
-
-type QueryRequest struct {
-	CQL string
-}
-
-type QueryResponse struct {
-	ID   types.EntityID    `json:"id"`
-	Data []json.RawMessage `json:"data"`
 }
