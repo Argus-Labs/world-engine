@@ -46,7 +46,6 @@ func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 
 func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receipt.Dispatcher,
 ) *Verifier {
-	//channelLimit := 100
 	ptv := &Verifier{
 		txHashToPending: map[string]pendingRequest{},
 		receiptCh:       make(chan []*receipt.Receipt),
@@ -89,6 +88,7 @@ func (p *Verifier) cleanupStaleEntries(now time.Time) {
 }
 
 func (p *Verifier) handleReceipt(receipts []*receipt.Receipt) []string {
+	//nolint:prealloc // we cannot know how many receipts we're going to get from the dispatcher
 	var hashes []string
 	for _, rec := range receipts {
 		// Note: receiptConstant is the key returned in the result
@@ -146,7 +146,12 @@ func (p *Verifier) attemptVerification(txHashes []string) error {
 			return eris.Wrap(err, "unable to set persona tag storage object")
 		}
 		delete(p.txHashToPending, txHash)
-		p.logger.Debug("result of associating user %q with persona tag %q: %v", pending.userID, ptr.PersonaTag, pending.status)
+		p.logger.Debug(
+			"result of associating user %q with persona tag %q: %v",
+			pending.userID,
+			ptr.PersonaTag,
+			pending.status,
+		)
 	}
 
 	return nil

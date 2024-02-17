@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
@@ -90,8 +89,6 @@ func makeRequestAndReadResp(
 			return res, eris.Wrap(err, "unable to get user id")
 		}
 		notifier.AddTxHashToPendingNotifications(asTx.TxHash, userID)
-		fmt.Println("Added tx hash to pending")
-		fmt.Println(asTx.TxHash)
 	}
 	return string(body), nil
 }

@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strconv"
 	"sync"
 	"time"
 
@@ -62,7 +60,6 @@ func (r *Dispatcher) Dispatch(logger runtime.Logger) {
 			case ch <- receipts:
 			default:
 				logger.Info("session %s dropped a batch of %d receipts", key, len(receipts))
-				fmt.Println("WOW, RECEIPT WAS NOT ABLE TO BE SENT!")
 			}
 			return true
 		})
@@ -95,7 +92,6 @@ func (r *Dispatcher) streamBatchOfReceipts(
 	if err != nil {
 		return newStartTick, err
 	}
-	fmt.Println("dispatcher got " + strconv.Itoa(len(reply.Receipts)) + " receipts from cardinal")
 	r.ch <- reply.Receipts
 	return reply.EndTick, nil
 }

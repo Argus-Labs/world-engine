@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -90,7 +89,6 @@ func (c *NakamaClient) ListNotifications(k int) ([]*Receipt, []*Event, error) {
 	c.notificationCursor = data.CacheableCursor
 	receipts := make([]*Receipt, 0)
 	events := make([]*Event, 0)
-	fmt.Println("notif number: " + strconv.Itoa(len(data.Notifications)))
 	for _, item := range data.Notifications {
 		if item.Subject == "receipt" {
 			receipt := Receipt{}
@@ -99,7 +97,6 @@ func (c *NakamaClient) ListNotifications(k int) ([]*Receipt, []*Event, error) {
 				return nil, nil, err
 			}
 			receipts = append(receipts, &receipt)
-			fmt.Println("FOUND RECEIPT: " + receipt.TxHash)
 		}
 		if item.Subject == "event" {
 			event := Event{}

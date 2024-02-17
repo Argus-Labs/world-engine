@@ -2,8 +2,6 @@ package receipt
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -73,15 +71,12 @@ func (r *Notifier) sendNotifications(ch chan []*Receipt) {
 	for {
 		select {
 		case receipts := <-ch:
-			fmt.Println("got batch of receipts of len: " + strconv.Itoa(len(receipts)))
 			if err := r.handleReceipt(receipts); err != nil {
 				r.logger.Debug("failed to send batch of receipts of len %d: %v", len(receipts), err)
 			}
 		case <-ticker.C:
 			r.cleanupStaleTransactions()
 		case tx := <-r.newTxHash:
-			fmt.Println("adding new hash to notifier mapping")
-			fmt.Println("hash: " + tx.txHash)
 			r.txHashToTargetInfo[tx.txHash] = targetInfo{
 				createdAt: time.Now(),
 				userID:    tx.userID,
@@ -94,6 +89,7 @@ func (r *Notifier) sendNotifications(ch chan []*Receipt) {
 func (r *Notifier) handleReceipt(receipts []*Receipt) error {
 	ctx := context.Background()
 
+	//nolint:prealloc // we cannot know how many notifications we're going to get
 	var notifications []*runtime.NotificationSend
 	for _, receipt := range receipts {
 		target, ok := r.txHashToTargetInfo[receipt.TxHash]
@@ -107,8 +103,6 @@ func (r *Notifier) handleReceipt(receipts []*Receipt) error {
 			"result": receipt.Result,
 			"errors": receipt.Errors,
 		}
-		fmt.Println("adding the following receipt to notifications batch:")
-		fmt.Println(data)
 
 		notifications = append(notifications, &runtime.NotificationSend{
 			UserID:     target.userID,
@@ -123,14 +117,12 @@ func (r *Notifier) handleReceipt(receipts []*Receipt) error {
 	if err := r.nk.NotificationsSend(ctx, notifications); err != nil {
 		return eris.Wrapf(err, "unable to send batch of %d receipts from Nakama Notifier", len(receipts))
 	}
-	fmt.Printf("SENT %d receipts as NOTIFICATIONS\n", len(receipts))
 	return nil
 }
 
 // cleanupStaleTransactions identifies any transactions that have been pending for too long (see
 // ReceiptNotifier.staleDuration) and deletes them.
 func (r *Notifier) cleanupStaleTransactions() {
-	fmt.Println("GOT DELETED!")
 	for txHash, info := range r.txHashToTargetInfo {
 		if time.Since(info.createdAt) > r.staleDuration {
 			delete(r.txHashToTargetInfo, txHash)
