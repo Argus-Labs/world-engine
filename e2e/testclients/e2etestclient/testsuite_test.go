@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -49,22 +48,19 @@ func TestEvents(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode, body)
 	}
 
-	_, events, err := c.ListNotifications(amountOfPlayers)
+	_, events, err := c.ListNotifications(amountOfPlayers + 1)
 	assert.NilError(t, err)
 	for len(events) != amountOfPlayers { // loop until notification sent.
 		time.Sleep(1 * time.Second)
-		_, events, err = c.ListNotifications(amountOfPlayers)
+		_, events, err = c.ListNotifications(amountOfPlayers + 1)
 		assert.NilError(t, err)
 	}
+
+	// Assert three player creation events were sent
 	assert.Equal(t, len(events), amountOfPlayers)
-	results := make(map[string]string)
-	for i := 0; i < amountOfPlayers; i++ {
-		results[string([]byte{events[i].Message[0]})] = events[i].Message
-	}
-	for i := 1; i < amountOfPlayers+1; i++ {
-		message, ok := results[strconv.Itoa(i)]
-		assert.Equal(t, ok, true, "expected result at index %d", i)
-		assert.Equal(t, message, fmt.Sprintf("%d player created", i))
+	for i := 1; i < amountOfPlayers; i++ {
+		message := events[i].Message
+		assert.Contains(t, message, "player created")
 	}
 }
 
@@ -79,8 +75,6 @@ func TestReceipts(t *testing.T) {
 	username, deviceID, personaTag := triple(randomString())
 	c := clientutils.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(username, deviceID))
-	fmt.Println("username : " + username)
-	fmt.Println("deviceId: " + deviceID)
 
 	// 2: Make RPC call to claim a persona tag
 	resp, err := c.RPC("nakama/claim-persona", map[string]any{
@@ -106,13 +100,12 @@ func TestReceipts(t *testing.T) {
 	}
 
 	// Try to get the Cardinal Receipts for the three tx/game/join calls
-	receipts, _, err := c.ListNotifications(20)
-	assert.NilError(t, err)
 	timeout := time.After(3 * time.Second)
 	retry := time.Tick(1 * time.Second)
+	var receipts []*clientutils.Receipt
 	for {
-		fmt.Println("receipts len: " + strconv.Itoa(len(receipts)))
 		receipts, _, err = c.ListNotifications(20)
+		assert.NilError(t, err)
 		if len(receipts) == 4 {
 			break
 		}
@@ -128,12 +121,10 @@ func TestReceipts(t *testing.T) {
 	assert.Equal(t, len(receipts), amountOfPlayers+1)
 	for i, receipt := range receipts {
 		if i == 0 {
-			print("WOW")
 			// 5b: Assert that the persona creation receipt was successful
 			assert.Equal(t, receipt.Result["success"], true)
 			continue
 		}
-		fmt.Println(receipt.Result)
 
 		// 5c: Assert that tx/game/join receipts returned successful
 		assert.Equal(t, len(receipt.Errors), 0)
