@@ -3,11 +3,11 @@ package handler
 import (
 	"errors"
 	"fmt"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -50,7 +50,7 @@ type Transaction = sign.Transaction
 //
 //nolint:gocognit
 func PostTransaction(
-	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
+	msgs map[string]map[string]types.Message, wCtx engine.Context, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -76,14 +76,13 @@ func PostTransaction(
 		}
 
 		var signerAddress string
-		// TODO(scott): this should be refactored; I don't see why getting signer address needs to be different here,
-		//  both of them should just derive the signer address using ecrecover from signature
-		if msgType.Name() == ecs.CreatePersonaMsg.Name() {
+		// TODO(scott): don't hardcode this
+		if msgType.Name() == "create-persona" {
 			// don't need to check the cast bc we already validated this above
-			createPersonaMsg, _ := msg.(ecs.CreatePersona)
+			createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
 			signerAddress = createPersonaMsg.SignerAddress
 		} else {
-			signerAddress, err = engine.GetSignerForPersonaTag(tx.PersonaTag, 0)
+			signerAddress, err = wCtx.GetSignerForPersonaTag(tx.PersonaTag, 0)
 			if err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
 			}
@@ -91,20 +90,20 @@ func PostTransaction(
 
 		// If signature verification is enabled, validate the transaction
 		if !disableSigVerification {
-			if err = validateSignature(tx, signerAddress, engine.Namespace().String(),
+			if err = validateSignature(tx, signerAddress, wCtx.Namespace(),
 				tx.IsSystemTransaction()); err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 			}
 			// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
 			//  to mark the nonce as used once it's included in the tick, not the server.
-			if err = engine.UseNonce(signerAddress, tx.Nonce); err != nil {
+			if err = wCtx.UseNonce(signerAddress, tx.Nonce); err != nil {
 				return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
 			}
 		}
 
 		// Add the transaction to the engine
 		// TODO(scott): this should just deal with txpool instead of having to go through engine
-		tick, hash := engine.AddTransaction(msgType.ID(), msg, tx)
+		tick, hash := wCtx.AddTransaction(msgType.ID(), msg, tx)
 
 		return ctx.JSON(&PostTransactionResponse{
 			TxHash: string(hash),

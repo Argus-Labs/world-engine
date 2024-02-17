@@ -3,12 +3,12 @@ package sys
 import (
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-var TenThousandEntityIds = []entity.ID{}
-var OneHundredEntityIds = []entity.ID{}
-var TreeEntityIds = []entity.ID{}
+var TenThousandEntityIds = []types.EntityID{}
+var OneHundredEntityIds = []types.EntityID{}
+var TreeEntityIds = []types.EntityID{}
 
 func InitTenThousandEntities(wCtx cardinal.WorldContext) error {
 	var err error

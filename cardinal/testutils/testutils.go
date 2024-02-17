@@ -3,6 +3,7 @@ package testutils
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 	"time"
 
@@ -31,10 +32,6 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 	}()
 }
 
-func WorldToWorldContext(world *cardinal.World) cardinal.WorldContext {
-	return cardinal.TestingWorldToWorldContext(world)
-}
-
 var (
 	nonce      uint64
 	privateKey *ecdsa.PrivateKey
@@ -50,7 +47,7 @@ func UniqueSignatureWithName(name string) *sign.Transaction {
 	}
 	nonce++
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
-	// directly to the Engine queue. It's OK if the signature does not match the payload.
+	// directly to the World queue. It's OK if the signature does not match the payload.
 	sig, err := sign.NewTransaction(privateKey, name, "namespace", nonce, `{"some":"data"}`)
 	if err != nil {
 		panic(err)
@@ -64,14 +61,12 @@ func UniqueSignature() *sign.Transaction {
 
 func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
-	cardinalTx cardinal.AnyMessage,
+	cardinalTx types.Message,
 	value any,
-	tx *sign.Transaction) {
-	worldCtx := WorldToWorldContext(world)
-	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
-
-	txs := ecsWorld.ListMessages()
-	txID := cardinalTx.Convert().ID()
+	tx *sign.Transaction,
+) {
+	txs := world.ListMessages()
+	txID := cardinalTx.ID()
 	found := false
 	for _, tx := range txs {
 		if tx.ID() == txID {
@@ -83,10 +78,10 @@ func AddTransactionToWorldByAnyTransaction(
 		panic(
 			fmt.Sprintf(
 				"cannot find transaction %q in registered transactions. Did you register it?",
-				cardinalTx.Convert().Name(),
+				cardinalTx.Name(),
 			),
 		)
 	}
 
-	_, _ = ecsWorld.AddTransaction(txID, value, tx)
+	_, _ = world.AddTransaction(txID, value, tx)
 }
