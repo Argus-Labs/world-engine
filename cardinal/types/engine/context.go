@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+//go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
 type Context interface {
 	// Timestamp returns the UNIX timestamp of the tick.
 	Timestamp() uint64
