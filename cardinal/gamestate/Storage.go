@@ -19,7 +19,7 @@ type PrimitiveStorage interface {
 	Decr(ctx context.Context, key string) error
 	Delete(ctx context.Context, key string) error
 	StartTransaction(ctx context.Context) (Transaction, error)
-	EndTransaction(ctx context.Context) (Transaction, error)
+	EndTransaction(ctx context.Context) error
 	Close(ctx context.Context) error
 }
 

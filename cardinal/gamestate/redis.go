@@ -14,7 +14,6 @@ import (
 )
 
 type RedisStorage struct {
-	cachedClient  redis.Cmdable
 	currentClient redis.Cmdable
 }
 
@@ -97,28 +96,22 @@ func (r *RedisStorage) Close(ctx context.Context) error {
 func (r *RedisStorage) StartTransaction(_ context.Context) (PrimitiveStorage, error) {
 	pipeline := r.currentClient.TxPipeline()
 	redisTransaction := NewRedisPrimitiveStorage(pipeline)
-	redisTransaction.cachedClient = r.currentClient
 	return &redisTransaction, nil
 }
 
-func (r *RedisStorage) EndTransaction(ctx context.Context) (PrimitiveStorage, error) {
+func (r *RedisStorage) EndTransaction(ctx context.Context) error {
 	pipeline, ok := r.currentClient.(redis.Pipeliner)
 	if !ok {
-		return nil, eris.New("current redis storage is not a pipeline/transaction")
+		return eris.New("current redis storage is not a pipeline/transaction")
 	}
 	_, err := pipeline.Exec(ctx)
-	if err != nil {
-		return nil, eris.Wrap(err, "")
-	}
-	result := NewRedisPrimitiveStorage(r.cachedClient)
-	return &result, nil
+	return eris.Wrap(err, "")
 }
 
 func NewRedisPrimitiveStorage(client redis.Cmdable) RedisStorage {
 	// when in transaction "mode" cachedClient will hold the original storage
 	// and currentClient will hold the "transaction storage" for now it will just hold two copies of storage.
 	return RedisStorage{
-		cachedClient:  client,
 		currentClient: client,
 	}
 }
