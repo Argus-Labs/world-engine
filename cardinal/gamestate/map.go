@@ -252,13 +252,13 @@ func (m *MapStorage[K, V]) Delete(_ context.Context, key K) error {
 }
 
 // Does nothing for now
-func (m *MapStorage[K, V]) StartTransaction(_ context.Context) (Storage[K], error) {
+func (m *MapStorage[K, V]) StartTransaction(_ context.Context) (Transaction[K], error) {
 	return m, nil
 }
 
 // Does nothing fow now
-func (m *MapStorage[K, V]) EndTransaction(_ context.Context) (Storage[K], error) {
-	return m, nil
+func (m *MapStorage[K, V]) EndTransaction(_ context.Context) error {
+	return nil
 }
 
 func (m *MapStorage[K, V]) Clear(_ context.Context) error {

@@ -59,9 +59,7 @@ func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, queue *txpool.T
 	if err := pipe.Incr(ctx, storageStartTickKey()); err != nil {
 		return eris.Wrap(err, "")
 	}
-
-	_, err = pipe.EndTransaction(ctx)
-	return eris.Wrap(err, "")
+	return eris.Wrap(pipe.EndTransaction(ctx), "")
 }
 
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
@@ -82,7 +80,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 	}
 	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
 	flushStartTime := time.Now()
-	_, err = pipe.EndTransaction(ctx)
+	err = pipe.EndTransaction(ctx)
 	statsd.EmitTickStat(flushStartTime, "pipe_exec")
 	if err != nil {
 		return eris.Wrap(err, "")
@@ -132,7 +130,7 @@ type pendingTransaction struct {
 }
 
 func addPendingTransactionToPipe(
-	ctx context.Context, pipe Storage[string], txs []types.Message,
+	ctx context.Context, pipe PrimitiveStorage[string], txs []types.Message,
 	queue *txpool.TxQueue,
 ) error {
 	var pending []pendingTransaction

@@ -91,11 +91,21 @@ func (r *QueryType[req, rep]) Group() string {
 }
 
 func (r *QueryType[req, rep]) HandleQuery(wCtx engine.Context, a any) (any, error) {
-	request, ok := a.(req)
-	if !ok {
-		return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
+	var request *req
+	if reflect.TypeOf(a).Kind() == reflect.Pointer {
+		ptrRequest, ok := a.(*req)
+		if !ok {
+			return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
+		}
+		request = ptrRequest
+	} else {
+		valueReq, ok := a.(req)
+		if !ok {
+			return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
+		}
+		request = &valueReq
 	}
-	reply, err := r.handler(wCtx, &request)
+	reply, err := r.handler(wCtx, request)
 	return reply, err
 }
 

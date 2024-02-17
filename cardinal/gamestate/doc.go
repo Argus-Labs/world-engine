@@ -30,7 +30,7 @@ atomically. Reads to redis during this time will never return any pending state.
 commands increments some value from 0 to 100, and then FinalizeTick is called, reading this value from the DB will
 only ever return 0 or 100 (depending on the exact timing of the call).
 
-# Redis Storage Model
+# Redis PrimitiveStorage Model
 
 The Redis keys that store data in redis are defined in keys.go. All keys are prefixed with "ECB".
 

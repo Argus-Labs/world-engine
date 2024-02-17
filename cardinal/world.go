@@ -21,9 +21,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/metastorage/redis"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -60,7 +60,7 @@ type World struct {
 	systemManager *system.Manager
 
 	namespace              Namespace
-	redisStorage           *redis.MetaStorage
+	redisStorage           *redis.Storage
 	entityStore            gamestate.Manager
 	tick                   *atomic.Uint64
 	timestamp              *atomic.Uint64
@@ -111,13 +111,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	if cfg.CardinalMode == RunModeDev {
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
-	redisMetaStore := redis.NewRedisMetaStorage(redis.Options{
+	redisMetaStore := redis.NewRedisStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
 	}, cfg.CardinalNamespace)
 
-	redisStore := gamestate.NewRedisStorage(redisMetaStore.Client)
+	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
 
 	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(&redisStore)
 	if err != nil {

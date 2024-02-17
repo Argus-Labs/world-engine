@@ -25,33 +25,33 @@ func (p *debugPlugin) Register(world *World) error {
 }
 
 func (p *debugPlugin) RegisterQueries(world *World) error {
-	err := RegisterQuery[debugStateRequest, debugStateResponse](world, "state",
+	err := RegisterQuery[DebugStateRequest, DebugStateResponse](world, "state",
 		queryDebugState,
-		WithCustomQueryGroup[debugStateRequest, debugStateResponse]("debug"))
+		WithCustomQueryGroup[DebugStateRequest, DebugStateResponse]("debug"))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type debugStateRequest struct{}
+type DebugStateRequest struct{}
 
 type debugStateElement struct {
 	ID         types.EntityID    `json:"id"`
 	Components []json.RawMessage `json:"components" swaggertype:"array,object"`
 }
 
-type debugStateResponse []*debugStateElement
+type DebugStateResponse []*debugStateElement
 
 // queryDebugState godoc
 //
 //	@Summary		Get information on all entities and components in world-engine
 //	@Description	Displays the entire game state.
 //	@Produce		application/json
-//	@Success		200	{object}	debugStateResponse
+//	@Success		200	{object}	DebugStateResponse
 //	@Router			/query/debug/state [post]
-func queryDebugState(ctx engine.Context, _ *debugStateRequest) (*debugStateResponse, error) {
-	result := make(debugStateResponse, 0)
+func queryDebugState(ctx engine.Context, _ *DebugStateRequest) (*DebugStateResponse, error) {
+	result := make(DebugStateResponse, 0)
 	s := NewSearch(ctx, filter.All())
 	var eachClosureErr error
 	searchEachErr := s.Each(

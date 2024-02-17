@@ -4,10 +4,9 @@ import (
 	"context"
 )
 
-// Storage is the interface for all available stores related to the game loop
+// PrimitiveStorage is the interface for all available stores related to the game loop
 // there is another store like interface for other logistical values located in `ecs.metastorage`
-type Storage[K comparable] interface {
-	Get(ctx context.Context, key K) (any, error)
+type PrimitiveStorage[K comparable] interface {
 	GetFloat64(ctx context.Context, key K) (float64, error)
 	GetFloat32(ctx context.Context, key K) (float32, error)
 	GetUInt64(ctx context.Context, key K) (uint64, error)
@@ -19,9 +18,12 @@ type Storage[K comparable] interface {
 	Incr(ctx context.Context, key K) error
 	Decr(ctx context.Context, key K) error
 	Delete(ctx context.Context, key K) error
-	StartTransaction(ctx context.Context) (Storage[K], error)
-	EndTransaction(ctx context.Context) (Storage[K], error)
-	Clear(ctx context.Context) error
+	StartTransaction(ctx context.Context) (Transaction[K], error)
+	EndTransaction(ctx context.Context) error
 	Close(ctx context.Context) error
 	Keys(ctx context.Context) ([]K, error)
+}
+
+type Transaction[K comparable] interface {
+	PrimitiveStorage[K]
 }

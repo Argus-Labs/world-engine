@@ -36,7 +36,7 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 		DB:       0,  // use default DB
 	}
 	client := redis.NewClient(&options)
-	store := NewRedisStorage(client)
+	store := NewRedisPrimitiveStorage(client)
 	alphaComp, err := NewMockComponentType[Alpha](Alpha{}, Alpha{})
 	assert.NilError(t, err)
 	betaComp, err := NewMockComponentType[Beta](Beta{}, Beta{})
