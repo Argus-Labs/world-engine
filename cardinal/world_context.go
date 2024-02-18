@@ -19,7 +19,7 @@ type worldContext struct {
 	readOnly bool
 }
 
-func NewWorldContextForTick(world *World, txQueue *txpool.TxQueue) engine.Context {
+func newWorldContextForTick(world *World, txQueue *txpool.TxQueue) engine.Context {
 	return &worldContext{
 		world:    world,
 		txQueue:  txQueue,
