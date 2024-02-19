@@ -5,9 +5,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"testing"
-
-	"pkg.world.dev/world-engine/cardinal/txpool"
 
 	"pkg.world.dev/world-engine/assert"
 )
