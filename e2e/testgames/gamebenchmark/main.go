@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/system"
 	"runtime/pprof"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
@@ -12,18 +13,6 @@ import (
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
 )
-
-func sumSystems(systems ...cardinal.System) cardinal.System {
-	return func(wCtx cardinal.WorldContext) error {
-		for _, system := range systems {
-			err := system(wCtx)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
 
 func initializeSystems(
 	initSystems []cardinal.System,
@@ -51,8 +40,8 @@ func main() {
 	}
 	defer pprof.StopCPUProfile()
 
-	initsystems := []cardinal.System{}
-	systems := []cardinal.System{}
+	initsystems := []system.System{}
+	systems := []system.System{}
 
 	options := []cardinal.WorldOption{
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
@@ -77,7 +66,10 @@ func main() {
 	if err != nil {
 		panic(eris.ToString(err, true))
 	}
-	world.Init(sumSystems(initsystems...))
+	err = cardinal.RegisterInitSystems(world, initsystems...)
+	if err != nil {
+		panic(eris.ToString(err, true))
+	}
 	err = world.StartGame()
 	if err != nil {
 		panic(eris.ToString(err, true))

@@ -2,62 +2,140 @@ package cardinal
 
 import (
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/receipt"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
+	"pkg.world.dev/world-engine/sign"
 )
 
-type WorldContext interface {
-	// NewSearch creates a new Search object that can iterate over entities that match
-	// a given Component filter.
-	//
-	// For example:
-	// err := worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
-	// 		...process each entity id...
-	// })
-	// if err != nil {
-	// 		return err
-	// }
-	NewSearch(filter filter.ComponentFilter) *Search
-
-	// CurrentTick returns the current game tick of the world.
-	CurrentTick() uint64
-
-	// Timestamp represents the timestamp of the current tick.
-	Timestamp() uint64
-
-	// EmitEvent broadcasts an event message to all subscribed clients.
-	EmitEvent(event string)
-
-	// Logger returns a zerolog.Logger. Additional metadata information is often attached to
-	// this logger (e.g. the name of the active System).
-	Logger() *zerolog.Logger
-
-	Engine() ecs.EngineContext
-}
-
 type worldContext struct {
-	engine ecs.EngineContext
+	world    *World
+	txQueue  *txpool.TxQueue
+	logger   *zerolog.Logger
+	readOnly bool
 }
 
-func (wCtx *worldContext) EmitEvent(event string) {
-	wCtx.engine.GetEngine().EmitEvent(&events.Event{Message: event})
+func NewWorldContextForTick(world *World, txQueue *txpool.TxQueue) engine.Context {
+	return &worldContext{
+		world:    world,
+		txQueue:  txQueue,
+		logger:   world.Logger,
+		readOnly: false,
+	}
 }
 
-func (wCtx *worldContext) CurrentTick() uint64 {
-	return wCtx.engine.CurrentTick()
+func NewWorldContext(world *World) engine.Context {
+	return &worldContext{
+		world:    world,
+		txQueue:  nil,
+		logger:   world.Logger,
+		readOnly: false,
+	}
 }
 
-func (wCtx *worldContext) Timestamp() uint64 { return wCtx.engine.Timestamp() }
-
-func (wCtx *worldContext) Logger() *zerolog.Logger {
-	return wCtx.engine.Logger()
+func NewReadOnlyWorldContext(world *World) engine.Context {
+	return &worldContext{
+		world:    world,
+		txQueue:  nil,
+		logger:   world.Logger,
+		readOnly: true,
+	}
 }
 
-func (wCtx *worldContext) NewSearch(filter filter.ComponentFilter) *Search {
-	return &Search{impl: wCtx.Engine().NewSearch(filter)}
+// interface guard
+var _ engine.Context = (*worldContext)(nil)
+
+// Timestamp returns the UNIX timestamp of the tick.
+func (ctx *worldContext) Timestamp() uint64 {
+	return ctx.world.timestamp.Load()
 }
 
-func (wCtx *worldContext) Engine() ecs.EngineContext {
-	return wCtx.engine
+func (ctx *worldContext) CurrentTick() uint64 {
+	return ctx.world.CurrentTick()
+}
+
+func (ctx *worldContext) Logger() *zerolog.Logger {
+	return ctx.logger
+}
+
+func (ctx *worldContext) SetLogger(logger zerolog.Logger) {
+	ctx.logger = &logger
+}
+
+func (ctx *worldContext) GetComponentByName(name string) (types.ComponentMetadata, error) {
+	return ctx.world.GetComponentByName(name)
+}
+
+func (ctx *worldContext) AddMessageError(id types.TxHash, err error) {
+	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
+	ctx.world.receiptHistory.AddError(id, err)
+}
+
+func (ctx *worldContext) SetMessageResult(id types.TxHash, a any) {
+	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
+	ctx.world.receiptHistory.SetResult(id, a)
+}
+
+func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
+	rec, ok := ctx.world.receiptHistory.GetReceipt(id)
+	if !ok {
+		return nil, nil, false
+	}
+	return rec.Result, rec.Errs, true
+}
+
+func (ctx *worldContext) EmitEvent(event string) {
+	ctx.world.eventHub.EmitEvent(&events.Event{Message: event})
+}
+
+func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
+	return ctx.world.GetSignerForPersonaTag(personaTag, tick)
+}
+
+func (ctx *worldContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+	return ctx.world.GetTransactionReceiptsForTick(tick)
+}
+
+func (ctx *worldContext) ReceiptHistorySize() uint64 {
+	return ctx.world.receiptHistory.Size()
+}
+
+func (ctx *worldContext) Namespace() string {
+	return string(ctx.world.namespace)
+}
+
+func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
+	return ctx.world.AddTransaction(id, v, sig)
+}
+
+func (ctx *worldContext) GetTxQueue() *txpool.TxQueue {
+	return ctx.txQueue
+}
+
+func (ctx *worldContext) IsReadOnly() bool {
+	return ctx.readOnly
+}
+
+func (ctx *worldContext) StoreManager() gamestate.Manager {
+	return ctx.world.entityStore
+}
+
+func (ctx *worldContext) StoreReader() gamestate.Reader {
+	sm := ctx.StoreManager()
+	if ctx.IsReadOnly() {
+		return sm.ToReadOnly()
+	}
+	return sm
+}
+
+func (ctx *worldContext) UseNonce(signerAddress string, nonce uint64) error {
+	return ctx.world.UseNonce(signerAddress, nonce)
+}
+
+func (ctx *worldContext) IsWorldReady() bool {
+	return ctx.world.worldStage.Current() == worldstage.Ready || ctx.world.worldStage.Current() == worldstage.Running
 }

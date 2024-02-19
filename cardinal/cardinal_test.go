@@ -3,17 +3,20 @@ package cardinal_test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/fasthttp/websocket"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gorilla/websocket"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -70,7 +73,7 @@ func TestCreatePersona(t *testing.T) {
 func TestNewWorld(t *testing.T) {
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, string(world.Engine().Namespace()), cardinal.DefaultNamespace)
+	assert.Equal(t, string(world.Namespace()), cardinal.DefaultNamespace)
 	err = world.Shutdown()
 	assert.NilError(t, err)
 }
@@ -79,7 +82,7 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, string(world.Engine().Namespace()), "custom-namespace")
+	assert.Equal(t, string(world.Namespace()), "custom-namespace")
 	err = world.Shutdown()
 	assert.NilError(t, err)
 }
@@ -88,12 +91,12 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
 	tf := testutils.NewTestFixture(t, nil)
-	world, doTick := tf.World, tf.DoTick
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
-	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
-		err := worldCtx.NewSearch(cardinal.Exact(Foo{})).Each(worldCtx, func(cardinal.EntityID) bool {
+	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+		err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).Each(func(id types.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})
@@ -102,12 +105,12 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	doTick()
+	tf.DoTick()
 	wantNumOfEntities := 10
-	wCtx := cardinal.TestingWorldToWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
-	doTick()
+	tf.DoTick()
 	assert.Equal(t, world.CurrentTick(), uint64(2))
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }
@@ -116,7 +119,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+	err := cardinal.RegisterSystems(world, func(context engine.Context) error {
 		ts = context.Timestamp()
 		return nil
 	})
@@ -130,25 +133,24 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 }
 
 func TestShutdownViaSignal(t *testing.T) {
-	t.Skip("skipping this test til events and shutdown signals work again")
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
 	tf := testutils.NewTestFixture(t, nil)
 	world, addr := tf.World, tf.BaseURL
 	httpBaseURL := "http://" + addr
-	wsBaseURL := "ws://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) error {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
+	err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
+		_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 		if err != nil {
 			return err
 		}
 		return nil
 	})
+	assert.NilError(t, err)
 	tf.StartWorld()
-	wCtx := cardinal.TestingWorldToWorldContext(world)
-	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
+	wCtx := cardinal.NewWorldContext(world)
+	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 	assert.NilError(t, err)
 	// test CORS with cardinal
 	client := &http.Client{}
@@ -161,6 +163,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 
+	wsBaseURL := "ws://" + addr
 	conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
 	assert.NilError(t, err)
 	var wg sync.WaitGroup
@@ -170,8 +173,9 @@ func TestShutdownViaSignal(t *testing.T) {
 		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
 		wg.Done()
 	}()
+
 	// Send a SIGINT signal.
-	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
+	cmd := exec.Command("kill", "-SIGINT", strconv.Itoa(os.Getpid()))
 	err = cmd.Run()
 	assert.NilError(t, err)
 
@@ -179,5 +183,26 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is not running
 		time.Sleep(50 * time.Millisecond)
 	}
-	wg.Wait()
+}
+
+func TestWithPrettyLog_LogIsNotJSONFormatted(t *testing.T) {
+	world := testutils.NewTestFixture(t, nil, cardinal.WithPrettyLog()).World
+	assert.NotNil(t, world.Logger)
+
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	world.Logger.Info().Msg("test")
+	err := w.Close()
+	assert.NilError(t, err)
+
+	output, err := io.ReadAll(r)
+	assert.NilError(t, err)
+	assert.Assert(t, !isValidJSON(output))
+}
+
+// isValidJSON tests if a string is valid JSON.
+func isValidJSON(bz []byte) bool {
+	var js map[string]interface{}
+	return json.Unmarshal(bz, &js) == nil
 }

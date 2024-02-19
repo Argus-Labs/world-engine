@@ -1,0 +1,53 @@
+package gamestate_test
+
+import (
+	"context"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/txpool"
+
+	"pkg.world.dev/world-engine/assert"
+)
+
+func TestCanSaveAndRecoverTransactions(t *testing.T) {
+	type MsgIn struct {
+		Value int
+	}
+	type MsgOut struct {
+		Value int
+	}
+
+	msgAlpha := message.NewMessageType[MsgIn, MsgOut]("alpha")
+	msgBeta := message.NewMessageType[MsgIn, MsgOut]("beta")
+	assert.NilError(t, msgAlpha.SetID(16))
+	assert.NilError(t, msgBeta.SetID(32))
+	msgs := []types.Message{msgAlpha, msgBeta}
+
+	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	originalQueue := txpool.NewTxQueue()
+	sig := testutils.UniqueSignature()
+	_ = originalQueue.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
+
+	assert.NilError(t, manager.StartNextTick(msgs, originalQueue))
+
+	// Pretend some problem was encountered here. Make sure we can recover the transactions from redis.
+	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
+	gotQueue, err := manager.Recover(msgs)
+	assert.NilError(t, err)
+
+	assert.Equal(t, gotQueue.GetAmountOfTxs(), originalQueue.GetAmountOfTxs())
+
+	// Make sure we can finalize the tick
+	assert.NilError(t, manager.StartNextTick(msgs, gotQueue))
+	assert.NilError(t, manager.FinalizeTick(context.Background()))
+}
+
+func TestErrorWhenRecoveringNoTransactions(t *testing.T) {
+	manager := newCmdBufferForTest(t)
+	_, err := manager.Recover(nil)
+	// Recover should fail when no transactions have previously been saved to the DB.
+	assert.Check(t, err != nil)
+}

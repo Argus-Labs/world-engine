@@ -1,9 +1,9 @@
 package txpool
 
 import (
+	"pkg.world.dev/world-engine/cardinal/types"
 	"sync"
 
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -42,18 +42,18 @@ func (t *TxQueue) GetEVMTxs() []TxData {
 	return transactions
 }
 
-func (t *TxQueue) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) message.TxHash {
+func (t *TxQueue) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) types.TxHash {
 	return t.addTransaction(id, v, sig, "")
 }
 
-func (t *TxQueue) AddEVMTransaction(id message.TypeID, v any, sig *sign.Transaction, evmTxHash string) message.TxHash {
+func (t *TxQueue) AddEVMTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {
 	return t.addTransaction(id, v, sig, evmTxHash)
 }
 
-func (t *TxQueue) addTransaction(id message.TypeID, v any, sig *sign.Transaction, evmTxHash string) message.TxHash {
+func (t *TxQueue) addTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	txHash := message.TxHash(sig.HashHex())
+	txHash := types.TxHash(sig.HashHex())
 	t.m[id] = append(t.m[id], TxData{
 		MsgID:           id,
 		TxHash:          txHash,
@@ -83,16 +83,16 @@ func (t *TxQueue) reset() {
 	t.txsInQueue = 0
 }
 
-func (t *TxQueue) ForID(id message.TypeID) []TxData {
+func (t *TxQueue) ForID(id types.MessageID) []TxData {
 	return t.m[id]
 }
 
-type TxMap map[message.TypeID][]TxData
+type TxMap map[types.MessageID][]TxData
 
 type TxData struct {
-	MsgID  message.TypeID
+	MsgID  types.MessageID
 	Msg    any
-	TxHash message.TxHash
+	TxHash types.TxHash
 	Tx     *sign.Transaction
 	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
 	EVMSourceTxHash string
