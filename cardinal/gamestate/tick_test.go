@@ -27,21 +27,21 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 	msgs := []types.Message{msgAlpha, msgBeta}
 
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	originalQueue := txpool.NewTxQueue()
+	originalPool := txpool.New()
 	sig := testutils.UniqueSignature()
-	_ = originalQueue.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
+	_ = originalPool.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
 
-	assert.NilError(t, manager.StartNextTick(msgs, originalQueue))
+	assert.NilError(t, manager.StartNextTick(msgs, originalPool))
 
 	// Pretend some problem was encountered here. Make sure we can recover the transactions from redis.
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
-	gotQueue, err := manager.Recover(msgs)
+	gotPool, err := manager.Recover(msgs)
 	assert.NilError(t, err)
 
-	assert.Equal(t, gotQueue.GetAmountOfTxs(), originalQueue.GetAmountOfTxs())
+	assert.Equal(t, gotPool.GetAmountOfTxs(), originalPool.GetAmountOfTxs())
 
 	// Make sure we can finalize the tick
-	assert.NilError(t, manager.StartNextTick(msgs, gotQueue))
+	assert.NilError(t, manager.StartNextTick(msgs, gotPool))
 	assert.NilError(t, manager.FinalizeTick(context.Background()))
 }
 

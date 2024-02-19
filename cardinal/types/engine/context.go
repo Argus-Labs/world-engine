@@ -38,6 +38,6 @@ type Context interface {
 	IsWorldReady() bool
 	StoreReader() gamestate.Reader
 	StoreManager() gamestate.Manager
-	GetTxQueue() *txpool.TxQueue
+	GetTxPool() *txpool.TxPool
 	IsReadOnly() bool
 }

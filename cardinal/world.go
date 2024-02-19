@@ -70,7 +70,7 @@ type World struct {
 
 	evmTxReceipts map[string]EVMTxReceipt
 
-	txQueue *txpool.TxQueue
+	txPool *txpool.TxPool
 
 	receiptHistory *receipt.History
 
@@ -135,7 +135,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		timestamp:         new(atomic.Uint64),
 		nameToComponent:   make(map[string]types.ComponentMetadata),
 		nameToQuery:       make(map[string]engine.Query),
-		txQueue:           txpool.NewTxQueue(),
+		txPool:            txpool.New(),
 		Logger:            &log.Logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
@@ -232,10 +232,10 @@ func (w *World) Tick(ctx context.Context) error {
 
 	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
 
-	// Copy the transactions from the queue so that we can safely modify the queue while the tick is running.
-	txQueue := w.txQueue.CopyTransactions()
+	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
+	txPool := w.txPool.CopyTransactions()
 
-	if err := w.entityStore.StartNextTick(w.msgManager.GetRegisteredMessages(), txQueue); err != nil {
+	if err := w.entityStore.StartNextTick(w.msgManager.GetRegisteredMessages(), txPool); err != nil {
 		return err
 	}
 
@@ -244,7 +244,7 @@ func (w *World) Tick(ctx context.Context) error {
 	w.timestamp.Store(uint64(startTime.Unix()))
 
 	// Create the engine context to inject into systems
-	wCtx := newWorldContextForTick(w, txQueue)
+	wCtx := newWorldContextForTick(w, txPool)
 
 	// Run all registered systems.
 	// This will run the registered init systems if the current tick is 0
@@ -265,15 +265,15 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
-	w.setEvmResults(txQueue.GetEVMTxs())
+	w.setEvmResults(txPool.GetEVMTxs())
 
 	// Handle tx data blob submission
 	// Only submit transactions when the following criteria is satisfied:
-	// 1. There are transactions in the queue
+	// 1. There are transactions in the pool
 	// 2. The shard router is set
 	// 3. The world is not in the recovering stage (we don't want to resubmit past transactions)
-	if txQueue.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
-		err := w.router.SubmitTxBlob(ctx, txQueue.Transactions(), w.tick.Load(), w.timestamp.Load())
+	if txPool.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
+		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
@@ -284,7 +284,7 @@ func (w *World) Tick(ctx context.Context) error {
 	w.receiptHistory.NextTick() // todo(scott): use channels
 
 	statsd.EmitTickStat(startTime, "full_tick")
-	if err := statsd.Client().Count("num_of_txs", int64(txQueue.GetAmountOfTxs()), nil, 1); err != nil {
+	if err := statsd.Client().Count("num_of_txs", int64(txPool.GetAmountOfTxs()), nil, 1); err != nil {
 		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
 	}
 
@@ -389,8 +389,8 @@ func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 				w.drainChannelsWaitingForNextTick()
 				w.drainEndLoopChannels()
 				closeAllChannels(waitingChs)
-				if w.txQueue.GetAmountOfTxs() > 0 {
-					// immediately tick if queue is not empty to process all txs if queue is not empty.
+				if w.txPool.GetAmountOfTxs() > 0 {
+					// immediately tick if pool is not empty to process all txs if queue is not empty.
 					w.tickTheEngine(ctx, tickDone)
 					if tickDone != nil {
 						close(tickDone)
@@ -574,8 +574,8 @@ func (w *World) drainEndLoopChannels() {
 	}()
 }
 
-// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
-// Instead, use a MessageType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
+// AddTransaction adds a transaction to the transaction pool. This should not be used directly.
+// Instead, use a MessageType.AddTransaction to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (
 	tick uint64, txHash types.TxHash,
@@ -583,7 +583,7 @@ func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction)
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
 	tick = w.CurrentTick()
-	txHash = w.txQueue.AddTransaction(id, v, sig)
+	txHash = w.txPool.AddTransaction(id, v, sig)
 	return tick, txHash
 }
 
@@ -596,7 +596,7 @@ func (w *World) AddEVMTransaction(
 	tick uint64, txHash types.TxHash,
 ) {
 	tick = w.CurrentTick()
-	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
+	txHash = w.txPool.AddEVMTransaction(id, v, sig, evmTxHash)
 	return tick, txHash
 }
 
