@@ -1,17 +1,13 @@
-//nolint:govet // false positives
 package cql
 
 import (
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types"
-)
-
-import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/filter"
 )
 
 type cqlOperator int
@@ -22,6 +18,8 @@ const (
 )
 
 var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
+
+type componentByName func(string) (types.ComponentMetadata, error)
 
 // Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
 func (o *cqlOperator) Capture(s []string) error {
@@ -160,7 +158,7 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Msg is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (types.Component, error)) (
+func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) (
 	filter.ComponentFilter, error,
 ) {
 	if value.Not != nil { //nolint:gocritic,nestif // its fine.
@@ -173,7 +171,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (typ
 		if len(value.Exact.Components) == 0 {
 			return nil, eris.New("EXACT cannot have zero parameters")
 		}
-		components := make([]types.Component, 0, len(value.Exact.Components))
+		components := make([]component.Component, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
@@ -188,7 +186,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (typ
 		if len(value.Contains.Components) == 0 {
 			return nil, eris.New("CONTAINS cannot have zero parameters")
 		}
-		components := make([]types.Component, 0, len(value.Contains.Components))
+		components := make([]component.Component, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
@@ -204,7 +202,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (typ
 	}
 }
 
-func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (types.Component, error)) (
+func factorToComponentFilter(factor *cqlFactor, stringToComponent componentByName) (
 	filter.ComponentFilter, error,
 ) {
 	return valueToComponentFilter(factor.Base, stringToComponent)
@@ -212,7 +210,7 @@ func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (
 
 func opFactorToComponentFilter(
 	opFactor *cqlOpFactor,
-	stringToComponent func(string) (types.Component, error),
+	stringToComponent componentByName,
 ) (*cqlOperator, filter.ComponentFilter, error) {
 	resultFilter, err := factorToComponentFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
@@ -222,7 +220,7 @@ func opFactorToComponentFilter(
 }
 
 func termToComponentFilter(
-	term *cqlTerm, stringToComponent func(string) (types.Component, error),
+	term *cqlTerm, stringToComponent componentByName,
 ) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, eris.New("not enough values in expression")
@@ -249,11 +247,11 @@ func termToComponentFilter(
 }
 
 func Parse(
-	cqlText string, stringToComponent func(string) (types.Component, error),
+	cqlText string, stringToComponent componentByName,
 ) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
-		return nil, eris.Wrap(err, "failed to parse CQL string")
+		return nil, eris.Wrap(err, "")
 	}
 	resultFilter, err := termToComponentFilter(term, stringToComponent)
 	if err != nil {
