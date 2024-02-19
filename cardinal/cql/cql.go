@@ -241,9 +241,9 @@ func termToComponentFilter(term *cqlTerm, stringToComponent componentByName) (fi
 }
 
 func Parse(cqlText string, stringToComponent componentByName) (filter.ComponentFilter, error) {
-	term, err := internalCQLParser.ParseString("failed to parse CQL string", cqlText)
+	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrap(err, "failed to parse CQL string")
 	}
 	resultFilter, err := termToComponentFilter(term, stringToComponent)
 	if err != nil {
