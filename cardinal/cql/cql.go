@@ -82,7 +82,6 @@ type cqlTerm struct {
 }
 
 // Display
-
 func (o cqlOperator) String() string {
 	switch o {
 	case opAnd:
@@ -158,9 +157,7 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Msg is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) (
-	filter.ComponentFilter, error,
-) {
+func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) (filter.ComponentFilter, error) {
 	if value.Not != nil { //nolint:gocritic,nestif // its fine.
 		resultFilter, err := valueToComponentFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
@@ -208,10 +205,9 @@ func factorToComponentFilter(factor *cqlFactor, stringToComponent componentByNam
 	return valueToComponentFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToComponentFilter(
-	opFactor *cqlOpFactor,
-	stringToComponent componentByName,
-) (*cqlOperator, filter.ComponentFilter, error) {
+func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent componentByName) (
+	*cqlOperator, filter.ComponentFilter, error,
+) {
 	resultFilter, err := factorToComponentFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -219,9 +215,7 @@ func opFactorToComponentFilter(
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToComponentFilter(
-	term *cqlTerm, stringToComponent componentByName,
-) (filter.ComponentFilter, error) {
+func termToComponentFilter(term *cqlTerm, stringToComponent componentByName) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, eris.New("not enough values in expression")
 	}
@@ -246,10 +240,8 @@ func termToComponentFilter(
 	return acc, nil
 }
 
-func Parse(
-	cqlText string, stringToComponent componentByName,
-) (filter.ComponentFilter, error) {
-	term, err := internalCQLParser.ParseString("", cqlText)
+func Parse(cqlText string, stringToComponent componentByName) (filter.ComponentFilter, error) {
+	term, err := internalCQLParser.ParseString("failed to parse CQL string", cqlText)
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
