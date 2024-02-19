@@ -19,7 +19,7 @@ const (
 
 var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
 
-type componentByName func(string) (types.ComponentMetadata, error)
+type componentByName func(string) (types.Component, error)
 
 // Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
 func (o *cqlOperator) Capture(s []string) error {
@@ -171,7 +171,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) 
 		if len(value.Exact.Components) == 0 {
 			return nil, eris.New("EXACT cannot have zero parameters")
 		}
-		components := make([]component.Component, 0, len(value.Exact.Components))
+		components := make([]types.Component, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
@@ -186,7 +186,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) 
 		if len(value.Contains.Components) == 0 {
 			return nil, eris.New("CONTAINS cannot have zero parameters")
 		}
-		components := make([]component.Component, 0, len(value.Contains.Components))
+		components := make([]types.Component, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
