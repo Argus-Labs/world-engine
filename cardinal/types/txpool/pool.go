@@ -7,26 +7,26 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-type TxQueue struct {
-	m          TxMap
-	txsInQueue int
-	mux        *sync.Mutex
+type TxPool struct {
+	m         TxMap
+	txsInPool int
+	mux       *sync.Mutex
 }
 
-func NewTxQueue() *TxQueue {
-	return &TxQueue{
+func New() *TxPool {
+	return &TxPool{
 		m:   TxMap{},
 		mux: &sync.Mutex{},
 	}
 }
 
-func (t *TxQueue) GetAmountOfTxs() int {
-	return t.txsInQueue
+func (t *TxPool) GetAmountOfTxs() int {
+	return t.txsInPool
 }
 
 // GetEVMTxs gets all the txs in the queue that originated from the EVM.
 // NOTE: this is called ONLY in the copied tx queue in world.Tick, so we do not need to use the mutex here.
-func (t *TxQueue) GetEVMTxs() []TxData {
+func (t *TxPool) GetEVMTxs() []TxData {
 	transactions := make([]TxData, 0)
 	for _, txs := range t.m {
 		// skip if theres nothing
@@ -42,15 +42,15 @@ func (t *TxQueue) GetEVMTxs() []TxData {
 	return transactions
 }
 
-func (t *TxQueue) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) types.TxHash {
+func (t *TxPool) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) types.TxHash {
 	return t.addTransaction(id, v, sig, "")
 }
 
-func (t *TxQueue) AddEVMTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {
+func (t *TxPool) AddEVMTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {
 	return t.addTransaction(id, v, sig, evmTxHash)
 }
 
-func (t *TxQueue) addTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {
+func (t *TxPool) addTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	txHash := types.TxHash(sig.HashHex())
@@ -61,16 +61,16 @@ func (t *TxQueue) addTransaction(id types.MessageID, v any, sig *sign.Transactio
 		Tx:              sig,
 		EVMSourceTxHash: evmTxHash,
 	})
-	t.txsInQueue++
+	t.txsInPool++
 	return txHash
 }
 
-func (t *TxQueue) Transactions() TxMap {
+func (t *TxPool) Transactions() TxMap {
 	return t.m
 }
 
-// CopyTransactions returns a copy of the TxQueue, and resets the state to 0 values.
-func (t *TxQueue) CopyTransactions() *TxQueue {
+// CopyTransactions returns a copy of the TxPool, and resets the state to 0 values.
+func (t *TxPool) CopyTransactions() *TxPool {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	cpy := *t
@@ -78,12 +78,12 @@ func (t *TxQueue) CopyTransactions() *TxQueue {
 	return &cpy
 }
 
-func (t *TxQueue) reset() {
+func (t *TxPool) reset() {
 	t.m = TxMap{}
-	t.txsInQueue = 0
+	t.txsInPool = 0
 }
 
-func (t *TxQueue) ForID(id types.MessageID) []TxData {
+func (t *TxPool) ForID(id types.MessageID) []TxData {
 	return t.m[id]
 }
 

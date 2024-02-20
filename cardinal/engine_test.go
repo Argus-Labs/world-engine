@@ -7,8 +7,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"testing"
 	"time"
 
@@ -119,7 +119,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	// add tx to queue
+	// add tx to pool
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
@@ -182,7 +182,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 	tf.StartWorld()
 
-	// add tx to queue
+	// add tx to pool
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
