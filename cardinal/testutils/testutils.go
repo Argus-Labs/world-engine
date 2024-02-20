@@ -47,7 +47,7 @@ func UniqueSignatureWithName(name string) *sign.Transaction {
 	}
 	nonce++
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
-	// directly to the World queue. It's OK if the signature does not match the payload.
+	// directly to the World tx pool. It's OK if the signature does not match the payload.
 	sig, err := sign.NewTransaction(privateKey, name, "namespace", nonce, `{"some":"data"}`)
 	if err != nil {
 		panic(err)
