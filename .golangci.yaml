@@ -183,7 +183,7 @@ linters-settings:
   nolintlint:
     # Exclude following linters from requiring an explanation.
     # Default: []
-    allow-no-explanation: [funlen, gocognit, lll]
+    allow-no-explanation: [ funlen, gocognit, lll ]
     # Enable to require an explanation of nonzero length after each nolint directive.
     # Default: false
     require-explanation: true
@@ -323,22 +323,22 @@ issues:
   max-same-issues: 50
 
   exclude-rules:
-    - path: cardinal/ecs/cql/
+    - path: cardinal/cql/
       text: "not compatible with reflect.StructTag.Get"
       linters:
         - govet
     - path: "mock/.*\\.go"
-      linters: [funlen]
+      linters: [ funlen ]
     - path: "build"
-      linters: [wrapcheck]
+      linters: [ wrapcheck ]
     - source: "^//\\s*go:generate\\s"
-      linters: [lll]
+      linters: [ lll ]
     - source: "(noinspection|TODO)"
-      linters: [godot]
+      linters: [ godot ]
     - source: "//noinspection"
-      linters: [gocritic]
+      linters: [ gocritic ]
     - source: "^\\s+if _, ok := err\\.\\([^.]+\\.InternalError\\); ok {"
-      linters: [errorlint]
+      linters: [ errorlint ]
     - path: "_test\\.go"
       linters:
         - bodyclose
