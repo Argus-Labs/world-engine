@@ -10,7 +10,7 @@ on:
 jobs:
   evm:
     name: Build EVM
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
     steps:
       - name: Checkout
         uses: actions/checkout@v4
