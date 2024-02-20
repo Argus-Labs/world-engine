@@ -212,11 +212,13 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 		return nil, eris.Wrap(iterators.ErrComponentNotOnEntity, "")
 	}
 
-	// Fetch the value from redis
+	// Fetch the value from storage
 	redisKey := storageComponentKey(cType.ID(), id)
 
 	bz, err := m.dbStorage.GetBytes(ctx, redisKey)
 	if err != nil {
+		// todo: this is redis specific, should be changed to a general error on storage
+		// todo: RedisStorage needs to be modified to return this general error when a redis.Nil is detected.
 		if !errors.Is(err, redis.Nil) {
 			return nil, err
 		}
@@ -380,6 +382,8 @@ func (m *EntityCommandBuffer) InjectLogger(logger *zerolog.Logger) {
 func (m *EntityCommandBuffer) Close() error {
 	ctx := context.Background()
 	err := eris.Wrap(m.dbStorage.Close(ctx), "")
+	// todo: make error general to storage and not redis specific
+	// todo: adjust redis client to be return a general storage error when redis.ErrClosed is detected
 	if eris.Is(eris.Cause(err), redis.ErrClosed) {
 		// if redis is already closed that means another shutdown pathway got to it first.
 		// There are multiple modules that will try to shutdown redis, if it is already shutdown it is not an error.
@@ -397,6 +401,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 	key := storageArchetypeIDForEntityID(id)
 	num, err := m.dbStorage.GetInt(context.Background(), key)
 	if err != nil {
+		// todo: Make redis.Nil a general error on storage
 		if errors.Is(err, redis.Nil) {
 			return 0, eris.Wrap(redis.Nil, iterators.ErrEntityDoesNotExist.Error())
 		}
@@ -415,6 +420,7 @@ func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
 		nextID, err := m.dbStorage.GetUInt64(ctx, storageNextEntityIDKey())
 		err = eris.Wrap(err, "")
 		if err != nil {
+			// todo: make redis.Nil a general error on storage.
 			if !eris.Is(eris.Cause(err), redis.Nil) {
 				return 0, err
 			}
@@ -465,6 +471,8 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 	err = eris.Wrap(err, "")
 	var ids []types.EntityID
 	if err != nil {
+		// todo: this is redis specific, should be changed to a general error on storage
+		// todo: RedisStorage needs to be modified to return this general error when a redis.Nil is detected.
 		if !eris.Is(eris.Cause(err), redis.Nil) {
 			return active, err
 		}
