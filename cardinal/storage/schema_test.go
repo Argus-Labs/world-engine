@@ -1,8 +1,9 @@
 package storage_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"pkg.world.dev/world-engine/assert"
 )

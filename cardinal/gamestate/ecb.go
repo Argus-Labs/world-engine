@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -19,7 +20,7 @@ import (
 var _ Manager = &EntityCommandBuffer{}
 
 type EntityCommandBuffer struct {
-	client *redis.Client
+	storage PrimitiveStorage
 
 	compValues         map[compKey]any
 	compValuesToDelete map[compKey]bool
@@ -49,9 +50,9 @@ var (
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
 // atomically commit them to the underlying redis storage layer.
-func NewEntityCommandBuffer(client *redis.Client) (*EntityCommandBuffer, error) {
+func NewEntityCommandBuffer(storage PrimitiveStorage) (*EntityCommandBuffer, error) {
 	m := &EntityCommandBuffer{
-		client:             client,
+		storage:            storage,
 		compValues:         map[compKey]any{},
 		compValuesToDelete: map[compKey]bool{},
 
@@ -205,7 +206,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	redisKey := redisComponentKey(cType.ID(), id)
 	ctx := context.Background()
 
-	bz, err := m.client.Get(ctx, redisKey).Bytes()
+	bz, err := m.storage.GetBytes(ctx, redisKey)
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
 			return nil, err
@@ -365,7 +366,8 @@ func (m *EntityCommandBuffer) InjectLogger(logger *zerolog.Logger) {
 
 // Close closes the manager.
 func (m *EntityCommandBuffer) Close() error {
-	err := eris.Wrap(m.client.Close(), "")
+	ctx := context.Background()
+	err := eris.Wrap(m.storage.Close(ctx), "")
 	if eris.Is(eris.Cause(err), redis.ErrClosed) {
 		// if redis is already closed that means another shutdown pathway got to it first.
 		// There are multiple modules that will try to shutdown redis, if it is already shutdown it is not an error.
@@ -381,7 +383,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 		return archID, nil
 	}
 	key := redisArchetypeIDForEntityID(id)
-	num, err := m.client.Get(context.Background(), key).Int()
+	num, err := m.storage.GetInt(context.Background(), key)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return 0, eris.Wrap(redis.Nil, iterators.ErrEntityDoesNotExist.Error())
@@ -398,7 +400,7 @@ func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
 	if !m.isEntityIDLoaded {
 		// The next valid entity EntityID needs to be loaded from storage.
 		ctx := context.Background()
-		nextID, err := m.client.Get(ctx, redisNextEntityIDKey()).Uint64()
+		nextID, err := m.storage.GetUInt64(ctx, redisNextEntityIDKey())
 		err = eris.Wrap(err, "")
 		if err != nil {
 			if !eris.Is(eris.Cause(err), redis.Nil) {
@@ -447,7 +449,7 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 	}
 	ctx := context.Background()
 	key := redisActiveEntityIDKey(archID)
-	bz, err := m.client.Get(ctx, key).Bytes()
+	bz, err := m.storage.GetBytes(ctx, key)
 	err = eris.Wrap(err, "")
 	var ids []types.EntityID
 	if err != nil {

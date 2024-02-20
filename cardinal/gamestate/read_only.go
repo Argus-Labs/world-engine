@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 )
 
@@ -20,14 +20,14 @@ var (
 )
 
 type readOnlyManager struct {
-	client          *redis.Client
+	storage         PrimitiveStorage
 	typeToComponent map[types.ComponentID]types.ComponentMetadata
 	archIDToComps   map[types.ArchetypeID][]types.ComponentMetadata
 }
 
 func (m *EntityCommandBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
-		client:          m.client,
+		storage:         m.storage,
 		typeToComponent: m.typeToComponent,
 	}
 }
@@ -36,7 +36,7 @@ func (m *EntityCommandBuffer) ToReadOnly() Reader {
 // only, i.e. if an archetype arch id is in this map, it will ALWAYS refer to the same set of components.
 // It's ok to save this to memory instead of reading from redit each time.
 func (r *readOnlyManager) refreshArchIDToCompTypes() error {
-	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(r.client, r.typeToComponent)
+	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(r.storage, r.typeToComponent)
 	if err != nil {
 		return err
 	} else if !ok {
@@ -61,7 +61,7 @@ func (r *readOnlyManager) GetComponentForEntityInRawJSON(
 ) (json.RawMessage, error) {
 	ctx := context.Background()
 	key := redisComponentKey(cType.ID(), id)
-	res, err := r.client.Get(ctx, key).Bytes()
+	res, err := r.storage.GetBytes(ctx, key)
 	return res, eris.Wrap(err, "")
 }
 
@@ -83,7 +83,7 @@ func (r *readOnlyManager) GetComponentTypesForEntity(id types.EntityID) ([]types
 	ctx := context.Background()
 
 	archIDKey := redisArchetypeIDForEntityID(id)
-	num, err := r.client.Get(ctx, archIDKey).Int()
+	num, err := r.storage.GetInt(ctx, archIDKey)
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -129,7 +129,7 @@ func (r *readOnlyManager) GetArchIDForComponents(
 func (r *readOnlyManager) GetEntitiesForArchID(archID types.ArchetypeID) ([]types.EntityID, error) {
 	ctx := context.Background()
 	key := redisActiveEntityIDKey(archID)
-	bz, err := r.client.Get(ctx, key).Bytes()
+	bz, err := r.storage.GetBytes(ctx, key)
 	if err != nil {
 		// No entities were found for this archetype EntityID
 		return nil, eris.Wrap(err, "")
