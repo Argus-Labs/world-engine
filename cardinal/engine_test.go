@@ -370,8 +370,8 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-// TODO(scott): I commented out this test becase the RecoverFromChain user story doesn't make sense right now.
-// RecoverFromChain needs to automatically executed on `StartGame` if:
+// TODO(scott): I commented out this test becase the recoverFromChain user story doesn't make sense right now.
+// recoverFromChain needs to automatically executed on `StartGame` if:
 // 1) router is set
 // 2) the current tick (after recovering from redis/memstore) is less than the current tick in the chain
 
@@ -454,7 +454,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 //	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
 //	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
 //
-//	err = world.RecoverFromChain(context.Background())
+//	err = world.recoverFromChain(context.Background())
 //	assert.NilError(t, err)
 //
 //	assert.Equal(t, fooMessages, 2)

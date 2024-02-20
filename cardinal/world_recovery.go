@@ -41,10 +41,10 @@ func (w *World) recoverAndExecutePendingTxs() error {
 	return nil
 }
 
-// RecoverFromChain will attempt to recover the state of the engine based on historical transaction data.
+// recoverFromChain will attempt to recover the state of the engine based on historical transaction data.
 // The function puts the World in a recovery state, and will then query all transaction batches under the World's
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
-func (w *World) RecoverFromChain(ctx context.Context) error {
+func (w *World) recoverFromChain(ctx context.Context) error {
 	if w.router == nil {
 		return eris.Errorf(
 			"chain adapter was nil. " +

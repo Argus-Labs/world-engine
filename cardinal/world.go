@@ -323,7 +323,12 @@ func (w *World) StartGame() error {
 		}
 	}
 
-	// TODO(scott): hypothethically, this would be where we are calling RecoverFromChain()
+	// If router is set, recover the old state of the engine from the chain, if there is any
+	if w.router != nil {
+		if err := w.recoverFromChain(context.Background()); err != nil {
+			return eris.Wrap(err, "failed to recover from chain")
+		}
+	}
 
 	// Recover pending transactions from redis
 	err := w.recoverAndExecutePendingTxs()
