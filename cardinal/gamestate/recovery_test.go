@@ -2,9 +2,10 @@ package gamestate_test
 
 import (
 	"context"
+	"testing"
+
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"testing"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
@@ -20,7 +21,7 @@ func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
 
 	nextID := ids[len(ids)-1] + 1
 
-	// Make a new manager using the same redis client. Newly assigned ids should start off where
+	// Make a new manager using the same redis storage. Newly assigned ids should start off where
 	// the previous manager left off
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	gotID, err := manager.CreateEntity(fooComp)
