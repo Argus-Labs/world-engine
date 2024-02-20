@@ -201,7 +201,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	key := compKey{cType.ID(), id}
 	value, err := m.compValues.Get(ctx, key)
 	if err == nil {
-		return value, err
+		return value, nil
 	}
 	// Make sure this entity has this component
 	comps, err := m.GetComponentTypesForEntity(id)

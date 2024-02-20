@@ -65,7 +65,7 @@ value:  JSON serialized bytes that can be deserialized to a list of transactions
 processed in the last started tick. This data is only relevant when the START-TICK number does not match the END-TICK
 number.
 
-# In-memory dbStorage model
+# In-memory storage model
 
 The in-memory data model roughly matches the model that is stored in redis, but there are some differences:
 

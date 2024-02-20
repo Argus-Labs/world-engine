@@ -104,7 +104,8 @@ func TestAddedComponentsCanBeDiscarded(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 2, len(comps))
 	// Discard this added component
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	comps, err = manager.GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
@@ -140,7 +141,8 @@ func TestCanDiscardPreviouslyAddedComponent(t *testing.T) {
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	comps, err := manager.GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
@@ -201,7 +203,8 @@ func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 	assert.Equal(t, 7, len(gotIDs))
 
 	// Discard these changes (this should bring the entities back)
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	gotIDs, err = manager.GetEntitiesForArchID(archID)
 	assert.NilError(t, err)
@@ -257,7 +260,8 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 	// But uhoh, there was a problem. This means the removal of the Foo component
 	// will be undone, and the original value can be found
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	gotFoo, err = manager.GetComponentForEntity(fooComp, id)
 	assert.NilError(t, err)
@@ -276,7 +280,8 @@ func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 	_, err = manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
 	assert.Equal(t, 2, manager.ArchetypeCount())
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	// The previously cardinal.Created archetype EntityID was discarded, so the count should be back to 1
 	_, err = manager.CreateEntity(fooComp)

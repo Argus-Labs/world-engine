@@ -154,7 +154,8 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	assert.Equal(t, nextID, gotID)
 	// But uhoh, there's a problem. Returning an error here means the entity creation
 	// will be undone
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	// cardinal.Create an entity again. We should get nextID assigned again.
 	// cardinal.Create a new entity. It should have nextID as the EntityID
@@ -201,7 +202,8 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Discard the above changes
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	// Repeat the above operation. We should end up with the same entity EntityID, and it should
 	// end up containing a different set of components

@@ -49,7 +49,7 @@ func (m *MapStorage[K, V]) GetFloat64(_ context.Context, key K) (float64, error)
 	resAny = resRaw
 	res, ok = resAny.(float64)
 	if !ok {
-		return 0, eris.New("cannot convert to float")
+		return 0, eris.New("cannot convert to float64")
 	}
 	return res, nil
 }
@@ -63,7 +63,7 @@ func (m *MapStorage[K, V]) GetFloat32(_ context.Context, key K) (float32, error)
 	resAny = resRaw
 	res, ok = resAny.(float32)
 	if !ok {
-		return 0, eris.New("cannot convert to float")
+		return 0, eris.New("cannot convert to float32")
 	}
 	return res, nil
 }
@@ -77,7 +77,7 @@ func (m *MapStorage[K, V]) GetUInt64(_ context.Context, key K) (uint64, error) {
 	resAny = resRaw
 	res, ok = resAny.(uint64)
 	if !ok {
-		return 0, eris.New("cannot convert to float")
+		return 0, eris.New("cannot convert to uint64")
 	}
 	return res, nil
 }
@@ -261,7 +261,7 @@ func (m *MapStorage[K, V]) StartTransaction(_ context.Context) (Transaction[K], 
 	return m, nil
 }
 
-// Does nothing fow now
+// Does nothing for now
 func (m *MapStorage[K, V]) EndTransaction(_ context.Context) error {
 	return nil
 }

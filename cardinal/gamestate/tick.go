@@ -87,8 +87,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 	}
 
 	m.pendingArchIDs = nil
-	m.DiscardPending()
-	return nil
+	return m.DiscardPending()
 }
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
