@@ -151,7 +151,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		world.router, err = router.New(cfg.CardinalNamespace, cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, world)
+		world.router, err = router.New(cfg.CardinalNamespace, cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress,
+			world)
 		if err != nil {
 			return nil, err
 		}
@@ -248,7 +249,7 @@ func (w *World) Tick(ctx context.Context) error {
 	w.timestamp.Store(uint64(startTime.Unix()))
 
 	// Create the engine context to inject into systems
-	wCtx := NewWorldContextForTick(w, txQueue)
+	wCtx := newWorldContextForTick(w, txQueue)
 
 	// Run all registered systems.
 	// This will run the registered init systems if the current tick is 0
