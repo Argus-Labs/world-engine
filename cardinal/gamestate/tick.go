@@ -27,14 +27,14 @@ var _ TickStorage = &EntityCommandBuffer{}
 // be completed.
 func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
-	start, err = m.storage.GetUInt64(ctx, redisStartTickKey())
+	start, err = m.storage.GetUInt64(ctx, storageStartTickKey())
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {
 		start = 0
 	} else if err != nil {
 		return 0, 0, err
 	}
-	end, err = m.storage.GetUInt64(ctx, redisEndTickKey())
+	end, err = m.storage.GetUInt64(ctx, storageEndTickKey())
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {
 		end = 0
@@ -56,7 +56,7 @@ func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, queue *txpool.T
 		return err
 	}
 
-	if err := pipe.Incr(ctx, redisStartTickKey()); err != nil {
+	if err := pipe.Incr(ctx, storageStartTickKey()); err != nil {
 		return eris.Wrap(err, "")
 	}
 	return eris.Wrap(pipe.EndTransaction(ctx), "")
@@ -75,7 +75,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err = pipe.Incr(ctx, redisEndTickKey()); err != nil {
+	if err = pipe.Incr(ctx, storageEndTickKey()); err != nil {
 		return eris.Wrap(err, "")
 	}
 	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
@@ -95,7 +95,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 // indicates that the previous tick was started, but never completed.
 func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, error) {
 	ctx := context.Background()
-	key := redisPendingTransactionKey()
+	key := storagePendingTransactionKey()
 	bz, err := m.storage.GetBytes(ctx, key)
 	if err != nil {
 		return nil, eris.Wrap(err, "")
@@ -154,6 +154,6 @@ func addPendingTransactionToPipe(
 	if err != nil {
 		return err
 	}
-	key := redisPendingTransactionKey()
+	key := storagePendingTransactionKey()
 	return eris.Wrap(pipe.Set(ctx, key, buf), "")
 }
