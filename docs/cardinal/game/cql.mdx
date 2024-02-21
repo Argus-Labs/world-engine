@@ -88,8 +88,8 @@ Operators in CQL do not have any intrinsic precedence. All expressions are consu
 - Example: `A & B | C & D | F`  is equivalent to `( ( A & B ) | C ) & D ) | F)`
 
 You can use parenthesis to specify and change precedence in CQL.
-- Example: `EXACT(legComponent) | (!CONTAIN(healthComponent) & !CONTAIN(attackComponent))`
+- Example: `EXACT(legComponent) | (!CONTAINS(healthComponent) & !CONTAINS(attackComponent))`
 - The above is a query for either an entity with only a leg component or an entity that does not have a health component and also does not have an attack component.
 
-- Example: `(EXACT(legComponent) | !CONTAIN(healthComponent)) & !CONTAIN(attackComponent)`
+- Example: `(EXACT(legComponent) | !CONTAINS(healthComponent)) & !CONTAINS(attackComponent)`
 - The above is the same query but with precedence changed. Now it is querying an entity with either exactly one leg component or does not have a health component. Additionally that entity must not ever contain a attack component.

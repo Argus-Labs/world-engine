@@ -3,11 +3,12 @@ package gamestate
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )
 
 type Reader interface {
@@ -51,13 +52,13 @@ type Writer interface {
 
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
-	StartNextTick(txs []types.Message, queues *txpool.TxQueue) error
+	StartNextTick(txs []types.Message, pool *txpool.TxPool) error
 	FinalizeTick(ctx context.Context) error
-	Recover(txs []types.Message) (*txpool.TxQueue, error)
+	Recover(txs []types.Message) (*txpool.TxPool, error)
 }
 
 // Manager represents all the methods required to track Component, Entity, and Archetype information
-// which powers the ECS storage layer.
+// which powers the ECS dbStorage layer.
 type Manager interface {
 	TickStorage
 	Reader

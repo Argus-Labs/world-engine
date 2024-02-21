@@ -17,7 +17,7 @@ type RedisStorage struct {
 	currentClient redis.Cmdable
 }
 
-var _ PrimitiveStorage = &RedisStorage{}
+var _ PrimitiveStorage[string] = &RedisStorage{}
 
 func (r *RedisStorage) GetFloat64(ctx context.Context, key string) (float64, error) {
 	res, err := r.currentClient.Get(ctx, key).Float64()
@@ -77,6 +77,14 @@ func (r *RedisStorage) Set(ctx context.Context, key string, value any) error {
 	return eris.Wrap(r.currentClient.Set(ctx, key, value, 0).Err(), "")
 }
 
+// Underlying type is a string. Unfortunately this is the way redis works and this is the most generic return value.
+func (r *RedisStorage) Get(ctx context.Context, key string) (any, error) {
+	var res any
+	var err error
+	res, err = r.currentClient.Get(ctx, key).Result()
+	return res, eris.Wrap(err, "")
+}
+
 func (r *RedisStorage) Incr(ctx context.Context, key string) error {
 	return eris.Wrap(r.currentClient.Incr(ctx, key).Err(), "")
 }
@@ -93,7 +101,15 @@ func (r *RedisStorage) Close(ctx context.Context) error {
 	return eris.Wrap(r.currentClient.Shutdown(ctx).Err(), "")
 }
 
-func (r *RedisStorage) StartTransaction(_ context.Context) (PrimitiveStorage, error) {
+func (r *RedisStorage) Keys(ctx context.Context) ([]string, error) {
+	return r.currentClient.Keys(ctx, "*").Result()
+}
+
+func (r *RedisStorage) Clear(ctx context.Context) error {
+	return eris.Wrap(r.currentClient.FlushAll(ctx).Err(), "")
+}
+
+func (r *RedisStorage) StartTransaction(_ context.Context) (Transaction[string], error) {
 	pipeline := r.currentClient.TxPipeline()
 	redisTransaction := NewRedisPrimitiveStorage(pipeline)
 	return &redisTransaction, nil
@@ -102,15 +118,13 @@ func (r *RedisStorage) StartTransaction(_ context.Context) (PrimitiveStorage, er
 func (r *RedisStorage) EndTransaction(ctx context.Context) error {
 	pipeline, ok := r.currentClient.(redis.Pipeliner)
 	if !ok {
-		return eris.New("current redis storage is not a pipeline/transaction")
+		return eris.New("current redis dbStorage is not a pipeline/transaction")
 	}
 	_, err := pipeline.Exec(ctx)
 	return eris.Wrap(err, "")
 }
 
 func NewRedisPrimitiveStorage(client redis.Cmdable) RedisStorage {
-	// when in transaction "mode" cachedClient will hold the original storage
-	// and currentClient will hold the "transaction storage" for now it will just hold two copies of storage.
 	return RedisStorage{
 		currentClient: client,
 	}
@@ -118,8 +132,8 @@ func NewRedisPrimitiveStorage(client redis.Cmdable) RedisStorage {
 
 // pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic
 // transaction. If an error is returned, no redis changes will have been made.
-func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (PrimitiveStorage, error) {
-	pipe, err := m.storage.StartTransaction(ctx)
+func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (PrimitiveStorage[string], error) {
+	pipe, err := m.dbStorage.StartTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +145,7 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 
 	operations := []struct {
 		name   string
-		method func(ctx context.Context, pipe PrimitiveStorage) error
+		method func(ctx context.Context, pipe PrimitiveStorage[string]) error
 	}{
 		{"component_changes", m.addComponentChangesToPipe},
 		{"next_entity_id", m.addNextEntityIDToPipe},
@@ -153,9 +167,9 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 }
 
 // addEntityIDToArchIDToPipe adds the information related to mapping an EntityID to its assigned archetype ArchetypeID.
-func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe PrimitiveStorage) error {
+func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
 	for id, originArchID := range m.entityIDToOriginArchID {
-		key := redisArchetypeIDForEntityID(id)
+		key := storageArchetypeIDForEntityID(id)
 		archID, ok := m.entityIDToArchID[id]
 		if !ok {
 			// this entity has been removed
@@ -180,36 +194,43 @@ func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pip
 }
 
 // addNextEntityIDToPipe adds any changes to the next available entity ArchetypeID to the given redis pipe.
-func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe PrimitiveStorage) error {
+func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
 	// There are no pending entity id creations, so there's nothing to commit
 	if m.pendingEntityIDs == 0 {
 		return nil
 	}
-	key := redisNextEntityIDKey()
+	key := storageNextEntityIDKey()
 	nextID := m.nextEntityIDSaved + m.pendingEntityIDs
 	return eris.Wrap(pipe.Set(ctx, key, nextID), "")
 }
 
 // addComponentChangesToPipe adds updated component values for entities to the redis pipe.
-func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pipe PrimitiveStorage) error {
+func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
 	for key, isMarkedForDeletion := range m.compValuesToDelete {
 		if !isMarkedForDeletion {
 			continue
 		}
-		redisKey := redisComponentKey(key.typeID, key.entityID)
+		redisKey := storageComponentKey(key.typeID, key.entityID)
 		if err := pipe.Delete(ctx, redisKey); err != nil {
 			return eris.Wrap(err, "")
 		}
 	}
-
-	for key, value := range m.compValues {
+	keys, err := m.compValues.Keys(ctx)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
 		cType := m.typeToComponent[key.typeID]
+		value, err := m.compValues.Get(ctx, key)
+		if err != nil {
+			return err
+		}
 		bz, err := cType.Encode(value)
 		if err != nil {
 			return err
 		}
 
-		redisKey := redisComponentKey(key.typeID, key.entityID)
+		redisKey := storageComponentKey(key.typeID, key.entityID)
 		if err = pipe.Set(ctx, redisKey, bz); err != nil {
 			return eris.Wrap(err, "")
 		}
@@ -217,9 +238,9 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 	return nil
 }
 
-// preloadArchIDs loads the mapping of archetypes IDs to sets of IComponentTypes from storage.
+// preloadArchIDs loads the mapping of archetypes IDs to sets of IComponentTypes from dbStorage.
 func (m *EntityCommandBuffer) loadArchIDs() error {
-	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(m.storage, m.typeToComponent)
+	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(m.dbStorage, m.typeToComponent)
 	if err != nil {
 		return err
 	}
@@ -228,7 +249,7 @@ func (m *EntityCommandBuffer) loadArchIDs() error {
 		return nil
 	}
 	if len(m.archIDToComps) > 0 {
-		return eris.New("assigned archetype ArchetypeID is about to be overwritten by something from storage")
+		return eris.New("assigned archetype ArchetypeID is about to be overwritten by something from dbStorage")
 	}
 	m.archIDToComps = archIDToComps
 	return nil
@@ -236,7 +257,7 @@ func (m *EntityCommandBuffer) loadArchIDs() error {
 
 // addPendingArchIDsToPipe adds any newly created archetype IDs (as well as the associated sets of components) to the
 // redis pipe.
-func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe PrimitiveStorage) error {
+func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
 	if len(m.pendingArchIDs) == 0 {
 		return nil
 	}
@@ -246,11 +267,11 @@ func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe 
 		return err
 	}
 
-	return eris.Wrap(pipe.Set(ctx, redisArchIDsToCompTypesKey(), bz), "")
+	return eris.Wrap(pipe.Set(ctx, storageArchIDsToCompTypesKey(), bz), "")
 }
 
 // addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
-func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe PrimitiveStorage) error {
+func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
 	for archID, active := range m.activeEntities {
 		if !active.modified {
 			continue
@@ -259,7 +280,7 @@ func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe
 		if err != nil {
 			return err
 		}
-		key := redisActiveEntityIDKey(archID)
+		key := storageActiveEntityIDKey(archID)
 		err = pipe.Set(ctx, key, bz)
 		if err != nil {
 			return eris.Wrap(err, "")
@@ -281,11 +302,11 @@ func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 }
 
 func getArchIDToCompTypesFromRedis(
-	storage PrimitiveStorage,
+	storage PrimitiveStorage[string],
 	typeToComp map[types.ComponentID]types.ComponentMetadata,
 ) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
-	key := redisArchIDsToCompTypesKey()
+	key := storageArchIDsToCompTypesKey()
 	bz, err := storage.GetBytes(ctx, key)
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {

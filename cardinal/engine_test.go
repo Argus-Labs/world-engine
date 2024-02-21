@@ -2,17 +2,13 @@ package cardinal_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
-	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"testing"
 	"time"
 
@@ -123,7 +119,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	// add tx to queue
+	// add tx to pool
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
@@ -186,7 +182,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 	tf.StartWorld()
 
-	// add tx to queue
+	// add tx to pool
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
@@ -374,93 +370,93 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-// TODO(scott): I commented out this test becase the recoverFromChain user story doesn't make sense right now.
-// recoverFromChain needs to automatically executed on `StartGame` if:
+// TODO(scott): I commented out this test becase the RecoverFromChain user story doesn't make sense right now.
+// RecoverFromChain needs to automatically executed on `StartGame` if:
 // 1) router is set
 // 2) the current tick (after recovering from redis/memstore) is less than the current tick in the chain
 
-func TestRecoverFromChain(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	rtr := mocks.NewMockRouter(ctrl)
-	tf := testutils.NewTestFixture(t, nil)
-	world := tf.World
-	world.SetRouter(rtr)
-
-	type fooMsg struct{ I int }
-	type fooMsgRes struct{}
-	fooMsgName := "foo"
-	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
-	err := cardinal.RegisterMessages(world, fooMessage)
-	assert.NilError(t, err)
-
-	fooMessages := 0
-	err = cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
-		fooMessage.Each(engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
-			fooMessages++
-			return fooMsgRes{}, nil
-		})
-		return nil
-	})
-	assert.NilError(t, err)
-
-	tf.StartWorld()
-
-	req := &types.QueryTransactionsRequest{
-		Namespace: world.Namespace().String(),
-		Page:      new(types.PageRequest),
-	}
-	msgBody, err := json.Marshal(fooMsg{I: 420})
-	assert.NilError(t, err)
-	tx := &shard.Transaction{
-		PersonaTag: "tyler",
-		Namespace:  world.Namespace().String(),
-		Nonce:      0,
-		Signature:  "sigNature",
-		Body:       msgBody,
-	}
-	bz, err := proto.Marshal(tx)
-	assert.NilError(t, err)
-	pageResponse := &types.PageResponse{Key: []byte("whatever")}
-	res := &types.QueryTransactionsResponse{
-		Epochs: []*types.Epoch{
-			{
-				Epoch:         0,
-				UnixTimestamp: 10,
-				Txs: []*types.Transaction{
-					{
-						TxId:                 uint64(fooMessage.ID()),
-						GameShardTransaction: bz,
-					},
-				},
-			},
-		},
-		Page: pageResponse,
-	}
-	res2 := &types.QueryTransactionsResponse{
-		Epochs: []*types.Epoch{
-			{
-				Epoch:         1,
-				UnixTimestamp: 11,
-				Txs: []*types.Transaction{
-					{
-						TxId:                 uint64(fooMessage.ID()),
-						GameShardTransaction: bz,
-					},
-				},
-			},
-		},
-		Page: nil,
-	}
-	req2 := &types.QueryTransactionsRequest{
-		Namespace: world.Namespace().String(),
-		Page:      &types.PageRequest{Key: pageResponse.Key},
-	}
-	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
-	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
-
-	err = world.RecoverFromChain(context.Background())
-	assert.NilError(t, err)
-
-	assert.Equal(t, fooMessages, 2)
-	assert.Equal(t, world.CurrentTick(), uint64(2))
-}
+// func TestRecoverFromChain(t *testing.T) {
+//	ctrl := gomock.NewController(t)
+//	rtr := mocks.NewMockRouter(ctrl)
+//	tf := testutils.NewTestFixture(t, nil)
+//	world := tf.World
+//	world.SetRouter(rtr)
+//
+//	type fooMsg struct{ I int }
+//	type fooMsgRes struct{}
+//	fooMsgName := "foo"
+//	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+//	err := cardinal.RegisterMessages(world, fooMessage)
+//	assert.NilError(t, err)
+//
+//	fooMessages := 0
+//	err = cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
+//		fooMessage.Each(engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
+//			fooMessages++
+//			return fooMsgRes{}, nil
+//		})
+//		return nil
+//	})
+//	assert.NilError(t, err)
+//
+//	tf.StartWorld()
+//
+//	req := &types.QueryTransactionsRequest{
+//		Namespace: world.Namespace().String(),
+//		Page:      new(types.PageRequest),
+//	}
+//	msgBody, err := json.Marshal(fooMsg{I: 420})
+//	assert.NilError(t, err)
+//	tx := &shard.Transaction{
+//		PersonaTag: "tyler",
+//		Namespace:  world.Namespace().String(),
+//		Nonce:      0,
+//		Signature:  "sigNature",
+//		Body:       msgBody,
+//	}
+//	bz, err := proto.Marshal(tx)
+//	assert.NilError(t, err)
+//	pageResponse := &types.PageResponse{Key: []byte("whatever")}
+//	res := &types.QueryTransactionsResponse{
+//		Epochs: []*types.Epoch{
+//			{
+//				Epoch:         0,
+//				UnixTimestamp: 10,
+//				Txs: []*types.Transaction{
+//					{
+//						TxId:                 uint64(fooMessage.ID()),
+//						GameShardTransaction: bz,
+//					},
+//				},
+//			},
+//		},
+//		Page: pageResponse,
+//	}
+//	res2 := &types.QueryTransactionsResponse{
+//		Epochs: []*types.Epoch{
+//			{
+//				Epoch:         1,
+//				UnixTimestamp: 11,
+//				Txs: []*types.Transaction{
+//					{
+//						TxId:                 uint64(fooMessage.ID()),
+//						GameShardTransaction: bz,
+//					},
+//				},
+//			},
+//		},
+//		Page: nil,
+//	}
+//	req2 := &types.QueryTransactionsRequest{
+//		Namespace: world.Namespace().String(),
+//		Page:      &types.PageRequest{Key: pageResponse.Key},
+//	}
+//	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
+//	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
+//
+//	err = world.RecoverFromChain(context.Background())
+//	assert.NilError(t, err)
+//
+//	assert.Equal(t, fooMessages, 2)
+//	assert.Equal(t, world.CurrentTick(), uint64(2))
+// }
