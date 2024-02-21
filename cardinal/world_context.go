@@ -81,10 +81,6 @@ func (ctx *worldContext) Logger() *zerolog.Logger {
 	return ctx.logger
 }
 
-func (ctx *worldContext) GetMessageByName(name string) (types.Message, bool) {
-	return ctx.world.GetMessageByName(name)
-}
-
 func (ctx *worldContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
 	return ctx.world.GetMessageManager().GetMessageByType(mType)
 }

@@ -212,7 +212,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...message
 
 	msgType := message.NewMessageType[In, Out](name, opts...)
 	var msg types.Message = msgType
-	err := world.RegisterMessagesByName(msg)
+	err := world.registerMessagesByName(msg)
 	if err != nil {
 		return eris.Wrap(err, "failed to register message")
 	}
@@ -226,7 +226,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...message
 	return nil
 }
 
-func (w *World) RegisterMessagesByName(msgs ...types.Message) error {
+func (w *World) registerMessagesByName(msgs ...types.Message) error {
 	return w.msgManager.RegisterMessagesByName(msgs...)
 }
 

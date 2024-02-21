@@ -390,7 +390,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 //	type fooMsgRes struct{}
 //	fooMsgName := "foo"
 //	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
-//	err := cardinal.RegisterMessagesByName(world, fooMessage)
+//	err := cardinal.registerMessagesByName(world, fooMessage)
 //	assert.NilError(t, err)
 //
 //	fooMessages := 0

@@ -67,10 +67,6 @@ func (t *MessageType[In, Out]) Name() string {
 	return t.name
 }
 
-func (t *MessageType[In, Out]) SetName(name string) {
-	t.name = name
-}
-
 func (t *MessageType[In, Out]) Group() string {
 	return t.group
 }
