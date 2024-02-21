@@ -92,9 +92,9 @@ func (p *Verifier) handleReceipt(receipts []*receipt.Receipt) []string {
 	//nolint:prealloc // we cannot know how many receipts we're going to get from the dispatcher
 	var hashes []string
 	for _, rec := range receipts {
-		// Note: receiptConstant is the key returned in the result
+		// Note: createPersonaSuccess is the key returned in the result
 		// of the CreatePersonaResponse from Cardinal
-		result, ok := rec.Result[receiptConstant]
+		result, ok := rec.Result[createPersonaSuccess]
 		if !ok {
 			// Receipts that do not have the "success" key will be discarded here
 			continue
