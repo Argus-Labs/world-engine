@@ -172,6 +172,20 @@ type ModifyScoreMsg struct {
 
 type EmptyMsgResult struct{}
 
+func TestIfNewMessageWillPanic(t *testing.T) {
+	type NotStruct []int
+	type AStruct struct{}
+	assert.Panics(t, func() {
+		message.NewMessageType[NotStruct, AStruct]("random")
+	})
+	assert.Panics(t, func() {
+		message.NewMessageType[AStruct, NotStruct]("random")
+	})
+	assert.NotPanics(t, func() {
+		message.NewMessageType[AStruct, AStruct]("random")
+	})
+}
+
 func TestReadTypeNotStructs(t *testing.T) {
 	defer func() {
 		// test should trigger a panic. it is swallowed here.

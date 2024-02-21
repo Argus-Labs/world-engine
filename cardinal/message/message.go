@@ -50,7 +50,7 @@ func NewMessageType[In, Out any](
 	if name == "" {
 		panic("cannot create message without name")
 	}
-	if !isStruct[In]() && !isStruct[Out]() {
+	if !isStruct[In]() || !isStruct[Out]() {
 		panic(fmt.Sprintf("Invalid MessageType: %s: The In and Out must be both structs", name))
 	}
 	msg := &MessageType[In, Out]{
