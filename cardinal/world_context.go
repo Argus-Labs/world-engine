@@ -9,24 +9,24 @@ import (
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
 
 type worldContext struct {
 	world    *World
-	txQueue  *txpool.TxQueue
+	txPool   *txpool.TxPool
 	logger   *zerolog.Logger
 	readOnly bool
 }
 
-func newWorldContextForTick(world *World, txQueue *txpool.TxQueue) engine.Context {
+func newWorldContextForTick(world *World, txPool *txpool.TxPool) engine.Context {
 	return &worldContext{
 		world:    world,
-		txQueue:  txQueue,
+		txPool:   txPool,
 		logger:   world.Logger,
 		readOnly: false,
 	}
@@ -35,7 +35,7 @@ func newWorldContextForTick(world *World, txQueue *txpool.TxQueue) engine.Contex
 func NewWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
-		txQueue:  nil,
+		txPool:   nil,
 		logger:   world.Logger,
 		readOnly: false,
 	}
@@ -44,7 +44,7 @@ func NewWorldContext(world *World) engine.Context {
 func NewReadOnlyWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
-		txQueue:  nil,
+		txPool:   nil,
 		logger:   world.Logger,
 		readOnly: true,
 	}
@@ -139,8 +139,8 @@ func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Tra
 	return ctx.world.AddTransaction(id, v, sig)
 }
 
-func (ctx *worldContext) GetTxQueue() *txpool.TxQueue {
-	return ctx.txQueue
+func (ctx *worldContext) GetTxPool() *txpool.TxPool {
+	return ctx.txPool
 }
 
 func (ctx *worldContext) IsReadOnly() bool {

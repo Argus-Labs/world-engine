@@ -57,7 +57,7 @@ func queryCQL(ctx engine.Context, req *CQLQueryRequest) (*CQLQueryResponse, erro
 	cqlString := req.CQL
 
 	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.GetComponentByName
-	// to component.Component
+	// to types.Component
 	getComponentByName := func(name string) (types.Component, error) {
 		comp, err := ctx.GetComponentByName(name)
 		if err != nil {

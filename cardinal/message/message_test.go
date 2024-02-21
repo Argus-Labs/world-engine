@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -130,7 +130,7 @@ func TestForEachTransaction(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	// Add 10 transactions to the tx queue and keep track of the hashes that we just cardinal.Created
+	// Add 10 transactions to the tx pool and keep track of the hashes that we just cardinal.Created
 	knownTxHashes := map[types.TxHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
@@ -241,7 +241,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 
-	// Tick again, but no new modifyScoreMsg was added to the queue
+	// Tick again, but no new modifyScoreMsg was added to the pool
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score hasn't changed
@@ -362,9 +362,9 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	}
 }
 
-// TestAddToQueueDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
-// queue during a game tick, and the call does not block.
-func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
+// TestAddToPoolDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
+// pool during a game tick, and the call does not block.
+func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 
@@ -393,24 +393,24 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	// Make sure we're actually in the System. It will now block forever.
 	inSystemCh <- struct{}{}
 
-	// Make sure we can call AddToQueue again in a reasonable amount of time
+	// Make sure we can call AddTransaction again in a reasonable amount of time
 	timeout := time.After(500 * time.Millisecond)
-	doneWithAddToQueue := make(chan struct{})
+	doneWithAddTx := make(chan struct{})
 	go func() {
 		tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
-		doneWithAddToQueue <- struct{}{}
+		doneWithAddTx <- struct{}{}
 	}()
 
 	select {
-	case <-doneWithAddToQueue:
+	case <-doneWithAddTx:
 	// happy path
 	case <-timeout:
-		t.Fatal("timeout while trying to AddToQueue")
+		t.Fatal("timeout while trying to AddTransaction")
 	}
 }
 
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
-// are added to some queue that is not processed until the NEXT tick.
+// are added to some pool that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
@@ -422,7 +422,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	modScoreCountCh := make(chan int)
 
 	// Create two system that report how many instances of the ModifyScoreMsg exist in the
-	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
+	// transaction pool. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
 	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
 	// commands mid-tick.
 	err := cardinal.RegisterSystems(
@@ -764,13 +764,13 @@ func TestCopyTransactions(t *testing.T) {
 	type FooMsg struct {
 		X int
 	}
-	txq := txpool.NewTxQueue()
-	txq.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
-	txq.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
+	txp := txpool.New()
+	txp.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
+	txp.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
 
-	copyTxq := txq.CopyTransactions()
-	assert.Equal(t, copyTxq.GetAmountOfTxs(), 2)
-	assert.Equal(t, txq.GetAmountOfTxs(), 0)
+	copyTxp := txp.CopyTransactions()
+	assert.Equal(t, copyTxp.GetAmountOfTxs(), 2)
+	assert.Equal(t, txp.GetAmountOfTxs(), 0)
 }
 
 func TestNewTransactionPanicsIfNoName(t *testing.T) {
