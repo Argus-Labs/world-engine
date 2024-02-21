@@ -18,7 +18,7 @@ func TestReceiptsQuery(t *testing.T) {
 	type fooIn struct{}
 	type fooOut struct{ Y int }
 	fooMsg := message.NewMessageType[fooIn, fooOut]("foo")
-	err := cardinal.RegisterMessagesByName(world, fooMsg)
+	err := cardinal.RegisterMessages(world, fooMsg)
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
 		fooMsg.Each(ctx, func(t message.TxData[fooIn]) (fooOut, error) {

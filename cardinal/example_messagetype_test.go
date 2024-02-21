@@ -28,7 +28,7 @@ func ExampleMessageType() {
 		panic(err)
 	}
 
-	err = cardinal.RegisterMessagesByName(world, MoveMsg)
+	err = cardinal.RegisterMessages(world, MoveMsg)
 	if err != nil {
 		panic(err)
 	}

@@ -351,7 +351,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, cardinal.RegisterComponent[PowerComp](world))
 
 		powerTx := message.NewMessageType[PowerComp, PowerComp]("change_power")
-		assert.NilError(t, cardinal.RegisterMessagesByName(world, powerTx))
+		assert.NilError(t, cardinal.RegisterMessages(world, powerTx))
 
 		err := cardinal.RegisterSystems(
 			world,

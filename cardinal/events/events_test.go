@@ -91,7 +91,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world, addr := tf.World, tf.BaseURL
 	sendTx := message.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, cardinal.RegisterMessagesByName(world, sendTx))
+	assert.NilError(t, cardinal.RegisterMessages(world, sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	sys1 := func(wCtx engine.Context) error {

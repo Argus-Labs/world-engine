@@ -157,7 +157,7 @@ func TestQueryEVM(t *testing.T) {
 	)
 
 	assert.NilError(t, err)
-	err = cardinal.RegisterMessagesByName(world, message.NewMessageType[struct{}, struct{}]("blah"))
+	err = cardinal.RegisterMessages(world, message.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.

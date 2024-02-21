@@ -72,7 +72,7 @@ func (p *personaPlugin) RegisterComponents(world *World) error {
 }
 
 func (p *personaPlugin) RegisterMessages(world *World) error {
-	err := RegisterMessagesByName(world, CreatePersonaMsg, AuthorizePersonaAddressMsg)
+	err := RegisterMessages(world, CreatePersonaMsg, AuthorizePersonaAddressMsg)
 	if err != nil {
 		return err
 	}

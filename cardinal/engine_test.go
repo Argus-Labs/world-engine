@@ -169,7 +169,7 @@ func TestEVMTxConsume(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
-	assert.NilError(t, cardinal.RegisterMessagesByName(world, fooTx))
+	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
 	var returnVal FooOut
 	var returnErr error
 	err := cardinal.RegisterSystems(world,
@@ -340,7 +340,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 
 	type fooMsgRes struct{}
 	fooMessage := message.NewMessageType[fooMsg, fooMsgRes]("foo", message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
-	err := cardinal.RegisterMessagesByName(world, fooMessage)
+	err := cardinal.RegisterMessages(world, fooMessage)
 	assert.NilError(t, err)
 
 	evmTxHash := "0x12345"

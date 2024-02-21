@@ -310,7 +310,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		tf := testutils.NewTestFixture(t, redisStore)
 		world := tf.World
-		assert.NilError(t, cardinal.RegisterMessagesByName(world, someTx))
+		assert.NilError(t, cardinal.RegisterMessages(world, someTx))
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {

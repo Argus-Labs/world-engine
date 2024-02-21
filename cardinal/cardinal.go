@@ -105,9 +105,9 @@ func MustRegisterComponent[T types.Component](w *World) {
 	}
 }
 
-// RegisterMessagesByName adds the given messages to the game world. HTTP endpoints to queue up/execute these
+// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessagesByName(w *World, msgs ...types.Message) error {
+func RegisterMessages(w *World, msgs ...types.Message) error {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
 			"engine state is %s, expected %s to register messages",

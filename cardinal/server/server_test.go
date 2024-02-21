@@ -215,7 +215,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.world = s.fixture.World
 	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
-	err = cardinal.RegisterMessagesByName(s.world, MoveMessage)
+	err = cardinal.RegisterMessages(s.world, MoveMessage)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {

@@ -75,7 +75,7 @@ func TestWorldLogger(t *testing.T) {
 	bufLogger := zerolog.New(&buf)
 
 	alphaTx := message.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, cardinal.RegisterMessagesByName(world, alphaTx))
+	assert.NilError(t, cardinal.RegisterMessages(world, alphaTx))
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComp](world))
 	log.World(&bufLogger, world, zerolog.InfoLevel)
 	jsonEngineInfoString := `{
