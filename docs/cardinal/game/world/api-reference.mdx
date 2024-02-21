@@ -369,12 +369,14 @@ func main() {
 ```
 
 ### Parameters
+
 | Parameter | Type          | Description                                                |
 |-----------|---------------|------------------------------------------------------------|
 | world     | *World        | A pointer to a World instance.                             |
 | msgs      | ...AnyMessage | Variadic parameter for Message instances to be registered. |
 
 ### Return Value
+
 | Type  | Description                                                                   |
 |-------|-------------------------------------------------------------------------------|
 | error | An error indicating any issues that occurred during the message registration. |
@@ -391,3 +393,17 @@ func (w *World) StartGame() error
 | Type   | Description                                              |
 |--------|----------------------------------------------------------|
 | error  | An error indicating any issues when starting the game.   |
+
+## Environment Variables
+
+| Env Variable                 | Default          | Description                                                                                        |
+|------------------------------|------------------|----------------------------------------------------------------------------------------------------|
+| CARDINAL_MODE                | "development"    | One of "production" or "development". Dev mode, ideal for local development, has relaxed security. |
+| CARDINAL_NAMESPACE           | "world-1"        | The cardinal namespace; must not be the default value in "production" mode.                        |
+| CARDINAL_LOG_LEVEL           | "info"           | The zerolog log level to emit. Values include "debug", "info", "warn", and "error".                |
+| BASE_SHARD_SEQUENCER_ADDRESS | ""               | The address of the base shard’s router service that handles sequencing game shard txs.             |
+| BASE_SHARD_QUERY_ADDRESS     | ""               | The gRPC address of the x/shard query module that facilitates querying sequenced game shard txs.   |
+| REDIS_ADDRESS                | "localhost:6379" | The URL of a redis instance to use for persistent storage.                                         |
+| REDIS_PASSWORD               | ""               | The password for the redis instance.                                                               |
+| STATSD_ADDRESS               | "localhost:8125" | The address of a statsd metric agent that will collect stats from cardinal.                        |
+| TRACE_ADDRESS                | ""               | The address of an agent that supports the collection of traces (e.g. a DataDog agent)              |
