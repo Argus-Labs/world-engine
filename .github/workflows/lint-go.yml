@@ -13,7 +13,7 @@ permissions:
 jobs:
   go-lint:
     name: Go
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
     env:
       GO_VERSION: 1.21.0
     steps:
@@ -23,13 +23,24 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: "**/*.sum"
+          ## skip cache, use Namespace volume cache
+          cache: false
+      - name: Setup Namespace cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: go
+          path: |
+            /home/runner/go/pkg
+            /home/runner/.cache/go-build
+            /home/runner/.cache/golangci-lint
       - name: Find go path
         id: go-dir
         run: echo "path=$(go list -f '{{.Dir}}/...' -m | xargs)" >> $GITHUB_OUTPUT
         ## Equivalent to 'make lint' arguments
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v4
         with:
           version: v1.54.2
           args: --timeout=10m --concurrency 8 -v ${{ steps.go-dir.outputs.path }}
+          ## skip cache, use Namespace volume cache
+          skip-cache: true

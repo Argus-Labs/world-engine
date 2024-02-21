@@ -2,9 +2,10 @@ package storage_test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
-	"testing"
 
 	"pkg.world.dev/world-engine/assert"
 )

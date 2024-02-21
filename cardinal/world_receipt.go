@@ -2,7 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )
 
 type EVMTxReceipt struct {

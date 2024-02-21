@@ -4,8 +4,8 @@ import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -38,6 +38,6 @@ type Context interface {
 	IsWorldReady() bool
 	StoreReader() gamestate.Reader
 	StoreManager() gamestate.Manager
-	GetTxQueue() *txpool.TxQueue
+	GetTxPool() *txpool.TxPool
 	IsReadOnly() bool
 }
