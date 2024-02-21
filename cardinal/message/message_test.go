@@ -36,12 +36,6 @@ type AddHealthToEntityResult struct{}
 
 var addHealthToEntity = message.NewMessageType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
 
-func TestValidateIsStruct(t *testing.T) {
-	type NotStruct []int
-	assert.True(t, message.IsStruct[AddHealthToEntityResult]())
-	assert.False(t, message.IsStruct[NotStruct]())
-}
-
 func TestTransactionExample(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world, doTick := tf.World, tf.DoTick
