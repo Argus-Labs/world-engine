@@ -2,6 +2,7 @@ package persona
 
 import (
 	"context"
+	"errors"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"time"
 
@@ -74,7 +75,7 @@ func (p *Verifier) consume() {
 			continue
 		}
 		if err := p.attemptVerification(currTxHash); err != nil {
-			p.logger.Error("failed to verify persona tag: %s", eris.ToString(err, true))
+			p.logger.Error("failed to verify persona tag(s): %s", eris.ToString(err, true))
 		}
 	}
 }
@@ -124,6 +125,7 @@ func (p *Verifier) handlePending(tuple txHashAndUserID) []string {
 }
 
 func (p *Verifier) attemptVerification(txHashes []string) error {
+	var errs []error
 	for _, txHash := range txHashes {
 		pending, ok := p.txHashToPending[txHash]
 		if !ok || pending.userID == "" || pending.status == "" {
@@ -136,7 +138,7 @@ func (p *Verifier) attemptVerification(txHashes []string) error {
 		ctx = context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, pending.userID) //nolint:staticcheck // its fine.
 		ptr, err := LoadPersonaTagStorageObj(ctx, p.nk)
 		if err != nil {
-			return eris.Wrap(err, "unable to get persona tag storage obj")
+			errs = append(errs, eris.Wrap(err, "unable to get persona tag storage obj"))
 		}
 		if ptr.Status != StatusPending {
 			return eris.Errorf("expected a pending persona tag status but got %q", ptr.Status)
@@ -152,6 +154,10 @@ func (p *Verifier) attemptVerification(txHashes []string) error {
 			ptr.PersonaTag,
 			pending.status,
 		)
+	}
+
+	if len(errs) != 0 {
+		return errors.Join(errs...)
 	}
 
 	return nil

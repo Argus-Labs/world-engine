@@ -108,12 +108,12 @@ func TestReceipts(t *testing.T) {
 	assert.Equal(t, len(receipts), amountOfPlayers+1, "Expected number of receipts does not match")
 	for i, receipt := range receipts {
 		if i == 0 {
-			// 5b: Assert that the persona creation receipt was successful
+			// Assert that the persona creation receipt was successful
 			assert.Equal(t, receipt.Result["success"], true)
 			continue
 		}
 
-		// 5c: Assert that tx/game/join receipts returned successful
+		// Assert that tx/game/join receipts returned successful
 		assert.Equal(t, len(receipt.Errors), 0)
 		value, ok := receipt.Result["Success"]
 		assert.True(t, ok)

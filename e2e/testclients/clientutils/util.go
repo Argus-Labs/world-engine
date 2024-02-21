@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/rotisserie/eris"
 	"io"
 	"math/rand"
 	"net/http"
@@ -111,8 +112,7 @@ func (c *NakamaClient) ListReceipts(k int) ([]*Receipt, error) {
 		if item.Subject == "receipt" {
 			var receipt Receipt
 			if err := json.Unmarshal([]byte(item.Content), &receipt); err != nil {
-				// Log or handle error
-				continue // or return nil, err based on error handling policy
+				return nil, eris.Wrap(err, "failed to unmarshall receipt")
 			}
 			receipts = append(receipts, &receipt)
 		}
@@ -131,8 +131,7 @@ func (c *NakamaClient) ListEvents(k int) ([]*Event, error) {
 		if item.Subject == "event" {
 			var event Event
 			if err := json.Unmarshal([]byte(item.Content), &event); err != nil {
-				// Log or handle error
-				continue // or return nil, err based on error handling policy
+				return nil, eris.Wrap(err, "failed to unmarshall receipt")
 			}
 			events = append(events, &event)
 		}
