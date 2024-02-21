@@ -28,8 +28,8 @@ func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
 }
 
 // newCmdBufferAndRedisClientForTest cardinal.Creates a gamestate.EntityCommandBuffer using the given
-// redis storage. If the passed in redis
-// storage is nil, a redis storage is cardinal.Created.
+// redis dbStorage. If the passed in redis
+// dbStorage is nil, a redis dbStorage is cardinal.Created.
 func newCmdBufferAndRedisClientForTest(
 	t *testing.T,
 	client *redis.Client,
@@ -130,7 +130,8 @@ func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 	assert.Equal(t, badValue, gotValue)
 
 	// Calling LayerDiscard will discard all changes since the last Layer* call
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 	// The value should not be the original 'wantValue'
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
 	assert.NilError(t, err)
@@ -153,7 +154,8 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	assert.Equal(t, nextID, gotID)
 	// But uhoh, there's a problem. Returning an error here means the entity creation
 	// will be undone
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	// cardinal.Create an entity again. We should get nextID assigned again.
 	// cardinal.Create a new entity. It should have nextID as the EntityID
@@ -200,7 +202,8 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Discard the above changes
-	manager.DiscardPending()
+	err = manager.DiscardPending()
+	assert.NilError(t, err)
 
 	// Repeat the above operation. We should end up with the same entity EntityID, and it should
 	// end up containing a different set of components

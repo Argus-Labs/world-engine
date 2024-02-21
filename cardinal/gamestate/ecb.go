@@ -20,9 +20,9 @@ import (
 var _ Manager = &EntityCommandBuffer{}
 
 type EntityCommandBuffer struct {
-	storage PrimitiveStorage
+	dbStorage PrimitiveStorage[string]
 
-	compValues         map[compKey]any
+	compValues         PrimitiveStorage[compKey]
 	compValuesToDelete map[compKey]bool
 	typeToComponent    map[types.ComponentID]types.ComponentMetadata
 
@@ -49,11 +49,11 @@ var (
 )
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
-// atomically commit them to the underlying redis storage layer.
-func NewEntityCommandBuffer(storage PrimitiveStorage) (*EntityCommandBuffer, error) {
+// atomically commit them to the underlying redis dbStorage layer.
+func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuffer, error) {
 	m := &EntityCommandBuffer{
-		storage:            storage,
-		compValues:         map[compKey]any{},
+		dbStorage:          storage,
+		compValues:         NewMapStorage[compKey, any](),
 		compValuesToDelete: map[compKey]bool{},
 
 		activeEntities: map[types.ArchetypeID]activeEntities{},
@@ -81,8 +81,12 @@ func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata
 }
 
 // DiscardPending discards any pending state changes.
-func (m *EntityCommandBuffer) DiscardPending() {
-	clear(m.compValues)
+func (m *EntityCommandBuffer) DiscardPending() error {
+	ctx := context.Background()
+	err := m.compValues.Clear(ctx)
+	if err != nil {
+		return err
+	}
 
 	// Any entity archetypes movements need to be undone
 	clear(m.activeEntities)
@@ -98,6 +102,7 @@ func (m *EntityCommandBuffer) DiscardPending() {
 		delete(m.archIDToComps, archID)
 	}
 	m.pendingArchIDs = m.pendingArchIDs[:0]
+	return nil
 }
 
 // RemoveEntity removes the given entity from the ECS data model.
@@ -122,9 +127,13 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 	delete(m.entityIDToArchID, idToRemove)
 
 	comps := m.GetComponentTypesForArchID(archID)
+	ctx := context.Background()
 	for _, comp := range comps {
 		key := compKey{comp.ID(), idToRemove}
-		delete(m.compValues, key)
+		err = m.compValues.Delete(ctx, key)
+		if err != nil {
+			return err
+		}
 		m.compValuesToDelete[key] = true
 	}
 
@@ -182,15 +191,16 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 	}
 
 	key := compKey{cType.ID(), id}
-	m.compValues[key] = value
-	return nil
+	ctx := context.Background()
+	return m.compValues.Set(ctx, key, value)
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
 func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error) {
+	ctx := context.Background()
 	key := compKey{cType.ID(), id}
-	value, ok := m.compValues[key]
-	if ok {
+	value, err := m.compValues.Get(ctx, key)
+	if err == nil {
 		return value, nil
 	}
 	// Make sure this entity has this component
@@ -203,10 +213,9 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	}
 
 	// Fetch the value from storage
-	storageKey := storageComponentKey(cType.ID(), id)
-	ctx := context.Background()
+	redisKey := storageComponentKey(cType.ID(), id)
 
-	bz, err := m.storage.GetBytes(ctx, storageKey)
+	bz, err := m.dbStorage.GetBytes(ctx, redisKey)
 	if err != nil {
 		// todo: this is redis specific, should be changed to a general error on storage
 		// todo: RedisStorage needs to be modified to return this general error when a redis.Nil is detected.
@@ -223,8 +232,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	if err != nil {
 		return nil, err
 	}
-	m.compValues[key] = value
-	return value, nil
+	return value, m.compValues.Set(ctx, key, value)
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
@@ -287,7 +295,11 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 		return eris.Wrap(iterators.ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
-	delete(m.compValues, key)
+	ctx := context.Background()
+	err = m.compValues.Delete(ctx, key)
+	if err != nil {
+		return err
+	}
 	m.compValuesToDelete[key] = true
 	fromArchID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
@@ -369,7 +381,7 @@ func (m *EntityCommandBuffer) InjectLogger(logger *zerolog.Logger) {
 // Close closes the manager.
 func (m *EntityCommandBuffer) Close() error {
 	ctx := context.Background()
-	err := eris.Wrap(m.storage.Close(ctx), "")
+	err := eris.Wrap(m.dbStorage.Close(ctx), "")
 	// todo: make error general to storage and not redis specific
 	// todo: adjust redis client to be return a general storage error when redis.ErrClosed is detected
 	if eris.Is(eris.Cause(err), redis.ErrClosed) {
@@ -387,7 +399,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 		return archID, nil
 	}
 	key := storageArchetypeIDForEntityID(id)
-	num, err := m.storage.GetInt(context.Background(), key)
+	num, err := m.dbStorage.GetInt(context.Background(), key)
 	if err != nil {
 		// todo: Make redis.Nil a general error on storage
 		if errors.Is(err, redis.Nil) {
@@ -403,9 +415,9 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 // nextEntityID returns the next available entity EntityID.
 func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
 	if !m.isEntityIDLoaded {
-		// The next valid entity EntityID needs to be loaded from storage.
+		// The next valid entity EntityID needs to be loaded from dbStorage.
 		ctx := context.Background()
-		nextID, err := m.storage.GetUInt64(ctx, storageNextEntityIDKey())
+		nextID, err := m.dbStorage.GetUInt64(ctx, storageNextEntityIDKey())
 		err = eris.Wrap(err, "")
 		if err != nil {
 			// todo: make redis.Nil a general error on storage.
@@ -449,13 +461,13 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 // getActiveEntities returns the entities that are currently assigned to the given archetype EntityID.
 func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activeEntities, error) {
 	active, ok := m.activeEntities[archID]
-	// The active entities for this archetype EntityID has not yet been loaded from storage
+	// The active entities for this archetype EntityID has not yet been loaded from dbStorage
 	if ok {
 		return m.activeEntities[archID], nil
 	}
 	ctx := context.Background()
 	key := storageActiveEntityIDKey(archID)
-	bz, err := m.storage.GetBytes(ctx, key)
+	bz, err := m.dbStorage.GetBytes(ctx, key)
 	err = eris.Wrap(err, "")
 	var ids []types.EntityID
 	if err != nil {
@@ -479,7 +491,7 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 }
 
 // setActiveEntities sets the entities that are associated with the given archetype EntityID and marks
-// the information as modified so it can later be pushed to the storage layer.
+// the information as modified so it can later be pushed to the dbStorage layer.
 func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) {
 	active.modified = true
 	m.activeEntities[archID] = active
