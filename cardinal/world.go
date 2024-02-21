@@ -325,7 +325,7 @@ func (w *World) StartGame() error {
 
 	// If router is set, recover the old state of the engine from the chain, if there is any
 	if w.router != nil {
-		if err := w.recoverFromChain(context.Background()); err != nil {
+		if err := w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
