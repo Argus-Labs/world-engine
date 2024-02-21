@@ -221,8 +221,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...message
 		return eris.Errorf("Failed to register message with name: %s", name)
 	}
 	typeValueOfMessageType := reflect.TypeOf(*msgType)
-	world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msg)
-	return nil
+	return world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msg)
 }
 
 func (w *World) registerMessagesByName(msgs ...types.Message) error {

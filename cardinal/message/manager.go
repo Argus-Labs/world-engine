@@ -92,8 +92,13 @@ func (m *Manager) GetMessageByType(mType reflect.Type) (types.Message, bool) {
 	return msg, ok
 }
 
-func (m *Manager) RegisterMessageByType(mType reflect.Type, message types.Message) {
+func (m *Manager) RegisterMessageByType(mType reflect.Type, message types.Message) error {
+	_, ok := m.registeredMessagesByType[mType]
+	if !ok {
+		return eris.New("A message of this type has already been registered")
+	}
 	m.registeredMessagesByType[mType] = message
+	return nil
 }
 
 // isMessageNameUnique checks if the message name already exist in messages map.
