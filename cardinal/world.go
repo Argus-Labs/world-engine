@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -207,6 +208,43 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
+func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
+
+	msgType := message.NewMessageType[In, Out](name, opts...)
+	var msg types.Message = msgType
+	err := world.RegisterMessagesByName(msg)
+	if err != nil {
+		return eris.Wrap(err, "failed to register message")
+	}
+	var ok bool
+	msg, ok = world.GetMessageManager().GetMessageByName(name)
+	if !ok {
+		return eris.Errorf("Failed to register message with name: %s", name)
+	}
+	typeValueOfMessageType := reflect.TypeOf(*msgType)
+	world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msg)
+	return nil
+}
+
+func (w *World) RegisterMessagesByName(msgs ...types.Message) error {
+	return w.msgManager.RegisterMessagesByName(msgs...)
+}
+
+func GetMessageFromWorld[In any, Out any](world *World) (*message.MessageType[In, Out], error) {
+	var msg message.MessageType[In, Out]
+	msgType := reflect.TypeOf(msg)
+	tempRes, ok := world.GetMessageManager().GetMessageByType(msgType)
+	if !ok {
+		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
+	}
+	var _ types.Message = &msg
+	res, ok := tempRes.(*message.MessageType[In, Out])
+	if !ok {
+		return &msg, eris.New("wrong type")
+	}
+	return res, nil
+}
+
 func (w *World) CurrentTick() uint64 {
 	return w.tick.Load()
 }
@@ -296,9 +334,13 @@ func (w *World) Tick(ctx context.Context) error {
 	return nil
 }
 
+func (w *World) GetMessageManager() *message.Manager {
+	return w.msgManager
+}
+
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterMessages, RegisterQueries, and RegisterSystems
+// to this world. After StartGame is called, RegisterComponent, RegisterMessagesByName, RegisterQueries, and RegisterSystems
 // may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {

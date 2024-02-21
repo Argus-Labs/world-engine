@@ -2,13 +2,14 @@ package cardinal_test
 
 import (
 	"context"
+	"testing"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
 
 	"pkg.world.dev/world-engine/assert"
 
@@ -309,7 +310,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		tf := testutils.NewTestFixture(t, redisStore)
 		world := tf.World
-		assert.NilError(t, cardinal.RegisterMessages(world, someTx))
+		assert.NilError(t, cardinal.RegisterMessagesByName(world, someTx))
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {

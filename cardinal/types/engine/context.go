@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"reflect"
+
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
@@ -29,6 +31,8 @@ type Context interface {
 	AddMessageError(id types.TxHash, err error)
 	SetMessageResult(id types.TxHash, a any)
 	GetComponentByName(name string) (types.ComponentMetadata, error)
+	GetMessageByName(name string) (types.Message, bool)
+	GetMessageByType(mType reflect.Type) (types.Message, bool)
 	GetTransactionReceipt(id types.TxHash) (any, []error, bool)
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)

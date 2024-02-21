@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"slices"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
@@ -214,7 +215,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.world = s.fixture.World
 	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
-	err = cardinal.RegisterMessages(s.world, MoveMessage)
+	err = cardinal.RegisterMessagesByName(s.world, MoveMessage)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {

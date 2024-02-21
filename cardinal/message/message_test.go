@@ -3,6 +3,9 @@ package message_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -10,8 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -39,7 +40,7 @@ func TestTransactionExample(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world, doTick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	assert.NilError(t, cardinal.RegisterMessages(world, addHealthToEntity))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, addHealthToEntity))
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
 		// test "In" method
 		for _, tx := range addHealthToEntity.In(wCtx) {
@@ -113,7 +114,7 @@ func TestForEachTransaction(t *testing.T) {
 	}
 
 	someMsg := message.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
-	assert.NilError(t, cardinal.RegisterMessages(world, someMsg))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, someMsg))
 
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
 		someMsg.Each(wCtx, func(t message.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
@@ -195,7 +196,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	// cardinal.Create an entity with a score component
 	assert.NilError(t, cardinal.RegisterComponent[ScoreComponent](world))
 	modifyScoreMsg := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
-	assert.NilError(t, cardinal.RegisterMessages(world, modifyScoreMsg))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, modifyScoreMsg))
 
 	wCtx := cardinal.NewWorldContext(world)
 
@@ -298,7 +299,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[ScoreComponent](world))
 
 	modifyScoreMsg := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
-	assert.NilError(t, cardinal.RegisterMessages(world, modifyScoreMsg))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, modifyScoreMsg))
 
 	err := cardinal.RegisterSystems(
 		world,
@@ -368,7 +369,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	world := tf.World
 
 	modScore := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_Score")
-	assert.NilError(t, cardinal.RegisterMessages(world, modScore))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, modScore))
 
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
@@ -414,7 +415,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	modScoreMsg := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
-	assert.NilError(t, cardinal.RegisterMessages(world, modScoreMsg))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, modScoreMsg))
 	tickStart := tf.StartTickCh
 	tickDone := tf.DoneTickCh
 
@@ -497,7 +498,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 
 	alpha := message.NewMessageType[NewOwner, EmptyMsgResult]("alpha_msg")
 	beta := message.NewMessageType[NewOwner, EmptyMsgResult]("beta_msg")
-	assert.NilError(t, cardinal.RegisterMessages(world, alpha, beta))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, alpha, beta))
 
 	tf.AddTransaction(alpha.ID(), NewOwner{"alpha"})
 	tf.AddTransaction(beta.ID(), NewOwner{"beta"})
@@ -525,15 +526,15 @@ func TestCannotRegisterDuplicateTransaction(t *testing.T) {
 	msg := message.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.Check(t, nil != cardinal.RegisterMessages(world, msg, msg))
+	assert.Check(t, nil != cardinal.RegisterMessagesByName(world, msg, msg))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
 	msg := message.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, cardinal.RegisterMessages(world, msg))
-	assert.Check(t, nil != cardinal.RegisterMessages(world, msg))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, msg))
+	assert.Check(t, nil != cardinal.RegisterMessagesByName(world, msg))
 }
 
 func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
@@ -578,7 +579,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	world := tf.World
 	alphaMsg := message.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := message.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
-	assert.IsError(t, cardinal.RegisterMessages(world, alphaMsg, betaMsg))
+	assert.IsError(t, cardinal.RegisterMessagesByName(world, alphaMsg, betaMsg))
 }
 
 func TestCanGetTransactionErrorsAndResults(t *testing.T) {
@@ -593,7 +594,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 
 	// Each transaction now needs an input and an output
 	moveMsg := message.NewMessageType[MoveMsg, MoveMsgResult]("move")
-	assert.NilError(t, cardinal.RegisterMessages(world, moveMsg))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, moveMsg))
 
 	wantFirstError := errors.New("this is a transaction error")
 	wantSecondError := errors.New("another transaction error")
@@ -655,7 +656,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	numTx := message.NewMessageType[MsgIn, MsgOut]("number")
-	assert.NilError(t, cardinal.RegisterMessages(world, numTx))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
 	err := cardinal.RegisterSystems(
@@ -706,7 +707,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	numTx := message.NewMessageType[MsgIn, MsgOut]("number")
-	assert.NilError(t, cardinal.RegisterMessages(world, numTx))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, numTx))
 	systemCalls := 0
 
 	firstResult := MsgOut{1234}

@@ -3,14 +3,15 @@ package cardinal_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -101,14 +102,17 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	}
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
-	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
+	assert.NilError(t, cardinal.RegisterMessage[FooIn, FooOut](world, "foo", message.WithMsgEVMSupport[FooIn, FooOut]()))
+	fooTx, err := cardinal.GetMessageFromWorld[FooIn, FooOut](world)
+	assert.NilError(t, err)
 	var returnVal FooOut
 	var returnErr error
-	err := cardinal.RegisterSystems(
+	err = cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			fooTx.Each(
+			tx, err := cardinal.GetMessage[FooIn, FooOut](wCtx)
+			assert.NilError(t, err)
+			tx.Each(
 				wCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
@@ -165,7 +169,7 @@ func TestEVMTxConsume(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
-	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
+	assert.NilError(t, cardinal.RegisterMessagesByName(world, fooTx))
 	var returnVal FooOut
 	var returnErr error
 	err := cardinal.RegisterSystems(world,
@@ -336,7 +340,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 
 	type fooMsgRes struct{}
 	fooMessage := message.NewMessageType[fooMsg, fooMsgRes]("foo", message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
-	err := cardinal.RegisterMessages(world, fooMessage)
+	err := cardinal.RegisterMessagesByName(world, fooMessage)
 	assert.NilError(t, err)
 
 	evmTxHash := "0x12345"
@@ -386,7 +390,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 //	type fooMsgRes struct{}
 //	fooMsgName := "foo"
 //	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
-//	err := cardinal.RegisterMessages(world, fooMessage)
+//	err := cardinal.RegisterMessagesByName(world, fooMessage)
 //	assert.NilError(t, err)
 //
 //	fooMessages := 0

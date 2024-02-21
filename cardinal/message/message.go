@@ -3,12 +3,13 @@ package message
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/sign"
@@ -30,6 +31,15 @@ type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
 	outEVMType *ethereumAbi.Type
 }
 
+func validateIfStruct[T any]() bool {
+	var in T
+	inType := reflect.TypeOf(in)
+	inKind := inType.Kind()
+	return (inKind == reflect.Pointer &&
+		inType.Elem().Kind() == reflect.Struct) ||
+		inKind == reflect.Struct
+}
+
 // NewMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
 // which defines the data needed to make a state transition, and the second for the message output, commonly used
 // for the results of a state transition.
@@ -40,25 +50,9 @@ func NewMessageType[In, Out any](
 	if name == "" {
 		panic("cannot create message without name")
 	}
-	var in In
-	var out Out
-	inType := reflect.TypeOf(in)
-	inKind := inType.Kind()
-	inValid := false
-	if (inKind == reflect.Pointer && inType.Elem().Kind() == reflect.Struct) || inKind == reflect.Struct {
-		inValid = true
-	}
-	outType := reflect.TypeOf(out)
-	outKind := inType.Kind()
-	outValid := false
-	if (outKind == reflect.Pointer && outType.Elem().Kind() == reflect.Struct) || outKind == reflect.Struct {
-		outValid = true
-	}
-
-	if !outValid || !inValid {
+	if !validateIfStruct[In]() && !validateIfStruct[Out]() {
 		panic(fmt.Sprintf("Invalid MessageType: %s: The In and Out must be both structs", name))
 	}
-
 	msg := &MessageType[In, Out]{
 		name:  name,
 		group: "game",
@@ -71,6 +65,10 @@ func NewMessageType[In, Out any](
 
 func (t *MessageType[In, Out]) Name() string {
 	return t.name
+}
+
+func (t *MessageType[In, Out]) SetName(name string) {
+	t.name = name
 }
 
 func (t *MessageType[In, Out]) Group() string {

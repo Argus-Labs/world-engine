@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"testing"
+	"time"
+
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"io"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -350,7 +351,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, cardinal.RegisterComponent[PowerComp](world))
 
 		powerTx := message.NewMessageType[PowerComp, PowerComp]("change_power")
-		assert.NilError(t, cardinal.RegisterMessages(world, powerTx))
+		assert.NilError(t, cardinal.RegisterMessagesByName(world, powerTx))
 
 		err := cardinal.RegisterSystems(
 			world,

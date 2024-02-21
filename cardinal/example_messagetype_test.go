@@ -4,6 +4,7 @@ package cardinal_test
 import (
 	"errors"
 	"fmt"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -27,7 +28,7 @@ func ExampleMessageType() {
 		panic(err)
 	}
 
-	err = cardinal.RegisterMessages(world, MoveMsg)
+	err = cardinal.RegisterMessagesByName(world, MoveMsg)
 	if err != nil {
 		panic(err)
 	}

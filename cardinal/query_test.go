@@ -2,12 +2,13 @@ package cardinal_test
 
 import (
 	"errors"
+	"testing"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -156,7 +157,7 @@ func TestQueryEVM(t *testing.T) {
 	)
 
 	assert.NilError(t, err)
-	err = cardinal.RegisterMessages(world, message.NewMessageType[struct{}, struct{}]("blah"))
+	err = cardinal.RegisterMessagesByName(world, message.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
