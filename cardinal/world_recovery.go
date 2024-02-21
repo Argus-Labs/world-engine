@@ -51,22 +51,14 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				"be sure to use the `WithAdapter` option when creating the world",
 		)
 	}
-	if w.CurrentTick() > 0 {
-		return eris.Errorf(
-			"world recovery should not occur in a world with existing state. please verify all " +
-				"state has been cleared before running recovery",
-		)
-	}
 
 	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Recovering)
 	defer func() {
 		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Ready)
 	}()
 
+	start := w.CurrentTick()
 	err := w.router.TransactionIterator().Each(func(batches []*iterator.TxBatch, tick, timestamp uint64) error {
-		if tick < w.CurrentTick() {
-			return eris.Errorf("got tick for %d but World was already at %d", tick, w.CurrentTick())
-		}
 		for w.CurrentTick() != tick {
 			if err := w.Tick(ctx); err != nil {
 				return eris.Wrap(err, "failed to tick engine")
@@ -79,7 +71,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			return eris.Wrap(err, "failed to tick engine")
 		}
 		return nil
-	})
+	}, start)
 	if err != nil {
 		return eris.Wrap(err, "encountered error while iterating transactions")
 	}
