@@ -6,6 +6,8 @@ import (
 	"github.com/rotisserie/eris"
 )
 
+var _ PrimitiveStorage[any] = &MapStorage[any, any]{}
+
 type MapStorage[K comparable, V any] struct {
 	internalMap map[K]V
 }
@@ -17,7 +19,7 @@ func NewMapStorage[K comparable, V any]() *MapStorage[K, V] {
 }
 
 func (m *MapStorage[K, V]) Keys(_ context.Context) ([]K, error) {
-	res := make([]K, 0)
+	res := make([]K, 0, len(m.internalMap))
 	for key := range m.internalMap {
 		res = append(res, key)
 	}
