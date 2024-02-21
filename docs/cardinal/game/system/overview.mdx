@@ -121,39 +121,36 @@ package system
 // This provides an example of a system that doesn't rely on a message to update a component.
 func RegenSystem(world cardinal.WorldContext) error {
 	// Searches for all entities that have the Player and Health component.
-	search, err := world.NewSearch(cardinal.Exact(component.Player{}, component.Health{}))
+	err := world.
+        NewSearch(filter.Exact(component.Player{}, component.Health{})).
+        Each(func(id types.EntityID) bool {
+            // Iterate through all entities that have the Player and Health component.
+            // Returning true from the callback function will continue the iteration.
+            // Returning false from the callback function will stop the iteration.
+
+            // Get the player's current Health component.
+            health, err := cardinal.GetComponent[component.Health](world, id)
+            if err != nil {
+                 return true
+            }
+
+            // Increment the player's HP by 1 if it is not at maximum.
+            if (health.Current + 1) <= health.Maximum {
+                health.Current += 1
+            } else {
+                 return true
+            }
+
+            // Update the player's Health component.
+            if err := cardinal.SetComponent[component.Health](world, id, health); err != nil {
+                 return true
+            }
+
+            return true
+        })
 	if err != nil {
 		return err
 	}
-
-	// Iterate through all entities that have the Player and Health component.
-	// Returning true from the callback function will continue the iteration.
-	// Returning false from the callback function will stop the iteration.
-	err = search.Each(world, func(id cardinal.EntityID) bool {
-		// Get the player's current Health component.
-		health, err := cardinal.GetComponent[component.Health](world, id)
-		if err != nil {
-			return true
-		}
-		
-		// Increment the player's HP by 1 if it is not at maximum.
-		if (health.Current + 1) <= health.Maximum {
-            health.Current += 1
-        } else {
-			return true
-        }
-		
-		// Update the player's Health component.
-		if err := cardinal.SetComponent[component.Health](world, id, health); err != nil {
-			return true
-		}
-		
-		return true
-	})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 ```
@@ -193,36 +190,35 @@ package system
 
 // queryTargetPlayer queries for the target player's entity ID and health component.
 func queryTargetPlayer(world cardinal.WorldContext, targetNickname string) (cardinal.EntityID, *comp.Health, error) {
-    search, err := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
-    if err != nil {
-        return 0, nil, err
-    }
-    
     var playerID cardinal.EntityID
     var playerHealth *comp.Health
-    err = search.Each(world, func(id cardinal.EntityID) bool {
-        player, err := cardinal.GetComponent[comp.Player](world, id)
-        if err != nil {
-            return false
-        }
-        
-        // Terminates the search if the player is found
-        if player.Nickname == targetNickname {
-            playerID = id
-            playerHealth, err = cardinal.GetComponent[comp.Health](world, id)
+    var err error
+    searchErr := cardinal.
+        NewSearch(filter.Exact(comp.Player{}, comp.Health{})).
+        Each(func (id type.EntityID) bool {
+            player, err := cardinal.GetComponent[comp.Player](world, id)
             if err != nil {
                 return false
             }
-            return false
-        }
-    
-        // Continue searching if the player is not the target player
-        return true
-    })
+
+            // Terminates the search if the player is found
+            if player.Nickname == targetNickname {
+                playerID = id
+                playerHealth, err = cardinal.GetComponent[comp.Health](world, id)
+                if err != nil {
+                    return false
+                }
+                return false
+            }
+            return true
+        })
     if err != nil {
         return 0, nil, err
     }
-    
+    if searchErr != nil {
+        return 0, nil, err
+    }
+
     if playerHealth == nil {
         return 0, nil, fmt.Errorf("player %q does not exist", targetNickname)
     }

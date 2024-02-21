@@ -15,8 +15,8 @@ func AttackSystem(ctx cardinal.WorldContext) {
 	
 	// ...
 	
-	// Tell the client that the player have received damage
-    ctx.EmitEvent(fmt.Sprintf("player attacked: %s %d"), playerName, damage)
+	// Broadcast to all players the event
+    ctx.EmitEvent(fmt.Sprintf("player attacked: %s %d"))
 }
 ```
 
@@ -30,8 +30,8 @@ To see how to receive notifications go here: https://heroiclabs.com/docs/nakama/
 func (wCtx *WorldContext) EmitEvent(event string)
 ```
 
-| Parameter   | Type                                          | Description                                                                                        |
-|-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
-| event       | string                                        | The string to emit as an event                                                                     |
+| Parameter | Type   | Description                    |
+|-----------|--------|--------------------------------|
+| event     | string | The string to emit as an event |
 
 
