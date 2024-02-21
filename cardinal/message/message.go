@@ -31,7 +31,7 @@ type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
 	outEVMType *ethereumAbi.Type
 }
 
-func validateIfStruct[T any]() bool {
+func IsStruct[T any]() bool {
 	var in T
 	inType := reflect.TypeOf(in)
 	inKind := inType.Kind()
@@ -50,7 +50,7 @@ func NewMessageType[In, Out any](
 	if name == "" {
 		panic("cannot create message without name")
 	}
-	if !validateIfStruct[In]() && !validateIfStruct[Out]() {
+	if !IsStruct[In]() && !IsStruct[Out]() {
 		panic(fmt.Sprintf("Invalid MessageType: %s: The In and Out must be both structs", name))
 	}
 	msg := &MessageType[In, Out]{

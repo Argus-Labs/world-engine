@@ -210,18 +210,12 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
 	msgType := message.NewMessageType[In, Out](name, opts...)
-	var msg types.Message = msgType
-	err := world.registerMessagesByName(msg)
+	err := world.registerMessagesByName(msgType)
 	if err != nil {
 		return eris.Wrap(err, "failed to register message")
 	}
-	var ok bool
-	msg, ok = world.GetMessageManager().GetMessageByName(name)
-	if !ok {
-		return eris.Errorf("Failed to register message with name: %s", name)
-	}
 	typeValueOfMessageType := reflect.TypeOf(*msgType)
-	return world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msg)
+	return world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msgType)
 }
 
 func (w *World) registerMessagesByName(msgs ...types.Message) error {
