@@ -22,10 +22,10 @@ func NewManager() *Manager {
 	}
 }
 
-// RegisterMessagesByName registers multiple messages with the message manager
+// RegisterMessages registers multiple messages with the message manager
 // There can only be one message with a given name, which is declared by the user by implementing the Name() method.
 // If there is a duplicate message name, an error will be returned and none of the messages will be registered.
-func (m *Manager) RegisterMessagesByName(msgs ...types.Message) error {
+func (m *Manager) RegisterMessages(msgs ...types.Message) error {
 	// Iterate through all the messages and check if they are already registered.
 	// This is done before registering any of the messages to ensure that all are registered or none of them are.
 	msgNames := make([]string, 0, len(msgs))

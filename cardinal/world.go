@@ -209,7 +209,7 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 }
 
 func (w *World) registerMessagesByName(msgs ...types.Message) error {
-	return w.msgManager.RegisterMessagesByName(msgs...)
+	return w.msgManager.RegisterMessages(msgs...)
 }
 
 func GetMessageFromWorld[In any, Out any](world *World) (*message.MessageType[In, Out], error) {

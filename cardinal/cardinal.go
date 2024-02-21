@@ -115,7 +115,7 @@ func RegisterMessages(w *World, msgs ...types.Message) error {
 			worldstage.Init,
 		)
 	}
-	return w.msgManager.RegisterMessagesByName(msgs...)
+	return w.msgManager.RegisterMessages(msgs...)
 }
 
 func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
