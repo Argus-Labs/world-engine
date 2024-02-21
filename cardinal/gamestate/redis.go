@@ -208,7 +208,7 @@ func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe Pr
 func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
 	keysToDelete, err := m.compValuesToDelete.Keys(ctx)
 	if err != nil {
-
+		return err
 	}
 	for _, key := range keysToDelete {
 		isMarkedForDeletion, err := m.compValuesToDelete.GetBool(ctx, key)
