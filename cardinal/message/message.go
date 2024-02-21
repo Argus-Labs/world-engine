@@ -152,9 +152,9 @@ func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Ou
 	}
 }
 
-// In extracts all the TxData in the tx queue that match this MessageType's ID.
+// In extracts all the TxData in the tx pool that match this MessageType's ID.
 func (t *MessageType[In, Out]) In(wCtx engine.Context) []TxData[In] {
-	tq := wCtx.GetTxQueue()
+	tq := wCtx.GetTxPool()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {

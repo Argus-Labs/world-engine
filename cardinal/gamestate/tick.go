@@ -6,14 +6,13 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/statsd"
-	"pkg.world.dev/world-engine/cardinal/txpool"
-
-	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -46,13 +45,13 @@ func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
-func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, queue *txpool.TxQueue) error {
+func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, pool *txpool.TxPool) error {
 	ctx := context.Background()
 	pipe, err := m.dbStorage.StartTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	if err := addPendingTransactionToPipe(ctx, pipe, txs, queue); err != nil {
+	if err := addPendingTransactionToPipe(ctx, pipe, txs, pool); err != nil {
 		return err
 	}
 
@@ -92,7 +91,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
 // indicates that the previous tick was started, but never completed.
-func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, error) {
+func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxPool, error) {
 	ctx := context.Background()
 	key := storagePendingTransactionKey()
 	bz, err := m.dbStorage.GetBytes(ctx, key)
@@ -108,7 +107,7 @@ func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, err
 		idToTx[tx.ID()] = tx
 	}
 
-	txQueue := txpool.NewTxQueue()
+	txPool := txpool.New()
 	for _, p := range pending {
 		tx := idToTx[p.TypeID]
 		var txData any
@@ -116,9 +115,9 @@ func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, err
 		if err != nil {
 			return nil, err
 		}
-		txQueue.AddTransaction(tx.ID(), txData, p.Tx)
+		txPool.AddTransaction(tx.ID(), txData, p.Tx)
 	}
-	return txQueue, nil
+	return txPool, nil
 }
 
 type pendingTransaction struct {
@@ -130,11 +129,11 @@ type pendingTransaction struct {
 
 func addPendingTransactionToPipe(
 	ctx context.Context, pipe PrimitiveStorage[string], txs []types.Message,
-	queue *txpool.TxQueue,
+	pool *txpool.TxPool,
 ) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
-		currList := queue.ForID(tx.ID())
+		currList := pool.ForID(tx.ID())
 		for _, txData := range currList {
 			buf, err := tx.Encode(txData.Msg)
 			if err != nil {

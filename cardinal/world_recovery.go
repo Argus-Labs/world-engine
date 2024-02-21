@@ -27,7 +27,7 @@ func (w *World) recoverAndExecutePendingTxs() error {
 
 	// If there is recoevered transactions, we need to reprocess them
 	if recoveredTxs != nil {
-		w.txQueue = recoveredTxs
+		w.txPool = recoveredTxs
 		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
 		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
 		//  from the game loop.
