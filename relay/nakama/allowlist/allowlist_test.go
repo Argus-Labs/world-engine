@@ -46,7 +46,7 @@ func TestConcurrentKeyClaims(t *testing.T) {
 			// each user should have 9 failed attempts and 1 successful attempt.
 			go func() {
 				userCtx := testutils.CtxWithUserID(user)
-				// Block until the waitCh channel in closed to give us the best chance of running this section
+				// Block until the waitCh channel is closed to give us the best chance of running this section
 				// of code concurrently.
 				<-waitCh
 				// Just send the results of these ClaimKey calls to the main test thread; the assertions will take place
