@@ -148,7 +148,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	url := "/tx/game/" + MoveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background())
+	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
 	s.Require().NoError(err)
 	s.nonce++
 
@@ -189,7 +189,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload an
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background())
+	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
 	s.Require().NoError(err)
 	s.nonce++
 }
@@ -204,7 +204,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background())
+	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
 	s.Require().NoError(err)
 	s.nonce++
 }

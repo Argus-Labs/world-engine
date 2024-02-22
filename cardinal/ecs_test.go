@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 
@@ -115,7 +116,7 @@ func TestECS(t *testing.T) {
 	_, err = cardinal.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 	query := cardinal.NewSearch(wCtx, filter.Contains(EnergyComponent{}))
 	err = query.Each(
 		func(id types.EntityID) bool {

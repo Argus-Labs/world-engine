@@ -162,7 +162,7 @@ func TestWorldLogger(t *testing.T) {
 	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
-	err = world.Tick(ctx)
+	err = world.Tick(ctx, uint64(time.Now().Unix()))
 	assert.NilError(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:3]
 	// test tick start
