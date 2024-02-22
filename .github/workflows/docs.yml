@@ -25,3 +25,16 @@ jobs:
       - name: Mintlify Check Build
         run: |
           timeout --preserve-status --kill-after=10 10s mintlify dev && echo ">> preview build run successfully"
+  mintlify-preview-instructions:
+    name: Mintlify Preview Instructions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-scripts@v6
+        with:
+          script: |
+            github.rest.issue.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "Preview this locally by running `make world-dev` from world-engine
+            })
