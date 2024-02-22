@@ -21,6 +21,7 @@ import (
 var (
 	createPersonaEndpoint            = "tx/persona/create-persona"
 	readPersonaSignerEndpoint        = "query/persona/signer"
+	createPersonaSuccess             = "success"
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
 
