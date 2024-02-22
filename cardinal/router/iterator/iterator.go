@@ -48,7 +48,7 @@ func New(
 	}
 }
 
-// Each iterates over txs from the data availability layer. For each batch of transactions found in
+// Each iterates over txs from the base shard layer. For each batch of transactions found in
 // each tick, it will apply the callback function to that batch and it's respective tick and timestamp.
 //
 //nolint:gocognit // maybe revisit.. idk.
