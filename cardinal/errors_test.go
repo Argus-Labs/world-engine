@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -237,11 +238,11 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 					assert.Check(t, err != nil, "expected the state mutation to panic")
 					errStr, ok := err.(string)
 					assert.Check(t, ok, "expected the panic to be of type string")
-					isErrComponentNotRegistered := strings.Contains(errStr, cardinal.ErrComponentNotRegistered.Error())
+					isErrComponentNotRegistered := strings.Contains(errStr, component.ErrComponentNotRegistered.Error())
 					assert.Check(t, isErrComponentNotRegistered,
 						fmt.Sprintf("expected error %q to contain %q",
 							errStr,
-							cardinal.ErrComponentNotRegistered.Error()))
+							component.ErrComponentNotRegistered.Error()))
 				}()
 				// This should panic every time
 				tc.panicFn(wCtx)
@@ -314,7 +315,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
 			_, err = query.HandleQuery(readOnlyWorldCtx, QueryRequest{})
 			// Each test case is meant to generate a "ErrComponentNotRegistered" error
-			assert.Check(t, errors.Is(err, cardinal.ErrComponentNotRegistered),
+			assert.Check(t, errors.Is(err, component.ErrComponentNotRegistered),
 				"expected a component not registered error, got %v", err)
 		})
 	}

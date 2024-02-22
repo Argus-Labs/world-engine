@@ -2,11 +2,10 @@ package gamestate_test
 
 import (
 	"context"
-
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
-
 	"runtime"
 	"testing"
 	"time"
@@ -68,8 +67,8 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp, errForFooCompGlobal = cardinal.NewComponentMetadata[Foo]()
-	barComp, errForBarCompGlobal = cardinal.NewComponentMetadata[Bar]()
+	fooComp, errForFooCompGlobal = component.NewComponentMetadata[Foo]()
+	barComp, errForBarCompGlobal = component.NewComponentMetadata[Bar]()
 	allComponents                = []types.ComponentMetadata{fooComp, barComp}
 )
 
