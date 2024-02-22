@@ -40,9 +40,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
 
-// WorldStateType is the current state of the engine.
-type WorldStateType string
-
 const (
 	DefaultHistoricalTicksToStore = 10
 )
