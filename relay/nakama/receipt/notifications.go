@@ -38,7 +38,7 @@ type Notifier struct {
 }
 
 func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *Dispatcher) *Notifier {
-	ch := make(chan *Receipt)
+	ch := make(chan []*Receipt)
 	rd.Subscribe("notifications", ch)
 	notifier := &Notifier{
 		txHashToTargetInfo: map[string]targetInfo{},
@@ -65,14 +65,14 @@ func (r *Notifier) AddTxHashToPendingNotifications(txHash string, userID string)
 }
 
 // sendNotifications loops forever, consuming Receipts from the given channel and sending them to the relevant user.
-func (r *Notifier) sendNotifications(ch chan *Receipt) {
+func (r *Notifier) sendNotifications(ch chan []*Receipt) {
 	ticker := time.NewTicker(r.staleDuration)
 
 	for {
 		select {
-		case receipt := <-ch:
-			if err := r.handleReceipt(receipt); err != nil {
-				r.logger.Debug("failed to send receipt %v: %v", receipt, err)
+		case receipts := <-ch:
+			if err := r.handleReceipt(receipts); err != nil {
+				r.logger.Debug("failed to send batch of receipts of len %d: %v", len(receipts), err)
 			}
 		case <-ticker.C:
 			r.cleanupStaleTransactions()
@@ -86,21 +86,36 @@ func (r *Notifier) sendNotifications(ch chan *Receipt) {
 }
 
 // handleReceipt identifies the relevant user for this receipt and sends them a notification.
-func (r *Notifier) handleReceipt(receipt *Receipt) error {
+func (r *Notifier) handleReceipt(receipts []*Receipt) error {
 	ctx := context.Background()
-	target, ok := r.txHashToTargetInfo[receipt.TxHash]
-	if !ok {
-		return eris.Errorf("unable to find user for tx hash %q", receipt.TxHash)
-	}
-	delete(r.txHashToTargetInfo, receipt.TxHash)
 
-	data := map[string]any{
-		"txHash": receipt.TxHash,
-		"result": receipt.Result,
-		"errors": receipt.Errors,
+	//nolint:prealloc // we cannot know how many notifications we're going to get
+	var notifications []*runtime.NotificationSend
+	for _, receipt := range receipts {
+		target, ok := r.txHashToTargetInfo[receipt.TxHash]
+		if !ok {
+			return eris.Errorf("unable to find user for tx hash %q", receipt.TxHash)
+		}
+		delete(r.txHashToTargetInfo, receipt.TxHash)
+
+		data := map[string]any{
+			"txHash": receipt.TxHash,
+			"result": receipt.Result,
+			"errors": receipt.Errors,
+		}
+
+		notifications = append(notifications, &runtime.NotificationSend{
+			UserID:     target.userID,
+			Subject:    "receipt",
+			Content:    data,
+			Code:       1,
+			Sender:     "",
+			Persistent: true,
+		})
 	}
-	if err := r.nk.NotificationSend(ctx, target.userID, "subject", data, 1, "", false); err != nil {
-		return eris.Wrapf(err, "unable to send tx hash %q to user %q", receipt.TxHash, target.userID)
+
+	if err := r.nk.NotificationsSend(ctx, notifications); err != nil {
+		return eris.Wrapf(err, "unable to send batch of %d receipts from Nakama Notifier", len(receipts))
 	}
 	return nil
 }

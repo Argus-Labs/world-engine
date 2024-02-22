@@ -30,7 +30,7 @@ const (
 	EnvKMSKeyName             = "GCP_KMS_KEY_NAME"
 	ListEndpoints             = "query/http/endpoints"
 	EventEndpoint             = "events"
-	TransactionEndpointPrefix = "/tx"
+	TransactionEndpointPrefix = "tx/"
 )
 
 func InitModule(
