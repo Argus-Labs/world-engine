@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -135,12 +136,17 @@ func (l *FakeLogger) GetErrors() []string {
 var _ runtime.Logger = (*FakeLogger)(nil)
 
 // FakeNakamaModule is a fake implementation of runtime.NakamaModule that ONLY implements the StorageRead and
-// StorageWrite methods. Under the hood, a map is used to map collectin/key/userID tuples onto the stored values.
+// StorageWrite methods. Under the hood, a map is used to map collection/key/userID tuples onto the stored values.
 // Calling other methods on the NakamaModule interface will panic. In addition, searching for values (e.g. specifying
 // a collection, but no user ID) will not return the correct results.
+//
+// This Fake implements the atomic guarantees of StorageRead and StorageWrite.
+// In addition, Version field is populated during StorageRead which allows for compare-and-swap writes.
 type FakeNakamaModule struct {
 	runtime.NakamaModule
-	store        map[keyTuple]string
+	sync.Mutex
+	versionItr   int
+	store        map[keyTuple]storeValue
 	errsToReturn []error
 }
 
@@ -150,9 +156,14 @@ type keyTuple struct {
 	userID     string
 }
 
+type storeValue struct {
+	Value   string
+	Version string
+}
+
 func NewFakeNakamaModule() *FakeNakamaModule {
 	return &FakeNakamaModule{
-		store: map[keyTuple]string{},
+		store: map[keyTuple]storeValue{},
 	}
 }
 
@@ -164,6 +175,8 @@ func (f *FakeNakamaModule) WithError(err error) *FakeNakamaModule {
 }
 
 func (f *FakeNakamaModule) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]*api.StorageObject, error) {
+	f.Lock()
+	defer f.Unlock()
 	if len(f.errsToReturn) > 0 {
 		var err error
 		err, f.errsToReturn = f.errsToReturn[0], f.errsToReturn[1:]
@@ -178,15 +191,26 @@ func (f *FakeNakamaModule) StorageRead(_ context.Context, reads []*runtime.Stora
 				Collection: read.Collection,
 				Key:        read.Key,
 				UserId:     read.UserID,
-				Value:      value,
+				Version:    value.Version,
+				Value:      value.Value,
 			})
 		}
 	}
 	return results, nil
 }
 
-func (f *FakeNakamaModule) StorageWrite(_ context.Context, writes []*runtime.StorageWrite) (
-	[]*api.StorageObjectAck, error) {
+func (f *FakeNakamaModule) nextVersion() string {
+	f.versionItr++
+	return fmt.Sprintf("%d", f.versionItr)
+}
+
+func (f *FakeNakamaModule) StorageWrite(
+	_ context.Context, writes []*runtime.StorageWrite,
+) (
+	[]*api.StorageObjectAck, error,
+) {
+	f.Lock()
+	defer f.Unlock()
 	if len(f.errsToReturn) > 0 {
 		var err error
 		err, f.errsToReturn = f.errsToReturn[0], f.errsToReturn[1:]
@@ -194,7 +218,18 @@ func (f *FakeNakamaModule) StorageWrite(_ context.Context, writes []*runtime.Sto
 	}
 	for _, write := range writes {
 		key := keyTuple{write.Collection, write.Key, write.UserID}
-		f.store[key] = write.Value
+		currValue, ok := f.store[key]
+		if ok && write.Version != "" && currValue.Version != write.Version {
+			return nil, errors.New("write failed due to out of date version")
+		}
+	}
+	// All write items can safely be stored in the storage map.
+	for _, write := range writes {
+		key := keyTuple{write.Collection, write.Key, write.UserID}
+		f.store[key] = storeValue{
+			Value:   write.Value,
+			Version: f.nextVersion(),
+		}
 	}
 	return nil, nil
 }
