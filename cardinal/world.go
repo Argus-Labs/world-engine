@@ -347,7 +347,7 @@ func (w *World) StartGame() error {
 		return err
 	}
 
-	// Game stage: Ready -> Running
+	// Game stage: Starting -> Running
 	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
 
 	// Start the game loop
