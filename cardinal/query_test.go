@@ -2,12 +2,13 @@ package cardinal_test
 
 import (
 	"errors"
+	"testing"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 

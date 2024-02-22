@@ -2,11 +2,13 @@ package cardinal
 
 import (
 	"errors"
+	"reflect"
 	"strconv"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -84,6 +86,16 @@ func RegisterMessages(w *World, msgs ...types.Message) error {
 		)
 	}
 	return w.msgManager.RegisterMessages(msgs...)
+}
+
+func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
+	msgType := message.NewMessageType[In, Out](name, opts...)
+	err := world.registerMessagesByName(msgType)
+	if err != nil {
+		return eris.Wrap(err, "failed to register message")
+	}
+	typeValueOfMessageType := reflect.TypeOf(*msgType)
+	return world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msgType)
 }
 
 func RegisterQuery[Request any, Reply any](
