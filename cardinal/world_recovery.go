@@ -54,7 +54,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 
 	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Recovering)
 	defer func() {
-		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Ready)
+		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Starting)
 	}()
 
 	start := w.CurrentTick()
