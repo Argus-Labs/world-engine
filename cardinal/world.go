@@ -219,7 +219,12 @@ func (w *World) CurrentTick() uint64 {
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(ctx context.Context) error {
+func (w *World) Tick(ctx context.Context, timestamp uint64) error {
+	// Record tick start time for statsd.
+	// Not to be confused with `timestamp` that represents the time context for the tick
+	// that is injected into system via WorldContext.Timestamp() and recorded into the DA.
+	startTime := time.Now()
+
 	// The world can only start ticking if it's in the running or recovering stage.
 	if w.worldStage.Current() != worldstage.Running && w.worldStage.Current() != worldstage.Recovering {
 		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
@@ -245,8 +250,7 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 
 	// Store the timestamp for this tick
-	startTime := time.Now()
-	w.timestamp.Store(uint64(startTime.Unix()))
+	w.timestamp.Store(timestamp)
 
 	// Create the engine context to inject into systems
 	wCtx := newWorldContextForTick(w, txPool)
@@ -258,7 +262,8 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 
 	if w.eventHub != nil {
-		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		// engine can be optionally loaded with or without an eventHub.
+		// If there is one, on every tick it must flush events.
 		flushEventStart := time.Now()
 		w.eventHub.FlushEvents()
 		statsd.EmitTickStat(flushEventStart, "flush_events")
@@ -415,7 +420,7 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
 	// but this is the highest terminal point.
 	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
-	if err := w.Tick(ctx); err != nil {
+	if err := w.Tick(ctx, uint64(time.Now().Unix())); err != nil {
 		bytes, err := json.Marshal(eris.ToJSON(err, true))
 		if err != nil {
 			panic(err)
