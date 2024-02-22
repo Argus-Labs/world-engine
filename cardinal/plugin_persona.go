@@ -2,6 +2,8 @@ package cardinal
 
 import (
 	"errors"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/filter"
@@ -12,7 +14,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"strings"
 )
 
 type personaPlugin struct {

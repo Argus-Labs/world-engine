@@ -20,6 +20,9 @@ func TestWorldRecovery(t *testing.T) {
 		var router *mocks.MockRouter
 		var world *cardinal.World
 
+		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+		setEnvToCardinalProdMode(t)
+
 		g.BeforeEach(func() {
 			tf = testutils.NewTestFixture(t, nil)
 

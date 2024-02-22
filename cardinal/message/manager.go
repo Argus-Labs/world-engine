@@ -1,20 +1,24 @@
 package message
 
 import (
+	"reflect"
+	"slices"
+
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"slices"
 )
 
 type Manager struct {
-	registeredMessages map[string]types.Message
-	nextMessageID      types.MessageID
+	registeredMessages       map[string]types.Message
+	registeredMessagesByType map[reflect.Type]types.Message
+	nextMessageID            types.MessageID
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		registeredMessages: map[string]types.Message{},
-		nextMessageID:      1,
+		registeredMessagesByType: map[reflect.Type]types.Message{},
+		registeredMessages:       map[string]types.Message{},
+		nextMessageID:            1,
 	}
 }
 
@@ -81,6 +85,20 @@ func (m *Manager) GetMessageByID(id types.MessageID) types.Message {
 func (m *Manager) GetMessageByName(name string) (types.Message, bool) {
 	msg, ok := m.registeredMessages[name]
 	return msg, ok
+}
+
+func (m *Manager) GetMessageByType(mType reflect.Type) (types.Message, bool) {
+	msg, ok := m.registeredMessagesByType[mType]
+	return msg, ok
+}
+
+func (m *Manager) RegisterMessageByType(mType reflect.Type, message types.Message) error {
+	_, ok := m.registeredMessagesByType[mType]
+	if ok {
+		return eris.New("A message of this type has already been registered")
+	}
+	m.registeredMessagesByType[mType] = message
+	return nil
 }
 
 // isMessageNameUnique checks if the message name already exist in messages map.

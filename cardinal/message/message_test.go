@@ -3,6 +3,9 @@ package message_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -10,8 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -170,6 +171,20 @@ type ModifyScoreMsg struct {
 }
 
 type EmptyMsgResult struct{}
+
+func TestIfNewMessageWillPanic(t *testing.T) {
+	type NotStruct []int
+	type AStruct struct{}
+	assert.Panics(t, func() {
+		message.NewMessageType[NotStruct, AStruct]("random")
+	})
+	assert.Panics(t, func() {
+		message.NewMessageType[AStruct, NotStruct]("random")
+	})
+	assert.NotPanics(t, func() {
+		message.NewMessageType[AStruct, AStruct]("random")
+	})
+}
 
 func TestReadTypeNotStructs(t *testing.T) {
 	defer func() {

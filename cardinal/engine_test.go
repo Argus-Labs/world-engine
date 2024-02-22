@@ -3,22 +3,21 @@ package cardinal_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
-	"testing"
-	"time"
-
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"pkg.world.dev/world-engine/sign"
-
-	"pkg.world.dev/world-engine/assert"
 )
 
 func TestCanWaitForNextTick(t *testing.T) {
@@ -103,14 +102,17 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	}
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
-	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
+	assert.NilError(t, cardinal.RegisterMessage[FooIn, FooOut](world, "foo", message.WithMsgEVMSupport[FooIn, FooOut]()))
+	fooTx, err := cardinal.GetMessageFromWorld[FooIn, FooOut](world)
+	assert.NilError(t, err)
 	var returnVal FooOut
 	var returnErr error
-	err := cardinal.RegisterSystems(
+	err = cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			fooTx.Each(
+			tx, err := cardinal.GetMessage[FooIn, FooOut](wCtx)
+			assert.NilError(t, err)
+			tx.Each(
 				wCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
@@ -346,10 +348,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	tx := &sign.Transaction{PersonaTag: "ty"}
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
 
-	fakeIterator := mocks.NewFakeIterator(nil)
-
-	rtr.EXPECT().TransactionIterator().Return(fakeIterator).Times(1)
-
 	rtr.
 		EXPECT().
 		SubmitTxBlob(
@@ -376,15 +374,74 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+var _ iterator.Iterator = (*FakeIterator)(nil)
+
+// FakeIterator mimics the behavior of a real transaction iterator for testing purposes.
+type FakeIterator struct {
+	objects []Iterable
+}
+
+type Iterable struct {
+	Batches   []*iterator.TxBatch
+	Tick      uint64
+	Timestamp uint64
+}
+
+func NewFakeIterator(collection []Iterable) *FakeIterator {
+	return &FakeIterator{
+		objects: collection,
+	}
+}
+
+// Each simulates iterating over transactions based on the provided ranges.
+// It directly invokes the provided function with mock data for testing.
+func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, ranges ...uint64) error {
+	startTick := uint64(0)
+	stopTick := uint64(0)
+	if len(ranges) > 0 {
+		startTick = ranges[0]
+		if len(ranges) > 1 {
+			stopTick = ranges[1]
+			if startTick > stopTick {
+				return fmt.Errorf("start tick %d is greater than stop tick %d", startTick, stopTick)
+			}
+		}
+	}
+
+	for _, val := range f.objects {
+		// Invoke the callback function with the current batch, tick, and timestamp.
+		if err := fn(val.Batches, val.Tick, val.Timestamp); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setEnvToCardinalProdMode sets a bunch of environment variables that are required
+// for Cardinal to be able to run in Production Mode.
+func setEnvToCardinalProdMode(t *testing.T) {
+	t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
+
+	t.Setenv("REDIS_ADDRESS", "foo")
+	t.Setenv("REDIS_PASSWORD", "bar")
+	t.Setenv("CARDINAL_NAMESPACE", "baz")
+	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "moo")
+	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "oom")
+}
+
 func TestRecoverFromChain(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	rtr := mocks.NewMockRouter(ctrl)
-	rtr.EXPECT().Start()
+
+	rtr.EXPECT().Start().Times(1)
+
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	world.SetRouter(rtr)
+
+	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+	setEnvToCardinalProdMode(t)
 
 	type fooMsg struct{ I int }
 	type fooMsgRes struct{}
@@ -406,7 +463,7 @@ func TestRecoverFromChain(t *testing.T) {
 	// Creating fake transactions that would contain fooMessage.
 	// Assume fooMsg serialization is as simple as converting the integer to a byte slice.
 	// Adjust this logic based on how fooMsg is actually serialized in your system.
-	fakeBatches := []mocks.Iterable{
+	fakeBatches := []Iterable{
 		{
 			Batches: []*iterator.TxBatch{
 				{
@@ -469,7 +526,7 @@ func TestRecoverFromChain(t *testing.T) {
 		},
 	}
 
-	fakeIterator := mocks.NewFakeIterator(fakeBatches)
+	fakeIterator := NewFakeIterator(fakeBatches)
 
 	rtr.EXPECT().TransactionIterator().Return(fakeIterator).Times(1)
 	tf.StartWorld()

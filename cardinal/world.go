@@ -5,11 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/events"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
@@ -22,11 +31,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"syscall"
-	"time"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
@@ -197,6 +201,25 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
+func (w *World) registerMessagesByName(msgs ...types.Message) error {
+	return w.msgManager.RegisterMessages(msgs...)
+}
+
+func GetMessageFromWorld[In any, Out any](world *World) (*message.MessageType[In, Out], error) {
+	var msg message.MessageType[In, Out]
+	msgType := reflect.TypeOf(msg)
+	tempRes, ok := world.GetMessageManager().GetMessageByType(msgType)
+	if !ok {
+		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
+	}
+	var _ types.Message = &msg
+	res, ok := tempRes.(*message.MessageType[In, Out])
+	if !ok {
+		return &msg, eris.New("wrong type")
+	}
+	return res, nil
+}
+
 func (w *World) CurrentTick() uint64 {
 	return w.tick.Load()
 }
@@ -290,11 +313,15 @@ func (w *World) Tick(ctx context.Context, timestamp uint64) error {
 	return nil
 }
 
+func (w *World) GetMessageManager() *message.Manager {
+	return w.msgManager
+}
+
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterMessages, RegisterQueries, and RegisterSystems
-// may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
-// the game in the background.
+// to this world. After StartGame is called, RegisterComponent, RegisterMessages,
+// RegisterQueries, and RegisterSystems may not be called. If StartGame doesn't encounter any errors, it will
+// block forever, running the server and ticking the game in the background.
 func (w *World) StartGame() error {
 	// Game stage: Init -> Starting
 	ok := w.worldStage.CompareAndSwap(worldstage.Init, worldstage.Starting)
@@ -325,9 +352,9 @@ func (w *World) StartGame() error {
 		return err
 	}
 
-	// If router is set, recover the old state of the engine from the chain, if there is any
-	if w.router != nil {
-		if err = w.RecoverFromChain(context.Background()); err != nil {
+	// If Cardinal is in Prod and Router is set, recover any old state of the engine from the chain
+	if getWorldConfig().CardinalMode == RunModeProd && w.router != nil {
+		if err := w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
