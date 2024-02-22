@@ -1,7 +1,6 @@
 package cardinal_test
 
 import (
-	"context"
 	. "github.com/franela/goblin"
 	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal"
@@ -70,9 +69,6 @@ func TestWorldRecovery(t *testing.T) {
 					Return(nil).AnyTimes()
 
 				tf.StartWorld()
-
-				err := world.RecoverFromChain(context.Background())
-				g.Assert(err).IsNil()
 
 				// Check that tick 0 is run with the timestamp from recovery data
 				g.Assert(cardinal.NewWorldContext(world).Timestamp()).Equal(timestamp)
