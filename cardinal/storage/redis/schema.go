@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"errors"
-
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 )

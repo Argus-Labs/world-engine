@@ -1,6 +1,7 @@
-package cardinal_test
+package component_test
 
 import (
+	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -309,4 +310,82 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	val, err = cardinal.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
+}
+
+func TestRegisterComponent_ErrorOnDuplicateComponentName(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[ValueComponent](world))
+	assert.ErrorContains(t, cardinal.RegisterComponent[ValueComponent](world), "is already registered")
+}
+
+type OldComponent struct {
+	Val int
+}
+
+func (OldComponent) Name() string {
+	return "OldComponent"
+}
+
+type NewComponent struct {
+	Val                     int
+	NewFieldToScrewUpSchema int
+}
+
+func (NewComponent) Name() string {
+	return "OldComponent"
+}
+
+func TestRegisterComponent_ErrorOnSchemaMismatch(t *testing.T) {
+	// We create a miniredis instance to reuse across the two world instance
+	redis := miniredis.RunT(t)
+
+	// Create first world, this should work normally
+	tf1 := testutils.NewTestFixture(t, redis)
+	world := tf1.World
+	assert.NilError(t, cardinal.RegisterComponent[OldComponent](world))
+
+	// Create second world, this should fail because the schema of the new component does not match the old component
+	tf2 := testutils.NewTestFixture(t, redis)
+	world = tf2.World
+	assert.ErrorContains(t, cardinal.RegisterComponent[NewComponent](world),
+		"component schema does not match target schema")
+}
+
+func TestGetRegisteredComponents(t *testing.T) {
+	tf1 := testutils.NewTestFixture(t, nil)
+	world := tf1.World
+
+	// Register some components
+	assert.NilError(t, cardinal.RegisterComponent[Height](world))
+	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
+
+	// Get the registered components
+	components := world.GetRegisteredComponents()
+
+	// Check that the components are in the list
+	compNames := make([]string, 0, len(components))
+	for _, comp := range components {
+		compNames = append(compNames, comp.Name())
+	}
+	assert.Contains(t, compNames, "height")
+	assert.Contains(t, compNames, "weight")
+}
+
+func TestGetMessageByName(t *testing.T) {
+	tf1 := testutils.NewTestFixture(t, nil)
+	world := tf1.World
+
+	// Register some components
+	assert.NilError(t, cardinal.RegisterComponent[Height](world))
+	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
+
+	// Check that we are able to obtain the registered components by name
+	heightComp, err := world.GetComponentByName("height")
+	assert.NilError(t, err)
+	assert.Equal(t, heightComp.Name(), "height")
+
+	weightComp, err := world.GetComponentByName("weight")
+	assert.NilError(t, err)
+	assert.Equal(t, weightComp.Name(), "weight")
 }
