@@ -346,6 +346,10 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	tx := &sign.Transaction{PersonaTag: "ty"}
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
 
+	fakeIterator := mocks.NewFakeIterator(nil)
+
+	rtr.EXPECT().TransactionIterator().Return(fakeIterator).Times(1)
+
 	rtr.
 		EXPECT().
 		SubmitTxBlob(
