@@ -28,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
-	err = cardinal.RegisterMessagesByName(world, msg.JoinMsg, msg.MoveMsg)
+	err = cardinal.RegisterMessages(world, msg.JoinMsg, msg.MoveMsg)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
