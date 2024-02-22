@@ -3,12 +3,13 @@ package cardinal_test
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
 )
 
 func TestReceiptsQuery(t *testing.T) {
