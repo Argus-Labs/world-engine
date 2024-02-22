@@ -2,23 +2,16 @@ package cardinal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"syscall"
-	"time"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
-	"github.com/goccy/go-json"
-	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/receipt"
@@ -29,6 +22,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
@@ -55,20 +53,18 @@ type World struct {
 
 	endStartGame chan bool
 
-	worldStage    *worldstage.Manager
-	msgManager    *message.Manager
-	systemManager *system.Manager
+	worldStage       *worldstage.Manager
+	msgManager       *message.Manager
+	systemManager    *system.Manager
+	componentManager *component.Manager
 
-	namespace              Namespace
-	redisStorage           *redis.Storage
-	entityStore            gamestate.Manager
-	tick                   *atomic.Uint64
-	timestamp              *atomic.Uint64
-	nameToComponent        map[string]types.ComponentMetadata
-	nameToQuery            map[string]engine.Query
-	registeredComponents   []types.ComponentMetadata
-	registeredQueries      []engine.Query
-	isComponentsRegistered bool
+	namespace         Namespace
+	redisStorage      *redis.Storage
+	entityStore       gamestate.Manager
+	tick              *atomic.Uint64
+	timestamp         *atomic.Uint64
+	nameToQuery       map[string]engine.Query
+	registeredQueries []engine.Query
 
 	evmTxReceipts map[string]EVMTxReceipt
 
@@ -80,8 +76,6 @@ type World struct {
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
-
-	nextComponentID types.ComponentID
 
 	eventHub *events.EventHub
 
@@ -128,9 +122,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		serverOptions: serverOptions,
 		endStartGame:  make(chan bool),
 
-		worldStage:    worldstage.NewManager(),
-		msgManager:    message.NewManager(),
-		systemManager: system.NewManager(),
+		worldStage:       worldstage.NewManager(),
+		msgManager:       message.NewManager(),
+		systemManager:    system.NewManager(),
+		componentManager: component.NewManager(&redisMetaStore),
 
 		// Imported from engine
 		redisStorage:      &redisMetaStore,
@@ -138,13 +133,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		namespace:         Namespace(cfg.CardinalNamespace),
 		tick:              &atomic.Uint64{},
 		timestamp:         new(atomic.Uint64),
-		nameToComponent:   make(map[string]types.ComponentMetadata),
 		nameToQuery:       make(map[string]engine.Query),
 		txPool:            txpool.New(),
 		Logger:            &log.Logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
-		nextComponentID:   1,
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
@@ -219,7 +212,12 @@ func (w *World) CurrentTick() uint64 {
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(ctx context.Context) error {
+func (w *World) Tick(ctx context.Context, timestamp uint64) error {
+	// Record tick start time for statsd.
+	// Not to be confused with `timestamp` that represents the time context for the tick
+	// that is injected into system via WorldContext.Timestamp() and recorded into the DA.
+	startTime := time.Now()
+
 	// The world can only start ticking if it's in the running or recovering stage.
 	if w.worldStage.Current() != worldstage.Running && w.worldStage.Current() != worldstage.Recovering {
 		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
@@ -245,8 +243,7 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 
 	// Store the timestamp for this tick
-	startTime := time.Now()
-	w.timestamp.Store(uint64(startTime.Unix()))
+	w.timestamp.Store(timestamp)
 
 	// Create the engine context to inject into systems
 	wCtx := newWorldContextForTick(w, txPool)
@@ -258,7 +255,8 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 
 	if w.eventHub != nil {
-		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		// engine can be optionally loaded with or without an eventHub.
+		// If there is one, on every tick it must flush events.
 		flushEventStart := time.Now()
 		w.eventHub.FlushEvents()
 		statsd.EmitTickStat(flushEventStart, "flush_events")
@@ -308,7 +306,9 @@ func (w *World) StartGame() error {
 		return errors.New("game has already been started")
 	}
 
-	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
+	// TODO(scott): entityStore.RegisterComponents is ambiguous with cardinal.RegisterComponent.
+	//  We should probably rename this to LoadComponents or osmething.
+	if err := w.entityStore.RegisterComponents(w.componentManager.GetComponents()); err != nil {
 		closeErr := w.entityStore.Close()
 		if closeErr != nil {
 			return eris.Wrap(err, closeErr.Error())
@@ -420,7 +420,7 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
 	// but this is the highest terminal point.
 	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
-	if err := w.Tick(ctx); err != nil {
+	if err := w.Tick(ctx, uint64(time.Now().Unix())); err != nil {
 		bytes, err := json.Marshal(eris.ToJSON(err, true))
 		if err != nil {
 			panic(err)
@@ -433,7 +433,7 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 }
 
 func (w *World) emitResourcesWarnings() {
-	if !w.isComponentsRegistered {
+	if len(w.componentManager.GetComponents()) == 0 {
 		w.Logger.Warn().Msg("No components registered.")
 	}
 	if len(w.msgManager.GetRegisteredMessages()) == 0 {
@@ -657,18 +657,12 @@ func (w *World) InjectLogger(logger *zerolog.Logger) {
 	w.GameStateManager().InjectLogger(logger)
 }
 
-func (w *World) GetComponents() []types.ComponentMetadata {
-	return w.registeredComponents
+func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
+	return w.componentManager.GetComponents()
 }
 
 func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
-	componentType, exists := w.nameToComponent[name]
-	if !exists {
-		return nil, eris.Wrapf(
-			iterators.ErrMustRegisterComponent,
-			"component %q must be registered before being used", name)
-	}
-	return componentType, nil
+	return w.componentManager.GetComponentByName(name)
 }
 
 func (w *World) GetRegisteredSystemNames() []string {

@@ -6,6 +6,7 @@ package gamestate
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -37,9 +38,11 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	}
 	client := redis.NewClient(&options)
 	store := NewRedisPrimitiveStorage(client)
-	alphaComp, err := NewMockComponentType[Alpha](Alpha{}, Alpha{})
+
+	alphaComp, err := component.NewComponentMetadata[Alpha]()
 	assert.NilError(t, err)
-	betaComp, err := NewMockComponentType[Beta](Beta{}, Beta{})
+
+	betaComp, err := component.NewComponentMetadata[Beta]()
 	assert.NilError(t, err)
 	assert.NilError(t, alphaComp.SetID(77))
 	assert.NilError(t, betaComp.SetID(88))
