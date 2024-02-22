@@ -349,7 +349,7 @@ func (w *World) StartGame() error {
 	}
 
 	// Game stage: Ready -> Running
-	w.worldStage.CompareAndSwap(worldstage.Ready, worldstage.Running)
+	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
 
 	// Start the game loop
 	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
