@@ -269,10 +269,9 @@ func (w *World) Tick(ctx context.Context, timestamp uint64) error {
 
 	// Handle tx data blob submission
 	// Only submit transactions when the following criteria is satisfied:
-	// 1. There are transactions in the pool
-	// 2. The shard router is set
-	// 3. The world is not in the recovering stage (we don't want to resubmit past transactions)
-	if txPool.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
+	// 1. The shard router is set
+	// 2. The world is not in the recovering stage (we don't want to resubmit past transactions)
+	if w.router != nil && w.worldStage.Current() != worldstage.Recovering {
 		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
@@ -328,7 +327,7 @@ func (w *World) StartGame() error {
 
 	// If router is set, recover the old state of the engine from the chain, if there is any
 	if w.router != nil {
-		if err := w.RecoverFromChain(context.Background()); err != nil {
+		if err = w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
@@ -349,7 +348,7 @@ func (w *World) StartGame() error {
 	}
 
 	// Game stage: Ready -> Running
-	w.worldStage.CompareAndSwap(worldstage.Ready, worldstage.Running)
+	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
 
 	// Start the game loop
 	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
