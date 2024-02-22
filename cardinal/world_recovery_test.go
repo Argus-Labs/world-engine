@@ -1,7 +1,8 @@
 package cardinal_test
 
 import (
-	. "github.com/franela/goblin"
+	"github.com/franela/goblin"
+
 	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestWorldRecovery(t *testing.T) {
-	g := Goblin(t)
+	g := goblin.Goblin(t)
 	g.Describe("WorldRecovery", func() {
 		var tf *testutils.TestFixture
 		var controller *gomock.Controller

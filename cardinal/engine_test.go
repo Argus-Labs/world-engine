@@ -394,7 +394,7 @@ func NewFakeIterator(collection []Iterable) *FakeIterator {
 
 // Each simulates iterating over transactions based on the provided ranges.
 // It directly invokes the provided function with mock data for testing.
-func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, ranges ...uint64) error {
+func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, _ ...uint64) error {
 	for _, val := range f.objects {
 		// Invoke the callback function with the current batch, tick, and timestamp.
 		if err := fn(val.Batches, val.Tick, val.Timestamp); err != nil {
