@@ -36,7 +36,7 @@ func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 	dispatcher := NewDispatcher()
 	mockServer := setupMockServer(t)
 
-	testChannel := make(chan *Receipt, 10)
+	testChannel := make(chan []*Receipt, 10)
 	dispatcher.Subscribe("testSessionPolling", testChannel)
 
 	noOpLogger := &testutils.FakeLogger{}
@@ -46,7 +46,7 @@ func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 	select {
 	case receivedReceipt := <-testChannel:
 		assert.NotNil(t, receivedReceipt)
-		assert.Equal(t, "hash1", receivedReceipt.TxHash)
+		assert.Equal(t, "hash1", receivedReceipt[0].TxHash)
 	case <-time.After(time.Second):
 		t.Fatal("Did not receive any receipts within the expected time")
 	}
@@ -78,7 +78,7 @@ func TestPollingHandlesErrorsGracefully(t *testing.T) {
 // Test the non-blocking behavior of the Dispatch method.
 func TestNonBlockingDispatch(t *testing.T) {
 	dispatcher := NewDispatcher()
-	fullChannel := make(chan *Receipt)
+	fullChannel := make(chan []*Receipt)
 	dispatcher.Subscribe("testSessionFull", fullChannel)
 
 	noOpLogger := &testutils.FakeLogger{}
@@ -86,7 +86,7 @@ func TestNonBlockingDispatch(t *testing.T) {
 
 	done := make(chan bool, 1)
 	go func() {
-		dispatcher.ch <- &Receipt{TxHash: "blockTest"}
+		dispatcher.ch <- []*Receipt{{TxHash: "blockTest"}}
 		done <- true
 	}()
 

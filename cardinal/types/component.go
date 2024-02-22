@@ -1,12 +1,15 @@
 package types
 
 import (
+	"errors"
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"github.com/wI2L/jsondiff"
 )
 
 type ComponentID int
+
+var ErrComponentSchemaMismatch = errors.New("component schema does not match target schema")
 
 // Component is the interface that the user needs to implement to create a new component type.
 type Component interface {
@@ -24,8 +27,9 @@ type ComponentMetadata interface { //revive:disable-line:exported
 	// New returns the marshaled bytes of the default value for the component struct.
 	New() ([]byte, error)
 	Encode(any) ([]byte, error)
-	Decode([]byte) (any, error)
+	Decode([]byte) (Component, error)
 	GetSchema() []byte
+	ValidateAgainstSchema(targetSchema []byte) error
 
 	Component
 }

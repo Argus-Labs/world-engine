@@ -11,6 +11,7 @@ import (
 	personaQuery "pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
+	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -65,7 +66,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	signers := getSigners(t, world)
 	ourSigner := signers[0]
@@ -83,7 +84,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 
 	// Tick the game forward a bit to simulate a game that has been running for a bit of time.
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, world.Tick(ctx))
+		assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
@@ -104,7 +105,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
 	assert.ErrorIs(t, err, persona.ErrCreatePersonaTxsNotProcessed)
 
-	assert.NilError(t, world.Tick(ctx))
+	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
 	// The cardinal.CreatePersona has now been processed
 	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
@@ -130,7 +131,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	tick := world.CurrentTick()
 
 	ctx := context.Background()
-	assert.NilError(t, world.Tick(ctx))
+	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
 
 	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
@@ -146,7 +147,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 		},
 	)
 
-	assert.NilError(t, world.Tick(ctx))
+	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
 	addr, err = world.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
 	// The saved address should be unchanged
@@ -167,7 +168,7 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	signers := getSigners(t, world)
 	count := len(signers)
@@ -196,7 +197,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	signers := getSigners(t, world)
 	count := len(signers)
@@ -226,7 +227,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 		}, &sign.Transaction{PersonaTag: wantTag},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	signers := getSigners(t, world)
 	ourSigner := signers[0]
@@ -263,7 +264,7 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 		}, &sign.Transaction{PersonaTag: personaTag},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	signers := getSigners(t, world)
 	ourSigner := signers[0]
