@@ -37,6 +37,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `## Preview Instructions
-                To preview these changes locally, checkout this branch and run:
-                \`make world-docs\``
+              To preview these changes locally, checkout this branch and run:
+              \`make world-docs\``
             })
