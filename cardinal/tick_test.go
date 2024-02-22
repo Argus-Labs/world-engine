@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"testing"
+	"time"
+
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"io"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 

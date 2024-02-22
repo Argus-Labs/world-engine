@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strings"
 )
 
 var (
@@ -28,6 +30,16 @@ var (
 	ErrNotAllowlisted     = errors.New("this user is not allowlisted")
 	ErrBetaKeyAlreadyUsed = errors.New("beta key already used")
 	ErrAlreadyVerified    = errors.New("this user is already verified by an existing beta key")
+)
+
+// This is the json blob that is written to Nakama's storage layer. The presence of this storage object means the given
+// user has been verified with a beta key. The contents of this value is unimportant.
+const (
+	verifiedValue = "{}"
+	// See: https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes
+	// Setting the "version" of a storage write to this value means the value will only be written if it doesn't already
+	// exist in the storage layer.
+	versionWriteIfDoesNotExist = "*"
 )
 
 type GenKeysMsg struct {
@@ -125,7 +137,7 @@ func ClaimKey(ctx context.Context, nk runtime.NakamaModule, msg ClaimKeyMsg) (re
 	}
 	msg.Key = strings.ToUpper(msg.Key)
 
-	ks, err := readKey(ctx, nk, msg.Key)
+	ks, keyVersion, err := readKey(ctx, nk, msg.Key)
 	if err != nil {
 		return res, err
 	}
@@ -135,12 +147,7 @@ func ClaimKey(ctx context.Context, nk runtime.NakamaModule, msg ClaimKeyMsg) (re
 	ks.Used = true
 	ks.UsedBy = userID
 
-	err = writeKey(ctx, nk, ks)
-	if err != nil {
-		return res, err
-	}
-
-	err = writeVerified(ctx, nk, userID)
+	err = writeVerifiedAndUsedKey(ctx, nk, ks, keyVersion, userID)
 	if err != nil {
 		return res, err
 	}
@@ -148,24 +155,33 @@ func ClaimKey(ctx context.Context, nk runtime.NakamaModule, msg ClaimKeyMsg) (re
 	return ClaimKeyRes{true}, nil
 }
 
-func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) error {
-	type verified struct {
+func writeVerifiedAndUsedKey(
+	ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage, keyVersion, userID string,
+) error {
+	verifiedStoreWrite := &runtime.StorageWrite{
+		Collection:      AllowedUsers,
+		Key:             userID,
+		UserID:          signer.AdminAccountID,
+		Value:           verifiedValue,
+		Version:         versionWriteIfDoesNotExist,
+		PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
+		PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
 	}
-	bz, err := json.Marshal(verified{})
+	bz, err := json.Marshal(ks)
 	if err != nil {
-		return eris.Wrap(err, "")
+		return eris.Wrapf(err, "could not marshal KeyStorage object")
 	}
-	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
-		{
-			Collection:      AllowedUsers,
-			Key:             userID,
-			UserID:          signer.AdminAccountID,
-			Value:           string(bz),
-			Version:         "",
-			PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
-			PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
-		},
-	})
+	useKeyWrite := &runtime.StorageWrite{
+		Collection:      KeyCollection,
+		Key:             ks.Key,
+		UserID:          signer.AdminAccountID,
+		Value:           string(bz),
+		Version:         keyVersion,
+		PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
+		PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
+	}
+	writes := []*runtime.StorageWrite{verifiedStoreWrite, useKeyWrite}
+	_, err = nk.StorageWrite(ctx, writes)
 	return err
 }
 
@@ -191,7 +207,7 @@ func IsUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string)
 	return true, nil
 }
 
-func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStorage, error) {
+func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (ks *KeyStorage, version string, err error) {
 	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
 			Collection: KeyCollection,
@@ -200,41 +216,19 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		},
 	})
 	if err != nil {
-		return nil, eris.Wrap(err, "error reading storage object for key")
+		return nil, "", eris.Wrap(err, "error reading storage object for key")
 	}
 	if len(objs) == 0 {
-		return nil, eris.Wrap(ErrInvalidBetaKey, "")
+		return nil, "", eris.Wrap(ErrInvalidBetaKey, "")
 	}
 
 	obj := objs[0]
-	var ks KeyStorage
-	err = json.Unmarshal([]byte(obj.Value), &ks)
+	ks = &KeyStorage{}
+	err = json.Unmarshal([]byte(obj.Value), ks)
 	if err != nil {
-		return nil, eris.Wrapf(err, "could not unmarshal storage object into %T", ks)
+		return nil, "", eris.Wrapf(err, "could not unmarshal storage object into %T", ks)
 	}
-	return &ks, nil
-}
-
-func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) error {
-	bz, err := json.Marshal(ks)
-	if err != nil {
-		return eris.Wrapf(err, "could not marshal KeyStorage object")
-	}
-	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
-		{
-			Collection:      KeyCollection,
-			Key:             ks.Key,
-			UserID:          signer.AdminAccountID,
-			Value:           string(bz),
-			Version:         "",
-			PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
-			PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
-		},
-	})
-	if err != nil {
-		return eris.Wrapf(err, "could not write KeyObject back to storage")
-	}
-	return nil
+	return ks, obj.Version, nil
 }
 
 func generateRandomBytes(n int) ([]byte, error) {
