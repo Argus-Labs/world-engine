@@ -408,11 +408,6 @@ func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp u
 	}
 
 	for _, val := range f.objects {
-		// Skip this iteration if the tick is before the startTick or after the stopTick (if stopTick is specified).
-		if val.Tick < startTick || (stopTick != 0 && val.Tick > stopTick) {
-			continue
-		}
-
 		// Invoke the callback function with the current batch, tick, and timestamp.
 		if err := fn(val.Batches, val.Tick, val.Timestamp); err != nil {
 			return err
@@ -422,11 +417,14 @@ func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp u
 	return nil
 }
 
+// setEnvToCardinalProdMode sets a bunch of environment variables that are required
+// for Cardinal to be able to run in Production Mode.
 func setEnvToCardinalProdMode(t *testing.T) {
+	t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
+
 	t.Setenv("REDIS_ADDRESS", "foo")
 	t.Setenv("REDIS_PASSWORD", "bar")
 	t.Setenv("CARDINAL_NAMESPACE", "baz")
-	t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "moo")
 	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "oom")
 }
