@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 
@@ -69,16 +70,6 @@ func UpdateEnergySystem(wCtx engine.Context) error {
 	return nil
 }
 
-var (
-	Energy, errForEnergy   = cardinal.NewComponentMetadata[EnergyComponent]()
-	Ownable, errForOwnable = cardinal.NewComponentMetadata[OwnableComponent]()
-)
-
-func TestGlobals(t *testing.T) {
-	assert.NilError(t, errForEnergy)
-	assert.NilError(t, errForOwnable)
-}
-
 func TestSchemaChecking(t *testing.T) {
 	s := miniredis.RunT(t)
 
@@ -115,7 +106,7 @@ func TestECS(t *testing.T) {
 	_, err = cardinal.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 	query := cardinal.NewSearch(wCtx, filter.Contains(EnergyComponent{}))
 	err = query.Each(
 		func(id types.EntityID) bool {
@@ -133,7 +124,8 @@ func TestECS(t *testing.T) {
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 	comp, err := world.GetComponentByName("EnergyComponent")
 	assert.NilError(t, err)
-	assert.Equal(t, comp.Name(), Energy.Name())
+	var energyComponent EnergyComponent
+	assert.Equal(t, comp.Name(), energyComponent.Name())
 }
 
 type Pos struct {
