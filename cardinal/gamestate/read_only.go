@@ -20,14 +20,14 @@ var (
 )
 
 type readOnlyManager struct {
-	storage         PrimitiveStorage
+	storage         PrimitiveStorage[string]
 	typeToComponent map[types.ComponentID]types.ComponentMetadata
 	archIDToComps   map[types.ArchetypeID][]types.ComponentMetadata
 }
 
 func (m *EntityCommandBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
-		storage:         m.storage,
+		storage:         m.dbStorage,
 		typeToComponent: m.typeToComponent,
 	}
 }
