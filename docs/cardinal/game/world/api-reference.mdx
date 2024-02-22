@@ -33,7 +33,7 @@ The `WithCustomMockRedis` option uses the given [miniredis](https://github.com/a
 func WithCustomMockRedis(miniRedis *miniredis.Miniredis) WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 | Parameter | Type                 | Description           |
 |-----------|----------------------|-----------------------|
@@ -47,7 +47,7 @@ The `WithDisableSignatureVerification` option disables signature verification on
 func WithDisableSignatureVerification() WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 This method has no parameters.
 
@@ -59,7 +59,7 @@ The `WithPort` option allows for a custom port to be set for the World's server.
 func WithPort(port string) WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 | Parameter | Type    | Description                                   |
 |-----------|---------|-----------------------------------------------|
@@ -73,7 +73,7 @@ The `WithPrettyLog` option enables JSON parsing and colorized, human-friendly fo
 func WithPrettyLog() WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 This method has no parameters.
 
@@ -85,7 +85,7 @@ The WithReceiptHistorySize option specifies the number of ticks for which the Wo
 func WithReceiptHistorySize(size int) Option
 ```
 
-### Parameters
+##### Parameters
 
 | Parameter | Type     | Description                                           |
 |-----------|----------|-------------------------------------------------------|
@@ -99,7 +99,7 @@ The `WithStoreManager` option overrides the default gamestate manager. The games
 func WithStoreManager(s gamestate.Manager) WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 | Parameter | Type              | Description                         |
 |-----------|-------------------|-------------------------------------|
@@ -114,7 +114,7 @@ The `WithTickChannel` option sets a channel that will be used to start each tick
 func WithTickChannel(ch <-chan time.Time) WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 | Parameter | Type               | Description                            |
 |-----------|--------------------|----------------------------------------|
@@ -135,7 +135,7 @@ The `WithTickDone` option sets a channel that will receive the just-completed ti
 func WithTickDoneChannel(ch chan<- uint64) WorldOption
 ```
 
-### Parameters
+##### Parameters
 
 | Parameter | Type            | Description                                                |
 |-----------|-----------------|------------------------------------------------------------|
@@ -167,9 +167,9 @@ func main() {
 	// 2. HealthRegenSystem
 	// 3. AttackSystem
 	cardinal.RegisterSystems(world,
-        systems.MoveSystem,
-        systems.HealthRegenSystem,
-        systems.AttackSystem)
+		systems.MoveSystem,
+		systems.HealthRegenSystem,
+		systems.AttackSystem)
 }
 ```
 
@@ -280,7 +280,7 @@ func main() {
 `RegisterQuery` registers the queries in the `World`. This allows the `Query` endpoints to be automatically generated.
 
 ```go
-func RegisterQueries[Request, Reply any](
+func RegisterQuery[Request, Reply any](
     w *World,
     name string,
     handler func(engine.Context, req *Request) (*Reply, error),

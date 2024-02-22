@@ -15,7 +15,7 @@ func AttackSystem(ctx cardinal.WorldContext) {
 	
 	// ...
 	
-	// Broadcast to all players the event
+	// Broadcast the event to all players
     ctx.EmitEvent(fmt.Sprintf("player attacked: %s %d"))
 }
 ```
