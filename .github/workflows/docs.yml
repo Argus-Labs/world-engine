@@ -36,5 +36,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "Preview this locally by running `make world-dev` from world-engine"
+              body: `## Preview Instructions
+                To preview these changes locally, checkout this branch and run:
+                \`make world-docs\``
             })
