@@ -323,17 +323,17 @@ func (w *World) StartGame() error {
 		}
 	}
 
+	// Recover pending transactions from redis
+	err := w.recoverAndExecutePendingTxs()
+	if err != nil {
+		return err
+	}
+
 	// If router is set, recover the old state of the engine from the chain, if there is any
 	if w.router != nil {
 		if err := w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
-	}
-
-	// Recover pending transactions from redis
-	err := w.recoverAndExecutePendingTxs()
-	if err != nil {
-		return err
 	}
 
 	// TODO(scott): i find this manual tracking and incrementing of the tick very footgunny. Why can't we just
@@ -351,8 +351,8 @@ func (w *World) StartGame() error {
 		return err
 	}
 
-	// Game stage: Starting -> Running
-	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
+	// Game stage: Ready -> Running
+	w.worldStage.CompareAndSwap(worldstage.Ready, worldstage.Running)
 
 	// Start the game loop
 	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)

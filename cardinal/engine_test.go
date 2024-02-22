@@ -3,9 +3,11 @@ package cardinal_test
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
@@ -119,7 +121,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	// add tx to pool
+	// add tx to queue
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
@@ -182,7 +184,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 	tf.StartWorld()
 
-	// add tx to pool
+	// add tx to queue
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
@@ -370,93 +372,106 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-// TODO(scott): I commented out this test becase the RecoverFromChain user story doesn't make sense right now.
-// RecoverFromChain needs to automatically executed on `StartGame` if:
-// 1) router is set
-// 2) the current tick (after recovering from redis/memstore) is less than the current tick in the chain
+func TestRecoverFromChain(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// func TestRecoverFromChain(t *testing.T) {
-//	ctrl := gomock.NewController(t)
-//	rtr := mocks.NewMockRouter(ctrl)
-//	tf := testutils.NewTestFixture(t, nil)
-//	world := tf.World
-//	world.SetRouter(rtr)
-//
-//	type fooMsg struct{ I int }
-//	type fooMsgRes struct{}
-//	fooMsgName := "foo"
-//	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
-//	err := cardinal.RegisterMessages(world, fooMessage)
-//	assert.NilError(t, err)
-//
-//	fooMessages := 0
-//	err = cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
-//		fooMessage.Each(engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
-//			fooMessages++
-//			return fooMsgRes{}, nil
-//		})
-//		return nil
-//	})
-//	assert.NilError(t, err)
-//
-//	tf.StartWorld()
-//
-//	req := &types.QueryTransactionsRequest{
-//		Namespace: world.Namespace().String(),
-//		Page:      new(types.PageRequest),
-//	}
-//	msgBody, err := json.Marshal(fooMsg{I: 420})
-//	assert.NilError(t, err)
-//	tx := &shard.Transaction{
-//		PersonaTag: "tyler",
-//		Namespace:  world.Namespace().String(),
-//		Nonce:      0,
-//		Signature:  "sigNature",
-//		Body:       msgBody,
-//	}
-//	bz, err := proto.Marshal(tx)
-//	assert.NilError(t, err)
-//	pageResponse := &types.PageResponse{Key: []byte("whatever")}
-//	res := &types.QueryTransactionsResponse{
-//		Epochs: []*types.Epoch{
-//			{
-//				Epoch:         0,
-//				UnixTimestamp: 10,
-//				Txs: []*types.Transaction{
-//					{
-//						TxId:                 uint64(fooMessage.ID()),
-//						GameShardTransaction: bz,
-//					},
-//				},
-//			},
-//		},
-//		Page: pageResponse,
-//	}
-//	res2 := &types.QueryTransactionsResponse{
-//		Epochs: []*types.Epoch{
-//			{
-//				Epoch:         1,
-//				UnixTimestamp: 11,
-//				Txs: []*types.Transaction{
-//					{
-//						TxId:                 uint64(fooMessage.ID()),
-//						GameShardTransaction: bz,
-//					},
-//				},
-//			},
-//		},
-//		Page: nil,
-//	}
-//	req2 := &types.QueryTransactionsRequest{
-//		Namespace: world.Namespace().String(),
-//		Page:      &types.PageRequest{Key: pageResponse.Key},
-//	}
-//	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
-//	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
-//
-//	err = world.RecoverFromChain(context.Background())
-//	assert.NilError(t, err)
-//
-//	assert.Equal(t, fooMessages, 2)
-//	assert.Equal(t, world.CurrentTick(), uint64(2))
-// }
+	rtr := mocks.NewMockRouter(ctrl)
+	rtr.EXPECT().Start()
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	world.SetRouter(rtr)
+
+	type fooMsg struct{ I int }
+	type fooMsgRes struct{}
+	fooMsgName := "foo"
+	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+	err := cardinal.RegisterMessages(world, fooMessage)
+	assert.NilError(t, err)
+
+	fooMessages := 0
+	err = cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
+		fooMessage.Each(engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
+			fooMessages++
+			return fooMsgRes{}, nil
+		})
+		return nil
+	})
+	assert.NilError(t, err)
+
+	// Creating fake transactions that would contain fooMessage.
+	// Assume fooMsg serialization is as simple as converting the integer to a byte slice.
+	// Adjust this logic based on how fooMsg is actually serialized in your system.
+	fakeBatches := []mocks.Iterable{
+		{
+			Batches: []*iterator.TxBatch{
+				{
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 1},
+					Tx: &sign.Transaction{
+						PersonaTag: "NiTe",
+						Namespace:  world.Namespace().String(),
+						Nonce:      0,
+						Signature:  "signature",
+						Hash:       common.Hash{},
+						Body:       nil,
+					},
+				},
+				{
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 2},
+					Tx: &sign.Transaction{
+						PersonaTag: "NiTe",
+						Namespace:  world.Namespace().String(),
+						Nonce:      1,
+						Signature:  "signature",
+						Hash:       common.Hash{},
+						Body:       nil,
+					},
+				},
+			},
+			Tick:      1,
+			Timestamp: uint64(time.Now().Unix()),
+		},
+		{
+			Batches: []*iterator.TxBatch{
+				{
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 3},
+					Tx: &sign.Transaction{
+						PersonaTag: "NiTe",
+						Namespace:  world.Namespace().String(),
+						Nonce:      2,
+						Signature:  "signature",
+						Hash:       common.Hash{},
+						Body:       nil,
+					},
+				},
+				{
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 4},
+					Tx: &sign.Transaction{
+						PersonaTag: "NiTe",
+						Namespace:  world.Namespace().String(),
+						Nonce:      3,
+						Signature:  "signature",
+						Hash:       common.Hash{},
+						Body:       nil,
+					},
+				},
+			},
+			Tick:      15,
+			Timestamp: uint64(time.Now().Unix()),
+		},
+	}
+
+	fakeIterator := mocks.NewFakeIterator(fakeBatches)
+
+	rtr.EXPECT().TransactionIterator().Return(fakeIterator).Times(1)
+	tf.StartWorld()
+
+	// fooMessages should have been incremented 4 times for each of the 4 txs
+	assert.Equal(t, fooMessages, 4)
+	// World should be ready for tick 16
+	assert.Equal(t, world.CurrentTick(), uint64(16))
+}
