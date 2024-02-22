@@ -1,8 +1,10 @@
 package cardinal_test
 
 import (
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 )
@@ -48,7 +50,8 @@ func TestCQLQuery(t *testing.T) {
 	query, err := world.GetQueryByName("cql")
 	assert.NilError(t, err)
 
-	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world), cardinal.CQLQueryRequest{CQL: "CONTAINS(bar)"})
+	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world),
+		cardinal.CQLQueryRequest{CQL: "CONTAINS(bar)"})
 	assert.NilError(t, err)
 	result, ok := res.(*cardinal.CQLQueryResponse)
 	assert.True(t, ok)
@@ -77,7 +80,8 @@ func TestCQLQueryNonExistentComponent(t *testing.T) {
 	world := testutils.NewTestFixture(t, nil).World
 	query, err := world.GetQueryByName("cql")
 	assert.NilError(t, err)
-	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world), cardinal.CQLQueryRequest{CQL: "CONTAINS(meow)"})
+	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world),
+		cardinal.CQLQueryRequest{CQL: "CONTAINS(meow)"})
 	assert.Nil(t, res)
-	assert.Contains(t, err.Error(), `component "meow" must be registered before being used`)
+	assert.True(t, eris.Is(err, component.ErrComponentNotRegistered))
 }

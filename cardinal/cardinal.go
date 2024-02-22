@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
@@ -22,7 +23,6 @@ var (
 	ErrEntityMustHaveAtLeastOneComponent = iterators.ErrEntityMustHaveAtLeastOneComponent
 	ErrComponentNotOnEntity              = iterators.ErrComponentNotOnEntity
 	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
-	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
 )
 
 func RegisterSystems(w *World, sys ...system.System) error {
@@ -56,45 +56,16 @@ func RegisterComponent[T types.Component](w *World) error {
 		)
 	}
 
-	var t T
-	_, err := w.GetComponentByName(t.Name())
-	if err == nil {
-		return eris.Errorf("component %q is already registered", t.Name())
-	}
-	c, err := NewComponentMetadata[T]()
+	compMetadata, err := component.NewComponentMetadata[T]()
 	if err != nil {
 		return err
 	}
-	err = c.SetID(w.nextComponentID)
+
+	err = w.componentManager.RegisterComponent(compMetadata)
 	if err != nil {
 		return err
 	}
-	w.nextComponentID++
-	w.registeredComponents = append(w.registeredComponents, c)
 
-	storedSchema, err := w.redisStorage.GetSchema(c.Name())
-
-	if err != nil {
-		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
-		if !eris.Is(err, redis.ErrNoSchemaFound) {
-			return err
-		}
-	} else {
-		valid, err := types.IsComponentValid(t, storedSchema)
-		if err != nil {
-			return err
-		}
-		if !valid {
-			return eris.Errorf("Component: %s does not match the type stored in the db", c.Name())
-		}
-	}
-
-	err = w.redisStorage.SetSchema(c.Name(), c.GetSchema())
-	if err != nil {
-		return err
-	}
-	w.nameToComponent[t.Name()] = c
-	w.isComponentsRegistered = true
 	return nil
 }
 
@@ -187,7 +158,7 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 	for _, comp := range components {
 		c, err := wCtx.GetComponentByName(comp.Name())
 		if err != nil {
-			return nil, ErrComponentNotRegistered
+			return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 		}
 		acc = append(acc, c)
 	}
@@ -204,7 +175,7 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 			var c types.ComponentMetadata
 			c, err = wCtx.GetComponentByName(comp.Name())
 			if err != nil {
-				return nil, ErrComponentNotRegistered
+				return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 			}
 
 			err = wCtx.StoreManager().SetComponentForEntity(c, id, comp)
