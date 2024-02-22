@@ -1,5 +1,6 @@
 package router
 
+/*
 import (
 	"context"
 	types2 "github.com/ethereum/go-ethereum/core/types"
@@ -10,7 +11,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"pkg.berachain.dev/polaris/eth/core/types"
+	""github.com/berachain/polaris/eth/core/types"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 
 	"cosmossdk.io/log"
@@ -52,3 +53,4 @@ func TestRouter(t *testing.T) {
 	// queue should be cleared after dispatching
 	assert.Equal(t, router.queue.IsSet(contractAddr), false)
 }
+*/

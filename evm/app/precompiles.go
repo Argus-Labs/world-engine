@@ -25,13 +25,14 @@ import (
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 
-	bankprecompile "pkg.berachain.dev/polaris/cosmos/precompile/bank"
-	distrprecompile "pkg.berachain.dev/polaris/cosmos/precompile/distribution"
-	govprecompile "pkg.berachain.dev/polaris/cosmos/precompile/governance"
-	stakingprecompile "pkg.berachain.dev/polaris/cosmos/precompile/staking"
-	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
+	ethprecompile ""
+	bankprecompile "github.com/berachain/polaris/cosmos/precompile/bank"
+	distrprecompile "github.com/berachain/polaris/cosmos/precompile/distribution"
+	govprecompile "github.com/berachain/polaris/cosmos/precompile/governance"
+	stakingprecompile "github.com/berachain/polaris/cosmos/precompile/staking"
+github.com/berachain/polaris/eth/core/precompile"
 
-	"pkg.world.dev/world-engine/evm/precompile/router"
+"pkg.world.dev/world-engine/evm/precompile/router"
 )
 
 // PrecompilesToInject returns a function that provides the initialization of the standard

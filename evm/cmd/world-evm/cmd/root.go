@@ -26,13 +26,13 @@ import (
 	"io"
 	"os"
 
+	evmv1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "github.com/berachain/polaris/cosmos/config"
+	signinglib "github.com/berachain/polaris/cosmos/lib/signing"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
-	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
-	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/depinject"
@@ -63,8 +63,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
-	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
-	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
+	ethcryptocodec "github.com/berachain/polaris/cosmos/crypto/codec"
+	"github.com/berachain/polaris/cosmos/crypto/keyring"
 	"pkg.world.dev/world-engine/evm/app"
 )
 

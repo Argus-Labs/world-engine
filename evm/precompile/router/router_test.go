@@ -26,12 +26,12 @@ import (
 	"testing"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"pkg.berachain.dev/polaris/eth/accounts/abi"
-	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
-	"pkg.berachain.dev/polaris/lib/utils"
-	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
-)
 
+github.com/berachain/polaris/eth/accounts/abi"
+ethprecompile ""github.com/berachain/polaris/eth/core/precompile"
+"pkg.berachain.dev/polaris/lib/utils"
+generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
+)
 type RouterTestSuite struct {
 	suite.Suite
 	sf       *ethprecompile.StatefulFactory
