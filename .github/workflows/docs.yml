@@ -36,5 +36,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "Preview this locally by running `make world-dev` from world-engine
+              body: "Preview this locally by running `make world-dev` from world-engine"
             })
