@@ -347,10 +347,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	tx := &sign.Transaction{PersonaTag: "ty"}
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
 
-	fakeIterator := NewFakeIterator(nil)
-
-	rtr.EXPECT().TransactionIterator().Return(fakeIterator).Times(1)
-
 	rtr.
 		EXPECT().
 		SubmitTxBlob(
@@ -426,6 +422,15 @@ func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp u
 	return nil
 }
 
+func setEnvToCardinalProdMode(t *testing.T) {
+	t.Setenv("REDIS_ADDRESS", "foo")
+	t.Setenv("REDIS_PASSWORD", "bar")
+	t.Setenv("CARDINAL_NAMESPACE", "baz")
+	t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
+	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "moo")
+	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "oom")
+}
+
 func TestRecoverFromChain(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
@@ -435,6 +440,9 @@ func TestRecoverFromChain(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	world.SetRouter(rtr)
+
+	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+	setEnvToCardinalProdMode(t)
 
 	type fooMsg struct{ I int }
 	type fooMsgRes struct{}

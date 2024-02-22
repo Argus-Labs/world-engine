@@ -21,12 +21,7 @@ func TestWorldRecovery(t *testing.T) {
 		var world *cardinal.World
 
 		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
-		t.Setenv("REDIS_ADDRESS", "foo")
-		t.Setenv("REDIS_PASSWORD", "bar")
-		t.Setenv("CARDINAL_NAMESPACE", "baz")
-		t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
-		t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "moo")
-		t.Setenv("BASE_SHARD_QUERY_ADDRESS", "oom")
+		setEnvToCardinalProdMode(t)
 
 		g.BeforeEach(func() {
 			tf = testutils.NewTestFixture(t, nil)
