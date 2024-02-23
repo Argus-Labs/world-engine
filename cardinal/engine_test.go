@@ -3,7 +3,6 @@ package cardinal_test
 import (
 	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
 	"testing"
 	"time"
 
@@ -455,26 +454,12 @@ func TestRecoverFromChain(t *testing.T) {
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 1},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      0,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 2},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      1,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 			},
 			Tick:      1,
@@ -485,26 +470,12 @@ func TestRecoverFromChain(t *testing.T) {
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 3},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      2,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 4},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      3,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 			},
 			Tick:      15,
