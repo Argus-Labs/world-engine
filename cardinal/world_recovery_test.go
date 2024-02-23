@@ -15,13 +15,13 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// FooMessage To be used for registration of Messages.
-type FooMessage struct {
+// fooMessage To be used for registration of Messages.
+type fooMessage struct {
 	Bar string
 }
 
-// FooResponse To be used for registration of Messages.
-type FooResponse struct {
+// fooResponse To be used for registration of Messages.
+type fooResponse struct {
 }
 
 func TestWorldRecovery(t *testing.T) {
@@ -31,7 +31,7 @@ func TestWorldRecovery(t *testing.T) {
 		var controller *gomock.Controller
 		var router *mocks.MockRouter
 		var world *cardinal.World
-		var fooTx *message.MessageType[FooMessage, FooResponse]
+		var fooTx *message.MessageType[fooMessage, fooResponse]
 
 		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
 		setEnvToCardinalProdMode(t)
@@ -45,13 +45,13 @@ func TestWorldRecovery(t *testing.T) {
 			world = tf.World
 			world.SetRouter(router)
 			err := cardinal.RegisterMessage[
-				FooMessage,
-				FooResponse](
+				fooMessage,
+				fooResponse](
 				world,
 				"foo",
-				message.WithMsgEVMSupport[FooMessage, FooResponse]())
+				message.WithMsgEVMSupport[fooMessage, fooResponse]())
 			g.Assert(err).IsNil()
-			fooTx, err = cardinal.GetMessageFromWorld[FooMessage, FooResponse](world)
+			fooTx, err = cardinal.GetMessageFromWorld[fooMessage, fooResponse](world)
 			g.Assert(err).IsNil()
 		})
 
@@ -71,7 +71,7 @@ func TestWorldRecovery(t *testing.T) {
 							{
 								Tx:       &sign.Transaction{PersonaTag: "ty"},
 								MsgID:    fooTx.ID(),
-								MsgValue: FooMessage{Bar: "hello"},
+								MsgValue: fooMessage{Bar: "hello"},
 							},
 						}
 
