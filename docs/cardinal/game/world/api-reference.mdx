@@ -79,7 +79,7 @@ This method has no parameters.
 
 #### WithReceiptHistorySize
 
-The WithReceiptHistorySize option specifies the number of ticks for which the World object retains receipts. For instance, at tick 40 with a receipt history size of 5, the World stores receipts from ticks 35 to 39. Upon reaching tick 41, it will hold receipts for ticks 36 to 40. If this option remains unset, it defaults to a history size of 10.
+The WithReceiptHistorySize option specifies the number of ticks for which the World object retains receipts. For instance, at tick 40 with a receipt history size of 5, the World stores receipts from ticks 35 to 39. Upon reaching tick 41, it will hold receipts for ticks 36 to 40. If this option remains unset, it defaults to a history size of 10. Game clients can get receipts via the [/query/receipts/list](/cardinal/rest/query-receipts-list) endpoint. Nakama also uses this endpoint to transmit receipts to listening clients.
 
 ```go
 func WithReceiptHistorySize(size int) Option
@@ -178,7 +178,7 @@ func main() {
 `RegisterInitSystems` registers one or more init systems to the `World`. Init systems are executed exactly one time on tick 0. Init systems will not be run when loading a pre-existing world from permanent storage (e.g. on a server restart).
 
 ```go
-func RegisterInitSystems(w *World, s ...system.System)
+func RegisterInitSystems(world *World, s ...system.System)
 ```
 
 ### Example
@@ -281,7 +281,7 @@ func main() {
 
 ```go
 func RegisterQuery[Request, Reply any](
-    w *World,
+    world *World,
     name string,
     handler func(engine.Context, req *Request) (*Reply, error),
     opts ...QueryOption[Request, Reply]) error
@@ -305,8 +305,8 @@ func main() {
     err := cardinal.RegisterQuery[query.HealthRequest, query.HealthResponse](
 		world,
         "query_health",
-        func(wCtx engine.Context, req *query.HealthRequest) (reply *query.HealthReply, err error) {
-			// ...fetch relevant health from wCtx...
+        func(worldCtx cardinal.WorldContext, req *query.HealthRequest) (reply *query.HealthReply, err error) {
+			// ...fetch relevant health from worldCtx...
 			return &HealthReply{}, nil
         })
     if err != nil {
@@ -341,7 +341,7 @@ func main() {
 </Callout>
 
 ```go
-func RegisterMessages(w *World, msgs ...AnyMessage) error
+func RegisterMessages(world *World, msgs ...AnyMessage) error
 ```
 
 ### Example
