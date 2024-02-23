@@ -362,7 +362,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 				},
 			},
 			world.CurrentTick(),
-			gomock.Any(),
+			uint64(time.Now().Unix()),
 		).
 		Return(nil).
 		Times(1)
@@ -377,7 +377,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 			gomock.Any(),
 			txpool.TxMap{},
 			world.CurrentTick(),
-			gomock.Any(),
+			uint64(time.Now().Unix()),
 		).
 		Return(nil).
 		Times(1)
