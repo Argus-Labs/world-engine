@@ -27,13 +27,13 @@ In this sample code, an "attack" message type is created, as well as a System th
 ```go
 package system
 
-func AttackSystem(world cardinal.WorldContext) {
+func AttackSystem(worldCtx cardinal.WorldContext) {
 	// Iterate over all Attack messages
-	AttackMessage.Each(world, func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
+	AttackMessage.Each(worldCtx, func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
 		// Obtain the persona tag used to send the message/transaction
 		personaTag := attack.Tx().PersonaTag
 
-		world.Logger().Debug().Msgf("The persona tag is %q", personaTag)
+		worldCtx.Logger().Debug().Msgf("The persona tag is %q", personaTag)
 
 		return AttackOutput{}, nil
 	})
