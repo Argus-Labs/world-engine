@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +17,6 @@ import (
 )
 
 func TestEvents(t *testing.T) {
-	// Note if this test is failing it could be because redis is not refreshed
-	// This test assumes that your redis is brand new and empty.
-	// Test persona
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -36,35 +32,94 @@ func TestEvents(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
-	type JointInput struct {
+	type JoinInput struct {
 	}
-	payload := JointInput{}
+	payload := JoinInput{}
 
-	// create three players.
+	// Emit events by creating players
 	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.RPC("tx/game/join", payload) // should emit an event.
+		resp, err = c.RPC("tx/game/join", payload)
 		assert.NilError(t, err)
-		body := clientutils.CopyBody(resp)
-		assert.Equal(t, 200, resp.StatusCode, body)
+		assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 	}
 
-	notifications, err := c.ListNotifications(amountOfPlayers)
-	assert.NilError(t, err)
-	for len(notifications) != amountOfPlayers { // loop until notification sent.
+	// Fetch events and verify
+	var events []*clientutils.Event
+	for attempt := 0; attempt < 5; attempt++ {
+		events, err = c.ListEvents(amountOfPlayers + 1)
+		if err != nil {
+			t.Fatalf("Error listing events: %v", err)
+		}
+		if len(events) == amountOfPlayers {
+			break
+		}
 		time.Sleep(1 * time.Second)
-		notifications, err = c.ListNotifications(amountOfPlayers)
-		assert.NilError(t, err)
 	}
-	assert.Equal(t, len(notifications), amountOfPlayers)
-	results := make(map[string]string)
+
+	assert.Equal(t, len(events), amountOfPlayers, "Expected number of player creation events does not match")
+	for _, event := range events {
+		assert.Contains(t, event.Message, "player created", "Event message does not contain expected text")
+	}
+}
+
+func TestReceipts(t *testing.T) {
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	username, deviceID, personaTag := triple(randomString())
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(username, deviceID))
+
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
+		"personaTag":    personaTag,
+		"signerAddress": signerAddr,
+	})
+	assert.NilError(t, err, "claim-persona failed")
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
+
+	assert.NilError(t, waitForAcceptedPersonaTag(c))
+
+	type JoinInput struct {
+	}
+	payload := JoinInput{}
+
+	// Emit events and thus generate receipts by creating players
+	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		results[string([]byte{notifications[i].Message[0]})] = notifications[i].Message
+		resp, err = c.RPC("tx/game/join", payload)
+		assert.NilError(t, err)
+		assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 	}
-	for i := 1; i < amountOfPlayers+1; i++ {
-		message, ok := results[strconv.Itoa(i)]
-		assert.Equal(t, ok, true, "expected result at index %d", i)
-		assert.Equal(t, message, fmt.Sprintf("%d player created", i))
+
+	// Fetch receipts and verify
+	var receipts []*clientutils.Receipt
+	for attempt := 0; attempt < 5; attempt++ {
+		receipts, err = c.ListReceipts(20) // Assuming 20 is a sufficient limit
+		if err != nil {
+			t.Fatalf("Error listing receipts: %v", err)
+		}
+		if len(receipts) >= amountOfPlayers {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	assert.Equal(t, len(receipts), amountOfPlayers+1, "Expected number of receipts does not match")
+	for i, receipt := range receipts {
+		if i == 0 {
+			// Assert that the persona creation receipt was successful
+			assert.Equal(t, receipt.Result["success"], true)
+			continue
+		}
+
+		// Assert that tx/game/join receipts returned successful
+		assert.Equal(t, len(receipt.Errors), 0)
+		value, ok := receipt.Result["Success"]
+		assert.True(t, ok)
+		success, ok := value.(bool)
+		assert.True(t, ok)
+		assert.Equal(t, success, true)
 	}
 }
 

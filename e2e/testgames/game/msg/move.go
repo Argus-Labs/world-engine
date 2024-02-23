@@ -12,5 +12,4 @@ type MoveOutput struct {
 	X, Y int64
 }
 
-var MoveMsg = message.NewMessageType[MoveInput, MoveOutput]("move",
-	message.WithMsgEVMSupport[MoveInput, MoveOutput]())
+var MoveMsg = message.NewMessageType[MoveInput, MoveOutput]("move", message.WithMsgEVMSupport[MoveInput, MoveOutput]())

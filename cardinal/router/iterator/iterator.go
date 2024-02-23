@@ -14,6 +14,8 @@ import (
 )
 
 // Iterator provides functionality to iterate over transactions stored onchain.
+//
+//go:generate mockgen -source=iterator.go -package mocks -destination=mocks/iterator.go
 type Iterator interface {
 	// Each calls `fn` for each tick of transactions it queries. An optional "ranges" may be given which will control
 	// the start and end ticks queried. If neither are supplied, each will call `fn` from tick 0 to the last tick stored
@@ -46,7 +48,8 @@ func New(
 	}
 }
 
-// Each iterates over txs
+// Each iterates over txs from the base shard layer. For each batch of transactions found in
+// each tick, it will apply the callback function to that batch and it's respective tick and timestamp.
 //
 //nolint:gocognit // maybe revisit.. idk.
 func (t *iterator) Each(

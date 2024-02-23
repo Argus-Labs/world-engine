@@ -1,6 +1,7 @@
 package receipt
 
 import (
+	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
@@ -21,14 +22,22 @@ func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	txHash := "hash1"
 	userID := "user456"
 	notifier.AddTxHashToPendingNotifications(txHash, userID)
-	expectedData := map[string]any{
-		"txHash": txHash,
-		"result": map[string]any{"status": "success"},
-		"errors": []string{},
+
+	expectedNotifications := []*runtime.NotificationSend{
+		{
+			UserID:  userID,
+			Subject: "receipt",
+			Content: map[string]any{
+				"txHash": txHash,
+				"result": map[string]any{"status": "success"},
+				"errors": []string{},
+			},
+			Code:       1,
+			Sender:     "",
+			Persistent: true,
+		},
 	}
-	nk.On("NotificationSend",
-		mock.Anything, userID, mock.Anything, expectedData, mock.Anything, mock.Anything, mock.Anything,
-	).Return(nil).Once()
+	nk.On("NotificationsSend", mock.Anything, expectedNotifications).Return(nil).Once()
 
 	go rd.Dispatch(logger)
 	go rd.PollReceipts(logger, strings.TrimPrefix(mockServer.URL, "http://"))
@@ -61,21 +70,30 @@ func TestHandleReceipt(t *testing.T) {
 	txHash := "hash1"
 	userID := "user456"
 
+	notifications := []*runtime.NotificationSend{
+		{
+			UserID:  userID,
+			Subject: "receipt",
+			Content: map[string]interface{}{
+				"txHash": txHash,
+				"result": (map[string]interface{})(nil),
+				"errors": ([]string)(nil),
+			},
+			Code:       1,
+			Sender:     "",
+			Persistent: true,
+		},
+	}
+
 	// Assert that "NotificationSend" is called with the given params
-	nk.On("NotificationSend",
-		mock.Anything, userID, "subject",
-		mock.AnythingOfType("map[string]interface {}"), 1, "", false).Run(func(args mock.Arguments) {
-		argData := args.Get(3).(map[string]any) //nolint:errcheck // [not important]
-		assert.Nil(t, argData["result"])
-		assert.Nil(t, argData["errors"])
-	}).Return(nil).Once()
+	nk.On("NotificationsSend", mock.Anything, notifications).Return(nil).Once()
 
 	notifier.txHashToTargetInfo[txHash] = targetInfo{
 		createdAt: time.Now(),
 		userID:    userID,
 	}
 
-	receipt := &Receipt{TxHash: txHash}
+	receipt := []*Receipt{{TxHash: txHash}}
 	err := notifier.handleReceipt(receipt)
 	assert.NoError(t, err, "Handling receipt should not error")
 

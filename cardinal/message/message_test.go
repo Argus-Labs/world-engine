@@ -3,6 +3,9 @@ package message_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -10,8 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -138,7 +139,7 @@ func TestForEachTransaction(t *testing.T) {
 	}
 
 	// Perform a engine tick
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	// Verify the receipts for the previous tick are what we expect
 	receipts, err := world.GetTransactionReceiptsForTick(world.CurrentTick() - 1)
@@ -170,6 +171,20 @@ type ModifyScoreMsg struct {
 }
 
 type EmptyMsgResult struct{}
+
+func TestIfNewMessageWillPanic(t *testing.T) {
+	type NotStruct []int
+	type AStruct struct{}
+	assert.Panics(t, func() {
+		message.NewMessageType[NotStruct, AStruct]("random")
+	})
+	assert.Panics(t, func() {
+		message.NewMessageType[AStruct, NotStruct]("random")
+	})
+	assert.NotPanics(t, func() {
+		message.NewMessageType[AStruct, AStruct]("random")
+	})
+}
 
 func TestReadTypeNotStructs(t *testing.T) {
 	defer func() {
@@ -233,15 +248,15 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 0, s.Score)
 
 	// Process a game tick
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	// Verify the score was updated
 	s, err = cardinal.GetComponent[ScoreComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 
-	// Tick again, but no new modifyScoreMsg was added to the pool
-	assert.NilError(t, world.Tick(context.Background()))
+	// Tick again, but no new modifyScoreMsg was added to the queue
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	// Verify the score hasn't changed
 	s, err = cardinal.GetComponent[ScoreComponent](wCtx, id)
@@ -284,7 +299,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	assert.NilError(t, err)
 
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, world.Tick(context.Background()))
+		assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 	}
 
 	c, err := cardinal.GetComponent[CounterComponent](wCtx, id)
@@ -343,7 +358,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		},
 	)
 
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	for i, id := range ids {
 		wantScore := 0
@@ -387,7 +402,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 
 	// Start a tick in the background.
 	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
+		assert.Check(t, nil == world.Tick(context.Background(), uint64(time.Now().Unix())))
 	}()
 	// Make sure we're actually in the System. It will now block forever.
 	inSystemCh <- struct{}{}
@@ -518,7 +533,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
@@ -630,7 +645,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	_ = tf.AddTransaction(moveMsg.ID(), MoveMsg{99, 100})
 
 	// Tick the game so the transaction is processed
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	tick := world.CurrentTick() - 1
 	receipts, err := world.GetTransactionReceiptsForTick(tick)
@@ -692,7 +707,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 	assert.Equal(t, 2, systemCalls)
 }
 
@@ -746,7 +761,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 	prevTick := world.CurrentTick() - 1
 	receipts, err := world.GetTransactionReceiptsForTick(prevTick)

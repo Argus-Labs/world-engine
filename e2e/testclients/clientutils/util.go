@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/rotisserie/eris"
 	"io"
 	"math/rand"
 	"net/http"
@@ -44,8 +45,14 @@ type NotificationItem struct {
 	Persistent bool      `json:"persistent"`
 }
 
-type Content struct {
+type Event struct {
 	Message string `json:"message"`
+}
+
+type Receipt struct {
+	TxHash string         `json:"txHash"`
+	Result map[string]any `json:"result"`
+	Errors []string       `json:"errors"`
 }
 
 type NotificationCollection struct {
@@ -53,46 +60,83 @@ type NotificationCollection struct {
 	CacheableCursor string             `json:"cacheableCursor"`
 }
 
-func (c *NakamaClient) ListNotifications(k int) ([]*Content, error) {
+// FetchNotifications fetches notifications and returns them as a generic slice.
+// This is a helper function to avoid code duplication.
+func (c *NakamaClient) FetchNotifications(k int) ([]NotificationItem, error) {
 	path := "v2/notification"
 	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
+
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", c.authHeader)
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		// Handle non-OK responses here. For simplicity, we're just returning an error.
+		return nil, fmt.Errorf("server returned non-OK status: %d", resp.StatusCode)
+	}
+
 	bodyData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	data := NotificationCollection{
-		Notifications:   make([]NotificationItem, 0),
-		CacheableCursor: "",
-	}
+
+	var data NotificationCollection
 	err = json.Unmarshal(bodyData, &data)
 	if err != nil {
 		return nil, err
 	}
+
+	// Update the cursor for subsequent requests.
 	c.notificationCursor = data.CacheableCursor
-	acc := make([]*Content, 0)
-	for _, item := range data.Notifications {
-		content := Content{}
-		err := json.Unmarshal([]byte(item.Content), &content)
-		if err != nil {
-			return nil, err
-		}
-		if item.Subject == "event" {
-			acc = append(acc, &content)
+
+	return data.Notifications, nil
+}
+
+// ListReceipts lists only the receipts from the notifications.
+func (c *NakamaClient) ListReceipts(k int) ([]*Receipt, error) {
+	items, err := c.FetchNotifications(k)
+	if err != nil {
+		return nil, err
+	}
+	var receipts []*Receipt
+	for _, item := range items {
+		if item.Subject == "receipt" {
+			var receipt Receipt
+			if err := json.Unmarshal([]byte(item.Content), &receipt); err != nil {
+				return nil, eris.Wrap(err, "failed to unmarshall receipt")
+			}
+			receipts = append(receipts, &receipt)
 		}
 	}
-	return acc, nil
+	return receipts, nil
+}
+
+// ListEvents lists only the events from the notifications.
+func (c *NakamaClient) ListEvents(k int) ([]*Event, error) {
+	items, err := c.FetchNotifications(k)
+	if err != nil {
+		return nil, err
+	}
+	var events []*Event
+	for _, item := range items {
+		if item.Subject == "event" {
+			var event Event
+			if err := json.Unmarshal([]byte(item.Content), &event); err != nil {
+				return nil, eris.Wrap(err, "failed to unmarshall receipt")
+			}
+			events = append(events, &event)
+		}
+	}
+	return events, nil
 }
 
 func (c *NakamaClient) RegisterDevice(username, deviceID string) error {

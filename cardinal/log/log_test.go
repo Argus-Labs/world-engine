@@ -3,15 +3,16 @@ package log_test
 import (
 	"bytes"
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"strings"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -161,7 +162,7 @@ func TestWorldLogger(t *testing.T) {
 	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
-	err = world.Tick(ctx)
+	err = world.Tick(ctx, uint64(time.Now().Unix()))
 	assert.NilError(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:3]
 	// test tick start

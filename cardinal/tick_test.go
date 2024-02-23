@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"testing"
+	"time"
+
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"io"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -32,7 +33,7 @@ func TestTickHappyPath(t *testing.T) {
 	tf1.StartWorld()
 
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, world1.Tick(context.Background()))
+		assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
 	}
 
 	assert.Equal(t, uint64(10), world1.CurrentTick())
@@ -81,7 +82,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 		}
 	}()
 
-	err = world.Tick(ctx)
+	err = world.Tick(ctx, uint64(time.Now().Unix()))
 	assert.NilError(t, err)
 }
 
@@ -148,11 +149,11 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Power is set to 1
-	assert.NilError(t, world1.Tick(context.Background()))
+	assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
 	// Power is set to 2
-	assert.NilError(t, world1.Tick(context.Background()))
+	assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
 	// Power is set to 3, then the System fails
-	assert.ErrorIs(t, errorSystem, eris.Cause(world1.Tick(context.Background())))
+	assert.ErrorIs(t, errorSystem, eris.Cause(world1.Tick(context.Background(), uint64(time.Now().Unix()))))
 
 	// Set up a new engine using the same storage layer
 	tf2 := testutils.NewTestFixture(t, rs)
@@ -182,7 +183,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
-	assert.NilError(t, world2.Tick(context.Background()))
+	assert.NilError(t, world2.Tick(context.Background(), uint64(time.Now().Unix())))
 	p1, err := cardinal.GetComponent[onePowerComponent](world2Ctx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p1.Power)
@@ -317,7 +318,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			assert.ErrorIs(t, iterators.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
-			assert.ErrorIs(t, errorToggleComponent, eris.Cause(tf.World.Tick(context.Background())))
+			assert.ErrorIs(t, errorToggleComponent,
+				eris.Cause(tf.World.Tick(context.Background(), uint64(time.Now().Unix()))))
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
@@ -394,17 +396,18 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
-			assert.NilError(t, world.Tick(context.Background()))
+			assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
-			assert.NilError(t, world.Tick(context.Background()))
+			assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
-			assert.NilError(t, world.Tick(context.Background()))
+			assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
 			tf.AddTransaction(powerTx.ID(), PowerComp{666})
-			assert.ErrorIs(t, errorBadPowerChange, eris.Cause(world.Tick(context.Background())))
+			assert.ErrorIs(t, errorBadPowerChange,
+				eris.Cause(world.Tick(context.Background(), uint64(time.Now().Unix()))))
 		} else {
 			// Loading the game state above should successfully re-process that final 666 messages.
 			assert.Equal(t, float64(3666), fetchPower())

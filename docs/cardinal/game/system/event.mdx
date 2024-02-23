@@ -10,13 +10,13 @@ package systems
 
 import "pkg.world.dev/world-engine/cardinal"
 
-func AttackSystem(ctx cardinal.WorldContext) {
+func AttackSystem(worldCtx cardinal.WorldContext) {
 	// Attack system logic
 	
 	// ...
 	
-	// Tell the client that the player have received damage
-    ctx.EmitEvent(fmt.Sprintf("player attacked: %s %d"), playerName, damage)
+	// Broadcast the event to all players
+    worldCtx.EmitEvent(fmt.Sprintf("player attacked: %s %d"))
 }
 ```
 
@@ -27,11 +27,11 @@ The `EmitEvent` method on `cardinal.WorldContext` will emit events to all client
 To see how to receive notifications go here: https://heroiclabs.com/docs/nakama/concepts/notifications/#receive-notifications (Unity)
 
 ```go
-func (wCtx *WorldContext) EmitEvent(event string)
+func (worldCtx cardinal.WorldContext) EmitEvent(event string)
 ```
 
-| Parameter   | Type                                          | Description                                                                                        |
-|-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
-| event       | string                                        | The string to emit as an event                                                                     |
+| Parameter | Type   | Description                    |
+|-----------|--------|--------------------------------|
+| event     | string | The string to emit as an event |
 
 

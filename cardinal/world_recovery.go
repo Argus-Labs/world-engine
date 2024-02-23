@@ -5,6 +5,7 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
+	"time"
 )
 
 // recoverAndExecutePendingTxs checks whether the last tick is successfully completed. If not, it will recover
@@ -25,14 +26,14 @@ func (w *World) recoverAndExecutePendingTxs() error {
 		return err
 	}
 
-	// If there is recoevered transactions, we need to reprocess them
+	// If there is recovered transactions, we need to reprocess them
 	if recoveredTxs != nil {
 		w.txPool = recoveredTxs
 		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
 		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
 		//  from the game loop.
 		w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
-		if err = w.Tick(context.Background()); err != nil {
+		if err = w.Tick(context.Background(), uint64(time.Now().Unix())); err != nil {
 			return err
 		}
 		w.worldStage.CompareAndSwap(worldstage.Running, worldstage.Starting)
@@ -47,27 +48,29 @@ func (w *World) recoverAndExecutePendingTxs() error {
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.router == nil {
 		return eris.Errorf(
-			"chain adapter was nil. " +
+			"chain router was nil. " +
 				"be sure to use the `WithAdapter` option when creating the world",
 		)
 	}
 
 	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Recovering)
 	defer func() {
-		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Ready)
+		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Starting)
 	}()
 
 	start := w.CurrentTick()
 	err := w.router.TransactionIterator().Each(func(batches []*iterator.TxBatch, tick, timestamp uint64) error {
 		for w.CurrentTick() != tick {
-			if err := w.Tick(ctx); err != nil {
+			if err := w.Tick(ctx, timestamp); err != nil {
 				return eris.Wrap(err, "failed to tick engine")
 			}
 		}
+
 		for _, batch := range batches {
 			w.AddTransaction(batch.MsgID, batch.MsgValue, batch.Tx)
 		}
-		if err := w.Tick(ctx); err != nil {
+
+		if err := w.Tick(ctx, timestamp); err != nil {
 			return eris.Wrap(err, "failed to tick engine")
 		}
 		return nil

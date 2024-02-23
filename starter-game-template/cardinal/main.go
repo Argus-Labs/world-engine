@@ -33,7 +33,7 @@ func main() {
 	// Register queries
 	// NOTE: You must register your queries here for it to be accessible.
 	Must(
-		cardinal.RegisterQuery[query.WorldVarsRequest, query.WorldVarsResponse](w, "world-vars", query.WorldVars),
+		cardinal.RegisterQuery[query.PlayerHealthRequest, query.PlayerHealthResponse](w, "player-health", query.PlayerHealth),
 	)
 
 	// Each system executes deterministically in the order they are added.

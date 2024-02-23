@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"slices"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
@@ -147,7 +148,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	url := "/tx/game/" + MoveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background())
+	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
 	s.Require().NoError(err)
 	s.nonce++
 
@@ -188,7 +189,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload an
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background())
+	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
 	s.Require().NoError(err)
 	s.nonce++
 }
@@ -203,7 +204,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background())
+	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
 	s.Require().NoError(err)
 	s.nonce++
 }
