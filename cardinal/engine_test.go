@@ -3,8 +3,6 @@ package cardinal_test
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"testing"
 	"time"
 
@@ -395,19 +393,7 @@ func NewFakeIterator(collection []Iterable) *FakeIterator {
 
 // Each simulates iterating over transactions based on the provided ranges.
 // It directly invokes the provided function with mock data for testing.
-func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, ranges ...uint64) error {
-	startTick := uint64(0)
-	stopTick := uint64(0)
-	if len(ranges) > 0 {
-		startTick = ranges[0]
-		if len(ranges) > 1 {
-			stopTick = ranges[1]
-			if startTick > stopTick {
-				return fmt.Errorf("start tick %d is greater than stop tick %d", startTick, stopTick)
-			}
-		}
-	}
-
+func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, _ ...uint64) error {
 	for _, val := range f.objects {
 		// Invoke the callback function with the current batch, tick, and timestamp.
 		if err := fn(val.Batches, val.Tick, val.Timestamp); err != nil {
@@ -433,15 +419,14 @@ func setEnvToCardinalProdMode(t *testing.T) {
 func TestRecoverFromChain(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
+	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+	setEnvToCardinalProdMode(t)
 
 	rtr.EXPECT().Start().Times(1)
 
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	world.SetRouter(rtr)
-
-	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
-	setEnvToCardinalProdMode(t)
 
 	type fooMsg struct{ I int }
 	type fooMsgRes struct{}
@@ -460,35 +445,18 @@ func TestRecoverFromChain(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	// Creating fake transactions that would contain fooMessage.
-	// Assume fooMsg serialization is as simple as converting the integer to a byte slice.
-	// Adjust this logic based on how fooMsg is actually serialized in your system.
 	fakeBatches := []Iterable{
 		{
 			Batches: []*iterator.TxBatch{
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 1},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      0,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 2},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      1,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 			},
 			Tick:      1,
@@ -499,26 +467,12 @@ func TestRecoverFromChain(t *testing.T) {
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 3},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      2,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 4},
-					Tx: &sign.Transaction{
-						PersonaTag: "NiTe",
-						Namespace:  world.Namespace().String(),
-						Nonce:      3,
-						Signature:  "signature",
-						Hash:       common.Hash{},
-						Body:       nil,
-					},
+					Tx:       &sign.Transaction{},
 				},
 			},
 			Tick:      15,

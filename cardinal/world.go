@@ -50,6 +50,7 @@ type World struct {
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
+	mode            RunMode
 	Logger          *zerolog.Logger
 
 	endStartGame chan bool
@@ -121,6 +122,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	world := &World{
 		serverOptions: serverOptions,
+		mode:          cfg.CardinalMode,
 		endStartGame:  make(chan bool),
 
 		worldStage:       worldstage.NewManager(),
@@ -353,7 +355,7 @@ func (w *World) StartGame() error {
 	}
 
 	// If Cardinal is in Prod and Router is set, recover any old state of the engine from the chain
-	if getWorldConfig().CardinalMode == RunModeProd && w.router != nil {
+	if w.mode == RunModeProd && w.router != nil {
 		if err := w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
