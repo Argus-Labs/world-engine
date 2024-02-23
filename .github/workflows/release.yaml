@@ -9,7 +9,8 @@ on:
       - 'relay/nakama/v*.*.*'
 
 env:
-  REGISTRY_URL: us-docker.pkg.dev
+  GOOGLE_REGISTRY_URL: us-docker.pkg.dev
+  GITHUB_REGISTRY_URL: ghcr.io
 
 jobs:
   evm-release:
@@ -45,14 +46,14 @@ jobs:
           project_id: ${{ env.GCP_PROJECT_ID_PACKAGES }}
       - name: Docker - Auth to artifact registry
         run: |
-          gcloud auth configure-docker ${{ env.REGISTRY_URL }}
+          gcloud auth configure-docker ${{ env.GOOGLE_REGISTRY_URL }}
       - name: Docker - Build
         run: |
           docker build -t evm-local-build:latest .
       - name: Docker - Publish Image
         run: |
           ## Construct image_id
-          IMAGE_ID_EVM=${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/evm
+          IMAGE_ID_EVM=${{ env.GOOGLE_REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/evm
           IMAGE_ID_EVM=$(echo $IMAGE_ID_EVM | tr '[A-Z]' '[a-z]')
 
           ## Get version from tag name (ex: evm/v0.0.0 --> registry/evm:v0.0.0)
@@ -94,16 +95,36 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ env.GCP_PROJECT_ID_PACKAGES }}
-      - name: Docker - Auth to artifact registry
+      - name: Docker - Auth to Google Artifact Registry
         run: |
-          gcloud auth configure-docker ${{ env.REGISTRY_URL }}
+          gcloud auth configure-docker ${{ env.GOOGLE_REGISTRY_URL }}
+      - name: Docker - Auth to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GITHUB_REGISTRY_URL }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Docker - Build
         run: |
           docker build -t nakama-local-build:latest .
-      - name: Docker - Publish Image
+      - name: Docker - Publish Image to Google Artifact Registry
         run: |
           ## Construct image_id
-          IMAGE_ID_NAKAMA=${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/relay/nakama
+          IMAGE_ID_NAKAMA=${{ env.GOOGLE_REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/relay/nakama
+          IMAGE_ID_NAKAMA=$(echo $IMAGE_ID_NAKAMA | tr '[A-Z]' '[a-z]')
+
+          ## Get version from tag name (ex: relay/nakama/v0.0.0 --> registry/relay/nakama:v0.0.0)
+          ## Or use 'latest' when on main branch
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          [ "$VERSION" == "main" ] && VERSION=latest
+          echo "Image to push: $IMAGE_ID_NAKAMA:$VERSION"
+
+          docker tag nakama-local-build:latest $IMAGE_ID_NAKAMA:$VERSION
+          docker push $IMAGE_ID_NAKAMA:$VERSION
+      - name: Docker - Publish Image to Github Container Registry
+        run: |
+          ## Construct image_id
+          IMAGE_ID_NAKAMA=${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/nakama
           IMAGE_ID_NAKAMA=$(echo $IMAGE_ID_NAKAMA | tr '[A-Z]' '[a-z]')
 
           ## Get version from tag name (ex: relay/nakama/v0.0.0 --> registry/relay/nakama:v0.0.0)
