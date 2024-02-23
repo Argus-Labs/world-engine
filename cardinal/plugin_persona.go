@@ -90,8 +90,6 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 			world,
 			"authorize-persona-address",
 		))
-	//return registerMessagesByName(world, CreatePersonaMsg, AuthorizePersonaAddressMsg)
-
 }
 
 // -----------------------------------------------------------------------------

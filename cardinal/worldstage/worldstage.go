@@ -1,6 +1,8 @@
 package worldstage
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 type Stage string
 

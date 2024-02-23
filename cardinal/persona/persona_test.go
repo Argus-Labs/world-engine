@@ -97,6 +97,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
 	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
 		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
@@ -123,6 +124,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	personaTag := "jeff"
 	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
 		tf.AddTransaction(
@@ -229,9 +231,9 @@ func TestCanAuthorizeAddress(t *testing.T) {
 			SignerAddress: wantSigner,
 		},
 	)
-
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
-	authorizePersonaAddressMsg, err := cardinal.GetMessageFromWorld[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](world)
+	authorizePersonaAddressMsg, err :=
+		cardinal.GetMessageFromWorld[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](world)
 	assert.NilError(t, err)
 	tf.AddTransaction(
 		authorizePersonaAddressMsg.ID(),

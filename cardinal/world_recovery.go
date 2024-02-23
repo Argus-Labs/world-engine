@@ -26,7 +26,7 @@ func (w *World) recoverAndExecutePendingTxs() error {
 		return err
 	}
 
-	// If there is recoevered transactions, we need to reprocess them
+	// If there is recovered transactions, we need to reprocess them
 	if recoveredTxs != nil {
 		w.txPool = recoveredTxs
 		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
@@ -55,7 +55,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 
 	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Recovering)
 	defer func() {
-		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Ready)
+		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Starting)
 	}()
 
 	start := w.CurrentTick()

@@ -1,10 +1,10 @@
 package cardinal_test
 
 import (
-	"context"
+	"github.com/franela/goblin"
+
 	"testing"
 
-	. "github.com/franela/goblin"
 	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -25,13 +25,16 @@ type FooResponse struct {
 }
 
 func TestWorldRecovery(t *testing.T) {
-	g := Goblin(t)
+	g := goblin.Goblin(t)
 	g.Describe("WorldRecovery", func() {
 		var tf *testutils.TestFixture
 		var controller *gomock.Controller
 		var router *mocks.MockRouter
 		var world *cardinal.World
 		var fooTx *message.MessageType[FooMessage, FooResponse]
+
+		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+		setEnvToCardinalProdMode(t)
 
 		g.BeforeEach(func() {
 			tf = testutils.NewTestFixture(t, nil)
@@ -88,9 +91,6 @@ func TestWorldRecovery(t *testing.T) {
 					Return(nil).AnyTimes()
 
 				tf.StartWorld()
-
-				err := world.RecoverFromChain(context.Background())
-				g.Assert(err).IsNil()
 
 				// Check that tick 0 is run with the timestamp from recovery data
 				g.Assert(cardinal.NewWorldContext(world).Timestamp()).Equal(timestamp)

@@ -204,6 +204,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreMsg, err := cardinal.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx)
+	assert.NilError(t, err)
 	tf.AddTransaction(
 		modifyScoreMsg.ID(), &ModifyScoreMsg{
 			PlayerID: ids[5],
@@ -262,6 +263,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 	modScore, err := cardinal.GetMessageFromWorld[*ModifyScoreMsg, *EmptyMsgResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
 
 	// Start a tick in the background.
@@ -331,6 +333,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 	modScoreMsg, err := cardinal.GetMessageFromWorld[*ModifyScoreMsg, *EmptyMsgResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(modScoreMsg.ID(), &ModifyScoreMsg{})
 
 	// Start the game tick. The tick will block while waiting to write to modScoreCountCh
@@ -449,6 +452,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 	moveMsg, err := cardinal.GetMessageFromWorld[MoveMsg, MoveMsgResult](world)
+	assert.NilError(t, err)
 	_ = tf.AddTransaction(moveMsg.ID(), MoveMsg{99, 100})
 
 	// Tick the game so the transaction is processed
@@ -579,6 +583,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 	numTx, err := cardinal.GetMessageFromWorld[MsgIn, MsgOut](world)
+	assert.NilError(t, err)
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
 	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
@@ -640,6 +645,7 @@ func TestTransactionExample(t *testing.T) {
 	amountToModify := 20
 	payload := testutils.UniqueSignature()
 	addHealthToEntity, err := cardinal.GetMessageFromWorld[AddHealthToEntityTx, AddHealthToEntityResult](world)
+	assert.NilError(t, err)
 	testutils.AddTransactionToWorldByAnyTransaction(
 		world, addHealthToEntity,
 		AddHealthToEntityTx{idToModify, amountToModify}, payload,

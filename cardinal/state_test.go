@@ -302,7 +302,6 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	//someTx := message.NewMessageType[Msg, Result]("some-msg")
 	redisStore := miniredis.RunT(t)
 	ctx := context.Background()
 
@@ -330,6 +329,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 
 		relevantTick := world.CurrentTick()
 		someTx, err := cardinal.GetMessageFromWorld[Msg, Result](world)
+		assert.NilError(t, err)
 		for i := 0; i < 3; i++ {
 			_ = tf.AddTransaction(someTx.ID(), Msg{}, testutils.UniqueSignature())
 		}

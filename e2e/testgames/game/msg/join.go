@@ -2,6 +2,7 @@ package msg
 
 import (
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type JoinInput struct {
@@ -12,5 +13,5 @@ type JoinOutput struct {
 	Success bool
 }
 
-var JoinMsg = message.NewMessageType[JoinInput, JoinOutput]("join",
+var JoinMsg = testutils.NewMessageType[JoinInput, JoinOutput]("join",
 	message.WithMsgEVMSupport[JoinInput, JoinOutput]())

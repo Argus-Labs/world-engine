@@ -289,6 +289,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			return &QueryLocationResponse{*loc}, nil
 		},
 	)
+	s.Require().NoError(err)
 }
 
 // returns the body of an http response as string.
