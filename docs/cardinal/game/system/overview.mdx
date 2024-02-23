@@ -121,7 +121,7 @@ package system
 // This provides an example of a system that doesn't rely on a message to update a component.
 func RegenSystem(worldCtx cardinal.WorldContext) error {
 	// Searches for all entities that have the Player and Health component.
-	err := worldCtx.
+	err := cardinal.
         NewSearch(filter.Exact(component.Player{}, component.Health{})).
         Each(func(id types.EntityID) bool {
             // Iterate through all entities that have the Player and Health component.
