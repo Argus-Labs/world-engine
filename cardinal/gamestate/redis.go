@@ -206,7 +206,15 @@ func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe Pr
 
 // addComponentChangesToPipe adds updated component values for entities to the redis pipe.
 func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	for key, isMarkedForDeletion := range m.compValuesToDelete {
+	keysToDelete, err := m.compValuesToDelete.Keys(ctx)
+	if err != nil {
+		return err
+	}
+	for _, key := range keysToDelete {
+		isMarkedForDeletion, err := m.compValuesToDelete.GetBool(ctx, key)
+		if err != nil {
+			return err
+		}
 		if !isMarkedForDeletion {
 			continue
 		}
