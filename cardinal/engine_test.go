@@ -445,9 +445,6 @@ func TestRecoverFromChain(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	// Creating fake transactions that would contain fooMessage.
-	// Assume fooMsg serialization is as simple as converting the integer to a byte slice.
-	// Adjust this logic based on how fooMsg is actually serialized in your system.
 	fakeBatches := []Iterable{
 		{
 			Batches: []*iterator.TxBatch{
