@@ -168,12 +168,15 @@ func TestEVMTxConsume(t *testing.T) {
 	}
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
-	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
+	err := cardinal.RegisterMessage[FooIn, FooOut](world, "foo", message.WithMsgEVMSupport[FooIn, FooOut]())
+	assert.NilError(t, err)
+
 	var returnVal FooOut
 	var returnErr error
-	err := cardinal.RegisterSystems(world,
+	err = cardinal.RegisterSystems(world,
 		func(eCtx cardinal.WorldContext) error {
+			fooTx, err := cardinal.GetMessage[FooIn, FooOut](eCtx)
+			assert.NilError(t, err)
 			fooTx.Each(
 				eCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
@@ -186,6 +189,8 @@ func TestEVMTxConsume(t *testing.T) {
 
 	tf.StartWorld()
 
+	fooTx, err := cardinal.GetMessageFromWorld[FooIn, FooOut](world)
+	assert.NilError(t, err)
 	// add tx to pool
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
@@ -339,13 +344,14 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	}
 
 	type fooMsgRes struct{}
-	fooMessage := message.NewMessageType[fooMsg, fooMsgRes]("foo", message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
-	err := cardinal.RegisterMessages(world, fooMessage)
+	err := cardinal.RegisterMessage[fooMsg, fooMsgRes](world, "foo", message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
 	assert.NilError(t, err)
 
 	evmTxHash := "0x12345"
 	msg := fooMsg{Bar: "hello"}
 	tx := &sign.Transaction{PersonaTag: "ty"}
+	fooMessage, err := cardinal.GetMessageFromWorld[fooMsg, fooMsgRes](world)
+	assert.NilError(t, err)
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
 
 	rtr.
@@ -389,7 +395,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 //	type fooMsg struct{ I int }
 //	type fooMsgRes struct{}
 //	fooMsgName := "foo"
-//	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+//	fooMessage := message.newMessageType[fooMsg, fooMsgRes](fooMsgName)
 //	err := cardinal.registerMessagesByName(world, fooMessage)
 //	assert.NilError(t, err)
 //

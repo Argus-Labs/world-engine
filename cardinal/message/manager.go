@@ -22,10 +22,7 @@ func NewManager() *Manager {
 	}
 }
 
-// RegisterMessages registers multiple messages with the message manager
-// There can only be one message with a given name, which is declared by the user by implementing the Name() method.
-// If there is a duplicate message name, an error will be returned and none of the messages will be registered.
-func (m *Manager) RegisterMessages(msgs ...types.Message) error {
+func (m *Manager) registerMessagesByName(msgs ...types.Message) error {
 	// Iterate through all the messages and check if they are already registered.
 	// This is done before registering any of the messages to ensure that all are registered or none of them are.
 	msgNames := make([]string, 0, len(msgs))
@@ -92,7 +89,7 @@ func (m *Manager) GetMessageByType(mType reflect.Type) (types.Message, bool) {
 	return msg, ok
 }
 
-func (m *Manager) RegisterMessageByType(mType reflect.Type, message types.Message) error {
+func (m *Manager) registerMessageByType(mType reflect.Type, message types.Message) error {
 	_, ok := m.registeredMessagesByType[mType]
 	if ok {
 		return eris.New("A message of this type has already been registered")
@@ -108,4 +105,16 @@ func (m *Manager) isMessageNameUnique(tx types.Message) error {
 		return eris.Errorf("message %q is already registered", tx.Name())
 	}
 	return nil
+}
+
+// RegisterMessageOnManager registers a single message on a manager. You do not need to provide the message type
+// You just need to provide the input and Output parameters
+func RegisterMessageOnManager[In any, Out any](manager *Manager, name string, opts ...MessageOption[In, Out]) error {
+	msgType := newMessageType[In, Out](name, opts...)
+	err := manager.registerMessagesByName(msgType)
+	if err != nil {
+		return err
+	}
+	typeValueOfMessageType := reflect.TypeOf(*msgType)
+	return manager.registerMessageByType(typeValueOfMessageType, msgType)
 }

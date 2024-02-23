@@ -20,20 +20,22 @@ type MovePlayerResult struct {
 	FinalY int
 }
 
-var MoveMsg = message.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
-
 func ExampleMessageType() {
 	world, err := cardinal.NewMockWorld()
 	if err != nil {
 		panic(err)
 	}
 
-	err = cardinal.RegisterMessages(world, MoveMsg)
+	err = cardinal.RegisterMessage[MovePlayerMsg, MovePlayerResult](world, "move-player")
 	if err != nil {
 		panic(err)
 	}
 
 	err = cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+		MoveMsg, err := cardinal.GetMessage[MovePlayerMsg, MovePlayerResult](wCtx)
+		if err != nil {
+			return err
+		}
 		MoveMsg.Each(wCtx, func(txData message.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 			// handle the transaction
 			// ...

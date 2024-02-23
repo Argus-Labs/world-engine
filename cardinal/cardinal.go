@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"errors"
-	"reflect"
 	"strconv"
 
 	"github.com/rotisserie/eris"
@@ -75,27 +74,8 @@ func MustRegisterComponent[T types.Component](w *World) {
 	}
 }
 
-// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
-// messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...types.Message) error {
-	if w.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"engine state is %s, expected %s to register messages",
-			w.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
-	return w.msgManager.RegisterMessages(msgs...)
-}
-
 func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
-	msgType := message.NewMessageType[In, Out](name, opts...)
-	err := world.registerMessagesByName(msgType)
-	if err != nil {
-		return eris.Wrap(err, "failed to register message")
-	}
-	typeValueOfMessageType := reflect.TypeOf(*msgType)
-	return world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msgType)
+	return message.RegisterMessageOnManager[In, Out](world.GetMessageManager(), name, opts...)
 }
 
 func RegisterQuery[Request any, Reply any](

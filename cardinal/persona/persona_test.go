@@ -3,6 +3,9 @@ package persona_test
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona"
@@ -10,8 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	personaQuery "pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -50,8 +51,10 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantAddress,
 		},
@@ -59,7 +62,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// This cardinal.CreatePersona has the same persona tag, but it shouldn't be registered because
 	// it comes second.
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: "some_other_address",
 		},
@@ -93,8 +96,9 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// Queue up a cardinal.CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddress,
 		},
@@ -118,11 +122,11 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	tf.StartWorld()
 
 	personaTag := "jeff"
-
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
 		tf.AddTransaction(
-			cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+			createPersonaMsg.ID(), msg.CreatePersona{
 				PersonaTag:    personaTag,
 				SignerAddress: fmt.Sprintf("address_%d", i),
 			},
@@ -141,7 +145,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	// Attempt to register this persona tag again in a different tick. We should still maintain the original
 	// signer address.
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: "some_other_address",
 		},
@@ -160,8 +164,10 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	world := tf.World
 	tf.StartWorld()
 
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    "INVALID PERSONA TAG WITH SPACES",
 			SignerAddress: "123_456",
 		},
@@ -181,8 +187,10 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	world := tf.World
 	tf.StartWorld()
 
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    "WowTag",
 			SignerAddress: "123_456",
 		},
@@ -190,7 +198,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 
 	// This one should fail because it is the same tag with different casing!
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    "wowtag",
 			SignerAddress: "123_456",
 		},
@@ -213,18 +221,26 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantSigner := "123_456"
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantSigner,
 		},
 	)
 
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
+	authorizePersonaAddressMsg, err := cardinal.GetMessageFromWorld[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
-		cardinal.AuthorizePersonaAddressMsg.ID(), msg.AuthorizePersonaAddress{
+		authorizePersonaAddressMsg.ID(),
+		msg.AuthorizePersonaAddress{
 			Address: wantAddr,
-		}, &sign.Transaction{PersonaTag: wantTag},
+		},
+		&sign.Transaction{
+			PersonaTag: wantTag,
+		},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
@@ -250,8 +266,10 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 
 	personaTag := "CoolMage"
 	invalidAddr := "123-456"
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: invalidAddr,
 		},
@@ -259,7 +277,7 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 
 	wantAddr := "INVALID ADDRESS"
 	tf.AddTransaction(
-		cardinal.CreatePersonaMsg.ID(), msg.AuthorizePersonaAddress{
+		createPersonaMsg.ID(), msg.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: personaTag},
 	)
@@ -283,7 +301,9 @@ func TestQuerySigner(t *testing.T) {
 	world := tf.World
 	personaTag := "CoolMage"
 	signerAddr := "123_456"
-	world.AddTransaction(cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
+	assert.NilError(t, err)
+	world.AddTransaction(createPersonaMsg.ID(), msg.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}, &sign.Transaction{})

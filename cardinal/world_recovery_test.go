@@ -2,16 +2,27 @@ package cardinal_test
 
 import (
 	"context"
+	"testing"
+
 	. "github.com/franela/goblin"
 	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	iteratormocks "pkg.world.dev/world-engine/cardinal/router/iterator/mocks"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
 )
+
+// FooMessage To be used for registration of Messages.
+type FooMessage struct {
+	Bar string
+}
+
+// FooResponse To be used for registration of Messages.
+type FooResponse struct {
+}
 
 func TestWorldRecovery(t *testing.T) {
 	g := Goblin(t)
@@ -20,6 +31,7 @@ func TestWorldRecovery(t *testing.T) {
 		var controller *gomock.Controller
 		var router *mocks.MockRouter
 		var world *cardinal.World
+		var fooTx *message.MessageType[FooMessage, FooResponse]
 
 		g.BeforeEach(func() {
 			tf = testutils.NewTestFixture(t, nil)
@@ -29,8 +41,14 @@ func TestWorldRecovery(t *testing.T) {
 
 			world = tf.World
 			world.SetRouter(router)
-
-			err := cardinal.RegisterMessages(world, testutils.FooTx)
+			err := cardinal.RegisterMessage[
+				FooMessage,
+				FooResponse](
+				world,
+				"foo",
+				message.WithMsgEVMSupport[FooMessage, FooResponse]())
+			g.Assert(err).IsNil()
+			fooTx, err = cardinal.GetMessageFromWorld[FooMessage, FooResponse](world)
 			g.Assert(err).IsNil()
 		})
 
@@ -49,8 +67,8 @@ func TestWorldRecovery(t *testing.T) {
 						batch := []*iterator.TxBatch{
 							{
 								Tx:       &sign.Transaction{PersonaTag: "ty"},
-								MsgID:    testutils.FooTx.ID(),
-								MsgValue: testutils.FooMessage{Bar: "hello"},
+								MsgID:    fooTx.ID(),
+								MsgValue: FooMessage{Bar: "hello"},
 							},
 						}
 

@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -74,8 +73,7 @@ func TestWorldLogger(t *testing.T) {
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
 
-	alphaTx := message.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, cardinal.RegisterMessages(world, alphaTx))
+	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "alpha"))
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComp](world))
 	log.World(&bufLogger, world, zerolog.InfoLevel)
 	jsonEngineInfoString := `{
