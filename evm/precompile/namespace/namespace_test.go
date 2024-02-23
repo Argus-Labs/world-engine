@@ -1,16 +1,16 @@
 package namespace
 
 import (
-	ethprecompile ""
+	ethprecompile "github.com/berachain/polaris/eth/core/precompile"
+	"github.com/berachain/polaris/lib/utils"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/suite"
-github.com/berachain/polaris/eth/core/precompile"
-"pkg.berachain.dev/polaris/lib/utils"
-generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/namespace"
-"testing"
+	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/namespace"
+	"testing"
 )
+
 type NamespaceTestSuite struct {
 	suite.Suite
 	sf       *ethprecompile.StatefulFactory

@@ -1,16 +1,15 @@
 package router
 
 import (
-	ethprecompile ""
 	"context"
 	"fmt"
+	ethprecompile "github.com/berachain/polaris/eth/core/precompile"
+	"github.com/berachain/polaris/eth/core/vm"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
-github.com/berachain/polaris/eth/core/precompile"
-""github.com/berachain/polaris/eth/core/vm"
-generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
-"pkg.world.dev/world-engine/evm/router"
+	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
+	"pkg.world.dev/world-engine/evm/router"
 )
 
 const name = "world_engine_router"

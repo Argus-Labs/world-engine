@@ -21,17 +21,18 @@
 package router
 
 import (
+	"github.com/berachain/polaris/lib/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/suite"
 	"testing"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-github.com/berachain/polaris/eth/accounts/abi"
-ethprecompile ""github.com/berachain/polaris/eth/core/precompile"
-"pkg.berachain.dev/polaris/lib/utils"
-generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
+	"github.com/berachain/polaris/eth/accounts/abi"
+	ethprecompile "github.com/berachain/polaris/eth/core/precompile"
+	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
 )
+
 type RouterTestSuite struct {
 	suite.Suite
 	sf       *ethprecompile.StatefulFactory

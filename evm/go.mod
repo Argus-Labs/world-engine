@@ -34,6 +34,7 @@ require (
 	cosmossdk.io/x/upgrade v0.0.0-20230915171831-2196edacb99d
 	github.com/JeremyLoy/config v1.5.0
 	github.com/berachain/polaris/cosmos v0.0.0-20240222205654-7b19093a7328
+	github.com/berachain/polaris/eth v0.1.6-alpha
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/cometbft/cometbft v0.38.5
 	github.com/cosmos/cosmos-db v1.0.0
@@ -80,7 +81,6 @@ require (
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/berachain/polaris/contracts v0.1.5-alpha // indirect
-	github.com/berachain/polaris/eth v0.1.6-alpha // indirect
 	github.com/berachain/polaris/lib v0.0.4-alpha // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect

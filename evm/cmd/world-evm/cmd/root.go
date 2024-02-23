@@ -87,7 +87,7 @@ func NewRootCmd() *cobra.Command {
 		depinject.Configs(
 			app.MakeAppConfig(bech32Prefix),
 			depinject.Supply(
-				app.PolarisConfigFn(evmconfig.DefaultConfig()),
+				app.PolarisConfigFn(evmconfig.DefaultPolarisConfig()),
 				app.QueryContextFn((&app.App{})),
 				log.NewNopLogger(),
 				simtestutil.NewAppOptionsWithFlagHome(tempDir()),

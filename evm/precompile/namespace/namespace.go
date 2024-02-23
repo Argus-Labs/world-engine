@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	ethprecompile ""
 	"context"
 	ethprecompile "github.com/berachain/polaris/eth/core/precompile"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
