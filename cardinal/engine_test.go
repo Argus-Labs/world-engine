@@ -420,15 +420,14 @@ func setEnvToCardinalProdMode(t *testing.T) {
 func TestRecoverFromChain(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
+	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+	setEnvToCardinalProdMode(t)
 
 	rtr.EXPECT().Start().Times(1)
 
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	world.SetRouter(rtr)
-
-	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
-	setEnvToCardinalProdMode(t)
 
 	type fooMsg struct{ I int }
 	type fooMsgRes struct{}
