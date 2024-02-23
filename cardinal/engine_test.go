@@ -369,6 +369,21 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	rtr.EXPECT().Start().AnyTimes()
 	tf.StartWorld()
 	err = world.Tick(context.Background(), uint64(time.Now().Unix()))
+
+	// Expect that ticks with no transactions are also submitted
+	rtr.
+		EXPECT().
+		SubmitTxBlob(
+			gomock.Any(),
+			txpool.TxMap{},
+			world.CurrentTick(),
+			gomock.Any(),
+		).
+		Return(nil).
+		Times(1)
+	rtr.EXPECT().Start().AnyTimes()
+	err = world.Tick(context.Background(), uint64(time.Now().Unix()))
+
 	assert.NilError(t, err)
 }
 
