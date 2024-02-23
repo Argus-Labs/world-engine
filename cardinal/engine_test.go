@@ -370,6 +370,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	rtr.EXPECT().Start().AnyTimes()
 	tf.StartWorld()
 	err = world.Tick(context.Background(), ts)
+	assert.NilError(t, err)
 
 	// Expect that ticks with no transactions are also submitted
 	rtr.
@@ -384,7 +385,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 		Times(1)
 	rtr.EXPECT().Start().AnyTimes()
 	err = world.Tick(context.Background(), ts)
-
 	assert.NilError(t, err)
 }
 
