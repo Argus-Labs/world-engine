@@ -24,7 +24,7 @@ type EntityCommandBuffer struct {
 
 	compValues         PrimitiveStorage[compKey]
 	compValuesToDelete PrimitiveStorage[compKey]
-	typeToComponent    map[types.ComponentID]types.ComponentMetadata
+	typeToComponent    PrimitiveStorage[types.ComponentID]
 
 	activeEntities map[types.ArchetypeID]activeEntities
 
@@ -72,9 +72,13 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 }
 
 func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata) error {
-	m.typeToComponent = map[types.ComponentID]types.ComponentMetadata{}
+	m.typeToComponent = NewMapStorage[types.ComponentID, types.ComponentMetadata]()
+	ctx := context.Background()
 	for _, comp := range comps {
-		m.typeToComponent[comp.ID()] = comp
+		err := m.typeToComponent.Set(ctx, comp.ID(), comp)
+		if err != nil {
+			return err
+		}
 	}
 
 	return m.loadArchIDs()

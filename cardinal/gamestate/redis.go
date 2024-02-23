@@ -228,7 +228,14 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 		return err
 	}
 	for _, key := range keys {
-		cType := m.typeToComponent[key.typeID]
+		cTypeAny, err := m.typeToComponent.Get(ctx, key.typeID)
+		if err != nil {
+			return err
+		}
+		cType, ok := cTypeAny.(types.ComponentMetadata)
+		if !ok {
+			return eris.New("type assertion failed. ")
+		}
 		value, err := m.compValues.Get(ctx, key)
 		if err != nil {
 			return err
@@ -311,7 +318,7 @@ func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 
 func getArchIDToCompTypesFromRedis(
 	storage PrimitiveStorage[string],
-	typeToComp map[types.ComponentID]types.ComponentMetadata,
+	typeToComp PrimitiveStorage[types.ComponentID],
 ) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
 	key := storageArchIDsToCompTypesKey()
@@ -333,9 +340,13 @@ func getArchIDToCompTypesFromRedis(
 	for archID, compTypeIDs := range fromStorage {
 		var currComps []types.ComponentMetadata
 		for _, compTypeID := range compTypeIDs {
-			currComp, found := typeToComp[compTypeID]
-			if !found {
+			currCompAny, err := typeToComp.Get(ctx, compTypeID)
+			if err != nil {
 				return nil, false, eris.Wrap(iterators.ErrComponentMismatchWithSavedState, "")
+			}
+			currComp, ok := currCompAny.(types.ComponentMetadata)
+			if !ok {
+				return nil, false, eris.New("error type asserting")
 			}
 			currComps = append(currComps, currComp)
 		}
