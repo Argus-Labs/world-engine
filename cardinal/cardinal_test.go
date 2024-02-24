@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -267,7 +268,8 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 
 	// Start a tick in the background.
 	go func() {
-		tf.DoTick()
+		// tf.DoTick() // TODO: should one day replace below Tick() with tf.DoTick(), but there is a deadlock.
+		assert.Check(t, nil == world.Tick(context.Background(), uint64(time.Now().Unix())))
 	}()
 	// Make sure we're actually in the System. It will now block forever.
 	inSystemCh <- struct{}{}
