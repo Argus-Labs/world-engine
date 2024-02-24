@@ -345,6 +345,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	msg := fooMsg{Bar: "hello"}
 	tx := &sign.Transaction{PersonaTag: "ty"}
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
+	ts := uint64(time.Now().Unix())
 
 	rtr.
 		EXPECT().
@@ -362,13 +363,28 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 				},
 			},
 			world.CurrentTick(),
-			gomock.Any(),
+			ts,
 		).
 		Return(nil).
 		Times(1)
 	rtr.EXPECT().Start().AnyTimes()
 	tf.StartWorld()
-	err = world.Tick(context.Background(), uint64(time.Now().Unix()))
+	err = world.Tick(context.Background(), ts)
+	assert.NilError(t, err)
+
+	// Expect that ticks with no transactions are also submitted
+	rtr.
+		EXPECT().
+		SubmitTxBlob(
+			gomock.Any(),
+			txpool.TxMap{},
+			world.CurrentTick(),
+			ts,
+		).
+		Return(nil).
+		Times(1)
+	rtr.EXPECT().Start().AnyTimes()
+	err = world.Tick(context.Background(), ts)
 	assert.NilError(t, err)
 }
 
