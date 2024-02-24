@@ -23,7 +23,7 @@ type EntityCommandBuffer struct {
 	dbStorage PrimitiveStorage[string]
 
 	compValues         PrimitiveStorage[compKey]
-	compValuesToDelete map[compKey]bool
+	compValuesToDelete PrimitiveStorage[compKey]
 	typeToComponent    map[types.ComponentID]types.ComponentMetadata
 
 	activeEntities map[types.ArchetypeID]activeEntities
@@ -54,7 +54,7 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 	m := &EntityCommandBuffer{
 		dbStorage:          storage,
 		compValues:         NewMapStorage[compKey, any](),
-		compValuesToDelete: map[compKey]bool{},
+		compValuesToDelete: NewMapStorage[compKey, bool](),
 
 		activeEntities: map[types.ArchetypeID]activeEntities{},
 		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
@@ -134,7 +134,10 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 		if err != nil {
 			return err
 		}
-		m.compValuesToDelete[key] = true
+		err = m.compValuesToDelete.Set(ctx, key, true)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -300,7 +303,10 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 	if err != nil {
 		return err
 	}
-	m.compValuesToDelete[key] = true
+	err = m.compValuesToDelete.Set(ctx, key, true)
+	if err != nil {
+		return err
+	}
 	fromArchID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
 		return err

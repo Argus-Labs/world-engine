@@ -7,7 +7,7 @@ title: 'Get/Set/Remove Component'
 `GetComponent` retrieves the underlying component data for a given entity.
 
 ```go
-func GetComponent[T metadata.Component](worldContext WorldContext, id entity.ID) (*T, error)
+func GetComponent[T metadata.Component](worldCtx WorldContext, id entity.ID) (*T, error)
 ```
 
 ### Example
@@ -106,7 +106,7 @@ err := cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
 `RemoveComponentFrom` removes the component from the given entity. An error will be returned if the entity does not have the component.
 
 ```go
-func RemoveComponentFrom[T metadata.Component](wCtx WorldContext, id entity.ID) error
+func RemoveComponentFrom[T metadata.Component](worldCtx WorldContext, id entity.ID) error
 ```
 
 ### Example
@@ -127,9 +127,9 @@ err := cardinal.RemoveComponentFrom[Health](worldCtx, target)
 
 ### Return Value
 
-| Type        | Description                  |
-|-------------|--------------------------------------------------------|
-| `error`     | Returns an error if the operation encounters an issue. |
+| Type    | Description                                            |
+|---------|--------------------------------------------------------|
+| `error` | Returns an error if the operation encounters an issue. |
 
 
 ## AddComponentTo
@@ -137,7 +137,7 @@ err := cardinal.RemoveComponentFrom[Health](worldCtx, target)
 `AddComponentTo` adds the component to a given entity. An error will be returned if the entity already has the component.
 
 ```go
-func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error
+func AddComponentTo[T metadata.Component](worldCtx WorldContext, id entity.ID) error
 ```
 
 ### Example
@@ -158,6 +158,6 @@ err := cardinal.AddComponentTo[Health](worldCtx, target)
 
 ### Return Value
 
-| Type | Description                                          |
-|-------------|------------------------------------------------------|
-| `error`     | Returns an error if the operation encounters an issue. |
+| Type    | Description                                            |
+|---------|--------------------------------------------------------|
+| `error` | Returns an error if the operation encounters an issue. |

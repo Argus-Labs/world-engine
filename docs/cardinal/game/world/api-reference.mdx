@@ -7,96 +7,118 @@ title: 'API Reference'
 `NewWorld` creates a new `World` object.
 
 ```go
-func NewWorld(addr, password string, opts ...WorldOption) (*World, error)
+func NewWorld(opts ...WorldOption) (*World, error)
 ```
 
 ### Parameters
+
 | Parameter | Type            | Description                                      |
 |-----------|-----------------|--------------------------------------------------|
-| addr      | string          | The address of the redis DB to use for storage.  |
-| password  | string          | The password of the redis DB to use for storage. |
 | opts      | ...WorldOption  | Options for configuring the world.               |
 
 ### Return Values
 
-| Type  | Description                                      |
-|--------------|--------------------------------------------------|
-| *World       | A pointer to the newly created World instance.  |
-| error        | An error indicating any issues during creation. |
+| Type   | Description                                     |
+|--------|-------------------------------------------------|
+| *World | A pointer to the newly created World instance.  |
+| error  | An error indicating any issues during creation. |
 
 ### Options
 
-#### WithAdapter
+#### WithCustomMockRedis
 
-The `WithAdapter` world option enables `World` objects to read/write transactions to/from the sequencer (EVM base shard), and rebuild game state from those transactions. When running World Engine in production, the `WithAdapter` option must be used.
-
-```go
-func WithAdapter(adapter shard.Adapter) Option
-```
-
-| Parameter | Type              | Description                              |
-|-----------|-------------------|------------------------------------------|
-| adapter   | shard.Adapter     | The adapter to be associated with World. |
-
-#### WithReceiptHistorySize
-
-The `WithReceiptHistorySize` option informs the `World` object on how many ticks the `World` should keep receipts for. For example, if we are on tick 40, and have a receipt history size of 5, the `World` will have receipts for ticks 35-39. On tick 41, the `World` will have receipts for ticks 36-40. If this option is not set, a default history size of 10 will be used.
+The `WithCustomMockRedis` option uses the given [miniredis](https://github.com/alicebob/miniredis) instance as the storage layer for the game state. Game state saved to these instances of miniredis are not persistent across world restarts, so this should only be used for local development and testing.
 
 ```go
-func WithReceiptHistorySize(size int) Option
+func WithCustomMockRedis(miniRedis *miniredis.Miniredis) WorldOption
 ```
 
-| Parameter | Type     | Description                                           |
-|-----------|----------|-------------------------------------------------------|
-| size      | int      | The size of the receipt history to be set for World. |
+##### Parameters
 
+| Parameter | Type                 | Description           |
+|-----------|----------------------|-----------------------|
+| miniRedis | *miniredis.Miniredis | A miniredis instance. |
 
-#### WithNamespace
+#### WithDisableSignatureVerification
 
-The `WithNamespace` allows the `World` to have a custom Namespace. Namespaces are used to differentiate `World` objects that post data to the EVM base shard.
+The `WithDisableSignatureVerification` option disables signature verification on the World's server. This should only be used for testing.
 
 ```go
-func WithNamespace(id string) Option
+func WithDisableSignatureVerification() WorldOption
 ```
-| Parameter | Type    | Description                                   |
-|-----------|---------|-----------------------------------------------|
-| ns        | string  | The namespace to be set for World. |
 
+##### Parameters
+
+This method has no parameters.
 
 #### WithPort
 
-The `WithPort` option allows for a custom port to be set for the World's server. If this option is unset, Cardinal checks for a `CARDINAL_PORT` environment variable. If that is also unset, it uses a default port of 4040.
+The `WithPort` option allows for a custom port to be set for the World's server. If this option is unset it uses a default port of "4040".
 
 ```go
 func WithPort(port string) WorldOption
 ```
 
+##### Parameters
+
 | Parameter | Type    | Description                                   |
 |-----------|---------|-----------------------------------------------|
-| port        | string  | The port number for the world's server. |
+| port      | string  | The port number for the world's server.       |
 
+#### WithPrettyLog
 
-#### WithDisableSignatureVerification
-
-The `WithDisableSignatureVerification` disables signature verification on the World's server. This should only be used for testing.
+The `WithPrettyLog` option enables JSON parsing and colorized, human-friendly formatted logs using zerolog.
 
 ```go
-func WithDisableSignatureVerification() WorldOption
+func WithPrettyLog() WorldOption
 ```
+
+##### Parameters
+
 This method has no parameters.
+
+#### WithReceiptHistorySize
+
+The WithReceiptHistorySize option specifies the number of ticks for which the World object retains receipts. For instance, at tick 40 with a receipt history size of 5, the World stores receipts from ticks 35 to 39. Upon reaching tick 41, it will hold receipts for ticks 36 to 40. If this option remains unset, it defaults to a history size of 10. Game clients can get receipts via the [/query/receipts/list](/cardinal/rest/query-receipts-list) endpoint. Nakama also uses this endpoint to transmit receipts to listening clients.
+
+```go
+func WithReceiptHistorySize(size int) Option
+```
+
+##### Parameters
+
+| Parameter | Type     | Description                                           |
+|-----------|----------|-------------------------------------------------------|
+| size      | int      | The size of the receipt history to be set for World.  |
+
+#### WithStoreManager
+
+The `WithStoreManager` option overrides the default gamestate manager. The gamestate manager is responsible for storing entity and component information, and recovering those values after a world restart. A default manager will be created if this option is unset.
+
+```go
+func WithStoreManager(s gamestate.Manager) WorldOption
+```
+
+##### Parameters
+
+| Parameter | Type              | Description                         |
+|-----------|-------------------|-------------------------------------|
+| s         | gamestate.Manager | The replacement game-state manager. |
 
 #### WithTickChannel
 
-The `WithTickChannel` sets the channel that will be used to initiate ticks. If unset, ticks will be executed once every second.
+The `WithTickChannel` option sets a channel that will be used to start each tick. A game tick will be started each time a message appears on the given channel. A custom tick rate can be set using [time.Tick](https://pkg.go.dev/time#Tick). This is also useful in tests to manually start ticks. If unset, a default tick rate of 1 per second is used.
+
 
 ```go
 func WithTickChannel(ch <-chan time.Time) WorldOption
 ```
 
-| Parameter | Type             | Description                                      |
-|-----------|------------------|--------------------------------------------------|
-| ch        | `<-chan time.Time` | The tick channel that will begin each game tick. |
+##### Parameters
 
+| Parameter | Type               | Description                            |
+|-----------|--------------------|----------------------------------------|
+| ch        | `<-chan time.Time` | The channel that will start each tick. |
 
 ##### Example
 
@@ -105,12 +127,26 @@ func WithTickChannel(ch <-chan time.Time) WorldOption
 opt := WithTickChannel(time.Tick(500*time.Millisecond))
 ```
 
+#### WithTickDoneChannel
+
+The `WithTickDone` option sets a channel that will receive the just-completed tick number each time a tick completes execution. All systems are guaranteed to have been called when a message appears on this channel. This is useful in tests (in conjunction with the WithTickChannel) to make sure your user-defined Systems have fully executed before checking expectations.
+
+```go
+func WithTickDoneChannel(ch chan<- uint64) WorldOption
+```
+
+##### Parameters
+
+| Parameter | Type            | Description                                                |
+|-----------|-----------------|------------------------------------------------------------|
+| ch        | `chan<- uint64` | The channel that will be notified at the end of each tick. |
+
 ## RegisterSystems
 
 `RegisterSystems` registers one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
 
 ```go
-func RegisterSystems(w *World, s ...System)
+func RegisterSystems(w *World, s ...system.System)
 ```
 
 ### Example
@@ -130,26 +166,58 @@ func main() {
 	// 1. MoveSystem
 	// 2. HealthRegenSystem
 	// 3. AttackSystem
-	cardinal.RegisterSystems(world, systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
+	cardinal.RegisterSystems(world,
+		systems.MoveSystem,
+		systems.HealthRegenSystem,
+		systems.AttackSystem)
+}
+```
+
+## RegisterInitSystems
+
+`RegisterInitSystems` registers one or more init systems to the `World`. Init systems are executed exactly one time on tick 0. Init systems will not be run when loading a pre-existing world from permanent storage (e.g. on a server restart).
+
+```go
+func RegisterInitSystems(world *World, s ...system.System)
+```
+
+### Example
+
+```go
+package main
+
+import (
+	"github.com/my-username/my-world-engine-project/systems"
+	"pkg.world.dev/world-engine/cardinal"
+)
+
+func main() {
+	// ... world setup ...
+
+	// Systems will be run one time on tick 0
+	// 1. CreateEntities
+	// 2. InitializeHealth
+	cardinal.RegisterSystems(world,
+		systems.CreateEntities,
+		systems.InitializeHealth,
+    )
 }
 ```
 
 ### Parameters
 
-| Parameter | Type         | Description                                             |
-|-----------|--------------|---------------------------------------------------------|
-| world     | *World       | A pointer to a World instance.  |
-| s         | ...System    | Variadic parameter for systems to be added to the World. |
+| Parameter | Type      | Description                                                   |
+|-----------|-----------|---------------------------------------------------------------|
+| world     | *World    | A pointer to a World instance.                                |
+| s         | ...System | Variadic parameter for init systems to be added to the World. |
 
 ## RegisterComponents
 
 `RegisterComponents` registers one or more components to the `World`. Upon registration, components are assigned an ID. IDs are assigned incrementally, starting from 0, in the order in which they were passed to the method.
 
-
 <Callout type={"warning"}>
     `RegisterComponents` can be only be called once. Subsequent calls to the method will return an error.
 </Callout>
-
 
 ```go
 func RegisterComponent[T metadata.Component](world *World) error
@@ -207,12 +275,16 @@ func main() {
 | error       | An error indicating any issues that occurred during the component registration. |
 
 
-## RegisterQueries
+## RegisterQuery
 
-`RegisterQueries` registers the queries in the `World`. This allows the `Query` endpoints to be automatically generated.
+`RegisterQuery` registers the queries in the `World`. This allows the `Query` endpoints to be automatically generated.
 
 ```go
-func RegisterQueries(w *World, queries ...AnyQueryType) error
+func RegisterQuery[Request, Reply any](
+    world *World,
+    name string,
+    handler func(engine.Context, req *Request) (*Reply, error),
+    opts ...QueryOption[Request, Reply]) error
 ```
 
 ### Example
@@ -230,24 +302,32 @@ import (
 func main() {
 	// ... world setup ...
 
-	err := cardinal.RegisterQueries(world,
-		query.QueryLocation,
-		query.QueryHealth,
-		query.QueryAttackPower,
-	)
-	if err != nil {
+    err := cardinal.RegisterQuery[query.HealthRequest, query.HealthResponse](
+		world,
+        "query_health",
+        func(worldCtx cardinal.WorldContext, req *query.HealthRequest) (reply *query.HealthReply, err error) {
+			// ...fetch relevant health from worldCtx...
+			return &HealthReply{}, nil
+        })
+    if err != nil {
 		log.Fatal(err)
-	}
+    }
 }
 ```
 ### Parameters
-| Parameter      | Type            | Description                                                    |
-|----------------|-----------------|----------------------------------------------------------------|
-| world          | *World          | A pointer to a World instance.                                 |
-| queries        | ...AnyQueryType | Variadic parameter for IQuery instances to be registered.      |
+
+| Parameter | Type                                          | Description                                            |
+|-----------|-----------------------------------------------|--------------------------------------------------------|
+| `Request` | `type parameter`                              | The input type of this query                           |
+| `Reply`   | `type parameter`                              | The output type of this query                          |
+| world     | *World                                        | A pointer to a World instance.                         |
+| name      | string                                        | The name of the server endpoint to use this query      |
+| handler   | func(engine.Context, *Request) (Reply, error) | The handler to execute the logic of this query         |
+| opts      | ...QueryOption[Request, Reply]                | Variadic options to augment the behavior of this query |
 
 
 ### Return Value
+
 | Type   | Description                                                                 |
 |--------|-----------------------------------------------------------------------------|
 | error  | An error indicating any issues that occurred during the query registration. |
@@ -261,7 +341,7 @@ func main() {
 </Callout>
 
 ```go
-func RegisterMessages(w *World, msgs ...AnyMessage) error
+func RegisterMessages(world *World, msgs ...AnyMessage) error
 ```
 
 ### Example
@@ -289,15 +369,17 @@ func main() {
 ```
 
 ### Parameters
-| Parameter        | Type                | Description                                                    |
-|------------------|---------------------|----------------------------------------------------------------|
-| world            | *World              | A pointer to a World instance.                                  |
-| msgs              | ...AnyMessage                 | Variadic parameter for Message instances to be registered. |
+
+| Parameter | Type          | Description                                                |
+|-----------|---------------|------------------------------------------------------------|
+| world     | *World        | A pointer to a World instance.                             |
+| msgs      | ...AnyMessage | Variadic parameter for Message instances to be registered. |
 
 ### Return Value
-| Type   | Description                                                               |
-|--------|---------------------------------------------------------------------------|
-| error  | An error indicating any issues that occurred during the message registration. |
+
+| Type  | Description                                                                   |
+|-------|-------------------------------------------------------------------------------|
+| error | An error indicating any issues that occurred during the message registration. |
 
 ## StartGame
 
@@ -311,3 +393,17 @@ func (w *World) StartGame() error
 | Type   | Description                                              |
 |--------|----------------------------------------------------------|
 | error  | An error indicating any issues when starting the game.   |
+
+## Environment Variables
+
+| Env Variable                 | Default          | Description                                                                                                                                                     |
+|------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| CARDINAL_MODE                | "development"    | One of "production" or "development". Dev mode, ideal for local development, has relaxed security. Production mode is required for router and EVM functionality |
+| CARDINAL_NAMESPACE           | "world-1"        | The cardinal namespace; must not be the default value in "production" mode.                                                                                     |
+| CARDINAL_LOG_LEVEL           | "info"           | The zerolog log level to emit. Values include "debug", "info", "warn", and "error".                                                                             |
+| BASE_SHARD_SEQUENCER_ADDRESS | ""               | The address of the base shard’s router service that handles sequencing game shard txs.                                                                          |
+| BASE_SHARD_QUERY_ADDRESS     | ""               | The gRPC address of the x/shard query module that facilitates querying sequenced game shard txs.                                                                |
+| REDIS_ADDRESS                | "localhost:6379" | The URL of a redis instance to use for persistent storage.                                                                                                      |
+| REDIS_PASSWORD               | ""               | The password for the redis instance.                                                                                                                            |
+| STATSD_ADDRESS               | "localhost:8125" | The address of a statsd metric agent that will collect stats from cardinal.                                                                                     |
+| TRACE_ADDRESS                | ""               | The address of an agent that supports the collection of traces (e.g. a DataDog agent)                                                                           |

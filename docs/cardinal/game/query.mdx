@@ -8,7 +8,7 @@ Queries are predefined API endpoints that provide access to the game state data 
 In Cardinal, queries are defined as a pair of Go structs representing a `Request` and `Response` along with a handler function with the following signature:
 
 ```go
-func Query(world cardinal.WorldContext, req *Request) (*Response, error)
+func Query(worldCtx cardinal.WorldContext, req *Request) (*Response, error)
 ```
 
 **Example:**
@@ -37,7 +37,7 @@ You can easily create a new query and register it to the world by following thes
             Y int
         }
     
-        func PlayerLocation(world cardinal.WorldContext, req *Request) (*Response, error) {
+        func PlayerLocation(worldCtx cardinal.WorldContext, req *Request) (*Response, error) {
             // Handle WorldVarsRequest -> WorldVarsResponse here
         }
         ```

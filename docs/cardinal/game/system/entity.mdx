@@ -7,18 +7,18 @@ title: 'Create/Remove Entity'
 `Create` creates a single entity with a given set of components.
 
 ```go
-func Create(world WorldContext, components ...metadata.Component) (EntityID, error)
+func Create(worldCtx WorldContext, components ...metadata.Component) (EntityID, error)
 ```
 
 ### Example
 ```go
 package system
 
-func System(world cardinal.WorldContext) error {
+func System(worldCtx cardinal.WorldContext) error {
     // ...
 	
 	// Create an entity with the Location and Health component.
-	entityID, err := cardinal.Create(world,
+	entityID, err := cardinal.Create(worldCtx,
 		component.Location{},
 		component.Health{},
 	)
@@ -52,18 +52,18 @@ func System(world cardinal.WorldContext) error {
 `CreateMany` creates a specified amount of entities with a specified set of components.
 
 ```go
-func CreateMany(world WorldContext, num int, components ...metadata.Component) ([]EntityID, error)
+func CreateMany(worldCtx WorldContext, num int, components ...metadata.Component) ([]EntityID, error)
 ```
 
 ### Example
 ```go
 package system
 
-func System(world cardinal.WorldContext) error {
+func System(worldCtx cardinal.WorldContext) error {
     // ...
 	
 	// Create 10 entities with the Location and Health component.
-	entityIDs, err := cardinal.CreateMany(world,
+	entityIDs, err := cardinal.CreateMany(worldCtx,
 		10,
 		component.Location{},
 		component.Health{},
@@ -99,18 +99,18 @@ func System(world cardinal.WorldContext) error {
 `Remove` removes a given entity from the `World`.
 
 ```go
-func Remove(world WorldContext, id EntityID) error
+func Remove(worldCtx WorldContext, id EntityID) error
 ```
 
 ### Example
 ```go
 package system
 
-func System(world cardinal.WorldContext) error {
+func System(worldCtx cardinal.WorldContext) error {
     // ...
 
 	// Create an entity with the Location and Health component.
-	entityID, err := cardinal.Create(world,
+	entityID, err := cardinal.Create(worldCtx,
 		component.Location{},
 		component.Health{},
 	)
