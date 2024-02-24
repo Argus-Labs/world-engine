@@ -75,6 +75,13 @@ func MustRegisterComponent[T types.Component](w *World) {
 }
 
 func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
+	if world.worldStage.Current() != worldstage.Init {
+		return eris.Errorf(
+			"engine state is %s, expected %s to register messages",
+			world.worldStage.Current(),
+			worldstage.Init,
+		)
+	}
 	return message.RegisterMessageOnManager[In, Out](world.GetMessageManager(), name, opts...)
 }
 

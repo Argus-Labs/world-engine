@@ -14,7 +14,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
 
 type personaPlugin struct {
@@ -73,13 +72,6 @@ func (p *personaPlugin) RegisterComponents(world *World) error {
 }
 
 func (p *personaPlugin) RegisterMessages(world *World) error {
-	if world.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"engine state is %s, expected %s to register messages",
-			world.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
 	return errors.Join(
 		RegisterMessage[msg.CreatePersona, msg.CreatePersonaResult](
 			world,
