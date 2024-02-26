@@ -66,11 +66,7 @@ func TestForEachTransaction(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessage[SomeMsgRequest, SomeMsgResponse](world, "some_msg"))
 
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
-		someMsg, err := cardinal.GetMessage[SomeMsgRequest, SomeMsgResponse](wCtx)
-		if err != nil {
-			return err
-		}
-		someMsg.Each(wCtx, func(t message.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+		return cardinal.EachMessage[SomeMsgRequest, SomeMsgResponse](wCtx, func(t message.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
 			}
@@ -78,7 +74,6 @@ func TestForEachTransaction(t *testing.T) {
 				Successful: true,
 			}, nil
 		})
-		return nil
 	})
 	assert.NilError(t, err)
 	tf.StartWorld()
