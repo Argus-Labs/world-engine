@@ -28,7 +28,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
-	err = cardinal.RegisterMessages(world, msg.JoinMsg, msg.MoveMsg)
+	err = errors.Join(
+		cardinal.RegisterMessage[msg.JoinInput, msg.JoinOutput](world, "join"),
+		cardinal.RegisterMessage[msg.MoveInput, msg.MoveOutput](world, "move"),
+	)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
