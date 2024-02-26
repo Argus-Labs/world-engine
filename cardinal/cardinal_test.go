@@ -277,6 +277,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	// Make sure we can call AddTransaction again in a reasonable amount of time
 	timeout := time.After(500 * time.Millisecond)
 	doneWithAddTx := make(chan struct{})
+
 	go func() {
 		tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
 		doneWithAddTx <- struct{}{}
