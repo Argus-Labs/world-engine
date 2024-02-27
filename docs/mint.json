@@ -93,7 +93,7 @@
       "pages": [
         "cardinal/game/project-structure",
         {
-          "group": "World (main.go)",
+          "group": "World",
           "pages": [
             "cardinal/game/world/overview",
             "cardinal/game/world/api-reference"

@@ -3,11 +3,11 @@ title: 'Overview'
 description: 'How to create and manage your Cardinal world'
 ---
 
-In Cardinal, the `main.go` file is used as the entry point for your game shard implementation. This is where you will initialize your world and register your component, message, query, and system to it.
+In Cardinal, the `World` serves as the central hub for registering components, messages, queries, and systems. This is where you define and configure the elements that drive your game's functionality, as well as kick off the game's loop-driven runtime.
 
 ## Example
 
-A typical `main.go` file will look like this:
+Typical `World` usage looks like this:
 
 ```go main.go
 package main
@@ -59,7 +59,7 @@ func main() {
 		system.PlayerSpawnerSystem,
 	))
 
-	// Start the game shard
+	// Start the game shard runtime. This method blocks the thread of execution.
 	Must(w.StartGame())
 }
 
