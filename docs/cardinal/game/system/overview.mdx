@@ -164,8 +164,8 @@ package system
 // This provides an example of a system that modifies the component of an entity based on a message.
 func AttackSystem(worldCtx cardinal.WorldContext) error {
 	// Iterate through all `AttackPlayer` messages.
-	msg.AttackPlayer.Each(worldCtx,
-		func(attack cardinal.TxData[msg.AttackPlayerMsg]) (msg.AttackPlayerMsgReply, error) {
+    return cardinal.EachMessage[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply](worldCtx,
+        func(attack cardinal.TxData[msg.AttackPlayerMsg]) (msg.AttackPlayerMsgReply, error) {
 			// Get the target player's current Health component.
 			playerID, playerHealth, err := queryTargetPlayer(worldCtx, attack.Msg().TargetNickname)
 			if err != nil {
@@ -181,7 +181,6 @@ func AttackSystem(worldCtx cardinal.WorldContext) error {
 			return msg.AttackPlayerMsgReply{Damage: AttackDamage}, nil
 		},
 	)
-	return nil
 }
 ```
 
