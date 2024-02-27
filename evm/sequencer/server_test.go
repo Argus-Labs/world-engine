@@ -83,6 +83,7 @@ func TestGetBothSlices(t *testing.T) {
 					{PersonaTag: "foo", Namespace: "foobar", Nonce: 3}},
 				},
 			}})
+	assert.NilError(t, err)
 	txs, inits := seq.FlushMessages()
 
 	assert.Len(t, txs, 1)

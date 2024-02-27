@@ -125,7 +125,10 @@ func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsReque
 	return &shard.SubmitTransactionsResponse{}, nil
 }
 
-func (s *Sequencer) RegisterGameShard(_ context.Context, req *shard.RegisterGameShardRequest) (*shard.RegisterGameShardResponse, error) {
+func (s *Sequencer) RegisterGameShard(
+	_ context.Context,
+	req *shard.RegisterGameShardRequest,
+) (*shard.RegisterGameShardResponse, error) {
 	s.tq.AddInitMsg(req.Namespace, req.RouterAddress)
 	return &shard.RegisterGameShardResponse{}, nil
 }

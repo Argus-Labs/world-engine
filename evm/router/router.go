@@ -78,7 +78,6 @@ func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddress
 	return r
 }
 
-//nolint:unused // will use this later once CLI is fixed.
 func (r *routerImpl) getSDKCtx() sdk.Context {
 	ctx, _ := r.getQueryCtx(0, false)
 	return ctx

@@ -64,7 +64,8 @@ func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, pa
 	})
 }
 
-// FlushTxQueue gets all currently queued transactions sorted by namespace and by transaction ID, and then clears the queue.
+// FlushTxQueue gets all currently queued transactions sorted by namespace and by transaction ID, and then clears the
+// queue.
 func (tc *TxQueue) FlushTxQueue() []*types.SubmitShardTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
