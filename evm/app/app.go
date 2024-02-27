@@ -226,7 +226,7 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 		handler := app.MsgServiceRouter().Handler(initMsg)
 		_, err := handler(ctx, initMsg)
 		if err != nil {
-			return nil, eris.Wrap(err, "failed to register game shard")
+			return nil, eris.Wrapf(err, "failed to register namespace %q", initMsg.Namespace.ShardName)
 		}
 	}
 

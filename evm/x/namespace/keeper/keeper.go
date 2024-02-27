@@ -20,7 +20,7 @@ type Keeper struct {
 func NewKeeper(storeKey *storetypes.KVStoreKey, auth string) *Keeper {
 	if auth == "" {
 		auth = authtypes.NewModuleAddress(sequencer.Name).String()
-		if strings.Contains(auth, "cosmos") {
+		if strings.HasPrefix(auth, "cosmos") {
 			log.Fatal("address had 'cosmos' bech32 prefix, should be 'world'")
 		}
 	}
