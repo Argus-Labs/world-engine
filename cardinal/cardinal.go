@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"errors"
-	"reflect"
 	"strconv"
 
 	"github.com/rotisserie/eris"
