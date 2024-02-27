@@ -18,7 +18,7 @@ func NewMapStorage[K comparable, V any]() *MapStorage[K, V] {
 
 func (m *MapStorage[K, V]) Keys() ([]K, error) {
 	acc := make([]K, 0, len(m.internalMap))
-	for k, _ := range m.internalMap {
+	for k := range m.internalMap {
 		acc = append(acc, k)
 	}
 	return acc, nil
