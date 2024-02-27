@@ -28,20 +28,15 @@ In this sample code, an "attack" message type is created, as well as a System th
 package system
 
 func AttackSystem(worldCtx cardinal.WorldContext) error {
-	msg, err := cardinal.GetMessage[msg.AttackPlayerRequest, msg.AttackPlayerResponse](worldCtx)
-	if err != nil {
-		return err
-    }
-
-	// Iterate over all Attack messages
-	msg.Each(worldCtx, func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
-		// Obtain the persona tag used to send the message/transaction
-		personaTag := attack.Tx().PersonaTag
-
-		worldCtx.Logger().Debug().Msgf("The persona tag is %q", personaTag)
-
-		return AttackOutput{}, nil
-	})
+    // Iterate over all Attack messages
+    return cardinal.EachMessage[msg.AttackPlayerRequest, msg.AttackPlayerResponse](
+        worldCtx,
+        func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
+            // Obtain the persona tag used to send the message/transaction
+            personaTag := attack.Tx().PersonaTag
+            worldCtx.Logger().Debug().Msgf("The persona tag is %q", personaTag)
+            return AttackOutput{}, nil
+    })
 }
 ```
 

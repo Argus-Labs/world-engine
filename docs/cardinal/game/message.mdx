@@ -13,7 +13,7 @@ In Cardinal, transactions are defined using a pair of Go structs representing a 
 
 ---
 
-## Defining Messages
+## Using Messages
 
 By convention, messages are defined in the `msg` directory, with each message definition in its own separate file.
 
@@ -55,6 +55,23 @@ You can easily create a new message and register it to the world by following th
             }
     
             // ...
+        }
+        ```
+    </Step>
+    <Step title="Iterate over messages in a system">
+        Process each message in a system using cardinal.EachMessage.
+
+        ```go /system/system_attack.go
+        package system
+
+        // If AttackSystem is registered with the cardinal World, it will be executed each tick.
+        func AttackSystem(worldCtx cardinal.WorldContext) error {
+            // Iterate over the messages that came in during the previous tick
+            return cardinal.EachMessage[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply](
+                worldCtx,
+                func(attack cardinal.TxData[msg.AttackPlayerMsg]) (msg.AttackPlayerMsgReply, error) {
+                    // Handle attack logic here...
+                })
         }
         ```
     </Step>
