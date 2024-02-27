@@ -22,6 +22,7 @@ package app
 
 import (
 	"github.com/cometbft/cometbft/abci/types"
+	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
@@ -225,26 +226,24 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 		handler := app.MsgServiceRouter().Handler(initMsg)
 		_, err := handler(ctx, initMsg)
 		if err != nil {
-			return nil, err
+			return nil, eris.Wrap(err, "failed to register game shard")
 		}
 	}
 
 	// then sequence the game shard txs
 	numTxs := len(txs)
-	zerolog.Debug().Msgf("flushed %d messages in PreBlocker", numTxs)
 	resPreBlock := &sdk.ResponsePreBlock{}
 	if numTxs > 0 {
 		zerolog.Debug().Msg("sequencing messages")
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
-			zerolog.Debug().Msgf("sequencing tx %s", tx.String())
 			_, err := handler(ctx, tx)
 			if err != nil {
 				zerolog.Error().Err(err).Msgf("error sequencing game shard tx")
 				return resPreBlock, err
 			}
 		}
-		zerolog.Debug().Msg("successfully sequenced game shard txs")
+		app.Logger().Debug("successfully sequenced %d game shard txs", numTxs)
 	}
 	return resPreBlock, nil
 }

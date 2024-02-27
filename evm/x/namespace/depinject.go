@@ -4,9 +4,6 @@ import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/depinject"
 	storetypes "cosmossdk.io/store/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-
 	v1 "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
 	"pkg.world.dev/world-engine/evm/x/namespace/keeper"
 )
@@ -35,15 +32,10 @@ type DepInjectOutput struct {
 
 // ProvideModule is a function that provides the module to the application.
 func ProvideModule(in DepInjectInput) DepInjectOutput {
-	// Default to governance authority if not provided
-	authority := authtypes.NewModuleAddress(govtypes.ModuleName)
-	if in.Config.Authority != "" {
-		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
-	}
 
 	k := keeper.NewKeeper(
 		in.StoreKey,
-		authority.String(),
+		"",
 	)
 
 	m := NewAppModule(k)
