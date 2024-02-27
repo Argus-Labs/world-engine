@@ -23,8 +23,8 @@ jobs:
         working-directory: evm
     # Add "id-token" with the intended permissions.
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: read
+      id-token: write
       packages: write
     steps:
       - name: Checkout
@@ -83,7 +83,7 @@ jobs:
           [ "$VERSION" == "main" ] && VERSION=latest
           echo "Image to push: $IMAGE_ID_EVM:$VERSION"
 
-          docker tag nakama-local-build:latest $IMAGE_ID_EVM:$VERSION
+          docker tag evm-local-build:latest $IMAGE_ID_EVM:$VERSION
           docker push $IMAGE_ID_EVM:$VERSION
   nakama-release:
     name: Nakama Image Release
