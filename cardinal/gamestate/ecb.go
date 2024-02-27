@@ -22,8 +22,8 @@ var _ Manager = &EntityCommandBuffer{}
 type EntityCommandBuffer struct {
 	dbStorage PrimitiveStorage[string]
 
-	compValues         PrimitiveStorage[compKey]
-	compValuesToDelete PrimitiveStorage[compKey]
+	compValues         VolatileStorage[compKey, any]
+	compValuesToDelete VolatileStorage[compKey, bool]
 	typeToComponent    map[types.ComponentID]types.ComponentMetadata
 
 	activeEntities map[types.ArchetypeID]activeEntities
@@ -82,8 +82,7 @@ func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata
 
 // DiscardPending discards any pending state changes.
 func (m *EntityCommandBuffer) DiscardPending() error {
-	ctx := context.Background()
-	err := m.compValues.Clear(ctx)
+	err := m.compValues.Clear()
 	if err != nil {
 		return err
 	}
@@ -127,14 +126,13 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 	delete(m.entityIDToArchID, idToRemove)
 
 	comps := m.GetComponentTypesForArchID(archID)
-	ctx := context.Background()
 	for _, comp := range comps {
 		key := compKey{comp.ID(), idToRemove}
-		err = m.compValues.Delete(ctx, key)
+		err = m.compValues.Delete(key)
 		if err != nil {
 			return err
 		}
-		err = m.compValuesToDelete.Set(ctx, key, true)
+		err = m.compValuesToDelete.Set(key, true)
 		if err != nil {
 			return err
 		}
@@ -194,15 +192,14 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 	}
 
 	key := compKey{cType.ID(), id}
-	ctx := context.Background()
-	return m.compValues.Set(ctx, key, value)
+	return m.compValues.Set(key, value)
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
 func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error) {
 	ctx := context.Background()
 	key := compKey{cType.ID(), id}
-	value, err := m.compValues.Get(ctx, key)
+	value, err := m.compValues.Get(key)
 	if err == nil {
 		return value, nil
 	}
@@ -235,7 +232,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	if err != nil {
 		return nil, err
 	}
-	return value, m.compValues.Set(ctx, key, value)
+	return value, m.compValues.Set(key, value)
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
@@ -298,12 +295,11 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 		return eris.Wrap(iterators.ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
-	ctx := context.Background()
-	err = m.compValues.Delete(ctx, key)
+	err = m.compValues.Delete(key)
 	if err != nil {
 		return err
 	}
-	err = m.compValuesToDelete.Set(ctx, key, true)
+	err = m.compValuesToDelete.Set(key, true)
 	if err != nil {
 		return err
 	}
