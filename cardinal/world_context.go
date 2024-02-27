@@ -3,11 +3,9 @@ package cardinal
 import (
 	"reflect"
 
-	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -48,21 +46,6 @@ func NewReadOnlyWorldContext(world *World) engine.Context {
 		logger:   world.Logger,
 		readOnly: true,
 	}
-}
-
-func GetMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
-	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
-	if !ok {
-		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
-	}
-	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
-	if !ok {
-		return &msg, eris.New("wrong type")
-	}
-	return res, nil
 }
 
 // interface guard

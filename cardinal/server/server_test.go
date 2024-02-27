@@ -241,38 +241,34 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
-		moveMessage, err := cardinal.GetMessage[MoveMsgInput, MoveMessageOutput](context)
-		if err != nil {
-			return err
-		}
-		moveMessage.Each(context, func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
-			posID, exists := personaToPosition[tx.Tx.PersonaTag]
-			if !exists {
-				id, err := cardinal.Create(context, LocationComponent{})
+		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
+			func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+				posID, exists := personaToPosition[tx.Tx.PersonaTag]
+				if !exists {
+					id, err := cardinal.Create(context, LocationComponent{})
+					s.Require().NoError(err)
+					personaToPosition[tx.Tx.PersonaTag] = id
+					posID = id
+				}
+				var resultLocation LocationComponent
+				err = cardinal.UpdateComponent[LocationComponent](context, posID,
+					func(loc *LocationComponent) *LocationComponent {
+						switch tx.Msg.Direction {
+						case "up":
+							loc.Y++
+						case "down":
+							loc.Y--
+						case "right":
+							loc.X++
+						case "left":
+							loc.X--
+						}
+						resultLocation = *loc
+						return loc
+					})
 				s.Require().NoError(err)
-				personaToPosition[tx.Tx.PersonaTag] = id
-				posID = id
-			}
-			var resultLocation LocationComponent
-			err = cardinal.UpdateComponent[LocationComponent](context, posID,
-				func(loc *LocationComponent) *LocationComponent {
-					switch tx.Msg.Direction {
-					case "up":
-						loc.Y++
-					case "down":
-						loc.Y--
-					case "right":
-						loc.X++
-					case "left":
-						loc.X--
-					}
-					resultLocation = *loc
-					return loc
-				})
-			s.Require().NoError(err)
-			return MoveMessageOutput{resultLocation}, nil
-		})
-		return nil
+				return MoveMessageOutput{resultLocation}, nil
+			})
 	})
 	assert.NilError(s.T(), err)
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](

@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"errors"
+	"reflect"
 	"strconv"
 
 	"github.com/rotisserie/eris"
@@ -75,11 +76,18 @@ func MustRegisterComponent[T types.Component](w *World) {
 }
 
 func EachMessage[In any, Out any](wCtx engine.Context, fn func(message.TxData[In]) (Out, error)) error {
-	msg, err := GetMessage[In, Out](wCtx)
-	if err != nil {
-		return err
+	var msg message.MessageType[In, Out]
+	msgType := reflect.TypeOf(msg)
+	tempRes, ok := wCtx.GetMessageByType(msgType)
+	if !ok {
+		return eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
-	msg.Each(wCtx, fn)
+	var _ types.Message = &msg
+	res, ok := tempRes.(*message.MessageType[In, Out])
+	if !ok {
+		return eris.New("wrong type")
+	}
+	res.Each(wCtx, fn)
 	return nil
 }
 
