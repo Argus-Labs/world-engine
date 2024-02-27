@@ -6,9 +6,21 @@ option go_package = "github.com/argus-labs/world-engine/shard/v2";
 
 // service TransactionHandler deals with transactions coming from game shards.
 service TransactionHandler {
+  // RegisterGameShard registers a game shard to be used in the Router system.
+  rpc RegisterGameShard(RegisterGameShardRequest) returns (RegisterGameShardResponse);
   // SubmitCardinalBatch handles receiving transactions from a game shard and persisting them to the chain.
   rpc Submit(SubmitTransactionsRequest) returns (SubmitTransactionsResponse);
 }
+
+message RegisterGameShardRequest {
+  // namespace is the namespace of the game shard.
+  string namespace = 1;
+
+  // router_address is the address of the game shard's router service.
+  string router_address = 2;
+}
+
+message RegisterGameShardResponse {}
 
 message SubmitTransactionsRequest {
   // epoch is the period in which the transactions occurred. For loop driven runtimes, such as cardinal,
