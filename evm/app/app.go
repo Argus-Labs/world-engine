@@ -22,6 +22,7 @@ package app
 
 import (
 	"github.com/cometbft/cometbft/abci/types"
+	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
@@ -225,7 +226,7 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 		handler := app.MsgServiceRouter().Handler(initMsg)
 		_, err := handler(ctx, initMsg)
 		if err != nil {
-			return nil, err
+			return nil, eris.Wrapf(err, "failed to register namespace %q", initMsg.Namespace.ShardName)
 		}
 	}
 
