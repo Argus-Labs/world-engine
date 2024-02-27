@@ -20,16 +20,12 @@ func TestReceiptsQuery(t *testing.T) {
 	err := cardinal.RegisterMessage[fooIn, fooOut](world, "foo")
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
-		fooMsg, err := cardinal.GetMessage[fooIn, fooOut](ctx)
-		assert.NilError(t, err)
-		fooMsg.Each(ctx, func(t message.TxData[fooIn]) (fooOut, error) {
+		return cardinal.EachMessage[fooIn, fooOut](ctx, func(t message.TxData[fooIn]) (fooOut, error) {
 			if ctx.CurrentTick()%2 == 0 {
 				return fooOut{Y: 4}, nil
 			}
-
 			return fooOut{}, errors.New("omg")
 		})
-		return nil
 	})
 	assert.NilError(t, err)
 	fooMsg, err := cardinal.GetMessageFromWorld[fooIn, fooOut](world)

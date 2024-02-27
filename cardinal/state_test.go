@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -314,14 +315,11 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
-				someTx, err := cardinal.GetMessage[Msg, Result](wCtx)
-				if err != nil {
-					return err
-				}
-				for _, tx := range someTx.In(wCtx) {
+				someTx, err := testutils.GetMessage[Msg, Result](wCtx)
+				return cardinal.EachMessage[Msg, Result](wCtx, func(tx message.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})
-				}
-				return nil
+					return Result{}, err
+				})
 			},
 		)
 		assert.NilError(t, err)
