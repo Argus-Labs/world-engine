@@ -217,7 +217,19 @@ func NewApp(
 }
 
 func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
-	txs := app.ShardSequencer.FlushMessages()
+	txs, inits := app.ShardSequencer.FlushMessages()
+
+	// first register all the game shard requests
+	for _, initMsg := range inits {
+		zerolog.Debug().Msgf("registering %q to %q", initMsg.Namespace.ShardName, initMsg.Namespace.ShardAddress)
+		handler := app.MsgServiceRouter().Handler(initMsg)
+		_, err := handler(ctx, initMsg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// then sequence the game shard txs
 	numTxs := len(txs)
 	zerolog.Debug().Msgf("flushed %d messages in PreBlocker", numTxs)
 	resPreBlock := &sdk.ResponsePreBlock{}

@@ -222,15 +222,12 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	// CLI is currently broken. Rollkit is looking into the issue.
 	// So for now, we just use an address loaded from env.
-	// ctx := r.getSDKCtx()
-	// res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
-	// if err != nil {
-	//	return nil, err
-	// }
-	addr := os.Getenv("GAME_SHARD_ADDR")
-	if addr == "" {
-		return nil, fmt.Errorf("no address set for router to dial")
+	ctx := r.getSDKCtx()
+	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
+	if err != nil {
+		return nil, err
 	}
+	addr := res.Address
 	conn, err := grpc.Dial(
 		addr,
 		grpc.WithTransportCredentials(r.creds),

@@ -46,7 +46,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	_, err := seq.Submit(context.Background(), &req)
 	assert.NilError(t, err)
 
-	flushedMessages := seq.FlushMessages()
+	flushedMessages, _ := seq.FlushMessages()
 	assert.Len(t, flushedMessages, 1)
 	messages := flushedMessages[0]
 	assert.Len(t, messages.Txs, 2)
@@ -61,4 +61,30 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	err = proto.Unmarshal(messages.Txs[1].GameShardTransaction, pbMsg)
 	assert.NilError(t, err)
 	assert.Check(t, proto.Equal(pbMsg, req.Transactions[44].Txs[0]))
+}
+
+func TestGetBothSlices(t *testing.T) {
+	t.Parallel()
+	seq := NewShardSequencer()
+	_, err := seq.RegisterGameShard(context.Background(), &shardv2.RegisterGameShardRequest{
+		Namespace:     "foo",
+		RouterAddress: "bar",
+	})
+	assert.NilError(t, err)
+
+	_, err = seq.Submit(
+		context.Background(),
+		&shardv2.SubmitTransactionsRequest{
+			Epoch:         1,
+			UnixTimestamp: 3,
+			Namespace:     "foo",
+			Transactions: map[uint64]*shardv2.Transactions{
+				1: {Txs: []*shardv2.Transaction{
+					{PersonaTag: "foo", Namespace: "foobar", Nonce: 3}},
+				},
+			}})
+	txs, inits := seq.FlushMessages()
+
+	assert.Len(t, txs, 1)
+	assert.Len(t, inits, 1)
 }

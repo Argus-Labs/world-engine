@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"net"
 	"os"
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"strconv"
@@ -102,8 +103,8 @@ func (s *Sequencer) Serve() {
 }
 
 // FlushMessages empties and returns all messages stored in the queue.
-func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
-	return s.tq.GetTxs()
+func (s *Sequencer) FlushMessages() ([]*types.SubmitShardTxRequest, []*namespacetypes.UpdateNamespaceRequest) {
+	return s.tq.FlushTxQueue(), s.tq.FlushInitQueue()
 }
 
 // Submit appends the game shard tx submission to the tx queue.
@@ -122,4 +123,9 @@ func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsReque
 		}
 	}
 	return &shard.SubmitTransactionsResponse{}, nil
+}
+
+func (s *Sequencer) RegisterGameShard(_ context.Context, req *shard.RegisterGameShardRequest) (*shard.RegisterGameShardResponse, error) {
+	s.tq.AddInitMsg(req.Namespace, req.RouterAddress)
+	return &shard.RegisterGameShardResponse{}, nil
 }
