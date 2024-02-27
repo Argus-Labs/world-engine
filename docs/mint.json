@@ -173,5 +173,6 @@
       "apiKey": "phc_8py8fUWpEantdzhuP3dTEBBlsXstxTzeIu17NOd7A28",
       "apiHost": "https://us.posthog.com"
     }
-  }
+  },
+  "feedback.thumbsRating": true
 }
