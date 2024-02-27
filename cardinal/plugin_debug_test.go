@@ -1,10 +1,11 @@
 package cardinal_test
 
 import (
+	"testing"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"testing"
 )
 
 func TestDebugStateQuery(t *testing.T) {
@@ -56,13 +57,24 @@ func TestDebugStateQuery(t *testing.T) {
 
 	assert.Len(t, results, 2)
 	for i, result := range results {
-		barData, err := bar.Decode(result.Components[0])
+		expectedBar := entities[i].barComp
+		expectedFoo := entities[i].fooComp
+		actualBar := result.Components[0]
+		actualFoo := result.Components[1]
+
+		assert.Equal(t, bar.ID(), actualBar.ID)
+		assert.Equal(t, foo.ID(), actualFoo.ID)
+
+		assert.Equal(t, expectedBar.Name(), actualBar.Name)
+		assert.Equal(t, expectedFoo.Name(), actualFoo.Name)
+
+		barData, err := bar.Decode(actualBar.Component)
 		assert.NilError(t, err)
-		fooData, err := foo.Decode(result.Components[1])
+		fooData, err := foo.Decode(actualFoo.Component)
 		assert.NilError(t, err)
 
-		assert.Equal(t, barData.(barComp), entities[i].barComp)
-		assert.Equal(t, fooData.(fooComp), entities[i].fooComp)
+		assert.Equal(t, barData.(barComp), expectedBar)
+		assert.Equal(t, fooData.(fooComp), expectedFoo)
 	}
 }
 
