@@ -176,17 +176,18 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			return cardinal.EachMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx, func(msData message.TxData[*ModifyScoreMsg]) (*EmptyMsgResult, error) {
-				ms := msData.Msg
-				err := cardinal.UpdateComponent[ScoreComponent](
-					wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
-						s.Score += ms.Amount
-						return s
-					},
-				)
-				assert.Check(t, err == nil)
-				return &EmptyMsgResult{}, nil
-			})
+			return cardinal.EachMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx,
+				func(msData message.TxData[*ModifyScoreMsg]) (*EmptyMsgResult, error) {
+					ms := msData.Msg
+					err := cardinal.UpdateComponent[ScoreComponent](
+						wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+							s.Score += ms.Amount
+							return s
+						},
+					)
+					assert.Check(t, err == nil)
+					return &EmptyMsgResult{}, nil
+				})
 		},
 	)
 	assert.NilError(t, err)
