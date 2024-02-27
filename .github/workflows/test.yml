@@ -40,7 +40,7 @@ jobs:
           docker compose logs
   unit-test-coverage:
     name: Unit & Coverage
-    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    runs-on: namespace-profile-linux-4vcpu-8gb-cached
     steps:
       - name: Checkout
         uses: actions/checkout@v4
