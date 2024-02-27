@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"github.com/gorilla/websocket"
@@ -90,8 +89,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world, addr := tf.World, tf.BaseURL
-	sendTx := message.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, cardinal.RegisterMessages(world, sendTx))
+	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "send-energy"))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	sys1 := func(wCtx engine.Context) error {
