@@ -96,11 +96,7 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 	if err != nil {
 		return err
 	}
-	authorizePersonaAddressMsg, err := GetMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](wCtx)
-	if err != nil {
-		return err
-	}
-	authorizePersonaAddressMsg.Each(
+	return EachMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 		wCtx,
 		func(txData message.TxData[msg.AuthorizePersonaAddress]) (
 			result msg.AuthorizePersonaAddressResult, err error,
@@ -141,7 +137,6 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 			return result, nil
 		},
 	)
-	return nil
 }
 
 // -----------------------------------------------------------------------------
@@ -155,11 +150,7 @@ func RegisterPersonaSystem(wCtx engine.Context) error {
 	if err != nil {
 		return err
 	}
-	createPersonaMsg, err := GetMessage[msg.CreatePersona, msg.CreatePersonaResult](wCtx)
-	if err != nil {
-		return err
-	}
-	createPersonaMsg.Each(
+	return EachMessage[msg.CreatePersona, msg.CreatePersonaResult](
 		wCtx,
 		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
@@ -198,8 +189,6 @@ func RegisterPersonaSystem(wCtx engine.Context) error {
 			return result, nil
 		},
 	)
-
-	return nil
 }
 
 // -----------------------------------------------------------------------------

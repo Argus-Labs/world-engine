@@ -359,7 +359,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 				id := q.MustFirst()
 				entityPower, err := cardinal.GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
-				powerTx, err := cardinal.GetMessage[PowerComp, PowerComp](wCtx)
+				powerTx, err := testutils.GetMessage[PowerComp, PowerComp](wCtx)
 				assert.NilError(t, err)
 				changes := powerTx.In(wCtx)
 				assert.Equal(t, 1, len(changes))
