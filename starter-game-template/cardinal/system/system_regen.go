@@ -1,19 +1,17 @@
 package system
 
 import (
-	comp "github.com/argus-labs/starter-game-template/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
+
+	comp "github.com/argus-labs/starter-game-template/cardinal/component"
 )
 
 // RegenSystem replenishes the player's HP at every tick.
 // This provides an example of a system that doesn't rely on a transaction to update a component.
 func RegenSystem(world cardinal.WorldContext) error {
-	search, err := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
-	if err != nil {
-		return err
-	}
-
-	err = search.Each(world, func(id cardinal.EntityID) bool {
+	return cardinal.NewSearch(world, filter.Exact(comp.Player{}, comp.Health{})).Each(func(id types.EntityID) bool {
 		health, err := cardinal.GetComponent[comp.Health](world, id)
 		if err != nil {
 			return true
@@ -24,9 +22,4 @@ func RegenSystem(world cardinal.WorldContext) error {
 		}
 		return true
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
