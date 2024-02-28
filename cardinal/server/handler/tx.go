@@ -3,12 +3,14 @@ package handler
 import (
 	"errors"
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/sign"
+
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/sign"
 )
 
 var (
@@ -47,8 +49,6 @@ type Transaction = sign.Transaction
 //	@Success		200		{object}	PostTransactionResponse
 //	@Failure		400		{string}	string	"Invalid transaction request"
 //	@Router			/tx/persona/create-persona [post]
-//
-//nolint:gocognit
 func PostTransaction(
 	msgs map[string]map[string]types.Message, wCtx engine.Context, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
@@ -75,29 +75,17 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction")
 		}
 
-		var signerAddress string
-		// TODO(scott): don't hardcode this
-		if msgType.Name() == "create-persona" {
-			// don't need to check the cast bc we already validated this above
-			createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
-			signerAddress = createPersonaMsg.SignerAddress
-		} else {
-			signerAddress, err = wCtx.GetSignerForPersonaTag(tx.PersonaTag, 0)
-			if err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
-			}
-		}
-
-		// If signature verification is enabled, validate the transaction
 		if !disableSigVerification {
-			if err = validateSignature(tx, signerAddress, wCtx.Namespace(),
-				tx.IsSystemTransaction()); err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
+			var signerAddress string
+			// TODO(scott): don't hardcode this
+			if msgType.Name() == "create-persona" {
+				// don't need to check the cast bc we already validated this above
+				createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
+				signerAddress = createPersonaMsg.SignerAddress
 			}
-			// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
-			//  to mark the nonce as used once it's included in the tick, not the server.
-			if err = wCtx.UseNonce(signerAddress, tx.Nonce); err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
+
+			if err = lookupSignerAndValidateSignature(wCtx, signerAddress, tx); err != nil {
+				return err
 			}
 		}
 
@@ -110,6 +98,26 @@ func PostTransaction(
 			Tick:   tick,
 		})
 	}
+}
+
+func lookupSignerAndValidateSignature(wCtx engine.Context, signerAddress string, tx *Transaction) error {
+	var err error
+	if signerAddress == "" {
+		signerAddress, err = wCtx.GetSignerForPersonaTag(tx.PersonaTag, 0)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
+		}
+	}
+	if err = validateSignature(tx, signerAddress, wCtx.Namespace(),
+		tx.IsSystemTransaction()); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
+	}
+	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
+	//  to mark the nonce as used once it's included in the tick, not the server.
+	if err = wCtx.UseNonce(signerAddress, tx.Nonce); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
+	}
+	return nil
 }
 
 // validateTx validates the transaction payload
