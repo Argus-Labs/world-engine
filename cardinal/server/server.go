@@ -39,7 +39,10 @@ func New(
 	wCtx engine.Context, messages []types.Message, queries []engine.Query, wsEventHandler func(conn *websocket.Conn),
 	opts ...Option,
 ) (*Server, error) {
-	app := fiber.New()
+	app := fiber.New(
+		// Enable server listening on both ipv4 & ipv6
+		Network: "tcp",
+	)
 	s := &Server{
 		app: app,
 		config: config{
