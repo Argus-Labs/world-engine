@@ -21,7 +21,6 @@
 package app
 
 import (
-	"os"
 	"pkg.world.dev/world-engine/evm/sequencer"
 
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
@@ -121,7 +120,6 @@ var (
 //
 //nolint:funlen
 func MakeAppConfig(bech32prefix string) depinject.Config {
-	namespaceAuthAddr := os.Getenv("NAMESPACE_AUTHORITY_ADDR")
 	if bech32prefix == "" {
 		bech32prefix = "world"
 	}
@@ -268,10 +266,8 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 				Config: appconfig.WrapAny(&shardmodulev1.Module{}),
 			},
 			{
-				Name: namespacetypes.ModuleName,
-				Config: appconfig.WrapAny(&namespacemodule.Module{
-					Authority: namespaceAuthAddr,
-				}),
+				Name:   namespacetypes.ModuleName,
+				Config: appconfig.WrapAny(&namespacemodule.Module{}),
 			},
 		},
 	}),
