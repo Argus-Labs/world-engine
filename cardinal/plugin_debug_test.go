@@ -59,18 +59,14 @@ func TestDebugStateQuery(t *testing.T) {
 	for i, result := range results {
 		expectedBar := entities[i].barComp
 		expectedFoo := entities[i].fooComp
-		actualBar := result.Components[0]
-		actualFoo := result.Components[1]
+		actualBar, ok := result.Components[barComp{}.Name()]
+		assert.True(t, ok)
+		actualFoo, ok := result.Components[fooComp{}.Name()]
+		assert.True(t, ok)
 
-		assert.Equal(t, bar.ID(), actualBar.ID)
-		assert.Equal(t, foo.ID(), actualFoo.ID)
-
-		assert.Equal(t, expectedBar.Name(), actualBar.Name)
-		assert.Equal(t, expectedFoo.Name(), actualFoo.Name)
-
-		barData, err := bar.Decode(actualBar.Component)
+		barData, err := bar.Decode(actualBar)
 		assert.NilError(t, err)
-		fooData, err := foo.Decode(actualFoo.Component)
+		fooData, err := foo.Decode(actualFoo)
 		assert.NilError(t, err)
 
 		assert.Equal(t, barData.(barComp), expectedBar)
