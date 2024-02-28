@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TransactionHandlerClient interface {
+	RegisterGameShard(ctx context.Context, in *RegisterGameShardRequest, opts ...grpc.CallOption) (*RegisterGameShardResponse, error)
 	// SubmitCardinalBatch handles receiving transactions from a game shard and persisting them to the chain.
 	Submit(ctx context.Context, in *SubmitTransactionsRequest, opts ...grpc.CallOption) (*SubmitTransactionsResponse, error)
 }
@@ -32,6 +33,15 @@ type transactionHandlerClient struct {
 
 func NewTransactionHandlerClient(cc grpc.ClientConnInterface) TransactionHandlerClient {
 	return &transactionHandlerClient{cc}
+}
+
+func (c *transactionHandlerClient) RegisterGameShard(ctx context.Context, in *RegisterGameShardRequest, opts ...grpc.CallOption) (*RegisterGameShardResponse, error) {
+	out := new(RegisterGameShardResponse)
+	err := c.cc.Invoke(ctx, "/world.engine.shard.v2.TransactionHandler/RegisterGameShard", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *transactionHandlerClient) Submit(ctx context.Context, in *SubmitTransactionsRequest, opts ...grpc.CallOption) (*SubmitTransactionsResponse, error) {
@@ -47,6 +57,7 @@ func (c *transactionHandlerClient) Submit(ctx context.Context, in *SubmitTransac
 // All implementations must embed UnimplementedTransactionHandlerServer
 // for forward compatibility
 type TransactionHandlerServer interface {
+	RegisterGameShard(context.Context, *RegisterGameShardRequest) (*RegisterGameShardResponse, error)
 	// SubmitCardinalBatch handles receiving transactions from a game shard and persisting them to the chain.
 	Submit(context.Context, *SubmitTransactionsRequest) (*SubmitTransactionsResponse, error)
 	mustEmbedUnimplementedTransactionHandlerServer()
@@ -56,6 +67,9 @@ type TransactionHandlerServer interface {
 type UnimplementedTransactionHandlerServer struct {
 }
 
+func (UnimplementedTransactionHandlerServer) RegisterGameShard(context.Context, *RegisterGameShardRequest) (*RegisterGameShardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterGameShard not implemented")
+}
 func (UnimplementedTransactionHandlerServer) Submit(context.Context, *SubmitTransactionsRequest) (*SubmitTransactionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Submit not implemented")
 }
@@ -70,6 +84,24 @@ type UnsafeTransactionHandlerServer interface {
 
 func RegisterTransactionHandlerServer(s grpc.ServiceRegistrar, srv TransactionHandlerServer) {
 	s.RegisterService(&TransactionHandler_ServiceDesc, srv)
+}
+
+func _TransactionHandler_RegisterGameShard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterGameShardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransactionHandlerServer).RegisterGameShard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/world.engine.shard.v2.TransactionHandler/RegisterGameShard",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransactionHandlerServer).RegisterGameShard(ctx, req.(*RegisterGameShardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _TransactionHandler_Submit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -97,6 +129,10 @@ var TransactionHandler_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "world.engine.shard.v2.TransactionHandler",
 	HandlerType: (*TransactionHandlerServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RegisterGameShard",
+			Handler:    _TransactionHandler_RegisterGameShard_Handler,
+		},
 		{
 			MethodName: "Submit",
 			Handler:    _TransactionHandler_Submit_Handler,
