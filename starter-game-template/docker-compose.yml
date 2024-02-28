@@ -8,13 +8,14 @@ services:
     depends_on:
       - redis
     expose:
-      - "3333"
+      - "4040"
     ports:
-      - "3333:3333"
+      - "4040:4040"
     environment:
-      - CARDINAL_PORT=${CARDINAL_PORT:-3333}
+      - CARDINAL_PORT=${CARDINAL_PORT:-4040}
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
       - CARDINAL_MODE=${CARDINAL_MODE}
+      - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL}
       - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_MODE=normal
@@ -33,13 +34,13 @@ services:
     depends_on:
       - redis
     expose:
-      - "3333"
+      - "4040"
       - "40000"
     ports:
-      - "3333:3333"
+      - "4040:4040"
       - "40000:40000"
     environment:
-      - CARDINAL_PORT=${CARDINAL_PORT:-3333}
+      - CARDINAL_PORT=${CARDINAL_PORT:-4040}
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
       - CARDINAL_MODE=${CARDINAL_MODE}
       - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
@@ -78,13 +79,15 @@ services:
 
   nakama:
     platform: linux/amd64
-    image: us-docker.pkg.dev/argus-labs/world-engine/relay/nakama@sha256:60737f1de75b5e1dfe0f1eb557ebf6f8c691cc2812950dc4e3132242709ddc09
+    image: us-docker.pkg.dev/argus-labs/world-engine/relay/nakama@sha256:e8c126fc5c4f63592cc629d3940dfec3e04b57fd4b84f8fa708ed59f3efabd17
     container_name: nakama
     depends_on:
       nakama-db:
         condition: service_healthy
+      cardinal:
+        condition: service_started
     environment:
-      - CARDINAL_ADDR=${CARDINAL_ADDR:-cardinal:3333}
+      - CARDINAL_ADDR=${CARDINAL_ADDR:-cardinal:4040}
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
       - DB_PASSWORD=${DB_PASSWORD:-very_unsafe_password_replace_me}
       - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}

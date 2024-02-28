@@ -7,27 +7,27 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 	"github.com/swaggo/swag"
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // Used for Registering message
@@ -205,6 +205,36 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	s.Require().True(called)
 }
 
+func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisabled() {
+	t := s.T()
+	s.setupWorld(cardinal.WithDisableSignatureVerification())
+	s.fixture.DoTick()
+	unclaimedPersona := "some-persona"
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	assert.NilError(t, err)
+	// This persona tag does not have a signer address, but since signature verification is disabled it should
+	// encounter no errors
+	s.runTx(unclaimedPersona, moveMessage, MoveMsgInput{Direction: "up"})
+}
+
+func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabled() {
+	t := s.T()
+	// Signature verification is enabled
+	s.setupWorld()
+	s.fixture.DoTick()
+	unclaimedPersona := "some-persona"
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	assert.NilError(t, err)
+	payload := MoveMsgInput{Direction: "up"}
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace().String(), s.nonce, payload)
+	assert.NilError(t, err)
+
+	// This request should fail because signature verification is enabled, and we have not yet
+	// registered the given personaTag
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+}
+
 // Creates a transaction with the given message, and runs it in a tick.
 func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace().String(), s.nonce, payload)
@@ -241,38 +271,34 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
-		moveMessage, err := cardinal.GetMessage[MoveMsgInput, MoveMessageOutput](context)
-		if err != nil {
-			return err
-		}
-		moveMessage.Each(context, func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
-			posID, exists := personaToPosition[tx.Tx.PersonaTag]
-			if !exists {
-				id, err := cardinal.Create(context, LocationComponent{})
+		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
+			func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+				posID, exists := personaToPosition[tx.Tx.PersonaTag]
+				if !exists {
+					id, err := cardinal.Create(context, LocationComponent{})
+					s.Require().NoError(err)
+					personaToPosition[tx.Tx.PersonaTag] = id
+					posID = id
+				}
+				var resultLocation LocationComponent
+				err = cardinal.UpdateComponent[LocationComponent](context, posID,
+					func(loc *LocationComponent) *LocationComponent {
+						switch tx.Msg.Direction {
+						case "up":
+							loc.Y++
+						case "down":
+							loc.Y--
+						case "right":
+							loc.X++
+						case "left":
+							loc.X--
+						}
+						resultLocation = *loc
+						return loc
+					})
 				s.Require().NoError(err)
-				personaToPosition[tx.Tx.PersonaTag] = id
-				posID = id
-			}
-			var resultLocation LocationComponent
-			err = cardinal.UpdateComponent[LocationComponent](context, posID,
-				func(loc *LocationComponent) *LocationComponent {
-					switch tx.Msg.Direction {
-					case "up":
-						loc.Y++
-					case "down":
-						loc.Y--
-					case "right":
-						loc.X++
-					case "left":
-						loc.X--
-					}
-					resultLocation = *loc
-					return loc
-				})
-			s.Require().NoError(err)
-			return MoveMessageOutput{resultLocation}, nil
-		})
-		return nil
+				return MoveMessageOutput{resultLocation}, nil
+			})
 	})
 	assert.NilError(s.T(), err)
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
