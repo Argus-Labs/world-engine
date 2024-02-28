@@ -203,10 +203,6 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
-func (w *World) registerMessagesByName(msgs ...types.Message) error {
-	return w.msgManager.RegisterMessages(msgs...)
-}
-
 func GetMessageFromWorld[In any, Out any](world *World) (*message.MessageType[In, Out], error) {
 	var msg message.MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
@@ -294,10 +290,9 @@ func (w *World) Tick(ctx context.Context, timestamp uint64) error {
 
 	// Handle tx data blob submission
 	// Only submit transactions when the following criteria is satisfied:
-	// 1. There are transactions in the pool
-	// 2. The shard router is set
-	// 3. The world is not in the recovering stage (we don't want to resubmit past transactions)
-	if txPool.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
+	// 1. The shard router is set
+	// 2. The world is not in the recovering stage (we don't want to resubmit past transactions)
+	if w.router != nil && w.worldStage.Current() != worldstage.Recovering {
 		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
@@ -322,7 +317,7 @@ func (w *World) GetMessageManager() *message.Manager {
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterMessages,
+// to this world. After StartGame is called, RegisterComponent, registerMessagesByName,
 // RegisterQueries, and RegisterSystems may not be called. If StartGame doesn't encounter any errors, it will
 // block forever, running the server and ticking the game in the background.
 func (w *World) StartGame() error {

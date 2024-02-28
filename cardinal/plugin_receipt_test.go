@@ -17,21 +17,19 @@ func TestReceiptsQuery(t *testing.T) {
 	world := tf.World
 	type fooIn struct{}
 	type fooOut struct{ Y int }
-	fooMsg := message.NewMessageType[fooIn, fooOut]("foo")
-	err := cardinal.RegisterMessages(world, fooMsg)
+	err := cardinal.RegisterMessage[fooIn, fooOut](world, "foo")
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
-		fooMsg.Each(ctx, func(t message.TxData[fooIn]) (fooOut, error) {
+		return cardinal.EachMessage[fooIn, fooOut](ctx, func(t message.TxData[fooIn]) (fooOut, error) {
 			if ctx.CurrentTick()%2 == 0 {
 				return fooOut{Y: 4}, nil
 			}
-
 			return fooOut{}, errors.New("omg")
 		})
-		return nil
 	})
 	assert.NilError(t, err)
-
+	fooMsg, err := cardinal.GetMessageFromWorld[fooIn, fooOut](world)
+	assert.NilError(t, err)
 	_, txHash1 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
 	tf.DoTick()
 	_, txHash2 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})

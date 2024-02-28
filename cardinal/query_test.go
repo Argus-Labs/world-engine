@@ -6,7 +6,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -18,8 +17,6 @@ import (
 type Health struct {
 	Value int
 }
-
-func (Health) Name() string { return "health" }
 
 type QueryHealthRequest struct {
 	Min int
@@ -157,7 +154,7 @@ func TestQueryEVM(t *testing.T) {
 	)
 
 	assert.NilError(t, err)
-	err = cardinal.RegisterMessages(world, message.NewMessageType[struct{}, struct{}]("blah"))
+	err = cardinal.RegisterMessage[struct{}, struct{}](world, "blah")
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.

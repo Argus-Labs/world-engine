@@ -15,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -351,8 +350,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		assert.NilError(t, cardinal.RegisterComponent[PowerComp](world))
 
-		powerTx := message.NewMessageType[PowerComp, PowerComp]("change_power")
-		assert.NilError(t, cardinal.RegisterMessages(world, powerTx))
+		assert.NilError(t, cardinal.RegisterMessage[PowerComp, PowerComp](world, "change_power"))
 
 		err := cardinal.RegisterSystems(
 			world,
@@ -361,7 +359,8 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 				id := q.MustFirst()
 				entityPower, err := cardinal.GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
-
+				powerTx, err := testutils.GetMessage[PowerComp, PowerComp](wCtx)
+				assert.NilError(t, err)
 				changes := powerTx.In(wCtx)
 				assert.Equal(t, 1, len(changes))
 				entityPower.Val += changes[0].Msg.Val
@@ -392,9 +391,10 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			assert.NilError(t, err)
 			return power.Val
 		}
-
+		powerTx, err := cardinal.GetMessageFromWorld[PowerComp, PowerComp](world)
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
+			assert.NilError(t, err)
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})

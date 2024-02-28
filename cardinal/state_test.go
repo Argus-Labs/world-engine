@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"time"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"time"
 
 	"pkg.world.dev/world-engine/assert"
 
@@ -302,7 +303,6 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	someTx := message.NewMessageType[Msg, Result]("some-msg")
 	redisStore := miniredis.RunT(t)
 	ctx := context.Background()
 
@@ -311,20 +311,23 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		tf := testutils.NewTestFixture(t, redisStore)
 		world := tf.World
-		assert.NilError(t, cardinal.RegisterMessages(world, someTx))
+		assert.NilError(t, cardinal.RegisterMessage[Msg, Result](world, "some-msg"))
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
-				for _, tx := range someTx.In(wCtx) {
+				someTx, err := testutils.GetMessage[Msg, Result](wCtx)
+				return cardinal.EachMessage[Msg, Result](wCtx, func(tx message.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})
-				}
-				return nil
+					return Result{}, err
+				})
 			},
 		)
 		assert.NilError(t, err)
 		tf.StartWorld()
 
 		relevantTick := world.CurrentTick()
+		someTx, err := cardinal.GetMessageFromWorld[Msg, Result](world)
+		assert.NilError(t, err)
 		for i := 0; i < 3; i++ {
 			_ = tf.AddTransaction(someTx.ID(), Msg{}, testutils.UniqueSignature())
 		}

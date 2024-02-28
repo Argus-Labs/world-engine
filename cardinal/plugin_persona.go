@@ -72,27 +72,21 @@ func (p *personaPlugin) RegisterComponents(world *World) error {
 }
 
 func (p *personaPlugin) RegisterMessages(world *World) error {
-	err := RegisterMessages(world, CreatePersonaMsg, AuthorizePersonaAddressMsg)
-	if err != nil {
-		return err
-	}
-	return nil
+	return errors.Join(
+		RegisterMessage[msg.CreatePersona, msg.CreatePersonaResult](
+			world,
+			"create-persona",
+			message.WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
+			message.WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult]()),
+		RegisterMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
+			world,
+			"authorize-persona-address",
+		))
 }
 
 // -----------------------------------------------------------------------------
 // Persona Messages
 // -----------------------------------------------------------------------------
-
-var AuthorizePersonaAddressMsg = message.NewMessageType[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
-	"authorize-persona-address",
-)
-
-// CreatePersonaMsg is a message that facilitates the creation of a persona tag.
-var CreatePersonaMsg = message.NewMessageType[msg.CreatePersona, msg.CreatePersonaResult](
-	"create-persona",
-	message.WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
-	message.WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult](),
-)
 
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
@@ -102,8 +96,7 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 	if err != nil {
 		return err
 	}
-
-	AuthorizePersonaAddressMsg.Each(
+	return EachMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 		wCtx,
 		func(txData message.TxData[msg.AuthorizePersonaAddress]) (
 			result msg.AuthorizePersonaAddressResult, err error,
@@ -144,7 +137,6 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 			return result, nil
 		},
 	)
-	return nil
 }
 
 // -----------------------------------------------------------------------------
@@ -158,8 +150,7 @@ func RegisterPersonaSystem(wCtx engine.Context) error {
 	if err != nil {
 		return err
 	}
-
-	CreatePersonaMsg.Each(
+	return EachMessage[msg.CreatePersona, msg.CreatePersonaResult](
 		wCtx,
 		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
@@ -198,8 +189,6 @@ func RegisterPersonaSystem(wCtx engine.Context) error {
 			return result, nil
 		},
 	)
-
-	return nil
 }
 
 // -----------------------------------------------------------------------------

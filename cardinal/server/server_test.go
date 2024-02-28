@@ -30,6 +30,24 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+// Used for Registering message
+type MoveMsgInput struct {
+	Direction string
+}
+
+// Used for Registering message
+type MoveMessageOutput struct {
+	Location LocationComponent
+}
+
+type QueryLocationRequest struct {
+	Persona string
+}
+
+type QueryLocationResponse struct {
+	LocationComponent
+}
+
 type ServerTestSuite struct {
 	suite.Suite
 
@@ -63,10 +81,12 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	personaTag := s.CreateRandomPersona()
-	s.runTx(personaTag, MoveMessage, MoveMsgInput{Direction: "up"})
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	s.Require().NoError(err)
+	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
 	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
 	var loc LocationComponent
-	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
 	s.Require().Equal(loc, LocationComponent{0, 1})
 }
@@ -145,7 +165,9 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 		PersonaTag: persona,
 		Body:       msgBz,
 	}
-	url := "/tx/game/" + MoveMessage.Name()
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	s.Require().NoError(err)
+	url := "/tx/game/" + moveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
@@ -215,38 +237,38 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.world = s.fixture.World
 	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
-	err = cardinal.RegisterMessages(s.world, MoveMessage)
+	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, "move")
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
-		MoveMessage.Each(context, func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
-			posID, exists := personaToPosition[tx.Tx.PersonaTag]
-			if !exists {
-				id, err := cardinal.Create(context, LocationComponent{})
+		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
+			func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+				posID, exists := personaToPosition[tx.Tx.PersonaTag]
+				if !exists {
+					id, err := cardinal.Create(context, LocationComponent{})
+					s.Require().NoError(err)
+					personaToPosition[tx.Tx.PersonaTag] = id
+					posID = id
+				}
+				var resultLocation LocationComponent
+				err = cardinal.UpdateComponent[LocationComponent](context, posID,
+					func(loc *LocationComponent) *LocationComponent {
+						switch tx.Msg.Direction {
+						case "up":
+							loc.Y++
+						case "down":
+							loc.Y--
+						case "right":
+							loc.X++
+						case "left":
+							loc.X--
+						}
+						resultLocation = *loc
+						return loc
+					})
 				s.Require().NoError(err)
-				personaToPosition[tx.Tx.PersonaTag] = id
-				posID = id
-			}
-			var resultLocation LocationComponent
-			err = cardinal.UpdateComponent[LocationComponent](context, posID,
-				func(loc *LocationComponent) *LocationComponent {
-					switch tx.Msg.Direction {
-					case "up":
-						loc.Y++
-					case "down":
-						loc.Y--
-					case "right":
-						loc.X++
-					case "left":
-						loc.X--
-					}
-					resultLocation = *loc
-					return loc
-				})
-			s.Require().NoError(err)
-			return MoveMessageOutput{resultLocation}, nil
-		})
-		return nil
+				return MoveMessageOutput{resultLocation}, nil
+			})
 	})
 	assert.NilError(s.T(), err)
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
@@ -263,6 +285,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			return &QueryLocationResponse{*loc}, nil
 		},
 	)
+	s.Require().NoError(err)
 }
 
 // returns the body of an http response as string.
@@ -293,22 +316,4 @@ type LocationComponent struct {
 
 func (LocationComponent) Name() string {
 	return "location"
-}
-
-type MoveMsgInput struct {
-	Direction string
-}
-
-type MoveMessageOutput struct {
-	Location LocationComponent
-}
-
-var MoveMessage = message.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
-
-type QueryLocationRequest struct {
-	Persona string
-}
-
-type QueryLocationResponse struct {
-	LocationComponent
 }

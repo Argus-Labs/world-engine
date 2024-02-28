@@ -75,27 +75,31 @@ func MustRegisterComponent[T types.Component](w *World) {
 	}
 }
 
-// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
-// messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...types.Message) error {
-	if w.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"engine state is %s, expected %s to register messages",
-			w.worldStage.Current(),
-			worldstage.Init,
-		)
+func EachMessage[In any, Out any](wCtx engine.Context, fn func(message.TxData[In]) (Out, error)) error {
+	var msg message.MessageType[In, Out]
+	msgType := reflect.TypeOf(msg)
+	tempRes, ok := wCtx.GetMessageByType(msgType)
+	if !ok {
+		return eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
-	return w.msgManager.RegisterMessages(msgs...)
+	var _ types.Message = &msg
+	res, ok := tempRes.(*message.MessageType[In, Out])
+	if !ok {
+		return eris.New("wrong type")
+	}
+	res.Each(wCtx, fn)
+	return nil
 }
 
 func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
-	msgType := message.NewMessageType[In, Out](name, opts...)
-	err := world.registerMessagesByName(msgType)
-	if err != nil {
-		return eris.Wrap(err, "failed to register message")
+	if world.worldStage.Current() != worldstage.Init {
+		return eris.Errorf(
+			"engine state is %s, expected %s to register messages",
+			world.worldStage.Current(),
+			worldstage.Init,
+		)
 	}
-	typeValueOfMessageType := reflect.TypeOf(*msgType)
-	return world.GetMessageManager().RegisterMessageByType(typeValueOfMessageType, msgType)
+	return message.RegisterMessageOnManager[In, Out](world.GetMessageManager(), name, opts...)
 }
 
 func RegisterQuery[Request any, Reply any](

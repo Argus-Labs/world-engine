@@ -32,6 +32,10 @@ rollup-install:
 rollup-proto-gen:
 	cd evm && $(MAKE) proto-gen
 
+world-docs:
+	mintlify --version || npm i -g mintlify
+	cd docs && mintlify dev
+
 # Find all directories containing go.mod files
 GO_MOD_DIRS := $(shell find . -name "go.mod" -exec dirname {} \;)
 
