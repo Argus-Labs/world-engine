@@ -111,6 +111,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
+		DialTimeout: 15 * time.Second, // longer dial timeout
 	}, cfg.CardinalNamespace)
 
 	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
