@@ -37,10 +37,10 @@ func main() {
 
 	// Register messages (user action)
 	// NOTE: You must register your messages here for it to be executed.
-	Must(cardinal.RegisterMessages(w,
-		msg.CreatePlayer,
-		msg.AttackPlayer,
-	))
+	Must(
+		cardinal.RegisterMessage[msg.CreatePlayerRequest, msg.CreatePlayerResponse](w, "create_player"),
+		cardinal.RegisterMessage[msg.AttackPlayerRequest, msg.AttackPlayerResponse](w, "attack_player"),
+    )
 
 	// Register queries
 	// NOTE: You must register your queries here for it to be accessible.
