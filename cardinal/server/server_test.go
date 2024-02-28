@@ -7,27 +7,27 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 	"github.com/swaggo/swag"
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // Used for Registering message
@@ -203,6 +203,36 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	res := s.fixture.Post(utils.GetQueryURL(group, name), SomeRequest{})
 	s.Require().Equal(fiber.StatusOK, res.StatusCode)
 	s.Require().True(called)
+}
+
+func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisabled() {
+	t := s.T()
+	s.setupWorld(cardinal.WithDisableSignatureVerification())
+	s.fixture.DoTick()
+	unclaimedPersona := "some-persona"
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	assert.NilError(t, err)
+	// This persona tag does not have a signer address, but since signature verification is disabled it should
+	// encounter no errors
+	s.runTx(unclaimedPersona, moveMessage, MoveMsgInput{Direction: "up"})
+}
+
+func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabled() {
+	t := s.T()
+	// Signature verification is enabled
+	s.setupWorld()
+	s.fixture.DoTick()
+	unclaimedPersona := "some-persona"
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	assert.NilError(t, err)
+	payload := MoveMsgInput{Direction: "up"}
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace().String(), s.nonce, payload)
+	assert.NilError(t, err)
+
+	// This request should fail because signature verification is enabled, and we have not yet
+	// registered the given personaTag
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 }
 
 // Creates a transaction with the given message, and runs it in a tick.
