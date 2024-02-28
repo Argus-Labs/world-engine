@@ -42,6 +42,7 @@ import (
 
 const (
 	DefaultHistoricalTicksToStore = 10
+	RedisDialTimeOut              = 15
 )
 
 type World struct {
@@ -98,7 +99,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, eris.Wrapf(err, "invalid configuration")
 	}
-
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -108,10 +108,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
-		Addr:     cfg.RedisAddress,
-		Password: cfg.RedisPassword,
-		DB:       0, // use default DB
-		DialTimeout: 15 * time.Second, // Increase startup dial timeout 
+		Addr:        cfg.RedisAddress,
+		Password:    cfg.RedisPassword,
+		DB:          0,                              // use default DB
+		DialTimeout: RedisDialTimeOut * time.Second, // Increase startup dial timeout
 	}, cfg.CardinalNamespace)
 
 	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
