@@ -13,8 +13,6 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
 	pkg.world.dev/world-engine/cardinal => ../../cardinal
-	pkg.world.dev/world-engine/evm => ../../evm
-	pkg.world.dev/world-engine/rift => ../../rift
 )
 
 require (
