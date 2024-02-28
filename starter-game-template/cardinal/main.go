@@ -2,12 +2,14 @@ package main
 
 import (
 	"errors"
+
+	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal"
+
 	"github.com/argus-labs/starter-game-template/cardinal/component"
 	"github.com/argus-labs/starter-game-template/cardinal/msg"
 	"github.com/argus-labs/starter-game-template/cardinal/query"
 	"github.com/argus-labs/starter-game-template/cardinal/system"
-	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
@@ -25,10 +27,10 @@ func main() {
 
 	// Register messages (user action)
 	// NOTE: You must register your transactions here for it to be executed.
-	Must(cardinal.RegisterMessages(w,
-		msg.CreatePlayer,
-		msg.AttackPlayer,
-	))
+	Must(
+		cardinal.RegisterMessage[msg.CreatePlayerMsg, msg.CreatePlayerResult](w, "create-player"),
+		cardinal.RegisterMessage[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply](w, "attack-player"),
+	)
 
 	// Register queries
 	// NOTE: You must register your queries here for it to be accessible.

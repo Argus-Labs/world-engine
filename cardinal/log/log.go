@@ -1,7 +1,10 @@
 package log
 
 import (
+	"sort"
+
 	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -21,9 +24,13 @@ func loadComponentIntoArrayLogger(
 }
 
 func loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, target Loggable) *zerolog.Event {
-	zeroLoggerEvent.Int("total_components", len(target.GetRegisteredComponents()))
+	components := target.GetRegisteredComponents()
+	sort.Slice(components, func(i, j int) bool {
+		return components[i].ID() < components[j].ID()
+	})
+	zeroLoggerEvent.Int("total_components", len(components))
 	arrayLogger := zerolog.Arr()
-	for _, _component := range target.GetRegisteredComponents() {
+	for _, _component := range components {
 		arrayLogger = loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("components", arrayLogger)

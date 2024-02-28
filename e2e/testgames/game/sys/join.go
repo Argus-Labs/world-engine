@@ -14,11 +14,7 @@ var PlayerEntityID = make(map[string]types.EntityID)
 
 func Join(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
-	joinMsg, err := cardinal.GetMessage[msg.JoinInput, msg.JoinOutput](ctx)
-	if err != nil {
-		return err
-	}
-	joinMsg.Each(
+	return cardinal.EachMessage[msg.JoinInput, msg.JoinOutput](
 		ctx, func(jtx message.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
 			logger.Info().Msgf("got join transaction from: %s", jtx.Tx.PersonaTag)
 			entityID, err := cardinal.Create(ctx, comp.Location{}, comp.Player{})
@@ -40,5 +36,4 @@ func Join(ctx cardinal.WorldContext) error {
 			return msg.JoinOutput{Success: true}, nil
 		},
 	)
-	return nil
 }

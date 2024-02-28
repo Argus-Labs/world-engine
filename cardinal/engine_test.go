@@ -108,14 +108,11 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	err = cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			tx, err := cardinal.GetMessage[FooIn, FooOut](wCtx)
-			assert.NilError(t, err)
-			tx.Each(
+			return cardinal.EachMessage[FooIn, FooOut](
 				wCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
-			return nil
 		},
 	)
 	assert.NilError(t, err)
@@ -173,14 +170,11 @@ func TestEVMTxConsume(t *testing.T) {
 	var returnErr error
 	err = cardinal.RegisterSystems(world,
 		func(eCtx cardinal.WorldContext) error {
-			fooTx, err := cardinal.GetMessage[FooIn, FooOut](eCtx)
-			assert.NilError(t, err)
-			fooTx.Each(
+			return cardinal.EachMessage[FooIn, FooOut](
 				eCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
-			return nil
 		},
 	)
 	assert.NilError(t, err)
@@ -459,15 +453,10 @@ func TestRecoverFromChain(t *testing.T) {
 
 	fooMessages := 0
 	err := cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
-		fooMessage, err := cardinal.GetMessage[fooMsg, fooMsgRes](engineContext)
-		if err != nil {
-			return err
-		}
-		fooMessage.Each(engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
+		return cardinal.EachMessage[fooMsg, fooMsgRes](engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
 			fooMessages++
 			return fooMsgRes{}, nil
 		})
-		return nil
 	})
 	assert.NilError(t, err)
 	fooMessage, err := cardinal.GetMessageFromWorld[fooMsg, fooMsgRes](world)

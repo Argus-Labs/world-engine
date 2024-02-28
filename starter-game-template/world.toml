@@ -7,6 +7,7 @@ CARDINAL_NAMESPACE="my-world-1" # required to be set in production
 REDIS_ADDRESS=""  # required to be set in production
 REDIS_PASSWORD="" # required to be set in production
 CARDINAL_MODE="development"     # can be either "development" or "production". leaving blank will default to "development"
+CARDINAL_LOG_LEVEL="info"      # must be one of (debug, info, warn, error, fatal, panic, disabled, trace)
 BASE_SHARD_SEQUENCER_ADDRESS="" # required to be set in production
 BASE_SHARD_QUERY_ADDRESS=""     # required to be set in production
 

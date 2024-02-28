@@ -11,11 +11,13 @@ replace (
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20231105185655-b78967bb230f
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+
+	pkg.world.dev/world-engine/cardinal => ../../cardinal
 )
 
 require (
 	github.com/rotisserie/eris v0.5.4
-	pkg.world.dev/world-engine/cardinal v1.0.7-beta.0.20240227191311-c62d82a98e45
+	pkg.world.dev/world-engine/cardinal v1.0.6-beta.0.20240104191834-89728d063830
 )
 
 require (
@@ -171,7 +173,7 @@ require (
 	gotest.tools/v3 v3.5.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
 	pkg.world.dev/world-engine/evm v1.0.4-0.20240227035346-26b21454bb27 // indirect
-	pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240227034741-42bcc7370398 // indirect
-	pkg.world.dev/world-engine/sign v1.0.0-beta.0.20240127015309-7b7aa2336821 // indirect
+	pkg.world.dev/world-engine/rift v1.0.2-beta // indirect
+	pkg.world.dev/world-engine/sign v1.0.1-beta // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
