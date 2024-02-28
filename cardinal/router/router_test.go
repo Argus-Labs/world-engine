@@ -211,12 +211,20 @@ type fakeTxHandler struct {
 	req *shard.RegisterGameShardRequest
 }
 
-func (f *fakeTxHandler) RegisterGameShard(ctx context.Context, in *shard.RegisterGameShardRequest, opts ...grpc.CallOption) (*shard.RegisterGameShardResponse, error) {
+func (f *fakeTxHandler) RegisterGameShard(
+	_ context.Context,
+	in *shard.RegisterGameShardRequest,
+	_ ...grpc.CallOption,
+) (*shard.RegisterGameShardResponse, error) {
 	f.req = in
-	return nil, nil
+	return &shard.RegisterGameShardResponse{}, nil
 }
 
-func (f *fakeTxHandler) Submit(ctx context.Context, in *shard.SubmitTransactionsRequest, opts ...grpc.CallOption) (*shard.SubmitTransactionsResponse, error) {
+func (f *fakeTxHandler) Submit(
+	_ context.Context,
+	_ *shard.SubmitTransactionsRequest,
+	_ ...grpc.CallOption,
+) (*shard.SubmitTransactionsResponse, error) {
 	panic("implement me")
 }
 

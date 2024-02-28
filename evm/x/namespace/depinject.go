@@ -32,13 +32,10 @@ type DepInjectOutput struct {
 
 // ProvideModule is a function that provides the module to the application.
 func ProvideModule(in DepInjectInput) DepInjectOutput {
-
 	k := keeper.NewKeeper(
 		in.StoreKey,
 		"",
 	)
-
 	m := NewAppModule(k)
-
 	return DepInjectOutput{Keeper: k, Module: m}
 }

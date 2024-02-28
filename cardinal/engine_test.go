@@ -373,7 +373,8 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 		).
 		Return(nil).
 		Times(1)
-	rtr.EXPECT().Start().AnyTimes()
+	rtr.EXPECT().Start().Times(1)
+	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	tf.StartWorld()
 	err = world.Tick(context.Background(), ts)
 	assert.NilError(t, err)
@@ -445,6 +446,7 @@ func TestRecoverFromChain(t *testing.T) {
 	setEnvToCardinalProdMode(t)
 
 	rtr.EXPECT().Start().Times(1)
+	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
