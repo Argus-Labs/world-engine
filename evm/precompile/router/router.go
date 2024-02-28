@@ -33,6 +33,7 @@ func NewPrecompileContract(r router.Router) *Contract {
 // SendMessage implements the sendMessage precompile function in router.sol.
 func (c *Contract) SendMessage(
 	ctx context.Context,
+	personaTag string,
 	message []byte,
 	messageID string,
 	namespace string,
