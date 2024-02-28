@@ -225,7 +225,7 @@ func (f *fakeTxHandler) Submit(
 	_ *shard.SubmitTransactionsRequest,
 	_ ...grpc.CallOption,
 ) (*shard.SubmitTransactionsResponse, error) {
-	panic("implement me")
+	panic("intentionally not implemented. this is a mock")
 }
 
 func TestRegisterCalledWithCorrectParams(t *testing.T) {
