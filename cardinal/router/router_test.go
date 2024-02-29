@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/mock/gomock"
+	"google.golang.org/grpc"
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"pkg.world.dev/world-engine/sign"
 	"testing"
 )
@@ -201,6 +203,42 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeTxFailed)
+}
+
+var _ shard.TransactionHandlerClient = &fakeTxHandler{}
+
+type fakeTxHandler struct {
+	req *shard.RegisterGameShardRequest
+}
+
+func (f *fakeTxHandler) RegisterGameShard(
+	_ context.Context,
+	in *shard.RegisterGameShardRequest,
+	_ ...grpc.CallOption,
+) (*shard.RegisterGameShardResponse, error) {
+	f.req = in
+	return &shard.RegisterGameShardResponse{}, nil
+}
+
+func (f *fakeTxHandler) Submit(
+	_ context.Context,
+	_ *shard.SubmitTransactionsRequest,
+	_ ...grpc.CallOption,
+) (*shard.SubmitTransactionsResponse, error) {
+	panic("intentionally not implemented. this is a mock")
+}
+
+func TestRegisterCalledWithCorrectParams(t *testing.T) {
+	rtr, _ := getTestRouterAndProvider(t)
+	rtr.namespace = "foobar"
+	rtr.serverAddr = "meow:9000"
+	txHandler := &fakeTxHandler{}
+	rtr.ShardSequencer = txHandler
+	err := rtr.RegisterGameShard(context.Background())
+	assert.NilError(t, err)
+
+	assert.Equal(t, txHandler.req.Namespace, rtr.namespace)
+	assert.Equal(t, txHandler.req.RouterAddress, rtr.serverAddr)
 }
 
 func getTestRouterAndProvider(t *testing.T) (*router, *mocks.MockProvider) {

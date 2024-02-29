@@ -343,6 +343,9 @@ func (w *World) StartGame() error {
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
+		if err := w.router.RegisterGameShard(context.Background()); err != nil {
+			return eris.Wrap(err, "failed to register game shard to base shard")
+		}
 	}
 
 	// Recover pending transactions from redis

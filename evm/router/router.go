@@ -84,9 +84,6 @@ func (r *routerImpl) getSDKCtx() sdk.Context {
 }
 
 func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, _ types.Signer) {
-	r.logger.Info("running PostBlockHook",
-		"num_transactions", len(transactions),
-	)
 	// loop over all txs
 	for i, tx := range transactions {
 		r.logger.Info("working on transaction", "tx_hash", tx.Hash().String())
