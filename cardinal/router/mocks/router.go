@@ -6,11 +6,11 @@ package mocks
 
 import (
 	context "context"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	iterator "pkg.world.dev/world-engine/cardinal/router/iterator"
+	txpool "pkg.world.dev/world-engine/cardinal/types/txpool"
 )
 
 // MockRouter is a mock of Router interface.
@@ -34,6 +34,20 @@ func NewMockRouter(ctrl *gomock.Controller) *MockRouter {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
+}
+
+// RegisterGameShard mocks base method.
+func (m *MockRouter) RegisterGameShard(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterGameShard", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterGameShard indicates an expected call of RegisterGameShard.
+func (mr *MockRouterMockRecorder) RegisterGameShard(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterGameShard", reflect.TypeOf((*MockRouter)(nil).RegisterGameShard), arg0)
 }
 
 // Shutdown mocks base method.

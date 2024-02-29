@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"reflect"
 
@@ -198,6 +199,11 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 		return nil, eris.Wrap(err, "")
 	}
 	return bz, nil
+}
+
+// GetRequestFieldInformation returns the field information for the request struct.
+func (r *QueryType[Request, Reply]) GetRequestFieldInformation() map[string]any {
+	return types.GetFieldInformation(reflect.TypeOf(new(Request)).Elem())
 }
 
 func validateQuery[Request any, Reply any](

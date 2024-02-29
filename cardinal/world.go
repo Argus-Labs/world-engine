@@ -343,6 +343,9 @@ func (w *World) StartGame() error {
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
+		if err := w.router.RegisterGameShard(context.Background()); err != nil {
+			return eris.Wrap(err, "failed to register game shard to base shard")
+		}
 	}
 
 	// Recover pending transactions from redis
@@ -366,7 +369,7 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(NewReadOnlyWorldContext(w), w.ListMessages(), w.ListQueries(),
+	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.ListMessages(), w.ListQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
 	if err != nil {

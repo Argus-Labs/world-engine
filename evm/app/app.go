@@ -232,20 +232,18 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 
 	// then sequence the game shard txs
 	numTxs := len(txs)
-	zerolog.Debug().Msgf("flushed %d messages in PreBlocker", numTxs)
 	resPreBlock := &sdk.ResponsePreBlock{}
 	if numTxs > 0 {
 		zerolog.Debug().Msg("sequencing messages")
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
-			zerolog.Debug().Msgf("sequencing tx %s", tx.String())
 			_, err := handler(ctx, tx)
 			if err != nil {
 				zerolog.Error().Err(err).Msgf("error sequencing game shard tx")
 				return resPreBlock, err
 			}
 		}
-		zerolog.Debug().Msg("successfully sequenced game shard txs")
+		app.Logger().Debug("successfully sequenced %d game shard txs", numTxs)
 	}
 	return resPreBlock, nil
 }

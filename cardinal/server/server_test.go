@@ -114,6 +114,38 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	}
 }
 
+// TestGetFieldInformation tests the fields endpoint.
+func (s *ServerTestSuite) TestGetFieldInformation() {
+	s.setupWorld()
+	s.fixture.DoTick()
+	res := s.fixture.Get("/debug/world")
+	var result handler.GetDebugWorldResponse
+	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().NoError(err)
+	comps := s.world.GetRegisteredComponents()
+	msgs := s.world.ListMessages()
+	queries := s.world.ListQueries()
+
+	s.Require().Len(comps, len(result.Components))
+	s.Require().Len(msgs, len(result.Messages))
+	s.Require().Len(queries, len(result.Queries))
+
+	// check that the component, message, query name are in the list
+	for _, comp := range comps {
+		assert.True(s.T(), slices.Contains(result.Components, comp.Name()))
+	}
+	for _, msg := range msgs {
+		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field handler.FieldDetail) bool {
+			return msg.Name() == field.Name
+		}))
+	}
+	for _, query := range queries {
+		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field handler.FieldDetail) bool {
+			return query.Name() == field.Name
+		}))
+	}
+}
+
 // TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
 // actually have endpoints when the cardinal server starts.
 func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {

@@ -20,4 +20,6 @@ type Query interface {
 	EncodeAsABI(any) ([]byte, error)
 	// IsEVMCompatible reports if the query is able to be sent from the EVM.
 	IsEVMCompatible() bool
+	// GetRequestFieldInformation returns a map of the fields of the query's request type and their types.
+	GetRequestFieldInformation() map[string]any
 }

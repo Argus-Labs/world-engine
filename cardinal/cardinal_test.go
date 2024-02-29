@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/golang/mock/gomock"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"strconv"
 	"sync"
 	"testing"
@@ -827,6 +829,19 @@ func TestWithPrettyLog_LogIsNotJSONFormatted(t *testing.T) {
 	output, err := io.ReadAll(r)
 	assert.NilError(t, err)
 	assert.Assert(t, !isValidJSON(output))
+}
+
+func TestCallsRegisterGameShardOnStartup(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	world.SetRouter(rtr)
+
+	rtr.EXPECT().Start().Times(1)
+	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
+	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+	tf.DoTick()
 }
 
 // isValidJSON tests if a string is valid JSON.

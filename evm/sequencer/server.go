@@ -110,7 +110,6 @@ func (s *Sequencer) FlushMessages() ([]*types.SubmitShardTxRequest, []*namespace
 // Submit appends the game shard tx submission to the tx queue.
 func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsRequest) (
 	*shard.SubmitTransactionsResponse, error) {
-	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Namespace)
 	txIDs := sortMapKeys(req.Transactions)
 	for _, txID := range txIDs {
 		txs := req.Transactions[txID].Txs
