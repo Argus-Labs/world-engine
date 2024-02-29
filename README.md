@@ -2,6 +2,7 @@
   <img src="https://i.imgur.com/P6YpZCT.png" width=250 />
   <br/>
   The world’s first Gamechain SDK that utilizes Argus Labs’ novel sharded rollup architecture.
+  <br/>
   <p align="center">
     <a href="https://codecov.io/gh/Argus-Labs/world-engine" >
     <img src="https://codecov.io/gh/Argus-Labs/world-engine/branch/main/graph/badge.svg?token=XMH4P082HZ"/>
