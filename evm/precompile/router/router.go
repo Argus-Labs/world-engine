@@ -41,7 +41,7 @@ func (c *Contract) SendMessage(
 	log.Logger.Debug().Msg("inside SendMessage precompile function called")
 	pCtx := vm.UnwrapPolarContext(ctx)
 	if c.rtr != nil {
-		err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
+		err := c.rtr.SendMessage(ctx, personaTag, namespace, pCtx.MsgSender().String(), messageID, message)
 		if err != nil {
 			log.Logger.Err(err).Msg("failed to queue message in router")
 			return false, err
