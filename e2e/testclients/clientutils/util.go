@@ -23,12 +23,11 @@ const (
 )
 
 type NakamaClient struct {
-	t                  *testing.T
-	addr               string
-	authHeader         string
-	notificationCursor string
-	ReceiptCh          chan Receipt
-	EventCh            chan Event
+	t          *testing.T
+	addr       string
+	authHeader string
+	ReceiptCh  chan Receipt
+	EventCh    chan Event
 }
 
 func NewNakamaClient(t *testing.T) *NakamaClient {
@@ -66,15 +65,10 @@ type Receipt struct {
 	Errors []string       `json:"errors"`
 }
 
-type WSNotificationCollection struct {
+type NotificationCollection struct {
 	Notifications struct {
 		Notifications []NotificationItem `json:"notifications"`
 	} `json:"notifications"`
-}
-
-type NotificationCollection struct {
-	Notifications   []NotificationItem `json:"notifications"`
-	CacheableCursor string             `json:"cacheableCursor"`
 }
 
 func (c *NakamaClient) listenForNotifications() error {
@@ -102,7 +96,7 @@ func (c *NakamaClient) listenForNotifications() error {
 				}
 				return
 			}
-			var data WSNotificationCollection
+			var data NotificationCollection
 			err = json.Unmarshal(buf, &data)
 			assert.Check(c.t, err == nil, "failed to unmarshal notification")
 
@@ -143,47 +137,6 @@ func (c *NakamaClient) handleEvent(bz []byte) {
 	default:
 		c.t.Log("warning: event dropped")
 	}
-}
-
-// FetchNotifications fetches notifications and returns them as a generic slice.
-// This is a helper function to avoid code duplication.
-func (c *NakamaClient) FetchNotifications(k int) ([]NotificationItem, error) {
-	path := "v2/notification"
-	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
-	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", c.authHeader)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// Handle non-OK responses here. For simplicity, we're just returning an error.
-		return nil, fmt.Errorf("server returned non-OK status: %d", resp.StatusCode)
-	}
-
-	bodyData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var data NotificationCollection
-	err = json.Unmarshal(bodyData, &data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update the cursor for subsequent requests.
-	c.notificationCursor = data.CacheableCursor
-
-	return data.Notifications, nil
 }
 
 func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
