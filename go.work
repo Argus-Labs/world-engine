@@ -1,6 +1,13 @@
 go 1.21.2
 
 use (
+	assert
 	cardinal
 	evm
+	e2e/testgames
+	e2e/testclients
+	e2e/chain
+	relay/nakama
+	rift
+	sign
 )
