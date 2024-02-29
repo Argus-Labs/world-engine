@@ -1,0 +1,33 @@
+name: Starter Template Lint
+
+on:
+  pull_request:
+    paths:
+      - starter-game-template/**
+  push:
+    branches:
+      - main
+    paths:
+      - starter-game-template/**
+jobs:
+  golangci-lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    env:
+      GO_VERSION: 1.21.0
+      GOLANGCI_VERSION: v1.54.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: "starter-game-template/cardinal/*.sum"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.54.2
+          args: --timeout=10m --concurrency 8 -v starter-game-template/cardinal
+          ## skip cache, use Namespace volume cache
+          skip-cache: true
