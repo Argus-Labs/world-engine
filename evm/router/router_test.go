@@ -31,7 +31,7 @@ func TestRouter(t *testing.T) {
 	contractAddr := common.HexToAddress("0x61d2B2315605660c3855C8BE139B82e0635E13E3")
 	namespace, msgID, msg := "cardinal", "tx1", []byte("hello")
 	// queue a message
-	err := router.SendMessage(context.Background(), namespace, contractAddr.String(), msgID, msg)
+	err := router.SendMessage(context.Background(), "foobar", namespace, contractAddr.String(), msgID, msg)
 	assert.NilError(t, err)
 	// make sure its set in the queue
 	assert.Equal(t, router.queue.IsSet(contractAddr), true)
