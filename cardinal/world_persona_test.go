@@ -1,6 +1,7 @@
 package cardinal_test
 
 import (
+	"fmt"
 	"pkg.world.dev/world-engine/assert"
 	msg2 "pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -26,4 +27,9 @@ func TestGetSignerComponentForPersona(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, sc.PersonaTag, personaTag)
 	assert.Equal(t, sc.SignerAddress, signer)
+
+	notRealPersona := "nobody_important"
+	sc, err = world.GetSignerComponentForPersona(notRealPersona)
+	assert.ErrorContains(t, err, fmt.Sprintf("persona tag %q not found", notRealPersona))
+	assert.Nil(t, sc)
 }
