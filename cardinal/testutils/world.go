@@ -178,7 +178,7 @@ func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
 	createPersonaMsg, exists := t.World.GetMessageByName(msg.CreatePersonaMessageName)
 	assert.Check(
 		t,
-		exists == true,
+		exists,
 		"message with name %q not registered in World", msg.CreatePersonaMessageName,
 	)
 	t.AddTransaction(createPersonaMsg.ID(), personaMsg, &sign.Transaction{})
