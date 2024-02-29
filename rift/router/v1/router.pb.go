@@ -26,7 +26,8 @@ type SendMessageRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// sender is the identifier of the message sender.
-	Sender     string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	// persona_tag is the persona tag the requester is requesting to use for this message.
 	PersonaTag string `protobuf:"bytes,2,opt,name=persona_tag,json=personaTag,proto3" json:"persona_tag,omitempty"`
 	// message contains the underlying bytes of the message. typically, this is an abi encoded solidity struct.
 	Message []byte `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`

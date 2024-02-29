@@ -13,6 +13,7 @@ message SendMessageRequest {
   // sender is the identifier of the message sender.
   string sender = 1;
 
+  // persona_tag is the persona tag the requester is requesting to use for this message.
   string persona_tag = 2;
 
   // message contains the underlying bytes of the message. typically, this is an abi encoded solidity struct.
