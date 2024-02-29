@@ -79,6 +79,7 @@ func (e *evmServer) SendMessage(_ context.Context, req *routerv1.SendMessageRequ
 	for _, addr := range signer.AuthorizedAddresses {
 		if addr == req.Sender {
 			found = true
+			break
 		}
 	}
 	if !found {
