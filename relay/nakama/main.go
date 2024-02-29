@@ -172,7 +172,8 @@ func initEventHub(
 	go func() {
 		channel := eventHub.Subscribe("main")
 		for event := range channel {
-			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.Message}, 1, false), "")
+			err := eris.Wrap(
+				nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.Message}, 1, false), "")
 			if err != nil {
 				log.Error("error sending notifications: %s", eris.ToString(err, true))
 			}
