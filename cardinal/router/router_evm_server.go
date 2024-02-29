@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
+	"slices"
 )
 
 const (
@@ -75,14 +76,7 @@ func (e *evmServer) SendMessage(_ context.Context, req *routerv1.SendMessageRequ
 			Code:      CodeUnauthorized,
 		}, nil
 	}
-	found := false
-	for _, addr := range signer.AuthorizedAddresses {
-		if addr == req.Sender {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(signer.AuthorizedAddresses, req.Sender) {
 		return &routerv1.SendMessageResponse{
 			Errs: fmt.Errorf("persona tag %q has not authorized address %q", req.PersonaTag, req.Sender).
 				Error(),
