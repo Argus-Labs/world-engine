@@ -75,7 +75,7 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 	return errors.Join(
 		RegisterMessage[msg.CreatePersona, msg.CreatePersonaResult](
 			world,
-			"create-persona",
+			msg.CreatePersonaMessageName,
 			message.WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
 			message.WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult]()),
 		RegisterMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
