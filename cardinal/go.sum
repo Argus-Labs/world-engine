@@ -1026,6 +1026,8 @@ pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240228200800-1b976869f98c h1:B9J
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240228200800-1b976869f98c/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0 h1:s5eBwlSbnBvKEj6BgfeJ2PJuwBc2R72wBqTcNiS+rd0=
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
+pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631 h1:7M05p5W9nUMz+JbMasS3rdECcyC6Hp7z1eeIzxw2MKI=
+pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
 pkg.world.dev/world-engine/sign v1.0.1-beta h1:ZwVeJYdf88t6qIHPurbdKJKVxUN0dfp0gSF7OCA9xt8=
 pkg.world.dev/world-engine/sign v1.0.1-beta/go.mod h1:U6XdRfjzoodAScJ/bH4qzxY7gbqbgGV2Od+k3tSTekE=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=

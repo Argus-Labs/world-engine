@@ -3112,6 +3112,8 @@ pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240228200800-1b976869f98c h1:B9J
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240228200800-1b976869f98c/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0 h1:s5eBwlSbnBvKEj6BgfeJ2PJuwBc2R72wBqTcNiS+rd0=
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
+pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631 h1:7M05p5W9nUMz+JbMasS3rdECcyC6Hp7z1eeIzxw2MKI=
+pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
