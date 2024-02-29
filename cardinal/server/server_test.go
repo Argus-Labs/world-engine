@@ -7,27 +7,27 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 	"github.com/swaggo/swag"
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // Used for Registering message
@@ -111,6 +111,38 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	}
 	for _, query := range queries {
 		s.Require().True(slices.Contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
+	}
+}
+
+// TestGetFieldInformation tests the fields endpoint.
+func (s *ServerTestSuite) TestGetFieldInformation() {
+	s.setupWorld()
+	s.fixture.DoTick()
+	res := s.fixture.Get("/debug/world")
+	var result handler.GetDebugWorldResponse
+	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().NoError(err)
+	comps := s.world.GetRegisteredComponents()
+	msgs := s.world.ListMessages()
+	queries := s.world.ListQueries()
+
+	s.Require().Len(comps, len(result.Components))
+	s.Require().Len(msgs, len(result.Messages))
+	s.Require().Len(queries, len(result.Queries))
+
+	// check that the component, message, query name are in the list
+	for _, comp := range comps {
+		assert.True(s.T(), slices.Contains(result.Components, comp.Name()))
+	}
+	for _, msg := range msgs {
+		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field handler.FieldDetail) bool {
+			return msg.Name() == field.Name
+		}))
+	}
+	for _, query := range queries {
+		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field handler.FieldDetail) bool {
+			return query.Name() == field.Name
+		}))
 	}
 }
 
@@ -203,6 +235,36 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	res := s.fixture.Post(utils.GetQueryURL(group, name), SomeRequest{})
 	s.Require().Equal(fiber.StatusOK, res.StatusCode)
 	s.Require().True(called)
+}
+
+func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisabled() {
+	t := s.T()
+	s.setupWorld(cardinal.WithDisableSignatureVerification())
+	s.fixture.DoTick()
+	unclaimedPersona := "some-persona"
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	assert.NilError(t, err)
+	// This persona tag does not have a signer address, but since signature verification is disabled it should
+	// encounter no errors
+	s.runTx(unclaimedPersona, moveMessage, MoveMsgInput{Direction: "up"})
+}
+
+func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabled() {
+	t := s.T()
+	// Signature verification is enabled
+	s.setupWorld()
+	s.fixture.DoTick()
+	unclaimedPersona := "some-persona"
+	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
+	assert.NilError(t, err)
+	payload := MoveMsgInput{Direction: "up"}
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace().String(), s.nonce, payload)
+	assert.NilError(t, err)
+
+	// This request should fail because signature verification is enabled, and we have not yet
+	// registered the given personaTag
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 }
 
 // Creates a transaction with the given message, and runs it in a tick.

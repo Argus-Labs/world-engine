@@ -42,6 +42,7 @@ import (
 
 const (
 	DefaultHistoricalTicksToStore = 10
+	RedisDialTimeOut              = 15
 )
 
 type World struct {
@@ -98,7 +99,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, eris.Wrapf(err, "invalid configuration")
 	}
-
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -108,9 +108,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
-		Addr:     cfg.RedisAddress,
-		Password: cfg.RedisPassword,
-		DB:       0, // use default DB
+		Addr:        cfg.RedisAddress,
+		Password:    cfg.RedisPassword,
+		DB:          0,                              // use default DB
+		DialTimeout: RedisDialTimeOut * time.Second, // Increase startup dial timeout
 	}, cfg.CardinalNamespace)
 
 	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
@@ -342,6 +343,9 @@ func (w *World) StartGame() error {
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
+		if err := w.router.RegisterGameShard(context.Background()); err != nil {
+			return eris.Wrap(err, "failed to register game shard to base shard")
+		}
 	}
 
 	// Recover pending transactions from redis
@@ -365,7 +369,7 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(NewReadOnlyWorldContext(w), w.ListMessages(), w.ListQueries(),
+	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.ListMessages(), w.ListQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
 	if err != nil {

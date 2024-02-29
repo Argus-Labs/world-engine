@@ -87,6 +87,31 @@ definitions:
       isServerRunning:
         type: boolean
     type: object
+  handler.GetFieldsResponse:
+    properties:
+      components:
+        type: array
+        items:
+          type: string
+      messages:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            type:
+              type: string
+      queries:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            type:
+              type: string
+    type: object
   handler.PostTransactionResponse:
     properties:
       tick:
@@ -139,6 +164,17 @@ paths:
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Get information on status of world-engine
+  /debug/world:
+    get:
+      description: Get field information of registered components, messages, queries
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GetFieldsResponse'
+      summary: Get field information of registered components, messages, queries
   /query/debug/state:
     post:
       description: Displays the entire game state.

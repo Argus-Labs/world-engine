@@ -37,8 +37,8 @@ func (p *debugPlugin) RegisterQueries(world *World) error {
 type DebugStateRequest struct{}
 
 type debugStateElement struct {
-	ID         types.EntityID    `json:"id"`
-	Components []json.RawMessage `json:"components" swaggertype:"array,object"`
+	ID         types.EntityID             `json:"id"`
+	Components map[string]json.RawMessage `json:"components" swaggertype:"object"`
 }
 
 type DebugStateResponse []*debugStateElement
@@ -63,7 +63,7 @@ func queryDebugState(ctx engine.Context, _ *DebugStateRequest) (*DebugStateRespo
 			}
 			resultElement := debugStateElement{
 				ID:         id,
-				Components: make([]json.RawMessage, 0),
+				Components: make(map[string]json.RawMessage),
 			}
 			for _, c := range components {
 				var data json.RawMessage
@@ -71,7 +71,7 @@ func queryDebugState(ctx engine.Context, _ *DebugStateRequest) (*DebugStateRespo
 				if eachClosureErr != nil {
 					return false
 				}
-				resultElement.Components = append(resultElement.Components, data)
+				resultElement.Components[c.Name()] = data
 			}
 			result = append(result, &resultElement)
 			return true

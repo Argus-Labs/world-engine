@@ -22,10 +22,15 @@ const (
 
 // Router provides functionality for Cardinal to interact with the EVM Base Shard.
 // This involves a few responsibilities:
+//   - Registering itself to the base shard.
 //   - Receiving API requests from EVM smart contracts on the base shard.
 //   - Sending transactions to the base shard's game sequencer.
 //   - Querying transactions from the base shard to rebuild game state.
 type Router interface {
+	// RegisterGameShard registers this game shard to the base shard. This is ONLY needed so that the base shard can
+	// route requests from the EVM to this game shard by using its namespace.
+	RegisterGameShard(context.Context) error
+
 	// SubmitTxBlob submits transactions processed in a tick to the base shard.
 	SubmitTxBlob(
 		ctx context.Context,
@@ -50,7 +55,9 @@ type router struct {
 	ShardQuerier   shardtypes.QueryClient
 	namespace      string
 	server         *evmServer
-	port           string
+	// serverAddr is the address the evmServer listens on. This is set once `Start` is called.
+	serverAddr string
+	port       string
 }
 
 func (r *router) TransactionIterator() iterator.Iterator {
@@ -76,6 +83,14 @@ func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider)
 	rtr.server = newEvmServer(provider)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
+}
+
+func (r *router) RegisterGameShard(ctx context.Context) error {
+	_, err := r.ShardSequencer.RegisterGameShard(ctx, &shard.RegisterGameShardRequest{
+		Namespace:     r.namespace,
+		RouterAddress: r.serverAddr,
+	})
+	return err
 }
 
 func (r *router) SubmitTxBlob(
@@ -126,5 +141,6 @@ func (r *router) Start() error {
 			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}
 	}()
+	r.serverAddr = listener.Addr().String()
 	return nil
 }

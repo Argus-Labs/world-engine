@@ -78,16 +78,12 @@ func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddress
 	return r
 }
 
-//nolint:unused // will use this later once CLI is fixed.
 func (r *routerImpl) getSDKCtx() sdk.Context {
 	ctx, _ := r.getQueryCtx(0, false)
 	return ctx
 }
 
 func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, _ types.Signer) {
-	r.logger.Info("running PostBlockHook",
-		"num_transactions", len(transactions),
-	)
 	// loop over all txs
 	for i, tx := range transactions {
 		r.logger.Info("working on transaction", "tx_hash", tx.Hash().String())
@@ -223,15 +219,12 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	// CLI is currently broken. Rollkit is looking into the issue.
 	// So for now, we just use an address loaded from env.
-	// ctx := r.getSDKCtx()
-	// res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
-	// if err != nil {
-	//	return nil, err
-	// }
-	addr := os.Getenv("GAME_SHARD_ADDR")
-	if addr == "" {
-		return nil, fmt.Errorf("no address set for router to dial")
+	ctx := r.getSDKCtx()
+	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
+	if err != nil {
+		return nil, err
 	}
+	addr := res.Address
 	conn, err := grpc.Dial(
 		addr,
 		grpc.WithTransportCredentials(r.creds),
