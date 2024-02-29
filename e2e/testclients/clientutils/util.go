@@ -19,6 +19,7 @@ import (
 
 const (
 	envNakamaAddress = "NAKAMA_ADDRESS"
+	chBufferSize     = 100
 )
 
 type NakamaClient struct {
@@ -36,10 +37,12 @@ func NewNakamaClient(t *testing.T) *NakamaClient {
 		host = "http://127.0.0.1:7350"
 	}
 	h := &NakamaClient{
-		t:         t,
-		addr:      host,
-		ReceiptCh: make(chan Receipt, 100),
-		EventCh:   make(chan Event, 100),
+		t:    t,
+		addr: host,
+		// Receipts and events will be placed on these channels. When the channel is filled, new receipts and events
+		// will be dropped.
+		ReceiptCh: make(chan Receipt, chBufferSize),
+		EventCh:   make(chan Event, chBufferSize),
 	}
 	return h
 }
@@ -80,6 +83,7 @@ func (c *NakamaClient) listenForNotifications() error {
 		HTTPHeader: http.Header{},
 	}
 	opts.HTTPHeader.Set("Authorization", c.authHeader)
+	//nolint:bodyclose // Docs say "You never need to close resp.Body yourself"
 	conn, _, err := websocket.Dial(context.Background(), url, &opts)
 	if err != nil {
 		return err
