@@ -36,7 +36,8 @@ type Server struct {
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	wCtx engine.Context, messages []types.Message, queries []engine.Query, wsEventHandler func(conn *websocket.Conn),
+	wCtx engine.Context, components []types.ComponentMetadata, messages []types.Message,
+	queries []engine.Query, wsEventHandler func(conn *websocket.Conn),
 	opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
@@ -57,7 +58,7 @@ func New(
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, wCtx, messages, queries, wsEventHandler, s.config)
+	setupRoutes(app, wCtx, messages, queries, wsEventHandler, s.config, components)
 
 	return s, nil
 }
@@ -99,7 +100,7 @@ func (s *Server) Shutdown() error {
 func setupRoutes(
 	app *fiber.App, wCtx engine.Context, messages []types.Message, queries []engine.Query,
 	wsEventHandler func(conn *websocket.Conn),
-	cfg config,
+	cfg config, components []types.ComponentMetadata,
 ) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
@@ -137,6 +138,9 @@ func setupRoutes(
 	// Route: /events/
 	app.Use("/events", handler.WebSocketUpgrader)
 	app.Get("/events", handler.WebSocketEvents(wsEventHandler))
+
+	// Route: /debug/world
+	app.Get("/debug/world", handler.GetDebugWorld(components, messages, queries))
 
 	// Route: /...
 	app.Get("/health", handler.GetHealth())

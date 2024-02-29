@@ -64,6 +64,10 @@ func (f *mockMsg) IsEVMCompatible() bool {
 	return f.evmCompat
 }
 
+func (f *mockMsg) GetInFieldInformation() map[string]any {
+	return map[string]any{"foo": "bar"}
+}
+
 func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 	rtr, provider := getTestRouterAndProvider(t)
 	msg := &mockMsg{evmCompat: false}

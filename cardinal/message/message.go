@@ -223,6 +223,11 @@ func (t *MessageType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	return input, nil
 }
 
+// GetInFieldInformation returns a map of the fields of the message's "In" type and it's field types.
+func (t *MessageType[In, Out]) GetInFieldInformation() map[string]any {
+	return types.GetFieldInformation(reflect.TypeOf(new(In)).Elem())
+}
+
 // -------------------------- Options --------------------------
 
 type MessageOption[In, Out any] func(mt *MessageType[In, Out]) //nolint:revive // this is fine for now
