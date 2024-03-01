@@ -106,7 +106,8 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantComps := world1.GameStateManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
-	assert.Check(t, filter.MatchComponent(types.ConvertComponentMetadatasToComponents(wantComps), oneNum))
+	matchComponent := filter.CreateComponentMatcher(types.ConvertComponentMetadatasToComponents(wantComps))
+	assert.Check(t, matchComponent(oneNum))
 
 	assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
 
@@ -121,7 +122,8 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotComps := world2.GameStateManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
-	assert.Check(t, filter.MatchComponent(types.ConvertComponentMetadatasToComponents(gotComps), twoNum))
+	matchComponent = filter.CreateComponentMatcher(types.ConvertComponentMetadatasToComponents(gotComps))
+	assert.Check(t, matchComponent(twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)
