@@ -1,7 +1,7 @@
 pragma solidity ^0.8.4;
 
 interface IRouter {
-    function sendMessage(bytes memory message, string memory messageID, string memory namespace) external returns (bool);
+    function sendMessage(string memory personaTag, bytes memory message, string memory messageID, string memory namespace) external returns (bool);
 
     function messageResult(string memory txHash) external returns (bytes memory, string memory, uint32);
 

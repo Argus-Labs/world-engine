@@ -21,7 +21,7 @@ type cache struct {
 // So it is not recommended to create a new search every time you want
 // to filter entities with the same search.
 type Search struct {
-	archMatches map[string]*cache
+	archMatches *cache
 	filter      filter.ComponentFilter
 	namespace   string
 	reader      gamestate.Reader
@@ -32,7 +32,7 @@ type Search struct {
 // It receives arbitrary filters that are used to filter entities.
 func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *Search {
 	return &Search{
-		archMatches: make(map[string]*cache),
+		archMatches: &cache{},
 		filter:      filter,
 		namespace:   wCtx.Namespace(),
 		reader:      wCtx.StoreReader(),
@@ -83,7 +83,7 @@ func (s *Search) Count() (ret int, err error) {
 // First returns the first entity that matches the search.
 func (s *Search) First() (id types.EntityID, err error) {
 	defer func() { defer panicOnFatalError(s.wCtx, err) }()
-	
+
 	result := s.evaluateSearch()
 	iter := iterators.NewEntityIterator(0, s.reader, result)
 	if !iter.HasNext() {
@@ -111,13 +111,7 @@ func (s *Search) MustFirst() types.EntityID {
 }
 
 func (s *Search) evaluateSearch() []types.ArchetypeID {
-	if _, ok := s.archMatches[s.namespace]; !ok {
-		s.archMatches[s.namespace] = &cache{
-			archetypes: make([]types.ArchetypeID, 0),
-			seen:       0,
-		}
-	}
-	cache := s.archMatches[s.namespace]
+	cache := s.archMatches
 	for it := s.reader.SearchFrom(s.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
