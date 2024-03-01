@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +17,17 @@ import (
 	"pkg.world.dev/world-engine/assert"
 )
 
+func flushRedis(t *testing.T) {
+	t.Cleanup(func() {
+		cmd := exec.Command("docker", "exec", "redis", "redis-cli", "FLUSHALL")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to flush Redis: %v", err)
+		}
+	})
+}
+
 func TestEvents(t *testing.T) {
+	flushRedis(t)
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -64,6 +75,7 @@ func TestEvents(t *testing.T) {
 }
 
 func TestReceipts(t *testing.T) {
+	flushRedis(t)
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -125,7 +137,7 @@ func TestReceipts(t *testing.T) {
 
 //nolint:gocognit
 func TestTransactionAndCQLAndRead(t *testing.T) {
-	// Test persona
+	flushRedis(t)
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -226,6 +238,7 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 }
 
 func TestCanShowPersona(t *testing.T) {
+	flushRedis(t)
 	username, deviceID, personaTag := triple(randomString())
 	c := clientutils.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(username, deviceID))
@@ -240,6 +253,7 @@ func TestCanShowPersona(t *testing.T) {
 }
 
 func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
+	flushRedis(t)
 	userA, deviceA, ptA := triple(randomString())
 
 	aClient := clientutils.NewNakamaClient(t)
@@ -264,6 +278,7 @@ func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 }
 
 func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
+	flushRedis(t)
 	userCount := 10
 	users := make([]string, userCount)
 	for i := range users {
@@ -309,6 +324,7 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 }
 
 func TestCannotClaimAdditionalPersonATag(t *testing.T) {
+	flushRedis(t)
 	user, device, tag := triple(randomString())
 	c := clientutils.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(user, device))
@@ -337,6 +353,7 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 }
 
 func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
+	flushRedis(t)
 	user, device, _ := triple(randomString())
 	c := clientutils.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(user, device))
@@ -349,6 +366,7 @@ func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
 }
 
 func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
+	flushRedis(t)
 	clientA, clientB := clientutils.NewNakamaClient(t), clientutils.NewNakamaClient(t)
 	userA, userB := randomString(), randomString()
 
