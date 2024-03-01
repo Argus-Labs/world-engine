@@ -6,15 +6,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
-
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/plugin/persona/component"
-	"pkg.world.dev/world-engine/plugin/persona/msg"
-	"pkg.world.dev/world-engine/plugin/persona/query"
+
+	"github.com/argus-labs/world-engine/plugin/persona/component"
+	"github.com/argus-labs/world-engine/plugin/persona/msg"
+	"github.com/argus-labs/world-engine/plugin/persona/query"
 )
 
 type personaPlugin struct {

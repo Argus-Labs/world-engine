@@ -1,4 +1,4 @@
-module pkg.world.dev/world-engine/plugin
+module github.com/argus-labs/world-engine/plugin
 
 go 1.21.2
 
