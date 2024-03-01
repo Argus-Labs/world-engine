@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 	"strings"
@@ -167,6 +168,21 @@ func (t *TestFixture) AddTransaction(
 	}
 	_, id := t.World.AddTransaction(txID, tx, sig)
 	return id
+}
+
+func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
+	personaMsg := msg.CreatePersona{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}
+	createPersonaMsg, exists := t.World.GetMessageByName(msg.CreatePersonaMessageName)
+	assert.Check(
+		t,
+		exists,
+		"message with name %q not registered in World", msg.CreatePersonaMessageName,
+	)
+	t.AddTransaction(createPersonaMsg.ID(), personaMsg, &sign.Transaction{})
+	t.DoTick()
 }
 
 func getOpenPort(t testing.TB) string {
