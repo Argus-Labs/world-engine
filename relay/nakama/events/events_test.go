@@ -1,14 +1,16 @@
 package events
 
 import (
-	"github.com/stretchr/testify/assert"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"pkg.world.dev/world-engine/relay/nakama/testutils"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"pkg.world.dev/world-engine/relay/nakama/testutils"
 
 	"github.com/gorilla/websocket"
 )
@@ -70,7 +72,14 @@ func TestEventHubIntegration(t *testing.T) {
 	// Wait to receive an event
 	select {
 	case event := <-eventChan:
-		assert.True(t, strings.Contains(event.Message, "test event"))
+		jsonMap := make(map[string]any)
+		err = json.Unmarshal(event, &jsonMap)
+		assert.NoError(t, err)
+		msg, ok := jsonMap["message"]
+		assert.True(t, ok)
+		msgString, ok := msg.(string)
+		assert.True(t, ok)
+		assert.True(t, strings.Contains(msgString, "test event"))
 	case <-time.After(5 * time.Second):
 		t.Fatal("Did not receive event in time")
 	}
