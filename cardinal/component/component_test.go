@@ -202,8 +202,10 @@ func TestComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
+		matchComponent := filter.CreateComponentMatcher(
+			types.ConvertComponentMetadatasToComponents(componentsForArchID))
 		for _, comp := range tt.comps {
-			ok := filter.MatchComponent(types.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
+			ok := matchComponent(comp)
 			if !ok {
 				t.Errorf("the archetype EntityID %d should contain the component %d", tt.archID, comp.ID())
 			}
