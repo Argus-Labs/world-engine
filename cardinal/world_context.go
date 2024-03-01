@@ -93,7 +93,7 @@ func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, b
 	return rec.Result, rec.Errs, true
 }
 
-func (ctx *worldContext) EmitEvent(event any) {
+func (ctx *worldContext) EmitEvent(event map[string]any) {
 	ctx.world.eventHub.EmitEvent(event)
 }
 

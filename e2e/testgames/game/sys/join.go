@@ -12,6 +12,10 @@ import (
 
 var PlayerEntityID = make(map[string]types.EntityID)
 
+type Event struct {
+	Message string `json:"message"`
+}
+
 func Join(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
 	return cardinal.EachMessage[msg.JoinInput, msg.JoinOutput](
@@ -32,7 +36,7 @@ func Join(ctx cardinal.WorldContext) error {
 			}
 			PlayerEntityID[jtx.Tx.PersonaTag] = entityID
 			logger.Info().Msgf("player %s successfully joined", jtx.Tx.PersonaTag)
-			ctx.EmitEvent(fmt.Sprintf("%d player created", entityID))
+			ctx.EmitEvent(map[string]any{"message": fmt.Sprintf("%d player created", entityID)})
 			return msg.JoinOutput{Success: true}, nil
 		},
 	)

@@ -43,7 +43,7 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tf.World.GetEventHub().EmitEvent(&Event{Message: fmt.Sprintf("test%d", i)})
+			tf.World.GetEventHub().EmitEvent(map[string]any{"message": fmt.Sprintf("test%d", i)})
 		}()
 	}
 	wg.Wait()
@@ -101,7 +101,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "send-energy"))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
-	event := Event{Message: "test"}
+	event := map[string]any{"message": "test"}
 	sys1 := func(wCtx engine.Context) error {
 		wCtx.EmitEvent(event)
 		counter1.Add(1)

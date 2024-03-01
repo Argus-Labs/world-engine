@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/rotisserie/eris"
 	"io"
 	"math/rand"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rotisserie/eris"
 )
 
 const (
@@ -121,19 +122,19 @@ func (c *NakamaClient) ListReceipts(k int) ([]*Receipt, error) {
 }
 
 // ListEvents lists only the events from the notifications.
-func (c *NakamaClient) ListEvents(k int) ([]*Event, error) {
+func (c *NakamaClient) ListEvents(k int) ([]map[string]any, error) {
 	items, err := c.FetchNotifications(k)
 	if err != nil {
 		return nil, err
 	}
-	var events []*Event
+	var events []map[string]any
 	for _, item := range items {
 		if item.Subject == "event" {
-			var event Event
+			var event = make(map[string]any)
 			if err := json.Unmarshal([]byte(item.Content), &event); err != nil {
-				return nil, eris.Wrap(err, "failed to unmarshall receipt")
+				return nil, eris.Wrap(err, "failed to unmarshall event")
 			}
-			events = append(events, &event)
+			events = append(events, event)
 		}
 	}
 	return events, nil

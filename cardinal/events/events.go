@@ -21,24 +21,24 @@ const (
 
 type EventHub struct {
 	websocketConnections map[*websocket.Conn]bool
-	broadcast            chan any
+	broadcast            chan map[string]any
 	flush                chan bool
 	register             chan *websocket.Conn
 	unregister           chan *websocket.Conn
 	shutdown             chan bool
-	eventQueue           []any
+	eventQueue           []map[string]any
 	isRunning            atomic.Bool
 }
 
 func NewEventHub() *EventHub {
 	res := EventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
-		broadcast:            make(chan any),
+		broadcast:            make(chan map[string]any),
 		flush:                make(chan bool),
 		register:             make(chan *websocket.Conn),
 		unregister:           make(chan *websocket.Conn),
 		shutdown:             make(chan bool),
-		eventQueue:           make([]any, 0),
+		eventQueue:           make([]map[string]any, 0),
 		isRunning:            atomic.Bool{},
 	}
 	res.isRunning.Store(false)
@@ -48,7 +48,7 @@ func NewEventHub() *EventHub {
 	return &res
 }
 
-func (eh *EventHub) EmitEvent(event any) {
+func (eh *EventHub) EmitEvent(event map[string]any) {
 	eh.broadcast <- event
 }
 
@@ -118,7 +118,7 @@ Loop:
 						message, err := json.Marshal(event)
 						if err != nil {
 							log.Logger.Error().Err(err).
-								Msg("error marshalling event to json, only json serializeable data can be used with eventHub")
+								Msg("error marshalling event to json, only json serializable data can be used with eventHub")
 							break
 						}
 						err = eris.Wrap(conn.WriteMessage(websocket.TextMessage, message), "")

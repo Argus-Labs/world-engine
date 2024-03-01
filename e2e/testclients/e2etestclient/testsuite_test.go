@@ -45,7 +45,7 @@ func TestEvents(t *testing.T) {
 	}
 
 	// Fetch events and verify
-	var events []*clientutils.Event
+	var events []map[string]any
 	for attempt := 0; attempt < 5; attempt++ {
 		events, err = c.ListEvents(amountOfPlayers + 1)
 		if err != nil {
@@ -59,7 +59,9 @@ func TestEvents(t *testing.T) {
 
 	assert.Equal(t, len(events), amountOfPlayers, "Expected number of player creation events does not match")
 	for _, event := range events {
-		assert.Contains(t, event.Message, "player created", "Event message does not contain expected text")
+		message, ok := event["message"]
+		assert.True(t, ok)
+		assert.Contains(t, message, "player created", "Event message does not contain expected text")
 	}
 }
 
