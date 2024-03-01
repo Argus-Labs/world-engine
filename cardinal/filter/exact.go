@@ -19,8 +19,9 @@ func (f exact) MatchesComponents(components []types.Component) bool {
 	if len(components) != len(f.components) {
 		return false
 	}
+	matchComponent := CreateComponentMatcher(f.components)
 	for _, componentType := range components {
-		if !MatchComponent(f.components, componentType) {
+		if !matchComponent(componentType) {
 			return false
 		}
 	}
