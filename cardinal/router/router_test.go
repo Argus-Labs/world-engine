@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -104,13 +105,14 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 	}
 	name := "foo"
 	sender := "0xtyler"
+	persona := "tyler"
 
 	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
-	provider.EXPECT().GetPersonaForEVMAddress(sender).Return("", fmt.Errorf("not found")).Times(1)
+	provider.EXPECT().GetSignerComponentForPersona(persona).Return(nil, fmt.Errorf("not found")).Times(1)
 
 	res, err := router.server.SendMessage(
 		context.Background(),
-		&routerv1.SendMessageRequest{MessageId: name, Sender: sender},
+		&routerv1.SendMessageRequest{MessageId: name, PersonaTag: persona, Sender: sender},
 	)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeUnauthorized)
@@ -130,13 +132,17 @@ func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 	evmTxHash := "0xFooBarBaz"
 
 	req := &routerv1.SendMessageRequest{
-		Sender:    sender,
-		MessageId: msgName,
-		EvmTxHash: evmTxHash,
+		Sender:     sender,
+		MessageId:  msgName,
+		PersonaTag: persona,
+		EvmTxHash:  evmTxHash,
 	}
 
 	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
-	provider.EXPECT().GetPersonaForEVMAddress(sender).Return(persona, nil).Times(1)
+	provider.EXPECT().
+		GetSignerComponentForPersona(persona).
+		Return(&component.SignerComponent{AuthorizedAddresses: []string{sender}}, nil).
+		Times(1)
 	provider.EXPECT().AddEVMTransaction(msg.id, msgValue, &sign.Transaction{PersonaTag: persona}, evmTxHash).Times(1)
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().ConsumeEVMMsgResult(evmTxHash).Return(nil, nil, "", false).Times(1)
@@ -160,13 +166,17 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 	evmTxHash := "0xFooBarBaz"
 
 	req := &routerv1.SendMessageRequest{
-		Sender:    sender,
-		MessageId: msgName,
-		EvmTxHash: evmTxHash,
+		Sender:     sender,
+		PersonaTag: persona,
+		MessageId:  msgName,
+		EvmTxHash:  evmTxHash,
 	}
 
 	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
-	provider.EXPECT().GetPersonaForEVMAddress(sender).Return(persona, nil).Times(1)
+	provider.EXPECT().
+		GetSignerComponentForPersona(persona).
+		Return(&component.SignerComponent{AuthorizedAddresses: []string{sender}}, nil).
+		Times(1)
 	provider.EXPECT().AddEVMTransaction(msg.id, msgValue, &sign.Transaction{PersonaTag: persona}, evmTxHash).Times(1)
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().ConsumeEVMMsgResult(evmTxHash).Return([]byte("response"), nil, evmTxHash, true).Times(1)
@@ -174,6 +184,37 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeSuccess)
+}
+
+func TestRouter_SendMessage_NoAuthorizedAddress(t *testing.T) {
+	router, provider := getTestRouterAndProvider(t)
+	msgValue := []byte("hello")
+	msg := &mockMsg{
+		id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
+			return msgValue, nil
+		},
+	}
+	msgName := "foo"
+	sender := "0xtyler"
+	persona := "tyler"
+	evmTxHash := "0xFooBarBaz"
+
+	req := &routerv1.SendMessageRequest{
+		Sender:     sender,
+		MessageId:  msgName,
+		PersonaTag: persona,
+		EvmTxHash:  evmTxHash,
+	}
+
+	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
+	provider.EXPECT().
+		GetSignerComponentForPersona(persona).
+		Return(&component.SignerComponent{AuthorizedAddresses: []string{"bogus"}}, nil).
+		Times(1)
+
+	res, err := router.server.SendMessage(context.Background(), req)
+	assert.NilError(t, err)
+	assert.Equal(t, res.Code, CodeUnauthorized)
 }
 
 func TestRouter_SendMessage_TxFailed(t *testing.T) {
@@ -190,13 +231,17 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 	evmTxHash := "0xFooBarBaz"
 
 	req := &routerv1.SendMessageRequest{
-		Sender:    sender,
-		MessageId: msgName,
-		EvmTxHash: evmTxHash,
+		Sender:     sender,
+		MessageId:  msgName,
+		PersonaTag: persona,
+		EvmTxHash:  evmTxHash,
 	}
 
 	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
-	provider.EXPECT().GetPersonaForEVMAddress(sender).Return(persona, nil).Times(1)
+	provider.EXPECT().
+		GetSignerComponentForPersona(persona).
+		Return(&component.SignerComponent{AuthorizedAddresses: []string{sender}}, nil).
+		Times(1)
 	provider.EXPECT().AddEVMTransaction(msg.id, msgValue, &sign.Transaction{PersonaTag: persona}, evmTxHash).Times(1)
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().

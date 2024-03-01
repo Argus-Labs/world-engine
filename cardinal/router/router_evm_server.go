@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
+	"slices"
 )
 
 const (
@@ -64,11 +65,20 @@ func (e *evmServer) SendMessage(_ context.Context, req *routerv1.SendMessageRequ
 		}, nil
 	}
 
-	// check if the sender has a linked persona address. if not don't process the transaction.
-	personaTag, err := e.provider.GetPersonaForEVMAddress(req.Sender)
+	// get the signer component for the persona tag the request wants to use, and check if the evm address in the
+	// sender is present in the signer component's authorized address list.
+	signer, err := e.provider.GetSignerComponentForPersona(req.PersonaTag)
 	if err != nil {
 		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf("unable to find persona tag associated with the EVM address %q: %w", req.Sender, err).
+			Errs: fmt.Errorf("unable to find persona tag %q: %w", req.PersonaTag, err).
+				Error(),
+			EvmTxHash: req.EvmTxHash,
+			Code:      CodeUnauthorized,
+		}, nil
+	}
+	if !slices.Contains(signer.AuthorizedAddresses, req.Sender) {
+		return &routerv1.SendMessageResponse{
+			Errs: fmt.Errorf("persona tag %q has not authorized address %q", req.PersonaTag, req.Sender).
 				Error(),
 			EvmTxHash: req.EvmTxHash,
 			Code:      CodeUnauthorized,
@@ -77,7 +87,7 @@ func (e *evmServer) SendMessage(_ context.Context, req *routerv1.SendMessageRequ
 
 	// since we are injecting the msgValue directly, all we need is the persona tag in the signed payload.
 	// the sig checking happens in the grpcServer's Handler, not in ecs.Engine.
-	sig := &sign.Transaction{PersonaTag: personaTag}
+	sig := &sign.Transaction{PersonaTag: req.PersonaTag}
 	e.provider.AddEVMTransaction(msgType.ID(), msgValue, sig, req.EvmTxHash)
 
 	// wait for the next tick so the msgValue gets processed

@@ -1,6 +1,7 @@
 package router
 
 import (
+	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -13,7 +14,7 @@ type Provider interface {
 	GetMessageByName(string) (types.Message, bool)
 	GetMessageByID(id types.MessageID) (types.Message, bool)
 	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
-	GetPersonaForEVMAddress(string) (string, error)
+	GetSignerComponentForPersona(string) (*component.SignerComponent, error)
 	WaitForNextTick() bool
 
 	AddEVMTransaction(id types.MessageID, msgValue any, tx *sign.Transaction, evmTxHash string) (

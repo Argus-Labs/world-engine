@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	component "pkg.world.dev/world-engine/cardinal/persona/component"
 	types "pkg.world.dev/world-engine/cardinal/types"
 	sign "pkg.world.dev/world-engine/sign"
 )
@@ -97,19 +98,19 @@ func (mr *MockProviderMockRecorder) GetMessageByName(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByName", reflect.TypeOf((*MockProvider)(nil).GetMessageByName), arg0)
 }
 
-// GetPersonaForEVMAddress mocks base method.
-func (m *MockProvider) GetPersonaForEVMAddress(arg0 string) (string, error) {
+// GetSignerComponentForPersona mocks base method.
+func (m *MockProvider) GetSignerComponentForPersona(arg0 string) (*component.SignerComponent, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPersonaForEVMAddress", arg0)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "GetSignerComponentForPersona", arg0)
+	ret0, _ := ret[0].(*component.SignerComponent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPersonaForEVMAddress indicates an expected call of GetPersonaForEVMAddress.
-func (mr *MockProviderMockRecorder) GetPersonaForEVMAddress(arg0 interface{}) *gomock.Call {
+// GetSignerComponentForPersona indicates an expected call of GetSignerComponentForPersona.
+func (mr *MockProviderMockRecorder) GetSignerComponentForPersona(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPersonaForEVMAddress", reflect.TypeOf((*MockProvider)(nil).GetPersonaForEVMAddress), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignerComponentForPersona", reflect.TypeOf((*MockProvider)(nil).GetSignerComponentForPersona), arg0)
 }
 
 // HandleEVMQuery mocks base method.
