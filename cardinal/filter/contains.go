@@ -14,7 +14,6 @@ func Contains(components ...types.Component) ComponentFilter {
 }
 
 func (f *contains) MatchesComponents(components []types.Component) bool {
-
 	matchComponent := CreateComponentMatcher(components)
 	for _, componentType := range f.components {
 		if !matchComponent(componentType) {
