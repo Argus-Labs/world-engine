@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/json"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -18,30 +19,26 @@ const (
 	writeDeadline = 5 * time.Second
 )
 
-type Event struct {
-	Message string
-}
-
 type EventHub struct {
 	websocketConnections map[*websocket.Conn]bool
-	broadcast            chan *Event
+	broadcast            chan any
 	flush                chan bool
 	register             chan *websocket.Conn
 	unregister           chan *websocket.Conn
 	shutdown             chan bool
-	eventQueue           []*Event
+	eventQueue           []any
 	isRunning            atomic.Bool
 }
 
 func NewEventHub() *EventHub {
 	res := EventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
-		broadcast:            make(chan *Event),
+		broadcast:            make(chan any),
 		flush:                make(chan bool),
 		register:             make(chan *websocket.Conn),
 		unregister:           make(chan *websocket.Conn),
 		shutdown:             make(chan bool),
-		eventQueue:           make([]*Event, 0),
+		eventQueue:           make([]any, 0),
 		isRunning:            atomic.Bool{},
 	}
 	res.isRunning.Store(false)
@@ -51,7 +48,7 @@ func NewEventHub() *EventHub {
 	return &res
 }
 
-func (eh *EventHub) EmitEvent(event *Event) {
+func (eh *EventHub) EmitEvent(event any) {
 	eh.broadcast <- event
 }
 
@@ -118,7 +115,13 @@ Loop:
 							log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
 							break
 						}
-						err = eris.Wrap(conn.WriteMessage(websocket.TextMessage, []byte(event.Message)), "")
+						message, err := json.Marshal(event)
+						if err != nil {
+							log.Logger.Error().Err(err).
+								Msg("error marshalling event to json, only json serializeable data can be used with eventHub")
+							break
+						}
+						err = eris.Wrap(conn.WriteMessage(websocket.TextMessage, message), "")
 						if err != nil {
 							go func() {
 								eh.UnregisterConnection(conn)

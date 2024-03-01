@@ -4,7 +4,6 @@ import (
 	"reflect"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -94,8 +93,8 @@ func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, b
 	return rec.Result, rec.Errs, true
 }
 
-func (ctx *worldContext) EmitEvent(event string) {
-	ctx.world.eventHub.EmitEvent(&events.Event{Message: event})
+func (ctx *worldContext) EmitEvent(event any) {
+	ctx.world.eventHub.EmitEvent(event)
 }
 
 func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {

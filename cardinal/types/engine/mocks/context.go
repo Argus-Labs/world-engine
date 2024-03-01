@@ -81,7 +81,7 @@ func (mr *MockContextMockRecorder) CurrentTick() *gomock.Call {
 }
 
 // EmitEvent mocks base method.
-func (m *MockContext) EmitEvent(arg0 string) {
+func (m *MockContext) EmitEvent(arg0 any) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "EmitEvent", arg0)
 }
