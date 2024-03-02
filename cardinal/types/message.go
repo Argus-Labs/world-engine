@@ -15,6 +15,9 @@ type Message interface {
 	ABIEncode(any) ([]byte, error)
 	// IsEVMCompatible reports if this message can be sent from the EVM.
 	IsEVMCompatible() bool
+
+	// GetInFieldInformation returns a map of the fields of the message's "In" type and it's field types.
+	GetInFieldInformation() map[string]any
 }
 
 // MessageID represents a message's id.

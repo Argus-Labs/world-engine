@@ -108,11 +108,12 @@ services:
     container_name: test_game
     environment:
       - REDIS_ADDRESS=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - CARDINAL_NAMESPACE=TESTGAME
       - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL:-info}
-      - SHARD_SEQUENCER_ADDR=chain:9601
-      - BASE_SHARD_ADDR=chain:9090
-      - ENABLE_ADAPTER=${ENABLE_ADAPTER:-true}
+      - CARDINAL_MODE=${CARDINAL_MODE:-development}
+      - BASE_SHARD_SEQUENCER_ADDRESS=chain:9601
+      - BASE_SHARD_QUERY_ADDRESS=chain:9090
       - STATSD_ADDRESS=${STATSD_ADDRESS}
       - TRACE_ADDRESS=${TRACE_ADDRESS}
     build:
@@ -132,6 +133,8 @@ services:
   redis:
     image: redis:latest
     command: redis-server --save ""
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     expose:
       - "6379"
     ports:

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/rotisserie/eris"
 	"io"
 	"math/rand"
 	"net/http"
@@ -13,25 +12,36 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"nhooyr.io/websocket"
+	"pkg.world.dev/world-engine/assert"
 )
 
 const (
 	envNakamaAddress = "NAKAMA_ADDRESS"
+	chBufferSize     = 100
 )
 
 type NakamaClient struct {
-	addr               string
-	authHeader         string
-	notificationCursor string
+	t          *testing.T
+	addr       string
+	authHeader string
+	ReceiptCh  chan Receipt
+	EventCh    chan Event
 }
 
-func NewNakamaClient(_ *testing.T) *NakamaClient {
+func NewNakamaClient(t *testing.T) *NakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
 	}
 	h := &NakamaClient{
+		t:    t,
 		addr: host,
+		// Receipts and events will be placed on these channels. When the channel is filled, new receipts and events
+		// will be dropped.
+		ReceiptCh: make(chan Receipt, chBufferSize),
+		EventCh:   make(chan Event, chBufferSize),
 	}
 	return h
 }
@@ -56,87 +66,77 @@ type Receipt struct {
 }
 
 type NotificationCollection struct {
-	Notifications   []NotificationItem `json:"notifications"`
-	CacheableCursor string             `json:"cacheableCursor"`
+	Notifications struct {
+		Notifications []NotificationItem `json:"notifications"`
+	} `json:"notifications"`
 }
 
-// FetchNotifications fetches notifications and returns them as a generic slice.
-// This is a helper function to avoid code duplication.
-func (c *NakamaClient) FetchNotifications(k int) ([]NotificationItem, error) {
-	path := "v2/notification"
-	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
-	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+func (c *NakamaClient) listenForNotifications() error {
+	url := fmt.Sprintf("%s/ws", c.addr)
+	opts := websocket.DialOptions{
+		HTTPHeader: http.Header{},
+	}
+	opts.HTTPHeader.Set("Authorization", c.authHeader)
+	//nolint:bodyclose // Docs say "You never need to close resp.Body yourself"
+	conn, _, err := websocket.Dial(context.Background(), url, &opts)
 	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", c.authHeader)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// Handle non-OK responses here. For simplicity, we're just returning an error.
-		return nil, fmt.Errorf("server returned non-OK status: %d", resp.StatusCode)
+		return err
 	}
 
-	bodyData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	c.t.Cleanup(func() {
+		assert.Check(c.t, nil == conn.Close(websocket.StatusNormalClosure, "test over"))
+	})
 
-	var data NotificationCollection
-	err = json.Unmarshal(bodyData, &data)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update the cursor for subsequent requests.
-	c.notificationCursor = data.CacheableCursor
-
-	return data.Notifications, nil
-}
-
-// ListReceipts lists only the receipts from the notifications.
-func (c *NakamaClient) ListReceipts(k int) ([]*Receipt, error) {
-	items, err := c.FetchNotifications(k)
-	if err != nil {
-		return nil, err
-	}
-	var receipts []*Receipt
-	for _, item := range items {
-		if item.Subject == "receipt" {
-			var receipt Receipt
-			if err := json.Unmarshal([]byte(item.Content), &receipt); err != nil {
-				return nil, eris.Wrap(err, "failed to unmarshall receipt")
+	go func() {
+		for {
+			_, buf, err := conn.Read(context.Background())
+			if err != nil {
+				if !strings.Contains(err.Error(), "StatusNormalClosure") {
+					assert.Check(c.t, err == nil, "failed to read from we socket:", err)
+				}
+				return
 			}
-			receipts = append(receipts, &receipt)
+			var data NotificationCollection
+			err = json.Unmarshal(buf, &data)
+			assert.Check(c.t, err == nil, "failed to unmarshal notification")
+
+			for _, n := range data.Notifications.Notifications {
+				switch n.Subject {
+				case "receipt":
+					c.handleReceipt([]byte(n.Content))
+				case "event":
+					c.handleEvent([]byte(n.Content))
+				default:
+					assert.Check(c.t, false, "unknown notification subject: ", n.Subject)
+				}
+			}
 		}
-	}
-	return receipts, nil
+	}()
+	return nil
 }
 
-// ListEvents lists only the events from the notifications.
-func (c *NakamaClient) ListEvents(k int) ([]*Event, error) {
-	items, err := c.FetchNotifications(k)
-	if err != nil {
-		return nil, err
+func (c *NakamaClient) handleReceipt(bz []byte) {
+	var receipt Receipt
+	if err := json.Unmarshal(bz, &receipt); err != nil {
+		assert.Check(c.t, false, "failed to unmarshal receipt", err)
 	}
-	var events []*Event
-	for _, item := range items {
-		if item.Subject == "event" {
-			var event Event
-			if err := json.Unmarshal([]byte(item.Content), &event); err != nil {
-				return nil, eris.Wrap(err, "failed to unmarshall receipt")
-			}
-			events = append(events, &event)
-		}
+	select {
+	case c.ReceiptCh <- receipt:
+	default:
+		c.t.Log("warning: receipt dropped")
 	}
-	return events, nil
+}
+
+func (c *NakamaClient) handleEvent(bz []byte) {
+	var event Event
+	if err := json.Unmarshal(bz, &event); err != nil {
+		assert.Check(c.t, false, "failed to unmarshal event", err)
+	}
+	select {
+	case c.EventCh <- event:
+	default:
+		c.t.Log("warning: event dropped")
+	}
 }
 
 func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
@@ -175,6 +175,10 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 		return fmt.Errorf("failed to decode body: %w", err)
 	}
 	c.authHeader = fmt.Sprintf("Bearer %s", body["token"].(string))
+	if err := c.listenForNotifications(); err != nil {
+		return fmt.Errorf("failed to start streaming notifications: %w", err)
+	}
+
 	return nil
 }
 

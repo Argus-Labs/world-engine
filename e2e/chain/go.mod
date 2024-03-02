@@ -19,6 +19,7 @@ require (
 	google.golang.org/grpc v1.59.0
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/evm v1.0.2-beta
+	pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0
 )
 
 require (
@@ -35,6 +36,7 @@ require (
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
+	github.com/JeremyLoy/config v1.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
