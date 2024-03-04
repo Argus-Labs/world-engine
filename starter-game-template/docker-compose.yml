@@ -79,7 +79,7 @@ services:
 
   nakama:
     platform: linux/amd64
-    image: us-docker.pkg.dev/argus-labs/world-engine/relay/nakama@sha256:e8c126fc5c4f63592cc629d3940dfec3e04b57fd4b84f8fa708ed59f3efabd17
+    image: us-docker.pkg.dev/argus-labs/world-engine/relay/nakama@sha256:8c7344643e4d993b105e2d0f151787df0533cc9ca85c4b5f67bb01bd3748341f
     container_name: nakama
     depends_on:
       nakama-db:
