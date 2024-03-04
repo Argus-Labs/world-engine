@@ -3,6 +3,7 @@ package persona_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 	"pkg.world.dev/world-engine/assert"
 )
 
-func TestIsAlphanumericWithUnderscore(t *testing.T) {
+func TestPersonaTagIsValid(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected bool
@@ -29,10 +30,14 @@ func TestIsAlphanumericWithUnderscore(t *testing.T) {
 		{"abc123", true},
 		{"ABC_123", true},
 		{"123", true},
-		{"abc 123", false}, // contains a space
-		{"abc123 ", false}, // contains a trailing space
-		{"abc@123", false}, // contains a special character
-		{"", false},        // empty string
+		{"abc 123", false},               // contains a space
+		{"abc123 ", false},               // contains a trailing space
+		{"abc@123", false},               // contains a special character
+		{"snow☃man", false},              // contains a unicode character
+		{"", false},                      // empty string
+		{"a", false},                     // too short
+		{"aa", false},                    // too short
+		{strings.Repeat("a", 17), false}, // too long,
 	}
 
 	for _, test := range tests {

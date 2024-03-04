@@ -416,6 +416,27 @@ func TestReceiptsCanContainErrors(t *testing.T) {
 	}
 }
 
+func TestInvalidPersonaTagsAreRejected(t *testing.T) {
+	user, device, _ := triple(randomString())
+	client := clients.NewNakamaClient(t)
+	assert.NilError(t, client.RegisterDevice(user, device))
+
+	badPersonaTags := []string{
+		"",                           // must not be empt
+		"a",                          // too short
+		"abcdefghijklmnopqrstuvwxyz", // too long
+	}
+
+	for _, badPersonaTag := range badPersonaTags {
+		resp, err := client.RPC("nakama/claim-persona", map[string]any{
+			"personaTag": badPersonaTag,
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, 400, resp.StatusCode,
+			"persona tag %q was accepted when it should have been rejected", badPersonaTag)
+	}
+}
+
 // waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag
 // is "accepted". A response of "pending" will wait a short period of time, then repeat the request. After 1 second,
 // this helper returns an error.
