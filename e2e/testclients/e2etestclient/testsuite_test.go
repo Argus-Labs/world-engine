@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os/exec"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ import (
 
 func flushRedis(t *testing.T) {
 	t.Cleanup(func() {
-		redisPassword := os.Getenv(REDIS_PASSWORD)
+		redisPassword := os.Getenv("REDIS_PASSWORD")
 		cmd := exec.Command("redis-cli", "-h", "redis","-p","6379","-a",redisPassword, "FLUSHALL")
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Failed to flush Redis: %v", err)
