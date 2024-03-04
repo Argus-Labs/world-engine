@@ -174,7 +174,7 @@ func initEventHub(
 		for event := range channel {
 			content := make(map[string]any)
 			err = json.Unmarshal(event, &content)
-			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, true), "")
+			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, false), "")
 			if err != nil {
 				log.Error("error sending notifications: %s", eris.ToString(err, true))
 			}

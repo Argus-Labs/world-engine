@@ -110,7 +110,7 @@ func (r *Notifier) handleReceipt(receipts []*Receipt) error {
 			Content:    data,
 			Code:       1,
 			Sender:     "",
-			Persistent: true,
+			Persistent: false,
 		})
 	}
 

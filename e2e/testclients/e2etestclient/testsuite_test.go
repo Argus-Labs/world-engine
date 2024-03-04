@@ -11,9 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argus-labs/world-engine/nakama_test/clientutils"
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/assert"
+
+	"github.com/argus-labs/world-engine/nakama_test/clientutils"
 )
 
 func TestEvents(t *testing.T) {
@@ -45,23 +46,20 @@ func TestEvents(t *testing.T) {
 	}
 
 	// Fetch events and verify
-	var events []map[string]any
-	for attempt := 0; attempt < 5; attempt++ {
-		events, err = c.ListEvents(amountOfPlayers + 1)
-		if err != nil {
-			t.Fatalf("Error listing events: %v", err)
+	var events []clientutils.Event
+	timeout := time.After(5 * time.Second)
+	for len(events) < amountOfPlayers {
+		select {
+		case e := <-c.EventCh:
+			events = append(events, e)
+		case <-timeout:
+			assert.FailNow(t, "timeout whiel waiting for events")
 		}
-		if len(events) == amountOfPlayers {
-			break
-		}
-		time.Sleep(1 * time.Second)
 	}
 
 	assert.Equal(t, len(events), amountOfPlayers, "Expected number of player creation events does not match")
 	for _, event := range events {
-		message, ok := event["message"]
-		assert.True(t, ok)
-		assert.Contains(t, message, "player created", "Event message does not contain expected text")
+		assert.Contains(t, event.Message, "player created", "Event message does not contain expected text")
 	}
 }
 
@@ -94,17 +92,15 @@ func TestReceipts(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 	}
 
-	// Fetch receipts and verify
-	var receipts []*clientutils.Receipt
-	for attempt := 0; attempt < 5; attempt++ {
-		receipts, err = c.ListReceipts(20) // Assuming 20 is a sufficient limit
-		if err != nil {
-			t.Fatalf("Error listing receipts: %v", err)
+	var receipts []clientutils.Receipt
+	timeout := time.After(5 * time.Second)
+	for len(receipts) <= amountOfPlayers {
+		select {
+		case r := <-c.ReceiptCh:
+			receipts = append(receipts, r)
+		case <-timeout:
+			assert.FailNow(t, "timeout while waiting receipts")
 		}
-		if len(receipts) >= amountOfPlayers {
-			break
-		}
-		time.Sleep(1 * time.Second)
 	}
 
 	assert.Equal(t, len(receipts), amountOfPlayers+1, "Expected number of receipts does not match")
