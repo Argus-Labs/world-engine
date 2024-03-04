@@ -8,7 +8,7 @@ e2e-nakama:
 	$(foreach dir, $(DIRS_E2E), \
 		cd $(dir) && \
 		go mod tidy && \
-		go work vendor && \
+		GOWORK=off go mod vendor && \
 		cd $(ROOT_DIR); \
 	)
 
