@@ -3,10 +3,10 @@ go 1.22.0
 use (
 	assert
 	cardinal
-	e2e/chain
-	e2e/testclients
-	e2e/testgames
 	evm
+	e2e/testgames
+	e2e/tests
+	e2e/chain
 	relay/nakama
 	rift
 	sign

@@ -146,8 +146,8 @@ services:
   test_nakama:
     container_name: test_nakama
     build:
-      context: ./e2e/testclients/
-      dockerfile: e2etestclient/Dockerfile
+      context: ./e2e/tests
+      dockerfile: nakama/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy
