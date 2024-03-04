@@ -1,4 +1,4 @@
-package clientutils
+package clients
 
 import (
 	"bytes"

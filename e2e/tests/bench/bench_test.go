@@ -1,4 +1,4 @@
-package benchmarktestclient
+package bench
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argus-labs/world-engine/nakama_test/clientutils"
+	"github.com/argus-labs/world-engine/e2e/tests/clients"
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/assert"
 )
@@ -17,8 +17,8 @@ func TestCQLLoad(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	username, deviceID, personaTag := clientutils.Triple(clientutils.RandomString())
-	c := clientutils.NewNakamaClient(t)
+	username, deviceID, personaTag := clients.Triple(clients.RandomString())
+	c := clients.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(username, deviceID))
 
 	resp, err := c.RPC("nakama/claim-persona", map[string]any{
@@ -26,7 +26,7 @@ func TestCQLLoad(t *testing.T) {
 		"signerAddress": signerAddr,
 	})
 	assert.NilError(t, err, "claim-persona failed")
-	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
+	assert.Equal(t, 200, resp.StatusCode, clients.CopyBody(resp))
 
 	var finalResults []interface{}
 
