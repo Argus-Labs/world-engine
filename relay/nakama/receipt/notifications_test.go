@@ -1,14 +1,16 @@
 package receipt
 
 import (
-	"github.com/heroiclabs/nakama-common/runtime"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"pkg.world.dev/world-engine/relay/nakama/mocks"
-	"pkg.world.dev/world-engine/relay/nakama/testutils"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
+	"pkg.world.dev/world-engine/relay/nakama/mocks"
+	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
 // Test that the Notifications system works as expected with the Dispatcher and a Mock Server
@@ -34,7 +36,7 @@ func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 			},
 			Code:       1,
 			Sender:     "",
-			Persistent: true,
+			Persistent: false,
 		},
 	}
 	nk.On("NotificationsSend", mock.Anything, expectedNotifications).Return(nil).Once()
@@ -81,7 +83,7 @@ func TestHandleReceipt(t *testing.T) {
 			},
 			Code:       1,
 			Sender:     "",
-			Persistent: true,
+			Persistent: false,
 		},
 	}
 

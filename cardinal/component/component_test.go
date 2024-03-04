@@ -1,11 +1,12 @@
 package component_test
 
 import (
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -201,8 +202,10 @@ func TestComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
+		matchComponent := filter.CreateComponentMatcher(
+			types.ConvertComponentMetadatasToComponents(componentsForArchID))
 		for _, comp := range tt.comps {
-			ok := filter.MatchComponent(types.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
+			ok := matchComponent(comp)
 			if !ok {
 				t.Errorf("the archetype EntityID %d should contain the component %d", tt.archID, comp.ID())
 			}
