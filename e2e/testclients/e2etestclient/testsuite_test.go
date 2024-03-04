@@ -19,7 +19,8 @@ import (
 
 func flushRedis(t *testing.T) {
 	t.Cleanup(func() {
-		cmd := exec.Command("docker", "exec", "redis", "redis-cli", "FLUSHALL")
+		redisPassword := os.Getenv(REDIS_PASSWORD)
+		cmd := exec.Command("redis-cli", "-h", "redis","-p","6379","-a",redisPassword, "FLUSHALL")
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Failed to flush Redis: %v", err)
 		}

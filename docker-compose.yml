@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   cockroachdb:
     # Only use cockroachdb single-node clusters for non-production environment
@@ -18,7 +18,7 @@ services:
       - "26257:26257"
       - "8080:8080"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/health?ready=1" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
       interval: 3s
       timeout: 3s
       retries: 5
@@ -51,7 +51,7 @@ services:
       - "7350"
       - "7351"
     healthcheck:
-      test: [ "CMD", "/nakama/nakama", "healthcheck" ]
+      test: ["CMD", "/nakama/nakama", "healthcheck"]
       interval: 20s
       timeout: 10s
       retries: 5
@@ -153,6 +153,7 @@ services:
         condition: service_healthy
     environment:
       - NAKAMA_ADDRESS=http://nakama:7350
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
       - world-engine
 
