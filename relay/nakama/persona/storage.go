@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"pkg.world.dev/world-engine/relay/nakama/signer"
@@ -98,6 +99,7 @@ func (p *StorageObj) AttemptToUpdatePending(
 		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
 		// Incidentally, trying the same persona tag might work.
 		p.Status = StatusRejected
+		fmt.Println(1)
 	case err != nil:
 		return nil, eris.Wrap(err, "error when verifying persona tag; user may be stuck in pending")
 	default:
@@ -121,10 +123,12 @@ func (p *StorageObj) verifyPersonaTag(ctx context.Context, txSigner signer.Signe
 	verified bool, err error,
 ) {
 	gameSignerAddress, err := queryPersonaSigner(ctx, p.PersonaTag, p.Tick, cardinalAddr)
+	fmt.Println("game signer address: ", gameSignerAddress)
 	if err != nil {
 		return false, err
 	}
 	signerAddress := txSigner.SignerAddress()
+	fmt.Println("signer address: ", signerAddress)
 	return gameSignerAddress == signerAddress, nil
 }
 

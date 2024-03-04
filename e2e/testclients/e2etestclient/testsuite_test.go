@@ -1,14 +1,15 @@
 package e2etestclient
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
-	"os/exec"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -22,10 +23,56 @@ import (
 func flushRedis(t *testing.T) {
 	t.Cleanup(func() {
 		redisPassword := os.Getenv("REDIS_PASSWORD")
-		cmd := exec.Command("redis-cli", "-h", "redis","-p","6379","-a",redisPassword, "FLUSHALL")
-		if err := cmd.Run(); err != nil {
+		gameContainerName := "test_game"
+
+		// Stop the Cardinal game container
+		stopCmd := exec.Command("docker", "stop", gameContainerName)
+		if err := stopCmd.Run(); err != nil {
+			t.Fatalf("Failed to stop the game container: %v", err)
+		}
+		fmt.Println("STOPPED GAME CONTAINER")
+
+		// Flush Redis
+		flushCmd := exec.Command("redis-cli", "-h", "redis", "-p", "6379", "-a", redisPassword, "FLUSHALL")
+		if err := flushCmd.Run(); err != nil {
 			t.Fatalf("Failed to flush Redis: %v", err)
 		}
+		fmt.Println("FLUSHED REDIS")
+
+		// Restart the Cardinal game container
+		startCmd := exec.Command("docker", "start", gameContainerName)
+		if err := startCmd.Run(); err != nil {
+			t.Fatalf("Failed to start the game container: %v", err)
+		}
+		fmt.Println("SHUTDOWN CARDINAL")
+
+		// Wait for the Cardinal game container to be ready
+		fmt.Println("Waiting for the Cardinal game container to be ready...")
+		for {
+			cmd := exec.Command("docker", "inspect", "--format={{.State.Health.Status}}", gameContainerName)
+			var out bytes.Buffer
+			cmd.Stdout = &out
+			err := cmd.Run()
+			if err != nil {
+				fmt.Printf("Failed to execute command: %s\n", err)
+				return
+			}
+
+			status := strings.TrimSpace(out.String())
+			fmt.Printf("Current health status: %s\n", status)
+
+			if status == "healthy" {
+				fmt.Println("Container is healthy!")
+				break
+			} else if status == "unhealthy" {
+				fmt.Println("Container is unhealthy. Investigate the issue.")
+				break
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+		fmt.Println("Cardinal game container is up and running.")
+
 	})
 }
 
@@ -66,7 +113,7 @@ func TestEvents(t *testing.T) {
 		case e := <-c.EventCh:
 			events = append(events, e)
 		case <-timeout:
-			assert.FailNow(t, "timeout whiel waiting for events")
+			assert.FailNow(t, "timeout while waiting for events")
 		}
 	}
 
