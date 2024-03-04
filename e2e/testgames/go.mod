@@ -1,6 +1,6 @@
 module github.com/argus-labs/world-engine/example/tester
 
-go 1.21.2
+go 1.22.0
 
 toolchain go1.21.5
 
