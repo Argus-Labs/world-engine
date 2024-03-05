@@ -6,7 +6,6 @@ use (
 	evm
 	e2e/testgames
 	e2e/tests
-	e2e/chain
 	relay/nakama
 	rift
 	sign

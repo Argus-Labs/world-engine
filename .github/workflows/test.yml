@@ -34,6 +34,8 @@ jobs:
       #    key: docker-${{ runner.os }}-${{ hashFiles('e2e/testgames/game/Dockerfile') }}
       - name: E2E Test Nakama
         run: make e2e-nakama
+      - name: E2E Test EVM <> Cardinal
+        run: make e2e-evm
       - name: E2E docker compose logs last status
         if: success() || failure()
         run: |
