@@ -45,6 +45,5 @@ ignore:
   - "**/*.mock.go"
   - "**/proto"
   - "build/"
-  - "relay/"
   - "cmd/"
   - "evm/precompile"
