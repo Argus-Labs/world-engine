@@ -403,7 +403,10 @@ func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	loop:
 		for {
 			select {
-			case <-tickStart:
+			case _, ok := <-tickStart:
+				if !ok {
+					panic("tickStart channel has been closed; tick rate is now unbounded.")
+				}
 				w.tickTheEngine(ctx, tickDone)
 				closeAllChannels(waitingChs)
 				waitingChs = waitingChs[:0]

@@ -7,13 +7,15 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/sign"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/sign"
+
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"gotest.tools/v3/assert"
 
@@ -80,12 +82,15 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		startOnce:   &sync.Once{},
 		// Only register this method with t.Cleanup if the game server is actually started
 		doCleanup: func() {
-			close(startTickCh)
+			// First, make sure completed ticks will never be blocked
 			go func() {
 				for range doneTickCh { //nolint:revive // This pattern drains the channel until closed
 				}
 			}()
+			// Next, shut down the world
 			assert.NilError(t, world.Shutdown())
+			// The world is shut down; No more ticks will be started
+			close(startTickCh)
 		},
 	}
 
