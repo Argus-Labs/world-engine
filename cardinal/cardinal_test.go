@@ -5,18 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/golang/mock/gomock"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+
+	"pkg.world.dev/world-engine/cardinal/router/mocks"
+
 	"github.com/fasthttp/websocket"
+
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -24,9 +27,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/sign"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/sign"
 )
 
 type Foo struct{}
@@ -701,20 +705,14 @@ func TestCreatePersona(t *testing.T) {
 }
 
 func TestNewWorld(t *testing.T) {
-	world, err := cardinal.NewMockWorld()
-	assert.NilError(t, err)
-	assert.Equal(t, string(world.Namespace()), cardinal.DefaultNamespace)
-	err = world.Shutdown()
-	assert.NilError(t, err)
+	tf := testutils.NewTestFixture(t, nil)
+	assert.Equal(t, string(tf.World.Namespace()), cardinal.DefaultNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
-	world, err := cardinal.NewMockWorld()
-	assert.NilError(t, err)
-	assert.Equal(t, string(world.Namespace()), "custom-namespace")
-	err = world.Shutdown()
-	assert.NilError(t, err)
+	tf := testutils.NewTestFixture(t, nil)
+	assert.Equal(t, string(tf.World.Namespace()), "custom-namespace")
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {
