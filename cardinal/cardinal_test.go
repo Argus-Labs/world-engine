@@ -2,7 +2,6 @@ package cardinal_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -251,13 +250,15 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessage[*ModifyScoreMsg, *EmptyMsgResult](world, "modify_Score"))
 
 	inSystemCh := make(chan struct{})
+	defer func() { close(inSystemCh) }()
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
 	err := cardinal.RegisterSystems(
 		world,
 		func(engine.Context) error {
 			<-inSystemCh
-			select {}
+			<-inSystemCh
+			return nil
 		},
 	)
 	assert.NilError(t, err)
@@ -268,10 +269,9 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 
 	// Start a tick in the background.
 	go func() {
-		// tf.DoTick() // TODO: should one day replace below Tick() with tf.DoTick(), but there is a deadlock.
-		assert.Check(t, nil == world.Tick(context.Background(), uint64(time.Now().Unix())))
+		tf.DoTick()
 	}()
-	// Make sure we're actually in the System. It will now block forever.
+	// Make sure we're actually in the System.
 	inSystemCh <- struct{}{}
 
 	// Make sure we can call AddTransaction again in a reasonable amount of time
