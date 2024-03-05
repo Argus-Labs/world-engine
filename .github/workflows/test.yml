@@ -34,8 +34,9 @@ jobs:
       #    key: docker-${{ runner.os }}-${{ hashFiles('e2e/testgames/game/Dockerfile') }}
       - name: E2E Test Nakama
         run: make e2e-nakama
-      - name: E2E Test EVM <> Cardinal
-        run: make e2e-evm
+        # https://linear.app/arguslabs/issue/WORLD-929/re-enable-e2e-evm-tests-once-polaris-is-upgraded
+#      - name: E2E Test EVM <> Cardinal # Re-enable this after polaris problem is fixed.
+#        run: make e2e-evm
       - name: E2E docker compose logs last status
         if: success() || failure()
         run: |
