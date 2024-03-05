@@ -3,9 +3,9 @@ go 1.22.0
 use (
 	assert
 	cardinal
-	evm
 	e2e/testgames
 	e2e/tests
+	evm
 	relay/nakama
 	rift
 	sign
