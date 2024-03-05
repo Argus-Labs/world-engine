@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/sign
 
-go 1.22
+go 1.22.1
 
 require (
 	github.com/ethereum/go-ethereum v1.13.4
