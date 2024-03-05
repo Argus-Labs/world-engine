@@ -24,10 +24,12 @@ e2e-benchmark:
 	@docker compose -f docker-compose.benchmark.yml up --build --exit-code-from game_benchmark --abort-on-container-exit --attach game_benchmark
 
 
-# Define a shell function to check a URL with curl
+# check_url takes a URL (1), and an expected http status code (2), and will continuously ping the URL until it either
+# gets the code, or the timeout is reached (180s).
+# to call this function in make: `$(call check_url,localhost:1317,501)`
 define check_url
 	@echo "Checking $(1) with curl..."
-	@timeout=180; \
+	@timeout=60; \
 	start=$$(date +%s); \
 	while [ $$(( $$(date +%s) - start )) -lt $$timeout ]; do \
 		if curl -s -o /dev/null -w "%{http_code}" $(1) -m 1 | grep -q "$(2)"; then \
