@@ -12,10 +12,6 @@ import (
 
 var PlayerEntityID = make(map[string]types.EntityID)
 
-type Event struct {
-	Message string `json:"message"`
-}
-
 func Join(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
 	return cardinal.EachMessage[msg.JoinInput, msg.JoinOutput](
