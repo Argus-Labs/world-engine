@@ -13,6 +13,7 @@ e2e-nakama:
 	)
 
 	@docker compose up --build game nakama test_nakama --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
+	@docker compose down -v
 
 e2e-benchmark:
 	$(foreach dir, $(DIRS_E2E_BENCHMARK), \
