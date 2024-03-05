@@ -2,9 +2,13 @@ name: Test
 
 on:
   pull_request:
+    paths-ignore:
+      - "docs/**"
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
 
 env:
   GO_VERSION: 1.21.0

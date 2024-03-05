@@ -3,9 +3,13 @@ name: Lint
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - "docs/**"
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
 
 permissions:
   contents: read
