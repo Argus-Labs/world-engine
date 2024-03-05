@@ -71,7 +71,7 @@ e2e-evm:
 .PHONY: unit-test
 
 unit-test:
-	cd $(filter-out $@,$(MAKECMDGOALS)) && go test ./... -coverprofile=coverage-$(shell basename $(PWD)).out -covermode=count -v
+	cd $(filter-out $@,$(MAKECMDGOALS)) && GOWORK=off go test ./... -coverprofile=coverage-$(shell basename $(PWD)).out -covermode=count -v
 
 unit-test-all:
 	$(MAKE) unit-test cardinal
