@@ -28,4 +28,4 @@ WORKDIR /app
 
 COPY . .
 
-ENTRYPOINT ["go", "test", "-v", "--tags", "integration", "./e2etestclient"]
+ENTRYPOINT ["go", "test", "-v", "--tags", "integration", "./nakama"]
