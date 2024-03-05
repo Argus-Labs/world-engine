@@ -56,7 +56,7 @@ func (p *personaPlugin) RegisterQueries(world *World) error {
 }
 
 func (p *personaPlugin) RegisterSystems(world *World) error {
-	err := RegisterSystems(world, RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterSystems(world, CreatePersonaSystem, AuthorizePersonaAddressSystem)
 	if err != nil {
 		return err
 	}
@@ -143,9 +143,9 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 // Persona System
 // -----------------------------------------------------------------------------
 
-// RegisterPersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
+// CreatePersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(wCtx engine.Context) error {
+func CreatePersonaSystem(wCtx engine.Context) error {
 	personaTagToAddress, err := buildPersonaIndex(wCtx)
 	if err != nil {
 		return err
