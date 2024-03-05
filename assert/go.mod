@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/assert
 
-go 1.21.0
+go 1.22.0
 
 require (
 	github.com/rotisserie/eris v0.5.4

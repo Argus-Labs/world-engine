@@ -1,5 +1,5 @@
 # Base Builder Stage
-FROM golang:1.21 AS builder
+FROM golang:1.22 AS builder
 
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 

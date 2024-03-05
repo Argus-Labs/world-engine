@@ -1,6 +1,6 @@
 module github.com/argus-labs/world-engine/e2e/chaintest
 
-go 1.21.0
+go 1.22.0
 
 // external, necessary replacements
 replace (

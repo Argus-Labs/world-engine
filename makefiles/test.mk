@@ -1,5 +1,5 @@
-DIRS_E2E = e2e/testclients/e2etestclient e2e/testgames/game relay/nakama
-DIRS_E2E_BENCHMARK = e2e/testclients/benchmarktestclient e2e/testgames/gamebenchmark relay/nakama
+DIRS_E2E = e2e/tests/nakama e2e/testgames/game relay/nakama
+DIRS_E2E_BENCHMARK = e2e/tests/bench e2e/testgames/gamebenchmark relay/nakama
 ROOT_DIR := $(shell pwd)
 
 export ENABLE_ADAPTER=false
@@ -8,11 +8,11 @@ e2e-nakama:
 	$(foreach dir, $(DIRS_E2E), \
 		cd $(dir) && \
 		go mod tidy && \
-		go mod vendor && \
+		GOWORK=off go mod vendor && \
 		cd $(ROOT_DIR); \
 	)
 
-	@docker compose up --build --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
+	@docker compose up --build game nakama test_nakama --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
 
 e2e-benchmark:
 	$(foreach dir, $(DIRS_E2E_BENCHMARK), \

@@ -1,14 +1,12 @@
-module github.com/argus-labs/world-engine/nakama_test
+module github.com/argus-labs/world-engine/e2e/tests
 
-go 1.21.0
+go 1.22.0
 
 require (
 	github.com/ethereum/go-ethereum v1.13.4
 	nhooyr.io/websocket v1.8.10
-	pkg.world.dev/world-engine/assert v0.0.0
+	pkg.world.dev/world-engine/assert v1.0.0
 )
-
-replace pkg.world.dev/world-engine/assert => ../../assert
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
