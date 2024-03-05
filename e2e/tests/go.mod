@@ -1,6 +1,6 @@
 module github.com/argus-labs/world-engine/e2e/tests
 
-go 1.21.0
+go 1.22.0
 
 // external, necessary replacements
 replace (
@@ -24,8 +24,6 @@ require (
 	pkg.world.dev/world-engine/evm v0.0.0-00010101000000-000000000000
 	pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631
 )
-
-replace pkg.world.dev/world-engine/assert => ../../assert
 
 require (
 	cosmossdk.io/api v0.7.2 // indirect

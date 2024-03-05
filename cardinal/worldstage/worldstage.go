@@ -16,20 +16,33 @@ const (
 	ShutDown     Stage = "ShutDown"     // World is moved to this stage when it has successfully shutdown
 )
 
+var allStages = []Stage{Init, Starting, Recovering, Ready, Running, ShuttingDown, ShutDown}
+
 type Manager struct {
 	current *atomic.Value
+	// atStage contains a channel for each stage that will be closed when the stage is reached.
+	// This will allow goroutines to block until a specified stage has been reached.
+	atStage map[Stage]chan struct{}
 }
 
 func NewManager() *Manager {
 	m := &Manager{
 		current: &atomic.Value{},
+		atStage: map[Stage]chan struct{}{},
+	}
+	for _, stage := range allStages {
+		m.atStage[stage] = make(chan struct{})
 	}
 	m.Store(Init)
 	return m
 }
 
 func (m *Manager) CompareAndSwap(oldStage, newStage Stage) (swapped bool) {
-	return m.current.CompareAndSwap(oldStage, newStage)
+	ok := m.current.CompareAndSwap(oldStage, newStage)
+	if ok {
+		close(m.atStage[newStage])
+	}
+	return ok
 }
 
 func (m *Manager) Current() Stage {
@@ -38,8 +51,10 @@ func (m *Manager) Current() Stage {
 
 func (m *Manager) Store(val Stage) {
 	m.current.Store(val)
+	close(m.atStage[val])
 }
 
-func (m *Manager) Swap(newStage Stage) (oldStage Stage) {
-	return m.current.Swap(newStage).(Stage)
+// NotifyOnStage returns a channel that will be closed when the specified stage has been reached.
+func (m *Manager) NotifyOnStage(stage Stage) <-chan struct{} {
+	return m.atStage[stage]
 }

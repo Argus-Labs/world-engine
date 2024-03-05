@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/cardinal
 
-go 1.21.2
+go 1.22.0
 
 // external, necessary replacements
 replace (

@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/rift
 
-go 1.21.0
+go 1.22.0
 
 require (
 	google.golang.org/grpc v1.59.0

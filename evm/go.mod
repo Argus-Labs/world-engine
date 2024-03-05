@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/evm
 
-go 1.21.0
+go 1.22.0
 
 // external, necessary replacements
 replace (
