@@ -93,8 +93,8 @@ func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, b
 	return rec.Result, rec.Errs, true
 }
 
-func (ctx *worldContext) EmitEvent(event map[string]any) {
-	ctx.world.eventHub.EmitEvent(event)
+func (ctx *worldContext) EmitEvent(event map[string]any) error {
+	return ctx.world.eventHub.EmitJSONEvent(event)
 }
 
 func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {

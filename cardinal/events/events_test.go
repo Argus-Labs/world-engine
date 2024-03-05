@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -43,7 +44,11 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tf.World.GetEventHub().EmitEvent(map[string]any{"message": fmt.Sprintf("test%d", i)})
+			data, err := json.Marshal(map[string]any{"message": fmt.Sprintf("test%d", i)})
+			if err != nil {
+				assert.NilError(t, eris.Wrap(err, ""))
+			}
+			tf.World.GetEventHub().EmitEvent(data)
 		}()
 	}
 	wg.Wait()
@@ -103,27 +108,27 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter1.Store(0)
 	event := map[string]any{"message": "test"}
 	sys1 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent(event)
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys2 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent(event)
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys3 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent(event)
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys4 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent(event)
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys5 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent(event)
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}

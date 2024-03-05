@@ -54,8 +54,9 @@ func TestComponentExample(t *testing.T) {
 
 	wCtx := cardinal.NewWorldContext(world)
 	assert.Equal(t, wCtx.CurrentTick(), uint64(0))
-	wCtx.Logger().Info().Msg("test")                  // Check for compile errors.
-	wCtx.EmitEvent(map[string]any{"message": "test"}) // test for compiler errors, a check for this lives in e2e tests.
+	wCtx.Logger().Info().Msg("test") // Check for compile errors.
+	assert.NilError(t, wCtx.EmitEvent(map[string]any{"message": "test"}))
+	// test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
