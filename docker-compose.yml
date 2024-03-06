@@ -1,10 +1,11 @@
 version: '3'
 services:
   cockroachdb:
+    container_name: cockroachdb
     # Only use cockroachdb single-node clusters for non-production environment
     image: cockroachdb/cockroach:latest-v23.1
     command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
-    restart: "no"
+    restart:  unless-stopped
     environment:
       - COCKROACH_DATABASE=nakama
       - COCKROACH_USER=root
@@ -131,6 +132,7 @@ services:
       - world-engine
 
   redis:
+    container_name: redis
     image: redis:latest
     command: redis-server --save ""
     environment:
@@ -141,7 +143,7 @@ services:
       - "6379:6379"
     networks:
       - world-engine
-    restart: always
+    restart: unless-stopped
 
   test_nakama:
     container_name: test_nakama
