@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	adminNakamaID = "00000000-0110-0000-0000-000000000000"
+	adminNakamaID = "00000000-0000-0000-0000-000000000000"
 )
 
 type ClaimPersona struct {
