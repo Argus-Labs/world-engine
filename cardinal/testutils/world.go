@@ -50,8 +50,15 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 	}
 
 	cardinalPort := getOpenPort(t)
-	evmPort := getOpenPort(t)
-	assert.Assert(t, cardinalPort != evmPort, "cardinal and evm port must be different")
+	evmPort := cardinalPort
+	for range 10 {
+		evmPort = getOpenPort(t)
+		if evmPort != cardinalPort {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.Assert(t, evmPort != cardinalPort, "failed to find different port for evm")
 	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
