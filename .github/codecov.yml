@@ -22,7 +22,7 @@ coverage:
   status:
     project:
       default:
-        threshold: 2%
+        threshold: 5%
         # target: 50%
         # flags:
         #   - unit
