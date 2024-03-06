@@ -1,9 +1,11 @@
-package chain
+package evm
 
 import (
 	"context"
+	"github.com/argus-labs/world-engine/e2e/tests/clients"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"io"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"testing"
@@ -31,38 +33,38 @@ type MoveTx struct {
 }
 
 func TestTransactionStoredOnChain(t *testing.T) {
-	t.Skip("do not run this test unless the docker containers for base shard, game shard, nakama, and " +
-		"celestia are running. to run the stack, run `make game` and `make rollup`. wait for startup and run this test")
-	c := newClient()
-	chain := newChainClient(t)
+	c := clients.NewNakamaClient(t)
+	chain := clients.NewEVMClient(t)
 	user := "foo"
-	persona := "foobar"
-	err := c.registerDevice(user, adminNakamaID)
+	persona := "swag"
+	err := c.RegisterDevice(user, adminNakamaID)
 	assert.NilError(t, err)
 
-	res, err := c.rpc("nakama/claim-persona", ClaimPersona{PersonaTag: persona})
+	res, err := c.RPC("nakama/claim-persona", ClaimPersona{PersonaTag: persona})
 	assert.NilError(t, err)
 
-	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %v", res.StatusCode, res.Body)
+	bodyBytes, err := io.ReadAll(res.Body)
+	assert.NilError(t, err)
+	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %s", res.StatusCode, string(bodyBytes))
 	time.Sleep(time.Second * 3)
 
-	res, err = c.rpc("nakama/show-persona", ClaimPersona{PersonaTag: persona})
+	res, err = c.RPC("nakama/show-persona", ClaimPersona{PersonaTag: persona})
 	assert.NilError(t, err)
 
 	assert.Equal(t, 200, res.StatusCode, "show persona failed with code %d: body: %v", res.StatusCode, res.Body)
 	time.Sleep(time.Second * 3)
 
-	res, err = c.rpc("tx/game/join", emptyStruct)
+	res, err = c.RPC("tx/game/join", emptyStruct)
 	assert.NilError(t, err)
 	assert.Equal(t, 200, res.StatusCode, "tx-join failed with code %d: body %v", res.StatusCode, res.Body)
 	time.Sleep(2 * time.Second)
 
-	res, err = c.rpc("tx/game/move", MoveTx{Direction: "up"})
+	res, err = c.RPC("tx/game/move", MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	assert.Equal(t, 200, res.StatusCode, "tx- failed with code %d: body %v", res.StatusCode, res.Body)
 	time.Sleep(2 * time.Second)
 
-	txs, err := chain.shard.Transactions(context.Background(), &types.QueryTransactionsRequest{
+	txs, err := chain.Shard.Transactions(context.Background(), &types.QueryTransactionsRequest{
 		Namespace: "TESTGAME",
 		Page:      nil,
 	})
@@ -73,10 +75,8 @@ func TestTransactionStoredOnChain(t *testing.T) {
 // TestNamespaceSaved ensures that when the stack is running, namespaces can be queried
 // and the address in the namespace can be supplied to a router msg client and send requests.
 func TestNamespaceSaved(t *testing.T) {
-	t.Skip("do not run this test unless the docker containers for base shard, game shard, nakama, and " +
-		"celestia are running. to run the stack, run `make game` and `make rollup`. wait for startup and run this test")
-	chain := newChainClient(t)
-	res, err := chain.namespace.Namespaces(context.Background(), &namespacetypes.NamespacesRequest{})
+	chain := clients.NewEVMClient(t)
+	res, err := chain.Namespace.Namespaces(context.Background(), &namespacetypes.NamespacesRequest{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(res.Namespaces), 1)
 	ns := res.Namespaces[0]

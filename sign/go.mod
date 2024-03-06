@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/sign
 
-go 1.22
+go 1.22.1
 
 require (
 	github.com/ethereum/go-ethereum v1.13.4
@@ -16,6 +16,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/holiman/uint256 v1.2.3 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 )
