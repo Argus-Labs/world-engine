@@ -1,6 +1,7 @@
 version: '3'
 services:
   cockroachdb:
+    container_name: cockroachdb
     # Only use cockroachdb single-node clusters for non-production environment
     image: cockroachdb/cockroach:latest-v23.1
     command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
@@ -131,6 +132,7 @@ services:
       - world-engine
 
   redis:
+    container_name: redis
     image: redis:latest
     command: redis-server --save ""
     environment:

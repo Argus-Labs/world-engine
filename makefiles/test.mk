@@ -12,7 +12,7 @@ e2e-nakama:
 		cd $(ROOT_DIR); \
 	)
 
-	@docker compose up --build --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
+	@docker compose up --build game nakama redis cockroachdb test_nakama --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
 	@docker compose down --volume -v
 
 e2e-benchmark:
