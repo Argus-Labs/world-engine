@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/sign"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/sign"
 )
 
 func TestReceiptsQuery(t *testing.T) {
@@ -19,12 +20,13 @@ func TestReceiptsQuery(t *testing.T) {
 	type fooOut struct{ Y int }
 	err := cardinal.RegisterMessage[fooIn, fooOut](world, "foo")
 	assert.NilError(t, err)
+	wantErrorMessage := "THIS_ERROR_MESSAGE_SHOULD_BE_IN_THE_RECEIPT"
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
 		return cardinal.EachMessage[fooIn, fooOut](ctx, func(t message.TxData[fooIn]) (fooOut, error) {
 			if ctx.CurrentTick()%2 == 0 {
 				return fooOut{Y: 4}, nil
 			}
-			return fooOut{}, errors.New("omg")
+			return fooOut{}, errors.New(wantErrorMessage)
 		})
 	})
 	assert.NilError(t, err)
@@ -59,7 +61,7 @@ func TestReceiptsQuery(t *testing.T) {
 		TxHash: string(txHash2),
 		Tick:   1,
 		Result: nil,
-		Errors: []error{errors.New("omg")},
+		Errors: []string{wantErrorMessage},
 	}
 	expectedJSON2, err := json.Marshal(expectedReceipt2)
 	assert.NilError(t, err)
@@ -69,6 +71,8 @@ func TestReceiptsQuery(t *testing.T) {
 	assert.NilError(t, err)
 	json2, err := json.Marshal(reply.Receipts[1])
 	assert.NilError(t, err)
+	// Make sure the text of the error message actually ends up in the JSON
+	assert.Contains(t, string(json2), wantErrorMessage)
 
 	assert.Equal(t, string(expectedJSON1), string(json1))
 	assert.Equal(t, string(expectedJSON2), string(json2))

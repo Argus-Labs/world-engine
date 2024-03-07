@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/argus-labs/world-engine/e2e/tests/clients"
@@ -378,6 +379,41 @@ func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
 
 	assert.Equal(t, showA["status"], "accepted")
 	assert.Equal(t, showB["status"], "rejected")
+}
+
+func TestReceiptsCanContainErrors(t *testing.T) {
+	client := clients.NewNakamaClient(t)
+	user := randomString()
+	assert.NilError(t, client.RegisterDevice(user, user))
+
+	resp, err := client.RPC("nakama/claim-persona", map[string]any{
+		"personaTag": user,
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	// This is the receipt for persona tag claiming
+	receipt := <-client.ReceiptCh
+	assert.Len(t, receipt.Errors, 0)
+
+	assert.NilError(t, waitForAcceptedPersonaTag(client))
+
+	wantErrorMsg := "SOME_ERROR_MESSAGE"
+	resp, err = client.RPC("tx/game/error", map[string]any{
+		"ErrorMsg": wantErrorMsg,
+	})
+	// The error for this message won't be generated until after the tick has been processed.
+	assert.NilError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	timeout := time.After(5 * time.Second)
+	select {
+	case receipt = <-client.ReceiptCh:
+		assert.Len(t, receipt.Errors, 1)
+		assert.Contains(t, receipt.Errors[0], wantErrorMsg)
+	case <-timeout:
+		assert.FailNow(t, "timeout while waiting for receipt")
+	}
 }
 
 // waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag
