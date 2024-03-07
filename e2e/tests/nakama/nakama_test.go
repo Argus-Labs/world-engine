@@ -422,7 +422,7 @@ func TestInvalidPersonaTagsAreRejected(t *testing.T) {
 	assert.NilError(t, client.RegisterDevice(user, device))
 
 	badPersonaTags := []string{
-		"",                           // must not be empt
+		"",                           // must not be empty
 		"a",                          // too short
 		"abcdefghijklmnopqrstuvwxyz", // too long
 	}
