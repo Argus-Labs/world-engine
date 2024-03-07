@@ -47,10 +47,10 @@ type ListTxReceiptsResponse struct {
 
 // ReceiptEntry represents a single transaction receipt. It contains an ID, a result, and a list of errors.
 type ReceiptEntry struct {
-	TxHash string  `json:"txHash"`
-	Tick   uint64  `json:"tick"`
-	Result any     `json:"result"`
-	Errors []error `json:"errors"`
+	TxHash string   `json:"txHash"`
+	Tick   uint64   `json:"tick"`
+	Result any      `json:"result"`
+	Errors []string `json:"errors"`
 }
 
 // queryReceipts godoc
@@ -91,9 +91,20 @@ func queryReceipts(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxRecei
 				TxHash: string(r.TxHash),
 				Tick:   t,
 				Result: r.Result,
-				Errors: r.Errs,
+				Errors: convertErrorsToStrings(r.Errs),
 			})
 		}
 	}
 	return &reply, nil
+}
+
+func convertErrorsToStrings(errs []error) []string {
+	if len(errs) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(errs))
+	for _, err := range errs {
+		result = append(result, err.Error())
+	}
+	return result
 }
