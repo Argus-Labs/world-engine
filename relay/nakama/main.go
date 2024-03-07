@@ -13,10 +13,11 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/events"
 
 	kms "cloud.google.com/go/kms/apiv1"
+	"google.golang.org/api/option"
+
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
-	"google.golang.org/api/option"
 
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
@@ -171,7 +172,8 @@ func initEventHub(
 	go func() {
 		channel := eventHub.Subscribe("main")
 		for event := range channel {
-			content := map[string]interface{}{"message": event.Message}
+			content := make(map[string]any)
+			err = json.Unmarshal(event, &content)
 			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, false), "")
 			if err != nil {
 				log.Error("error sending notifications: %s", eris.ToString(err, true))

@@ -1,4 +1,4 @@
-package chain
+package clients
 
 import (
 	"testing"
@@ -12,18 +12,18 @@ import (
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
-type Chain struct {
-	shard     shardtypes.QueryClient
-	bank      banktypes.QueryClient
-	namespace namespacetypes.QueryServiceClient
+type EVM struct {
+	Shard     shardtypes.QueryClient
+	Bank      banktypes.QueryClient
+	Namespace namespacetypes.QueryServiceClient
 }
 
-func newChainClient(t *testing.T) Chain {
+func NewEVMClient(t *testing.T) *EVM {
 	cc, err := grpc.Dial("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
-	return Chain{
-		shard:     shardtypes.NewQueryClient(cc),
-		bank:      banktypes.NewQueryClient(cc),
-		namespace: namespacetypes.NewQueryServiceClient(cc),
+	return &EVM{
+		Shard:     shardtypes.NewQueryClient(cc),
+		Bank:      banktypes.NewQueryClient(cc),
+		Namespace: namespacetypes.NewQueryServiceClient(cc),
 	}
 }
