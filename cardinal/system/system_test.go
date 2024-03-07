@@ -72,11 +72,11 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	var firstSystemCalled bool
 	var secondSystemCalled bool
 
-	firstSystem := func(context engine.Context) error {
+	firstSystem := func(engine.Context) error {
 		firstSystemCalled = true
 		return nil
 	}
-	secondSystem := func(context engine.Context) error {
+	secondSystem := func(engine.Context) error {
 		secondSystemCalled = true
 		return nil
 	}

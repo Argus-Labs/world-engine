@@ -22,29 +22,28 @@ package cmd_test
 
 import (
 	"fmt"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"os"
 	"testing"
 
-	simapp "pkg.world.dev/world-engine/evm/app"
-	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
-
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	simapp "pkg.world.dev/world-engine/evm/app"
+	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
 )
 
 func TestCmd(t *testing.T) {
 	sdk.GetConfig().SetBech32PrefixForAccount("world", "world")
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "chain/cmd/world/cmd:integration")
+	gomega.RegisterFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "chain/cmd/world/cmd:integration")
 }
 
-var _ = Describe("Init command", func() {
-	It("should initialize the app with given options", func() {
+var _ = ginkgo.Describe("Init command", func() {
+	ginkgo.It("should initialize the app with given options", func() {
 		stdout := os.Stdout
 		defer func() { os.Stdout = stdout }()
 		os.Stdout = os.NewFile(0, os.DevNull)
@@ -56,12 +55,12 @@ var _ = Describe("Init command", func() {
 		})
 
 		err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome)
-		Expect(err).ToNot(HaveOccurred())
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	})
 })
 
-var _ = Describe("Home flag registration", func() {
-	It("should set home directory correctly", func() {
+var _ = ginkgo.Describe("Home flag registration", func() {
+	ginkgo.It("should set home directory correctly", func() {
 		// Redirect standard out to null
 		stdout := os.Stdout
 		defer func() { os.Stdout = stdout }()
@@ -76,10 +75,10 @@ var _ = Describe("Home flag registration", func() {
 		})
 
 		err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome)
-		Expect(err).ToNot(HaveOccurred())
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 		result, err := rootCmd.Flags().GetString(flags.FlagHome)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(result).To(Equal(homeDir))
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		gomega.Expect(result).To(gomega.Equal(homeDir))
 	})
 })

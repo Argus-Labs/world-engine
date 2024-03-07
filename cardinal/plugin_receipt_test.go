@@ -22,7 +22,7 @@ func TestReceiptsQuery(t *testing.T) {
 	assert.NilError(t, err)
 	wantErrorMessage := "THIS_ERROR_MESSAGE_SHOULD_BE_IN_THE_RECEIPT"
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
-		return cardinal.EachMessage[fooIn, fooOut](ctx, func(t message.TxData[fooIn]) (fooOut, error) {
+		return cardinal.EachMessage[fooIn, fooOut](ctx, func(message.TxData[fooIn]) (fooOut, error) {
 			if ctx.CurrentTick()%2 == 0 {
 				return fooOut{Y: 4}, nil
 			}

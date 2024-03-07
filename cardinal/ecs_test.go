@@ -470,7 +470,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	var count int
 	countAgain := func() func(ent types.EntityID) bool {
 		count = 0
-		return func(ent types.EntityID) bool {
+		return func(types.EntityID) bool {
 			count++
 			return true
 		}

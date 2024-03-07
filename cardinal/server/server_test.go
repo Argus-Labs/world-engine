@@ -226,7 +226,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
 		s.world,
 		name,
-		func(wCtx engine.Context, req *SomeRequest) (*SomeResponse, error) {
+		func(_ engine.Context, _ *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},

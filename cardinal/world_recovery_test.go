@@ -65,7 +65,7 @@ func TestWorldRecovery(t *testing.T) {
 				iter.EXPECT().Each(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(
 						fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error,
-						ranges ...uint64,
+						_ ...uint64,
 					) error {
 						batch := []*iterator.TxBatch{
 							{
