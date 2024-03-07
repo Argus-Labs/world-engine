@@ -469,8 +469,15 @@ func (w *World) Shutdown() error {
 	log.Info().Msg("Shutting down game loop.")
 	ok := w.worldStage.CompareAndSwap(worldstage.Running, worldstage.ShuttingDown)
 	if !ok {
-		w.Logger.Warn().Msg("Got shutdown signal when world is not running")
-		return nil
+		select {
+		case <-w.worldStage.NotifyOnStage(worldstage.ShuttingDown):
+			// Some other goroutine has already started the shutdown process. Wait until the world is
+			// actually shut down.
+			<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
+			return nil
+		default:
+		}
+		return errors.New("shutdown attempted before the world was started")
 	}
 
 	if w.cleanup != nil {
