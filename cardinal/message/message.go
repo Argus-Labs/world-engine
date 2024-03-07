@@ -139,6 +139,7 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx engine.Context, hash types.TxHash
 
 func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(wCtx) {
+		var errs []error
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
 			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
@@ -147,9 +148,22 @@ func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Ou
 				txData.Msg,
 				eris.ToString(err, true),
 			)
+			errs = append(errs, err)
 			t.AddError(wCtx, txData.Hash, err)
 		} else {
 			t.SetResult(wCtx, txData.Hash, result)
+			if err = wCtx.EmitEvent(
+				map[string]any{
+					"txHash": txData.Hash,
+					"result": result,
+					"errs":   errs,
+				},
+			); err != nil {
+				wCtx.Logger().Err(err).Msgf("failed to emit receipt for txHash %s with stack trace:\n %s ",
+					txData.Hash,
+					eris.ToString(err, true),
+				)
+			}
 		}
 	}
 }
