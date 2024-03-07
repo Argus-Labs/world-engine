@@ -367,7 +367,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q := cardinal.NewSearch(wCtx, filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			func(id types.EntityID) bool {
+			func(types.EntityID) bool {
 				count++
 				return count != stop
 			},
@@ -379,7 +379,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q = cardinal.NewSearch(wCtx, filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			func(id types.EntityID) bool {
+			func(types.EntityID) bool {
 				count++
 				return true
 			},

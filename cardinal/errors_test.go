@@ -301,7 +301,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			err = cardinal.RegisterQuery[QueryRequest, QueryResponse](
 				world,
 				queryName,
-				func(wCtx engine.Context, req *QueryRequest) (*QueryResponse, error) {
+				func(wCtx engine.Context, _ *QueryRequest) (*QueryResponse, error) {
 					return nil, tc.testFn(wCtx)
 				})
 			assert.Check(t, err == nil)
@@ -424,7 +424,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterQuery[QueryRequest, QueryResponse](
 		world,
 		queryName,
-		func(wCtx engine.Context, req *QueryRequest) (*QueryResponse, error) {
+		func(wCtx engine.Context, _ *QueryRequest) (*QueryResponse, error) {
 			id, err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).First()
 			assert.Check(t, err == nil)
 			_, err = cardinal.GetComponent[Foo](wCtx, id)

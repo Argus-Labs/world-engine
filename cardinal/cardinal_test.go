@@ -724,7 +724,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	gotNumOfEntities := 0
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
-		err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).Each(func(id types.EntityID) bool {
+		err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).Each(func(types.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})

@@ -29,7 +29,7 @@ func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddres
 			// sleep a little try again...
 			logger.Info("No host found.")
 			logger.Info(err.Error())
-			time.Sleep(2 * time.Second)                                          //nolint: gomnd // its ok.
+			time.Sleep(2 * time.Second)                                          //nolint:gomnd // its ok.
 			webSocketConnection, _, err = websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 		} else {
 			return nil, eris.Wrap(err, "")
@@ -83,7 +83,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 			eh.Shutdown()
 			continue
 		}
-		eh.channels.Range(func(key any, value any) bool {
+		eh.channels.Range(func(_ any, value any) bool {
 			channel, ok := value.(chan []byte)
 			if !ok {
 				err = eris.New("not a channel")
@@ -98,7 +98,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 			continue
 		}
 	}
-	eh.channels.Range(func(key any, value any) bool {
+	eh.channels.Range(func(key any, _ any) bool {
 		log.Info(fmt.Sprintf("shutting down: %s", key.(string)))
 		eh.Unsubscribe(key.(string))
 		return true

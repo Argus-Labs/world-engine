@@ -16,7 +16,7 @@ func GetFieldInformation(t reflect.Type) map[string]any {
 		if field.Type.Kind() == reflect.Struct {
 			fieldMap[field.Name] = GetFieldInformation(field.Type)
 		} else {
-			fieldMap[field.Name] = field.Type.Name()
+			fieldMap[field.Name] = field.Type.String()
 		}
 	}
 

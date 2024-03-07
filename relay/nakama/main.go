@@ -249,7 +249,7 @@ func initCardinalEndpoints(
 		return transaction, nil
 	}
 
-	createUnsignedTransaction := func(payload string, endpoint string, _ runtime.NakamaModule, _ context.Context,
+	createUnsignedTransaction := func(payload string, _ string, _ runtime.NakamaModule, _ context.Context,
 	) (io.Reader, error) {
 		payloadBytes := []byte(payload)
 		formattedPayloadBuffer := bytes.NewBuffer([]byte{})

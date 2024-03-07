@@ -92,7 +92,15 @@ definitions:
       components:
         type: array
         items:
-          type: string
+          type: object
+          properties:
+            name:
+              type: string
+            fields:
+              type: object
+              properties:
+                name:
+                  type: string
       messages:
         type: array
         items:
@@ -100,8 +108,11 @@ definitions:
           properties:
             name:
               type: string
-            type:
-              type: string
+            fields:
+              type: object
+              properties:
+                name:
+                  type: string
       queries:
         type: array
         items:
@@ -109,8 +120,11 @@ definitions:
           properties:
             name:
               type: string
-            type:
-              type: string
+            fields:
+              type: object
+              properties:
+                name:
+                  type: string
     type: object
   handler.PostTransactionResponse:
     properties:
@@ -164,7 +178,7 @@ paths:
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Get information on status of world-engine
-  /debug/world:
+  /world:
     get:
       description: Get field information of registered components, messages, queries
       produces:

@@ -120,7 +120,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := cardinal.RegisterQuery[string, string](
 		testutils.NewTestFixture(t, nil).World,
 		"foo",
-		func(wCtx engine.Context, req *string) (*string, error) {
+		func(engine.Context, *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -146,7 +146,7 @@ func TestQueryEVM(t *testing.T) {
 		world,
 		"foo",
 		func(
-			eCtx engine.Context, req *FooRequest,
+			_ engine.Context, _ *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
