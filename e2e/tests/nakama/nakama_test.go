@@ -417,23 +417,31 @@ func TestReceiptsCanContainErrors(t *testing.T) {
 }
 
 func TestInvalidPersonaTagsAreRejected(t *testing.T) {
-	user, device, _ := triple(randomString())
-	client := clients.NewNakamaClient(t)
-	assert.NilError(t, client.RegisterDevice(user, device))
+	for _, testShortPersonaTag := range []bool{true, false} {
+		user, device, _ := triple(randomString())
+		client := clients.NewNakamaClient(t)
+		assert.NilError(t, client.RegisterDevice(user, device))
 
-	badPersonaTags := []string{
-		"",                           // must not be empty
-		"a",                          // too short
-		"abcdefghijklmnopqrstuvwxyz", // too long
-	}
+		badPersonaTag := ""
+		if testShortPersonaTag {
+			badPersonaTag = user[:2]
+		} else {
+			for len(badPersonaTag) < 17 {
+				badPersonaTag += user
+			}
+		}
 
-	for _, badPersonaTag := range badPersonaTags {
 		resp, err := client.RPC("nakama/claim-persona", map[string]any{
 			"personaTag": badPersonaTag,
 		})
+		// The initial request for the persona tag should succeed, but cardinal should eventually reject it once
+		// a tick has been processed.
 		assert.NilError(t, err)
-		assert.Equal(t, 400, resp.StatusCode,
-			"persona tag %q was accepted when it should have been rejected", badPersonaTag)
+		assert.Equal(t, 200, resp.StatusCode, "attempting to claim %q failed", badPersonaTag)
+
+		receipt := <-client.ReceiptCh
+		// The receipt for this claim persona request should contain an error
+		assert.Equal(t, 1, len(receipt.Errors))
 	}
 }
 
@@ -487,7 +495,7 @@ func getStatusFromResponse(resp *http.Response) (string, error) {
 	return status, nil
 }
 
-const chars = "abcdefghijklmnopqrstuvwxyz"
+const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 func randomString() string {
 	b := &strings.Builder{}
