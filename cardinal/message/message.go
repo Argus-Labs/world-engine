@@ -150,20 +150,10 @@ func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Ou
 			)
 			errs = append(errs, err)
 			t.AddError(wCtx, txData.Hash, err)
+			emitReceiptEvent(wCtx, txData.Hash, result, errs)
 		} else {
 			t.SetResult(wCtx, txData.Hash, result)
-			if err = wCtx.EmitEvent(
-				map[string]any{
-					"txHash": txData.Hash,
-					"result": result,
-					"errs":   errs,
-				},
-			); err != nil {
-				wCtx.Logger().Err(err).Msgf("failed to emit receipt for txHash %s with stack trace:\n %s ",
-					txData.Hash,
-					eris.ToString(err, true),
-				)
-			}
+			emitReceiptEvent(wCtx, txData.Hash, result, errs)
 		}
 	}
 }
@@ -240,6 +230,21 @@ func (t *MessageType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 // GetInFieldInformation returns a map of the fields of the message's "In" type and it's field types.
 func (t *MessageType[In, Out]) GetInFieldInformation() map[string]any {
 	return types.GetFieldInformation(reflect.TypeOf(new(In)).Elem())
+}
+
+func emitReceiptEvent(wCtx engine.Context, txHash types.TxHash, result any, errs []error) {
+	if err := wCtx.EmitEvent(
+		map[string]any{
+			"txHash": txHash,
+			"result": result,
+			"errs":   errs,
+		},
+	); err != nil {
+		wCtx.Logger().Err(err).Msgf("failed to emit receipt for txHash %s with stack trace:\n %s ",
+			txHash,
+			eris.ToString(err, true),
+		)
+	}
 }
 
 // -------------------------- Options --------------------------
