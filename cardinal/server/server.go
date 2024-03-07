@@ -139,8 +139,8 @@ func setupRoutes(
 	app.Use("/events", handler.WebSocketUpgrader)
 	app.Get("/events", handler.WebSocketEvents(wsEventHandler))
 
-	// Route: /debug/world
-	app.Get("/debug/world", handler.GetDebugWorld(components, messages, queries))
+	// Route: /world
+	app.Get("/world", handler.GetWorld(components, messages, queries))
 
 	// Route: /...
 	app.Get("/health", handler.GetHealth())

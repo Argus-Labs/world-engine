@@ -4,10 +4,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"reflect"
 )
 
-type GetDebugWorldResponse struct {
-	Components []string      `json:"components"` // list of component names
+type GetWorldResponse struct {
+	Components []FieldDetail `json:"components"` // list of component names
 	Messages   []FieldDetail `json:"messages"`
 	Queries    []FieldDetail `json:"queries"`
 }
@@ -17,7 +18,7 @@ type FieldDetail struct {
 	Fields map[string]any `json:"fields"` // variable name and type
 }
 
-// GetDebugWorld godoc
+// GetWorld godoc
 //
 //	@Summary		Get field information of registered components, messages, queries
 //	@Description	Get field information of registered components, messages, queries
@@ -25,13 +26,17 @@ type FieldDetail struct {
 //	@Produce		application/json
 //	@Success		200	{object}	GetFieldsResponse	"Field information of registered components, messages, queries"
 //	@Failure		400	{string}	string				""
-//	@Router			/debug/world [get]
-func GetDebugWorld(components []types.ComponentMetadata, messages []types.Message,
+//	@Router			/world [get]
+func GetWorld(components []types.ComponentMetadata, messages []types.Message,
 	queries []engine.Query) func(*fiber.Ctx) error {
 	// Collecting name of all registered components
-	comps := make([]string, 0, len(components))
+	comps := make([]FieldDetail, 0, len(components))
 	for _, component := range components {
-		comps = append(comps, component.Name())
+		c, _ := component.Decode(component.GetSchema())
+		comps = append(comps, FieldDetail{
+			Name:   component.Name(),
+			Fields: types.GetFieldInformation(reflect.TypeOf(c)),
+		})
 	}
 
 	// Collecting the structure of all messages
@@ -55,7 +60,7 @@ func GetDebugWorld(components []types.ComponentMetadata, messages []types.Messag
 	}
 
 	return func(ctx *fiber.Ctx) error {
-		return ctx.JSON(GetDebugWorldResponse{
+		return ctx.JSON(GetWorldResponse{
 			Components: comps,
 			Messages:   messagesFields,
 			Queries:    queriesFields,
