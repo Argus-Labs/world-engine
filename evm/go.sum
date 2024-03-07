@@ -3108,10 +3108,6 @@ pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d h1:LMuJ+fYqzSbz
 pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d/go.mod h1:6w+5Axb6GV66PLllrYf7h1G3x8Pwu5nvd7ZiibiI3HM=
 pkg.world.dev/world-engine/assert v1.0.0 h1:vD6+QLT1pvQa86FPFi+wGcVA7PEwTGndXr+PkTY/Fpw=
 pkg.world.dev/world-engine/assert v1.0.0/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
-pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240228200800-1b976869f98c h1:B9Jml627mvbBZEZSA2eSvbFPdnHzYoaNq0eH6GX7MEA=
-pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240228200800-1b976869f98c/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
-pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0 h1:s5eBwlSbnBvKEj6BgfeJ2PJuwBc2R72wBqTcNiS+rd0=
-pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229190150-770ff015ead0/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631 h1:7M05p5W9nUMz+JbMasS3rdECcyC6Hp7z1eeIzxw2MKI=
 pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631/go.mod h1:CIqUi3eVvHyglcXEmvvVhPeFR2OfEhykrpufXGAnxGk=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
