@@ -79,12 +79,12 @@ services:
     restart: unless-stopped
     expose:
       - "1317"
-      - "26657"
+      #- "26657"
       - "9090"
       - "9601"
     ports:
       - "1317:1317"
-      - "26657:26657"
+      #- "26657:26657"
       - "9090:9090"
       - "9601:9601"
       - "8545:8545"
@@ -95,12 +95,13 @@ services:
 
   celestia-devnet:
     container_name: celestia_devnet
-    image: ghcr.io/rollkit/local-celestia-devnet:v0.12.1
+    image: ghcr.io/rollkit/local-celestia-devnet:v0.12.6
     networks:
       - world-engine
     restart: on-failure
     ports:
-      - "26657"
+      - "26650:26650"
+      - "26657:26657"
       - "26658:26658"
       - "26659:26659"
       - "9090"

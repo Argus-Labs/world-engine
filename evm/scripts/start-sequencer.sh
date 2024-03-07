@@ -4,11 +4,11 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# Required env variables
-if [ -z "${DA_AUTH_TOKEN:-}" ]; then
-    echo "[x] DA_AUTH_TOKEN (authentication token) required in order to interact with the Celestia Node RPC."
-    exit 1
-fi
+## Required env variables
+#if [ -z "${DA_AUTH_TOKEN:-}" ]; then
+#    echo "[x] DA_AUTH_TOKEN (authentication token) required in order to interact with the Celestia Node RPC."
+#    exit 1
+#fi
 
 # Cosmos-SDK related vars
 NODE_NAME=${NODE_NAME:-"world-engine"}
@@ -47,7 +47,7 @@ TMP_GENESIS=/root/.world-evm/config/tmp_genesis.json
 HOMEDIR=/root/.world-evm
 ADDRESS=$(jq -r '.address' $HOMEDIR/config/priv_validator_key.json)
 PUB_KEY=$(jq -r '.pub_key' $HOMEDIR/config/priv_validator_key.json)
-jq --argjson pubKey "$PUB_KEY" '.consensus["validators"]=[{"address": "'$ADDRESS'", "pub_key": $pubKey, "power": "1000000000000000", "name": "Rollkit Sequencer"}]' "$GENESIS" >"$TMP_GENESIS" && mv "$TMP_GENESIS" "$GENESIS"
+jq --argjson pubKey "$PUB_KEY" '.consensus["validators"]=[{"address": "'$ADDRESS'", "pub_key": $pubKey, "power": "1", "name": "Rollkit Sequencer"}]' "$GENESIS" >"$TMP_GENESIS" && mv "$TMP_GENESIS" "$GENESIS"
 
 # CometBFT API
 sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world-evm/config/config.toml
