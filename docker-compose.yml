@@ -41,13 +41,12 @@ services:
       - CARDINAL_NAMESPACE=TESTGAME
       - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
       - DB_PASSWORD=${DB_PASSWORD:-development}
-      - OUTGOING_QUEUE_SIZE=${OUTGOING_QUEUE_SIZE:-64}
     entrypoint:
       - "/bin/sh"
       - "-ecx"
       - >
         /nakama/nakama migrate up --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama --socket.outgoing_queue_size=$OUTGOING_QUEUE_SIZE
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
     expose:
       - "7349"
       - "7350"
