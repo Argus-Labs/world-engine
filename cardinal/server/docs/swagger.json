@@ -46,7 +46,7 @@
         }
       }
     },
-    "/debug/world": {
+    "/world": {
       "get": {
         "description": "Get field information of registered components, messages, queries",
         "produces": [
@@ -486,7 +486,20 @@
         "components": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         },
         "messages": {
@@ -497,8 +510,13 @@
               "name": {
                 "type": "string"
               },
-              "type": {
-                "type": "string"
+              "fields": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -511,8 +529,13 @@
               "name": {
                 "type": "string"
               },
-              "type": {
-                "type": "string"
+              "fields": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }

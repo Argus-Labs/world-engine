@@ -49,7 +49,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/debug/world": {
+        "/world": {
             "get": {
                 "description": "Get field information of registered components, messages, queries",
                 "produces": [
@@ -483,45 +483,68 @@ const docTemplate = `{
                 }
             }
         },
-		"handler.GetFieldsResponse": {
-		  	"type": "object",
-		  	"properties": {
-				"components": {
-			  	"type": "array",
-			  	"items": {
-					"type": "string"
-			  }
-			},
-			"messages": {
-			  "type": "array",
-			  "items": {
-				"type": "object",
-				"properties": {
-				  "name": {
-					"type": "string"
-				  },
-				  "type": {
-					"type": "string"
-				  }
-				}
-			  }
-			},
-			"queries": {
-			  "type": "array",
-			  "items": {
-				"type": "object",
-				"properties": {
-				  "name": {
-					"type": "string"
-				  },
-				  "type": {
-					"type": "string"
-				  }
-				}
-			  }
-			}
-		  }
-		},
+        "handler.GetFieldsResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "queries": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "handler.PostTransactionResponse": {
             "type": "object",
             "properties": {

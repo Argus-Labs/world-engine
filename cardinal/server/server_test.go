@@ -115,11 +115,11 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 }
 
 // TestGetFieldInformation tests the fields endpoint.
-func (s *ServerTestSuite) TestGetFieldInformation() {
+func (s *ServerTestSuite) TestGetWorld() {
 	s.setupWorld()
 	s.fixture.DoTick()
-	res := s.fixture.Get("/debug/world")
-	var result handler.GetDebugWorldResponse
+	res := s.fixture.Get("/world")
+	var result handler.GetWorldResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
 	comps := s.world.GetRegisteredComponents()
@@ -132,7 +132,9 @@ func (s *ServerTestSuite) TestGetFieldInformation() {
 
 	// check that the component, message, query name are in the list
 	for _, comp := range comps {
-		assert.True(s.T(), slices.Contains(result.Components, comp.Name()))
+		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field handler.FieldDetail) bool {
+			return comp.Name() == field.Name
+		}))
 	}
 	for _, msg := range msgs {
 		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field handler.FieldDetail) bool {
