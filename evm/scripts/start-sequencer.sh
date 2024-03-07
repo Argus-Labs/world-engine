@@ -41,6 +41,14 @@ world-evm genesis collect-gentxs
 
 cp app.toml /root/.world-evm/config/app.toml
 
+GENESIS=/root/.world-evm/config/genesis.json
+TMP_GENESIS=/root/.world-evm/config/tmp_genesis.json
+
+HOMEDIR=/root/.world-evm
+ADDRESS=$(jq -r '.address' $HOMEDIR/config/priv_validator_key.json)
+PUB_KEY=$(jq -r '.pub_key' $HOMEDIR/config/priv_validator_key.json)
+jq --argjson pubKey "$PUB_KEY" '.consensus["validators"]=[{"address": "'$ADDRESS'", "pub_key": $pubKey, "power": "1000000000000000", "name": "Rollkit Sequencer"}]' "$GENESIS" >"$TMP_GENESIS" && mv "$TMP_GENESIS" "$GENESIS"
+
 # CometBFT API
 sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world-evm/config/config.toml
 

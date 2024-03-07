@@ -14,6 +14,9 @@ EXPOSE 26656 26657 1317 9090 8546 8545 9601
 
 USER 0
 
+# Install jq package
+RUN apt-get update && apt-get install -y jq
+
 COPY scripts/start-sequencer.sh start-sequencer.sh
 RUN chmod +x start-sequencer.sh
 COPY scripts/app.toml app.toml
