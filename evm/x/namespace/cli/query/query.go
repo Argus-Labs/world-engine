@@ -3,9 +3,11 @@ package query
 import (
 	"errors"
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
+
 	"pkg.world.dev/world-engine/evm/x/namespace/types"
 )
 
@@ -31,7 +33,7 @@ func NewQueryNamespacesCmd() *cobra.Command {
 		Short:   "Return a list of all namespace:grpc address pairs",
 		Example: fmt.Sprintf("%s query namespace list", version.AppName),
 		Args:    cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err

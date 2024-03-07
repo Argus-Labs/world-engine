@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -135,16 +136,16 @@ func RegisterQuery[Request any, Reply any](
 // At least 1 component must be provided.
 func Create(wCtx engine.Context, components ...types.Component) (_ types.EntityID, err error) {
 	// We don't handle panics here because we let CreateMany handle it for us
-	entityIds, err := CreateMany(wCtx, 1, components...)
+	entityIDs, err := CreateMany(wCtx, 1, components...)
 	if err != nil {
 		return 0, err
 	}
-	return entityIds[0], nil
+	return entityIDs[0], nil
 }
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx engine.Context, num int, components ...types.Component) (entityIds []types.EntityID, err error) {
+func CreateMany(wCtx engine.Context, num int, components ...types.Component) (entityIDs []types.EntityID, err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
@@ -167,13 +168,13 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 	}
 
 	// Create the entities
-	entityIds, err = wCtx.StoreManager().CreateManyEntities(num, acc...)
+	entityIDs, err = wCtx.StoreManager().CreateManyEntities(num, acc...)
 	if err != nil {
 		return nil, err
 	}
 
 	// Store the components for the entities
-	for _, id := range entityIds {
+	for _, id := range entityIDs {
 		for _, comp := range components {
 			var c types.ComponentMetadata
 			c, err = wCtx.GetComponentByName(comp.Name())
@@ -188,7 +189,7 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 		}
 	}
 
-	return entityIds, nil
+	return entityIDs, nil
 }
 
 // SetComponent sets component data to the entity.

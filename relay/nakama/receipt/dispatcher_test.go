@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
 // Setup mock server in a more streamlined manner, directly using the URL provided by httptest.
 func setupMockServer(t *testing.T) *httptest.Server {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		response := TransactionReceiptsReply{
 			StartTick: 0,
 			EndTick:   1,
@@ -56,7 +57,7 @@ func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 func TestPollingHandlesErrorsGracefully(t *testing.T) {
 	dispatcher := NewDispatcher()
 
-	errorMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	errorMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		err := json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 		if err != nil {

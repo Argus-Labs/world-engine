@@ -31,7 +31,7 @@ func handleClaimPersona(
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
-		db *sql.DB,
+		_ *sql.DB,
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
@@ -203,7 +203,7 @@ func handleCardinalRequest(
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
-		db *sql.DB,
+		_ *sql.DB,
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {

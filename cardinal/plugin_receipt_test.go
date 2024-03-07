@@ -20,7 +20,7 @@ func TestReceiptsQuery(t *testing.T) {
 	err := cardinal.RegisterMessage[fooIn, fooOut](world, "foo")
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
-		return cardinal.EachMessage[fooIn, fooOut](ctx, func(t message.TxData[fooIn]) (fooOut, error) {
+		return cardinal.EachMessage[fooIn, fooOut](ctx, func(message.TxData[fooIn]) (fooOut, error) {
 			if ctx.CurrentTick()%2 == 0 {
 				return fooOut{Y: 4}, nil
 			}
