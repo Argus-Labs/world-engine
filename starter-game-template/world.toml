@@ -32,3 +32,6 @@ BLOCK_TIME="1s"
 
 [nakama]
 ENABLE_ALLOWLIST="false" # enable nakama's beta key feature. you can generate and claim beta keys by setting this to true
+# The number of undelivered notifications Nakama will allow before shutting down a connectino to a client.
+# See https://heroiclabs.com/docs/nakama/getting-started/configuration/#socket.outgoing_queue_size 
+OUTGOING_QUEUE_SIZE=64

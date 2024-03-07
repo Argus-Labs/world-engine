@@ -4,12 +4,13 @@ import (
 	"errors"
 	"log"
 
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal"
+
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 	"github.com/argus-labs/world-engine/example/tester/game/query"
 	"github.com/argus-labs/world-engine/example/tester/game/sys"
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
@@ -31,6 +32,7 @@ func main() {
 	err = errors.Join(
 		cardinal.RegisterMessage[msg.JoinInput, msg.JoinOutput](world, "join"),
 		cardinal.RegisterMessage[msg.MoveInput, msg.MoveOutput](world, "move"),
+		cardinal.RegisterMessage[msg.ErrorInput, msg.ErrorOutput](world, "error"),
 	)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
@@ -39,7 +41,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
-	err = cardinal.RegisterSystems(world, sys.Join, sys.Move)
+	err = cardinal.RegisterSystems(world, sys.Join, sys.Move, sys.Error)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
