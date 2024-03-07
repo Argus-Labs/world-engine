@@ -96,7 +96,7 @@ services:
       - "-ecx"
       - >
         /nakama/nakama migrate up --database.address postgres:$$DB_PASSWORD@nakama-db:5432/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:$$DB_PASSWORD@nakama-db:5432/nakama
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:$$DB_PASSWORD@nakama-db:5432/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
     # Replace entrypoint with the following when using cockroachdb instead of postgres.
     #    entrypoint:
     #      - "/bin/sh"
