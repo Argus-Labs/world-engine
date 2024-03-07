@@ -10,11 +10,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
+	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
+
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 var _ shardtypes.QueryClient = &mockQuerier{}
@@ -60,7 +61,7 @@ func TestIteratorReturnsErrorWhenQueryNotFound(t *testing.T) {
 			},
 		},
 	}
-	it := iterator.New(func(id types.MessageID) (types.Message, bool) {
+	it := iterator.New(func(types.MessageID) (types.Message, bool) {
 		return nil, false
 	}, "", querier)
 	err := it.Each(nil)
@@ -204,7 +205,7 @@ func TestIteratorStopRange(t *testing.T) {
 		querier,
 	)
 	called := 0
-	err = it.Each(func(batch []*iterator.TxBatch, tick, timestamp uint64) error {
+	err = it.Each(func(_ []*iterator.TxBatch, _, _ uint64) error {
 		called++
 		return nil
 	}, 0, 15)

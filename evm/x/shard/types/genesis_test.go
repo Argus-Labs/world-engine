@@ -1,8 +1,9 @@
 package types
 
 import (
-	"gotest.tools/v3/assert"
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func TestGenesisValidate(t *testing.T) {
@@ -13,7 +14,7 @@ func TestGenesisValidate(t *testing.T) {
 	}{
 		{
 			name:   "empty state is ok",
-			mutate: func(state *GenesisState) {},
+			mutate: func(*GenesisState) {},
 		},
 		{
 			name: "no namespace",

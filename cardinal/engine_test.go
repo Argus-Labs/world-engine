@@ -109,7 +109,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 		world,
 		func(wCtx engine.Context) error {
 			return cardinal.EachMessage[FooIn, FooOut](
-				wCtx, func(t message.TxData[FooIn]) (FooOut, error) {
+				wCtx, func(message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -171,7 +171,7 @@ func TestEVMTxConsume(t *testing.T) {
 	err = cardinal.RegisterSystems(world,
 		func(eCtx cardinal.WorldContext) error {
 			return cardinal.EachMessage[FooIn, FooOut](
-				eCtx, func(t message.TxData[FooIn]) (FooOut, error) {
+				eCtx, func(message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -453,7 +453,7 @@ func TestRecoverFromChain(t *testing.T) {
 
 	fooMessages := 0
 	err := cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
-		return cardinal.EachMessage[fooMsg, fooMsgRes](engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
+		return cardinal.EachMessage[fooMsg, fooMsgRes](engineContext, func(message.TxData[fooMsg]) (fooMsgRes, error) {
 			fooMessages++
 			return fooMsgRes{}, nil
 		})
