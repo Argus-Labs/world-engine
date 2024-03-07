@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	minimumPersonaTagLength = 3
-	maximumPersonaTagLength = 16
+	MinimumPersonaTagLength = 3
+	MaximumPersonaTagLength = 16
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 // IsValidPersonaTag checks that string is a valid persona tag: alphanumeric + underscore
 func IsValidPersonaTag(s string) bool {
-	if length := len(s); length < minimumPersonaTagLength || length > maximumPersonaTagLength {
+	if length := len(s); length < MinimumPersonaTagLength || length > MaximumPersonaTagLength {
 		return false
 	}
 	return personaTagRegexp.MatchString(s)
