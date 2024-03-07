@@ -21,28 +21,30 @@
 package app
 
 import (
+	signinglib "github.com/berachain/polaris/cosmos/lib/signing"
+	"github.com/berachain/polaris/cosmos/runtime/ante"
+	"github.com/berachain/polaris/cosmos/runtime/miner"
 	"github.com/cometbft/cometbft/abci/types"
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
-	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
-	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
 	"pkg.world.dev/world-engine/evm/sequencer"
 
 	"io"
 	"os"
 	"path/filepath"
 
+	evmv1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "github.com/berachain/polaris/cosmos/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
-	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
+	polarruntime "github.com/berachain/polaris/cosmos/runtime"
 	dbm "github.com/cosmos/cosmos-db"
-	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -64,8 +66,8 @@ import (
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
-	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
-	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
+	ethcryptocodec "github.com/berachain/polaris/cosmos/crypto/codec"
+	evmkeeper "github.com/berachain/polaris/cosmos/x/evm/keeper"
 
 	"pkg.world.dev/world-engine/evm/router"
 	namespacekeeper "pkg.world.dev/world-engine/evm/x/namespace/keeper"
@@ -173,25 +175,53 @@ func NewApp(
 		&app.UpgradeKeeper,
 		&app.EvidenceKeeper,
 		&app.ConsensusParamsKeeper,
-		&app.EVMKeeper,
 		&app.NamespaceKeeper,
 		&app.ShardKeeper,
+		&app.EVMKeeper,
 	); err != nil {
 		panic(err)
+	}
+
+	polarisConfig := evmconfig.MustReadConfigFromAppOpts(appOpts)
+	if polarisConfig.OptimisticExecution {
+		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	}
 
 	// Build the app using the app builder.
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 	app.Polaris = polarruntime.New(
-		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
+		app,
+		polarisConfig,
+		app.Logger(),
+		app.EVMKeeper.Host,
+		nil,
 	)
-
 	app.setPlugins(logger)
 
-	// Setup Polaris Runtime.
-	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook); err != nil {
+	// Build cosmos ante handler for non-evm transactions.
+	cosmHandler, err := authante.NewAnteHandler(
+		authante.HandlerOptions{
+			AccountKeeper:   app.AccountKeeper,
+			BankKeeper:      app.BankKeeper,
+			FeegrantKeeper:  nil,
+			SigGasConsumer:  ante.EthSecp256k1SigVerificationGasConsumer,
+			SignModeHandler: app.txConfig.SignModeHandler(),
+			TxFeeChecker: func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+				return nil, 0, nil
+			},
+		},
+	)
+	if err != nil {
 		panic(err)
 	}
+
+	// Setup Polaris Runtime.
+	if err = app.Polaris.Build(
+		app, cosmHandler, app.EVMKeeper, miner.DefaultAllowedMsgs,
+	); err != nil {
+		panic(err)
+	}
+
 	// register streaming services
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
@@ -207,8 +237,9 @@ func NewApp(
 		panic(err)
 	}
 
-	// Load the last state of the polaris evm.
-	if err := app.Polaris.LoadLastState(
+	// Load the last state of the Polaris EVM.
+	// TODO: verify that the version of app CMS is the same as app.LastBlockHeight.
+	if err = app.Polaris.LoadLastState(
 		app.CommitMultiStore(), uint64(app.LastBlockHeight()),
 	); err != nil {
 		panic(err)

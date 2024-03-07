@@ -5,10 +5,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"testing"
 
+	"github.com/berachain/polaris/eth/accounts/abi"
+	ethprecompile "github.com/berachain/polaris/eth/core/precompile"
+	"github.com/berachain/polaris/lib/utils"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"pkg.berachain.dev/polaris/eth/accounts/abi"
-	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
-	"pkg.berachain.dev/polaris/lib/utils"
 	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
 )
 

@@ -26,12 +26,6 @@ FAUCET_ADDR=${FAUCET_ADDR:-"e66d1f367870950190fA3a07D36b26c187a2E578"}
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet:26658"}"
 DA_BLOCK_HEIGHT=${DA_BLOCK_HEIGHT:-0}
 BLOCK_TIME="${BLOCK_TIME:-"10s"}"
-# Use 10 bytes hex encoded value (generate random value: `openssl rand -hex 10`)
-DA_NAMESPACE_ID="${DA_NAMESPACE_ID:-"67480c4a88c4d12935d4"}"
-DA_CONFIG=${DA_CONFIG:-'{"base_url":"'$DA_BASE_URL'","timeout":60000000000,"fee":6000,"gas_limit":6000000,"fee":600000,"auth_token":"'$DA_AUTH_TOKEN'"}'}
-
-echo "DA_NAMESPACE_ID: $DA_NAMESPACE_ID"
-echo "DA_CONFIG: $DA_CONFIG"
 
 # World Engine Chain Config & Init
 world-evm comet unsafe-reset-all
@@ -55,4 +49,4 @@ sed -i'.bak' "s#'20f33ce90a13a4b5e7697e3544c3083b8f8a51d4'#'$FAUCET_ADDR'#g" /ro
 sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' /root/.world-evm/config/genesis.json
 
 # start the node.
-world-evm start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices $MIN_GAS_PRICE --api.enable --api.swagger
+world-evm start --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices $MIN_GAS_PRICE  --rollkit.aggregator true --rollkit.da_start_height 0 --rollkit.da_block_time 2s

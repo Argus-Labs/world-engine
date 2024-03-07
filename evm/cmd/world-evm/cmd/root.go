@@ -22,17 +22,21 @@
 package cmd
 
 import (
-	"errors"
-	"io"
-	"os"
+	clientv2keyring "cosmossdk.io/client/v2/autocli/keyring"
 
+	"cosmossdk.io/core/address"
+	"errors"
+	evmv1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/v1alpha1"
+	polarconfig "github.com/berachain/polaris/cosmos/config"
+	polarkeyring "github.com/berachain/polaris/cosmos/crypto/keyring"
+	signinglib "github.com/berachain/polaris/cosmos/lib/signing"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	authtxconfig "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
-	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
-	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
+	"io"
+	"os"
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/depinject"
@@ -58,13 +62,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
-	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
-	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
-	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
+	ethcryptocodec "github.com/berachain/polaris/cosmos/crypto/codec"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"pkg.world.dev/world-engine/evm/app"
 )
 
@@ -75,93 +78,72 @@ const (
 // NewRootCmd creates a new root command for simd. It is called once in the main function.
 func NewRootCmd() *cobra.Command {
 	var (
-		interfaceRegistry  codectypes.InterfaceRegistry
-		appCodec           codec.Codec
-		txConfig           client.TxConfig
-		legacyAmino        *codec.LegacyAmino
 		autoCliOpts        autocli.AppOptions
 		moduleBasicManager module.BasicManager
+		clientCtx          client.Context
 	)
 
 	if err := depinject.Inject(
 		depinject.Configs(
 			app.MakeAppConfig(bech32Prefix),
 			depinject.Supply(
-				app.PolarisConfigFn(evmconfig.DefaultConfig()),
+				app.PolarisConfigFn(polarconfig.DefaultPolarisConfig()),
 				app.QueryContextFn((&app.App{})),
 				log.NewNopLogger(),
 				simtestutil.NewAppOptionsWithFlagHome(tempDir()),
 			),
 			depinject.Provide(
 				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedEthereumTransaction],
-				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedPayloadEnvelope]),
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedPayloadEnvelope],
+				ProvideClientContext,
+				ProvideKeyring,
+			),
 		),
-		&interfaceRegistry,
-		&appCodec,
-		&txConfig,
-		&legacyAmino,
 		&autoCliOpts,
 		&moduleBasicManager,
+		&clientCtx,
 	); err != nil {
 		panic(err)
 	}
 
-	initClientCtx := client.Context{}.
-		WithCodec(appCodec).
-		WithInterfaceRegistry(interfaceRegistry).
-		WithLegacyAmino(legacyAmino).
-		WithInput(os.Stdin).
-		WithAccountRetriever(types.AccountRetriever{}).
-		WithHomeDir(app.DefaultNodeHome).
-		WithKeyringOptions(keyring.OnlyEthSecp256k1Option()).
-		WithViper("") // In simapp, we don't use any prefix for env variables.
-
-	ethcryptocodec.RegisterInterfaces(interfaceRegistry)
+	// Register `eth_secp256k1` algo.
+	ethcryptocodec.RegisterInterfaces(clientCtx.InterfaceRegistry)
 
 	rootCmd := &cobra.Command{
-		Use:   "world-evm",
-		Short: "world engine EVM base shard",
+		Use:           "world-evm",
+		Short:         "node daemon and CLI for interacting with an EVM Base Shard node",
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			var err error
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
 			cmd.SetErr(cmd.ErrOrStderr())
 
-			initClientCtx = initClientCtx.WithCmdContext(cmd.Context())
-			initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
+			clientCtx = clientCtx.WithCmdContext(cmd.Context())
+			clientCtx, err = client.ReadPersistentCommandFlags(clientCtx, cmd.Flags())
 			if err != nil {
 				return err
 			}
 
-			initClientCtx, err = config.ReadFromClientConfig(initClientCtx)
+			clientCtx, err = config.ReadFromClientConfig(clientCtx)
 			if err != nil {
 				return err
 			}
 
-			// This needs to go after ReadFromClientConfig, as that function
-			// sets the RPC client needed for SIGN_MODE_TEXTUAL.
-			txConfigWithTextual, err := tx.NewTxConfigWithOptions(
-				codec.NewProtoCodec(interfaceRegistry),
-				tx.ConfigOptions{
-					TextualCoinMetadataQueryFn: txmodule.NewGRPCCoinMetadataQueryFn(initClientCtx),
-				},
-			)
-			if err != nil {
-				return err
-			}
-
-			initClientCtx = initClientCtx.WithTxConfig(txConfigWithTextual)
-			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
+			if err = client.SetCmdClientContextHandler(clientCtx, cmd); err != nil {
 				return err
 			}
 
 			customAppTemplate, customAppConfig := initAppConfig()
-			customCMTConfig := initCometBFTConfig()
 
-			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, customCMTConfig)
+			return server.InterceptConfigsPreRunHandler(
+				cmd, customAppTemplate, customAppConfig, polarconfig.RecommendedCometBFTConfig(),
+			)
 		},
 	}
 
-	initRootCmd(rootCmd, txConfig, interfaceRegistry, appCodec, moduleBasicManager)
+	initRootCmd(rootCmd, clientCtx.TxConfig,
+		clientCtx.InterfaceRegistry, clientCtx.Codec, moduleBasicManager)
 
 	if err := autoCliOpts.EnhanceRootCommand(rootCmd); err != nil {
 		panic(err)
@@ -339,4 +321,42 @@ func tempDir() string {
 	defer os.RemoveAll(dir)
 
 	return dir
+}
+
+func ProvideClientContext(
+	appCodec codec.Codec,
+	interfaceRegistry codectypes.InterfaceRegistry,
+	txConfigOpts tx.ConfigOptions,
+	legacyAmino *codec.LegacyAmino,
+) client.Context {
+	clientCtx := client.Context{}.
+		WithCodec(appCodec).
+		WithInterfaceRegistry(interfaceRegistry).
+		WithLegacyAmino(legacyAmino).
+		WithInput(os.Stdin).
+		WithAccountRetriever(types.AccountRetriever{}).
+		WithHomeDir(app.DefaultNodeHome).
+		WithKeyringOptions(polarkeyring.OnlyEthSecp256k1Option()).
+		WithViper("") // In simapp, we don't use any prefix for env variables.
+
+	// Read the config again to overwrite the default values with the values from the config file
+	clientCtx, _ = config.ReadFromClientConfig(clientCtx)
+
+	// re-create the tx config grpc instead of bank keeper
+	txConfigOpts.TextualCoinMetadataQueryFn = authtxconfig.NewGRPCCoinMetadataQueryFn(clientCtx)
+	txConfig, err := tx.NewTxConfigWithOptions(clientCtx.Codec, txConfigOpts)
+	if err != nil {
+		panic(err)
+	}
+	clientCtx = clientCtx.WithTxConfig(txConfig)
+
+	return clientCtx
+}
+
+func ProvideKeyring(clientCtx client.Context, _ address.Codec) (clientv2keyring.Keyring, error) {
+	kb, err := client.NewKeyringFromBackend(clientCtx, clientCtx.Keyring.Backend())
+	if err != nil {
+		return nil, err
+	}
+	return keyring.NewAutoCLIKeyring(kb)
 }

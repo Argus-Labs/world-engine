@@ -2,7 +2,7 @@
 
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-COMMIT := $(shell git log -1 --format='%H')
+COMMIT := d623725b2515d19848abc64ee0127dcbb283823f
 
 # don't override user values
 ifeq (,$(VERSION))
@@ -88,6 +88,8 @@ go-version:
 .PHONY: go-version
 
 build: BUILD_ARGS=-o $(BUILDDIR)/
+
+.PHONY: build
 
 $(BUILD_TARGETS): go.sum $(BUILDDIR)/
 	go $@ -mod=readonly $(BUILD_FLAGS) $(BUILD_ARGS) ./...

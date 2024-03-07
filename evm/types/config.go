@@ -25,7 +25,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"pkg.berachain.dev/polaris/eth/accounts"
+	"github.com/berachain/polaris/eth/accounts"
 )
 
 var (

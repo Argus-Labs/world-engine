@@ -8,9 +8,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"github.com/berachain/polaris/eth/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"pkg.berachain.dev/polaris/eth/core/types"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 
 	"cosmossdk.io/log"

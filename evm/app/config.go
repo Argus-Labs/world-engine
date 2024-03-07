@@ -61,21 +61,19 @@ import (
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	"github.com/cosmos/cosmos-sdk/x/gov"
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
-	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
+	evmmodulev1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/module/v1alpha1"
+	evmtypes "github.com/berachain/polaris/cosmos/x/evm/types"
 
 	_ "cosmossdk.io/x/evidence" // import for side effects
 	_ "cosmossdk.io/x/upgrade"  // import for side effects
 
+	_ "github.com/berachain/polaris/cosmos/x/evm"     // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side effects
@@ -86,7 +84,6 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/params"         // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side effects
-	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side effects
 	_ "pkg.world.dev/world-engine/evm/x/namespace"    // import for side effects
 )
 
@@ -178,9 +175,9 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 						upgradetypes.ModuleName,
 						vestingtypes.ModuleName,
 						consensustypes.ModuleName,
-						evmtypes.ModuleName,
 						namespacetypes.ModuleName,
 						shardmodule.ModuleName,
+						evmtypes.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
 					// is equal to the init genesis order
@@ -275,11 +272,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			// supply custom module basics
 			map[string]module.AppModuleBasic{
 				genutiltypes.ModuleName: genutil.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
-				govtypes.ModuleName: gov.NewAppModuleBasic(
-					[]govclient.ProposalHandler{
-						paramsclient.ProposalHandler,
-					},
-				),
 			},
 		))
 }

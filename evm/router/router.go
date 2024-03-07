@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"os"
 	"strings"
 	"time"
@@ -18,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-
-	"pkg.berachain.dev/polaris/eth/core/types"
 
 	"cosmossdk.io/log"
 )
@@ -34,7 +31,7 @@ type Router interface {
 	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
 	// PostBlockHook implements the polaris EVM PostBlock hook. It runs after an EVM tx execution has finished
 	// processing.
-	PostBlockHook(types.Transactions, types.Receipts, types.Signer)
+	// PostBlockHook(types.Transactions, types.Receipts, types.Signer)
 }
 
 type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
@@ -83,6 +80,7 @@ func (r *routerImpl) getSDKCtx() sdk.Context {
 	return ctx
 }
 
+/*
 func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, _ types.Signer) {
 	// loop over all txs
 	for i, tx := range transactions {
@@ -108,6 +106,7 @@ func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts typ
 	}
 	r.queue.Clear()
 }
+*/
 
 const (
 	CodeConnectionError = iota + 100
