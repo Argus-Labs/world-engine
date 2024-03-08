@@ -283,7 +283,15 @@ func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe 
 
 // addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
 func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	for archID, active := range m.activeEntities {
+	archIDs, err := m.activeEntities.Keys()
+	if err != nil {
+		return err
+	}
+	for _, archID := range archIDs {
+		active, err := m.activeEntities.Get(archID)
+		if err != nil {
+			return err
+		}
 		if !active.modified {
 			continue
 		}

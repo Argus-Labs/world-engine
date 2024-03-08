@@ -26,7 +26,7 @@ type EntityCommandBuffer struct {
 	compValuesToDelete VolatileStorage[compKey, bool]
 	typeToComponent    VolatileStorage[types.ComponentID, types.ComponentMetadata]
 
-	activeEntities map[types.ArchetypeID]activeEntities
+	activeEntities VolatileStorage[types.ArchetypeID, activeEntities]
 
 	// Fields that track the next valid entity EntityID that can be assigned
 	nextEntityIDSaved uint64
@@ -56,7 +56,7 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 		compValues:         NewMapStorage[compKey, any](),
 		compValuesToDelete: NewMapStorage[compKey, bool](),
 
-		activeEntities: map[types.ArchetypeID]activeEntities{},
+		activeEntities: NewMapStorage[types.ArchetypeID, activeEntities](),
 		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
 
 		entityIDToArchID:       map[types.EntityID]types.ArchetypeID{},
@@ -91,7 +91,10 @@ func (m *EntityCommandBuffer) DiscardPending() error {
 	}
 
 	// Any entity archetypes movements need to be undone
-	clear(m.activeEntities)
+	err = m.activeEntities.Clear()
+	if err != nil {
+		return err
+	}
 	for id := range m.entityIDToOriginArchID {
 		delete(m.entityIDToArchID, id)
 	}
@@ -122,7 +125,10 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 		return err
 	}
 
-	m.setActiveEntities(archID, active)
+	err = m.setActiveEntities(archID, active)
+	if err != nil {
+		return err
+	}
 	if _, ok := m.entityIDToOriginArchID[idToRemove]; !ok {
 		m.entityIDToOriginArchID[idToRemove] = archID
 	}
@@ -177,7 +183,10 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.Compone
 		active.modified = true
 		ecslog.Entity(m.logger, zerolog.DebugLevel, currID, archID, comps)
 	}
-	m.setActiveEntities(archID, active)
+	err = m.setActiveEntities(archID, active)
+	if err != nil {
+		return nil, err
+	}
 	return ids, nil
 }
 
@@ -465,10 +474,10 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 
 // getActiveEntities returns the entities that are currently assigned to the given archetype EntityID.
 func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activeEntities, error) {
-	active, ok := m.activeEntities[archID]
+	active, err := m.activeEntities.Get(archID)
 	// The active entities for this archetype EntityID has not yet been loaded from dbStorage
-	if ok {
-		return m.activeEntities[archID], nil
+	if err == nil {
+		return active, nil
 	}
 	ctx := context.Background()
 	key := storageActiveEntityIDKey(archID)
@@ -487,19 +496,22 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 			return active, err
 		}
 	}
-
-	m.activeEntities[archID] = activeEntities{
+	result := activeEntities{
 		ids:      ids,
 		modified: false,
 	}
-	return m.activeEntities[archID], nil
+	err = m.activeEntities.Set(archID, result)
+	if err != nil {
+		return activeEntities{}, err
+	}
+	return result, nil
 }
 
 // setActiveEntities sets the entities that are associated with the given archetype EntityID and marks
 // the information as modified so it can later be pushed to the dbStorage layer.
-func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) {
+func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) error {
 	active.modified = true
-	m.activeEntities[archID] = active
+	return m.activeEntities.Set(archID, active)
 }
 
 // moveEntityByArchetype moves an entity EntityID from one archetype to another archetype.
@@ -516,14 +528,20 @@ func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID types.A
 	if err = active.swapRemove(id); err != nil {
 		return err
 	}
-	m.setActiveEntities(fromArchID, active)
+	err = m.setActiveEntities(fromArchID, active)
+	if err != nil {
+		return err
+	}
 
 	active, err = m.getActiveEntities(toArchID)
 	if err != nil {
 		return err
 	}
 	active.ids = append(active.ids, id)
-	m.setActiveEntities(toArchID, active)
+	err = m.setActiveEntities(toArchID, active)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
