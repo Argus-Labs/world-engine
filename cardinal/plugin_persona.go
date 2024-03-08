@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona"
@@ -157,8 +158,11 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 			result.Success = false
 
 			if !persona.IsValidPersonaTag(txMsg.PersonaTag) {
-				err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores",
-					txMsg.PersonaTag)
+				err := eris.Errorf(
+					"persona tag %q invalid: must have %d-%d alphanumeric characers or underscores",
+					txMsg.PersonaTag,
+					persona.MinimumPersonaTagLength,
+					persona.MaximumPersonaTagLength)
 				return result, err
 			}
 
