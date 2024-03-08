@@ -228,7 +228,10 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 		return err
 	}
 	for _, key := range keys {
-		cType := m.typeToComponent[key.typeID]
+		cType, err := m.typeToComponent.Get(key.typeID)
+		if err != nil {
+			return err
+		}
 		value, err := m.compValues.Get(key)
 		if err != nil {
 			return err
@@ -311,7 +314,7 @@ func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 
 func getArchIDToCompTypesFromRedis(
 	storage PrimitiveStorage[string],
-	typeToComp map[types.ComponentID]types.ComponentMetadata,
+	typeToComp VolatileStorage[types.ComponentID, types.ComponentMetadata],
 ) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
 	key := storageArchIDsToCompTypesKey()
@@ -333,8 +336,8 @@ func getArchIDToCompTypesFromRedis(
 	for archID, compTypeIDs := range fromStorage {
 		var currComps []types.ComponentMetadata
 		for _, compTypeID := range compTypeIDs {
-			currComp, found := typeToComp[compTypeID]
-			if !found {
+			currComp, err := typeToComp.Get(compTypeID)
+			if err != nil {
 				return nil, false, eris.Wrap(iterators.ErrComponentMismatchWithSavedState, "")
 			}
 			currComps = append(currComps, currComp)
