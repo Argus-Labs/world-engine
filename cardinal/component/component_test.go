@@ -1,11 +1,12 @@
 package component_test
 
 import (
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -54,7 +55,8 @@ func TestComponentExample(t *testing.T) {
 	wCtx := cardinal.NewWorldContext(world)
 	assert.Equal(t, wCtx.CurrentTick(), uint64(0))
 	wCtx.Logger().Info().Msg("test") // Check for compile errors.
-	wCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
+	assert.NilError(t, wCtx.EmitEvent(map[string]any{"message": "test"}))
+	// test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
@@ -201,8 +203,10 @@ func TestComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
+		matchComponent := filter.CreateComponentMatcher(
+			types.ConvertComponentMetadatasToComponents(componentsForArchID))
 		for _, comp := range tt.comps {
-			ok := filter.MatchComponent(types.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
+			ok := matchComponent(comp)
 			if !ok {
 				t.Errorf("the archetype EntityID %d should contain the component %d", tt.archID, comp.ID())
 			}

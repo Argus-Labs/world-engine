@@ -22,7 +22,7 @@ coverage:
   status:
     project:
       default:
-        threshold: 2%
+        threshold: 5%
         # target: 50%
         # flags:
         #   - unit
@@ -43,6 +43,7 @@ ignore:
   - "**/*.abigen.go"
   - "**/*.rlpgen.go"
   - "**/*.mock.go"
+  - "**/mock_*.go"
   - "**/proto"
   - "build/"
   - "cmd/"

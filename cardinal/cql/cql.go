@@ -2,11 +2,13 @@ package cql
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"strings"
+
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/filter"
 )
 
@@ -119,20 +121,19 @@ func (e *cqlContains) String() string {
 }
 
 func (v *cqlValue) String() string {
-	//nolint: gocritic,nestif // its ok.
-	if v.Exact != nil {
+	switch {
+	case v.Exact != nil:
 		return v.Exact.String()
-	} else if v.Contains != nil {
+	case v.Contains != nil:
 		return v.Contains.String()
-	} else if v.All != nil {
+	case v.All != nil:
 		return v.All.String()
-	} else if v.Not != nil {
+	case v.Not != nil:
 		return "!(" + v.Not.SubExpression.String() + ")"
-	} else if v.Subexpression != nil {
+	case v.Subexpression != nil:
 		return "(" + v.Subexpression.String() + ")"
-	} else {
-		panic("logic error displaying CQL ast. Check the code in cql.go")
 	}
+	panic("logic error displaying CQL ast. Check the code in cql.go")
 }
 
 func (f *cqlFactor) String() string {
@@ -194,9 +195,8 @@ func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) 
 		return filter.Contains(components...), nil
 	} else if value.Subexpression != nil {
 		return termToComponentFilter(value.Subexpression, stringToComponent)
-	} else {
-		return nil, eris.New("unknown error during conversion from CQL AST to ComponentFilter")
 	}
+	return nil, eris.New("unknown error during conversion from CQL AST to ComponentFilter")
 }
 
 func factorToComponentFilter(factor *cqlFactor, stringToComponent componentByName) (

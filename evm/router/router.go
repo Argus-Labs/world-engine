@@ -27,7 +27,7 @@ import (
 // Router defines the methods required to interact with a game shard. The methods are invoked from EVM smart contracts.
 type Router interface {
 	// SendMessage queues a message to be sent to a game shard.
-	SendMessage(_ context.Context, namespace string, sender string, msgID string, msg []byte) error
+	SendMessage(_ context.Context, personaTag, namespace, sender, msgID string, msg []byte) error
 	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 	// MessageResult gets the game shard transaction Result that originated from an EVM tx.
@@ -78,16 +78,12 @@ func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddress
 	return r
 }
 
-//nolint:unused // will use this later once CLI is fixed.
 func (r *routerImpl) getSDKCtx() sdk.Context {
 	ctx, _ := r.getQueryCtx(0, false)
 	return ctx
 }
 
 func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, _ types.Signer) {
-	r.logger.Info("running PostBlockHook",
-		"num_transactions", len(transactions),
-	)
 	// loop over all txs
 	for i, tx := range transactions {
 		r.logger.Info("working on transaction", "tx_hash", tx.Hash().String())
@@ -168,16 +164,17 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 	}()
 }
 
-func (r *routerImpl) SendMessage(_ context.Context, namespace, sender, msgID string, msg []byte) error {
+func (r *routerImpl) SendMessage(_ context.Context, personaTag, namespace, sender, msgID string, msg []byte) error {
 	r.logger.Info("received SendMessage request",
 		"namespace", namespace,
 		"sender", sender,
 		"msgID", msgID,
 	)
 	req := &routerv1.SendMessageRequest{
-		Sender:    sender,
-		MessageId: msgID,
-		Message:   msg,
+		Sender:     sender,
+		PersonaTag: personaTag,
+		MessageId:  msgID,
+		Message:    msg,
 	}
 	r.logger.Info("attempting to set queue...")
 	err := r.queue.Set(common.HexToAddress(sender), namespace, req)
@@ -222,15 +219,12 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	// CLI is currently broken. Rollkit is looking into the issue.
 	// So for now, we just use an address loaded from env.
-	// ctx := r.getSDKCtx()
-	// res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
-	// if err != nil {
-	//	return nil, err
-	// }
-	addr := os.Getenv("GAME_SHARD_ADDR")
-	if addr == "" {
-		return nil, fmt.Errorf("no address set for router to dial")
+	ctx := r.getSDKCtx()
+	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
+	if err != nil {
+		return nil, err
 	}
+	addr := res.Address
 	conn, err := grpc.Dial(
 		addr,
 		grpc.WithTransportCredentials(r.creds),

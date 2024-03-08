@@ -1,10 +1,11 @@
 version: '3'
 services:
   cockroachdb:
+    container_name: cockroachdb
     # Only use cockroachdb single-node clusters for non-production environment
     image: cockroachdb/cockroach:latest-v23.1
     command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
-    restart: "no"
+    restart:  unless-stopped
     environment:
       - COCKROACH_DATABASE=nakama
       - COCKROACH_USER=root
@@ -45,7 +46,7 @@ services:
       - "-ecx"
       - >
         /nakama/nakama migrate up --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
     expose:
       - "7349"
       - "7350"
@@ -108,11 +109,12 @@ services:
     container_name: test_game
     environment:
       - REDIS_ADDRESS=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - CARDINAL_NAMESPACE=TESTGAME
       - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL:-info}
-      - SHARD_SEQUENCER_ADDR=chain:9601
-      - BASE_SHARD_ADDR=chain:9090
-      - ENABLE_ADAPTER=${ENABLE_ADAPTER:-true}
+      - CARDINAL_MODE=${CARDINAL_MODE:-development}
+      - BASE_SHARD_SEQUENCER_ADDRESS=chain:9601
+      - BASE_SHARD_QUERY_ADDRESS=chain:9090
       - STATSD_ADDRESS=${STATSD_ADDRESS}
       - TRACE_ADDRESS=${TRACE_ADDRESS}
     build:
@@ -120,11 +122,9 @@ services:
       dockerfile: e2e/testgames/game/Dockerfile
     restart: unless-stopped
     expose:
-      - "3333"
       - "4040"
     ports:
       - "4040:4040"
-      - "3333:3333"
       - "9020:9020"
     depends_on:
       - redis
@@ -132,21 +132,24 @@ services:
       - world-engine
 
   redis:
+    container_name: redis
     image: redis:latest
     command: redis-server --save ""
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     expose:
       - "6379"
     ports:
       - "6379:6379"
     networks:
       - world-engine
-    restart: always
+    restart: unless-stopped
 
   test_nakama:
     container_name: test_nakama
     build:
-      context: ./e2e/testclients/
-      dockerfile: e2etestclient/Dockerfile
+      context: ./e2e/tests
+      dockerfile: nakama/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy

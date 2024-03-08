@@ -2,22 +2,27 @@ package events_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func wsURL(addr, path string) string {
 	return fmt.Sprintf("ws://%s/%s", addr, path)
+}
+
+type Event struct {
+	Message string `json:"message"`
 }
 
 func TestEvents(t *testing.T) {
@@ -39,7 +44,11 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tf.World.GetEventHub().EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
+			data, err := json.Marshal(map[string]any{"message": fmt.Sprintf("test%d", i)})
+			if err != nil {
+				assert.NilError(t, eris.Wrap(err, ""))
+			}
+			tf.World.GetEventHub().EmitEvent(data)
 		}()
 	}
 	wg.Wait()
@@ -57,7 +66,12 @@ func TestEvents(t *testing.T) {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
 				assert.Equal(t, mode, websocket.TextMessage)
-				assert.Equal(t, string(message)[:4], "test")
+				var messageMap = make(map[string]string, 0)
+				err = json.Unmarshal(message, &messageMap)
+				assert.NilError(t, err)
+				messageString, ok := messageMap["message"]
+				assert.True(t, ok)
+				assert.Equal(t, messageString[:4], "test")
 				count.Add(1)
 			}
 		}()
@@ -92,28 +106,29 @@ func TestEventsThroughSystems(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "send-energy"))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
+	event := map[string]any{"message": "test"}
 	sys1 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent("test")
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys2 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent("test")
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys3 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent("test")
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys4 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent("test")
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
 	sys5 := func(wCtx engine.Context) error {
-		wCtx.EmitEvent("test")
+		assert.NilError(t, wCtx.EmitEvent(event))
 		counter1.Add(1)
 		return nil
 	}
@@ -144,8 +159,10 @@ func TestEventsThroughSystems(t *testing.T) {
 			for i := 0; i < numberToTest; i++ {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
+				receivedEvent := Event{}
+				assert.NilError(t, json.Unmarshal(message, &receivedEvent))
 				assert.Equal(t, mode, websocket.TextMessage)
-				assert.Equal(t, string(message), "test")
+				assert.Equal(t, receivedEvent.Message, "test")
 				counter2.Add(1)
 			}
 		}()

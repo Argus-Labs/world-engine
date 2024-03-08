@@ -2,10 +2,11 @@ package cardinal
 
 import (
 	"context"
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/router/iterator"
-	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"time"
+
+	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/router/iterator"
 )
 
 // recoverAndExecutePendingTxs checks whether the last tick is successfully completed. If not, it will recover
@@ -32,11 +33,9 @@ func (w *World) recoverAndExecutePendingTxs() error {
 		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
 		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
 		//  from the game loop.
-		w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
 		if err = w.Tick(context.Background(), uint64(time.Now().Unix())); err != nil {
 			return err
 		}
-		w.worldStage.CompareAndSwap(worldstage.Running, worldstage.Starting)
 	}
 
 	return nil
@@ -52,11 +51,6 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				"be sure to use the `WithAdapter` option when creating the world",
 		)
 	}
-
-	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Recovering)
-	defer func() {
-		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Starting)
-	}()
 
 	start := w.CurrentTick()
 	err := w.router.TransactionIterator().Each(func(batches []*iterator.TxBatch, tick, timestamp uint64) error {

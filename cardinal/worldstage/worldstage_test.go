@@ -11,8 +11,8 @@ func TestCanOperateOnZeroValue(t *testing.T) {
 	gotStage := atomicGameStage.Current()
 	assert.Equal(t, Init, gotStage)
 
-	gotStage = atomicGameStage.Swap(ShutDown)
-	assert.Equal(t, Init, gotStage)
+	ok := atomicGameStage.CompareAndSwap(Init, ShutDown)
+	assert.True(t, ok)
 }
 
 func TestCanCompareAndSwapOnZeroValue(t *testing.T) {

@@ -20,7 +20,7 @@ type Context interface {
 	// Logger returns the logger that can be used to log messages from within system or query.
 	Logger() *zerolog.Logger
 	// EmitEvent emits an event that will be broadcasted to all websocket subscribers.
-	EmitEvent(string)
+	EmitEvent(map[string]any) error
 	// Namespace returns the namespace of the world.
 	Namespace() string
 

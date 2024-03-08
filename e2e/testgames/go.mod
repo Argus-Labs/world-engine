@@ -1,8 +1,6 @@
 module github.com/argus-labs/world-engine/example/tester
 
-go 1.21.2
-
-toolchain go1.21.5
+go 1.22.1
 
 // external, necessary replacements
 replace (
@@ -85,7 +83,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.0 // indirect
 	github.com/gofiber/swagger v0.1.14 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
-	github.com/golang/glog v1.1.2 // indirect
+	github.com/golang/glog v1.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/btree v1.1.2 // indirect
@@ -115,6 +113,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
+	github.com/onsi/ginkgo/v2 v2.15.0 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/petermattis/goid v0.0.0-20230904192822-1876fd5063bc // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
@@ -159,21 +158,21 @@ require (
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20231012201019-e917dd12ba7a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231030173426-d783a09b4405 // indirect
-	google.golang.org/grpc v1.59.0 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
+	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/grpc v1.62.0 // indirect
+	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
-	pkg.world.dev/world-engine/evm v1.0.3 // indirect
-	pkg.world.dev/world-engine/rift v1.0.2-beta // indirect
-	pkg.world.dev/world-engine/sign v1.0.0-beta.0.20240127015309-7b7aa2336821 // indirect
+	pkg.world.dev/world-engine/evm v1.0.4-0.20240227035346-26b21454bb27 // indirect
+	pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631 // indirect
+	pkg.world.dev/world-engine/sign v1.0.1-beta // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

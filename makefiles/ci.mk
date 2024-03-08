@@ -2,7 +2,7 @@
 # golangci-lint #
 #################
 
-golangci_version=v1.54.2
+golangci_version=v1.56.2
 
 golangci-install:
 	@echo "--> Installing golangci-lint $(golangci_version)"

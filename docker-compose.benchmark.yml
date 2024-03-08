@@ -121,11 +121,9 @@ services:
       dockerfile: e2e/testgames/gamebenchmark/Dockerfile
     restart: unless-stopped
     expose:
-      - "3333"
       - "4040"
     ports:
       - "4040:4040"
-      - "3333:3333"
       - "9020:9020"
     depends_on:
       - redis
@@ -148,8 +146,8 @@ services:
   test_nakama_benchmark:
     container_name: test_nakama_benchmark
     build:
-      context: ./e2e/testclients/
-      dockerfile: benchmarktestclient/Dockerfile
+      context: ./e2e/tests/
+      dockerfile: bench/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy

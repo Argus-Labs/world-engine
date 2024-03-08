@@ -8,7 +8,7 @@ description: 'Start developing your first World Engine game in under 5 minutes'
 Learn how to install World Engine dependencies and the World CLI.
 
 <Warning>
-    **Note**: This quickstart assumes that you are using MacOS or Linux. If you are using Windows, we recommend you
+    **Note**: This quickstart assumes that you are using Linux or MacOS. If you are using Windows, we recommend you
     use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run World Engine.
 </Warning>
 
@@ -133,7 +133,7 @@ To submit this transaction, run the following command in your terminal:
 
 ```bash
 curl --request POST \
-  --url http://localhost:3333/tx/game/create-player \
+  --url http://localhost:4040/tx/game/create-player \
   --header 'Content-Type: application/json' \
   --data '{
 	"personaTag": "CoolMage",
@@ -171,7 +171,7 @@ If you submit another transaction, you can see more player entity appear automat
 
 <img
     className="block"
-    src="/images/cardinal-editor.jpg"
+    src="/images/cardinal-editor.png"
     alt="Cardinal Editor"
     style={{borderRadius: '0.5rem'}}
 />

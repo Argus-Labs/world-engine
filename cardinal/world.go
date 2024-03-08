@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"reflect"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -18,6 +17,8 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/rs/zerolog"
+
+	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -30,10 +31,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
-	"pkg.world.dev/world-engine/sign"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
@@ -42,6 +43,7 @@ import (
 
 const (
 	DefaultHistoricalTicksToStore = 10
+	RedisDialTimeOut              = 15
 )
 
 type World struct {
@@ -52,8 +54,6 @@ type World struct {
 	cleanup         func()
 	mode            RunMode
 	Logger          *zerolog.Logger
-
-	endStartGame chan bool
 
 	worldStage       *worldstage.Manager
 	msgManager       *message.Manager
@@ -76,15 +76,10 @@ type World struct {
 
 	router router.Router
 
-	endGameLoopCh     chan bool
-	isGameLoopRunning atomic.Bool
-
 	eventHub *events.EventHub
 
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
-
-	shutdownMutex sync.Mutex
 }
 
 var _ router.Provider = &World{}
@@ -98,7 +93,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, eris.Wrapf(err, "invalid configuration")
 	}
-
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -108,9 +102,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
-		Addr:     cfg.RedisAddress,
-		Password: cfg.RedisPassword,
-		DB:       0, // use default DB
+		Addr:        cfg.RedisAddress,
+		Password:    cfg.RedisPassword,
+		DB:          0,                              // use default DB
+		DialTimeout: RedisDialTimeOut * time.Second, // Increase startup dial timeout
 	}, cfg.CardinalNamespace)
 
 	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
@@ -123,7 +118,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	world := &World{
 		serverOptions: serverOptions,
 		mode:          cfg.CardinalMode,
-		endStartGame:  make(chan bool),
 
 		worldStage:       worldstage.NewManager(),
 		msgManager:       message.NewManager(),
@@ -131,17 +125,15 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		componentManager: component.NewManager(&redisMetaStore),
 
 		// Imported from engine
-		redisStorage:      &redisMetaStore,
-		entityStore:       entityCommandBuffer,
-		namespace:         Namespace(cfg.CardinalNamespace),
-		tick:              &atomic.Uint64{},
-		timestamp:         new(atomic.Uint64),
-		nameToQuery:       make(map[string]engine.Query),
-		txPool:            txpool.New(),
-		Logger:            &log.Logger,
-		isGameLoopRunning: atomic.Bool{},
-		endGameLoopCh:     make(chan bool),
-		evmTxReceipts:     make(map[string]EVMTxReceipt),
+		redisStorage:  &redisMetaStore,
+		entityStore:   entityCommandBuffer,
+		namespace:     Namespace(cfg.CardinalNamespace),
+		tick:          &atomic.Uint64{},
+		timestamp:     new(atomic.Uint64),
+		nameToQuery:   make(map[string]engine.Query),
+		txPool:        txpool.New(),
+		Logger:        &log.Logger,
+		evmTxReceipts: make(map[string]EVMTxReceipt),
 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
@@ -170,7 +162,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
-	world.isGameLoopRunning.Store(false)
 	world.registerInternalPlugin()
 
 	// Apply options
@@ -342,8 +333,12 @@ func (w *World) StartGame() error {
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
+		if err := w.router.RegisterGameShard(context.Background()); err != nil {
+			return eris.Wrap(err, "failed to register game shard to base shard")
+		}
 	}
 
+	w.worldStage.Store(worldstage.Recovering)
 	// Recover pending transactions from redis
 	err := w.recoverAndExecutePendingTxs()
 	if err != nil {
@@ -356,6 +351,7 @@ func (w *World) StartGame() error {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
+	w.worldStage.Store(worldstage.Ready)
 
 	// TODO(scott): i find this manual tracking and incrementing of the tick very footgunny. Why can't we just
 	//  use a reliable source of truth for the tick? It's not clear to me why we need to manually increment the
@@ -365,15 +361,15 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(NewReadOnlyWorldContext(w), w.ListMessages(), w.ListQueries(),
+	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.ListMessages(), w.ListQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
 	if err != nil {
 		return err
 	}
 
-	// Game stage: Starting -> Running
-	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
+	// Game stage: Ready -> Running
+	w.worldStage.Store(worldstage.Running)
 
 	// Start the game loop
 	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
@@ -383,7 +379,7 @@ func (w *World) StartGame() error {
 
 	// handle shutdown via a signal
 	w.handleShutdown()
-	<-w.endStartGame
+	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
 	return err
 }
 
@@ -403,22 +399,19 @@ func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	w.emitResourcesWarnings()
 
 	go func() {
-		ok := w.isGameLoopRunning.CompareAndSwap(false, true)
-		if !ok {
-			// The game has already started
-			return
-		}
 		var waitingChs []chan struct{}
 	loop:
 		for {
 			select {
-			case <-tickStart:
+			case _, ok := <-tickStart:
+				if !ok {
+					panic("tickStart channel has been closed; tick rate is now unbounded.")
+				}
 				w.tickTheEngine(ctx, tickDone)
 				closeAllChannels(waitingChs)
 				waitingChs = waitingChs[:0]
-			case <-w.endGameLoopCh:
+			case <-w.worldStage.NotifyOnStage(worldstage.ShuttingDown):
 				w.drainChannelsWaitingForNextTick()
-				w.drainEndLoopChannels()
 				closeAllChannels(waitingChs)
 				if w.txPool.GetAmountOfTxs() > 0 {
 					// immediately tick if pool is not empty to process all txs if queue is not empty.
@@ -432,7 +425,7 @@ func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 				waitingChs = append(waitingChs, ch)
 			}
 		}
-		w.isGameLoopRunning.Store(false)
+		w.worldStage.Store(worldstage.ShutDown)
 	}()
 }
 
@@ -473,33 +466,33 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) Shutdown() error {
+	log.Info().Msg("Shutting down game loop.")
+	ok := w.worldStage.CompareAndSwap(worldstage.Running, worldstage.ShuttingDown)
+	if !ok {
+		select {
+		case <-w.worldStage.NotifyOnStage(worldstage.ShuttingDown):
+			// Some other goroutine has already started the shutdown process. Wait until the world is
+			// actually shut down.
+			<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
+			return nil
+		default:
+		}
+		return errors.New("shutdown attempted before the world was started")
+	}
+
 	if w.cleanup != nil {
 		w.cleanup()
 	}
-	w.worldStage.Store(worldstage.ShuttingDown)
 
-	// The CompareAndSwap returned true, so this call is responsible for actually
-	// shutting down the game.
-	defer func() {
-		w.worldStage.Store(worldstage.ShutDown)
-	}()
 	if w.server != nil {
 		if err := w.server.Shutdown(); err != nil {
 			return err
 		}
 	}
 
-	w.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
-	defer w.shutdownMutex.Unlock()
-	if !w.isGameLoopRunning.Load() {
-		return nil
-	}
+	// Block until the world has stopped ticking
+	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
 
-	log.Info().Msg("Shutting down game loop.")
-	w.endGameLoopCh <- true
-	for w.isGameLoopRunning.Load() { // Block until loop stops.
-		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
-	}
 	log.Info().Msg("Successfully shut down game loop.")
 	log.Info().Msg("Closing storage connection.")
 	err := w.redisStorage.Close()
@@ -594,13 +587,6 @@ func (w *World) drainChannelsWaitingForNextTick() {
 	go func() {
 		for ch := range w.addChannelWaitingForNextTick {
 			close(ch)
-		}
-	}()
-}
-
-func (w *World) drainEndLoopChannels() {
-	go func() {
-		for range w.endGameLoopCh { //nolint:revive // This pattern drains the channel until closed
 		}
 	}()
 }

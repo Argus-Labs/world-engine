@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/sign"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/sign"
+
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"gotest.tools/v3/assert"
 
@@ -47,8 +50,15 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 	}
 
 	cardinalPort := getOpenPort(t)
-	evmPort := getOpenPort(t)
-	assert.Assert(t, cardinalPort != evmPort, "cardinal and evm port must be different")
+	evmPort := cardinalPort
+	for retries := 10; retries > 0; retries-- {
+		evmPort = getOpenPort(t)
+		if evmPort != cardinalPort {
+			break
+		}
+		time.Sleep(10 * time.Millisecond) //nolint: gomnd // this is fine.
+	}
+	assert.Assert(t, evmPort != cardinalPort, "failed to find different port for evm")
 	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
@@ -79,12 +89,15 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		startOnce:   &sync.Once{},
 		// Only register this method with t.Cleanup if the game server is actually started
 		doCleanup: func() {
-			close(startTickCh)
+			// First, make sure completed ticks will never be blocked
 			go func() {
 				for range doneTickCh { //nolint:revive // This pattern drains the channel until closed
 				}
 			}()
+			// Next, shut down the world
 			assert.NilError(t, world.Shutdown())
+			// The world is shut down; No more ticks will be started
+			close(startTickCh)
 		},
 	}
 
@@ -167,6 +180,21 @@ func (t *TestFixture) AddTransaction(
 	}
 	_, id := t.World.AddTransaction(txID, tx, sig)
 	return id
+}
+
+func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
+	personaMsg := msg.CreatePersona{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}
+	createPersonaMsg, exists := t.World.GetMessageByName(msg.CreatePersonaMessageName)
+	assert.Check(
+		t,
+		exists,
+		"message with name %q not registered in World", msg.CreatePersonaMessageName,
+	)
+	t.AddTransaction(createPersonaMsg.ID(), personaMsg, &sign.Transaction{})
+	t.DoTick()
 }
 
 func getOpenPort(t testing.TB) string {

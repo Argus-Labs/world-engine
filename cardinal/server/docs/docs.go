@@ -49,6 +49,23 @@ const docTemplate = `{
                 }
             }
         },
+        "/world": {
+            "get": {
+                "description": "Get field information of registered components, messages, queries",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get field information of registered components, messages, queries",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.GetFieldsResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/query/debug/state": {
             "post": {
                 "description": "Displays the entire game state.",
@@ -463,6 +480,68 @@ const docTemplate = `{
                 },
                 "isServerRunning": {
                     "type": "boolean"
+                }
+            }
+        },
+        "handler.GetFieldsResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "queries": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },

@@ -4,23 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/gorilla/websocket"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 )
 
-type Event struct {
-	Message string
-}
-
 type EventHub struct {
 	inputConnection *websocket.Conn
-	channels        *sync.Map // map[string]chan *Event
+	channels        *sync.Map // map[string]chan []byte
 	didShutdown     atomic.Bool
 }
 
@@ -32,7 +29,7 @@ func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddres
 			// sleep a little try again...
 			logger.Info("No host found.")
 			logger.Info(err.Error())
-			time.Sleep(2 * time.Second)                                          //nolint: gomnd // its ok.
+			time.Sleep(2 * time.Second)                                          //nolint:gomnd // its ok.
 			webSocketConnection, _, err = websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 		} else {
 			return nil, eris.Wrap(err, "")
@@ -48,8 +45,8 @@ func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddres
 	return &res, nil
 }
 
-func (eh *EventHub) Subscribe(session string) chan *Event {
-	channel := make(chan *Event)
+func (eh *EventHub) Subscribe(session string) chan []byte {
+	channel := make(chan []byte)
 	eh.channels.Store(session, channel)
 	return channel
 }
@@ -59,7 +56,7 @@ func (eh *EventHub) Unsubscribe(session string) {
 	if !ok {
 		panic(eris.New("session not found"))
 	}
-	eventChannel, ok := eventChannelUntyped.(chan *Event)
+	eventChannel, ok := eventChannelUntyped.(chan []byte)
 	if !ok {
 		panic(eris.New("found object that was not a event channel in event hub"))
 	}
@@ -86,14 +83,14 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 			eh.Shutdown()
 			continue
 		}
-		eh.channels.Range(func(key any, value any) bool {
-			channel, ok := value.(chan *Event)
+		eh.channels.Range(func(_ any, value any) bool {
+			channel, ok := value.(chan []byte)
 			if !ok {
 				err = eris.New("not a channel")
 				eh.Shutdown()
 				return false
 			}
-			channel <- &Event{Message: string(message)}
+			channel <- message
 			return true
 		})
 		if err != nil {
@@ -101,7 +98,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 			continue
 		}
 	}
-	eh.channels.Range(func(key any, value any) bool {
+	eh.channels.Range(func(key any, _ any) bool {
 		log.Info(fmt.Sprintf("shutting down: %s", key.(string)))
 		eh.Unsubscribe(key.(string))
 		return true

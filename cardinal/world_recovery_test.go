@@ -65,7 +65,7 @@ func TestWorldRecovery(t *testing.T) {
 				iter.EXPECT().Each(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(
 						fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error,
-						ranges ...uint64,
+						_ ...uint64,
 					) error {
 						batch := []*iterator.TxBatch{
 							{
@@ -84,8 +84,9 @@ func TestWorldRecovery(t *testing.T) {
 					}).AnyTimes()
 
 				// Mock router to return our mock iterator that carries the test recovery data
-				router.EXPECT().TransactionIterator().Return(iter).AnyTimes()
-				router.EXPECT().Start().AnyTimes()
+				router.EXPECT().TransactionIterator().Return(iter).Times(1)
+				router.EXPECT().Start().Times(1)
+				router.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 				router.EXPECT().
 					SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil).AnyTimes()

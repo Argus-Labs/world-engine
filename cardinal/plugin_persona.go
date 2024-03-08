@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona"
@@ -56,7 +57,7 @@ func (p *personaPlugin) RegisterQueries(world *World) error {
 }
 
 func (p *personaPlugin) RegisterSystems(world *World) error {
-	err := RegisterSystems(world, RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterSystems(world, CreatePersonaSystem, AuthorizePersonaAddressSystem)
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 	return errors.Join(
 		RegisterMessage[msg.CreatePersona, msg.CreatePersonaResult](
 			world,
-			"create-persona",
+			msg.CreatePersonaMessageName,
 			message.WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
 			message.WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult]()),
 		RegisterMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
@@ -143,9 +144,9 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 // Persona System
 // -----------------------------------------------------------------------------
 
-// RegisterPersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
+// CreatePersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(wCtx engine.Context) error {
+func CreatePersonaSystem(wCtx engine.Context) error {
 	personaTagToAddress, err := buildPersonaIndex(wCtx)
 	if err != nil {
 		return err
@@ -157,8 +158,11 @@ func RegisterPersonaSystem(wCtx engine.Context) error {
 			result.Success = false
 
 			if !persona.IsValidPersonaTag(txMsg.PersonaTag) {
-				err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores",
-					txMsg.PersonaTag)
+				err := eris.Errorf(
+					"persona tag %q invalid: must have %d-%d alphanumeric characers or underscores",
+					txMsg.PersonaTag,
+					persona.MinimumPersonaTagLength,
+					persona.MaximumPersonaTagLength)
 				return result, err
 			}
 
