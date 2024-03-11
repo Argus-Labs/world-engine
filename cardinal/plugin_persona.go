@@ -159,7 +159,7 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 
 			if !persona.IsValidPersonaTag(txMsg.PersonaTag) {
 				err := eris.Errorf(
-					"persona tag %q invalid: must have %d-%d alphanumeric characers or underscores",
+					"persona tag %q invalid: must be between %d-%d characters & contain only alphanumeric characters and underscores",
 					txMsg.PersonaTag,
 					persona.MinimumPersonaTagLength,
 					persona.MaximumPersonaTagLength)
