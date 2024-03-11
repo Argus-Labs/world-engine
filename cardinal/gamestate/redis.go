@@ -178,8 +178,8 @@ func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pip
 			return err
 		}
 		key := storageArchetypeIDForEntityID(id)
-		archID, ok := m.entityIDToArchID[id]
-		if !ok {
+		archID, err := m.entityIDToArchID.Get(id)
+		if err != nil {
 			// this entity has been removed
 			if err := pipe.Delete(ctx, key); err != nil {
 				return eris.Wrap(err, "")

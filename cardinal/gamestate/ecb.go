@@ -34,7 +34,7 @@ type EntityCommandBuffer struct {
 	isEntityIDLoaded  bool
 
 	// Archetype EntityID management.
-	entityIDToArchID       map[types.EntityID]types.ArchetypeID
+	entityIDToArchID       VolatileStorage[types.EntityID, types.ArchetypeID]
 	entityIDToOriginArchID VolatileStorage[types.EntityID, types.ArchetypeID]
 
 	archIDToComps  map[types.ArchetypeID][]types.ComponentMetadata
@@ -59,7 +59,7 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 		activeEntities: NewMapStorage[types.ArchetypeID, activeEntities](),
 		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
 
-		entityIDToArchID:       map[types.EntityID]types.ArchetypeID{},
+		entityIDToArchID:       NewMapStorage[types.EntityID, types.ArchetypeID](),
 		entityIDToOriginArchID: NewMapStorage[types.EntityID, types.ArchetypeID](),
 
 		// This field cannot be set until RegisterComponents is called
@@ -100,7 +100,10 @@ func (m *EntityCommandBuffer) DiscardPending() error {
 		return err
 	}
 	for _, id := range ids {
-		delete(m.entityIDToArchID, id)
+		err = m.entityIDToArchID.Delete(id)
+		if err != nil {
+			return err
+		}
 	}
 	err = m.entityIDToOriginArchID.Clear()
 	if err != nil {
@@ -142,7 +145,10 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 			return err
 		}
 	}
-	delete(m.entityIDToArchID, idToRemove)
+	err = m.entityIDToArchID.Delete(idToRemove)
+	if err != nil {
+		return err
+	}
 
 	comps := m.GetComponentTypesForArchID(archID)
 	for _, comp := range comps {
@@ -187,7 +193,10 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.Compone
 			return nil, err
 		}
 		ids[i] = currID
-		m.entityIDToArchID[currID] = archID
+		err = m.entityIDToArchID.Set(currID, archID)
+		if err != nil {
+			return nil, err
+		}
 		err = m.entityIDToOriginArchID.Set(currID, doesNotExistArchetypeID)
 		if err != nil {
 			return nil, err
@@ -421,8 +430,8 @@ func (m *EntityCommandBuffer) Close() error {
 
 // getArchetypeForEntity returns the archetype EntityID for the given entity EntityID.
 func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.ArchetypeID, error) {
-	archID, ok := m.entityIDToArchID[id]
-	if ok {
+	archID, err := m.entityIDToArchID.Get(id)
+	if err == nil {
 		return archID, nil
 	}
 	key := storageArchetypeIDForEntityID(id)
@@ -435,7 +444,10 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 		return 0, eris.Wrap(err, "")
 	}
 	archID = types.ArchetypeID(num)
-	m.entityIDToArchID[id] = archID
+	err = m.entityIDToArchID.Set(id, archID)
+	if err != nil {
+		return 0, err
+	}
 	return archID, nil
 }
 
@@ -535,7 +547,10 @@ func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID types.A
 			return err
 		}
 	}
-	m.entityIDToArchID[id] = toArchID
+	err := m.entityIDToArchID.Set(id, toArchID)
+	if err != nil {
+		return err
+	}
 
 	active, err := m.getActiveEntities(fromArchID)
 	if err != nil {
