@@ -267,7 +267,7 @@ func (m *EntityCommandBuffer) loadArchIDs() error {
 		// Nothing is saved in the DB. Leave the m.archIDToComps field unchanged
 		return nil
 	}
-	if len(m.archIDToComps) > 0 {
+	if m.archIDToComps.Len() > 0 {
 		return eris.New("assigned archetype ArchetypeID is about to be overwritten by something from dbStorage")
 	}
 	m.archIDToComps = archIDToComps
@@ -318,8 +318,16 @@ func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe
 
 func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 	forStorage := map[types.ArchetypeID][]types.ComponentID{}
-	for archID, comps := range m.archIDToComps {
+	archIDs, err := m.archIDToComps.Keys()
+	if err != nil {
+		return nil, err
+	}
+	for _, archID := range archIDs {
 		typeIDs := []types.ComponentID{}
+		comps, err := m.archIDToComps.Get(archID)
+		if err != nil {
+			return nil, err
+		}
 		for _, comp := range comps {
 			typeIDs = append(typeIDs, comp.ID())
 		}
@@ -331,7 +339,7 @@ func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 func getArchIDToCompTypesFromRedis(
 	storage PrimitiveStorage[string],
 	typeToComp VolatileStorage[types.ComponentID, types.ComponentMetadata],
-) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
+) (m VolatileStorage[types.ArchetypeID, []types.ComponentMetadata], ok bool, err error) {
 	ctx := context.Background()
 	key := storageArchIDsToCompTypesKey()
 	bz, err := storage.GetBytes(ctx, key)
@@ -348,7 +356,7 @@ func getArchIDToCompTypesFromRedis(
 	}
 
 	// result is the mapping of Arch ArchetypeID -> IComponent sets
-	result := map[types.ArchetypeID][]types.ComponentMetadata{}
+	result := NewMapStorage[types.ArchetypeID, []types.ComponentMetadata]()
 	for archID, compTypeIDs := range fromStorage {
 		var currComps []types.ComponentMetadata
 		for _, compTypeID := range compTypeIDs {
@@ -359,7 +367,10 @@ func getArchIDToCompTypesFromRedis(
 			currComps = append(currComps, currComp)
 		}
 
-		result[archID] = currComps
+		err = result.Set(archID, currComps)
+		if err != nil {
+			return nil, false, err
+		}
 	}
 	return result, true, nil
 }

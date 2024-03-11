@@ -20,7 +20,7 @@ type Reader interface {
 	GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error)
 
 	// One Archetype Many Components
-	GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata
+	GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error)
 	GetArchIDForComponents(components []types.ComponentMetadata) (types.ArchetypeID, error)
 
 	// One Archetype Many Entities

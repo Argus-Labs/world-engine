@@ -202,7 +202,8 @@ func TestComponents(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
+		componentsForArchID, err := storeManager.GetComponentTypesForArchID(tt.archID)
+		assert.NilError(t, err)
 		matchComponent := filter.CreateComponentMatcher(
 			types.ConvertComponentMetadatasToComponents(componentsForArchID))
 		for _, comp := range tt.comps {

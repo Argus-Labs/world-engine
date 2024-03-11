@@ -7,4 +7,5 @@ type VolatileStorage[K comparable, V any] interface {
 	Delete(key K) error
 	Keys() ([]K, error)
 	Clear() error
+	Len() int
 }

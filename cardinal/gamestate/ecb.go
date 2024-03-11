@@ -37,7 +37,7 @@ type EntityCommandBuffer struct {
 	entityIDToArchID       VolatileStorage[types.EntityID, types.ArchetypeID]
 	entityIDToOriginArchID VolatileStorage[types.EntityID, types.ArchetypeID]
 
-	archIDToComps  map[types.ArchetypeID][]types.ComponentMetadata
+	archIDToComps  VolatileStorage[types.ArchetypeID, []types.ComponentMetadata]
 	pendingArchIDs []types.ArchetypeID
 
 	logger *zerolog.Logger
@@ -57,7 +57,7 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 		compValuesToDelete: NewMapStorage[compKey, bool](),
 
 		activeEntities: NewMapStorage[types.ArchetypeID, activeEntities](),
-		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
+		archIDToComps:  NewMapStorage[types.ArchetypeID, []types.ComponentMetadata](),
 
 		entityIDToArchID:       NewMapStorage[types.EntityID, types.ArchetypeID](),
 		entityIDToOriginArchID: NewMapStorage[types.EntityID, types.ArchetypeID](),
@@ -114,7 +114,10 @@ func (m *EntityCommandBuffer) DiscardPending() error {
 	m.pendingEntityIDs = 0
 
 	for _, archID := range m.pendingArchIDs {
-		delete(m.archIDToComps, archID)
+		err = m.archIDToComps.Delete(archID)
+		if err != nil {
+			return err
+		}
 	}
 	m.pendingArchIDs = m.pendingArchIDs[:0]
 	return nil
@@ -150,7 +153,10 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 		return err
 	}
 
-	comps := m.GetComponentTypesForArchID(archID)
+	comps, err := m.GetComponentTypesForArchID(archID)
+	if err != nil {
+		return err
+	}
 	for _, comp := range comps {
 		key := compKey{comp.ID(), idToRemove}
 		err = m.compValues.Delete(key)
@@ -356,12 +362,12 @@ func (m *EntityCommandBuffer) GetComponentTypesForEntity(id types.EntityID) ([]t
 		return nil, err
 	}
 
-	return m.GetComponentTypesForArchID(archID), nil
+	return m.GetComponentTypesForArchID(archID)
 }
 
 // GetComponentTypesForArchID returns the set of components that are associated with the given archetype id.
-func (m *EntityCommandBuffer) GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata {
-	return m.archIDToComps[archID]
+func (m *EntityCommandBuffer) GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error) {
+	return m.archIDToComps.Get(archID)
 }
 
 // GetArchIDForComponents returns the archetype EntityID that has been assigned to this set of components.
@@ -373,7 +379,15 @@ func (m *EntityCommandBuffer) GetArchIDForComponents(components []types.Componen
 	if err := sortComponentSet(components); err != nil {
 		return 0, err
 	}
-	for archID, comps := range m.archIDToComps {
+	archIDs, err := m.archIDToComps.Keys()
+	if err != nil {
+		return 0, err
+	}
+	for _, archID := range archIDs {
+		comps, err := m.archIDToComps.Get(archID)
+		if err != nil {
+			return 0, err
+		}
 		if isComponentSetMatch(comps, components) {
 			return archID, nil
 		}
@@ -394,9 +408,11 @@ func (m *EntityCommandBuffer) GetEntitiesForArchID(archID types.ArchetypeID) ([]
 // that match the given filter.
 func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator {
 	itr := &iterators.ArchetypeIterator{}
-	for i := start; i < len(m.archIDToComps); i++ {
+	for i := start; i < m.archIDToComps.Len(); i++ {
 		archID := types.ArchetypeID(i)
-		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(m.archIDToComps[archID])) {
+		//TODO: error was swallowed here.
+		componentMetadatas, _ := m.archIDToComps.Get(archID)
+		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(componentMetadatas)) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)
@@ -406,7 +422,7 @@ func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start in
 
 // ArchetypeCount returns the number of archetypes that have been generated.
 func (m *EntityCommandBuffer) ArchetypeCount() int {
-	return len(m.archIDToComps)
+	return m.archIDToComps.Len()
 }
 
 // InjectLogger sets the logger for the manager.
@@ -490,9 +506,12 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 		return 0, err
 	}
 	// An archetype EntityID was not found. Create a pending arch EntityID
-	id := types.ArchetypeID(len(m.archIDToComps))
+	id := types.ArchetypeID(m.archIDToComps.Len())
 	m.pendingArchIDs = append(m.pendingArchIDs, id)
-	m.archIDToComps[id] = comps
+	err = m.archIDToComps.Set(id, comps)
+	if err != nil {
+		return 0, err
+	}
 	m.logger.Debug().Int("archetype_id", int(id)).Msg("created")
 	return id, nil
 }

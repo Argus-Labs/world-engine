@@ -46,3 +46,7 @@ func (m *MapStorage[K, V]) Clear() error {
 	m.internalMap = make(map[K]V)
 	return nil
 }
+
+func (m *MapStorage[K, V]) Len() int {
+	return len(m.internalMap)
+}
