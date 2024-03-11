@@ -35,7 +35,7 @@ type EntityCommandBuffer struct {
 
 	// Archetype EntityID management.
 	entityIDToArchID       map[types.EntityID]types.ArchetypeID
-	entityIDToOriginArchID map[types.EntityID]types.ArchetypeID
+	entityIDToOriginArchID VolatileStorage[types.EntityID, types.ArchetypeID]
 
 	archIDToComps  map[types.ArchetypeID][]types.ComponentMetadata
 	pendingArchIDs []types.ArchetypeID
@@ -60,7 +60,7 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
 
 		entityIDToArchID:       map[types.EntityID]types.ArchetypeID{},
-		entityIDToOriginArchID: map[types.EntityID]types.ArchetypeID{},
+		entityIDToOriginArchID: NewMapStorage[types.EntityID, types.ArchetypeID](),
 
 		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
@@ -95,10 +95,17 @@ func (m *EntityCommandBuffer) DiscardPending() error {
 	if err != nil {
 		return err
 	}
-	for id := range m.entityIDToOriginArchID {
+	ids, err := m.entityIDToOriginArchID.Keys()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
 		delete(m.entityIDToArchID, id)
 	}
-	clear(m.entityIDToOriginArchID)
+	err = m.entityIDToOriginArchID.Clear()
+	if err != nil {
+		return err
+	}
 
 	m.isEntityIDLoaded = false
 	m.pendingEntityIDs = 0
@@ -129,8 +136,11 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := m.entityIDToOriginArchID[idToRemove]; !ok {
-		m.entityIDToOriginArchID[idToRemove] = archID
+	if _, err := m.entityIDToOriginArchID.Get(idToRemove); err != nil {
+		err = m.entityIDToOriginArchID.Set(idToRemove, archID)
+		if err != nil {
+			return err
+		}
 	}
 	delete(m.entityIDToArchID, idToRemove)
 
@@ -178,7 +188,10 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.Compone
 		}
 		ids[i] = currID
 		m.entityIDToArchID[currID] = archID
-		m.entityIDToOriginArchID[currID] = doesNotExistArchetypeID
+		err = m.entityIDToOriginArchID.Set(currID, doesNotExistArchetypeID)
+		if err != nil {
+			return nil, err
+		}
 		active.ids = append(active.ids, currID)
 		active.modified = true
 		ecslog.Entity(m.logger, zerolog.DebugLevel, currID, archID, comps)
@@ -516,8 +529,11 @@ func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active
 
 // moveEntityByArchetype moves an entity EntityID from one archetype to another archetype.
 func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID types.ArchetypeID, id types.EntityID) error {
-	if _, ok := m.entityIDToOriginArchID[id]; !ok {
-		m.entityIDToOriginArchID[id] = fromArchID
+	if _, err := m.entityIDToOriginArchID.Get(id); err != nil {
+		err = m.entityIDToOriginArchID.Set(id, fromArchID)
+		if err != nil {
+			return err
+		}
 	}
 	m.entityIDToArchID[id] = toArchID
 

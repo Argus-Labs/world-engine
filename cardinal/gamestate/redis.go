@@ -168,7 +168,15 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 
 // addEntityIDToArchIDToPipe adds the information related to mapping an EntityID to its assigned archetype ArchetypeID.
 func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	for id, originArchID := range m.entityIDToOriginArchID {
+	ids, err := m.entityIDToOriginArchID.Keys()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		originArchID, err := m.entityIDToOriginArchID.Get(id)
+		if err != nil {
+			return err
+		}
 		key := storageArchetypeIDForEntityID(id)
 		archID, ok := m.entityIDToArchID[id]
 		if !ok {
