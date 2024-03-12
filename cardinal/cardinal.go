@@ -101,7 +101,17 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...message
 			worldstage.Init,
 		)
 	}
-	return message.RegisterMessageOnManager[In, Out](world.GetMessageManager(), name, opts...)
+
+	// Create the message type
+	msgType := message.NewMessageType[In, Out](name, opts...)
+
+	// Register the message with the manager
+	err := world.msgManager.RegisterMessage(name, msgType, reflect.TypeOf(*msgType))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func RegisterQuery[Request any, Reply any](
