@@ -313,7 +313,8 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		tf := testutils.NewTestFixture(t, redisStore)
 		world := tf.World
-		assert.NilError(t, cardinal.RegisterMessage[Msg, Result](world, "some-msg"))
+		msgName := "some-msg"
+		assert.NilError(t, cardinal.RegisterMessage[Msg, Result](world, msgName))
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
@@ -328,8 +329,8 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		tf.StartWorld()
 
 		relevantTick := world.CurrentTick()
-		someTx, err := cardinal.GetMessageFromWorld[Msg, Result](world)
-		assert.NilError(t, err)
+		someTx, ok := world.GetMessageByName(msgName)
+		assert.Assert(t, ok)
 		for i := 0; i < 3; i++ {
 			_ = tf.AddTransaction(someTx.ID(), Msg{}, testutils.UniqueSignature())
 		}

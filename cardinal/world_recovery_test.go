@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"github.com/franela/goblin"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"testing"
 
@@ -31,7 +32,7 @@ func TestWorldRecovery(t *testing.T) {
 		var controller *gomock.Controller
 		var router *mocks.MockRouter
 		var world *cardinal.World
-		var fooTx *message.MessageType[fooMessage, fooResponse]
+		var fooTx types.Message
 
 		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
 		setEnvToCardinalProdMode(t)
@@ -44,15 +45,17 @@ func TestWorldRecovery(t *testing.T) {
 
 			world = tf.World
 			world.SetRouter(router)
+			msgName := "foo"
 			err := cardinal.RegisterMessage[
 				fooMessage,
 				fooResponse](
 				world,
-				"foo",
+				msgName,
 				message.WithMsgEVMSupport[fooMessage, fooResponse]())
 			g.Assert(err).IsNil()
-			fooTx, err = cardinal.GetMessageFromWorld[fooMessage, fooResponse](world)
-			g.Assert(err).IsNil()
+			var ok bool
+			fooTx, ok = world.GetMessageByName(msgName)
+			g.Assert(ok).IsTrue()
 		})
 
 		g.Describe("If there is recovery data", func() {

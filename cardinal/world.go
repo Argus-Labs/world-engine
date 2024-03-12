@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"pkg.world.dev/world-engine/cardinal/query"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -192,21 +191,6 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 		return world, err
 	}
 	return world, nil
-}
-
-func GetMessageFromWorld[In any, Out any](world *World) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
-	msgType := reflect.TypeOf(msg)
-	tempRes, ok := world.GetMessageManager().GetMessageByType(msgType)
-	if !ok {
-		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
-	}
-	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
-	if !ok {
-		return &msg, eris.New("wrong type")
-	}
-	return res, nil
 }
 
 func (w *World) CurrentTick() uint64 {

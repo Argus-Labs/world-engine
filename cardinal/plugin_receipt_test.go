@@ -18,7 +18,8 @@ func TestReceiptsQuery(t *testing.T) {
 	world := tf.World
 	type fooIn struct{}
 	type fooOut struct{ Y int }
-	err := cardinal.RegisterMessage[fooIn, fooOut](world, "foo")
+	msgName := "foo"
+	err := cardinal.RegisterMessage[fooIn, fooOut](world, msgName)
 	assert.NilError(t, err)
 	wantErrorMessage := "THIS_ERROR_MESSAGE_SHOULD_BE_IN_THE_RECEIPT"
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
@@ -30,8 +31,8 @@ func TestReceiptsQuery(t *testing.T) {
 		})
 	})
 	assert.NilError(t, err)
-	fooMsg, err := cardinal.GetMessageFromWorld[fooIn, fooOut](world)
-	assert.NilError(t, err)
+	fooMsg, ok := world.GetMessageByName(msgName)
+	assert.Assert(t, ok)
 	_, txHash1 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
 	tf.DoTick()
 	_, txHash2 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
