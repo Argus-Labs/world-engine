@@ -20,7 +20,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
@@ -116,13 +115,6 @@ func InitModule(
 	}
 
 	return nil
-}
-
-func initReceiptDispatcher(log runtime.Logger, cardinalAddress string) *receipt.Dispatcher {
-	globalReceiptsDispatcher := receipt.NewDispatcher()
-	go globalReceiptsDispatcher.PollReceipts(log, cardinalAddress)
-	go globalReceiptsDispatcher.Dispatch(log)
-	return globalReceiptsDispatcher
 }
 
 func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (signer.Signer, error) {

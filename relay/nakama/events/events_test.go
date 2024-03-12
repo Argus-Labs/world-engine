@@ -93,10 +93,10 @@ func TestEventHubIntegration(t *testing.T) {
 		jsonMap := make(map[string]any)
 		err = json.Unmarshal(event, &jsonMap)
 		assert.NoError(t, err)
-		msg, ok := jsonMap["message"]
-		assert.True(t, ok)
-		msgString, ok := msg.(string)
-		assert.True(t, ok)
+		msg, ok2 := jsonMap["message"]
+		assert.True(t, ok2)
+		msgString, ok2 := msg.(string)
+		assert.True(t, ok2)
 		assert.True(t, strings.Contains(msgString, "test event"))
 	case <-time.After(5 * time.Second):
 		t.Fatal("Did not receive event in time")

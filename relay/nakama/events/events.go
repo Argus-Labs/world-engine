@@ -96,9 +96,11 @@ func (eh *EventHub) Shutdown() {
 func (eh *EventHub) Dispatch(log runtime.Logger) error {
 	var err error
 	for !eh.didShutdown.Load() {
-		messageType, message, err := eh.inputConnection.ReadMessage() // will block
+		var messageType int
+		var message []byte
+		messageType, message, err = eh.inputConnection.ReadMessage() // will block
 		if err != nil {
-			err = eris.Wrap(err, "")
+			err = eris.Wrap(err, "") // This now correctly updates the outer 'err' variable
 			eh.Shutdown()
 			continue
 		}
