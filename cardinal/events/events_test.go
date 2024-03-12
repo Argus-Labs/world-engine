@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -159,10 +160,13 @@ func TestEventsThroughSystems(t *testing.T) {
 			for i := 0; i < numberToTest; i++ {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
-				receivedEvent := Event{}
-				assert.NilError(t, json.Unmarshal(message, &receivedEvent))
+				receivedTickResults := events.TickResults{}
+				assert.NilError(t, json.Unmarshal(message, &receivedTickResults))
+				event := make(map[string]any)
+				assert.Equal(t, len(receivedTickResults.Events), 5)
+				assert.NilError(t, json.Unmarshal(receivedTickResults.Events[0], &event))
 				assert.Equal(t, mode, websocket.TextMessage)
-				assert.Equal(t, receivedEvent.Message, "test")
+				assert.Equal(t, event["message"], "test")
 				counter2.Add(1)
 			}
 		}()
