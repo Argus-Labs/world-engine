@@ -168,7 +168,7 @@ func initEventHub(
 		}
 	}()
 
-	// for now send to everybody via notifications.
+	// Send Events to everyone via Nakama Notifications
 	go func() {
 		channel := eventHub.Subscribe("main")
 		for event := range channel {

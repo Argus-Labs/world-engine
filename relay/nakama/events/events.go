@@ -1,9 +1,11 @@
 package events
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,6 +21,12 @@ type EventHub struct {
 	inputConnection *websocket.Conn
 	channels        *sync.Map // map[string]chan []byte
 	didShutdown     atomic.Bool
+}
+
+type TickResults struct {
+	Tick     uint64
+	Receipts []receipt.Receipt
+	Events   [][]byte
 }
 
 func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress string) (*EventHub, error) {
@@ -83,6 +91,12 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 			eh.Shutdown()
 			continue
 		}
+		receivedTickResults := TickResults{}
+		err = json.Unmarshal(message, &receivedTickResults)
+		if err != nil {
+			fmt.Println("BIG ERROR: ", err)
+		}
+
 		eh.channels.Range(func(_ any, value any) bool {
 			channel, ok := value.(chan []byte)
 			if !ok {
@@ -90,7 +104,11 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 				eh.Shutdown()
 				return false
 			}
-			channel <- message
+
+			for i := 0; i < len(receivedTickResults.Events); i++ {
+				channel <- receivedTickResults.Events[i]
+			}
+
 			return true
 		})
 		if err != nil {
