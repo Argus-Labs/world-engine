@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"errors"
+	querylib "pkg.world.dev/world-engine/cardinal/query"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -49,7 +50,7 @@ func (p *personaPlugin) Register(world *World) error {
 func (p *personaPlugin) RegisterQueries(world *World) error {
 	err := RegisterQuery[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse](world, "signer",
 		query.PersonaSignerQuery,
-		WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
+		querylib.WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
 	if err != nil {
 		return err
 	}

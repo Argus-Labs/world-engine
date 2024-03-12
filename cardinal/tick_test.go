@@ -350,7 +350,8 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		assert.NilError(t, cardinal.RegisterComponent[PowerComp](world))
 
-		assert.NilError(t, cardinal.RegisterMessage[PowerComp, PowerComp](world, "change_power"))
+		msgName := "change_power"
+		assert.NilError(t, cardinal.RegisterMessage[PowerComp, PowerComp](world, msgName))
 
 		err := cardinal.RegisterSystems(
 			world,
@@ -391,10 +392,10 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			assert.NilError(t, err)
 			return power.Val
 		}
-		powerTx, err := cardinal.GetMessageFromWorld[PowerComp, PowerComp](world)
+		powerTx, ok := world.GetMessageByName(msgName)
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
-			assert.NilError(t, err)
+			assert.True(t, ok)
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})

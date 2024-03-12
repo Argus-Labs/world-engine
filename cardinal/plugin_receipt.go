@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
@@ -24,7 +25,7 @@ func (p *receiptPlugin) Register(world *World) error {
 func (p *receiptPlugin) RegisterQueries(world *World) error {
 	err := RegisterQuery[ListTxReceiptsRequest, ListTxReceiptsResponse](world, "list",
 		queryReceipts,
-		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsResponse]("receipts"))
+		query.WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsResponse]("receipts"))
 	if err != nil {
 		return err
 	}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"slices"
 	"strings"
 	"testing"
@@ -39,6 +40,8 @@ type MoveMsgInput struct {
 type MoveMessageOutput struct {
 	Location LocationComponent
 }
+
+var moveMsgName = "move"
 
 type QueryLocationRequest struct {
 	Persona string
@@ -81,12 +84,12 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	personaTag := s.CreateRandomPersona()
-	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
-	s.Require().NoError(err)
+	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	s.Require().True(ok)
 	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
 	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
 	var loc LocationComponent
-	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
+	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
 	s.Require().Equal(loc, LocationComponent{0, 1})
 }
@@ -199,8 +202,8 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 		PersonaTag: persona,
 		Body:       msgBz,
 	}
-	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
-	s.Require().NoError(err)
+	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	s.Require().True(ok)
 	url := "/tx/game/" + moveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
@@ -230,7 +233,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		cardinal.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
+		query.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()
@@ -244,8 +247,8 @@ func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisab
 	s.setupWorld(cardinal.WithDisableSignatureVerification())
 	s.fixture.DoTick()
 	unclaimedPersona := "some-persona"
-	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
-	assert.NilError(t, err)
+	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	assert.True(t, ok)
 	// This persona tag does not have a signer address, but since signature verification is disabled it should
 	// encounter no errors
 	s.runTx(unclaimedPersona, moveMessage, MoveMsgInput{Direction: "up"})
@@ -257,8 +260,8 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 	s.setupWorld()
 	s.fixture.DoTick()
 	unclaimedPersona := "some-persona"
-	moveMessage, err := cardinal.GetMessageFromWorld[MoveMsgInput, MoveMessageOutput](s.world)
-	assert.NilError(t, err)
+	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	assert.True(t, ok)
 	payload := MoveMsgInput{Direction: "up"}
 	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace().String(), s.nonce, payload)
 	assert.NilError(t, err)
@@ -301,7 +304,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.world = s.fixture.World
 	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
-	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, "move")
+	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, moveMsgName)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {

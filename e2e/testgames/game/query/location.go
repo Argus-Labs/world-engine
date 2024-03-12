@@ -5,6 +5,7 @@ import (
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/sys"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/query"
 )
 
 type LocationRequest struct {
@@ -37,5 +38,5 @@ func RegisterLocationQuery(world *cardinal.World) error {
 				Y: loc.Y,
 			}, nil
 		},
-		cardinal.WithQueryEVMSupport[LocationRequest, LocationReply]())
+		query.WithQueryEVMSupport[LocationRequest, LocationReply]())
 }

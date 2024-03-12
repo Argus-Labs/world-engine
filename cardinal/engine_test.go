@@ -100,12 +100,14 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	}
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, cardinal.RegisterMessage[FooIn, FooOut](world, "foo", message.WithMsgEVMSupport[FooIn, FooOut]()))
-	fooTx, err := cardinal.GetMessageFromWorld[FooIn, FooOut](world)
-	assert.NilError(t, err)
+	msgName := "foo"
+	assert.NilError(t,
+		cardinal.RegisterMessage[FooIn, FooOut](world, msgName, message.WithMsgEVMSupport[FooIn, FooOut]()))
+	fooTx, ok := world.GetMessageByName(msgName)
+	assert.True(t, ok)
 	var returnVal FooOut
 	var returnErr error
-	err = cardinal.RegisterSystems(
+	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
 			return cardinal.EachMessage[FooIn, FooOut](
@@ -163,7 +165,8 @@ func TestEVMTxConsume(t *testing.T) {
 	}
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	err := cardinal.RegisterMessage[FooIn, FooOut](world, "foo", message.WithMsgEVMSupport[FooIn, FooOut]())
+	msgName := "foo"
+	err := cardinal.RegisterMessage[FooIn, FooOut](world, msgName, message.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, err)
 
 	var returnVal FooOut
@@ -181,8 +184,8 @@ func TestEVMTxConsume(t *testing.T) {
 
 	tf.StartWorld()
 
-	fooTx, err := cardinal.GetMessageFromWorld[FooIn, FooOut](world)
-	assert.NilError(t, err)
+	fooTx, ok := world.GetMessageByName(msgName)
+	assert.True(t, ok)
 	// add tx to queue
 	evmTxHash := "0xFooBar"
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
@@ -336,14 +339,15 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	}
 
 	type fooMsgRes struct{}
-	err := cardinal.RegisterMessage[fooMsg, fooMsgRes](world, "foo", message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
+	msgName := "foo"
+	err := cardinal.RegisterMessage[fooMsg, fooMsgRes](world, msgName, message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
 	assert.NilError(t, err)
 
 	evmTxHash := "0x12345"
 	msg := fooMsg{Bar: "hello"}
 	tx := &sign.Transaction{PersonaTag: "ty"}
-	fooMessage, err := cardinal.GetMessageFromWorld[fooMsg, fooMsgRes](world)
-	assert.NilError(t, err)
+	fooMessage, ok := world.GetMessageByName(msgName)
+	assert.True(t, ok)
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
 	ts := uint64(time.Now().Unix())
 
@@ -459,8 +463,8 @@ func TestRecoverFromChain(t *testing.T) {
 		})
 	})
 	assert.NilError(t, err)
-	fooMessage, err := cardinal.GetMessageFromWorld[fooMsg, fooMsgRes](world)
-	assert.NilError(t, err)
+	fooMessage, ok := world.GetMessageByName(fooMsgName)
+	assert.True(t, ok)
 	fakeBatches := []Iterable{
 		{
 			Batches: []*iterator.TxBatch{

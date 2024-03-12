@@ -56,8 +56,8 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
-	createPersonaMsg, err := cardinal.GetMessageFromWorld[msg.CreatePersona, msg.CreatePersonaResult](world)
-	assert.NilError(t, err)
+	createPersonaMsg, ok := world.GetMessageByName("create-persona")
+	assert.True(t, ok)
 	tf.AddTransaction(
 		createPersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
@@ -173,9 +173,8 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	tf.CreatePersona(wantTag, wantSigner)
 
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
-	authorizePersonaAddressMsg, err :=
-		cardinal.GetMessageFromWorld[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](world)
-	assert.NilError(t, err)
+	authorizePersonaAddressMsg, ok := world.GetMessageByName("authorize-persona-address")
+	assert.True(t, ok)
 	tf.AddTransaction(
 		authorizePersonaAddressMsg.ID(),
 		msg.AuthorizePersonaAddress{

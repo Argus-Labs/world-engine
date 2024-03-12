@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -59,14 +59,13 @@ type World struct {
 	msgManager       *message.Manager
 	systemManager    *system.Manager
 	componentManager *component.Manager
+	queryManager     *query.Manager
 
-	namespace         Namespace
-	redisStorage      *redis.Storage
-	entityStore       gamestate.Manager
-	tick              *atomic.Uint64
-	timestamp         *atomic.Uint64
-	nameToQuery       map[string]engine.Query
-	registeredQueries []engine.Query
+	namespace    Namespace
+	redisStorage *redis.Storage
+	entityStore  gamestate.Manager
+	tick         *atomic.Uint64
+	timestamp    *atomic.Uint64
 
 	evmTxReceipts map[string]EVMTxReceipt
 
@@ -123,6 +122,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		msgManager:       message.NewManager(),
 		systemManager:    system.NewManager(),
 		componentManager: component.NewManager(&redisMetaStore),
+		queryManager:     query.NewManager(),
 
 		// Imported from engine
 		redisStorage:  &redisMetaStore,
@@ -130,7 +130,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		namespace:     Namespace(cfg.CardinalNamespace),
 		tick:          &atomic.Uint64{},
 		timestamp:     new(atomic.Uint64),
-		nameToQuery:   make(map[string]engine.Query),
 		txPool:        txpool.New(),
 		Logger:        &log.Logger,
 		evmTxReceipts: make(map[string]EVMTxReceipt),
@@ -192,21 +191,6 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 		return world, err
 	}
 	return world, nil
-}
-
-func GetMessageFromWorld[In any, Out any](world *World) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
-	msgType := reflect.TypeOf(msg)
-	tempRes, ok := world.GetMessageManager().GetMessageByType(msgType)
-	if !ok {
-		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
-	}
-	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
-	if !ok {
-		return &msg, eris.New("wrong type")
-	}
-	return res, nil
 }
 
 func (w *World) CurrentTick() uint64 {
@@ -361,7 +345,8 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.ListMessages(), w.ListQueries(),
+	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.ListMessages(),
+		w.ListQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
 	if err != nil {
@@ -453,7 +438,7 @@ func (w *World) emitResourcesWarnings() {
 	if len(w.msgManager.GetRegisteredMessages()) == 0 {
 		w.Logger.Warn().Msg("No messages registered.")
 	}
-	if len(w.registeredQueries) == 0 {
+	if len(w.queryManager.GetRegisteredQueries()) == 0 {
 		w.Logger.Warn().Msg("No queries registered.")
 	}
 	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
@@ -505,7 +490,7 @@ func (w *World) Shutdown() error {
 	return nil
 }
 
-func (w *World) ListQueries() []engine.Query   { return w.registeredQueries }
+func (w *World) ListQueries() []engine.Query   { return w.queryManager.GetRegisteredQueries() }
 func (w *World) ListMessages() []types.Message { return w.msgManager.GetRegisteredMessages() }
 
 func setLogLevel(levelStr string) error {
@@ -626,10 +611,7 @@ func (w *World) Namespace() Namespace {
 }
 
 func (w *World) GetQueryByName(name string) (engine.Query, error) {
-	if q, ok := w.nameToQuery[name]; ok {
-		return q, nil
-	}
-	return nil, eris.Errorf("query with name %s not found", name)
+	return w.queryManager.GetQueryByName(name)
 }
 
 func (w *World) GetMessageByName(name string) (types.Message, bool) {
