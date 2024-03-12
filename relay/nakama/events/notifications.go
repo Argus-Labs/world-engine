@@ -1,7 +1,8 @@
-package receipt
+package events
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -21,6 +22,18 @@ type txHashAndUser struct {
 	userID string
 }
 
+type TransactionReceiptsReply struct {
+	StartTick uint64     `json:"startTick"`
+	EndTick   uint64     `json:"endTick"`
+	Receipts  []*Receipt `json:"receipts"`
+}
+
+type Receipt struct {
+	TxHash string         `json:"txHash"`
+	Result map[string]any `json:"result"`
+	Errors []string       `json:"errors"`
+}
+
 // Notifier is a struct that sends out notifications to users based on transaction receipts.
 type Notifier struct {
 	// txHashToTargetInto maps a specific transaction hash to a user ID. A timestamp is also tracked so "stale" transaction
@@ -37,9 +50,13 @@ type Notifier struct {
 	logger runtime.Logger
 }
 
-func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *Dispatcher) *Notifier {
-	ch := make(chan []*Receipt)
-	rd.Subscribe("notifications", ch)
+func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, eh *EventHub) *Notifier {
+	chInterface := eh.Subscribe("notifications", (chan []receipt.Receipt)(nil))
+	ch, ok := chInterface.(chan []receipt.Receipt)
+	if !ok {
+		logger.Error("Subscription did not return the expected channel type []Receipt")
+		return nil
+	}
 	notifier := &Notifier{
 		txHashToTargetInfo: map[string]targetInfo{},
 		nk:                 nk,
@@ -65,7 +82,7 @@ func (r *Notifier) AddTxHashToPendingNotifications(txHash string, userID string)
 }
 
 // sendNotifications loops forever, consuming Receipts from the given channel and sending them to the relevant user.
-func (r *Notifier) sendNotifications(ch chan []*Receipt) {
+func (r *Notifier) sendNotifications(ch chan []receipt.Receipt) {
 	ticker := time.NewTicker(r.staleDuration)
 
 	for {
@@ -86,7 +103,7 @@ func (r *Notifier) sendNotifications(ch chan []*Receipt) {
 }
 
 // handleReceipt identifies the relevant user for this receipt and sends them a notification.
-func (r *Notifier) handleReceipt(receipts []*Receipt) error {
+func (r *Notifier) handleReceipt(receipts []receipt.Receipt) error {
 	ctx := context.Background()
 
 	//nolint:prealloc // we cannot know how many notifications we're going to get
@@ -103,7 +120,6 @@ func (r *Notifier) handleReceipt(receipts []*Receipt) error {
 			"result": receipt.Result,
 			"errors": receipt.Errors,
 		}
-
 		notifications = append(notifications, &runtime.NotificationSend{
 			UserID:     target.userID,
 			Subject:    "receipt",

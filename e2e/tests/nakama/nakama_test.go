@@ -53,7 +53,6 @@ func TestEvents(t *testing.T) {
 	for len(events) < amountOfPlayers {
 		select {
 		case e := <-c.EventCh:
-			fmt.Println("got event: ", e)
 			events = append(events, e)
 		case <-timeout:
 			assert.FailNow(t, "timeout while waiting for events")
@@ -501,11 +500,8 @@ const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 func randomString() string {
 	b := &strings.Builder{}
-	minLength := 4
-	maxLength := 16
-	length := rand.Intn(maxLength-minLength+1) + minLength
 
-	for i := 0; i < length; i++ {
+	for i := 0; i < 10; i++ {
 		n := rand.Intn(len(chars))
 		b.WriteString(chars[n : n+1])
 	}

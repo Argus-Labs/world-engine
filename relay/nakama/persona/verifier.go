@@ -3,6 +3,7 @@ package persona
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"time"
 
@@ -19,7 +20,7 @@ type Verifier struct {
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
 	txHashToPending map[string]pendingRequest
-	receiptCh       chan []*receipt.Receipt
+	receiptCh       chan []receipt.Receipt
 	pendingCh       chan txHashAndUserID
 	nk              runtime.NakamaModule
 	logger          runtime.Logger
@@ -45,16 +46,22 @@ func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 	}
 }
 
-func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receipt.Dispatcher,
+func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, eh *events.EventHub,
 ) *Verifier {
 	ptv := &Verifier{
 		txHashToPending: map[string]pendingRequest{},
-		receiptCh:       make(chan []*receipt.Receipt),
+		receiptCh:       make(chan []receipt.Receipt),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
 		logger:          logger,
 	}
-	rd.Subscribe(personaVerifierSessionName, ptv.receiptCh)
+	chInterface := eh.Subscribe(personaVerifierSessionName, (chan []receipt.Receipt)(nil))
+	ch, ok := chInterface.(chan []receipt.Receipt)
+	if !ok {
+		logger.Error("Subscription did not return the expected channel type []Receipt")
+		return nil
+	}
+	ptv.receiptCh = ch
 	go ptv.consume()
 	return ptv
 }
@@ -88,7 +95,7 @@ func (p *Verifier) cleanupStaleEntries(now time.Time) {
 	}
 }
 
-func (p *Verifier) handleReceipt(receipts []*receipt.Receipt) []string {
+func (p *Verifier) handleReceipt(receipts []receipt.Receipt) []string {
 	//nolint:prealloc // we cannot know how many receipts we're going to get from the dispatcher
 	var hashes []string
 	for _, rec := range receipts {

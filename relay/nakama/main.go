@@ -54,13 +54,12 @@ func InitModule(
 		return eris.Wrap(err, "failed to init globalNamespace")
 	}
 
-	globalReceiptsDispatcher := initReceiptDispatcher(logger, cardinalAddress)
-
-	if err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress); err != nil {
+	globalEventHub, err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress)
+	if err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
-	notifier := receipt.NewNotifier(logger, nk, globalReceiptsDispatcher)
+	notifier := events.NewNotifier(logger, nk, globalEventHub)
 
 	txSigner, err := selectSigner(ctx, logger, nk)
 	if err != nil {
@@ -78,7 +77,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
-	verifier := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
+	verifier := persona.NewVerifier(logger, nk, globalEventHub)
 
 	if err := initPersonaTagEndpoints(
 		logger,
@@ -156,10 +155,10 @@ func initEventHub(
 	nk runtime.NakamaModule,
 	eventsEndpoint string,
 	cardinalAddress string,
-) error {
-	eventHub, err := events.CreateEventHub(log, eventsEndpoint, cardinalAddress)
+) (*events.EventHub, error) {
+	eventHub, err := events.NewEventHub(log, eventsEndpoint, cardinalAddress)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	go func() {
 		err := eventHub.Dispatch(log)
@@ -170,8 +169,12 @@ func initEventHub(
 
 	// Send Events to everyone via Nakama Notifications
 	go func() {
-		channel := eventHub.Subscribe("main")
-		for event := range channel {
+		chInterface := eventHub.Subscribe("main", (chan []byte)(nil))
+		ch, ok := chInterface.(chan []byte)
+		if !ok {
+			log.Error("subscription did not return the expected channel type []byte")
+		}
+		for event := range ch {
 			content := make(map[string]any)
 			err = json.Unmarshal(event, &content)
 			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, false), "")
@@ -181,7 +184,7 @@ func initEventHub(
 		}
 	}()
 
-	return nil
+	return eventHub, nil
 }
 
 // initPersonaTagAssignmentMap initializes a sync.Map with all the existing mappings of PersonaTag->UserID. This
@@ -228,7 +231,7 @@ func initPersonaTagAssignmentMap(
 func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,

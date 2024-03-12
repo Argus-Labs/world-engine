@@ -19,7 +19,7 @@ import (
 
 type EventHub struct {
 	inputConnection *websocket.Conn
-	channels        *sync.Map // map[string]chan []byte
+	channels        *sync.Map // map[string]chan []byte or []Receipt
 	didShutdown     atomic.Bool
 }
 
@@ -29,7 +29,7 @@ type TickResults struct {
 	Events   [][]byte
 }
 
-func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress string) (*EventHub, error) {
+func NewEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress string) (*EventHub, error) {
 	url := utils.MakeWebSocketURL(eventsEndpoint, cardinalAddress)
 	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 	for err != nil {
@@ -53,8 +53,18 @@ func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddres
 	return &res, nil
 }
 
-func (eh *EventHub) Subscribe(session string) chan []byte {
-	channel := make(chan []byte)
+func (eh *EventHub) Subscribe(session string, channelType interface{}) interface{} {
+	var channel interface{}
+
+	switch channelType.(type) {
+	case chan []byte:
+		channel = make(chan []byte)
+	case chan []receipt.Receipt:
+		channel = make(chan []receipt.Receipt)
+	default:
+		panic(eris.New("Unsupported channel type"))
+	}
+
 	eh.channels.Store(session, channel)
 	return channel
 }
@@ -64,11 +74,16 @@ func (eh *EventHub) Unsubscribe(session string) {
 	if !ok {
 		panic(eris.New("session not found"))
 	}
-	eventChannel, ok := eventChannelUntyped.(chan []byte)
-	if !ok {
-		panic(eris.New("found object that was not a event channel in event hub"))
+
+	switch ch := eventChannelUntyped.(type) {
+	case chan []byte:
+		close(ch)
+	case chan []receipt.Receipt:
+		close(ch)
+	default:
+		panic(eris.New("found object that was not a recognized channel type in event hub"))
 	}
-	close(eventChannel)
+
 	eh.channels.Delete(session)
 }
 
@@ -94,19 +109,19 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 		receivedTickResults := TickResults{}
 		err = json.Unmarshal(message, &receivedTickResults)
 		if err != nil {
-			fmt.Println("BIG ERROR: ", err)
+			log.Error("unable to unmarshal message into TickResults: ", err)
 		}
 
 		eh.channels.Range(func(_ any, value any) bool {
-			channel, ok := value.(chan []byte)
-			if !ok {
-				err = eris.New("not a channel")
-				eh.Shutdown()
-				return false
-			}
-
-			for i := 0; i < len(receivedTickResults.Events); i++ {
-				channel <- receivedTickResults.Events[i]
+			switch ch := value.(type) {
+			case chan []byte:
+				for i := 0; i < len(receivedTickResults.Events); i++ {
+					ch <- receivedTickResults.Events[i]
+				}
+			case chan []receipt.Receipt:
+				ch <- receivedTickResults.Receipts
+			default:
+				log.Warn("Found an unhandled channel type")
 			}
 
 			return true
