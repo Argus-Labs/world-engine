@@ -156,7 +156,8 @@ func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *
 	}
 	for i := start; i < r.archIDToComps.Len(); i++ {
 		archID := types.ArchetypeID(i)
-		//TODO: error swallowed here.
+		// TODO: error swallowed here.
+		// https://linear.app/arguslabs/issue/WORLD-943/cardinal-swallowing-errors-in-searchfrom
 		componentMetadatas, _ := r.archIDToComps.Get(archID)
 		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(componentMetadatas)) {
 			continue

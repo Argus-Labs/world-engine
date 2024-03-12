@@ -410,7 +410,8 @@ func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start in
 	itr := &iterators.ArchetypeIterator{}
 	for i := start; i < m.archIDToComps.Len(); i++ {
 		archID := types.ArchetypeID(i)
-		//TODO: error was swallowed here.
+		// TODO: error was swallowed here.
+		// https://linear.app/arguslabs/issue/WORLD-943/cardinal-swallowing-errors-in-searchfrom
 		componentMetadatas, _ := m.archIDToComps.Get(archID)
 		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(componentMetadatas)) {
 			continue
