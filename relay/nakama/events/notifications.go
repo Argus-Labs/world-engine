@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -51,8 +50,8 @@ type Notifier struct {
 }
 
 func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, eh *EventHub) *Notifier {
-	chInterface := eh.Subscribe("notifications", (chan []receipt.Receipt)(nil))
-	ch, ok := chInterface.(chan []receipt.Receipt)
+	chInterface := eh.Subscribe("notifications", (chan []Receipt)(nil))
+	ch, ok := chInterface.(chan []Receipt)
 	if !ok {
 		logger.Error("Subscription did not return the expected channel type []Receipt")
 		return nil
@@ -82,7 +81,7 @@ func (r *Notifier) AddTxHashToPendingNotifications(txHash string, userID string)
 }
 
 // sendNotifications loops forever, consuming Receipts from the given channel and sending them to the relevant user.
-func (r *Notifier) sendNotifications(ch chan []receipt.Receipt) {
+func (r *Notifier) sendNotifications(ch chan []Receipt) {
 	ticker := time.NewTicker(r.staleDuration)
 
 	for {
@@ -103,7 +102,7 @@ func (r *Notifier) sendNotifications(ch chan []receipt.Receipt) {
 }
 
 // handleReceipt identifies the relevant user for this receipt and sends them a notification.
-func (r *Notifier) handleReceipt(receipts []receipt.Receipt) error {
+func (r *Notifier) handleReceipt(receipts []Receipt) error {
 	ctx := context.Background()
 
 	//nolint:prealloc // we cannot know how many notifications we're going to get

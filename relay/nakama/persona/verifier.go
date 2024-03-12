@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"pkg.world.dev/world-engine/relay/nakama/events"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -20,7 +19,7 @@ type Verifier struct {
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
 	txHashToPending map[string]pendingRequest
-	receiptCh       chan []receipt.Receipt
+	receiptCh       chan []events.Receipt
 	pendingCh       chan txHashAndUserID
 	nk              runtime.NakamaModule
 	logger          runtime.Logger
@@ -50,13 +49,13 @@ func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, eh *events.Even
 ) *Verifier {
 	ptv := &Verifier{
 		txHashToPending: map[string]pendingRequest{},
-		receiptCh:       make(chan []receipt.Receipt),
+		receiptCh:       make(chan []events.Receipt),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
 		logger:          logger,
 	}
-	chInterface := eh.Subscribe(personaVerifierSessionName, (chan []receipt.Receipt)(nil))
-	ch, ok := chInterface.(chan []receipt.Receipt)
+	chInterface := eh.Subscribe(personaVerifierSessionName, (chan []events.Receipt)(nil))
+	ch, ok := chInterface.(chan []events.Receipt)
 	if !ok {
 		logger.Error("Subscription did not return the expected channel type []Receipt")
 		return nil
@@ -95,7 +94,7 @@ func (p *Verifier) cleanupStaleEntries(now time.Time) {
 	}
 }
 
-func (p *Verifier) handleReceipt(receipts []receipt.Receipt) []string {
+func (p *Verifier) handleReceipt(receipts []events.Receipt) []string {
 	//nolint:prealloc // we cannot know how many receipts we're going to get from the dispatcher
 	var hashes []string
 	for _, rec := range receipts {

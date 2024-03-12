@@ -2,7 +2,6 @@ package events
 
 import (
 	"encoding/json"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"strings"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func TestNotifierIntegrationWithEventHub(t *testing.T) {
 			Events:   nil,
 		}
 		tr.Events = append(tr.Events, event)
-		tr.Receipts = append(tr.Receipts, receipt.Receipt{
+		tr.Receipts = append(tr.Receipts, Receipt{
 			TxHash: txHash,
 			Result: map[string]any{"status": "success"},
 			Errors: []string{},
@@ -140,7 +139,7 @@ func TestHandleReceipt(t *testing.T) {
 		userID:    userID,
 	}
 
-	receipt := []receipt.Receipt{{TxHash: txHash}}
+	receipt := []Receipt{{TxHash: txHash}}
 	err = notifier.handleReceipt(receipt)
 	assert.NoError(t, err, "Handling receipt should not error")
 

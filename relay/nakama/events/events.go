@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,7 +24,7 @@ type EventHub struct {
 
 type TickResults struct {
 	Tick     uint64
-	Receipts []receipt.Receipt
+	Receipts []Receipt
 	Events   [][]byte
 }
 
@@ -59,8 +58,8 @@ func (eh *EventHub) Subscribe(session string, channelType interface{}) interface
 	switch channelType.(type) {
 	case chan []byte:
 		channel = make(chan []byte)
-	case chan []receipt.Receipt:
-		channel = make(chan []receipt.Receipt)
+	case chan []Receipt:
+		channel = make(chan []Receipt)
 	default:
 		panic(eris.New("Unsupported channel type"))
 	}
@@ -78,7 +77,7 @@ func (eh *EventHub) Unsubscribe(session string) {
 	switch ch := eventChannelUntyped.(type) {
 	case chan []byte:
 		close(ch)
-	case chan []receipt.Receipt:
+	case chan []Receipt:
 		close(ch)
 	default:
 		panic(eris.New("found object that was not a recognized channel type in event hub"))
@@ -120,7 +119,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 				for i := 0; i < len(receivedTickResults.Events); i++ {
 					ch <- receivedTickResults.Events[i]
 				}
-			case chan []receipt.Receipt:
+			case chan []Receipt:
 				ch <- receivedTickResults.Receipts
 			default:
 				log.Warn("Found an unhandled channel type")
