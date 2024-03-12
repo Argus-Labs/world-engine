@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"slices"
 	"strings"
 	"testing"
@@ -230,7 +231,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		cardinal.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
+		query.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()

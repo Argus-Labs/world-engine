@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"reflect"
 	"strconv"
 
@@ -107,7 +108,7 @@ func RegisterQuery[Request any, Reply any](
 	w *World,
 	name string,
 	handler func(wCtx engine.Context, req *Request) (*Reply, error),
-	opts ...QueryOption[Request, Reply],
+	opts ...query.Option[Request, Reply],
 ) (err error) {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
@@ -117,19 +118,12 @@ func RegisterQuery[Request any, Reply any](
 		)
 	}
 
-	if _, ok := w.nameToQuery[name]; ok {
-		return eris.Errorf("query with name %s is already registered", name)
-	}
-
-	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	q, err := query.NewQueryType[Request, Reply](name, handler, opts...)
 	if err != nil {
 		return err
 	}
 
-	w.registeredQueries = append(w.registeredQueries, q)
-	w.nameToQuery[q.Name()] = q
-
-	return nil
+	return w.queryManager.RegisterQuery(name, q)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.

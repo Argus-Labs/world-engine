@@ -49,6 +49,10 @@ type Rawbodytx struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
+type Health struct {
+	Value int
+}
+
 func (Health) Name() string { return "health" }
 
 type AddHealthToEntityTx struct {

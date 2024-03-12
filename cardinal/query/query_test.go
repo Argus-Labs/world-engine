@@ -1,7 +1,8 @@
-package cardinal_test
+package query_test
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -16,6 +17,10 @@ import (
 
 type Health struct {
 	Value int
+}
+
+func (h Health) Name() string {
+	return "health"
 }
 
 type QueryHealthRequest struct {
@@ -68,7 +73,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
 		},
-		cardinal.WithQueryEVMSupport[FooReq, FooReply](),
+		query.WithQueryEVMSupport[FooReq, FooReply](),
 	)
 }
 
@@ -150,7 +155,7 @@ func TestQueryEVM(t *testing.T) {
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
-		cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
+		query.WithQueryEVMSupport[FooRequest, FooReply](),
 	)
 
 	assert.NilError(t, err)
