@@ -64,6 +64,9 @@ func TestNonceStorageIsBounded(t *testing.T) {
 	keys, err := client.Keys(ctx, "*"+addr+"*").Result()
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(keys))
+
+	// This test assumes we're using Redis to keep track of used nonces. If/when our storage layer changes, this test
+	// should be kept, but the mechanism for counting the number of saved nonces will need to be updated.
 	count, err := client.ZCard(ctx, keys[0]).Result()
 	assert.NilError(t, err)
 	assert.Check(t, count < int64(maxNonceSaved), "nonce tracking is unbounded")
