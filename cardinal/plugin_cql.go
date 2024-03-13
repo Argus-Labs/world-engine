@@ -3,6 +3,7 @@ package cardinal
 import (
 	"github.com/goccy/go-json"
 	"pkg.world.dev/world-engine/cardinal/cql"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
@@ -72,7 +73,7 @@ func queryCQL(ctx engine.Context, req *CQLQueryRequest) (*CQLQueryResponse, erro
 	}
 	result := make([]cqlData, 0)
 	var eachError error
-	searchErr := NewSearch(ctx, resultFilter).Each(
+	searchErr := search.NewSearch(ctx, resultFilter).Each(
 		func(id types.EntityID) bool {
 			components, err := ctx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {

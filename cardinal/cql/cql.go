@@ -2,14 +2,13 @@ package cql
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"strings"
 
 	"pkg.world.dev/world-engine/cardinal/types"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/rotisserie/eris"
-
-	"pkg.world.dev/world-engine/cardinal/filter"
 )
 
 type cqlOperator int

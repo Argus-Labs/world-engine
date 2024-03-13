@@ -2,13 +2,14 @@ package cardinal
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	querylib "pkg.world.dev/world-engine/cardinal/query"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
@@ -210,7 +211,7 @@ type personaIndexEntry struct {
 func buildPersonaIndex(wCtx engine.Context) (personaIndex, error) {
 	personaTagToAddress := map[string]personaIndexEntry{}
 	var errs []error
-	s := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
+	s := search.NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
 	err := s.Each(
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)

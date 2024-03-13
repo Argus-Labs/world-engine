@@ -2,8 +2,9 @@ package cardinal
 
 import (
 	"github.com/goccy/go-json"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
@@ -53,7 +54,7 @@ type DebugStateResponse []*debugStateElement
 //	@Router			/query/debug/state [post]
 func queryDebugState(ctx engine.Context, _ *DebugStateRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
-	s := NewSearch(ctx, filter.All())
+	s := search.NewSearch(ctx, filter.All())
 	var eachClosureErr error
 	searchEachErr := s.Each(
 		func(id types.EntityID) bool {

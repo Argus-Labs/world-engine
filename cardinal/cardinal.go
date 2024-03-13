@@ -3,6 +3,7 @@ package cardinal
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"reflect"
 	"strconv"
 
@@ -350,3 +351,9 @@ func Remove(wCtx engine.Context, id types.EntityID) (err error) {
 
 	return nil
 }
+
+// Imported
+// This section aggregates function from other packages such that they are easily accessible
+// via cardinal.<function_name>
+
+var NewSearch = search.NewSearch
