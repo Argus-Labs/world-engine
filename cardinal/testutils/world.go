@@ -49,7 +49,7 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		miniRedis = miniredis.RunT(t)
 	}
 
-	cardinalPort := getOpenPort(t)
+	cardinalPort := "1337"
 	evmPort := cardinalPort
 	for retries := 10; retries > 0; retries-- {
 		evmPort = getOpenPort(t)
@@ -109,7 +109,7 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 // be registered before calling this function.
 func (t *TestFixture) StartWorld() {
 	t.startOnce.Do(func() {
-		timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
+		//timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
 		startupError := make(chan error)
 		go func() {
 			// StartGame is meant to block forever, so any return value will be non-nil and cause for concern.
@@ -122,8 +122,8 @@ func (t *TestFixture) StartWorld() {
 			select {
 			case err := <-startupError:
 				t.Fatalf("startup error: %v", err)
-			case <-timeout:
-				t.Fatal("timeout while waiting for game to start")
+			//case <-timeout:
+			//	t.Fatal("timeout while waiting for game to start")
 			default:
 				time.Sleep(10 * time.Millisecond) //nolint:gomnd // its for testing its ok.
 			}

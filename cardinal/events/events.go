@@ -2,6 +2,7 @@ package events
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -20,26 +21,42 @@ const (
 )
 
 type EventHub struct {
-	websocketConnections map[*websocket.Conn]bool
-	broadcast            chan []byte
-	flush                chan bool
-	register             chan *websocket.Conn
-	unregister           chan *websocket.Conn
-	shutdown             chan bool
-	eventQueue           [][]byte
-	isRunning            atomic.Bool
+	websocketConnections   map[*websocket.Conn]bool
+	broadcast              chan []byte
+	getEventQueueLength    chan chan int
+	getAmountOfConnections chan chan int
+	flush                  chan bool
+	register               chan *websocket.Conn
+	unregister             chan *websocket.Conn
+	shutdown               chan bool
+	eventQueue             [][]byte
+	isRunning              atomic.Bool
+}
+
+func (eh *EventHub) EventQueueLength() int {
+	lengthChan := make(chan int)
+	eh.getEventQueueLength <- lengthChan
+	return <-lengthChan
+}
+
+func (eh *EventHub) ConnectionAmount() int {
+	connAmountChan := make(chan int)
+	eh.getAmountOfConnections <- connAmountChan
+	return <-connAmountChan
 }
 
 func NewEventHub() *EventHub {
 	res := EventHub{
-		websocketConnections: map[*websocket.Conn]bool{},
-		broadcast:            make(chan []byte),
-		flush:                make(chan bool),
-		register:             make(chan *websocket.Conn),
-		unregister:           make(chan *websocket.Conn),
-		shutdown:             make(chan bool),
-		eventQueue:           make([][]byte, 0),
-		isRunning:            atomic.Bool{},
+		websocketConnections:   map[*websocket.Conn]bool{},
+		broadcast:              make(chan []byte),
+		getEventQueueLength:    make(chan chan int),
+		getAmountOfConnections: make(chan chan int),
+		flush:                  make(chan bool),
+		register:               make(chan *websocket.Conn),
+		unregister:             make(chan *websocket.Conn),
+		shutdown:               make(chan bool),
+		eventQueue:             make([][]byte, 0),
+		isRunning:              atomic.Bool{},
 	}
 	res.isRunning.Store(false)
 	go func() {
@@ -102,14 +119,22 @@ func (eh *EventHub) Run() {
 Loop:
 	for eh.isRunning.Load() {
 		select {
+		case connChan := <-eh.getAmountOfConnections:
+			connChan <- len(eh.websocketConnections)
+		case lengthChan := <-eh.getEventQueueLength:
+			lengthChan <- len(eh.eventQueue)
 		case conn := <-eh.register:
 			eh.websocketConnections[conn] = true
+			fmt.Printf("Registered websocket connection. Total %d\n", len(eh.websocketConnections))
 		case conn := <-eh.unregister:
 			unregisterConnection(conn)
 		case event := <-eh.broadcast:
 			eh.eventQueue = append(eh.eventQueue, event)
 		case <-eh.flush:
 			var waitGroup sync.WaitGroup
+			fmt.Printf("amount of websocket connections: %d\n", len(eh.websocketConnections))
+			fmt.Printf("amount of messages in event queue: %d\n", len(eh.eventQueue))
+			acc := 0
 			for conn := range eh.websocketConnections {
 				waitGroup.Add(1)
 				conn := conn
@@ -121,7 +146,8 @@ Loop:
 							go func() {
 								eh.UnregisterConnection(conn)
 							}()
-							log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
+							log.Logger.Error().Err(err).Msg("Connections were unregistered because of this error: " + eris.ToString(err, true))
+							acc -= 1
 							break
 						}
 						err = eris.Wrap(conn.WriteMessage(websocket.TextMessage, event), "")
@@ -132,10 +158,12 @@ Loop:
 							log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
 							break
 						}
+						acc += 1
 					}
 				}()
 			}
 			waitGroup.Wait()
+			fmt.Printf("messages sent: %d\n", acc)
 			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
 			go func() {
@@ -147,13 +175,16 @@ Loop:
 			}
 			break Loop
 		}
+
 	}
 	eh.isRunning.Store(false)
 }
 
 func (eh *EventHub) NewWebSocketEventHandler() func(conn *websocket.Conn) {
 	return func(conn *websocket.Conn) {
+		fmt.Println("ws handler called registering connection!")
 		eh.RegisterConnection(conn)
+		fmt.Println("ws connection successfully registered.")
 		var err error
 		var mt int
 		var msg []byte
