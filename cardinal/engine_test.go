@@ -280,7 +280,7 @@ func TestSetNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.Equal(t, world.Namespace().String(), namespace)
+	assert.Equal(t, world.Namespace(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {

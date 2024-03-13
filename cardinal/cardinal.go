@@ -3,6 +3,7 @@ package cardinal
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"reflect"
 	"strconv"
 
@@ -101,7 +102,17 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...message
 			worldstage.Init,
 		)
 	}
-	return message.RegisterMessageOnManager[In, Out](world.GetMessageManager(), name, opts...)
+
+	// Create the message type
+	msgType := message.NewMessageType[In, Out](name, opts...)
+
+	// Register the message with the manager
+	err := world.msgManager.RegisterMessage(name, msgType, reflect.TypeOf(*msgType))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func RegisterQuery[Request any, Reply any](
@@ -340,3 +351,9 @@ func Remove(wCtx engine.Context, id types.EntityID) (err error) {
 
 	return nil
 }
+
+// Imported
+// This section aggregates function from other packages such that they are easily accessible
+// via cardinal.<function_name>
+
+var NewSearch = search.NewSearch

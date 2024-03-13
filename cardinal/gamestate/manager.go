@@ -3,9 +3,9 @@ package gamestate
 import (
 	"context"
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"

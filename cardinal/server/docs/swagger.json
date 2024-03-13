@@ -1,582 +1,507 @@
 {
-  "schemes": [
-    "http",
-    "ws"
-  ],
-  "swagger": "2.0",
-  "info": {
-    "description": "Backend server for World Engine",
-    "title": "Cardinal",
-    "contact": {},
-    "version": "0.0.1"
-  },
-  "basePath": "/",
-  "paths": {
-    "/events": {
-      "get": {
-        "description": "websocket connection for events.",
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Endpoint for events",
-        "responses": {
-          "101": {
-            "description": "switch protocol to ws",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
+    "schemes": [
+        "http",
+        "ws"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Backend server for World Engine",
+        "title": "Cardinal",
+        "contact": {},
+        "version": "0.0.1"
     },
-    "/health": {
-      "get": {
-        "description": "Displays information on http server and world game loop",
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Get information on status of world-engine",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/handler.GetHealthResponse"
+    "basePath": "/",
+    "paths": {
+        "/cql": {
+            "post": {
+                "description": "Query the ecs with CQL (cardinal query language)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Query the ecs with CQL (cardinal query language)",
+                "parameters": [
+                    {
+                        "description": "cql (cardinal query language)",
+                        "name": "cql",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CQLQueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CQLQueryResponse"
+                        }
+                    }
+                }
             }
-          }
+        },
+        "/events": {
+            "get": {
+                "description": "websocket connection for events.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Endpoint for events",
+                "responses": {
+                    "101": {
+                        "description": "switch protocol to ws",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Displays information on http server and world game loop",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get information on status of world-engine",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.GetHealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/debug/state": {
+            "post": {
+                "description": "Displays the entire game state.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get information on all entities and components in world-engine",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/cardinal.debugStateElement"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/query/game/{queryType}": {
+            "post": {
+                "description": "Query the ecs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Query the ecs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "The query type",
+                        "name": "queryType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Query Body",
+                        "name": "queryBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "query response",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/http/endpoints": {
+            "get": {
+                "description": "Get all http endpoints from cardinal",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get all http endpoints from cardinal",
+                "responses": {
+                    "200": {
+                        "description": "list of query endpoints",
+                        "schema": {
+                            "$ref": "#/definitions/handler.GetEndpointsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/receipts/list": {
+            "post": {
+                "description": "Get transaction receipts from Cardinal",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get transaction receipts from Cardinal",
+                "parameters": [
+                    {
+                        "description": "List Transaction Receipts Request",
+                        "name": "ListTxReceiptsRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cardinal.ListTxReceiptsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cardinal.ListTxReceiptsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid transaction request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tx/game/{txType}": {
+            "post": {
+                "description": "Submit a transaction to Cardinal\nCreate a Persona transaction to Cardinal",
+                "consumes": [
+                    "application/json",
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "summary": "Create a Persona transaction to Cardinal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "label of the transaction that wants to be submitted",
+                        "name": "txType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Transaction details",
+                        "name": "txBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.Transaction"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid transaction request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tx/persona/create-persona": {
+            "post": {
+                "description": "Submit a transaction to Cardinal\nCreate a Persona transaction to Cardinal",
+                "consumes": [
+                    "application/json",
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "summary": "Create a Persona transaction to Cardinal",
+                "parameters": [
+                    {
+                        "description": "Transaction details",
+                        "name": "txBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.Transaction"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid transaction request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/world": {
+            "get": {
+                "description": "Get field information of registered components, messages, queries",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get field information of registered components, messages, queries",
+                "responses": {
+                    "200": {
+                        "description": "Field information of registered components, messages, queries",
+                        "schema": {
+                            "$ref": "#/definitions/handler.GetWorldResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
-      }
     },
-    "/world": {
-      "get": {
-        "description": "Get field information of registered components, messages, queries",
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Get field information of registered components, messages, queries",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/handler.GetFieldsResponse"
+    "definitions": {
+        "cardinal.ListTxReceiptsRequest": {
+            "type": "object",
+            "properties": {
+                "startTick": {
+                    "type": "integer"
+                }
             }
-          }
+        },
+        "cardinal.ListTxReceiptsResponse": {
+            "type": "object",
+            "properties": {
+                "endTick": {
+                    "type": "integer"
+                },
+                "receipts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cardinal.ReceiptEntry"
+                    }
+                },
+                "startTick": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cardinal.ReceiptEntry": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "result": {},
+                "tick": {
+                    "type": "integer"
+                },
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "cardinal.debugStateElement": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.CQLQueryRequest": {
+            "type": "object",
+            "properties": {
+                "cql": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.CQLQueryResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.cqlData"
+                    }
+                }
+            }
+        },
+        "handler.FieldDetail": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "description": "variable name and type",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "description": "name of the message or query",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.GetEndpointsResponse": {
+            "type": "object",
+            "properties": {
+                "queryEndpoints": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "txEndpoints": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.GetHealthResponse": {
+            "type": "object",
+            "properties": {
+                "isGameLoopRunning": {
+                    "type": "boolean"
+                },
+                "isServerRunning": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.GetWorldResponse": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "description": "list of component names",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.FieldDetail"
+                    }
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.FieldDetail"
+                    }
+                },
+                "queries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.FieldDetail"
+                    }
+                }
+            }
+        },
+        "handler.PostTransactionResponse": {
+            "type": "object",
+            "properties": {
+                "tick": {
+                    "type": "integer"
+                },
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.Transaction": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "description": "json string",
+                    "type": "object"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "nonce": {
+                    "type": "integer"
+                },
+                "personaTag": {
+                    "type": "string"
+                },
+                "signature": {
+                    "description": "hex encoded string",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.cqlData": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
         }
-      }
-    },
-    "/query/debug/state": {
-      "post": {
-        "description": "Displays the entire game state.",
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Get information on all entities and components in world-engine",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/cardinal.debugStateElement"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/query/game/cql": {
-      "post": {
-        "description": "Query the ecs with CQL (cardinal query language)",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Query the ecs with CQL (cardinal query language)",
-        "parameters": [
-          {
-            "description": "cql (cardinal query language)",
-            "name": "cql",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/cardinal.CQLQueryRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/cardinal.CQLQueryResponse"
-            }
-          }
-        }
-      }
-    },
-    "/query/game/{queryType}": {
-      "post": {
-        "description": "Query the ecs",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Query the ecs",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "The query type",
-            "name": "queryType",
-            "in": "path",
-            "required": true
-          },
-          {
-            "description": "Query Body",
-            "name": "queryBody",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "query response",
-            "schema": {
-              "type": "object"
-            }
-          },
-          "400": {
-            "description": "Invalid query request",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "/query/http/endpoints": {
-      "get": {
-        "description": "Get all http endpoints from cardinal",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Get all http endpoints from cardinal",
-        "responses": {
-          "200": {
-            "description": "list of query endpoints",
-            "schema": {
-              "$ref": "#/definitions/handler.GetEndpointsResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid query request",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "/query/persona/signer": {
-      "post": {
-        "description": "Get persona data from cardinal",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Get persona data from cardinal",
-        "parameters": [
-          {
-            "description": "Query Request",
-            "name": "QueryPersonaSignerRequest",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/cardinal.QueryPersonaSignerRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/cardinal.QueryPersonaSignerResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid query request",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "/query/receipts/list": {
-      "post": {
-        "description": "Get transaction receipts from Cardinal",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "summary": "Get transaction receipts from Cardinal",
-        "parameters": [
-          {
-            "description": "List Transaction Receipts Request",
-            "name": "ListTxReceiptsRequest",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/cardinal.ListTxReceiptsRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/cardinal.ListTxReceiptsReply"
-            }
-          },
-          "400": {
-            "description": "Invalid transaction request",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "/tx/game/{txType}": {
-      "post": {
-        "description": "Submit a transaction to Cardinal\nCreate a Persona transaction to Cardinal",
-        "consumes": [
-          "application/json",
-          "application/json"
-        ],
-        "produces": [
-          "application/json",
-          "application/json"
-        ],
-        "summary": "Create a Persona transaction to Cardinal",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "label of the transaction that wants to be submitted",
-            "name": "txType",
-            "in": "path",
-            "required": true
-          },
-          {
-            "description": "Transaction details",
-            "name": "txBody",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/handler.Transaction"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/handler.PostTransactionResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid transaction request",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "/tx/persona/create-persona": {
-      "post": {
-        "description": "Submit a transaction to Cardinal\nCreate a Persona transaction to Cardinal",
-        "consumes": [
-          "application/json",
-          "application/json"
-        ],
-        "produces": [
-          "application/json",
-          "application/json"
-        ],
-        "summary": "Create a Persona transaction to Cardinal",
-        "parameters": [
-          {
-            "description": "Transaction details",
-            "name": "txBody",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/handler.Transaction"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/handler.PostTransactionResponse"
-            }
-          },
-          "400": {
-            "description": "Invalid transaction request",
-            "schema": {
-              "type": "string"
-            }
-          }
-        }
-      }
     }
-  },
-  "definitions": {
-    "cardinal.CQLQueryRequest": {
-      "type": "object",
-      "properties": {
-        "cql": {
-          "type": "string"
-        }
-      }
-    },
-    "cardinal.CQLQueryResponse": {
-      "type": "object",
-      "properties": {
-        "results": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/cardinal.cqlData"
-          }
-        }
-      }
-    },
-    "cardinal.ListTxReceiptsReply": {
-      "type": "object",
-      "properties": {
-        "endTick": {
-          "type": "integer"
-        },
-        "receipts": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/cardinal.Receipt"
-          }
-        },
-        "startTick": {
-          "type": "integer"
-        }
-      }
-    },
-    "cardinal.ListTxReceiptsRequest": {
-      "type": "object",
-      "properties": {
-        "startTick": {
-          "type": "integer"
-        }
-      }
-    },
-    "cardinal.QueryPersonaSignerRequest": {
-      "type": "object",
-      "properties": {
-        "personaTag": {
-          "type": "string"
-        },
-        "tick": {
-          "type": "integer"
-        }
-      }
-    },
-    "cardinal.QueryPersonaSignerResponse": {
-      "type": "object",
-      "properties": {
-        "signerAddress": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        }
-      }
-    },
-    "cardinal.Receipt": {
-      "type": "object",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "items": {}
-        },
-        "result": {},
-        "tick": {
-          "type": "integer"
-        },
-        "txHash": {
-          "type": "string"
-        }
-      }
-    },
-    "cardinal.cqlData": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "object"
-        },
-        "id": {
-          "type": "integer"
-        }
-      }
-    },
-    "cardinal.debugStateElement": {
-      "type": "object",
-      "properties": {
-        "components": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
-        },
-        "id": {
-          "type": "integer"
-        }
-      }
-    },
-    "handler.GetEndpointsResponse": {
-      "type": "object",
-      "properties": {
-        "queryEndpoints": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "txEndpoints": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "handler.GetHealthResponse": {
-      "type": "object",
-      "properties": {
-        "isGameLoopRunning": {
-          "type": "boolean"
-        },
-        "isServerRunning": {
-          "type": "boolean"
-        }
-      }
-    },
-    "handler.GetFieldsResponse": {
-      "type": "object",
-      "properties": {
-        "components": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "fields": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "messages": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "fields": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "queries": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "fields": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "handler.PostTransactionResponse": {
-      "type": "object",
-      "properties": {
-        "tick": {
-          "type": "integer"
-        },
-        "txHash": {
-          "type": "string"
-        }
-      }
-    },
-    "handler.Transaction": {
-      "type": "object",
-      "properties": {
-        "body": {
-          "description": "json string",
-          "type": "object"
-        },
-        "hash": {
-          "type": "string"
-        },
-        "namespace": {
-          "type": "string"
-        },
-        "nonce": {
-          "type": "integer"
-        },
-        "personaTag": {
-          "type": "string"
-        },
-        "signature": {
-          "description": "hex encoded string",
-          "type": "string"
-        }
-      }
-    }
-  }
 }

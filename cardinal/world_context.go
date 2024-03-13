@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"reflect"
 
 	"github.com/rs/zerolog"
@@ -9,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
-	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -110,7 +110,7 @@ func (ctx *worldContext) ReceiptHistorySize() uint64 {
 }
 
 func (ctx *worldContext) Namespace() string {
-	return string(ctx.world.namespace)
+	return ctx.world.Namespace()
 }
 
 func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
@@ -135,10 +135,6 @@ func (ctx *worldContext) StoreReader() gamestate.Reader {
 		return sm.ToReadOnly()
 	}
 	return sm
-}
-
-func (ctx *worldContext) UseNonce(signerAddress string, nonce uint64) error {
-	return ctx.world.UseNonce(signerAddress, nonce)
 }
 
 func (ctx *worldContext) IsWorldReady() bool {
