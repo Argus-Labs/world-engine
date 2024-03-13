@@ -3,10 +3,10 @@ package filter_test
 import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/cql"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 

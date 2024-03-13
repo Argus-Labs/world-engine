@@ -24,11 +24,13 @@ type FieldDetail struct {
 //	@Description	Get field information of registered components, messages, queries
 //	@Accept			application/json
 //	@Produce		application/json
-//	@Success		200	{object}	GetFieldsResponse	"Field information of registered components, messages, queries"
+//	@Success		200	{object}	GetWorldResponse	"Field information of registered components, messages, queries"
 //	@Failure		400	{string}	string				""
 //	@Router			/world [get]
-func GetWorld(components []types.ComponentMetadata, messages []types.Message,
-	queries []engine.Query) func(*fiber.Ctx) error {
+func GetWorld(
+	components []types.ComponentMetadata, messages []types.Message,
+	queries []engine.Query,
+) func(*fiber.Ctx) error {
 	// Collecting name of all registered components
 	comps := make([]FieldDetail, 0, len(components))
 	for _, component := range components {

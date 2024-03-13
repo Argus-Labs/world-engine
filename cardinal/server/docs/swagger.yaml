@@ -1,73 +1,61 @@
 basePath: /
 definitions:
-  cardinal.CQLQueryRequest:
-    properties:
-      cql:
-        type: string
-    type: object
-  cardinal.CQLQueryResponse:
-    properties:
-      results:
-        items:
-          $ref: '#/definitions/cardinal.cqlData'
-        type: array
-    type: object
-  cardinal.ListTxReceiptsReply:
-    properties:
-      endTick:
-        type: integer
-      receipts:
-        items:
-          $ref: '#/definitions/cardinal.Receipt'
-        type: array
-      startTick:
-        type: integer
-    type: object
   cardinal.ListTxReceiptsRequest:
     properties:
       startTick:
         type: integer
     type: object
-  cardinal.QueryPersonaSignerRequest:
+  cardinal.ListTxReceiptsResponse:
     properties:
-      personaTag:
-        type: string
-      tick:
+      endTick:
+        type: integer
+      receipts:
+        items:
+          $ref: '#/definitions/cardinal.ReceiptEntry'
+        type: array
+      startTick:
         type: integer
     type: object
-  cardinal.QueryPersonaSignerResponse:
-    properties:
-      signerAddress:
-        type: string
-      status:
-        type: string
-    type: object
-  cardinal.Receipt:
+  cardinal.ReceiptEntry:
     properties:
       errors:
-        items: { }
+        items:
+          type: string
         type: array
-      result: { }
+      result: {}
       tick:
         type: integer
       txHash:
         type: string
     type: object
-  cardinal.cqlData:
+  cardinal.debugStateElement:
     properties:
-      data:
+      components:
         type: object
       id:
         type: integer
     type: object
-  cardinal.debugStateElement:
+  handler.CQLQueryRequest:
     properties:
-      components:
+      cql:
+        type: string
+    type: object
+  handler.CQLQueryResponse:
+    properties:
+      results:
         items:
-          type: object
+          $ref: '#/definitions/handler.cqlData'
         type: array
-      id:
-        type: integer
+    type: object
+  handler.FieldDetail:
+    properties:
+      fields:
+        additionalProperties: {}
+        description: variable name and type
+        type: object
+      name:
+        description: name of the message or query
+        type: string
     type: object
   handler.GetEndpointsResponse:
     properties:
@@ -87,44 +75,21 @@ definitions:
       isServerRunning:
         type: boolean
     type: object
-  handler.GetFieldsResponse:
+  handler.GetWorldResponse:
     properties:
       components:
-        type: array
+        description: list of component names
         items:
-          type: object
-          properties:
-            name:
-              type: string
-            fields:
-              type: object
-              properties:
-                name:
-                  type: string
+          $ref: '#/definitions/handler.FieldDetail'
+        type: array
       messages:
-        type: array
         items:
-          type: object
-          properties:
-            name:
-              type: string
-            fields:
-              type: object
-              properties:
-                name:
-                  type: string
+          $ref: '#/definitions/handler.FieldDetail'
+        type: array
       queries:
-        type: array
         items:
-          type: object
-          properties:
-            name:
-              type: string
-            fields:
-              type: object
-              properties:
-                name:
-                  type: string
+          $ref: '#/definitions/handler.FieldDetail'
+        type: array
     type: object
   handler.PostTransactionResponse:
     properties:
@@ -150,17 +115,44 @@ definitions:
         description: hex encoded string
         type: string
     type: object
+  handler.cqlData:
+    properties:
+      data:
+        type: object
+      id:
+        type: integer
+    type: object
 info:
-  contact: { }
+  contact: {}
   description: Backend server for World Engine
   title: Cardinal
   version: 0.0.1
 paths:
+  /cql:
+    post:
+      consumes:
+      - application/json
+      description: Query the ecs with CQL (cardinal query language)
+      parameters:
+      - description: cql (cardinal query language)
+        in: body
+        name: cql
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CQLQueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.CQLQueryResponse'
+      summary: Query the ecs with CQL (cardinal query language)
   /events:
     get:
       description: websocket connection for events.
       produces:
-        - application/json
+      - application/json
       responses:
         "101":
           description: switch protocol to ws
@@ -171,29 +163,18 @@ paths:
     get:
       description: Displays information on http server and world game loop
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Get information on status of world-engine
-  /world:
-    get:
-      description: Get field information of registered components, messages, queries
-      produces:
-        - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetFieldsResponse'
-      summary: Get field information of registered components, messages, queries
   /query/debug/state:
     post:
       description: Displays the entire game state.
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -205,22 +186,22 @@ paths:
   /query/game/{queryType}:
     post:
       consumes:
-        - application/json
+      - application/json
       description: Query the ecs
       parameters:
-        - description: The query type
-          in: path
-          name: queryType
-          required: true
-          type: string
-        - description: Query Body
-          in: body
-          name: queryBody
-          required: true
-          schema:
-            type: object
+      - description: The query type
+        in: path
+        name: queryType
+        required: true
+        type: string
+      - description: Query Body
+        in: body
+        name: queryBody
+        required: true
+        schema:
+          type: object
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: query response
@@ -231,33 +212,13 @@ paths:
           schema:
             type: string
       summary: Query the ecs
-  /query/game/cql:
-    post:
-      consumes:
-        - application/json
-      description: Query the ecs with CQL (cardinal query language)
-      parameters:
-        - description: cql (cardinal query language)
-          in: body
-          name: cql
-          required: true
-          schema:
-            $ref: '#/definitions/cardinal.CQLQueryRequest'
-      produces:
-        - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/cardinal.CQLQueryResponse'
-      summary: Query the ecs with CQL (cardinal query language)
   /query/http/endpoints:
     get:
       consumes:
-        - application/json
+      - application/json
       description: Get all http endpoints from cardinal
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: list of query endpoints
@@ -268,49 +229,25 @@ paths:
           schema:
             type: string
       summary: Get all http endpoints from cardinal
-  /query/persona/signer:
-    post:
-      consumes:
-        - application/json
-      description: Get persona data from cardinal
-      parameters:
-        - description: Query Request
-          in: body
-          name: QueryPersonaSignerRequest
-          required: true
-          schema:
-            $ref: '#/definitions/cardinal.QueryPersonaSignerRequest'
-      produces:
-        - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/cardinal.QueryPersonaSignerResponse'
-        "400":
-          description: Invalid query request
-          schema:
-            type: string
-      summary: Get persona data from cardinal
   /query/receipts/list:
     post:
       consumes:
-        - application/json
+      - application/json
       description: Get transaction receipts from Cardinal
       parameters:
-        - description: List Transaction Receipts Request
-          in: body
-          name: ListTxReceiptsRequest
-          required: true
-          schema:
-            $ref: '#/definitions/cardinal.ListTxReceiptsRequest'
+      - description: List Transaction Receipts Request
+        in: body
+        name: ListTxReceiptsRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cardinal.ListTxReceiptsRequest'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/cardinal.ListTxReceiptsReply'
+            $ref: '#/definitions/cardinal.ListTxReceiptsResponse'
         "400":
           description: Invalid transaction request
           schema:
@@ -319,26 +256,26 @@ paths:
   /tx/game/{txType}:
     post:
       consumes:
-        - application/json
-        - application/json
+      - application/json
+      - application/json
       description: |-
         Submit a transaction to Cardinal
         Create a Persona transaction to Cardinal
       parameters:
-        - description: label of the transaction that wants to be submitted
-          in: path
-          name: txType
-          required: true
-          type: string
-        - description: Transaction details
-          in: body
-          name: txBody
-          required: true
-          schema:
-            $ref: '#/definitions/handler.Transaction'
+      - description: label of the transaction that wants to be submitted
+        in: path
+        name: txType
+        required: true
+        type: string
+      - description: Transaction details
+        in: body
+        name: txBody
+        required: true
+        schema:
+          $ref: '#/definitions/handler.Transaction'
       produces:
-        - application/json
-        - application/json
+      - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -352,21 +289,21 @@ paths:
   /tx/persona/create-persona:
     post:
       consumes:
-        - application/json
-        - application/json
+      - application/json
+      - application/json
       description: |-
         Submit a transaction to Cardinal
         Create a Persona transaction to Cardinal
       parameters:
-        - description: Transaction details
-          in: body
-          name: txBody
-          required: true
-          schema:
-            $ref: '#/definitions/handler.Transaction'
+      - description: Transaction details
+        in: body
+        name: txBody
+        required: true
+        schema:
+          $ref: '#/definitions/handler.Transaction'
       produces:
-        - application/json
-        - application/json
+      - application/json
+      - application/json
       responses:
         "200":
           description: OK
@@ -377,7 +314,24 @@ paths:
           schema:
             type: string
       summary: Create a Persona transaction to Cardinal
+  /world:
+    get:
+      consumes:
+      - application/json
+      description: Get field information of registered components, messages, queries
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Field information of registered components, messages, queries
+          schema:
+            $ref: '#/definitions/handler.GetWorldResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Get field information of registered components, messages, queries
 schemes:
-  - http
-  - ws
+- http
+- ws
 swagger: "2.0"

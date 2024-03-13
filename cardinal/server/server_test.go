@@ -384,3 +384,52 @@ type LocationComponent struct {
 func (LocationComponent) Name() string {
 	return "location"
 }
+
+func (s *ServerTestSuite) TestCQL() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	wCtx := cardinal.NewWorldContext(s.world)
+	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	assert.NilError(s.T(), err)
+
+	s.fixture.DoTick()
+
+	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "CONTAINS(location)"})
+	var result handler.CQLQueryResponse
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().NoError(err)
+	s.Require().Len(result.Results, 10)
+}
+
+func (s *ServerTestSuite) TestCQL_InvalidFormat() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	wCtx := cardinal.NewWorldContext(s.world)
+	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	assert.NilError(s.T(), err)
+
+	s.fixture.DoTick()
+
+	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "MEOW(location)"})
+	var result handler.CQLQueryResponse
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().Error(err)
+}
+
+func (s *ServerTestSuite) TestCQL_NonExistentComponent() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	wCtx := cardinal.NewWorldContext(s.world)
+	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	assert.NilError(s.T(), err)
+
+	s.fixture.DoTick()
+
+	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "CONTAINS(meow)"})
+	var result handler.CQLQueryResponse
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().Error(err)
+}

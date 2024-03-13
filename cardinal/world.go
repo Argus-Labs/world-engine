@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"sync/atomic"
@@ -551,9 +553,6 @@ func (w *World) registerInternalPlugin() {
 	// Register Debug plugin
 	w.RegisterPlugin(newDebugPlugin())
 
-	// Register CQL plugin
-	w.RegisterPlugin(newCQLPlugin())
-
 	// Register Receipt plugin
 	w.RegisterPlugin(newReceiptPlugin())
 }
@@ -652,6 +651,14 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	}
 
 	return qry.EncodeEVMReply(reply)
+}
+
+func (w *World) Search(filter filter.ComponentFilter) *search.Search {
+	return NewSearch(NewReadOnlyWorldContext(w), filter)
+}
+
+func (w *World) StoreReader() gamestate.Reader {
+	return w.entityStore.ToReadOnly()
 }
 
 func (w *World) GetRegisteredQueries() []engine.Query {

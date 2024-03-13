@@ -157,4 +157,7 @@ func setupRoutes(
 	// Route: /tx/...
 	tx := app.Group("/tx")
 	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, cfg.isSignatureVerificationDisabled))
+
+	// Route: /cql
+	app.Post("/cql", handler.PostCQL(provider))
 }

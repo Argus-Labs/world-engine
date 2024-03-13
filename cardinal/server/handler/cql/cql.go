@@ -1,11 +1,12 @@
+//nolint:govet // there is too much issues with incompatible struct tags
 package cql
+
+import "pkg.world.dev/world-engine/cardinal/types"
 
 import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"strings"
-
-	"pkg.world.dev/world-engine/cardinal/types"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/rotisserie/eris"

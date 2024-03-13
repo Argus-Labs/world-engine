@@ -8,6 +8,20 @@ import (
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
+type fooComp struct {
+	X string
+	Y int
+}
+
+func (fooComp) Name() string { return "foo" }
+
+type barComp struct {
+	Z bool
+	R uint64
+}
+
+func (barComp) Name() string { return "bar" }
+
 func TestDebugStateQuery(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
