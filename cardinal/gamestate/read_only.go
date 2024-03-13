@@ -21,14 +21,15 @@ var (
 
 type readOnlyManager struct {
 	storage         PrimitiveStorage[string]
-	typeToComponent map[types.ComponentID]types.ComponentMetadata
-	archIDToComps   map[types.ArchetypeID][]types.ComponentMetadata
+	typeToComponent VolatileStorage[types.ComponentID, types.ComponentMetadata]
+	archIDToComps   VolatileStorage[types.ArchetypeID, []types.ComponentMetadata]
 }
 
 func (m *EntityCommandBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
 		storage:         m.dbStorage,
 		typeToComponent: m.typeToComponent,
+		archIDToComps:   m.archIDToComps,
 	}
 }
 
@@ -66,15 +67,15 @@ func (r *readOnlyManager) GetComponentForEntityInRawJSON(
 }
 
 func (r *readOnlyManager) getComponentsForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error) {
-	if comps, ok := r.archIDToComps[archID]; ok {
+	if comps, err := r.archIDToComps.Get(archID); err == nil {
 		return comps, nil
 	}
 	if err := r.refreshArchIDToCompTypes(); err != nil {
 		return nil, err
 	}
-	comps, ok := r.archIDToComps[archID]
-	if !ok {
-		return nil, eris.Errorf("unable to find components for arch EntityID %d", archID)
+	comps, err := r.archIDToComps.Get(archID)
+	if err != nil {
+		return nil, eris.Wrapf(err, "unable to find components for arch EntityID %d", archID)
 	}
 	return comps, nil
 }
@@ -92,12 +93,12 @@ func (r *readOnlyManager) GetComponentTypesForEntity(id types.EntityID) ([]types
 	return r.getComponentsForArchID(archID)
 }
 
-func (r *readOnlyManager) GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata {
+func (r *readOnlyManager) GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error) {
 	comps, err := r.getComponentsForArchID(archID)
 	if err != nil {
-		panic(eris.ToString(err, true))
+		return nil, err
 	}
-	return comps
+	return comps, nil
 }
 
 func (r *readOnlyManager) GetArchIDForComponents(
@@ -116,8 +117,15 @@ func (r *readOnlyManager) GetArchIDForComponents(
 				return 0, err
 			}
 		}
-
-		for archID, currComps := range r.archIDToComps {
+		archIDs, err := r.archIDToComps.Keys()
+		if err != nil {
+			return 0, err
+		}
+		for _, archID := range archIDs {
+			currComps, err := r.archIDToComps.Get(archID)
+			if err != nil {
+				return 0, err
+			}
 			if isComponentSetMatch(currComps, components) {
 				return archID, nil
 			}
@@ -146,9 +154,12 @@ func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *
 	if err := r.refreshArchIDToCompTypes(); err != nil {
 		return itr
 	}
-	for i := start; i < len(r.archIDToComps); i++ {
+	for i := start; i < r.archIDToComps.Len(); i++ {
 		archID := types.ArchetypeID(i)
-		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(r.archIDToComps[archID])) {
+		// TODO: error swallowed here.
+		// https://linear.app/arguslabs/issue/WORLD-943/cardinal-swallowing-errors-in-searchfrom
+		componentMetadatas, _ := r.archIDToComps.Get(archID)
+		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(componentMetadatas)) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)
@@ -160,5 +171,5 @@ func (r *readOnlyManager) ArchetypeCount() int {
 	if err := r.refreshArchIDToCompTypes(); err != nil {
 		return 0
 	}
-	return len(r.archIDToComps)
+	return r.archIDToComps.Len()
 }

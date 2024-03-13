@@ -2,9 +2,9 @@ package cardinal
 
 import (
 	"errors"
+	querylib "pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	querylib "pkg.world.dev/world-engine/cardinal/query"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
