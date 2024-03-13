@@ -1,4 +1,4 @@
-package cardinal
+package query
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-type QueryType[Request any, Reply any] struct {
+type queryType[Request any, Reply any] struct {
 	name       string
 	group      string
 	handler    func(wCtx engine.Context, req *Request) (*Reply, error)
@@ -20,8 +20,8 @@ type QueryType[Request any, Reply any] struct {
 	replyABI   *ethereumAbi.Type
 }
 
-func WithQueryEVMSupport[Request, Reply any]() QueryOption[Request, Reply] {
-	return func(qt *QueryType[Request, Reply]) {
+func WithQueryEVMSupport[Request, Reply any]() Option[Request, Reply] {
+	return func(qt *queryType[Request, Reply]) {
 		if err := qt.generateABIBindings(); err != nil {
 			panic(err)
 		}
@@ -32,26 +32,26 @@ func WithQueryEVMSupport[Request, Reply any]() QueryOption[Request, Reply] {
 // By default, queries are registered under the "game" group which maps it to the /query/game/:queryType route.
 // This option allows you to set a custom group, which allow you to register the query
 // under /query/<custom_group>/:queryType.
-func WithCustomQueryGroup[Request, Reply any](group string) QueryOption[Request, Reply] {
-	return func(qt *QueryType[Request, Reply]) {
+func WithCustomQueryGroup[Request, Reply any](group string) Option[Request, Reply] {
+	return func(qt *queryType[Request, Reply]) {
 		qt.group = group
 	}
 }
 
-type QueryOption[Request, Reply any] func(qt *QueryType[Request, Reply])
+type Option[Request, Reply any] func(qt *queryType[Request, Reply])
 
-var _ engine.Query = &QueryType[struct{}, struct{}]{}
+var _ engine.Query = &queryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(wCtx engine.Context, req *Request) (*Reply, error),
-	opts ...QueryOption[Request, Reply],
+	opts ...Option[Request, Reply],
 ) (engine.Query, error) {
 	err := validateQuery[Request, Reply](name, handler)
 	if err != nil {
 		return nil, err
 	}
-	r := &QueryType[Request, Reply]{
+	r := &queryType[Request, Reply]{
 		name:    name,
 		group:   "game",
 		handler: handler,
@@ -63,11 +63,11 @@ func NewQueryType[Request any, Reply any](
 	return r, nil
 }
 
-func (r *QueryType[Request, Reply]) IsEVMCompatible() bool {
+func (r *queryType[Request, Reply]) IsEVMCompatible() bool {
 	return r.requestABI != nil && r.replyABI != nil
 }
 
-func (r *QueryType[Request, Reply]) generateABIBindings() error {
+func (r *queryType[Request, Reply]) generateABIBindings() error {
 	var req Request
 	reqABI, err := abi.GenerateABIType(req)
 	if err != nil {
@@ -83,15 +83,15 @@ func (r *QueryType[Request, Reply]) generateABIBindings() error {
 	return nil
 }
 
-func (r *QueryType[req, rep]) Name() string {
+func (r *queryType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *QueryType[req, rep]) Group() string {
+func (r *queryType[req, rep]) Group() string {
 	return r.group
 }
 
-func (r *QueryType[req, rep]) HandleQuery(wCtx engine.Context, a any) (any, error) {
+func (r *queryType[req, rep]) HandleQuery(wCtx engine.Context, a any) (any, error) {
 	var request *req
 	if reflect.TypeOf(a).Kind() == reflect.Pointer {
 		ptrRequest, ok := a.(*req)
@@ -110,7 +110,7 @@ func (r *QueryType[req, rep]) HandleQuery(wCtx engine.Context, a any) (any, erro
 	return reply, err
 }
 
-func (r *QueryType[req, rep]) HandleQueryRaw(wCtx engine.Context, bz []byte) ([]byte, error) {
+func (r *queryType[req, rep]) HandleQueryRaw(wCtx engine.Context, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
@@ -127,7 +127,7 @@ func (r *QueryType[req, rep]) HandleQueryRaw(wCtx engine.Context, bz []byte) ([]
 	return bz, nil
 }
 
-func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
+func (r *queryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
 		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
@@ -146,7 +146,7 @@ func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	return request, nil
 }
 
-func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
+func (r *queryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
 		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
@@ -165,7 +165,7 @@ func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	return reply, nil
 }
 
-func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
+func (r *queryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
 		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
@@ -174,7 +174,7 @@ func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	return bz, eris.Wrap(err, "")
 }
 
-func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
+func (r *queryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
 		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
@@ -202,7 +202,7 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 }
 
 // GetRequestFieldInformation returns the field information for the request struct.
-func (r *QueryType[Request, Reply]) GetRequestFieldInformation() map[string]any {
+func (r *queryType[Request, Reply]) GetRequestFieldInformation() map[string]any {
 	return types.GetFieldInformation(reflect.TypeOf(new(Request)).Elem())
 }
 

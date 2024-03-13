@@ -3,6 +3,7 @@ package cardinal
 import (
 	"github.com/goccy/go-json"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
@@ -27,7 +28,7 @@ func (p *debugPlugin) Register(world *World) error {
 func (p *debugPlugin) RegisterQueries(world *World) error {
 	err := RegisterQuery[DebugStateRequest, DebugStateResponse](world, "state",
 		queryDebugState,
-		WithCustomQueryGroup[DebugStateRequest, DebugStateResponse]("debug"))
+		query.WithCustomQueryGroup[DebugStateRequest, DebugStateResponse]("debug"))
 	if err != nil {
 		return err
 	}
