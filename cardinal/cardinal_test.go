@@ -718,13 +718,13 @@ func TestCreatePersona(t *testing.T) {
 
 func TestNewWorld(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
-	assert.Equal(t, string(tf.World.Namespace()), cardinal.DefaultNamespace)
+	assert.Equal(t, tf.World.Namespace(), cardinal.DefaultNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
 	tf := testutils.NewTestFixture(t, nil)
-	assert.Equal(t, string(tf.World.Namespace()), "custom-namespace")
+	assert.Equal(t, tf.World.Namespace(), "custom-namespace")
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {

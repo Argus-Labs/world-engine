@@ -263,7 +263,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
 	assert.True(t, ok)
 	payload := MoveMsgInput{Direction: "up"}
-	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace().String(), s.nonce, payload)
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace(), s.nonce, payload)
 	assert.NilError(t, err)
 
 	// This request should fail because signature verification is enabled, and we have not yet
@@ -274,7 +274,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 
 // Creates a transaction with the given message, and runs it in a tick.
 func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
-	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace().String(), s.nonce, payload)
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace(), s.nonce, payload)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
@@ -289,7 +289,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, createPersonaTx)
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))

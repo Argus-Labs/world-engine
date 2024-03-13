@@ -37,7 +37,6 @@ type Context interface {
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 	ReceiptHistorySize() uint64
 	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
-	UseNonce(signerAddress string, nonce uint64) error
 	IsWorldReady() bool
 	StoreReader() gamestate.Reader
 	StoreManager() gamestate.Manager

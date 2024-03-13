@@ -37,6 +37,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
@@ -82,6 +83,7 @@ type World struct {
 }
 
 var _ router.Provider = &World{}
+var _ servertypes.Provider = &World{}
 
 // NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(opts ...WorldOption) (*World, error) {
@@ -345,7 +347,7 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
+	w.server, err = server.New(w, NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
 		w.GetRegisteredQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
@@ -603,8 +605,8 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) Namespace() Namespace {
-	return w.namespace
+func (w *World) Namespace() string {
+	return string(w.namespace)
 }
 
 func (w *World) GameStateManager() gamestate.Manager {
