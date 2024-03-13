@@ -2,7 +2,6 @@ package events
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -20,14 +19,22 @@ const (
 	writeDeadline = 5 * time.Second
 )
 
+// websocketAndDoneChan stores a websocket connection along with a channel to signal when something is done.
+// it's sent by a webhandler into eventHub and the done channel is to allow eventHub to signal back into the web
+// framework
+type websocketAndDoneChan struct {
+	connection *websocket.Conn
+	doneChan   chan bool
+}
+
 type EventHub struct {
 	websocketConnections   map[*websocket.Conn]bool
 	broadcast              chan []byte
 	getEventQueueLength    chan chan int
 	getAmountOfConnections chan chan int
 	flush                  chan bool
-	register               chan *websocket.Conn
-	unregister             chan *websocket.Conn
+	register               chan websocketAndDoneChan
+	unregister             chan websocketAndDoneChan
 	shutdown               chan bool
 	eventQueue             [][]byte
 	isRunning              atomic.Bool
@@ -52,8 +59,8 @@ func NewEventHub() *EventHub {
 		getEventQueueLength:    make(chan chan int),
 		getAmountOfConnections: make(chan chan int),
 		flush:                  make(chan bool),
-		register:               make(chan *websocket.Conn),
-		unregister:             make(chan *websocket.Conn),
+		register:               make(chan websocketAndDoneChan),
+		unregister:             make(chan websocketAndDoneChan),
 		shutdown:               make(chan bool),
 		eventQueue:             make([][]byte, 0),
 		isRunning:              atomic.Bool{},
@@ -83,11 +90,21 @@ func (eh *EventHub) FlushEvents() {
 }
 
 func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
-	eh.register <- ws
+	doneChan := make(chan bool)
+	eh.register <- websocketAndDoneChan{
+		connection: ws,
+		doneChan:   doneChan,
+	}
+	<-doneChan
 }
 
 func (eh *EventHub) UnregisterConnection(ws *websocket.Conn) {
-	eh.unregister <- ws
+	doneChan := make(chan bool)
+	eh.unregister <- websocketAndDoneChan{
+		connection: ws,
+		doneChan:   doneChan,
+	}
+	<-doneChan
 }
 
 func (eh *EventHub) Shutdown() {
@@ -123,17 +140,19 @@ Loop:
 			connChan <- len(eh.websocketConnections)
 		case lengthChan := <-eh.getEventQueueLength:
 			lengthChan <- len(eh.eventQueue)
-		case conn := <-eh.register:
+		case websocketAndDoneChan := <-eh.register:
+			conn := websocketAndDoneChan.connection
+			doneChan := websocketAndDoneChan.doneChan
 			eh.websocketConnections[conn] = true
-			fmt.Printf("Registered websocket connection. Total %d\n", len(eh.websocketConnections))
-		case conn := <-eh.unregister:
+			doneChan <- true
+		case websocketAndDoneChan := <-eh.unregister:
+			conn := websocketAndDoneChan.connection
 			unregisterConnection(conn)
+			websocketAndDoneChan.doneChan <- true
 		case event := <-eh.broadcast:
 			eh.eventQueue = append(eh.eventQueue, event)
 		case <-eh.flush:
 			var waitGroup sync.WaitGroup
-			fmt.Printf("amount of websocket connections: %d\n", len(eh.websocketConnections))
-			fmt.Printf("amount of messages in event queue: %d\n", len(eh.eventQueue))
 			acc := 0
 			for conn := range eh.websocketConnections {
 				waitGroup.Add(1)
@@ -163,7 +182,6 @@ Loop:
 				}()
 			}
 			waitGroup.Wait()
-			fmt.Printf("messages sent: %d\n", acc)
 			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
 			go func() {
@@ -182,9 +200,7 @@ Loop:
 
 func (eh *EventHub) NewWebSocketEventHandler() func(conn *websocket.Conn) {
 	return func(conn *websocket.Conn) {
-		fmt.Println("ws handler called registering connection!")
 		eh.RegisterConnection(conn)
-		fmt.Println("ws connection successfully registered.")
 		var err error
 		var mt int
 		var msg []byte
