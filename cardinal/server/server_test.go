@@ -102,8 +102,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	var result handler.GetEndpointsResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	msgs := s.world.ListMessages()
-	queries := s.world.ListQueries()
+	msgs := s.world.GetRegisteredMessages()
+	queries := s.world.GetRegisteredQueries()
 
 	s.Require().Len(msgs, len(result.TxEndpoints))
 	s.Require().Len(queries, len(result.QueryEndpoints))
@@ -126,8 +126,8 @@ func (s *ServerTestSuite) TestGetWorld() {
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
 	comps := s.world.GetRegisteredComponents()
-	msgs := s.world.ListMessages()
-	queries := s.world.ListQueries()
+	msgs := s.world.GetRegisteredMessages()
+	queries := s.world.GetRegisteredQueries()
 
 	s.Require().Len(comps, len(result.Components))
 	s.Require().Len(msgs, len(result.Messages))

@@ -65,7 +65,7 @@ func AddTransactionToWorldByAnyTransaction(
 	value any,
 	tx *sign.Transaction,
 ) {
-	txs := world.ListMessages()
+	txs := world.GetRegisteredMessages()
 	txID := cardinalTx.ID()
 	found := false
 	for _, tx := range txs {
