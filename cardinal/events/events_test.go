@@ -24,7 +24,7 @@ type Event struct {
 	Message string `json:"message"`
 }
 
-func TestEvents1(t *testing.T) {
+func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
@@ -44,7 +44,10 @@ func TestEvents1(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			data := map[string]any{"message": fmt.Sprintf("test%d", i)}
-			tf.World.GetEventHub().EmitEvent(data)
+			err := tf.World.GetEventHub().EmitEvent(data)
+			if err != nil {
+				t.Error("failed to emit event from EventHub")
+			}
 		}()
 	}
 	wg.Wait()
