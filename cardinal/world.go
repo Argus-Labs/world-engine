@@ -79,7 +79,7 @@ type World struct {
 	router router.Router
 
 	eventHub    *events.EventHub
-	tickResults *events.TickResults
+	tickResults *TickResults
 
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
@@ -181,7 +181,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if world.tickResults == nil {
-		world.tickResults = events.NewTickResults(world.CurrentTick())
+		world.tickResults = NewTickResults(world.CurrentTick())
 	}
 
 	// Make game loop tick every second if not set

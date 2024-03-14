@@ -1,4 +1,4 @@
-package events
+package cardinal
 
 import (
 	"encoding/json"
