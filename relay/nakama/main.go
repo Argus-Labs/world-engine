@@ -20,7 +20,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
@@ -54,13 +53,12 @@ func InitModule(
 		return eris.Wrap(err, "failed to init globalNamespace")
 	}
 
-	globalReceiptsDispatcher := initReceiptDispatcher(logger, cardinalAddress)
-
-	if err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress); err != nil {
+	globalEventHub, err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress)
+	if err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
-	notifier := receipt.NewNotifier(logger, nk, globalReceiptsDispatcher)
+	notifier := events.NewNotifier(logger, nk, globalEventHub)
 
 	txSigner, err := selectSigner(ctx, logger, nk)
 	if err != nil {
@@ -78,7 +76,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
-	verifier := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
+	verifier := persona.NewVerifier(logger, nk, globalEventHub)
 
 	if err := initPersonaTagEndpoints(
 		logger,
@@ -119,13 +117,6 @@ func InitModule(
 	return nil
 }
 
-func initReceiptDispatcher(log runtime.Logger, cardinalAddress string) *receipt.Dispatcher {
-	globalReceiptsDispatcher := receipt.NewDispatcher()
-	go globalReceiptsDispatcher.PollReceipts(log, cardinalAddress)
-	go globalReceiptsDispatcher.Dispatch(log)
-	return globalReceiptsDispatcher
-}
-
 func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (signer.Signer, error) {
 	nonceManager := signer.NewNakamaNonceManager(nk)
 
@@ -156,10 +147,10 @@ func initEventHub(
 	nk runtime.NakamaModule,
 	eventsEndpoint string,
 	cardinalAddress string,
-) error {
-	eventHub, err := events.CreateEventHub(log, eventsEndpoint, cardinalAddress)
+) (*events.EventHub, error) {
+	eventHub, err := events.NewEventHub(log, eventsEndpoint, cardinalAddress)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	go func() {
 		err := eventHub.Dispatch(log)
@@ -168,10 +159,10 @@ func initEventHub(
 		}
 	}()
 
-	// for now send to everybody via notifications.
+	// Send Events to everyone via Nakama Notifications
 	go func() {
-		channel := eventHub.Subscribe("main")
-		for event := range channel {
+		ch := eventHub.SubscribeToEvents("main")
+		for event := range ch {
 			content := make(map[string]any)
 			err = json.Unmarshal(event, &content)
 			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, false), "")
@@ -181,7 +172,7 @@ func initEventHub(
 		}
 	}()
 
-	return nil
+	return eventHub, nil
 }
 
 // initPersonaTagAssignmentMap initializes a sync.Map with all the existing mappings of PersonaTag->UserID. This
@@ -228,7 +219,7 @@ func initPersonaTagAssignmentMap(
 func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,

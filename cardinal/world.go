@@ -78,7 +78,8 @@ type World struct {
 
 	router router.Router
 
-	eventHub *events.EventHub
+	eventHub    *events.EventHub
+	tickResults *TickResults
 
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
@@ -179,6 +180,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		world.eventHub = events.NewEventHub()
 	}
 
+	if world.tickResults == nil {
+		world.tickResults = NewTickResults(world.CurrentTick())
+	}
+
 	// Make game loop tick every second if not set
 	if world.tickChannel == nil {
 		world.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
@@ -251,14 +256,6 @@ func (w *World) Tick(ctx context.Context, timestamp uint64) error {
 		return err
 	}
 
-	if w.eventHub != nil {
-		// engine can be optionally loaded with or without an eventHub.
-		// If there is one, on every tick it must flush events.
-		flushEventStart := time.Now()
-		w.eventHub.FlushEvents()
-		statsd.EmitTickStat(flushEventStart, "flush_events")
-	}
-
 	finalizeTickStartTime := time.Now()
 	if err := w.entityStore.FinalizeTick(ctx); err != nil {
 		return err
@@ -281,6 +278,21 @@ func (w *World) Tick(ctx context.Context, timestamp uint64) error {
 	// Increment the tick
 	w.tick.Add(1)
 	w.receiptHistory.NextTick() // todo(scott): use channels
+
+	if w.eventHub != nil {
+		// engine can be optionally loaded with or without an eventHub.
+		// If there is one, on every tick it must flush events.
+
+		// Populate world.TickResults for the current tick and emit it as an Event
+		w.populateAndEmitTickResults()
+
+		flushEventStart := time.Now()
+		w.eventHub.FlushEvents()
+		statsd.EmitTickStat(flushEventStart, "flush_events")
+
+		// Clear the TickResults for this tick in preparation for the next Tick
+		w.tickResults.Clear()
+	}
 
 	statsd.EmitTickStat(startTime, "full_tick")
 	if err := statsd.Client().Count("num_of_txs", int64(txPool.GetAmountOfTxs()), nil, 1); err != nil {
@@ -690,4 +702,17 @@ func (w *World) GetMessageByName(name string) (types.Message, bool) {
 
 func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	return w.componentManager.GetComponentByName(name)
+}
+
+func (w *World) populateAndEmitTickResults() {
+	receipts, err := w.receiptHistory.GetReceiptsForTick(w.CurrentTick() - 1)
+	if err != nil {
+		w.Logger.Error().Msgf("failed get receipts for tick %d: %v", w.CurrentTick(), err)
+	}
+	w.tickResults.SetReceipts(receipts)
+	w.tickResults.SetTick(w.CurrentTick() - 1)
+	err = w.eventHub.EmitEvent(w.tickResults)
+	if err != nil {
+		w.Logger.Warn().Msgf("failed to emit TickResults as event: %v", err)
+	}
 }

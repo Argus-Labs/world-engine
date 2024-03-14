@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -44,11 +43,11 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			data, err := json.Marshal(map[string]any{"message": fmt.Sprintf("test%d", i)})
+			data := map[string]any{"message": fmt.Sprintf("test%d", i)}
+			err := tf.World.GetEventHub().EmitEvent(data)
 			if err != nil {
-				assert.NilError(t, eris.Wrap(err, ""))
+				t.Error("failed to emit event from EventHub")
 			}
-			tf.World.GetEventHub().EmitEvent(data)
 		}()
 	}
 	wg.Wait()
@@ -66,7 +65,7 @@ func TestEvents(t *testing.T) {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
 				assert.Equal(t, mode, websocket.TextMessage)
-				var messageMap = make(map[string]string, 0)
+				var messageMap map[string]string
 				err = json.Unmarshal(message, &messageMap)
 				assert.NilError(t, err)
 				messageString, ok := messageMap["message"]
@@ -159,10 +158,13 @@ func TestEventsThroughSystems(t *testing.T) {
 			for i := 0; i < numberToTest; i++ {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
-				receivedEvent := Event{}
-				assert.NilError(t, json.Unmarshal(message, &receivedEvent))
+				receivedTickResults := cardinal.TickResults{}
+				assert.NilError(t, json.Unmarshal(message, &receivedTickResults))
+				event := make(map[string]any)
+				assert.Equal(t, len(receivedTickResults.Events), 5)
+				assert.NilError(t, json.Unmarshal(receivedTickResults.Events[0], &event))
 				assert.Equal(t, mode, websocket.TextMessage)
-				assert.Equal(t, receivedEvent.Message, "test")
+				assert.Equal(t, event["message"], "test")
 				counter2.Add(1)
 			}
 		}()

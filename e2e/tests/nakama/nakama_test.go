@@ -23,6 +23,7 @@ func TestEvents(t *testing.T) {
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	username, deviceID, personaTag := triple(randomString())
+
 	c := clients.NewNakamaClient(t)
 	assert.NilError(t, c.RegisterDevice(username, deviceID))
 
@@ -54,7 +55,7 @@ func TestEvents(t *testing.T) {
 		case e := <-c.EventCh:
 			events = append(events, e)
 		case <-timeout:
-			assert.FailNow(t, "timeout whiel waiting for events")
+			assert.FailNow(t, "timeout while waiting for events")
 		}
 	}
 
@@ -499,6 +500,7 @@ const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 func randomString() string {
 	b := &strings.Builder{}
+
 	for i := 0; i < 10; i++ {
 		n := rand.Intn(len(chars))
 		b.WriteString(chars[n : n+1])

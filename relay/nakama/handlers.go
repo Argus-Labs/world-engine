@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"sync"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -14,7 +15,6 @@ import (
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
@@ -22,7 +22,7 @@ import (
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 func handleClaimPersona(
 	verifier *persona.Verifier,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,
@@ -197,7 +197,7 @@ func handleGetSaveGame(
 func handleCardinalRequest(
 	currEndpoint string,
 	createPayload func(string, string, runtime.NakamaModule, context.Context) (io.Reader, error),
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	cardinalAddress string,
 ) nakamaRPCHandler {
 	return func(

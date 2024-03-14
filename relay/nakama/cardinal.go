@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
 
@@ -47,7 +47,7 @@ func getCardinalEndpoints(cardinalAddress string) (txEndpoints []string, queryEn
 
 func makeRequestAndReadResp(
 	ctx context.Context,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	endpoint string,
 	payload io.Reader,
 	cardinalAddress string,

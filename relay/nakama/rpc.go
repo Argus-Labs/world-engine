@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"strconv"
 	"sync"
 
@@ -12,7 +13,6 @@ import (
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 )
 
@@ -21,7 +21,7 @@ func initPersonaTagEndpoints(
 	_ runtime.Logger,
 	initializer runtime.Initializer,
 	verifier *persona.Verifier,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,
@@ -95,7 +95,7 @@ func initSaveFileQuery(_ runtime.Logger, initializer runtime.Initializer) error 
 func registerEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	endpoints []string,
 	createPayload func(string, string, runtime.NakamaModule,
 		context.Context,
