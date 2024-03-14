@@ -22,13 +22,13 @@ func TestIfNewMessageWillPanic(t *testing.T) {
 	type NotStruct []int
 	type AStruct struct{}
 	assert.Panics(t, func() {
-		newMessageType[NotStruct, AStruct]("random")
+		NewMessageType[NotStruct, AStruct]("random")
 	})
 	assert.Panics(t, func() {
-		newMessageType[AStruct, NotStruct]("random")
+		NewMessageType[AStruct, NotStruct]("random")
 	})
 	assert.NotPanics(t, func() {
-		newMessageType[AStruct, AStruct]("random")
+		NewMessageType[AStruct, AStruct]("random")
 	})
 }
 
@@ -44,9 +44,9 @@ func TestReadTypeNotStructs(t *testing.T) {
 			assert.Assert(t, panicValue == nil)
 		}()
 
-		newMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score2")
+		NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score2")
 	}()
-	newMessageType[string, string]("modify_score1")
+	NewMessageType[string, string]("modify_score1")
 }
 
 func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
@@ -58,7 +58,7 @@ func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
 
 	msg := FooMsg{1, 2, "foo"}
 	// set up the Message.
-	iMsg := newMessageType[FooMsg, EmptyMsgResult]("FooMsg",
+	iMsg := NewMessageType[FooMsg, EmptyMsgResult]("FooMsg",
 		WithMsgEVMSupport[FooMsg, EmptyMsgResult]())
 	bz, err := iMsg.ABIEncode(msg)
 	assert.NilError(t, err)
@@ -75,7 +75,7 @@ func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
 
 func TestCannotDecodeEVMBeforeSetEVM(t *testing.T) {
 	type foo struct{}
-	msg := newMessageType[foo, EmptyMsgResult]("foo")
+	msg := NewMessageType[foo, EmptyMsgResult]("foo")
 	_, err := msg.DecodeEVMBytes([]byte{})
 	assert.ErrorIs(t, err, ErrEVMTypeNotSet)
 }
@@ -97,7 +97,7 @@ func TestNewTransactionPanicsIfNoName(t *testing.T) {
 	type Foo struct{}
 	require.Panics(
 		t, func() {
-			newMessageType[Foo, Foo]("")
+			NewMessageType[Foo, Foo]("")
 		},
 	)
 }

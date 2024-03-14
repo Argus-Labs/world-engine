@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -22,11 +22,11 @@ var _ Manager = &EntityCommandBuffer{}
 type EntityCommandBuffer struct {
 	dbStorage PrimitiveStorage[string]
 
-	compValues         PrimitiveStorage[compKey]
-	compValuesToDelete PrimitiveStorage[compKey]
-	typeToComponent    map[types.ComponentID]types.ComponentMetadata
+	compValues         VolatileStorage[compKey, any]
+	compValuesToDelete VolatileStorage[compKey, bool]
+	typeToComponent    VolatileStorage[types.ComponentID, types.ComponentMetadata]
 
-	activeEntities map[types.ArchetypeID]activeEntities
+	activeEntities VolatileStorage[types.ArchetypeID, activeEntities]
 
 	// Fields that track the next valid entity EntityID that can be assigned
 	nextEntityIDSaved uint64
@@ -34,10 +34,10 @@ type EntityCommandBuffer struct {
 	isEntityIDLoaded  bool
 
 	// Archetype EntityID management.
-	entityIDToArchID       map[types.EntityID]types.ArchetypeID
-	entityIDToOriginArchID map[types.EntityID]types.ArchetypeID
+	entityIDToArchID       VolatileStorage[types.EntityID, types.ArchetypeID]
+	entityIDToOriginArchID VolatileStorage[types.EntityID, types.ArchetypeID]
 
-	archIDToComps  map[types.ArchetypeID][]types.ComponentMetadata
+	archIDToComps  VolatileStorage[types.ArchetypeID, []types.ComponentMetadata]
 	pendingArchIDs []types.ArchetypeID
 
 	logger *zerolog.Logger
@@ -56,11 +56,11 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 		compValues:         NewMapStorage[compKey, any](),
 		compValuesToDelete: NewMapStorage[compKey, bool](),
 
-		activeEntities: map[types.ArchetypeID]activeEntities{},
-		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
+		activeEntities: NewMapStorage[types.ArchetypeID, activeEntities](),
+		archIDToComps:  NewMapStorage[types.ArchetypeID, []types.ComponentMetadata](),
 
-		entityIDToArchID:       map[types.EntityID]types.ArchetypeID{},
-		entityIDToOriginArchID: map[types.EntityID]types.ArchetypeID{},
+		entityIDToArchID:       NewMapStorage[types.EntityID, types.ArchetypeID](),
+		entityIDToOriginArchID: NewMapStorage[types.EntityID, types.ArchetypeID](),
 
 		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
@@ -72,9 +72,12 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 }
 
 func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata) error {
-	m.typeToComponent = map[types.ComponentID]types.ComponentMetadata{}
+	m.typeToComponent = NewMapStorage[types.ComponentID, types.ComponentMetadata]()
 	for _, comp := range comps {
-		m.typeToComponent[comp.ID()] = comp
+		err := m.typeToComponent.Set(comp.ID(), comp)
+		if err != nil {
+			return err
+		}
 	}
 
 	return m.loadArchIDs()
@@ -82,24 +85,39 @@ func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata
 
 // DiscardPending discards any pending state changes.
 func (m *EntityCommandBuffer) DiscardPending() error {
-	ctx := context.Background()
-	err := m.compValues.Clear(ctx)
+	err := m.compValues.Clear()
 	if err != nil {
 		return err
 	}
 
 	// Any entity archetypes movements need to be undone
-	clear(m.activeEntities)
-	for id := range m.entityIDToOriginArchID {
-		delete(m.entityIDToArchID, id)
+	err = m.activeEntities.Clear()
+	if err != nil {
+		return err
 	}
-	clear(m.entityIDToOriginArchID)
+	ids, err := m.entityIDToOriginArchID.Keys()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		err = m.entityIDToArchID.Delete(id)
+		if err != nil {
+			return err
+		}
+	}
+	err = m.entityIDToOriginArchID.Clear()
+	if err != nil {
+		return err
+	}
 
 	m.isEntityIDLoaded = false
 	m.pendingEntityIDs = 0
 
 	for _, archID := range m.pendingArchIDs {
-		delete(m.archIDToComps, archID)
+		err = m.archIDToComps.Delete(archID)
+		if err != nil {
+			return err
+		}
 	}
 	m.pendingArchIDs = m.pendingArchIDs[:0]
 	return nil
@@ -120,21 +138,32 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 		return err
 	}
 
-	m.setActiveEntities(archID, active)
-	if _, ok := m.entityIDToOriginArchID[idToRemove]; !ok {
-		m.entityIDToOriginArchID[idToRemove] = archID
+	err = m.setActiveEntities(archID, active)
+	if err != nil {
+		return err
 	}
-	delete(m.entityIDToArchID, idToRemove)
-
-	comps := m.GetComponentTypesForArchID(archID)
-	ctx := context.Background()
-	for _, comp := range comps {
-		key := compKey{comp.ID(), idToRemove}
-		err = m.compValues.Delete(ctx, key)
+	if _, err := m.entityIDToOriginArchID.Get(idToRemove); err != nil {
+		err = m.entityIDToOriginArchID.Set(idToRemove, archID)
 		if err != nil {
 			return err
 		}
-		err = m.compValuesToDelete.Set(ctx, key, true)
+	}
+	err = m.entityIDToArchID.Delete(idToRemove)
+	if err != nil {
+		return err
+	}
+
+	comps, err := m.GetComponentTypesForArchID(archID)
+	if err != nil {
+		return err
+	}
+	for _, comp := range comps {
+		key := compKey{comp.ID(), idToRemove}
+		err = m.compValues.Delete(key)
+		if err != nil {
+			return err
+		}
+		err = m.compValuesToDelete.Set(key, true)
 		if err != nil {
 			return err
 		}
@@ -170,13 +199,22 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.Compone
 			return nil, err
 		}
 		ids[i] = currID
-		m.entityIDToArchID[currID] = archID
-		m.entityIDToOriginArchID[currID] = doesNotExistArchetypeID
+		err = m.entityIDToArchID.Set(currID, archID)
+		if err != nil {
+			return nil, err
+		}
+		err = m.entityIDToOriginArchID.Set(currID, doesNotExistArchetypeID)
+		if err != nil {
+			return nil, err
+		}
 		active.ids = append(active.ids, currID)
 		active.modified = true
 		ecslog.Entity(m.logger, zerolog.DebugLevel, currID, archID, comps)
 	}
-	m.setActiveEntities(archID, active)
+	err = m.setActiveEntities(archID, active)
+	if err != nil {
+		return nil, err
+	}
 	return ids, nil
 }
 
@@ -194,15 +232,14 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 	}
 
 	key := compKey{cType.ID(), id}
-	ctx := context.Background()
-	return m.compValues.Set(ctx, key, value)
+	return m.compValues.Set(key, value)
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
 func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error) {
 	ctx := context.Background()
 	key := compKey{cType.ID(), id}
-	value, err := m.compValues.Get(ctx, key)
+	value, err := m.compValues.Get(key)
 	if err == nil {
 		return value, nil
 	}
@@ -235,7 +272,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	if err != nil {
 		return nil, err
 	}
-	return value, m.compValues.Set(ctx, key, value)
+	return value, m.compValues.Set(key, value)
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
@@ -298,12 +335,11 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 		return eris.Wrap(iterators.ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
-	ctx := context.Background()
-	err = m.compValues.Delete(ctx, key)
+	err = m.compValues.Delete(key)
 	if err != nil {
 		return err
 	}
-	err = m.compValuesToDelete.Set(ctx, key, true)
+	err = m.compValuesToDelete.Set(key, true)
 	if err != nil {
 		return err
 	}
@@ -326,12 +362,12 @@ func (m *EntityCommandBuffer) GetComponentTypesForEntity(id types.EntityID) ([]t
 		return nil, err
 	}
 
-	return m.GetComponentTypesForArchID(archID), nil
+	return m.GetComponentTypesForArchID(archID)
 }
 
 // GetComponentTypesForArchID returns the set of components that are associated with the given archetype id.
-func (m *EntityCommandBuffer) GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata {
-	return m.archIDToComps[archID]
+func (m *EntityCommandBuffer) GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error) {
+	return m.archIDToComps.Get(archID)
 }
 
 // GetArchIDForComponents returns the archetype EntityID that has been assigned to this set of components.
@@ -343,7 +379,15 @@ func (m *EntityCommandBuffer) GetArchIDForComponents(components []types.Componen
 	if err := sortComponentSet(components); err != nil {
 		return 0, err
 	}
-	for archID, comps := range m.archIDToComps {
+	archIDs, err := m.archIDToComps.Keys()
+	if err != nil {
+		return 0, err
+	}
+	for _, archID := range archIDs {
+		comps, err := m.archIDToComps.Get(archID)
+		if err != nil {
+			return 0, err
+		}
 		if isComponentSetMatch(comps, components) {
 			return archID, nil
 		}
@@ -364,9 +408,12 @@ func (m *EntityCommandBuffer) GetEntitiesForArchID(archID types.ArchetypeID) ([]
 // that match the given filter.
 func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator {
 	itr := &iterators.ArchetypeIterator{}
-	for i := start; i < len(m.archIDToComps); i++ {
+	for i := start; i < m.archIDToComps.Len(); i++ {
 		archID := types.ArchetypeID(i)
-		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(m.archIDToComps[archID])) {
+		// TODO: error was swallowed here.
+		// https://linear.app/arguslabs/issue/WORLD-943/cardinal-swallowing-errors-in-searchfrom
+		componentMetadatas, _ := m.archIDToComps.Get(archID)
+		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(componentMetadatas)) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)
@@ -376,7 +423,7 @@ func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start in
 
 // ArchetypeCount returns the number of archetypes that have been generated.
 func (m *EntityCommandBuffer) ArchetypeCount() int {
-	return len(m.archIDToComps)
+	return m.archIDToComps.Len()
 }
 
 // InjectLogger sets the logger for the manager.
@@ -400,8 +447,8 @@ func (m *EntityCommandBuffer) Close() error {
 
 // getArchetypeForEntity returns the archetype EntityID for the given entity EntityID.
 func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.ArchetypeID, error) {
-	archID, ok := m.entityIDToArchID[id]
-	if ok {
+	archID, err := m.entityIDToArchID.Get(id)
+	if err == nil {
 		return archID, nil
 	}
 	key := storageArchetypeIDForEntityID(id)
@@ -414,7 +461,10 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 		return 0, eris.Wrap(err, "")
 	}
 	archID = types.ArchetypeID(num)
-	m.entityIDToArchID[id] = archID
+	err = m.entityIDToArchID.Set(id, archID)
+	if err != nil {
+		return 0, err
+	}
 	return archID, nil
 }
 
@@ -457,19 +507,22 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 		return 0, err
 	}
 	// An archetype EntityID was not found. Create a pending arch EntityID
-	id := types.ArchetypeID(len(m.archIDToComps))
+	id := types.ArchetypeID(m.archIDToComps.Len())
 	m.pendingArchIDs = append(m.pendingArchIDs, id)
-	m.archIDToComps[id] = comps
+	err = m.archIDToComps.Set(id, comps)
+	if err != nil {
+		return 0, err
+	}
 	m.logger.Debug().Int("archetype_id", int(id)).Msg("created")
 	return id, nil
 }
 
 // getActiveEntities returns the entities that are currently assigned to the given archetype EntityID.
 func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activeEntities, error) {
-	active, ok := m.activeEntities[archID]
+	active, err := m.activeEntities.Get(archID)
 	// The active entities for this archetype EntityID has not yet been loaded from dbStorage
-	if ok {
-		return m.activeEntities[archID], nil
+	if err == nil {
+		return active, nil
 	}
 	ctx := context.Background()
 	key := storageActiveEntityIDKey(archID)
@@ -488,27 +541,36 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 			return active, err
 		}
 	}
-
-	m.activeEntities[archID] = activeEntities{
+	result := activeEntities{
 		ids:      ids,
 		modified: false,
 	}
-	return m.activeEntities[archID], nil
+	err = m.activeEntities.Set(archID, result)
+	if err != nil {
+		return activeEntities{}, err
+	}
+	return result, nil
 }
 
 // setActiveEntities sets the entities that are associated with the given archetype EntityID and marks
 // the information as modified so it can later be pushed to the dbStorage layer.
-func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) {
+func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) error {
 	active.modified = true
-	m.activeEntities[archID] = active
+	return m.activeEntities.Set(archID, active)
 }
 
 // moveEntityByArchetype moves an entity EntityID from one archetype to another archetype.
 func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID types.ArchetypeID, id types.EntityID) error {
-	if _, ok := m.entityIDToOriginArchID[id]; !ok {
-		m.entityIDToOriginArchID[id] = fromArchID
+	if _, err := m.entityIDToOriginArchID.Get(id); err != nil {
+		err = m.entityIDToOriginArchID.Set(id, fromArchID)
+		if err != nil {
+			return err
+		}
 	}
-	m.entityIDToArchID[id] = toArchID
+	err := m.entityIDToArchID.Set(id, toArchID)
+	if err != nil {
+		return err
+	}
 
 	active, err := m.getActiveEntities(fromArchID)
 	if err != nil {
@@ -517,14 +579,20 @@ func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID types.A
 	if err = active.swapRemove(id); err != nil {
 		return err
 	}
-	m.setActiveEntities(fromArchID, active)
+	err = m.setActiveEntities(fromArchID, active)
+	if err != nil {
+		return err
+	}
 
 	active, err = m.getActiveEntities(toArchID)
 	if err != nil {
 		return err
 	}
 	active.ids = append(active.ids, id)
-	m.setActiveEntities(toArchID, active)
+	err = m.setActiveEntities(toArchID, active)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

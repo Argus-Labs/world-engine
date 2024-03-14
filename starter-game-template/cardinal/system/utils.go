@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 
 	comp "github.com/argus-labs/starter-game-template/cardinal/component"

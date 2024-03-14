@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -202,7 +202,8 @@ func TestComponents(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
+		componentsForArchID, err := storeManager.GetComponentTypesForArchID(tt.archID)
+		assert.NilError(t, err)
 		matchComponent := filter.CreateComponentMatcher(
 			types.ConvertComponentMetadatasToComponents(componentsForArchID))
 		for _, comp := range tt.comps {

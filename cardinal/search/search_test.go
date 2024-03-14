@@ -1,14 +1,36 @@
-package cardinal_test
+package search_test
 
 import (
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
 )
+
+type Alpha struct {
+	Name1 string
+}
+type Beta struct {
+	Name1 string
+}
+type Gamma struct {
+	Name1 string
+}
+
+func (Alpha) Name() string {
+	return "alpha"
+}
+
+func (Beta) Name() string {
+	return "beta"
+}
+
+func (Gamma) Name() string {
+	return "gamma"
+}
 
 func TestSearchExample(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)

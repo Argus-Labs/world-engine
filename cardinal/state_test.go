@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -104,7 +104,8 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneNum))
 	assert.NilError(t, err)
-	wantComps := world1.GameStateManager().GetComponentTypesForArchID(wantID)
+	wantComps, err := world1.GameStateManager().GetComponentTypesForArchID(wantID)
+	assert.NilError(t, err)
 	assert.Equal(t, 1, len(wantComps))
 	matchComponent := filter.CreateComponentMatcher(types.ConvertComponentMetadatasToComponents(wantComps))
 	assert.Check(t, matchComponent(oneNum))
@@ -120,7 +121,8 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotID, err := world2.GameStateManager().GetArchIDForComponents(comps(twoNum))
 	assert.NilError(t, err)
-	gotComps := world2.GameStateManager().GetComponentTypesForArchID(gotID)
+	gotComps, err := world2.GameStateManager().GetComponentTypesForArchID(gotID)
+	assert.NilError(t, err)
 	assert.Equal(t, 1, len(gotComps))
 	matchComponent = filter.CreateComponentMatcher(types.ConvertComponentMetadatasToComponents(gotComps))
 	assert.Check(t, matchComponent(twoNum))

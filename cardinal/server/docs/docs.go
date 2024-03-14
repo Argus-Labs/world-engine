@@ -15,6 +15,37 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/cql": {
+            "post": {
+                "description": "Query the ecs with CQL (cardinal query language)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Query the ecs with CQL (cardinal query language)",
+                "parameters": [
+                    {
+                        "description": "cql (cardinal query language)",
+                        "name": "cql",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CQLQueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CQLQueryResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "websocket connection for events.",
@@ -49,23 +80,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/world": {
-            "get": {
-                "description": "Get field information of registered components, messages, queries",
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get field information of registered components, messages, queries",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handler.GetFieldsResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/query/debug/state": {
             "post": {
                 "description": "Displays the entire game state.",
@@ -81,37 +95,6 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/cardinal.debugStateElement"
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/query/game/cql": {
-            "post": {
-                "description": "Query the ecs with CQL (cardinal query language)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Query the ecs with CQL (cardinal query language)",
-                "parameters": [
-                    {
-                        "description": "cql (cardinal query language)",
-                        "name": "cql",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/cardinal.CQLQueryRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/cardinal.CQLQueryResponse"
                         }
                     }
                 }
@@ -187,43 +170,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/query/persona/signer": {
-            "post": {
-                "description": "Get persona data from cardinal",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get persona data from cardinal",
-                "parameters": [
-                    {
-                        "description": "Query Request",
-                        "name": "QueryPersonaSignerRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/cardinal.QueryPersonaSignerRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/cardinal.QueryPersonaSignerResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid query request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/query/receipts/list": {
             "post": {
                 "description": "Get transaction receipts from Cardinal",
@@ -249,7 +195,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/cardinal.ListTxReceiptsReply"
+                            "$ref": "#/definitions/cardinal.ListTxReceiptsResponse"
                         }
                     },
                     "400": {
@@ -345,45 +291,35 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/world": {
+            "get": {
+                "description": "Get field information of registered components, messages, queries",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get field information of registered components, messages, queries",
+                "responses": {
+                    "200": {
+                        "description": "Field information of registered components, messages, queries",
+                        "schema": {
+                            "$ref": "#/definitions/handler.GetWorldResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "cardinal.CQLQueryRequest": {
-            "type": "object",
-            "properties": {
-                "cql": {
-                    "type": "string"
-                }
-            }
-        },
-        "cardinal.CQLQueryResponse": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cardinal.cqlData"
-                    }
-                }
-            }
-        },
-        "cardinal.ListTxReceiptsReply": {
-            "type": "object",
-            "properties": {
-                "endTick": {
-                    "type": "integer"
-                },
-                "receipts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cardinal.Receipt"
-                    }
-                },
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
         "cardinal.ListTxReceiptsRequest": {
             "type": "object",
             "properties": {
@@ -392,34 +328,31 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal.QueryPersonaSignerRequest": {
+        "cardinal.ListTxReceiptsResponse": {
             "type": "object",
             "properties": {
-                "personaTag": {
-                    "type": "string"
+                "endTick": {
+                    "type": "integer"
                 },
-                "tick": {
+                "receipts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cardinal.ReceiptEntry"
+                    }
+                },
+                "startTick": {
                     "type": "integer"
                 }
             }
         },
-        "cardinal.QueryPersonaSignerResponse": {
-            "type": "object",
-            "properties": {
-                "signerAddress": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "cardinal.Receipt": {
+        "cardinal.ReceiptEntry": {
             "type": "object",
             "properties": {
                 "errors": {
                     "type": "array",
-                    "items": {}
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "result": {},
                 "tick": {
@@ -430,10 +363,10 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal.cqlData": {
+        "cardinal.debugStateElement": {
             "type": "object",
             "properties": {
-                "data": {
+                "components": {
                     "type": "object"
                 },
                 "id": {
@@ -441,17 +374,36 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal.debugStateElement": {
+        "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
-                "components": {
+                "cql": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.CQLQueryResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "$ref": "#/definitions/handler.cqlData"
                     }
+                }
+            }
+        },
+        "handler.FieldDetail": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "description": "variable name and type",
+                    "type": "object",
+                    "additionalProperties": {}
                 },
-                "id": {
-                    "type": "integer"
+                "name": {
+                    "description": "name of the message or query",
+                    "type": "string"
                 }
             }
         },
@@ -483,64 +435,26 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.GetFieldsResponse": {
+        "handler.GetWorldResponse": {
             "type": "object",
             "properties": {
                 "components": {
+                    "description": "list of component names",
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "fields": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/definitions/handler.FieldDetail"
                     }
                 },
                 "messages": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "fields": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/definitions/handler.FieldDetail"
                     }
                 },
                 "queries": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "fields": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/definitions/handler.FieldDetail"
                     }
                 }
             }
@@ -578,6 +492,17 @@ const docTemplate = `{
                 "signature": {
                     "description": "hex encoded string",
                     "type": "string"
+                }
+            }
+        },
+        "handler.cqlData": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
                 }
             }
         }

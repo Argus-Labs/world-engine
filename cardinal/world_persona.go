@@ -3,9 +3,10 @@ package cardinal
 import (
 	"errors"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -18,7 +19,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	}
 	var errs []error
 	wCtx := NewReadOnlyWorldContext(w)
-	s := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
+	s := search.NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
 	err = s.Each(
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)
@@ -42,7 +43,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 func (w *World) GetSignerComponentForPersona(personaTag string) (*component.SignerComponent, error) {
 	var sc *component.SignerComponent
 	wCtx := NewReadOnlyWorldContext(w)
-	q := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
+	q := search.NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
 	var getComponentErr error
 	searchIterationErr := eris.Wrap(
 		q.Each(

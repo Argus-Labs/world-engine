@@ -168,10 +168,18 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 
 // addEntityIDToArchIDToPipe adds the information related to mapping an EntityID to its assigned archetype ArchetypeID.
 func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	for id, originArchID := range m.entityIDToOriginArchID {
+	ids, err := m.entityIDToOriginArchID.Keys()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		originArchID, err := m.entityIDToOriginArchID.Get(id)
+		if err != nil {
+			return err
+		}
 		key := storageArchetypeIDForEntityID(id)
-		archID, ok := m.entityIDToArchID[id]
-		if !ok {
+		archID, err := m.entityIDToArchID.Get(id)
+		if err != nil {
 			// this entity has been removed
 			if err := pipe.Delete(ctx, key); err != nil {
 				return eris.Wrap(err, "")
@@ -206,12 +214,12 @@ func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe Pr
 
 // addComponentChangesToPipe adds updated component values for entities to the redis pipe.
 func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	keysToDelete, err := m.compValuesToDelete.Keys(ctx)
+	keysToDelete, err := m.compValuesToDelete.Keys()
 	if err != nil {
 		return err
 	}
 	for _, key := range keysToDelete {
-		isMarkedForDeletion, err := m.compValuesToDelete.GetBool(ctx, key)
+		isMarkedForDeletion, err := m.compValuesToDelete.Get(key)
 		if err != nil {
 			return err
 		}
@@ -223,13 +231,16 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 			return eris.Wrap(err, "")
 		}
 	}
-	keys, err := m.compValues.Keys(ctx)
+	keys, err := m.compValues.Keys()
 	if err != nil {
 		return err
 	}
 	for _, key := range keys {
-		cType := m.typeToComponent[key.typeID]
-		value, err := m.compValues.Get(ctx, key)
+		cType, err := m.typeToComponent.Get(key.typeID)
+		if err != nil {
+			return err
+		}
+		value, err := m.compValues.Get(key)
 		if err != nil {
 			return err
 		}
@@ -256,7 +267,7 @@ func (m *EntityCommandBuffer) loadArchIDs() error {
 		// Nothing is saved in the DB. Leave the m.archIDToComps field unchanged
 		return nil
 	}
-	if len(m.archIDToComps) > 0 {
+	if m.archIDToComps.Len() > 0 {
 		return eris.New("assigned archetype ArchetypeID is about to be overwritten by something from dbStorage")
 	}
 	m.archIDToComps = archIDToComps
@@ -280,7 +291,15 @@ func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe 
 
 // addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
 func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	for archID, active := range m.activeEntities {
+	archIDs, err := m.activeEntities.Keys()
+	if err != nil {
+		return err
+	}
+	for _, archID := range archIDs {
+		active, err := m.activeEntities.Get(archID)
+		if err != nil {
+			return err
+		}
 		if !active.modified {
 			continue
 		}
@@ -299,8 +318,16 @@ func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe
 
 func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 	forStorage := map[types.ArchetypeID][]types.ComponentID{}
-	for archID, comps := range m.archIDToComps {
+	archIDs, err := m.archIDToComps.Keys()
+	if err != nil {
+		return nil, err
+	}
+	for _, archID := range archIDs {
 		typeIDs := []types.ComponentID{}
+		comps, err := m.archIDToComps.Get(archID)
+		if err != nil {
+			return nil, err
+		}
 		for _, comp := range comps {
 			typeIDs = append(typeIDs, comp.ID())
 		}
@@ -311,8 +338,8 @@ func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 
 func getArchIDToCompTypesFromRedis(
 	storage PrimitiveStorage[string],
-	typeToComp map[types.ComponentID]types.ComponentMetadata,
-) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
+	typeToComp VolatileStorage[types.ComponentID, types.ComponentMetadata],
+) (m VolatileStorage[types.ArchetypeID, []types.ComponentMetadata], ok bool, err error) {
 	ctx := context.Background()
 	key := storageArchIDsToCompTypesKey()
 	bz, err := storage.GetBytes(ctx, key)
@@ -329,18 +356,21 @@ func getArchIDToCompTypesFromRedis(
 	}
 
 	// result is the mapping of Arch ArchetypeID -> IComponent sets
-	result := map[types.ArchetypeID][]types.ComponentMetadata{}
+	result := NewMapStorage[types.ArchetypeID, []types.ComponentMetadata]()
 	for archID, compTypeIDs := range fromStorage {
 		var currComps []types.ComponentMetadata
 		for _, compTypeID := range compTypeIDs {
-			currComp, found := typeToComp[compTypeID]
-			if !found {
+			currComp, err := typeToComp.Get(compTypeID)
+			if err != nil {
 				return nil, false, eris.Wrap(iterators.ErrComponentMismatchWithSavedState, "")
 			}
 			currComps = append(currComps, currComp)
 		}
 
-		result[archID] = currComps
+		err = result.Set(archID, currComps)
+		if err != nil {
+			return nil, false, err
+		}
 	}
 	return result, true, nil
 }

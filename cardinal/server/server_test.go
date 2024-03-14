@@ -102,8 +102,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	var result handler.GetEndpointsResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	msgs := s.world.ListMessages()
-	queries := s.world.ListQueries()
+	msgs := s.world.GetRegisteredMessages()
+	queries := s.world.GetRegisteredQueries()
 
 	s.Require().Len(msgs, len(result.TxEndpoints))
 	s.Require().Len(queries, len(result.QueryEndpoints))
@@ -126,8 +126,8 @@ func (s *ServerTestSuite) TestGetWorld() {
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
 	comps := s.world.GetRegisteredComponents()
-	msgs := s.world.ListMessages()
-	queries := s.world.ListQueries()
+	msgs := s.world.GetRegisteredMessages()
+	queries := s.world.GetRegisteredQueries()
 
 	s.Require().Len(comps, len(result.Components))
 	s.Require().Len(msgs, len(result.Messages))
@@ -263,7 +263,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
 	assert.True(t, ok)
 	payload := MoveMsgInput{Direction: "up"}
-	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace().String(), s.nonce, payload)
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace(), s.nonce, payload)
 	assert.NilError(t, err)
 
 	// This request should fail because signature verification is enabled, and we have not yet
@@ -274,7 +274,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 
 // Creates a transaction with the given message, and runs it in a tick.
 func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
-	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace().String(), s.nonce, payload)
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace(), s.nonce, payload)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
@@ -289,7 +289,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, createPersonaTx)
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
@@ -383,4 +383,53 @@ type LocationComponent struct {
 
 func (LocationComponent) Name() string {
 	return "location"
+}
+
+func (s *ServerTestSuite) TestCQL() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	wCtx := cardinal.NewWorldContext(s.world)
+	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	assert.NilError(s.T(), err)
+
+	s.fixture.DoTick()
+
+	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "CONTAINS(location)"})
+	var result handler.CQLQueryResponse
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().NoError(err)
+	s.Require().Len(result.Results, 10)
+}
+
+func (s *ServerTestSuite) TestCQL_InvalidFormat() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	wCtx := cardinal.NewWorldContext(s.world)
+	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	assert.NilError(s.T(), err)
+
+	s.fixture.DoTick()
+
+	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "MEOW(location)"})
+	var result handler.CQLQueryResponse
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().Error(err)
+}
+
+func (s *ServerTestSuite) TestCQL_NonExistentComponent() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	wCtx := cardinal.NewWorldContext(s.world)
+	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	assert.NilError(s.T(), err)
+
+	s.fixture.DoTick()
+
+	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "CONTAINS(meow)"})
+	var result handler.CQLQueryResponse
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().Error(err)
 }

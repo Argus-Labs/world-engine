@@ -3,9 +3,9 @@ package gamestate
 import (
 	"context"
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
@@ -20,7 +20,7 @@ type Reader interface {
 	GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error)
 
 	// One Archetype Many Components
-	GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata
+	GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error)
 	GetArchIDForComponents(components []types.ComponentMetadata) (types.ArchetypeID, error)
 
 	// One Archetype Many Entities

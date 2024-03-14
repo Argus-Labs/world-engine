@@ -2,9 +2,10 @@ package gamestate_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/filter"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -72,7 +73,7 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 		archID, err := roStore.GetArchIDForComponents(gotComps)
 		assert.NilError(t, err)
-		gotComps = roStore.GetComponentTypesForArchID(archID)
+		gotComps, err = roStore.GetComponentTypesForArchID(archID)
 		assert.NilError(t, err)
 		assert.Equal(t, len(gotComps), len(tc.comps))
 		for i := range gotComps {

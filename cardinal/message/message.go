@@ -40,10 +40,10 @@ func isStruct[T any]() bool {
 		inKind == reflect.Struct
 }
 
-// newMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
+// NewMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
 // which defines the data needed to make a state transition, and the second for the message output, commonly used
 // for the results of a state transition.
-func newMessageType[In, Out any](
+func NewMessageType[In, Out any](
 	name string,
 	opts ...MessageOption[In, Out],
 ) *MessageType[In, Out] {

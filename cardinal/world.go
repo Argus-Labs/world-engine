@@ -9,6 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -29,7 +32,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 
 	"github.com/rotisserie/eris"
@@ -37,6 +39,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
@@ -83,6 +86,7 @@ type World struct {
 }
 
 var _ router.Provider = &World{}
+var _ servertypes.Provider = &World{}
 
 // NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(opts ...WorldOption) (*World, error) {
@@ -357,8 +361,8 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.ListMessages(),
-		w.ListQueries(),
+	w.server, err = server.New(w, NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
+		w.GetRegisteredQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
 	if err != nil {
@@ -502,9 +506,6 @@ func (w *World) Shutdown() error {
 	return nil
 }
 
-func (w *World) ListQueries() []engine.Query   { return w.queryManager.GetRegisteredQueries() }
-func (w *World) ListMessages() []types.Message { return w.msgManager.GetRegisteredMessages() }
-
 func setLogLevel(levelStr string) error {
 	if levelStr == "" {
 		return eris.New("log level must not be empty")
@@ -564,9 +565,6 @@ func (w *World) registerInternalPlugin() {
 	// Register Debug plugin
 	w.RegisterPlugin(newDebugPlugin())
 
-	// Register CQL plugin
-	w.RegisterPlugin(newCQLPlugin())
-
 	// Register Receipt plugin
 	w.RegisterPlugin(newReceiptPlugin())
 }
@@ -618,21 +616,8 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) Namespace() Namespace {
-	return w.namespace
-}
-
-func (w *World) GetQueryByName(name string) (engine.Query, error) {
-	return w.queryManager.GetQueryByName(name)
-}
-
-func (w *World) GetMessageByName(name string) (types.Message, bool) {
-	return w.msgManager.GetMessageByName(name)
-}
-
-func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
-	msg := w.msgManager.GetMessageByID(id)
-	return msg, msg != nil
+func (w *World) Namespace() string {
+	return string(w.namespace)
 }
 
 func (w *World) GameStateManager() gamestate.Manager {
@@ -658,18 +643,6 @@ func (w *World) InjectLogger(logger *zerolog.Logger) {
 	w.GameStateManager().InjectLogger(logger)
 }
 
-func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
-	return w.componentManager.GetComponents()
-}
-
-func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
-	return w.componentManager.GetComponentByName(name)
-}
-
-func (w *World) GetRegisteredSystemNames() []string {
-	return w.systemManager.GetRegisteredSystemNames()
-}
-
 func (w *World) SetRouter(rtr router.Router) {
 	w.router = rtr
 }
@@ -690,6 +663,45 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	}
 
 	return qry.EncodeEVMReply(reply)
+}
+
+func (w *World) Search(filter filter.ComponentFilter) *search.Search {
+	return NewSearch(NewReadOnlyWorldContext(w), filter)
+}
+
+func (w *World) StoreReader() gamestate.Reader {
+	return w.entityStore.ToReadOnly()
+}
+
+func (w *World) GetRegisteredQueries() []engine.Query {
+	return w.queryManager.GetRegisteredQueries()
+}
+func (w *World) GetRegisteredMessages() []types.Message {
+	return w.msgManager.GetRegisteredMessages()
+}
+
+func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
+	return w.componentManager.GetComponents()
+}
+func (w *World) GetRegisteredSystemNames() []string {
+	return w.systemManager.GetRegisteredSystemNames()
+}
+
+func (w *World) GetQueryByName(name string) (engine.Query, error) {
+	return w.queryManager.GetQueryByName(name)
+}
+
+func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
+	msg := w.msgManager.GetMessageByID(id)
+	return msg, msg != nil
+}
+
+func (w *World) GetMessageByName(name string) (types.Message, bool) {
+	return w.msgManager.GetMessageByName(name)
+}
+
+func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
+	return w.componentManager.GetComponentByName(name)
 }
 
 func (w *World) populateAndEmitTickResults() {

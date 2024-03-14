@@ -2,6 +2,7 @@ package server
 
 import (
 	"os"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"sync/atomic"
@@ -36,7 +37,7 @@ type Server struct {
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	wCtx engine.Context, components []types.ComponentMetadata, messages []types.Message,
+	provider servertypes.Provider, wCtx engine.Context, components []types.ComponentMetadata, messages []types.Message,
 	queries []engine.Query, wsEventHandler func(conn *websocket.Conn),
 	opts ...Option,
 ) (*Server, error) {
@@ -58,7 +59,7 @@ func New(
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, wCtx, messages, queries, wsEventHandler, s.config, components)
+	setupRoutes(app, provider, wCtx, messages, queries, wsEventHandler, s.config, components)
 
 	return s, nil
 }
@@ -98,7 +99,8 @@ func (s *Server) Shutdown() error {
 // @consumes		application/json
 // @produces		application/json
 func setupRoutes(
-	app *fiber.App, wCtx engine.Context, messages []types.Message, queries []engine.Query,
+	app *fiber.App, provider servertypes.Provider, wCtx engine.Context, messages []types.Message,
+	queries []engine.Query,
 	wsEventHandler func(conn *websocket.Conn),
 	cfg config, components []types.ComponentMetadata,
 ) {
@@ -154,5 +156,8 @@ func setupRoutes(
 
 	// Route: /tx/...
 	tx := app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(msgIndex, wCtx, cfg.isSignatureVerificationDisabled))
+	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, cfg.isSignatureVerificationDisabled))
+
+	// Route: /cql
+	app.Post("/cql", handler.PostCQL(provider))
 }
