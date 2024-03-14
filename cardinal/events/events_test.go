@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
@@ -26,7 +25,7 @@ type Event struct {
 	Message string `json:"message"`
 }
 
-func TestEvents(t *testing.T) {
+func TestEvents1(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
@@ -45,10 +44,7 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			data, err := json.Marshal(map[string]any{"message": fmt.Sprintf("test%d", i)})
-			if err != nil {
-				assert.NilError(t, eris.Wrap(err, ""))
-			}
+			data := map[string]any{"message": fmt.Sprintf("test%d", i)}
 			tf.World.GetEventHub().EmitEvent(data)
 		}()
 	}
@@ -67,7 +63,7 @@ func TestEvents(t *testing.T) {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
 				assert.Equal(t, mode, websocket.TextMessage)
-				var messageMap = make(map[string]string, 0)
+				var messageMap map[string]string
 				err = json.Unmarshal(message, &messageMap)
 				assert.NilError(t, err)
 				messageString, ok := messageMap["message"]

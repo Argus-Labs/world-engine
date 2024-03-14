@@ -711,7 +711,7 @@ func (w *World) populateAndEmitTickResults() {
 	}
 	w.tickResults.SetReceipts(receipts)
 	w.tickResults.SetTick(w.CurrentTick() - 1)
-	err = w.eventHub.EmitJSONEvent(w.tickResults)
+	err = w.eventHub.EmitEvent(w.tickResults)
 	if err != nil {
 		w.Logger.Warn().Msgf("failed to emit TickResults as event: %v", err)
 	}

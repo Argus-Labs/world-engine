@@ -48,17 +48,13 @@ func NewEventHub() *EventHub {
 	return &res
 }
 
-func (eh *EventHub) EmitJSONEvent(event any) error {
+func (eh *EventHub) EmitEvent(event any) error {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return eris.Wrap(err, "must use a json serializable type for emitting events")
 	}
-	eh.EmitEvent(data)
+	eh.broadcast <- data
 	return nil
-}
-
-func (eh *EventHub) EmitEvent(event []byte) {
-	eh.broadcast <- event
 }
 
 func (eh *EventHub) FlushEvents() {
