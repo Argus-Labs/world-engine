@@ -50,12 +50,7 @@ type Notifier struct {
 }
 
 func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, eh *EventHub) *Notifier {
-	chInterface := eh.Subscribe("notifications", (chan []Receipt)(nil))
-	ch, ok := chInterface.(chan []Receipt)
-	if !ok {
-		logger.Error("Subscription did not return the expected channel type []Receipt")
-		return nil
-	}
+	ch := eh.SubscribeToReceipts("notifications")
 	notifier := &Notifier{
 		txHashToTargetInfo: map[string]targetInfo{},
 		nk:                 nk,

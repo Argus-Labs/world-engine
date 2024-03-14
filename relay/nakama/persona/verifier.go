@@ -54,12 +54,7 @@ func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, eh *events.Even
 		nk:              nk,
 		logger:          logger,
 	}
-	chInterface := eh.Subscribe(personaVerifierSessionName, (chan []events.Receipt)(nil))
-	ch, ok := chInterface.(chan []events.Receipt)
-	if !ok {
-		logger.Error("Subscription did not return the expected channel type []Receipt")
-		return nil
-	}
+	ch := eh.SubscribeToReceipts(personaVerifierSessionName)
 	ptv.receiptCh = ch
 	go ptv.consume()
 	return ptv

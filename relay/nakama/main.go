@@ -161,11 +161,7 @@ func initEventHub(
 
 	// Send Events to everyone via Nakama Notifications
 	go func() {
-		chInterface := eventHub.Subscribe("main", (chan []byte)(nil))
-		ch, ok := chInterface.(chan []byte)
-		if !ok {
-			log.Error("subscription did not return the expected channel type []byte")
-		}
+		ch := eventHub.SubscribeToEvents("main")
 		for event := range ch {
 			content := make(map[string]any)
 			err = json.Unmarshal(event, &content)

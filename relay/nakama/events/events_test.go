@@ -58,11 +58,7 @@ func TestEventHubIntegration(t *testing.T) {
 
 	// Subscribe to the event hub
 	session := "testSession"
-	chInterface := eventHub.Subscribe(session, (chan []byte)(nil))
-	eventChan, ok := chInterface.(chan []byte)
-	if !ok {
-		t.Fatal("subscription did not return the expected channel type []byte")
-	}
+	eventChan := eventHub.SubscribeToEvents(session)
 
 	// Start dispatching events
 	go func() {
@@ -105,7 +101,7 @@ func TestEventHubIntegration(t *testing.T) {
 	eventHub.Unsubscribe(session)
 
 	// Ensure channel is closed
-	_, ok = <-eventChan
+	_, ok := <-eventChan
 	assert.False(t, ok, "Channel should be closed after unsubscribe")
 
 	// Cleanup and shutdown

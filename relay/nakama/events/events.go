@@ -68,6 +68,18 @@ func (eh *EventHub) Subscribe(session string, channelType interface{}) interface
 	return channel
 }
 
+func (eh *EventHub) SubscribeToEvents(session string) chan []byte {
+	channel := make(chan []byte)
+	eh.channels.Store(session, channel)
+	return channel
+}
+
+func (eh *EventHub) SubscribeToReceipts(session string) chan []Receipt {
+	channel := make(chan []Receipt)
+	eh.channels.Store(session, channel)
+	return channel
+}
+
 func (eh *EventHub) Unsubscribe(session string) {
 	eventChannelUntyped, ok := eh.channels.Load(session)
 	if !ok {
@@ -111,13 +123,14 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 		err = json.Unmarshal(message, &receivedTickResults)
 		if err != nil {
 			log.Error("unable to unmarshal message into TickResults: ", err)
+			continue
 		}
 
 		eh.channels.Range(func(_ any, value any) bool {
 			switch ch := value.(type) {
 			case chan []byte:
-				for i := 0; i < len(receivedTickResults.Events); i++ {
-					ch <- receivedTickResults.Events[i]
+				for _, e := range receivedTickResults.Events {
+					ch <- e
 				}
 			case chan []Receipt:
 				ch <- receivedTickResults.Receipts
