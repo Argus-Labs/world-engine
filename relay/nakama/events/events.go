@@ -52,22 +52,6 @@ func NewEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress s
 	return &res, nil
 }
 
-func (eh *EventHub) Subscribe(session string, channelType interface{}) interface{} {
-	var channel interface{}
-
-	switch channelType.(type) {
-	case chan []byte:
-		channel = make(chan []byte)
-	case chan []Receipt:
-		channel = make(chan []Receipt)
-	default:
-		panic(eris.New("Unsupported channel type"))
-	}
-
-	eh.channels.Store(session, channel)
-	return channel
-}
-
 func (eh *EventHub) SubscribeToEvents(session string) chan []byte {
 	channel := make(chan []byte)
 	eh.channels.Store(session, channel)
@@ -111,7 +95,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 		var message []byte
 		messageType, message, err = eh.inputConnection.ReadMessage() // will block
 		if err != nil {
-			err = eris.Wrap(err, "") // This now correctly updates the outer 'err' variable
+			err = eris.Wrap(err, "")
 			eh.Shutdown()
 			continue
 		}
@@ -140,10 +124,6 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 
 			return true
 		})
-		if err != nil {
-			eh.Shutdown()
-			continue
-		}
 	}
 	eh.channels.Range(func(key any, _ any) bool {
 		log.Info(fmt.Sprintf("shutting down: %s", key.(string)))
