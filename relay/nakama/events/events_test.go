@@ -17,7 +17,7 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
-func setupMockWebSocketServer(t *testing.T, ch chan string) *httptest.Server {
+func setupMockWebSocketServer(t *testing.T, ch chan TickResults) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -26,7 +26,11 @@ func setupMockWebSocketServer(t *testing.T, ch chan string) *httptest.Server {
 		}
 		defer c.Close()
 		for msg := range ch {
-			err = c.WriteMessage(websocket.TextMessage, []byte(msg))
+			data, err := json.Marshal(msg)
+			if err != nil {
+				log.Fatal("failed to marshal event")
+			}
+			err = c.WriteMessage(websocket.TextMessage, data)
 			if err != nil {
 				log.Println("write:", err)
 				break
@@ -39,7 +43,7 @@ func setupMockWebSocketServer(t *testing.T, ch chan string) *httptest.Server {
 }
 
 func TestEventHubIntegration(t *testing.T) {
-	ch := make(chan string)
+	ch := make(chan TickResults)
 	mockServer := setupMockWebSocketServer(t, ch)
 	t.Cleanup(func() {
 		mockServer.Close()
@@ -47,15 +51,14 @@ func TestEventHubIntegration(t *testing.T) {
 	})
 
 	logger := &testutils.FakeLogger{}
-	eventsEndpoint := "events"
-	eventHub, err := CreateEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
+	eventHub, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
 	if err != nil {
 		t.Fatalf("Failed to create event hub: %v", err)
 	}
 
 	// Subscribe to the event hub
 	session := "testSession"
-	eventChan := eventHub.Subscribe(session)
+	eventChan := eventHub.SubscribeToEvents(session)
 
 	// Start dispatching events
 	go func() {
@@ -64,9 +67,20 @@ func TestEventHubIntegration(t *testing.T) {
 		}
 	}()
 
-	// Simulate a WebSocket message by sending a message into the channel
+	// Simulate Cardinal sending TickResults to the Nakama EventHub
 	go func() {
-		ch <- `{"message":"test event"}`
+		event, err := json.Marshal(map[string]any{"message": "test event"})
+		if err != nil {
+			t.Error("failed to marshal map")
+			return
+		}
+		tr := TickResults{
+			Tick:     100,
+			Receipts: nil,
+			Events:   nil,
+		}
+		tr.Events = append(tr.Events, event)
+		ch <- tr
 	}()
 
 	// Wait to receive an event
@@ -75,10 +89,10 @@ func TestEventHubIntegration(t *testing.T) {
 		jsonMap := make(map[string]any)
 		err = json.Unmarshal(event, &jsonMap)
 		assert.NoError(t, err)
-		msg, ok := jsonMap["message"]
-		assert.True(t, ok)
-		msgString, ok := msg.(string)
-		assert.True(t, ok)
+		msg, ok2 := jsonMap["message"]
+		assert.True(t, ok2)
+		msgString, ok2 := msg.(string)
+		assert.True(t, ok2)
 		assert.True(t, strings.Contains(msgString, "test event"))
 	case <-time.After(5 * time.Second):
 		t.Fatal("Did not receive event in time")

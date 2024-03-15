@@ -7,13 +7,13 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"sync"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
-	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
@@ -41,7 +41,7 @@ func ClaimPersona(
 	ctx context.Context,
 	nk runtime.NakamaModule,
 	verifier *Verifier,
-	notifier *receipt.Notifier,
+	notifier *events.Notifier,
 	personaStorageObj *StorageObj,
 	txSigner signer.Signer,
 	globalCardinalAddress string,

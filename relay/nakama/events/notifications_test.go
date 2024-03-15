@@ -1,6 +1,7 @@
-package receipt
+package events
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -13,13 +14,21 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
+var (
+	eventsEndpoint = "events"
+)
+
 // Test that the Notifications system works as expected with the Dispatcher and a Mock Server
-func TestNotifierIntegrationWithDispatcher(t *testing.T) {
+func TestNotifierIntegrationWithEventHub(t *testing.T) {
+	ch := make(chan TickResults)
 	nk := mocks.NewNakamaModule(t)
 	logger := &testutils.FakeLogger{}
-	mockServer := setupMockServer(t)
-	rd := NewDispatcher()
-	notifier := NewNotifier(logger, nk, rd)
+	mockServer := setupMockWebSocketServer(t, ch)
+	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
+	if err != nil {
+		t.Fatal("Failed to make new EventHub: ", err)
+	}
+	notifier := NewNotifier(logger, nk, eh)
 
 	txHash := "hash1"
 	userID := "user456"
@@ -41,17 +50,47 @@ func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	}
 	nk.On("NotificationsSend", mock.Anything, expectedNotifications).Return(nil).Once()
 
-	go rd.Dispatch(logger)
-	go rd.PollReceipts(logger, strings.TrimPrefix(mockServer.URL, "http://"))
+	// Start dispatching events
+	go func() {
+		if err := eh.Dispatch(logger); err != nil {
+			t.Logf("Error dispatching: %v", err)
+		}
+	}()
+
+	// Simulate Cardinal sending TickResults to the Nakama EventHub
+	go func() {
+		event, err := json.Marshal(map[string]any{"message": "test event"})
+		if err != nil {
+			t.Error("failed to marshal map")
+			return
+		}
+		tr := TickResults{
+			Tick:     100,
+			Receipts: nil,
+			Events:   nil,
+		}
+		tr.Events = append(tr.Events, event)
+		tr.Receipts = append(tr.Receipts, Receipt{
+			TxHash: txHash,
+			Result: map[string]any{"status": "success"},
+			Errors: []string{},
+		})
+		ch <- tr
+	}()
 
 	time.Sleep(time.Second)
 }
 
 func TestAddTxHashToPendingNotifications(t *testing.T) {
+	ch := make(chan TickResults)
 	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
-	rd := NewDispatcher()
-	notifier := NewNotifier(logger, nk, rd)
+	mockServer := setupMockWebSocketServer(t, ch)
+	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
+	if err != nil {
+		t.Fatal("Failed to make new EventHub: ", err)
+	}
+	notifier := NewNotifier(logger, nk, eh)
 
 	txHash := "hash1"
 	userID := "user456"
@@ -64,10 +103,15 @@ func TestAddTxHashToPendingNotifications(t *testing.T) {
 }
 
 func TestHandleReceipt(t *testing.T) {
+	ch := make(chan TickResults)
 	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
-	rd := NewDispatcher()
-	notifier := NewNotifier(logger, nk, rd)
+	mockServer := setupMockWebSocketServer(t, ch)
+	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
+	if err != nil {
+		t.Fatal("Failed to make new EventHub: ", err)
+	}
+	notifier := NewNotifier(logger, nk, eh)
 
 	txHash := "hash1"
 	userID := "user456"
@@ -95,8 +139,8 @@ func TestHandleReceipt(t *testing.T) {
 		userID:    userID,
 	}
 
-	receipt := []*Receipt{{TxHash: txHash}}
-	err := notifier.handleReceipt(receipt)
+	receipt := []Receipt{{TxHash: txHash}}
+	err = notifier.handleReceipt(receipt)
 	assert.NoError(t, err, "Handling receipt should not error")
 
 	_, exists := notifier.txHashToTargetInfo[txHash]
@@ -104,10 +148,15 @@ func TestHandleReceipt(t *testing.T) {
 }
 
 func TestCleanupStaleTransactions(t *testing.T) {
+	ch := make(chan TickResults)
 	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
-	rd := NewDispatcher()
-	notifier := NewNotifier(logger, nk, rd)
+	mockServer := setupMockWebSocketServer(t, ch)
+	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
+	if err != nil {
+		t.Fatal("Failed to make new EventHub: ", err)
+	}
+	notifier := NewNotifier(logger, nk, eh)
 
 	staleTxHash := "staleHash1"
 	recentTxHash := "recentHash1"
