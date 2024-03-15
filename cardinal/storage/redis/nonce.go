@@ -17,7 +17,7 @@ const (
 	// outright.
 	NonceSlidingWindowSize = 1000
 
-	// numOfNoncestoTriggerCleanup is the number of nonces in redis required for a cleanup pass to be initiated.
+	// numOfNoncesToTriggerCleanup is the number of nonces in redis required for a cleanup pass to be initiated.
 	// A cleanup consists of removing all nonces that are beyond the NonceSlidingWindowSize from the maximum seen nonce.
 	// Each cleanup operation costs O(log(N)+M) where N is the number of items in the set and M is the number of items
 	// to be removed. If this number is close to NonceSlidingWindowSize, we will spend more time removing old nonces
@@ -39,8 +39,11 @@ type NonceStorage struct {
 	Client *redis.Client
 	// mutex locks the UseNonce function to make it safe for concurrent access. This is a single lock for all signer
 	// addresses. An improvement on NonceStorage would have a different lock for each signer addresses.
-	mutex      *sync.Mutex
-	maxNonce   map[string]uint64
+	mutex *sync.Mutex
+	// maxNonce tracks the highest nonce seen for a particular signer address
+	maxNonce map[string]uint64
+	// countNonce tracks the number of nonces stored in redis for each signer address. This count will increase as
+	// nonces are used and decrease as out-of-window nonces are removed from redis.
 	countNonce map[string]int
 }
 
@@ -60,14 +63,14 @@ func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 		return eris.New("nonce is too large")
 	}
 	ctx := context.Background()
-	key := r.nonceSetKey(signerAddress)
+	signerAddressKey := r.nonceSetKey(signerAddress)
 
 	// All redis and in-memory map operations happen inside a lock. This could be improved by creating a separate lock
 	// for each signer address.
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	maxNonce, err := r.getMaxNonceForKey(ctx, key)
+	maxNonce, err := r.getMaxNonceForKey(ctx, signerAddressKey)
 	if err != nil {
 		return eris.Wrap(err, "failed to get max nonce for signer address")
 	}
@@ -82,7 +85,7 @@ func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 		Member: nonce,
 	}
 
-	added, err := r.Client.ZAdd(ctx, key, zItem).Result()
+	added, err := r.Client.ZAdd(ctx, signerAddressKey, zItem).Result()
 	if err != nil {
 		return eris.Wrap(err, "failed to add nonce")
 	}
@@ -92,11 +95,11 @@ func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 		return eris.Wrapf(ErrNonceHasAlreadyBeenUsed, "signer %q has already used nonce %d", signerAddress, nonce)
 	}
 
-	r.maxNonce[key] = max(r.maxNonce[key], nonce)
-	r.countNonce[key]++
+	r.maxNonce[signerAddressKey] = max(r.maxNonce[signerAddressKey], nonce)
+	r.countNonce[signerAddressKey]++
 
-	if r.countNonce[key] > numOfNoncesToTriggerCleanup {
-		r.cleanupOldNonces(ctx, key, r.maxNonce[key])
+	if r.countNonce[signerAddressKey] > numOfNoncesToTriggerCleanup {
+		r.cleanupOldNonces(ctx, signerAddressKey, r.maxNonce[signerAddressKey])
 	}
 
 	return nil
@@ -105,25 +108,25 @@ func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 // cleanupOldNonces removes the record of all nonces that are older than NonceSlidingWindowSize. Nonces in that range
 // can be rejected without checking storage. ZRemRangeByScore has a performance of O(log(N)+M) where N is the number
 // of items in the set and M is the number of items to remove.
-func (r *NonceStorage) cleanupOldNonces(ctx context.Context, key string, currMax uint64) {
+func (r *NonceStorage) cleanupOldNonces(ctx context.Context, signerAddressKey string, currMax uint64) {
 	minScore := "-inf"
 	maxScore := fmt.Sprintf("%d", currMax-NonceSlidingWindowSize)
-	removed, err := r.Client.ZRemRangeByScore(ctx, key, minScore, maxScore).Result()
+	removed, err := r.Client.ZRemRangeByScore(ctx, signerAddressKey, minScore, maxScore).Result()
 	if err != nil {
 		log.Err(err).Msg("failed to remove old nonces")
 		return
 	}
-	r.countNonce[key] -= int(removed)
+	r.countNonce[signerAddressKey] -= int(removed)
 }
 
 // getMaxNonceForKey returns the highest used nonce for the given key.
-func (r *NonceStorage) getMaxNonceForKey(ctx context.Context, key string) (uint64, error) {
-	maxNonce, ok := r.maxNonce[key]
+func (r *NonceStorage) getMaxNonceForKey(ctx context.Context, signerAddressKey string) (uint64, error) {
+	maxNonce, ok := r.maxNonce[signerAddressKey]
 	if ok {
 		return maxNonce, nil
 	}
 	// There isn't a max nonce in memory. Fetch it from redis.
-	values, err := r.Client.ZRange(ctx, key, -1, 0).Result()
+	values, err := r.Client.ZRange(ctx, signerAddressKey, -1, 0).Result()
 	if err != nil {
 		return 0, eris.Wrap(err, "failed to get range of nonce values")
 	}
@@ -137,6 +140,6 @@ func (r *NonceStorage) getMaxNonceForKey(ctx context.Context, key string) (uint6
 			return 0, eris.Wrapf(err, "failed to convert %q to uint64", values[0])
 		}
 	}
-	r.maxNonce[key] = maxNonce
+	r.maxNonce[signerAddressKey] = maxNonce
 	return maxNonce, nil
 }
