@@ -1,7 +1,6 @@
 package cardinal_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -91,7 +90,6 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 }
 
 func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
-	ctx := context.Background()
 	type FooIn struct {
 		X uint32
 	}
@@ -129,7 +127,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
-	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
+	tf.DoTick()
 	evmTxReceipt, ok := world.GetEVMMsgReceipt(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
@@ -143,7 +141,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
-	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
+	tf.DoTick()
 	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
 
 	assert.Equal(t, ok, true)
@@ -156,7 +154,6 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 }
 
 func TestEVMTxConsume(t *testing.T) {
-	ctx := context.Background()
 	type FooIn struct {
 		X uint32
 	}
@@ -193,7 +190,7 @@ func TestEVMTxConsume(t *testing.T) {
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
-	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
+	tf.DoTick()
 	evmTxReceipt, ok := world.GetEVMMsgReceipt(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
@@ -207,7 +204,7 @@ func TestEVMTxConsume(t *testing.T) {
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
-	assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
+	tf.DoTick()
 	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
 
 	assert.Equal(t, ok, true)
@@ -242,8 +239,7 @@ func TestAddSystems(t *testing.T) {
 	tf.StartWorld()
 	assert.NilError(t, err)
 
-	err = world.Tick(context.Background(), uint64(time.Now().Unix()))
-	assert.NilError(t, err)
+	tf.DoTick()
 
 	assert.Equal(t, count, 3)
 }
@@ -268,7 +264,7 @@ func TestSystemExecutionOrder(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 	assert.NilError(t, err)
-	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
+	tf.DoTick()
 	expectedOrder := []int{1, 2, 3}
 	for i, elem := range order {
 		assert.Equal(t, elem, expectedOrder[i])
@@ -374,8 +370,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	tf.StartWorld()
-	err = world.Tick(context.Background(), ts)
-	assert.NilError(t, err)
+	tf.DoTick()
 
 	// Expect that ticks with no transactions are also submitted
 	rtr.
@@ -389,8 +384,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 		Return(nil).
 		Times(1)
 	rtr.EXPECT().Start().AnyTimes()
-	err = world.Tick(context.Background(), ts)
-	assert.NilError(t, err)
+	tf.DoTick()
 }
 
 var _ iterator.Iterator = (*FakeIterator)(nil)

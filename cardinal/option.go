@@ -1,14 +1,15 @@
 package cardinal
 
 import (
-	"github.com/rs/zerolog"
 	"os"
-	"pkg.world.dev/world-engine/cardinal/receipt"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -45,7 +46,7 @@ func WithDisableSignatureVerification() WorldOption {
 	}
 }
 
-// WithTickChannel sets the channel that will be used to decide when world.Tick is executed. If unset, a loop interval
+// WithTickChannel sets the channel that will be used to decide when world.doTick is executed. If unset, a loop interval
 // of 1 second will be set. To set some other time, use: WithTickChannel(time.Tick(<some-duration>)). Tests can pass
 // in a channel controlled by the test for fine-grained control over when ticks are executed.
 func WithTickChannel(ch <-chan time.Time) WorldOption {

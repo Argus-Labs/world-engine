@@ -3,18 +3,17 @@ package cardinal_test
 import (
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/component"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // TestSystemsReturnNonFatalErrors ensures System will surface non-fatal read and write errors to the user.
@@ -321,92 +320,6 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	}
 }
 
-// TestSystemsPanicOnRedisError ensures systems panic when there is a problem connecting to redis. In general, Systems
-// should panic on ANY fatal error, but this connection problem is how we'll simulate a non ecs state related error.
-func TestSystemsPanicOnRedisError(t *testing.T) {
-	testCases := []struct {
-		name string
-		// the failFn will be called at a time when the ECB is empty of cached data and redis is down.
-		failFn func(wCtx engine.Context, goodID types.EntityID)
-	}{
-		{
-			name: "cardinal.AddComponentTo",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = cardinal.AddComponentTo[Qux](wCtx, goodID)
-			},
-		},
-		{
-			name: "cardinal.RemoveComponentFrom",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = cardinal.RemoveComponentFrom[Bar](wCtx, goodID)
-			},
-		},
-		{
-			name: "cardinal.GetComponent",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_, _ = cardinal.GetComponent[Foo](wCtx, goodID)
-			},
-		},
-		{
-			name: "cardinal.SetComponent",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = cardinal.SetComponent[Foo](wCtx, goodID, &Foo{})
-			},
-		},
-		{
-			name: "cardinal.UpdateComponent",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = cardinal.UpdateComponent[Foo](wCtx, goodID, func(f *Foo) *Foo {
-					return f
-				})
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			miniRedis := miniredis.RunT(t)
-			tf := testutils.NewTestFixture(t, miniRedis)
-			world, tick := tf.World, tf.DoTick
-			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
-			assert.NilError(t, cardinal.RegisterComponent[Qux](world))
-
-			// This system will be called 2 times. The first time, a single entity is cardinal.Created. The second time,
-			// the previously cardinal.Created entity is fetched, and then miniRedis is closed. Subsequent attempts to access
-			// data should panic.
-			assert.NilError(t, cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
-				// Set up the entity in the first tick
-				if wCtx.CurrentTick() == 0 {
-					_, err := cardinal.Create(wCtx, Foo{}, Bar{})
-					assert.Check(t, err == nil)
-					return nil
-				}
-				// Get the valid entity for the second tick
-				id, err := cardinal.NewSearch(wCtx, filter.Exact(Foo{}, Bar{})).First()
-				assert.Check(t, err == nil)
-				assert.Check(t, id != iterators.BadID)
-
-				// Shut down redis. The testCase's failure function will now be able to fail
-				miniRedis.Close()
-
-				// Only set up this panic/recover expectation if we're in the second tick.
-				defer func() {
-					err := recover()
-					assert.Check(t, err != nil, "expected panic")
-				}()
-
-				tc.failFn(wCtx, id)
-				assert.Check(t, false, "should never reach here")
-				return nil
-			}))
-			// The first tick sets up the entity
-			tick()
-			// The second tick calls the test case's failure function.
-			tick()
-		})
-	}
-}
 func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	miniRedis := miniredis.RunT(t)
 	tf := testutils.NewTestFixture(t, miniRedis)

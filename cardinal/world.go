@@ -206,15 +206,9 @@ func (w *World) CurrentTick() uint64 {
 	return w.tick.Load()
 }
 
-// TODO(scott): we should make Tick() private and only allow controlling tick externally using the tick channel.
-//  This is a footgun because you want to make sure world is started using StartWorld() instead of calling Tick()
-//  directly. This is unfortunately used a lot in tests.
-//  One thing we need to do is to make the tickDone channel return the tick number AND error if any so it can be used
-//  to check if there are errors when trying to tick.
-
-// Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
+// doTick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(ctx context.Context, timestamp uint64) error {
+func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// Record tick start time for statsd.
 	// Not to be confused with `timestamp` that represents the time context for the tick
 	// that is injected into system via WorldContext.Timestamp() and recorded into the DA.
@@ -435,12 +429,13 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
 	// but this is the highest terminal point.
 	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
-	if err := w.Tick(ctx, uint64(time.Now().Unix())); err != nil {
-		bytes, err := json.Marshal(eris.ToJSON(err, true))
-		if err != nil {
-			panic(err)
+	err := w.doTick(ctx, uint64(time.Now().Unix()))
+	if err != nil {
+		bytes, errMarshal := json.Marshal(eris.ToJSON(err, true))
+		if errMarshal != nil {
+			panic(errMarshal)
 		}
-		w.Logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
+		panic(string(bytes))
 	}
 	if tickDone != nil {
 		tickDone <- currTick

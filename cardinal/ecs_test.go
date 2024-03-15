@@ -1,20 +1,18 @@
 package cardinal_test
 
 import (
-	"context"
 	"errors"
+	"testing"
+
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
-	"time"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"github.com/alicebob/miniredis/v2"
-
-	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type EnergyComponent struct {
@@ -106,7 +104,7 @@ func TestECS(t *testing.T) {
 	_, err = cardinal.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, world.Tick(context.Background(), uint64(time.Now().Unix())))
+	tf.DoTick()
 	query := cardinal.NewSearch(wCtx, filter.Contains(EnergyComponent{}))
 	err = query.Each(
 		func(id types.EntityID) bool {

@@ -33,7 +33,7 @@ func (w *World) recoverAndExecutePendingTxs() error {
 		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
 		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
 		//  from the game loop.
-		if err = w.Tick(context.Background(), uint64(time.Now().Unix())); err != nil {
+		if err = w.doTick(context.Background(), uint64(time.Now().Unix())); err != nil {
 			return err
 		}
 	}
@@ -55,7 +55,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	start := w.CurrentTick()
 	err := w.router.TransactionIterator().Each(func(batches []*iterator.TxBatch, tick, timestamp uint64) error {
 		for w.CurrentTick() != tick {
-			if err := w.Tick(ctx, timestamp); err != nil {
+			if err := w.doTick(ctx, timestamp); err != nil {
 				return eris.Wrap(err, "failed to tick engine")
 			}
 		}
@@ -64,7 +64,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			w.AddTransaction(batch.MsgID, batch.MsgValue, batch.Tx)
 		}
 
-		if err := w.Tick(ctx, timestamp); err != nil {
+		if err := w.doTick(ctx, timestamp); err != nil {
 			return eris.Wrap(err, "failed to tick engine")
 		}
 		return nil

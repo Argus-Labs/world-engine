@@ -2,7 +2,6 @@ package log_test
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -157,11 +156,9 @@ func TestWorldLogger(t *testing.T) {
 
 	// Create a system for logging.
 	buf.Reset()
-	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
-	err = world.Tick(ctx, uint64(time.Now().Unix()))
-	assert.NilError(t, err)
+	tf.DoTick()
 	logStrings = strings.Split(buf.String(), "\n")[:3]
 	// test tick start
 	require.JSONEq(

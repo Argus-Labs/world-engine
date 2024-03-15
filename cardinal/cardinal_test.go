@@ -13,23 +13,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/fasthttp/websocket"
 	"github.com/golang/mock/gomock"
 
-	"pkg.world.dev/world-engine/cardinal/router/mocks"
-
-	"github.com/fasthttp/websocket"
-
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"github.com/ethereum/go-ethereum/crypto"
-	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/sign"
-
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type Foo struct{}
@@ -295,6 +291,20 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	case <-timeout:
 		t.Fatal("timeout while trying to AddTransaction")
 	}
+	// release the system
+	inSystemCh <- struct{}{}
+
+	// Second tick to make sure all transaction processed before shutdown
+	tickDone := make(chan struct{})
+	go func() {
+		tf.DoTick()
+		tickDone <- struct{}{}
+	}()
+	inSystemCh <- struct{}{}
+	inSystemCh <- struct{}{}
+
+	// wait for tick done to prevent panic on shutdown
+	<-tickDone
 }
 
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
@@ -714,6 +724,9 @@ func TestCreatePersona(t *testing.T) {
 	resp, err := client.Do(req)
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+	// tick before shutdown
+	tf.DoTick()
 }
 
 func TestNewWorld(t *testing.T) {

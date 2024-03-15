@@ -25,7 +25,7 @@ func (t *TxPool) GetAmountOfTxs() int {
 }
 
 // GetEVMTxs gets all the txs in the queue that originated from the EVM.
-// NOTE: this is called ONLY in the copied tx queue in world.Tick, so we do not need to use the mutex here.
+// NOTE: this is called ONLY in the copied tx queue in world.doTick, so we do not need to use the mutex here.
 func (t *TxPool) GetEVMTxs() []TxData {
 	transactions := make([]TxData, 0)
 	for _, txs := range t.m {

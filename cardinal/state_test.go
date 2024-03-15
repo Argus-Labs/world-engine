@@ -1,23 +1,18 @@
 package cardinal_test
 
 import (
-	"context"
 	"testing"
 
-	"time"
-
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/alicebob/miniredis/v2"
-
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -110,7 +105,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	matchComponent := filter.CreateComponentMatcher(types.ConvertComponentMetadatasToComponents(wantComps))
 	assert.Check(t, matchComponent(oneNum))
 
-	assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
+	tf1.DoTick()
 
 	// Make a second instance of the engine using the same storage.
 	tf2 := testutils.NewTestFixture(t, redisStore)
@@ -163,7 +158,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, err)
 	// These archetype indices should be preserved between a state save/load
 
-	assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
+	tf1.DoTick()
 
 	// Create a brand new engine, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
@@ -190,7 +185,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// Save and load again to make sure the "two" engine correctly saves its state even though
 	// it never cardinal.Created any entities
-	assert.NilError(t, world2.Tick(context.Background(), uint64(time.Now().Unix())))
+	tf1.DoTick()
 
 	tf3 := testutils.NewTestFixture(t, redisStore)
 	world3 := tf3.World
@@ -257,7 +252,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
-	assert.NilError(t, world1.Tick(context.Background(), uint64(time.Now().Unix())))
+	tf1.DoTick()
 
 	// Make a new engine, using the original redis DB that (hopefully) has our data
 	tf2 := testutils.NewTestFixture(t, redisStore)
@@ -285,7 +280,6 @@ func TestCanReloadState(t *testing.T) {
 
 func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	ctx := context.Background()
 
 	// Ensure that across multiple reloads, getting the transaction receipts for a tick
 	// that is still in the tx receipt history window will not return any errors.
@@ -295,7 +289,7 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 		tf.StartWorld()
 		relevantTick := world.CurrentTick()
 		for i := 0; i < 5; i++ {
-			assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
+			tf.DoTick()
 		}
 		// Ignore the actual receipts (they will be empty). Just make sure the tick we're asking
 		// for isn't considered too far in the future.
@@ -308,7 +302,6 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
 	redisStore := miniredis.RunT(t)
-	ctx := context.Background()
 
 	// Ensure that across multiple reloads we can queue up transactions, execute those transactions
 	// in a tick, and then find those transactions in the tx receipt history.
@@ -338,7 +331,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		}
 
 		for i := 0; i < 5; i++ {
-			assert.NilError(t, world.Tick(ctx, uint64(time.Now().Unix())))
+			tf.DoTick()
 		}
 
 		receipts, err := world.GetTransactionReceiptsForTick(relevantTick)

@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
@@ -207,8 +206,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	url := "/tx/game/" + moveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
-	s.Require().NoError(err)
+	s.fixture.DoTick()
 	s.nonce++
 
 	// check the component was successfully updated, despite not using any signature data.
@@ -278,8 +276,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload an
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
-	s.Require().NoError(err)
+	s.fixture.DoTick()
 	s.nonce++
 }
 
@@ -293,8 +290,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.world.Tick(context.Background(), uint64(time.Now().Unix()))
-	s.Require().NoError(err)
+	s.fixture.DoTick()
 	s.nonce++
 }
 
