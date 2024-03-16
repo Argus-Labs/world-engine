@@ -8,14 +8,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"pkg.world.dev/world-engine/cardinal/query"
-	"pkg.world.dev/world-engine/cardinal/search"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
@@ -214,8 +215,13 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// that is injected into system via WorldContext.Timestamp() and recorded into the DA.
 	startTime := time.Now()
 
-	// The world can only start ticking if it's in the running or recovering stage.
-	if w.worldStage.Current() != worldstage.Running && w.worldStage.Current() != worldstage.Recovering {
+	// The world can only perform a tick if:
+	// - We're in a recovery tick
+	// - The world is currently running
+	// - The world is shutting down (this will be the last or penultimate tick)
+	if w.worldStage.Current() != worldstage.Recovering &&
+		w.worldStage.Current() != worldstage.Running &&
+		w.worldStage.Current() != worldstage.ShuttingDown {
 		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
 	}
 
@@ -476,6 +482,9 @@ func (w *World) Shutdown() error {
 		return errors.New("shutdown attempted before the world was started")
 	}
 
+	// Block until the world has stopped ticking
+	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
+
 	if w.cleanup != nil {
 		w.cleanup()
 	}
@@ -485,9 +494,6 @@ func (w *World) Shutdown() error {
 			return err
 		}
 	}
-
-	// Block until the world has stopped ticking
-	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
 
 	log.Info().Msg("Successfully shut down game loop.")
 	log.Info().Msg("Closing storage connection.")
