@@ -19,27 +19,51 @@ const (
 	writeDeadline = 5 * time.Second
 )
 
+// websocketAndDoneChan stores a websocket connection along with a channel to signal when something is done.
+// it's sent by a webhandler into eventHub and the done channel is to allow eventHub to signal back into the web
+// framework
+type websocketAndDoneChan struct {
+	connection *websocket.Conn
+	doneChan   chan bool
+}
+
 type EventHub struct {
-	websocketConnections map[*websocket.Conn]bool
-	broadcast            chan []byte
-	flush                chan bool
-	register             chan *websocket.Conn
-	unregister           chan *websocket.Conn
-	shutdown             chan bool
-	eventQueue           [][]byte
-	isRunning            atomic.Bool
+	websocketConnections   map[*websocket.Conn]bool
+	broadcast              chan []byte
+	getEventQueueLength    chan chan int
+	getAmountOfConnections chan chan int
+	flush                  chan bool
+	register               chan websocketAndDoneChan
+	unregister             chan websocketAndDoneChan
+	shutdown               chan bool
+	eventQueue             [][]byte
+	isRunning              atomic.Bool
+}
+
+func (eh *EventHub) EventQueueLength() int {
+	lengthChan := make(chan int)
+	eh.getEventQueueLength <- lengthChan
+	return <-lengthChan
+}
+
+func (eh *EventHub) ConnectionAmount() int {
+	connAmountChan := make(chan int)
+	eh.getAmountOfConnections <- connAmountChan
+	return <-connAmountChan
 }
 
 func NewEventHub() *EventHub {
 	res := EventHub{
-		websocketConnections: map[*websocket.Conn]bool{},
-		broadcast:            make(chan []byte),
-		flush:                make(chan bool),
-		register:             make(chan *websocket.Conn),
-		unregister:           make(chan *websocket.Conn),
-		shutdown:             make(chan bool),
-		eventQueue:           make([][]byte, 0),
-		isRunning:            atomic.Bool{},
+		websocketConnections:   map[*websocket.Conn]bool{},
+		broadcast:              make(chan []byte),
+		getEventQueueLength:    make(chan chan int),
+		getAmountOfConnections: make(chan chan int),
+		flush:                  make(chan bool),
+		register:               make(chan websocketAndDoneChan),
+		unregister:             make(chan websocketAndDoneChan),
+		shutdown:               make(chan bool),
+		eventQueue:             make([][]byte, 0),
+		isRunning:              atomic.Bool{},
 	}
 	res.isRunning.Store(false)
 	go func() {
@@ -62,11 +86,21 @@ func (eh *EventHub) FlushEvents() {
 }
 
 func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
-	eh.register <- ws
+	doneChan := make(chan bool)
+	eh.register <- websocketAndDoneChan{
+		connection: ws,
+		doneChan:   doneChan,
+	}
+	<-doneChan
 }
 
 func (eh *EventHub) UnregisterConnection(ws *websocket.Conn) {
-	eh.unregister <- ws
+	doneChan := make(chan bool)
+	eh.unregister <- websocketAndDoneChan{
+		connection: ws,
+		doneChan:   doneChan,
+	}
+	<-doneChan
 }
 
 func (eh *EventHub) Shutdown() {
@@ -98,10 +132,19 @@ func (eh *EventHub) Run() {
 Loop:
 	for eh.isRunning.Load() {
 		select {
-		case conn := <-eh.register:
+		case connChan := <-eh.getAmountOfConnections:
+			connChan <- len(eh.websocketConnections)
+		case lengthChan := <-eh.getEventQueueLength:
+			lengthChan <- len(eh.eventQueue)
+		case websocketAndDoneChan := <-eh.register:
+			conn := websocketAndDoneChan.connection
+			doneChan := websocketAndDoneChan.doneChan
 			eh.websocketConnections[conn] = true
-		case conn := <-eh.unregister:
+			doneChan <- true
+		case websocketAndDoneChan := <-eh.unregister:
+			conn := websocketAndDoneChan.connection
 			unregisterConnection(conn)
+			websocketAndDoneChan.doneChan <- true
 		case event := <-eh.broadcast:
 			eh.eventQueue = append(eh.eventQueue, event)
 		case <-eh.flush:
@@ -117,7 +160,10 @@ Loop:
 							go func() {
 								eh.UnregisterConnection(conn)
 							}()
-							log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
+							log.Logger.
+								Error().
+								Err(err).
+								Msg("Connections were unregistered because of this error: " + eris.ToString(err, true))
 							break
 						}
 						err = eris.Wrap(conn.WriteMessage(websocket.TextMessage, event), "")

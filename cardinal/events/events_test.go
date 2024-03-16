@@ -1,19 +1,19 @@
 package events_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"github.com/gorilla/websocket"
-	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func wsURL(addr, path string) string {
@@ -27,7 +27,7 @@ type Event struct {
 func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	tf := testutils.NewTestFixtureWithPort(t, nil, "1337", cardinal.WithDisableSignatureVerification())
 	addr := tf.BaseURL
 	tf.StartWorld()
 	url := wsURL(addr, "events")
@@ -38,10 +38,14 @@ func TestEvents(t *testing.T) {
 		dialers[i] = dial
 	}
 	var wg sync.WaitGroup
+	connectionAmount := tf.World.GetEventHub().ConnectionAmount()
+	for connectionAmount < numberToTest {
+		time.Sleep(time.Second)
+		connectionAmount = tf.World.GetEventHub().ConnectionAmount()
+	}
 	for i := 0; i < numberToTest; i++ {
-		i := i
 		wg.Add(1)
-		go func() {
+		func() {
 			defer wg.Done()
 			data := map[string]any{"message": fmt.Sprintf("test%d", i)}
 			err := tf.World.GetEventHub().EmitEvent(data)
@@ -51,9 +55,12 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	go func() {
-		tf.World.GetEventHub().FlushEvents()
-	}()
+	length := tf.World.GetEventHub().EventQueueLength()
+	for length < 5 {
+		length = tf.World.GetEventHub().EventQueueLength()
+	}
+
+	tf.World.GetEventHub().FlushEvents()
 	var count atomic.Int32
 	count.Store(0)
 	for _, dialer := range dialers {
@@ -100,7 +107,7 @@ type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	tf := testutils.NewTestFixtureWithPort(t, nil, "1338", cardinal.WithDisableSignatureVerification())
 	world, addr := tf.World, tf.BaseURL
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "send-energy"))
 	counter1 := atomic.Int32{}
@@ -173,21 +180,4 @@ func TestEventsThroughSystems(t *testing.T) {
 
 	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
-}
-
-type ThreadSafeBuffer struct {
-	internalBuffer bytes.Buffer
-	mutex          sync.Mutex
-}
-
-func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	return b.internalBuffer.Write(p)
-}
-
-func (b *ThreadSafeBuffer) String() string {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-	return b.internalBuffer.String()
 }
