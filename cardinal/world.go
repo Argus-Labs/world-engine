@@ -89,7 +89,9 @@ type World struct {
 var _ router.Provider = &World{}
 var _ servertypes.Provider = &World{}
 
-// NewWorld creates a new World object using Redis as the storage layer.
+// NewWorld creates a new World object using Redis as the storage layer
+//
+//nolint:funlen
 func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, cardinalOptions := separateOptions(opts)
 
@@ -102,10 +104,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, eris.Wrap(err, "")
 	}
 
-	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
 	if cfg.CardinalMode == RunModeDev {
-		serverOptions = append(serverOptions, server.WithPrettyPrint())
+		// Enable pretty printing of logs in development mode.
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
+	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
+
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
 		Addr:        cfg.RedisAddress,
 		Password:    cfg.RedisPassword,
@@ -130,7 +134,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		componentManager: component.NewManager(&redisMetaStore),
 		queryManager:     query.NewManager(),
 
-		// Imported from engine
 		redisStorage:  &redisMetaStore,
 		entityStore:   entityCommandBuffer,
 		namespace:     Namespace(cfg.CardinalNamespace),
