@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
@@ -26,7 +27,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/events"
-	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
@@ -368,6 +368,23 @@ func (w *World) StartGame() error {
 		return err
 	}
 
+	// Warn when no components, messages, queries, or systems are registered
+	if len(w.componentManager.GetComponents()) == 0 {
+		w.Logger.Warn().Msg("No components registered")
+	}
+	if len(w.msgManager.GetRegisteredMessages()) == 0 {
+		w.Logger.Warn().Msg("No messages registered")
+	}
+	if len(w.queryManager.GetRegisteredQueries()) == 0 {
+		w.Logger.Warn().Msg("No queries registered")
+	}
+	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
+		w.Logger.Warn().Msg("No systems registered")
+	}
+
+	// Log world info
+	ecslog.World(w.Logger, w, zerolog.InfoLevel)
+
 	// Game stage: Ready -> Running
 	w.worldStage.Store(worldstage.Running)
 
@@ -395,9 +412,6 @@ func (w *World) startServer() {
 
 func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
 	w.Logger.Info().Msg("Game loop started")
-	ecslog.World(w.Logger, w, zerolog.InfoLevel)
-	w.emitResourcesWarnings()
-
 	go func() {
 		var waitingChs []chan struct{}
 	loop:
@@ -444,21 +458,6 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	}
 	if tickDone != nil {
 		tickDone <- currTick
-	}
-}
-
-func (w *World) emitResourcesWarnings() {
-	if len(w.componentManager.GetComponents()) == 0 {
-		w.Logger.Warn().Msg("No components registered.")
-	}
-	if len(w.msgManager.GetRegisteredMessages()) == 0 {
-		w.Logger.Warn().Msg("No messages registered.")
-	}
-	if len(w.queryManager.GetRegisteredQueries()) == 0 {
-		w.Logger.Warn().Msg("No queries registered.")
-	}
-	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
-		w.Logger.Warn().Msg("No systems registered.")
 	}
 }
 
