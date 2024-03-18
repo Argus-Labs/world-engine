@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
+	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
@@ -14,7 +17,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var _ Manager = &EntityCommandBuffer{}
@@ -39,8 +41,6 @@ type EntityCommandBuffer struct {
 
 	archIDToComps  VolatileStorage[types.ArchetypeID, []types.ComponentMetadata]
 	pendingArchIDs []types.ArchetypeID
-
-	logger *zerolog.Logger
 }
 
 var (
@@ -64,8 +64,6 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 
 		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
-
-		logger: &log.Logger,
 	}
 
 	return m, nil
@@ -209,7 +207,7 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.Compone
 		}
 		active.ids = append(active.ids, currID)
 		active.modified = true
-		ecslog.Entity(m.logger, zerolog.DebugLevel, currID, archID, comps)
+		ecslog.Entity(&log.Logger, zerolog.DebugLevel, currID, archID, comps)
 	}
 	err = m.setActiveEntities(archID, active)
 	if err != nil {
@@ -426,11 +424,6 @@ func (m *EntityCommandBuffer) ArchetypeCount() int {
 	return m.archIDToComps.Len()
 }
 
-// InjectLogger sets the logger for the manager.
-func (m *EntityCommandBuffer) InjectLogger(logger *zerolog.Logger) {
-	m.logger = logger
-}
-
 // Close closes the manager.
 func (m *EntityCommandBuffer) Close() error {
 	ctx := context.Background()
@@ -513,7 +506,7 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 	if err != nil {
 		return 0, err
 	}
-	m.logger.Debug().Int("archetype_id", int(id)).Msg("created")
+	log.Debug().Int("archetype_id", int(id)).Msg("created")
 	return id, nil
 }
 

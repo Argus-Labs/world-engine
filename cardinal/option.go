@@ -101,11 +101,18 @@ func WithCustomMockRedis(miniRedis *miniredis.Miniredis) WorldOption {
 	}
 }
 
+func WithCustomLogger(logger zerolog.Logger) WorldOption {
+	return WorldOption{
+		cardinalOption: func(_ *World) {
+			log.Logger = logger
+		},
+	}
+}
+
 func WithPrettyLog() WorldOption {
 	return WorldOption{
-		cardinalOption: func(world *World) {
-			prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-			world.Logger = &prettyLogger
+		cardinalOption: func(_ *World) {
+			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 		},
 	}
 }

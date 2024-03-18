@@ -57,7 +57,6 @@ type World struct {
 	serverOptions   []server.Option
 	cleanup         func()
 	mode            RunMode
-	Logger          *zerolog.Logger
 
 	worldStage       *worldstage.Manager
 	msgManager       *message.Manager
@@ -90,8 +89,6 @@ var _ router.Provider = &World{}
 var _ servertypes.Provider = &World{}
 
 // NewWorld creates a new World object using Redis as the storage layer
-//
-//nolint:funlen
 func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, cardinalOptions := separateOptions(opts)
 
@@ -140,7 +137,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tick:          &atomic.Uint64{},
 		timestamp:     new(atomic.Uint64),
 		txPool:        txpool.New(),
-		Logger:        &log.Logger,
 		evmTxReceipts: make(map[string]EVMTxReceipt),
 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
@@ -238,7 +234,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 		span.Finish()
 	}()
 
-	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
+	log.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
 
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
 	txPool := w.txPool.CopyTransactions()
@@ -299,7 +295,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 
 	statsd.EmitTickStat(startTime, "full_tick")
 	if err := statsd.Client().Count("num_of_txs", int64(txPool.GetAmountOfTxs()), nil, 1); err != nil {
-		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
+		log.Warn().Msgf("failed to emit count stat:%v", err)
 	}
 
 	return nil
@@ -370,20 +366,20 @@ func (w *World) StartGame() error {
 
 	// Warn when no components, messages, queries, or systems are registered
 	if len(w.componentManager.GetComponents()) == 0 {
-		w.Logger.Warn().Msg("No components registered")
+		log.Warn().Msg("No components registered")
 	}
 	if len(w.msgManager.GetRegisteredMessages()) == 0 {
-		w.Logger.Warn().Msg("No messages registered")
+		log.Warn().Msg("No messages registered")
 	}
 	if len(w.queryManager.GetRegisteredQueries()) == 0 {
-		w.Logger.Warn().Msg("No queries registered")
+		log.Warn().Msg("No queries registered")
 	}
 	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
-		w.Logger.Warn().Msg("No systems registered")
+		log.Warn().Msg("No systems registered")
 	}
 
 	// Log world info
-	ecslog.World(w.Logger, w, zerolog.InfoLevel)
+	ecslog.World(&log.Logger, w, zerolog.InfoLevel)
 
 	// Game stage: Ready -> Running
 	w.worldStage.Store(worldstage.Running)
@@ -411,7 +407,7 @@ func (w *World) startServer() {
 }
 
 func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
-	w.Logger.Info().Msg("Game loop started")
+	log.Info().Msg("Game loop started")
 	go func() {
 		var waitingChs []chan struct{}
 	loop:
@@ -542,7 +538,7 @@ func (w *World) handleShutdown() {
 
 func (w *World) handleTickPanic() {
 	if r := recover(); r != nil {
-		w.Logger.Error().Msgf(
+		log.Error().Msgf(
 			"Tick: %d, Current running system: %s",
 			w.CurrentTick(),
 			w.systemManager.GetCurrentSystem(),
@@ -637,11 +633,6 @@ func (w *World) GetEventHub() *events.EventHub {
 	return w.eventHub
 }
 
-func (w *World) InjectLogger(logger *zerolog.Logger) {
-	w.Logger = logger
-	w.GameStateManager().InjectLogger(logger)
-}
-
 func (w *World) SetRouter(rtr router.Router) {
 	w.router = rtr
 }
@@ -706,12 +697,12 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 func (w *World) populateAndEmitTickResults() {
 	receipts, err := w.receiptHistory.GetReceiptsForTick(w.CurrentTick() - 1)
 	if err != nil {
-		w.Logger.Error().Msgf("failed get receipts for tick %d: %v", w.CurrentTick(), err)
+		log.Error().Msgf("failed get receipts for tick %d: %v", w.CurrentTick(), err)
 	}
 	w.tickResults.SetReceipts(receipts)
 	w.tickResults.SetTick(w.CurrentTick() - 1)
 	err = w.eventHub.EmitEvent(w.tickResults)
 	if err != nil {
-		w.Logger.Warn().Msgf("failed to emit TickResults as event: %v", err)
+		log.Warn().Msgf("failed to emit TickResults as event: %v", err)
 	}
 }

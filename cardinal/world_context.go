@@ -3,6 +3,8 @@ package cardinal
 import (
 	"reflect"
 
+	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 
 	"github.com/rs/zerolog"
@@ -26,7 +28,7 @@ func newWorldContextForTick(world *World, txPool *txpool.TxPool) engine.Context 
 	return &worldContext{
 		world:    world,
 		txPool:   txPool,
-		logger:   world.Logger,
+		logger:   &log.Logger,
 		readOnly: false,
 	}
 }
@@ -35,7 +37,7 @@ func NewWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
-		logger:   world.Logger,
+		logger:   &log.Logger,
 		readOnly: false,
 	}
 }
@@ -44,7 +46,7 @@ func NewReadOnlyWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
-		logger:   world.Logger,
+		logger:   &log.Logger,
 		readOnly: true,
 	}
 }

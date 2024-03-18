@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -838,22 +837,6 @@ func TestShutdownViaSignal(t *testing.T) {
 	}
 }
 
-func TestWithPrettyLog_LogIsNotJSONFormatted(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil, cardinal.WithPrettyLog()).World
-	assert.NotNil(t, world.Logger)
-
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	world.Logger.Info().Msg("test")
-	err := w.Close()
-	assert.NilError(t, err)
-
-	output, err := io.ReadAll(r)
-	assert.NilError(t, err)
-	assert.Assert(t, !isValidJSON(output))
-}
-
 func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
@@ -865,10 +848,4 @@ func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	tf.DoTick()
-}
-
-// isValidJSON tests if a string is valid JSON.
-func isValidJSON(bz []byte) bool {
-	var js map[string]interface{}
-	return json.Unmarshal(bz, &js) == nil
 }

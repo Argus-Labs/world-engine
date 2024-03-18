@@ -62,20 +62,18 @@ func testSystemWarningTrigger(wCtx engine.Context) error {
 }
 
 func TestWorldLogger(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
-	world := tf.World
-
-	// Ensure logs are enabled
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
+	t.Setenv("CARDINAL_LOG_LEVEL", "debug")
+
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomLogger(bufLogger))
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "alpha"))
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComp](world))
 	log.World(&bufLogger, world, zerolog.InfoLevel)
-	jsonEngineInfoString := `{
+	jsonWorldInfoString := `{
 					"level":"info",
 					"total_components":2,
 					"components":
@@ -97,10 +95,9 @@ func TestWorldLogger(t *testing.T) {
 						]
 				}
 `
-	require.JSONEq(t, jsonEngineInfoString, buf.String())
+	require.JSONEq(t, jsonWorldInfoString, buf.String())
 	buf.Reset()
 
-	world.InjectLogger(&bufLogger)
 	energy, err := world.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []types.ComponentMetadata{energy}
@@ -121,18 +118,18 @@ func TestWorldLogger(t *testing.T) {
 				"level":"debug",
 				"archetype_id":0,
 				"message":"created"
-			}`, logStrings[0],
+			}`, logStrings[1],
 	)
 	require.JSONEq(
 		t, `
 			{
 				"level":"debug",
 				"components":[{
-					"component_id":2,
+				"component_id":2,
 					"component_name":"EnergyComp"
 				}],
 				"entity_id":0,"archetype_id":0
-			}`, logStrings[1],
+			}`, logStrings[2],
 	)
 
 	buf.Reset()
