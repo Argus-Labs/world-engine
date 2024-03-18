@@ -40,16 +40,24 @@ type TestFixture struct {
 	startOnce   *sync.Once
 }
 
+func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardinal.WorldOption) *TestFixture {
+	port := getOpenPort(t)
+	return NewTestFixtureWithPort(t, miniRedis, port, opts...)
+}
+
 // NewTestFixture creates a test fixture that manges the cardinal.World, http server, event hub,
 // evm adapter, etc. Cardinal resources (such as Systems and Components) can be registered with the attached
 // cardinal.World, but you must call StartWorld or DoTick to finalize the resources. If a nil miniRedis is passed
 // in, a miniredis instance will be created for you.
-func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardinal.WorldOption) *TestFixture {
+func NewTestFixtureWithPort(
+	t testing.TB,
+	miniRedis *miniredis.Miniredis,
+	cardinalPort string,
+	opts ...cardinal.WorldOption) *TestFixture {
 	if miniRedis == nil {
 		miniRedis = miniredis.RunT(t)
 	}
 
-	cardinalPort := getOpenPort(t)
 	evmPort := cardinalPort
 	for retries := 10; retries > 0; retries-- {
 		evmPort = getOpenPort(t)
@@ -123,6 +131,7 @@ func (t *TestFixture) StartWorld() {
 			case err := <-startupError:
 				t.Fatalf("startup error: %v", err)
 			case <-timeout:
+
 				t.Fatal("timeout while waiting for game to start")
 			default:
 				time.Sleep(10 * time.Millisecond) //nolint:gomnd // its for testing its ok.
