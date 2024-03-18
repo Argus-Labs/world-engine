@@ -1,10 +1,6 @@
 package keeper_test
 
 import (
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"google.golang.org/protobuf/proto"
-	"pkg.world.dev/world-engine/evm/x/shard"
-	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
@@ -14,11 +10,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
+	"pkg.world.dev/world-engine/evm/x/shard"
 	"pkg.world.dev/world-engine/evm/x/shard/keeper"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 )
 
 type TestSuite struct {
@@ -62,7 +62,7 @@ func (s *TestSuite) TestSubmitTransactions() {
 		s.ctx,
 		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
-			Namespace: tx.Namespace,
+			Namespace: tx.GetNamespace(),
 			Epoch:     epoch,
 			Txs:       txs,
 		},
@@ -84,7 +84,7 @@ func (s *TestSuite) TestSubmitTransactions() {
 	)
 	s.Require().NoError(err)
 
-	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: tx.Namespace})
+	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: tx.GetNamespace()})
 	s.Require().NoError(err)
 	// we only submitted transactions for 1 epoch, so there should only be 1.
 	s.Require().Len(res.Epochs, 1)
@@ -111,7 +111,7 @@ func (s *TestSuite) TestPagedQueryTransactions() {
 		s.ctx,
 		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
-			Namespace: tx.Namespace,
+			Namespace: tx.GetNamespace(),
 			Epoch:     epoch,
 			Txs:       txs,
 		},
@@ -121,7 +121,7 @@ func (s *TestSuite) TestPagedQueryTransactions() {
 		s.ctx,
 		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
-			Namespace: tx.Namespace,
+			Namespace: tx.GetNamespace(),
 			Epoch:     epoch + 1,
 			Txs:       txs,
 		},
@@ -130,7 +130,7 @@ func (s *TestSuite) TestPagedQueryTransactions() {
 
 	// ensure limiting works
 	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
-		Namespace: tx.Namespace,
+		Namespace: tx.GetNamespace(),
 		Page: &types.PageRequest{
 			Key:   nil,
 			Limit: 1,
@@ -141,7 +141,7 @@ func (s *TestSuite) TestPagedQueryTransactions() {
 
 	// ensure that no page returns both epochs
 	res, err = s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
-		Namespace: tx.Namespace,
+		Namespace: tx.GetNamespace(),
 		Page:      nil,
 	})
 	s.Require().NoError(err)

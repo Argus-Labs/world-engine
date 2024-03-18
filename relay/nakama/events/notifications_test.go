@@ -9,6 +9,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
@@ -141,7 +142,7 @@ func TestHandleReceipt(t *testing.T) {
 
 	receipt := []Receipt{{TxHash: txHash}}
 	err = notifier.handleReceipt(receipt)
-	assert.NoError(t, err, "Handling receipt should not error")
+	require.NoError(t, err, "Handling receipt should not error")
 
 	_, exists := notifier.txHashToTargetInfo[txHash]
 	assert.False(t, exists, "TxHash should be removed from map after processing")

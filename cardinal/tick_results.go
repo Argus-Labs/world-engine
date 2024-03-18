@@ -2,7 +2,9 @@ package cardinal
 
 import (
 	"encoding/json"
+
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/receipt"
 )
 

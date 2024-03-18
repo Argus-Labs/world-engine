@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -16,6 +17,38 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
+
+var _ iterator.Iterator = (*FakeIterator)(nil)
+
+// FakeIterator mimics the behavior of a real transaction iterator for testing purposes.
+type FakeIterator struct {
+	objects []Iterable
+}
+
+type Iterable struct {
+	Batches   []*iterator.TxBatch
+	Tick      uint64
+	Timestamp uint64
+}
+
+func NewFakeIterator(collection []Iterable) *FakeIterator {
+	return &FakeIterator{
+		objects: collection,
+	}
+}
+
+// Each simulates iterating over transactions based on the provided ranges.
+// It directly invokes the provided function with mock data for testing.
+func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, _ ...uint64) error {
+	for _, val := range f.objects {
+		// Invoke the callback function with the current batch, tick, and timestamp.
+		if err := fn(val.Batches, val.Tick, val.Timestamp); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func TestCanWaitForNextTick(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
@@ -385,38 +418,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 		Times(1)
 	rtr.EXPECT().Start().AnyTimes()
 	tf.DoTick()
-}
-
-var _ iterator.Iterator = (*FakeIterator)(nil)
-
-// FakeIterator mimics the behavior of a real transaction iterator for testing purposes.
-type FakeIterator struct {
-	objects []Iterable
-}
-
-type Iterable struct {
-	Batches   []*iterator.TxBatch
-	Tick      uint64
-	Timestamp uint64
-}
-
-func NewFakeIterator(collection []Iterable) *FakeIterator {
-	return &FakeIterator{
-		objects: collection,
-	}
-}
-
-// Each simulates iterating over transactions based on the provided ranges.
-// It directly invokes the provided function with mock data for testing.
-func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp uint64) error, _ ...uint64) error {
-	for _, val := range f.objects {
-		// Invoke the callback function with the current batch, tick, and timestamp.
-		if err := fn(val.Batches, val.Tick, val.Timestamp); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // setEnvToCardinalProdMode sets a bunch of environment variables that are required

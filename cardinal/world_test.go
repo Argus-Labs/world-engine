@@ -12,6 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -20,10 +24,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
-
-	"github.com/alicebob/miniredis/v2"
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
 )
 
 func TestIfPanicMessageLogged(t *testing.T) {

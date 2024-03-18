@@ -1,8 +1,9 @@
 package sequencer
 
 import (
-	"pkg.world.dev/world-engine/assert"
 	"testing"
+
+	"pkg.world.dev/world-engine/assert"
 )
 
 // TestAddTx tests that txs can be added to the queue, and then flushed sorted by namespace & epoch.

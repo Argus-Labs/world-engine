@@ -2,11 +2,12 @@ package cardinal_test
 
 import (
 	"fmt"
+	"testing"
+
 	"pkg.world.dev/world-engine/assert"
 	msg2 "pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
 )
 
 func TestGetSignerComponentForPersona(t *testing.T) {

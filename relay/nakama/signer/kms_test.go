@@ -11,6 +11,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -152,7 +153,7 @@ func (f fakeAsymmetricSigner) AsymmetricSign(_ context.Context, req *kmspb.Asymm
 		Signature:            signature,
 		SignatureCrc32C:      wrapperspb.Int64(int64(crc32c(signature))),
 		VerifiedDigestCrc32C: true,
-		Name:                 req.Name,
+		Name:                 req.GetName(),
 	}, nil
 }
 

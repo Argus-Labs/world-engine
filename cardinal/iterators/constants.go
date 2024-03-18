@@ -3,6 +3,7 @@ package iterators
 import (
 	"errors"
 	"math"
+
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -14,11 +16,11 @@ import (
 	REQUEST MESSAGES
 */
 
-var ErrNoSaveFound = errors.New("no save found")
-
 const (
 	gameSaveCollection = "game_saves"
 )
+
+var ErrNoSaveFound = errors.New("no save found")
 
 type SaveGameRequest struct {
 	Data string `json:"data"`
@@ -101,6 +103,6 @@ func readSave(ctx context.Context, nk runtime.NakamaModule) (res GetSaveReply, e
 	return GetSaveReply{
 		Persona:     personaTag,
 		Allowlisted: verified,
-		Data:        saves[0].Value,
+		Data:        saves[0].GetValue(),
 	}, nil
 }

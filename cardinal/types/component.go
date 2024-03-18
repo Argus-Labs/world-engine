@@ -2,14 +2,15 @@ package types
 
 import (
 	"errors"
+
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"github.com/wI2L/jsondiff"
 )
 
-type ComponentID int
-
 var ErrComponentSchemaMismatch = errors.New("component schema does not match target schema")
+
+type ComponentID int
 
 // Component is the interface that the user needs to implement to create a new component type.
 type Component interface {

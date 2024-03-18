@@ -3,8 +3,8 @@ package shard
 import (
 	"encoding/json"
 	"fmt"
-	abci "github.com/cometbft/cometbft/abci/types"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -76,7 +76,7 @@ func (a AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterQueryServer(cfg.QueryServer(), a.keeper)
 }
 
-type AppModuleBasic struct{}
+type AppModuleBasic struct{} //nolint:decorder
 
 func (a AppModuleBasic) Name() string {
 	return ModuleName

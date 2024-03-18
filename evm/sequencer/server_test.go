@@ -2,10 +2,12 @@ package sequencer
 
 import (
 	"context"
+	"testing"
+
 	"google.golang.org/protobuf/proto"
+
 	"pkg.world.dev/world-engine/assert"
 	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
-	"testing"
 )
 
 // TestMessagesAreOrderedAndProtoMarshalled tests that when messages are sent to and then flushed from the server,
@@ -56,11 +58,11 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	pbMsg := new(shardv2.Transaction)
 	err = proto.Unmarshal(messages.Txs[0].GameShardTransaction, pbMsg)
 	assert.NilError(t, err)
-	assert.Check(t, proto.Equal(pbMsg, req.Transactions[30].Txs[0]))
+	assert.Check(t, proto.Equal(pbMsg, req.GetTransactions()[30].GetTxs()[0]))
 
 	err = proto.Unmarshal(messages.Txs[1].GameShardTransaction, pbMsg)
 	assert.NilError(t, err)
-	assert.Check(t, proto.Equal(pbMsg, req.Transactions[44].Txs[0]))
+	assert.Check(t, proto.Equal(pbMsg, req.GetTransactions()[44].GetTxs()[0]))
 }
 
 func TestGetBothSlices(t *testing.T) {
@@ -79,10 +81,13 @@ func TestGetBothSlices(t *testing.T) {
 			UnixTimestamp: 3,
 			Namespace:     "foo",
 			Transactions: map[uint64]*shardv2.Transactions{
-				1: {Txs: []*shardv2.Transaction{
-					{PersonaTag: "foo", Namespace: "foobar", Nonce: 3}},
+				1: {
+					Txs: []*shardv2.Transaction{
+						{PersonaTag: "foo", Namespace: "foobar", Nonce: 3},
+					},
 				},
-			}})
+			},
+		})
 	assert.NilError(t, err)
 	txs, inits := seq.FlushMessages()
 

@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"slices"
 	"strings"
 	"testing"
@@ -17,17 +16,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 	"github.com/swaggo/swag"
-	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/sign"
 
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // Used for Registering message
@@ -39,8 +39,6 @@ type MoveMsgInput struct {
 type MoveMessageOutput struct {
 	Location LocationComponent
 }
-
-var moveMsgName = "move"
 
 type QueryLocationRequest struct {
 	Persona string
@@ -60,6 +58,8 @@ type ServerTestSuite struct {
 	signerAddr string
 	nonce      uint64
 }
+
+var moveMsgName = "move"
 
 func TestServer(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
@@ -90,7 +90,7 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	var loc LocationComponent
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
-	s.Require().Equal(loc, LocationComponent{0, 1})
+	s.Require().Equal(LocationComponent{0, 1}, loc)
 }
 
 // TestCanListEndpoints tests the endpoints endpoint.
@@ -170,18 +170,18 @@ func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 		if _, ok := info["get"]; ok {
 			res := s.fixture.Get(path)
 			// This test is only checking to make sure the endpoint can be found.
-			s.NotEqualf(res.StatusCode, 404,
+			s.NotEqualf(404, res.StatusCode,
 				"swagger defines GET %q, but that endpoint was not found", path)
-			s.NotEqualf(res.StatusCode, 405,
+			s.NotEqualf(405, res.StatusCode,
 				"swagger defines GET %q, but GET is not allowed on that endpoint", path)
 		}
 		if _, ok := info["post"]; ok {
 			emptyPayload := struct{}{}
 			res := s.fixture.Post(path, emptyPayload)
 			// This test is only checking to make sure the endpoint can be found.
-			s.NotEqualf(res.StatusCode, 404,
+			s.NotEqualf(404, res.StatusCode,
 				"swagger defines POST %q, but that endpoint was not found", path)
-			s.NotEqualf(res.StatusCode, 405,
+			s.NotEqualf(405, res.StatusCode,
 				"swagger defines GET %q, but POST is not allowed on that endpoint", path)
 		}
 	}
@@ -214,7 +214,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	var loc LocationComponent
 	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
-	s.Require().Equal(loc, LocationComponent{0, 1})
+	s.Require().Equal(LocationComponent{0, 1}, loc)
 }
 
 func (s *ServerTestSuite) TestQueryCustomGroup() {

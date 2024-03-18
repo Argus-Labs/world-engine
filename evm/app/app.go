@@ -21,29 +21,17 @@
 package app
 
 import (
-	"github.com/cometbft/cometbft/abci/types"
-	"github.com/rotisserie/eris"
-	zerolog "github.com/rs/zerolog/log"
-	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
-	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
-	"pkg.world.dev/world-engine/evm/sequencer"
-
 	"io"
 	"os"
 	"path/filepath"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
-	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
 
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
+	"github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
-	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -53,6 +41,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
@@ -63,21 +52,27 @@ import (
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-
+	"github.com/rotisserie/eris"
+	zerolog "github.com/rs/zerolog/log"
+	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
 	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
+	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
+	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
+	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
 	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
 
 	"pkg.world.dev/world-engine/evm/router"
+	"pkg.world.dev/world-engine/evm/sequencer"
 	namespacekeeper "pkg.world.dev/world-engine/evm/x/namespace/keeper"
 	shardkeeper "pkg.world.dev/world-engine/evm/x/shard/keeper"
 )
 
-// DefaultNodeHome default home directories for the application daemon.
-var DefaultNodeHome string
-
 var (
-	_ runtime.AppI            = (*App)(nil)
-	_ servertypes.Application = (*App)(nil)
+	// DefaultNodeHome default home directories for the application daemon.
+	DefaultNodeHome string
+	_               runtime.AppI            = (*App)(nil)
+	_               servertypes.Application = (*App)(nil)
 )
 
 // App extends an ABCI application, but with most of its parameters exported.

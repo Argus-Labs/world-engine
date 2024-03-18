@@ -3,6 +3,8 @@ package cardinal_test
 import (
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -11,8 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"github.com/alicebob/miniredis/v2"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -53,6 +53,14 @@ func (ThreeBetaNum) Name() string { return "threeBetaNum" }
 type FoundAlphaNum struct{}
 
 func (FoundAlphaNum) Name() string { return "foundAlphaNum" }
+
+type FooComponent struct {
+	Data string
+}
+
+func (FooComponent) Name() string {
+	return "foo"
+}
 
 func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// This redisStore will be used to cardinal.Create multiple engines to ensure state is consistent across the engines.
@@ -338,14 +346,6 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, 3, len(receipts))
 	}
-}
-
-type FooComponent struct {
-	Data string
-}
-
-func (FooComponent) Name() string {
-	return "foo"
 }
 
 func TestSearchEarlyTermination(t *testing.T) {

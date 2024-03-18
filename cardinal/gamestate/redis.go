@@ -3,21 +3,20 @@ package gamestate
 import (
 	"context"
 
+	"github.com/redis/go-redis/v9"
+	"github.com/rotisserie/eris"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
-	"github.com/redis/go-redis/v9"
-	"github.com/rotisserie/eris"
 )
+
+var _ PrimitiveStorage[string] = &RedisStorage{}
 
 type RedisStorage struct {
 	currentClient redis.Cmdable
 }
-
-var _ PrimitiveStorage[string] = &RedisStorage{}
 
 func (r *RedisStorage) GetFloat64(ctx context.Context, key string) (float64, error) {
 	res, err := r.currentClient.Get(ctx, key).Float64()

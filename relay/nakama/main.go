@@ -10,15 +10,13 @@ import (
 	"strings"
 	"sync"
 
-	"pkg.world.dev/world-engine/relay/nakama/events"
-
 	kms "cloud.google.com/go/kms/apiv1"
-	"google.golang.org/api/option"
-
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+	"google.golang.org/api/option"
 
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -196,7 +194,7 @@ func initPersonaTagAssignmentMap(
 		}
 		logger.Debug("found %d persona tag storage objects", len(objs))
 		for _, obj := range objs {
-			userID := obj.UserId
+			userID := obj.GetUserId()
 			var ptr *persona.StorageObj
 			ptr, err = persona.StorageObjToPersonaTagStorageObj(obj)
 			if err != nil {

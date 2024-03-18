@@ -6,18 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/require"
+
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"pkg.world.dev/world-engine/assert"
-
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/require"
 )
 
 type SendEnergyTx struct {

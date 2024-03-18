@@ -3,9 +3,8 @@ package storage_test
 import (
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/types"
-
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type TestComponent1 struct {

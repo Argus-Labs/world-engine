@@ -8,12 +8,17 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rotisserie/eris"
 )
+
+// SystemPersonaTag is a reserved persona tag for transaction. It is used in transactions when a PersonaTag
+// does not actually exist (e.g. during the PersonaTag creation process).
+const SystemPersonaTag = "SystemPersonaTag"
 
 var (
 	// ErrSignatureValidationFailed is returned when a signature is not valid.
@@ -27,10 +32,6 @@ var (
 	ErrNoSignatureField  = errors.New("transaction must contain signature field")
 	ErrNoBodyField       = errors.New("transaction must contain body field")
 )
-
-// SystemPersonaTag is a reserved persona tag for transaction. It is used in transactions when a PersonaTag
-// does not actually exist (e.g. during the PersonaTag creation process).
-const SystemPersonaTag = "SystemPersonaTag"
 
 type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
@@ -253,7 +254,7 @@ func (s *Transaction) populateHash() {
 	s.Hash = crypto.Keccak256Hash(
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),
-		[]byte(fmt.Sprintf("%d", s.Nonce)),
+		[]byte(strconv.FormatUint(s.Nonce, 10)),
 		s.Body,
 	)
 }

@@ -8,20 +8,35 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"github.com/gorilla/websocket"
 )
+
+type SendEnergyTx struct {
+	From, To string
+	Amount   uint64
+}
+
+type SendEnergyTxResult struct{}
+
+type garbageStructAlpha struct {
+	Something int `json:"something"`
+}
+
+func (garbageStructAlpha) Name() string { return "alpha" }
+
+type garbageStructBeta struct {
+	Something int `json:"something"`
+}
+
+func (garbageStructBeta) Name() string { return "beta" }
 
 func wsURL(addr, path string) string {
 	return fmt.Sprintf("ws://%s/%s", addr, path)
-}
-
-type Event struct {
-	Message string `json:"message"`
 }
 
 func TestEvents(t *testing.T) {
@@ -85,25 +100,6 @@ func TestEvents(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
 }
-
-type garbageStructAlpha struct {
-	Something int `json:"something"`
-}
-
-func (garbageStructAlpha) Name() string { return "alpha" }
-
-type garbageStructBeta struct {
-	Something int `json:"something"`
-}
-
-func (garbageStructBeta) Name() string { return "beta" }
-
-type SendEnergyTx struct {
-	From, To string
-	Amount   uint64
-}
-
-type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5

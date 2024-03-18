@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"sync"
 
@@ -110,7 +109,7 @@ func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 // of items in the set and M is the number of items to remove.
 func (r *NonceStorage) cleanupOldNonces(ctx context.Context, signerAddressKey string, currMax uint64) {
 	minScore := "-inf"
-	maxScore := fmt.Sprintf("%d", currMax-NonceSlidingWindowSize)
+	maxScore := strconv.FormatUint(currMax-NonceSlidingWindowSize, 10)
 	removed, err := r.Client.ZRemRangeByScore(ctx, signerAddressKey, minScore, maxScore).Result()
 	if err != nil {
 		log.Err(err).Msg("failed to remove old nonces")

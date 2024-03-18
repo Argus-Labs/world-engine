@@ -1,11 +1,13 @@
 package keeper
 
 import (
-	"cosmossdk.io/store/prefix"
 	"encoding/binary"
 	"fmt"
+
+	"cosmossdk.io/store/prefix"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
@@ -30,7 +32,8 @@ func (k *Keeper) iterateTransactions(
 	ctx sdk.Context,
 	start, end []byte,
 	ns string,
-	cb func(e *types.Epoch) bool) {
+	cb func(e *types.Epoch) bool,
+) {
 	store := k.transactionStore(ctx, ns)
 	it := store.Iterator(start, end)
 	for ; it.Valid(); it.Next() {

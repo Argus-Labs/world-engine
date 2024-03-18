@@ -1,10 +1,12 @@
 package router
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
+
 	v1 "pkg.world.dev/world-engine/rift/router/v1"
-	"sync"
 )
 
 type gameShardMsg struct {
@@ -12,6 +14,18 @@ type gameShardMsg struct {
 	msg *v1.SendMessageRequest
 	// the namespace of the game shard.
 	namespace string
+}
+
+type msgQueue struct {
+	mut   sync.Mutex
+	queue map[common.Address]*gameShardMsg
+}
+
+func newMsgQueue() *msgQueue {
+	return &msgQueue{
+		mut:   sync.Mutex{},
+		queue: make(map[common.Address]*gameShardMsg),
+	}
 }
 
 func (m *msgQueue) Set(sender common.Address, namespace string, msg *v1.SendMessageRequest) error {
@@ -46,16 +60,4 @@ func (m *msgQueue) Clear() {
 	m.mut.Lock()
 	defer m.mut.Unlock()
 	clear(m.queue)
-}
-
-type msgQueue struct {
-	mut   sync.Mutex
-	queue map[common.Address]*gameShardMsg
-}
-
-func newMsgQueue() *msgQueue {
-	return &msgQueue{
-		mut:   sync.Mutex{},
-		queue: make(map[common.Address]*gameShardMsg),
-	}
 }

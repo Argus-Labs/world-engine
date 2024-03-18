@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"pkg.world.dev/world-engine/relay/nakama/testutils"
-
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -88,7 +89,7 @@ func TestEventHubIntegration(t *testing.T) {
 	case event := <-eventChan:
 		jsonMap := make(map[string]any)
 		err = json.Unmarshal(event, &jsonMap)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		msg, ok2 := jsonMap["message"]
 		assert.True(t, ok2)
 		msgString, ok2 := msg.(string)

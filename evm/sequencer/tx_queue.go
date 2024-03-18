@@ -2,10 +2,11 @@ package sequencer
 
 import (
 	"cmp"
-	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"slices"
 	"sync"
+
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
 // TxQueue acts as a transaction queue. Transactions come in to the TxQueue with an epoch.

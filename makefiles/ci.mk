@@ -4,17 +4,17 @@
 
 golangci_version=v1.56.2
 
-golangci-install:
+lint-install:
 	@echo "--> Installing golangci-lint $(golangci_version)"
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_version)
 
 lint:
-	@$(MAKE) golangci-install
+	@$(MAKE) lint-install
 	@echo "--> Running linter"
 	@go list -f '{{.Dir}}/...' -m | xargs golangci-lint run  --timeout=10m --concurrency 8 -v
 
-golangci-fix:
-	@$(MAKE) golangci-install
+lint-fix:
+	@$(MAKE) lint-install
 	@echo "--> Running linter"
 	@go list -f '{{.Dir}}/...' -m | xargs golangci-lint run  --timeout=10m --fix --concurrency 8 -v
 

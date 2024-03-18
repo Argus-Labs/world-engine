@@ -4,11 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/types"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {

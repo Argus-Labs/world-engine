@@ -1,13 +1,14 @@
 package keeper
 
 import (
+	"log"
+	"strings"
+
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"log"
-	"pkg.world.dev/world-engine/evm/sequencer"
-	"strings"
 
+	"pkg.world.dev/world-engine/evm/sequencer"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 )
 

@@ -3,11 +3,11 @@ package clients
 import (
 	"testing"
 
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
 
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )

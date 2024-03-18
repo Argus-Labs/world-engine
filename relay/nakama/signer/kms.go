@@ -7,9 +7,10 @@ import (
 	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
+	"errors"
 	"hash/crc32"
 	"math/big"
+	"strconv"
 
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,8 +18,27 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"pkg.world.dev/world-engine/sign"
 )
+
+var _ Signer = &kmsSigner{}
+
+var oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+
+// The documentation at https://cloud.google.com/kms/docs/retrieve-public-key#kms-get-public-key-go recommends using
+// x509.ParsePKIXPublicKey to convert the raw bytes from Google's API to an ecdsa.PublicKey. Unfortunately, it doesn't
+// seem like ParsePKIXPublicKey supports the secp256k1 (asn1 1.3.132.0.10) curve.
+// See https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/crypto/x509/x509.go;l=504-525 for the curves that
+// are supported.
+//
+// I've adapted the public key parsing code of https://pkg.go.dev/github.com/openware/pkg/signer to convert the KMS
+// bytes to an ecdsa.PublicKey
+type publicKeyInfo struct {
+	Raw       asn1.RawContent
+	Algorithm pkix.AlgorithmIdentifier
+	PublicKey asn1.BitString
+}
 
 type kmsSigner struct {
 	aSigner       AsymmetricSigner
@@ -31,16 +51,16 @@ type kmsSigner struct {
 // done via a fake version of the kms service.
 type AsymmetricSigner interface {
 	AsymmetricSign(context.Context, *kmspb.AsymmetricSignRequest, ...gax.CallOption) (
-		*kmspb.AsymmetricSignResponse, error)
+		*kmspb.AsymmetricSignResponse, error,
+	)
 	GetPublicKey(context.Context, *kmspb.GetPublicKeyRequest, ...gax.CallOption) (*kmspb.PublicKey, error)
 }
-
-var _ Signer = &kmsSigner{}
 
 func NewKMSSigner(ctx context.Context, nonceManager NonceManager, asymmetricSigner AsymmetricSigner, keyName string) (
 	Signer, error,
 ) {
-	ks := &kmsSigner{aSigner: asymmetricSigner,
+	ks := &kmsSigner{
+		aSigner:      asymmetricSigner,
 		nonceManager: nonceManager,
 		keyName:      keyName,
 	}
@@ -88,14 +108,14 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 		return nil, eris.Wrap(err, "failed to sign tx via KMS")
 	}
 
-	if !result.VerifiedDigestCrc32C ||
-		result.Name != req.Name ||
-		int64(crc32c(result.Signature)) != result.SignatureCrc32C.Value {
-		return nil, fmt.Errorf("AsymmetricSign: request corrupted in-transit")
+	if !result.GetVerifiedDigestCrc32C() ||
+		result.GetName() != req.GetName() ||
+		int64(crc32c(result.GetSignature())) != result.GetSignatureCrc32C().GetValue() {
+		return nil, errors.New("AsymmetricSign: request corrupted in-transit")
 	}
 
 	//	unsignedTx.Signature = string(result.Signature)
-	ethSig, err := k.kmsSigToEthereumSig(digest, result.Signature)
+	ethSig, err := k.kmsSigToEthereumSig(digest, result.GetSignature())
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -114,7 +134,7 @@ func calculateDigest(tx *sign.Transaction) common.Hash {
 	return crypto.Keccak256Hash(
 		[]byte(tx.PersonaTag),
 		[]byte(tx.Namespace),
-		[]byte(fmt.Sprintf("%d", tx.Nonce)),
+		[]byte(strconv.FormatUint(tx.Nonce, 10)),
 		tx.Body,
 	)
 }
@@ -134,29 +154,13 @@ func (k *kmsSigner) populateSignerAddress(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to get public key")
 	}
-	signerAddress, err := convertPemToSignerAddress(resp.Pem)
+	signerAddress, err := convertPemToSignerAddress(resp.GetPem())
 	if err != nil {
 		return eris.Wrap(err, "failed to parse signer address")
 	}
 	k.signerAddress = signerAddress
 	return nil
 }
-
-// The documentation at https://cloud.google.com/kms/docs/retrieve-public-key#kms-get-public-key-go recommends using
-// x509.ParsePKIXPublicKey to convert the raw bytes from Google's API to an ecdsa.PublicKey. Unfortunately, it doesn't
-// seem like ParsePKIXPublicKey supports the secp256k1 (asn1 1.3.132.0.10) curve.
-// See https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/crypto/x509/x509.go;l=504-525 for the curves that
-// are supported.
-//
-// I've adapted the public key parsing code of https://pkg.go.dev/github.com/openware/pkg/signer to convert the KMS
-// bytes to an ecdsa.PublicKey
-type publicKeyInfo struct {
-	Raw       asn1.RawContent
-	Algorithm pkix.AlgorithmIdentifier
-	PublicKey asn1.BitString
-}
-
-var oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 
 func convertPemToSignerAddress(pemStr string) (string, error) {
 	block, rest := pem.Decode([]byte(pemStr))

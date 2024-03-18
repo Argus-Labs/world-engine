@@ -1,11 +1,22 @@
 package txpool
 
 import (
-	"pkg.world.dev/world-engine/cardinal/types"
 	"sync"
 
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
+
+type TxMap map[types.MessageID][]TxData
+
+type TxData struct {
+	MsgID  types.MessageID
+	Msg    any
+	TxHash types.TxHash
+	Tx     *sign.Transaction
+	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
+	EVMSourceTxHash string
+}
 
 type TxPool struct {
 	m         TxMap
@@ -85,15 +96,4 @@ func (t *TxPool) reset() {
 
 func (t *TxPool) ForID(id types.MessageID) []TxData {
 	return t.m[id]
-}
-
-type TxMap map[types.MessageID][]TxData
-
-type TxData struct {
-	MsgID  types.MessageID
-	Msg    any
-	TxHash types.TxHash
-	Tx     *sign.Transaction
-	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
-	EVMSourceTxHash string
 }

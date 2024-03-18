@@ -4,9 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"pkg.world.dev/world-engine/relay/nakama/testutils"
-
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
 func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {

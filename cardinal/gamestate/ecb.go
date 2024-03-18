@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/redis/go-redis/v9"
+	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
+)
 
-	"github.com/redis/go-redis/v9"
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
+var (
+	ErrArchetypeNotFound    = errors.New("archetype for components not found")
+	doesNotExistArchetypeID = types.ArchetypeID(-1)
 )
 
 var _ Manager = &EntityCommandBuffer{}
@@ -42,11 +45,6 @@ type EntityCommandBuffer struct {
 	archIDToComps  VolatileStorage[types.ArchetypeID, []types.ComponentMetadata]
 	pendingArchIDs []types.ArchetypeID
 }
-
-var (
-	ErrArchetypeNotFound    = errors.New("archetype for components not found")
-	doesNotExistArchetypeID = types.ArchetypeID(-1)
-)
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
 // atomically commit them to the underlying redis dbStorage layer.

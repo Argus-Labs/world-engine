@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )

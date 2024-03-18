@@ -4,15 +4,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"github.com/alicebob/miniredis/v2"
 )
 
 type EnergyComponent struct {
@@ -40,6 +40,40 @@ type OwnableComponent struct {
 
 func (OwnableComponent) Name() string {
 	return "OwnableComponent"
+}
+
+type Pos struct {
+	X, Y float64
+}
+
+func (Pos) Name() string {
+	return "Position"
+}
+
+type Vel struct {
+	DX, DY float64
+}
+
+func (Vel) Name() string {
+	return "Velocity"
+}
+
+type ReactorEnergy struct {
+	Amt int64
+	Cap int64
+}
+
+func (ReactorEnergy) Name() string {
+	return "reactorEnergy"
+}
+
+type WeaponEnergy struct {
+	Amt int64
+	Cap int64
+}
+
+func (WeaponEnergy) Name() string {
+	return "weaponsEnergy"
 }
 
 func UpdateEnergySystem(wCtx engine.Context) error {
@@ -124,21 +158,6 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 	var energyComponent EnergyComponent
 	assert.Equal(t, comp.Name(), energyComponent.Name())
-}
-
-type Pos struct {
-	X, Y float64
-}
-type Vel struct {
-	DX, DY float64
-}
-
-func (Pos) Name() string {
-	return "Position"
-}
-
-func (Vel) Name() string {
-	return "Velocity"
 }
 
 func TestVelocitySimulation(t *testing.T) {
@@ -366,24 +385,6 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	ent, err := cardinal.Create(wCtx, EnergyComponent{})
 	assert.NilError(t, err)
 	assert.ErrorIs(t, cardinal.AddComponentTo[EnergyComponent](wCtx, ent), iterators.ErrComponentAlreadyOnEntity)
-}
-
-type ReactorEnergy struct {
-	Amt int64
-	Cap int64
-}
-
-type WeaponEnergy struct {
-	Amt int64
-	Cap int64
-}
-
-func (ReactorEnergy) Name() string {
-	return "reactorEnergy"
-}
-
-func (WeaponEnergy) Name() string {
-	return "weaponsEnergy"
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {

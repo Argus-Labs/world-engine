@@ -9,11 +9,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"pkg.world.dev/world-engine/relay/nakama/utils"
-
 	"github.com/gorilla/websocket"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
 type EventHub struct {

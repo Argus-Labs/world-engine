@@ -2,12 +2,15 @@ package search
 
 import (
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
+
+type CallbackFn func(types.EntityID) bool
 
 type cache struct {
 	archetypes []types.ArchetypeID
@@ -39,8 +42,6 @@ func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *Search {
 		wCtx:        wCtx,
 	}
 }
-
-type CallbackFn func(types.EntityID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.

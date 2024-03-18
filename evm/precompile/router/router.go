@@ -2,12 +2,14 @@ package router
 
 import (
 	"context"
-	"fmt"
+	"errors"
+
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/eth/core/vm"
+
 	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
 	"pkg.world.dev/world-engine/evm/router"
 )
@@ -50,7 +52,7 @@ func (c *Contract) SendMessage(
 		return true, nil
 	}
 	log.Logger.Debug().Msg("the precompile had a nil Router")
-	return false, fmt.Errorf("nil router")
+	return false, errors.New("nil router")
 }
 
 func (c *Contract) MessageResult(ctx context.Context, evmTxHash string) ([]byte, string, uint32, error) {

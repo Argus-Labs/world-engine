@@ -3,10 +3,12 @@ package iterator
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
+
 	"pkg.world.dev/world-engine/cardinal/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -65,7 +67,7 @@ func (t *iterator) Each(
 		if len(ranges) > 1 {
 			stopTick = ranges[1]
 			if ranges[0] > ranges[1] {
-				return fmt.Errorf("first number in range must be less than the second (start,stop)")
+				return errors.New("first number in range must be less than the second (start,stop)")
 			}
 		}
 	}
@@ -98,7 +100,7 @@ OuterLoop:
 				if err != nil {
 					return eris.Wrap(err, "failed to unmarshal transaction data")
 				}
-				msgValue, err := msgType.Decode(protoTx.Body)
+				msgValue, err := msgType.Decode(protoTx.GetBody())
 				if err != nil {
 					return err
 				}
@@ -122,12 +124,12 @@ OuterLoop:
 
 func protoTxToSignTx(t *shard.Transaction) *sign.Transaction {
 	tx := &sign.Transaction{
-		PersonaTag: t.PersonaTag,
-		Namespace:  t.Namespace,
-		Nonce:      t.Nonce,
-		Signature:  t.Signature,
+		PersonaTag: t.GetPersonaTag(),
+		Namespace:  t.GetNamespace(),
+		Nonce:      t.GetNonce(),
+		Signature:  t.GetSignature(),
 		Hash:       common.Hash{},
-		Body:       t.Body,
+		Body:       t.GetBody(),
 	}
 	// HashHex will populate the hash.
 	tx.HashHex()

@@ -3,6 +3,10 @@ package sequencer
 import (
 	"context"
 	"crypto/tls"
+	"net"
+	"os"
+	"strconv"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -10,12 +14,10 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"net"
-	"os"
+
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
-	"strconv"
 )
 
 const (
@@ -74,6 +76,7 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	return credentials.NewTLS(config), nil
@@ -109,16 +112,17 @@ func (s *Sequencer) FlushMessages() ([]*types.SubmitShardTxRequest, []*namespace
 
 // Submit appends the game shard tx submission to the tx queue.
 func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsRequest) (
-	*shard.SubmitTransactionsResponse, error) {
-	txIDs := sortMapKeys(req.Transactions)
+	*shard.SubmitTransactionsResponse, error,
+) {
+	txIDs := sortMapKeys(req.GetTransactions())
 	for _, txID := range txIDs {
-		txs := req.Transactions[txID].Txs
+		txs := req.GetTransactions()[txID].GetTxs()
 		for _, tx := range txs {
 			bz, err := proto.Marshal(tx)
 			if err != nil {
 				return nil, eris.Wrap(err, "failed to marshal transaction")
 			}
-			s.tq.AddTx(req.Namespace, req.Epoch, req.UnixTimestamp, txID, bz)
+			s.tq.AddTx(req.GetNamespace(), req.GetEpoch(), req.GetUnixTimestamp(), txID, bz)
 		}
 	}
 	return &shard.SubmitTransactionsResponse{}, nil
@@ -128,6 +132,6 @@ func (s *Sequencer) RegisterGameShard(
 	_ context.Context,
 	req *shard.RegisterGameShardRequest,
 ) (*shard.RegisterGameShardResponse, error) {
-	s.tq.AddInitMsg(req.Namespace, req.RouterAddress)
+	s.tq.AddInitMsg(req.GetNamespace(), req.GetRouterAddress())
 	return &shard.RegisterGameShardResponse{}, nil
 }

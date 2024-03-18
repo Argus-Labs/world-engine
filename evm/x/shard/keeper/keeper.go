@@ -1,14 +1,15 @@
 package keeper
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"log"
-	"pkg.world.dev/world-engine/evm/sequencer"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"strings"
 
 	"cosmossdk.io/core/store"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+
+	"pkg.world.dev/world-engine/evm/sequencer"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
 type Keeper struct {

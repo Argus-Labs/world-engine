@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/assert"
 
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 )
 

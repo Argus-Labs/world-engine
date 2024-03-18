@@ -2,26 +2,30 @@ package filter_test
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	"testing"
-
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/types"
 
 	"github.com/rs/zerolog"
 
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-type gammaComponent struct{}
+type Alpha struct{}
 
-func (gammaComponent) Name() string {
-	return "gamma"
-}
+func (Alpha) Name() string { return "alpha" }
+
+type Beta struct{}
+
+func (Beta) Name() string { return "beta" }
+
+type Gamma struct{}
+
+func (Gamma) Name() string { return "gamma" }
 
 func TestGetEverythingFilter(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
@@ -81,7 +85,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 		func(id types.EntityID) bool {
 			count++
 			// Make sure the gamma component is not on this entity
-			_, err = cardinal.GetComponent[gammaComponent](wCtx, id)
+			_, err = cardinal.GetComponent[Gamma](wCtx, id)
 			assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 			return true
 		},
@@ -89,18 +93,6 @@ func TestCanFilterByArchetype(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, count, subsetCount)
 }
-
-type Alpha struct{}
-
-func (Alpha) Name() string { return "alpha" }
-
-type Beta struct{}
-
-func (Beta) Name() string { return "beta" }
-
-type Gamma struct{}
-
-func (Gamma) Name() string { return "gamma" }
 
 func TestExactVsContains(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)

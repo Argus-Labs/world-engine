@@ -13,10 +13,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const shutdownPollInterval = 200
-
 const (
-	writeDeadline = 5 * time.Second
+	shutdownPollInterval = 200
+	writeDeadline        = 5 * time.Second
 )
 
 // websocketAndDoneChan stores a websocket connection along with a channel to signal when something is done.

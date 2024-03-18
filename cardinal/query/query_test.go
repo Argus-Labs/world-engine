@@ -2,17 +2,15 @@ package query_test
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"testing"
 
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"pkg.world.dev/world-engine/assert"
 )
 
 type Health struct {

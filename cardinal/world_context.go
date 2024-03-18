@@ -3,19 +3,20 @@ package cardinal
 import (
 	"reflect"
 
-	"github.com/rs/zerolog/log"
-
-	"pkg.world.dev/world-engine/cardinal/worldstage"
-
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
+
+// interface guard
+var _ engine.Context = (*worldContext)(nil)
 
 type worldContext struct {
 	world    *World
@@ -50,9 +51,6 @@ func NewReadOnlyWorldContext(world *World) engine.Context {
 		readOnly: true,
 	}
 }
-
-// interface guard
-var _ engine.Context = (*worldContext)(nil)
 
 // Timestamp returns the UNIX timestamp of the tick.
 func (ctx *worldContext) Timestamp() uint64 {

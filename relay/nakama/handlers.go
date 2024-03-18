@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"pkg.world.dev/world-engine/relay/nakama/events"
 	"sync"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -14,10 +13,18 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
+
+// nakamaRPCHandler is the signature required for handlers that are passed to Nakama's RegisterRpc method.
+// This type is defined just to make the function below a little more readable.
+type nakamaRPCHandler func(
+	ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule,
+	payload string,
+) (string, error)
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 func handleClaimPersona(
@@ -76,7 +83,8 @@ func handleClaimPersona(
 }
 
 func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPCHandler {
-	return func(ctx context.Context,
+	return func(
+		ctx context.Context,
 		logger runtime.Logger,
 		_ *sql.DB,
 		nk runtime.NakamaModule,
@@ -155,7 +163,8 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
-func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
+func handleSaveGame(
+	ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
 ) (string, error) {
 	var msg SaveGameRequest
 	if err := json.Unmarshal([]byte(payload), &msg); err != nil {
@@ -222,8 +231,3 @@ func handleCardinalRequest(
 		return result, nil
 	}
 }
-
-// nakamaRPCHandler is the signature required for handlers that are passed to Nakama's RegisterRpc method.
-// This type is defined just to make the function below a little more readable.
-type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule,
-	payload string) (string, error)

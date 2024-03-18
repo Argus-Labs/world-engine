@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"pkg.world.dev/world-engine/cardinal/search/filter"
-
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )

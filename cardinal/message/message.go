@@ -5,21 +5,26 @@ import (
 	"fmt"
 	"reflect"
 
+	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/sign"
 )
 
-var (
-	ErrEVMTypeNotSet = errors.New("EVM type is not set")
-)
-
+var ErrEVMTypeNotSet = errors.New("EVM type is not set")
 var _ types.Message = &MessageType[struct{}, struct{}]{}
+
+type TxData[In any] struct {
+	Hash types.TxHash
+	Msg  In
+	Tx   *sign.Transaction
+}
+
+type MessageOption[In, Out any] func(mt *MessageType[In, Out]) //nolint:revive // this is fine for now
 
 // MessageType manages a user defined state transition message struct.
 type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
@@ -29,15 +34,6 @@ type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
 	group      string
 	inEVMType  *ethereumAbi.Type
 	outEVMType *ethereumAbi.Type
-}
-
-func isStruct[T any]() bool {
-	var in T
-	inType := reflect.TypeOf(in)
-	inKind := inType.Kind()
-	return (inKind == reflect.Pointer &&
-		inType.Elem().Kind() == reflect.Struct) ||
-		inKind == reflect.Struct
 }
 
 // NewMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
@@ -103,12 +99,6 @@ func (t *MessageType[In, Out]) SetID(id types.MessageID) error {
 	t.id = id
 	t.isIDSet = true
 	return nil
-}
-
-type TxData[In any] struct {
-	Hash types.TxHash
-	Msg  In
-	Tx   *sign.Transaction
 }
 
 func (t *MessageType[In, Out]) AddError(wCtx engine.Context, hash types.TxHash, err error) {
@@ -230,8 +220,6 @@ func (t *MessageType[In, Out]) GetInFieldInformation() map[string]any {
 
 // -------------------------- Options --------------------------
 
-type MessageOption[In, Out any] func(mt *MessageType[In, Out]) //nolint:revive // this is fine for now
-
 func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 	return func(msg *MessageType[In, Out]) {
 		var in In
@@ -257,4 +245,15 @@ func WithCustomMessageGroup[In, Out any](group string) MessageOption[In, Out] {
 	return func(mt *MessageType[In, Out]) {
 		mt.group = group
 	}
+}
+
+// -------------------------- Helpers --------------------------
+
+func isStruct[T any]() bool {
+	var in T
+	inType := reflect.TypeOf(in)
+	inKind := inType.Kind()
+	return (inKind == reflect.Pointer &&
+		inType.Elem().Kind() == reflect.Struct) ||
+		inKind == reflect.Struct
 }

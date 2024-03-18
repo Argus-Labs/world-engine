@@ -1,11 +1,13 @@
 package router
 
 import (
-	"google.golang.org/protobuf/proto"
-	"gotest.tools/v3/assert"
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
+	"gotest.tools/v3/assert"
+
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
 func TestResultStorage(t *testing.T) {

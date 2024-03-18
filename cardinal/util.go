@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )

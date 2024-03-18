@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+
+	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
-
-	"github.com/rotisserie/eris"
 )
 
 var _ Reader = &readOnlyManager{}

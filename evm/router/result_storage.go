@@ -1,16 +1,13 @@
 package router
 
 import (
-	"github.com/rs/zerolog/log"
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"sync"
 	"time"
-)
 
-type ResultStorage interface {
-	Result(key string) (Result, bool)
-	SetResult(msg *routerv1.SendMessageResponse)
-}
+	"github.com/rs/zerolog/log"
+
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+)
 
 type Result struct {
 	*routerv1.SendMessageResponse
@@ -21,7 +18,12 @@ func (r Result) expired(expiryRange time.Duration) bool {
 	return time.Now().After(r.timeEntered.Add(expiryRange))
 }
 
-type resultStorageMemory struct {
+type ResultStorage interface { //nolint:decorder
+	Result(key string) (Result, bool)
+	SetResult(msg *routerv1.SendMessageResponse)
+}
+
+type resultStorageMemory struct { //nolint:decorder
 	keepAlive time.Duration
 	results   *sync.Map // map[string]Result
 }
@@ -47,8 +49,8 @@ func (r *resultStorageMemory) Result(hash string) (Result, bool) {
 
 func (r *resultStorageMemory) SetResult(msg *routerv1.SendMessageResponse) {
 	result := Result{msg, time.Now()}
-	log.Debug().Msgf("storing result for tx %q: result: %s", msg.EvmTxHash, result.String())
-	r.results.Store(msg.EvmTxHash, result)
+	log.Debug().Msgf("storing result for tx %q: result: %s", msg.GetEvmTxHash(), result.String())
+	r.results.Store(msg.GetEvmTxHash(), result)
 }
 
 func (r *resultStorageMemory) clearStaleEntries() {

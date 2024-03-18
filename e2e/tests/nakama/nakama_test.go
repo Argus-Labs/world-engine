@@ -11,11 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/e2e/tests/clients"
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"pkg.world.dev/world-engine/assert"
-
-	"github.com/argus-labs/world-engine/e2e/tests/clients"
 )
 
 func TestEvents(t *testing.T) {

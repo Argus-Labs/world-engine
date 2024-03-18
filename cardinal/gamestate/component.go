@@ -1,10 +1,11 @@
 package gamestate
 
 import (
-	"pkg.world.dev/world-engine/cardinal/types"
 	"sort"
 
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 // compKey is a tuple of a component ComponentID and an entity EntityID. It used as a map key to keep

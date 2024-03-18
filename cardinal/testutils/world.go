@@ -7,21 +7,19 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/sign"
-
-	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types"
-
+	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
 
-	"github.com/alicebob/miniredis/v2"
-
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // TestFixture is a helper struct that manages a cardinal.World instance. It will automatically clean up its resources
@@ -53,7 +51,8 @@ func NewTestFixtureWithPort(
 	t testing.TB,
 	miniRedis *miniredis.Miniredis,
 	cardinalPort string,
-	opts ...cardinal.WorldOption) *TestFixture {
+	opts ...cardinal.WorldOption,
+) *TestFixture {
 	if miniRedis == nil {
 		miniRedis = miniredis.RunT(t)
 	}
@@ -215,5 +214,5 @@ func getOpenPort(t testing.TB) string {
 	assert.NilError(t, err)
 	tcpAddr, err := net.ResolveTCPAddr(l.Addr().Network(), l.Addr().String())
 	assert.NilError(t, err)
-	return fmt.Sprintf("%d", tcpAddr.Port)
+	return strconv.Itoa(tcpAddr.Port)
 }

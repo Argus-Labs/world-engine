@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
@@ -10,7 +11,8 @@ import (
 
 var _ types.MsgServer = &Keeper{}
 
-func (k *Keeper) SubmitShardTx(ctx context.Context, msg *types.SubmitShardTxRequest,
+func (k *Keeper) SubmitShardTx(
+	ctx context.Context, msg *types.SubmitShardTxRequest,
 ) (*types.SubmitShardTxResponse, error) {
 	if msg.Sender != k.auth {
 		return nil, sdkerrors.ErrUnauthorized.Wrapf("SubmitShardTx is a system function and cannot be called "+

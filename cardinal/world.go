@@ -13,36 +13,31 @@ import (
 	"syscall"
 	"time"
 
-	ecslog "pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/query"
-	"pkg.world.dev/world-engine/cardinal/search"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-
-	"pkg.world.dev/world-engine/sign"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
+	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
-	"pkg.world.dev/world-engine/cardinal/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/system"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
-
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog/log"
-
-	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/statsd"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/system"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
+	"pkg.world.dev/world-engine/sign"
 )
 
 const (
@@ -50,43 +45,45 @@ const (
 	RedisDialTimeOut              = 15
 )
 
-type World struct {
-	server          *server.Server
-	tickChannel     <-chan time.Time
-	tickDoneChannel chan<- uint64
-	serverOptions   []server.Option
-	cleanup         func()
-	mode            RunMode
+var _ router.Provider = &World{}      //nolint:exhaustruct
+var _ servertypes.Provider = &World{} //nolint:exhaustruct
 
+type World struct {
+	mode      RunMode
+	namespace Namespace
+	cleanup   func()
+
+	// Storage
+	redisStorage *redis.Storage
+	entityStore  gamestate.Manager
+
+	// Networking
+	server        *server.Server
+	serverOptions []server.Option
+	eventHub      *events.EventHub
+
+	// Core modules
 	worldStage       *worldstage.Manager
 	msgManager       *message.Manager
 	systemManager    *system.Manager
 	componentManager *component.Manager
 	queryManager     *query.Manager
+	router           router.Router
+	txPool           *txpool.TxPool
 
-	namespace    Namespace
-	redisStorage *redis.Storage
-	entityStore  gamestate.Manager
-	tick         *atomic.Uint64
-	timestamp    *atomic.Uint64
-
-	evmTxReceipts map[string]EVMTxReceipt
-
-	txPool *txpool.TxPool
-
+	// Receipt
 	receiptHistory *receipt.History
+	evmTxReceipts  map[string]EVMTxReceipt
 
-	router router.Router
-
-	eventHub    *events.EventHub
-	tickResults *TickResults
-
+	// Tick
+	tick            *atomic.Uint64
+	timestamp       *atomic.Uint64
+	tickResults     *TickResults
+	tickChannel     <-chan time.Time
+	tickDoneChannel chan<- uint64
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
 }
-
-var _ router.Provider = &World{}
-var _ servertypes.Provider = &World{}
 
 // NewWorld creates a new World object using Redis as the storage layer
 func NewWorld(opts ...WorldOption) (*World, error) {
@@ -121,24 +118,41 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	world := &World{
-		serverOptions: serverOptions,
-		mode:          cfg.CardinalMode,
+	tick := new(atomic.Uint64)
 
+	world := &World{
+		mode:      cfg.CardinalMode,
+		namespace: Namespace(cfg.CardinalNamespace),
+		cleanup:   func() {},
+
+		// Storage
+		redisStorage: &redisMetaStore,
+		entityStore:  entityCommandBuffer,
+
+		// Networking
+		server:        nil, // Will be initialized in StartGame
+		serverOptions: serverOptions,
+		eventHub:      events.NewEventHub(),
+
+		// Core modules
 		worldStage:       worldstage.NewManager(),
 		msgManager:       message.NewManager(),
 		systemManager:    system.NewManager(),
 		componentManager: component.NewManager(&redisMetaStore),
 		queryManager:     query.NewManager(),
+		router:           nil, // Will be set if run mode is production or its injected via options
+		txPool:           txpool.New(),
 
-		redisStorage:  &redisMetaStore,
-		entityStore:   entityCommandBuffer,
-		namespace:     Namespace(cfg.CardinalNamespace),
-		tick:          &atomic.Uint64{},
-		timestamp:     new(atomic.Uint64),
-		txPool:        txpool.New(),
-		evmTxReceipts: make(map[string]EVMTxReceipt),
+		// Receipt
+		receiptHistory: receipt.NewHistory(tick.Load(), DefaultHistoricalTicksToStore),
+		evmTxReceipts:  make(map[string]EVMTxReceipt),
 
+		// Tick
+		tick:                         tick,
+		timestamp:                    new(atomic.Uint64),
+		tickResults:                  NewTickResults(tick.Load()),
+		tickChannel:                  time.Tick(time.Second), //nolint:staticcheck // its ok.
+		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 
@@ -149,6 +163,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			return nil, err
 		}
 	}
+
+	// Apply options
+	for _, opt := range cardinalOptions {
+		opt(world)
+	}
+
+	world.registerInternalPlugin()
 
 	var metricTags []string
 	if cfg.CardinalMode != "" {
@@ -164,29 +185,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		}
 	} else {
 		log.Logger.Warn().Msg("statsd is disabled")
-	}
-
-	world.registerInternalPlugin()
-
-	// Apply options
-	for _, opt := range cardinalOptions {
-		opt(world)
-	}
-
-	if world.receiptHistory == nil {
-		world.receiptHistory = receipt.NewHistory(world.CurrentTick(), DefaultHistoricalTicksToStore)
-	}
-	if world.eventHub == nil {
-		world.eventHub = events.NewEventHub()
-	}
-
-	if world.tickResults == nil {
-		world.tickResults = NewTickResults(world.CurrentTick())
-	}
-
-	// Make game loop tick every second if not set
-	if world.tickChannel == nil {
-		world.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 
 	return world, nil

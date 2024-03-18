@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 

@@ -5,18 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"pkg.world.dev/world-engine/evm/x/namespace/cli/query"
-	"pkg.world.dev/world-engine/evm/x/namespace/cli/tx"
-
-	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
+	"pkg.world.dev/world-engine/evm/x/namespace/cli/query"
+	"pkg.world.dev/world-engine/evm/x/namespace/cli/tx"
 	"pkg.world.dev/world-engine/evm/x/namespace/keeper"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 )
@@ -80,7 +78,7 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 // ==============================================================================
 
 // AppModule implements an application module for the module.
-type AppModule struct {
+type AppModule struct { //nolint:decorder
 	AppModuleBasic
 	keeper *keeper.Keeper
 }

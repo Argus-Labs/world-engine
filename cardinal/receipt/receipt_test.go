@@ -2,13 +2,13 @@ package receipt
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/google/uuid"
+	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 func txHash(t *testing.T) types.TxHash {

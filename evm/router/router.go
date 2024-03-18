@@ -4,24 +4,33 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"os"
 	"strings"
 	"time"
 
+	"cosmossdk.io/log"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
-	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-
 	"pkg.berachain.dev/polaris/eth/core/types"
 
-	"cosmossdk.io/log"
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+)
+
+const (
+	CodeConnectionError = iota + 100
+	CodeServerError
+)
+
+var (
+	defaultStorageTimeout        = 1 * time.Hour
+	_                     Router = &routerImpl{}
 )
 
 // Router defines the methods required to interact with a game shard. The methods are invoked from EVM smart contracts.
@@ -43,11 +52,6 @@ type GetAddressFn func(
 	ctx context.Context,
 	request *namespacetypes.AddressRequest,
 ) (*namespacetypes.AddressResponse, error)
-
-var (
-	defaultStorageTimeout        = 1 * time.Hour
-	_                     Router = &routerImpl{}
-)
 
 type routerImpl struct {
 	logger log.Logger
@@ -109,11 +113,6 @@ func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts typ
 	r.queue.Clear()
 }
 
-const (
-	CodeConnectionError = iota + 100
-	CodeServerError
-)
-
 func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) {
 	// get the message from the queue.
 	nsMsg, exists := r.queue.Message(sender)
@@ -123,7 +122,7 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 	}
 	r.logger.Info("found cross-shard message in queue", "tx_hash", txHash.String())
 	msg := nsMsg.msg
-	msg.Sender = strings.ToLower(msg.Sender) // normalize the request
+	msg.Sender = strings.ToLower(msg.GetSender()) // normalize the request
 	namespace := nsMsg.namespace
 	msg.EvmTxHash = txHash.String()
 	r.logger.Info("attempting to get client connection")
@@ -132,9 +131,10 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 		r.logger.Error("failed to get client connection")
 		r.resultStore.SetResult(
 			&routerv1.SendMessageResponse{
-				EvmTxHash: msg.EvmTxHash,
+				EvmTxHash: msg.GetEvmTxHash(),
 				Code:      CodeConnectionError,
-				Errs:      "error getting game shard gRPC connection"},
+				Errs:      "error getting game shard gRPC connection",
+			},
 		)
 		r.logger.Error("error getting game shard gRPC connection", "error", err, "namespace", namespace)
 		return
@@ -142,8 +142,8 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 	r.logger.Info("Sending tx to game shard",
 		"evm_tx_hash", txHash.String(),
 		"namespace", namespace,
-		"sender", msg.Sender,
-		"msg_id", msg.MessageId,
+		"sender", msg.GetSender(),
+		"msg_id", msg.GetMessageId(),
 	)
 
 	// send the message in a new goroutine. we do this so that we don't make tx inclusion slower.
@@ -152,9 +152,10 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 		if err != nil {
 			r.resultStore.SetResult(
 				&routerv1.SendMessageResponse{
-					EvmTxHash: msg.EvmTxHash,
+					EvmTxHash: msg.GetEvmTxHash(),
 					Code:      CodeServerError,
-					Errs:      err.Error()},
+					Errs:      err.Error(),
+				},
 			)
 			r.logger.Error("failed to send message to game shard", "error", err)
 			return
@@ -213,7 +214,7 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 		return nil, err
 	}
 	r.logger.Debug("successfully queried game shard")
-	return res.Response, nil
+	return res.GetResponse(), nil
 }
 
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
@@ -243,12 +244,13 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 
 	certPool := x509.NewCertPool()
 	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, fmt.Errorf("failed to add server CA's certificate")
+		return nil, errors.New("failed to add server CA's certificate")
 	}
 
 	// Create the credentials and return it
 	config := &tls.Config{
-		RootCAs: certPool,
+		RootCAs:    certPool,
+		MinVersion: tls.VersionTLS12,
 	}
 
 	return credentials.NewTLS(config), nil

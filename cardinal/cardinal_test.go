@@ -27,6 +27,18 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+type AddHealthToEntityTx struct {
+	TargetID types.EntityID
+	Amount   int
+}
+
+type AddHealthToEntityResult struct{}
+
+type Rawbodytx struct {
+	PersonaTag    string `json:"personaTag"`
+	SignerAddress string `json:"signerAddress"`
+}
+
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
@@ -39,23 +51,11 @@ type Qux struct{}
 
 func (Qux) Name() string { return "qux" }
 
-type Rawbodytx struct {
-	PersonaTag    string `json:"personaTag"`
-	SignerAddress string `json:"signerAddress"`
-}
-
 type Health struct {
 	Value int
 }
 
 func (Health) Name() string { return "health" }
-
-type AddHealthToEntityTx struct {
-	TargetID types.EntityID
-	Amount   int
-}
-
-type AddHealthToEntityResult struct{}
 
 func TestForEachTransaction(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
@@ -121,6 +121,21 @@ func (CounterComponent) Name() string {
 	return "count"
 }
 
+type ScoreComponent struct {
+	Score int
+}
+
+func (ScoreComponent) Name() string {
+	return "score"
+}
+
+type ModifyScoreMsg struct {
+	PlayerID types.EntityID
+	Amount   int
+}
+
+type EmptyMsgResult struct{}
+
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
@@ -155,21 +170,6 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 10, c.Count)
 }
-
-type ScoreComponent struct {
-	Score int
-}
-
-func (ScoreComponent) Name() string {
-	return "score"
-}
-
-type ModifyScoreMsg struct {
-	PlayerID types.EntityID
-	Amount   int
-}
-
-type EmptyMsgResult struct{}
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
