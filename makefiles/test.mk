@@ -85,6 +85,21 @@ unit-test-all:
 #################
 #   swagger	    #
 #################
+.PHONY: swaggo-install
+
+swaggo-install:
+	echo "--> Installing swaggo/swag cli"
+	go install github.com/swaggo/swag/cmd/swag@latest
+
 swagger:
 	swag init -g cardinal/server/server.go -o cardinal/server/docs/
 
+swagger-check:
+	$(MAKE) swaggo-install
+
+	echo "--> Generate latest Swagger specs"
+	mkdir -p /tmp/swagger-compare
+	swag init -g cardinal/server/server.go -o /tmp/swagger-compare
+
+	echo "--> Compare Swagger latest spec"
+	swagger-diff cardinal/server/docs/swagger.json /tmp/swagger-compare/swagger.json
