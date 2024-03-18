@@ -1,10 +1,12 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"reflect"
 
+	"pkg.world.dev/world-engine/cardinal/worldstage"
+
 	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -64,7 +66,7 @@ func (ctx *worldContext) Logger() *zerolog.Logger {
 }
 
 func (ctx *worldContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
-	return ctx.world.GetMessageManager().GetMessageByType(mType)
+	return ctx.world.msgManager.GetMessageByType(mType)
 }
 
 func (ctx *worldContext) SetLogger(logger zerolog.Logger) {

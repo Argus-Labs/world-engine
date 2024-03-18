@@ -305,10 +305,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	return nil
 }
 
-func (w *World) GetMessageManager() *message.Manager {
-	return w.msgManager
-}
-
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
 // to this world. After StartGame is called, RegisterComponent, registerMessagesByName,
