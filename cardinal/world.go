@@ -631,10 +631,6 @@ func (w *World) GetEventHub() *events.EventHub {
 	return w.eventHub
 }
 
-func (w *World) SetRouter(rtr router.Router) {
-	w.router = rtr
-}
-
 func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	qry, err := w.GetQueryByName(name)
 	if err != nil {

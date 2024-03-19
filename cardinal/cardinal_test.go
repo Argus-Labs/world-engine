@@ -840,9 +840,7 @@ func TestShutdownViaSignal(t *testing.T) {
 func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
-	tf := testutils.NewTestFixture(t, nil)
-	world := tf.World
-	world.SetRouter(rtr)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
 
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
