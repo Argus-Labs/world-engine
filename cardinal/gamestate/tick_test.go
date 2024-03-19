@@ -2,10 +2,10 @@ package gamestate_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"

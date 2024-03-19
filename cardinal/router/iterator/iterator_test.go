@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"testing"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
