@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 rift:
 	cd rift/proto && buf generate
 .PHONY: rift
@@ -11,6 +13,7 @@ start-evm:
 
 rollup:
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
+	trap 'docker compose down' EXIT; \
 	docker compose up chain --build --abort-on-container-exit --exit-code-from celestia-devnet
 
 game:
