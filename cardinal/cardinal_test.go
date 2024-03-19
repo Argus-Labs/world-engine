@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -815,15 +816,15 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 
-	wsBaseURL := "ws://" + addr
-	conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(addr, "events"), nil)
 	assert.NilError(t, err)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		_, _, err := conn.ReadMessage()
-		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
-		wg.Done()
+		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseNoStatusReceived))
 	}()
 
 	// Send a SIGINT signal.
@@ -835,6 +836,9 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is not running
 		time.Sleep(50 * time.Millisecond)
 	}
+
+	// Wait for goroutine to finish otherwise it will panic
+	wg.Wait()
 }
 
 func TestCallsRegisterGameShardOnStartup(t *testing.T) {
@@ -846,4 +850,8 @@ func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	tf.DoTick()
+}
+
+func wsURL(addr, path string) string {
+	return fmt.Sprintf("ws://%s/%s", addr, path)
 }

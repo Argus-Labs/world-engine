@@ -1,4 +1,4 @@
-package events_test
+package server_test
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -23,83 +22,17 @@ type SendEnergyTx struct {
 
 type SendEnergyTxResult struct{}
 
-type garbageStructAlpha struct {
+type Alpha struct {
 	Something int `json:"something"`
 }
 
-func (garbageStructAlpha) Name() string { return "alpha" }
+func (Alpha) Name() string { return "alpha" }
 
-type garbageStructBeta struct {
+type Beta struct {
 	Something int `json:"something"`
 }
 
-func (garbageStructBeta) Name() string { return "beta" }
-
-func wsURL(addr, path string) string {
-	return fmt.Sprintf("ws://%s/%s", addr, path)
-}
-
-func TestEvents(t *testing.T) {
-	// broadcast 5 messages to 5 clients means 25 messages received.
-	numberToTest := 5
-	tf := testutils.NewTestFixtureWithPort(t, nil, "1337", cardinal.WithDisableSignatureVerification())
-	addr := tf.BaseURL
-	tf.StartWorld()
-	url := wsURL(addr, "events")
-	dialers := make([]*websocket.Conn, numberToTest)
-	for i := range dialers {
-		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-		assert.NilError(t, err)
-		dialers[i] = dial
-	}
-	var wg sync.WaitGroup
-	connectionAmount := tf.World.GetEventHub().ConnectionAmount()
-	for connectionAmount < numberToTest {
-		time.Sleep(time.Second)
-		connectionAmount = tf.World.GetEventHub().ConnectionAmount()
-	}
-	for i := 0; i < numberToTest; i++ {
-		wg.Add(1)
-		func() {
-			defer wg.Done()
-			data := map[string]any{"message": fmt.Sprintf("test%d", i)}
-			err := tf.World.GetEventHub().EmitEvent(data)
-			if err != nil {
-				t.Error("failed to emit event from EventHub")
-			}
-		}()
-	}
-	wg.Wait()
-	length := tf.World.GetEventHub().EventQueueLength()
-	for length < 5 {
-		length = tf.World.GetEventHub().EventQueueLength()
-	}
-
-	tf.World.GetEventHub().FlushEvents()
-	var count atomic.Int32
-	count.Store(0)
-	for _, dialer := range dialers {
-		wg.Add(1)
-		dialer := dialer
-		go func() {
-			defer wg.Done()
-			for j := 0; j < numberToTest; j++ {
-				mode, message, err := dialer.ReadMessage()
-				assert.NilError(t, err)
-				assert.Equal(t, mode, websocket.TextMessage)
-				var messageMap map[string]string
-				err = json.Unmarshal(message, &messageMap)
-				assert.NilError(t, err)
-				messageString, ok := messageMap["message"]
-				assert.True(t, ok)
-				assert.Equal(t, messageString[:4], "test")
-				count.Add(1)
-			}
-		}()
-	}
-	wg.Wait()
-	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
-}
+func (Beta) Name() string { return "beta" }
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
@@ -136,8 +69,8 @@ func TestEventsThroughSystems(t *testing.T) {
 	}
 	err := cardinal.RegisterSystems(world, sys1, sys2, sys3, sys4, sys5)
 	assert.NilError(t, err)
-	assert.NilError(t, cardinal.RegisterComponent[garbageStructAlpha](world))
-	assert.NilError(t, cardinal.RegisterComponent[garbageStructBeta](world))
+	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
+	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	tf.StartWorld()
 	url := wsURL(addr, "events")
 	dialers := make([]*websocket.Conn, numberToTest)
@@ -176,4 +109,8 @@ func TestEventsThroughSystems(t *testing.T) {
 
 	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
+}
+
+func wsURL(addr, path string) string {
+	return fmt.Sprintf("ws://%s/%s", addr, path)
 }
