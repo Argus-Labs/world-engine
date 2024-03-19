@@ -307,8 +307,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP2+08jFMw88y4klk=
-github.com/argus-labs/polaris/cosmos v1.0.0-hooks h1:dOPOPX+iEDbiLPQBvHlocOjA9AQ7YyRu7m+zawOd6kM=
-github.com/argus-labs/polaris/cosmos v1.0.0-hooks/go.mod h1:TZiZK/WGG9Hl4QzW9vjBn7u75QjvoTZId+FUhUFDeAQ=
+github.com/argus-labs/polaris/cosmos v1.0.4-hooks h1:XYv2m2/oUWqkCXhYavdRNCRfJRps9kYEhGfxEG7cEdc=
+github.com/argus-labs/polaris/cosmos v1.0.4-hooks/go.mod h1:fYG4X358ZsUpa5pln07LCZtNvc91igEyDMQ0YjaFry0=
 github.com/argus-labs/polaris/eth v1.0.0-hooks h1:gKUOAO9k2xPqfYyeHI7DfPNLia76vuPR4zQHVr1fYtI=
 github.com/argus-labs/polaris/eth v1.0.0-hooks/go.mod h1:CH0uJJxVi6Sx9mTfBu2u9rwl7frH1fnSuc098wTPCPk=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
