@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -18,10 +19,16 @@ const (
 	privateKeyKey        = "private_key_key"
 )
 
+var _ Signer = &nakamaSigner{}
+
 var (
 	ErrNoStorageObjectFound       = errors.New("no storage object found")
 	ErrTooManyStorageObjectsFound = errors.New("too many storage objects found")
 )
+
+type privateKeyStorageObj struct {
+	Value string
+}
 
 type nakamaSigner struct {
 	nk            runtime.NakamaModule
@@ -30,13 +37,12 @@ type nakamaSigner struct {
 	nonceManager  NonceManager
 }
 
-var _ Signer = &nakamaSigner{}
-
 func (n *nakamaSigner) SignTx(
 	ctx context.Context,
 	personaTag string,
 	namespace string,
-	data any) (tx *sign.Transaction, err error) {
+	data any,
+) (tx *sign.Transaction, err error) {
 	nonce, err := n.nonceManager.IncNonce(ctx)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to increment nonce")
@@ -103,18 +109,16 @@ func getPrivateKeyHex(ctx context.Context, nk runtime.NakamaModule) (string, err
 	return getOnePKStorageObj(ctx, nk, privateKeyKey)
 }
 
-type privateKeyStorageObj struct {
-	Value string
-}
-
 // getOnePKStorageObj loads one specific runtime.StorageObject from the privateKeyCollection in
 // Nakama's storage layer. An error is returned if too few or too many storage objects are found.
 func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string) (string, error) {
-	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{{
-		Collection: privateKeyCollection,
-		UserID:     AdminAccountID,
-		Key:        key,
-	}})
+	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
+		{
+			Collection: privateKeyCollection,
+			UserID:     AdminAccountID,
+			Key:        key,
+		},
+	})
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}
@@ -124,7 +128,7 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 		return "", eris.Wrap(ErrNoStorageObjectFound, "")
 	}
 	var pkObj privateKeyStorageObj
-	if err = json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
+	if err = json.Unmarshal([]byte(objs[0].GetValue()), &pkObj); err != nil {
 		return "", eris.Wrap(err, "")
 	}
 	return pkObj.Value, nil
@@ -139,15 +143,17 @@ func setOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key, value
 	if err != nil {
 		return eris.Wrap(err, "")
 	}
-	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
-		Collection:      privateKeyCollection,
-		UserID:          AdminAccountID,
-		Key:             key,
-		Value:           string(buf),
-		Version:         "",
-		PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
-		PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
-	}})
+	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
+		{
+			Collection:      privateKeyCollection,
+			UserID:          AdminAccountID,
+			Key:             key,
+			Value:           string(buf),
+			Version:         "",
+			PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
+			PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
+		},
+	})
 	return err
 }
 

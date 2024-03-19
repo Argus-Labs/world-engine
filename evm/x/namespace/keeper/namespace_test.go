@@ -1,6 +1,9 @@
 package keeper_test
 
 import (
+	"testing"
+	"time"
+
 	"cosmossdk.io/core/header"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -9,11 +12,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/suite"
+
 	"pkg.world.dev/world-engine/evm/x/namespace"
 	"pkg.world.dev/world-engine/evm/x/namespace/keeper"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
-	"testing"
-	"time"
 )
 
 type TestSuite struct {

@@ -2,15 +2,20 @@ package query
 
 import (
 	"encoding/json"
-	"pkg.world.dev/world-engine/cardinal/abi"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/abi"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
+
+var _ engine.Query = &queryType[struct{}, struct{}]{}
+
+type Option[Request, Reply any] func(qt *queryType[Request, Reply])
 
 type queryType[Request any, Reply any] struct {
 	name       string
@@ -37,10 +42,6 @@ func WithCustomQueryGroup[Request, Reply any](group string) Option[Request, Repl
 		qt.group = group
 	}
 }
-
-type Option[Request, Reply any] func(qt *queryType[Request, Reply])
-
-var _ engine.Query = &queryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,

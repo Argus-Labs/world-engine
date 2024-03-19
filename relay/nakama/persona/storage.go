@@ -6,12 +6,20 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"pkg.world.dev/world-engine/relay/nakama/signer"
-	"pkg.world.dev/world-engine/relay/nakama/utils"
-
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/relay/nakama/signer"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
+)
+
+const (
+	StatusPending      personaTagStatus = "pending"
+	StatusAccepted     personaTagStatus = "accepted"
+	StatusRejected     personaTagStatus = "rejected"
+	PersonaTagKey                       = "persona_tag"
+	CardinalCollection                  = "cardinal_collection"
 )
 
 // StorageObj contains persona tag information for a specific user, and keeps track of whether the
@@ -28,14 +36,6 @@ type StorageObj struct {
 }
 
 type personaTagStatus string
-
-const (
-	StatusPending      personaTagStatus = "pending"
-	StatusAccepted     personaTagStatus = "accepted"
-	StatusRejected     personaTagStatus = "rejected"
-	PersonaTagKey                       = "persona_tag"
-	CardinalCollection                  = "cardinal_collection"
-)
 
 // LoadPersonaTagStorageObj loads the current user's persona tag storage object from Nakama's storage layer. The
 // "current user" comes from the user ID stored in the given context.
@@ -69,10 +69,10 @@ func LoadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*St
 // StorageObjToPersonaTagStorageObj converts a generic Nakama StorageObject to a locally defined StorageObj.
 func StorageObjToPersonaTagStorageObj(obj *api.StorageObject) (*StorageObj, error) {
 	var ptr StorageObj
-	if err := json.Unmarshal([]byte(obj.Value), &ptr); err != nil {
+	if err := json.Unmarshal([]byte(obj.GetValue()), &ptr); err != nil {
 		return nil, eris.Wrap(err, "unable to unmarshal persona tag storage obj")
 	}
-	ptr.version = obj.Version
+	ptr.version = obj.GetVersion()
 	return &ptr, nil
 }
 

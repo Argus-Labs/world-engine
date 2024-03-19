@@ -3,14 +3,14 @@ package handler
 import (
 	"errors"
 	"fmt"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/sign"
 
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/sign"
 )
 
 var (

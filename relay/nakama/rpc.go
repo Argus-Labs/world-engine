@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"pkg.world.dev/world-engine/relay/nakama/events"
 	"strconv"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 )
@@ -97,7 +97,8 @@ func registerEndpoints(
 	initializer runtime.Initializer,
 	notifier *events.Notifier,
 	endpoints []string,
-	createPayload func(string, string, runtime.NakamaModule,
+	createPayload func(
+		string, string, runtime.NakamaModule,
 		context.Context,
 	) (io.Reader, error),
 	cardinalAddress string,

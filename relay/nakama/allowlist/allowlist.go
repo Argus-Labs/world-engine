@@ -16,6 +16,16 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
+// This is the json blob that is written to Nakama's storage layer. The presence of this storage object means the given
+// user has been verified with a beta key. The contents of this value is unimportant.
+const (
+	verifiedValue = "{}"
+	// See: https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes
+	// Setting the "version" of a storage write to this value means the value will only be written if it doesn't already
+	// exist in the storage layer.
+	versionWriteIfDoesNotExist = "*"
+)
+
 var (
 	EnabledEnvVar = "ENABLE_ALLOWLIST"
 	Enabled       = false
@@ -32,16 +42,6 @@ var (
 	ErrAlreadyVerified    = errors.New("this user is already verified by an existing beta key")
 )
 
-// This is the json blob that is written to Nakama's storage layer. The presence of this storage object means the given
-// user has been verified with a beta key. The contents of this value is unimportant.
-const (
-	verifiedValue = "{}"
-	// See: https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes
-	// Setting the "version" of a storage write to this value means the value will only be written if it doesn't already
-	// exist in the storage layer.
-	versionWriteIfDoesNotExist = "*"
-)
-
 type GenKeysMsg struct {
 	Amount int `json:"amount"`
 }
@@ -54,6 +54,14 @@ type KeyStorage struct {
 	Key    string
 	UsedBy string
 	Used   bool
+}
+
+type ClaimKeyMsg struct {
+	Key string `json:"key"`
+}
+
+type ClaimKeyRes struct {
+	Success bool `json:"success"`
 }
 
 func GenerateBetaKeys(ctx context.Context, nk runtime.NakamaModule, msg GenKeysMsg) (res GenKeysResponse, err error) {
@@ -108,14 +116,6 @@ func GenerateBetaKeys(ctx context.Context, nk runtime.NakamaModule, msg GenKeysM
 	}
 
 	return GenKeysResponse{Keys: keys}, nil
-}
-
-type ClaimKeyMsg struct {
-	Key string `json:"key"`
-}
-
-type ClaimKeyRes struct {
-	Success bool `json:"success"`
 }
 
 func ClaimKey(ctx context.Context, nk runtime.NakamaModule, msg ClaimKeyMsg) (res ClaimKeyRes, err error) {
@@ -224,11 +224,11 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (ks *KeyS
 
 	obj := objs[0]
 	ks = &KeyStorage{}
-	err = json.Unmarshal([]byte(obj.Value), ks)
+	err = json.Unmarshal([]byte(obj.GetValue()), ks)
 	if err != nil {
 		return nil, "", eris.Wrapf(err, "could not unmarshal storage object into %T", ks)
 	}
-	return ks, obj.Version, nil
+	return ks, obj.GetVersion(), nil
 }
 
 func generateRandomBytes(n int) ([]byte, error) {

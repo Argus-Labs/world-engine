@@ -2,6 +2,7 @@ package gamestate
 
 import (
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 

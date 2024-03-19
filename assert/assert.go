@@ -3,11 +3,10 @@ package assert
 import (
 	"time"
 
-	gotest "gotest.tools/v3/assert"
-
 	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/rotisserie/eris"
 	testify "github.com/stretchr/testify/assert"
+	gotest "gotest.tools/v3/assert"
 )
 
 type helperT interface {

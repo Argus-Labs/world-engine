@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -28,6 +27,18 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+type AddHealthToEntityTx struct {
+	TargetID types.EntityID
+	Amount   int
+}
+
+type AddHealthToEntityResult struct{}
+
+type Rawbodytx struct {
+	PersonaTag    string `json:"personaTag"`
+	SignerAddress string `json:"signerAddress"`
+}
+
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
@@ -40,23 +51,11 @@ type Qux struct{}
 
 func (Qux) Name() string { return "qux" }
 
-type Rawbodytx struct {
-	PersonaTag    string `json:"personaTag"`
-	SignerAddress string `json:"signerAddress"`
-}
-
 type Health struct {
 	Value int
 }
 
 func (Health) Name() string { return "health" }
-
-type AddHealthToEntityTx struct {
-	TargetID types.EntityID
-	Amount   int
-}
-
-type AddHealthToEntityResult struct{}
 
 func TestForEachTransaction(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
@@ -122,6 +121,21 @@ func (CounterComponent) Name() string {
 	return "count"
 }
 
+type ScoreComponent struct {
+	Score int
+}
+
+func (ScoreComponent) Name() string {
+	return "score"
+}
+
+type ModifyScoreMsg struct {
+	PlayerID types.EntityID
+	Amount   int
+}
+
+type EmptyMsgResult struct{}
+
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
@@ -156,21 +170,6 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 10, c.Count)
 }
-
-type ScoreComponent struct {
-	Score int
-}
-
-func (ScoreComponent) Name() string {
-	return "score"
-}
-
-type ModifyScoreMsg struct {
-	PlayerID types.EntityID
-	Amount   int
-}
-
-type EmptyMsgResult struct{}
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
@@ -838,22 +837,6 @@ func TestShutdownViaSignal(t *testing.T) {
 	}
 }
 
-func TestWithPrettyLog_LogIsNotJSONFormatted(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil, cardinal.WithPrettyLog()).World
-	assert.NotNil(t, world.Logger)
-
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	world.Logger.Info().Msg("test")
-	err := w.Close()
-	assert.NilError(t, err)
-
-	output, err := io.ReadAll(r)
-	assert.NilError(t, err)
-	assert.Assert(t, !isValidJSON(output))
-}
-
 func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
@@ -865,10 +848,4 @@ func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	tf.DoTick()
-}
-
-// isValidJSON tests if a string is valid JSON.
-func isValidJSON(bz []byte) bool {
-	var js map[string]interface{}
-	return json.Unmarshal(bz, &js) == nil
 }

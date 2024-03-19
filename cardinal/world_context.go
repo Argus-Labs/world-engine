@@ -1,17 +1,22 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"reflect"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
+
+// interface guard
+var _ engine.Context = (*worldContext)(nil)
 
 type worldContext struct {
 	world    *World
@@ -24,7 +29,7 @@ func newWorldContextForTick(world *World, txPool *txpool.TxPool) engine.Context 
 	return &worldContext{
 		world:    world,
 		txPool:   txPool,
-		logger:   world.Logger,
+		logger:   &log.Logger,
 		readOnly: false,
 	}
 }
@@ -33,7 +38,7 @@ func NewWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
-		logger:   world.Logger,
+		logger:   &log.Logger,
 		readOnly: false,
 	}
 }
@@ -42,13 +47,10 @@ func NewReadOnlyWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
-		logger:   world.Logger,
+		logger:   &log.Logger,
 		readOnly: true,
 	}
 }
-
-// interface guard
-var _ engine.Context = (*worldContext)(nil)
 
 // Timestamp returns the UNIX timestamp of the tick.
 func (ctx *worldContext) Timestamp() uint64 {
@@ -64,7 +66,7 @@ func (ctx *worldContext) Logger() *zerolog.Logger {
 }
 
 func (ctx *worldContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
-	return ctx.world.GetMessageManager().GetMessageByType(mType)
+	return ctx.world.msgManager.GetMessageByType(mType)
 }
 
 func (ctx *worldContext) SetLogger(logger zerolog.Logger) {

@@ -1,9 +1,11 @@
 package handler
 
 import "C"
+
 import (
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
+
 	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"

@@ -2,9 +2,6 @@ package server
 
 import (
 	"os"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"sync/atomic"
 
 	"github.com/gofiber/contrib/websocket"
@@ -15,6 +12,9 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )

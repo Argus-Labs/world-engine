@@ -2,7 +2,9 @@ package cardinal
 
 import (
 	"errors"
+
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/search"

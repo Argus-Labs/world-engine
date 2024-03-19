@@ -2,9 +2,6 @@ package cardinal
 
 import (
 	"errors"
-	querylib "pkg.world.dev/world-engine/cardinal/query"
-	"pkg.world.dev/world-engine/cardinal/search"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,9 +12,21 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/query"
+	querylib "pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
+
+var _ Plugin = (*personaPlugin)(nil)
+
+type personaIndex = map[string]personaIndexEntry
+
+type personaIndexEntry struct {
+	SignerAddress string
+	EntityID      types.EntityID
+}
 
 type personaPlugin struct {
 }
@@ -25,8 +34,6 @@ type personaPlugin struct {
 func newPersonaPlugin() *personaPlugin {
 	return &personaPlugin{}
 }
-
-var _ Plugin = (*personaPlugin)(nil)
 
 func (p *personaPlugin) Register(world *World) error {
 	err := p.RegisterQueries(world)
@@ -181,8 +188,9 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 			}
 			if err = SetComponent[component.SignerComponent](
 				wCtx, id, &component.SignerComponent{
-					PersonaTag:    txMsg.PersonaTag,
-					SignerAddress: txMsg.SignerAddress,
+					PersonaTag:          txMsg.PersonaTag,
+					SignerAddress:       txMsg.SignerAddress,
+					AuthorizedAddresses: make([]string, 0),
 				},
 			); err != nil {
 				return result, eris.Wrap(err, "")
@@ -200,13 +208,6 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 // -----------------------------------------------------------------------------
 // Persona Index
 // -----------------------------------------------------------------------------
-
-type personaIndex = map[string]personaIndexEntry
-
-type personaIndexEntry struct {
-	SignerAddress string
-	EntityID      types.EntityID
-}
 
 func buildPersonaIndex(wCtx engine.Context) (personaIndex, error) {
 	personaTagToAddress := map[string]personaIndexEntry{}

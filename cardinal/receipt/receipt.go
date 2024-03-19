@@ -4,10 +4,11 @@ package receipt
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"sync/atomic"
 
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var (

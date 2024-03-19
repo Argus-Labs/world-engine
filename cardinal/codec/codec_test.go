@@ -1,8 +1,9 @@
 package codec_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/codec"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/codec"
 )
 
 // Define a dummy struct for benchmarking.

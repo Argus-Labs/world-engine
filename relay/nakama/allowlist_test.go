@@ -8,16 +8,14 @@ import (
 	"testing"
 
 	"github.com/heroiclabs/nakama-common/runtime"
-
-	"pkg.world.dev/world-engine/relay/nakama/allowlist"
-	"pkg.world.dev/world-engine/relay/nakama/signer"
-	"pkg.world.dev/world-engine/relay/nakama/testutils"
-
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"pkg.world.dev/world-engine/assert"
 
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
+	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
 type AllowListTestSuite struct {

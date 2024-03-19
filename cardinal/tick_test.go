@@ -11,6 +11,22 @@ import (
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
+type ScalarComponentAlpha struct {
+	Val int
+}
+
+type ScalarComponentBeta struct {
+	Val int
+}
+
+func (ScalarComponentAlpha) Name() string {
+	return "alpha"
+}
+
+func (ScalarComponentBeta) Name() string {
+	return "beta"
+}
+
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
 	tf1 := testutils.NewTestFixture(t, rs)
@@ -29,22 +45,6 @@ func TestTickHappyPath(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world2))
 	tf2.StartWorld()
 	assert.Equal(t, uint64(10), world2.CurrentTick())
-}
-
-type ScalarComponentAlpha struct {
-	Val int
-}
-
-type ScalarComponentBeta struct {
-	Val int
-}
-
-func (ScalarComponentAlpha) Name() string {
-	return "alpha"
-}
-
-func (ScalarComponentBeta) Name() string {
-	return "beta"
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {

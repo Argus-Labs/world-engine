@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"google.golang.org/grpc/codes"

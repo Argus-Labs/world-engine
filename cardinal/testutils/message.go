@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"

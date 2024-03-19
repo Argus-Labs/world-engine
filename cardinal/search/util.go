@@ -2,6 +2,7 @@ package search
 
 import (
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )

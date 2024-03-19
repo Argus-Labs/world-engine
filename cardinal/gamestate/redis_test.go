@@ -6,15 +6,14 @@ package gamestate
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/component"
 	"testing"
-
-	"pkg.world.dev/world-engine/cardinal/types"
-
-	"pkg.world.dev/world-engine/assert"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/component"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type Alpha struct{ Value int }

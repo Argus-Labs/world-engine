@@ -1,18 +1,18 @@
 package cardinal_test
 
 import (
-	"github.com/franela/goblin"
-	"pkg.world.dev/world-engine/cardinal/types"
-
 	"testing"
 
+	"github.com/franela/goblin"
 	"github.com/golang/mock/gomock"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	iteratormocks "pkg.world.dev/world-engine/cardinal/router/iterator/mocks"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
 

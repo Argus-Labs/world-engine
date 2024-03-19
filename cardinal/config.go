@@ -5,12 +5,32 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-type RunMode string
-
 const (
 	RunModeProd RunMode = "production"
 	RunModeDev  RunMode = "development"
+
+	// Default configuration values.
+
+	DefaultRunMode       = RunModeDev
+	DefaultNamespace     = "world-1"
+	DefaultRedisAddress  = "localhost:6379"
+	DefaultLogLevel      = "info"
+	DefaultStatsdAddress = "localhost:8125"
 )
+
+var defaultConfig = WorldConfig{
+	RedisAddress:              DefaultRedisAddress,
+	RedisPassword:             "",
+	CardinalNamespace:         DefaultNamespace,
+	CardinalMode:              DefaultRunMode,
+	BaseShardSequencerAddress: "",
+	BaseShardQueryAddress:     "",
+	CardinalLogLevel:          DefaultLogLevel,
+	StatsdAddress:             DefaultStatsdAddress,
+	TraceAddress:              "",
+}
+
+type RunMode string
 
 type WorldConfig struct {
 	RedisAddress              string  `config:"REDIS_ADDRESS"`
@@ -39,27 +59,6 @@ func (w WorldConfig) Validate() error {
 			"mode Cardinal worlds")
 	}
 	return nil
-}
-
-// Default configuration values.
-const (
-	DefaultRunMode       = RunModeDev
-	DefaultNamespace     = "world-1"
-	DefaultRedisAddress  = "localhost:6379"
-	DefaultLogLevel      = "info"
-	DefaultStatsdAddress = "localhost:8125"
-)
-
-var defaultConfig = WorldConfig{
-	RedisAddress:              DefaultRedisAddress,
-	RedisPassword:             "",
-	CardinalNamespace:         DefaultNamespace,
-	CardinalMode:              DefaultRunMode,
-	BaseShardSequencerAddress: "",
-	BaseShardQueryAddress:     "",
-	CardinalLogLevel:          DefaultLogLevel,
-	StatsdAddress:             DefaultStatsdAddress,
-	TraceAddress:              "",
 }
 
 func getWorldConfig() WorldConfig {

@@ -2,7 +2,6 @@ package signer
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 
@@ -10,21 +9,21 @@ import (
 	"github.com/rotisserie/eris"
 )
 
+const (
+	privateKeyNonce = "private_key_nonce"
+)
+
+var _ NonceManager = &nakamaNonceManager{}
+
 type NonceManager interface {
 	SetNonce(ctx context.Context, nonce uint64) error
 	IncNonce(ctx context.Context) (nonce uint64, err error)
 }
 
-const (
-	privateKeyNonce = "private_key_nonce"
-)
-
 type nakamaNonceManager struct {
 	sync.Mutex
 	nk runtime.NakamaModule
 }
-
-var _ NonceManager = &nakamaNonceManager{}
 
 func NewNakamaNonceManager(nk runtime.NakamaModule) NonceManager {
 	return &nakamaNonceManager{
@@ -33,7 +32,7 @@ func NewNakamaNonceManager(nk runtime.NakamaModule) NonceManager {
 }
 
 func (n *nakamaNonceManager) SetNonce(ctx context.Context, nonce uint64) error {
-	return setOnePKStorageObj(ctx, n.nk, privateKeyNonce, fmt.Sprintf("%d", nonce))
+	return setOnePKStorageObj(ctx, n.nk, privateKeyNonce, strconv.FormatUint(nonce, 10))
 }
 
 func (n *nakamaNonceManager) IncNonce(ctx context.Context) (nonce uint64, err error) {

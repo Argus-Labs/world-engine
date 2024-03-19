@@ -4,15 +4,16 @@ package benchmark_test
 
 import (
 	"fmt"
+	"testing"
+
+	"github.com/rs/zerolog"
+
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"testing"
-
-	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/assert"
 )
 
 type Health struct {

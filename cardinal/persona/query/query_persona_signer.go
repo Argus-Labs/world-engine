@@ -2,6 +2,7 @@ package query
 
 import (
 	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )

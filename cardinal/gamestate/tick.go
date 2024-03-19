@@ -4,21 +4,27 @@ import (
 	"context"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/statsd"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
 
 // The engine tick must be updated in the same atomic transaction as all the state changes
 // associated with that tick. This means the manager here must also implement the TickStore interface.
 var _ TickStorage = &EntityCommandBuffer{}
+
+type pendingTransaction struct {
+	TypeID types.MessageID
+	TxHash types.TxHash
+	Data   []byte
+	Tx     *sign.Transaction
+}
 
 // GetTickNumbers returns the last tick that was started and the last tick that was ended. If start == end, it means
 // the last tick that was attempted completed successfully. If start != end, it means a tick was started but did not
@@ -118,13 +124,6 @@ func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxPool, erro
 		txPool.AddTransaction(tx.ID(), txData, p.Tx)
 	}
 	return txPool, nil
-}
-
-type pendingTransaction struct {
-	TypeID types.MessageID
-	TxHash types.TxHash
-	Data   []byte
-	Tx     *sign.Transaction
 }
 
 func addPendingTransactionToPipe(

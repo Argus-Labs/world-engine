@@ -1,57 +1,30 @@
 //nolint:govet // there is too much issues with incompatible struct tags
 package cql
 
-import "pkg.world.dev/world-engine/cardinal/types"
-
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/rotisserie/eris"
-)
 
-type cqlOperator int
+	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
+)
 
 const (
 	opAnd cqlOperator = iota
 	opOr
 )
 
-var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
+var (
+	operatorMap       = map[string]cqlOperator{"&": opAnd, "|": opOr}
+	internalCQLParser = participle.MustBuild[cqlTerm]()
+)
 
 type componentByName func(string) (types.Component, error)
 
-// Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
-func (o *cqlOperator) Capture(s []string) error {
-	if len(s) == 0 {
-		return eris.New("invalid operator")
-	}
-	operator, ok := operatorMap[s[0]]
-	if !ok {
-		return eris.New("invalid operator")
-	}
-	*o = operator
-	return nil
-}
-
-type cqlComponent struct {
-	Name string `@Ident`
-}
-
 type cqlAll struct{}
-
-func (a *cqlAll) Capture(values []string) error {
-	if values[0] == "ALL" && values[1] == "(" && values[2] == ")" {
-		*a = cqlAll{}
-	}
-	return nil
-}
-
-type cqlNot struct {
-	SubExpression *cqlValue `"!" @@`
-}
 
 type cqlExact struct {
 	Components []*cqlComponent `"EXACT""(" (@@",")* @@ ")"`
@@ -59,6 +32,15 @@ type cqlExact struct {
 
 type cqlContains struct {
 	Components []*cqlComponent `"CONTAINS" "(" (@@",")* @@ ")"`
+}
+
+type cqlNot struct {
+	SubExpression *cqlValue `"!" @@`
+}
+
+type cqlTerm struct {
+	Left  *cqlFactor     `@@`
+	Right []*cqlOpFactor `@@*`
 }
 
 type cqlValue struct {
@@ -78,9 +60,23 @@ type cqlOpFactor struct {
 	Factor   *cqlFactor  `@@`
 }
 
-type cqlTerm struct {
-	Left  *cqlFactor     `@@`
-	Right []*cqlOpFactor `@@*`
+type cqlComponent struct {
+	Name string `@Ident`
+}
+
+type cqlOperator int
+
+// Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
+func (o *cqlOperator) Capture(s []string) error {
+	if len(s) == 0 {
+		return eris.New("invalid operator")
+	}
+	operator, ok := operatorMap[s[0]]
+	if !ok {
+		return eris.New("invalid operator")
+	}
+	*o = operator
+	return nil
 }
 
 // Display
@@ -92,6 +88,13 @@ func (o cqlOperator) String() string {
 		return "|"
 	}
 	panic("unsupported operator")
+}
+
+func (a *cqlAll) Capture(values []string) error {
+	if values[0] == "ALL" && values[1] == "(" && values[2] == ")" {
+		*a = cqlAll{}
+	}
+	return nil
 }
 
 func (a *cqlAll) String() string {
@@ -152,8 +155,6 @@ func (t *cqlTerm) String() string {
 	}
 	return strings.Join(out, " ")
 }
-
-var internalCQLParser = participle.MustBuild[cqlTerm]()
 
 // TODO: Msg is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually

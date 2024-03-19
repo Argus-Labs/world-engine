@@ -2,7 +2,9 @@ package component
 
 import (
 	"fmt"
+
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/types"
 )

@@ -5,32 +5,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-type receiptPlugin struct {
-}
-
-func newReceiptPlugin() *receiptPlugin {
-	return &receiptPlugin{}
-}
-
 var _ Plugin = (*receiptPlugin)(nil)
-
-func (p *receiptPlugin) Register(world *World) error {
-	err := p.RegisterQueries(world)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *receiptPlugin) RegisterQueries(world *World) error {
-	err := RegisterQuery[ListTxReceiptsRequest, ListTxReceiptsResponse](world, "list",
-		queryReceipts,
-		query.WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsResponse]("receipts"))
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 type ListTxReceiptsRequest struct {
 	StartTick uint64 `json:"startTick" mapstructure:"startTick"`
@@ -52,6 +27,31 @@ type ReceiptEntry struct {
 	Tick   uint64   `json:"tick"`
 	Result any      `json:"result"`
 	Errors []string `json:"errors"`
+}
+
+type receiptPlugin struct {
+}
+
+func newReceiptPlugin() *receiptPlugin {
+	return &receiptPlugin{}
+}
+
+func (p *receiptPlugin) Register(world *World) error {
+	err := p.RegisterQueries(world)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *receiptPlugin) RegisterQueries(world *World) error {
+	err := RegisterQuery[ListTxReceiptsRequest, ListTxReceiptsResponse](world, "list",
+		queryReceipts,
+		query.WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsResponse]("receipts"))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // queryReceipts godoc

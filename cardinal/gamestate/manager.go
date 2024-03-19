@@ -3,10 +3,9 @@ package gamestate
 import (
 	"context"
 	"encoding/json"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 
-	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )
@@ -45,7 +44,6 @@ type Writer interface {
 	RemoveComponentFromEntity(cType types.ComponentMetadata, id types.EntityID) error
 
 	// Misc
-	InjectLogger(logger *zerolog.Logger)
 	Close() error
 	RegisterComponents([]types.ComponentMetadata) error
 }

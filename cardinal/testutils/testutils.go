@@ -3,14 +3,19 @@ package testutils
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
+)
+
+var (
+	nonce      uint64
+	privateKey *ecdsa.PrivateKey
 )
 
 func SetTestTimeout(t *testing.T, timeout time.Duration) {
@@ -31,11 +36,6 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 		}
 	}()
 }
-
-var (
-	nonce      uint64
-	privateKey *ecdsa.PrivateKey
-)
 
 func UniqueSignatureWithName(name string) *sign.Transaction {
 	if privateKey == nil {

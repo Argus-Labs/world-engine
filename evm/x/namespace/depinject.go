@@ -4,14 +4,10 @@ import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/depinject"
 	storetypes "cosmossdk.io/store/types"
+
 	v1 "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
 	"pkg.world.dev/world-engine/evm/x/namespace/keeper"
 )
-
-//nolint:gochecknoinits // GRRRR fix later.
-func init() {
-	appmodule.Register(&v1.Module{}, appmodule.Provide(ProvideModule))
-}
 
 // DepInjectInput is the input for the dep inject framework.
 type DepInjectInput struct {
@@ -38,4 +34,9 @@ func ProvideModule(in DepInjectInput) DepInjectOutput {
 	)
 	m := NewAppModule(k)
 	return DepInjectOutput{Keeper: k, Module: m}
+}
+
+//nolint:gochecknoinits // GRRRR fix later.
+func init() {
+	appmodule.Register(&v1.Module{}, appmodule.Provide(ProvideModule))
 }

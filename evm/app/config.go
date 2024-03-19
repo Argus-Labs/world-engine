@@ -21,8 +21,6 @@
 package app
 
 import (
-	"pkg.world.dev/world-engine/evm/sequencer"
-
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
 	authmodulev1 "cosmossdk.io/api/cosmos/auth/module/v1"
@@ -44,13 +42,6 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-
-	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
-	shardmodule "pkg.world.dev/world-engine/evm/x/shard"
-
-	namespacemodule "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
-	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
-
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -69,13 +60,17 @@ import (
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
-	_ "cosmossdk.io/x/evidence" // import for side effects
-	_ "cosmossdk.io/x/upgrade"  // import for side effects
+	namespacemodule "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
+	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
+	"pkg.world.dev/world-engine/evm/sequencer"
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	shardmodule "pkg.world.dev/world-engine/evm/x/shard"
 
+	_ "cosmossdk.io/x/evidence"                       // import for side effects
+	_ "cosmossdk.io/x/upgrade"                        // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side effects

@@ -2,9 +2,11 @@ package namespace
 
 import (
 	"context"
+
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
+
 	"pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/namespace"
 	"pkg.world.dev/world-engine/evm/x/namespace/types"
 )

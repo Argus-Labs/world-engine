@@ -4,8 +4,6 @@ import (
 	"sync/atomic"
 )
 
-type Stage string
-
 const (
 	Init         Stage = "Init"         // The default stage of world
 	Starting     Stage = "Starting"     // World is moved to this stage after StartGame() is called
@@ -17,6 +15,8 @@ const (
 )
 
 var allStages = []Stage{Init, Starting, Recovering, Ready, Running, ShuttingDown, ShutDown}
+
+type Stage string
 
 type Manager struct {
 	current *atomic.Value

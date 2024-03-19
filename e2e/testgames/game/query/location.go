@@ -1,9 +1,11 @@
 package query
 
 import (
-	"fmt"
+	"errors"
+
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/sys"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/query"
 )
@@ -27,7 +29,7 @@ func RegisterLocationQuery(world *cardinal.World) error {
 				for playerID := range sys.PlayerEntityID {
 					ctx.Logger().Info().Msg(playerID)
 				}
-				return &LocationReply{}, fmt.Errorf("player does not exist")
+				return &LocationReply{}, errors.New("player does not exist")
 			}
 			loc, err := cardinal.GetComponent[comp.Location](ctx, playerEntityID)
 			if err != nil {

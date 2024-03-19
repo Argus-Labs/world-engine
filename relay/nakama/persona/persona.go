@@ -7,13 +7,13 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/events"
 	"sync"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )

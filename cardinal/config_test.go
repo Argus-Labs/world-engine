@@ -1,8 +1,9 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/assert"
 	"testing"
+
+	"pkg.world.dev/world-engine/assert"
 )
 
 func TestConfigDefaults(t *testing.T) {

@@ -2,8 +2,6 @@ package cardinal
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/query"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"reflect"
 	"strconv"
 
@@ -12,6 +10,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/query"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -26,6 +26,12 @@ var (
 	ErrComponentNotOnEntity              = iterators.ErrComponentNotOnEntity
 	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
 )
+
+// Imported
+// This section aggregates function from other packages such that they are easily accessible
+// via cardinal.<function_name>
+
+var NewSearch = search.NewSearch
 
 func RegisterSystems(w *World, sys ...system.System) error {
 	if w.worldStage.Current() != worldstage.Init {
@@ -351,9 +357,3 @@ func Remove(wCtx engine.Context, id types.EntityID) (err error) {
 
 	return nil
 }
-
-// Imported
-// This section aggregates function from other packages such that they are easily accessible
-// via cardinal.<function_name>
-
-var NewSearch = search.NewSearch

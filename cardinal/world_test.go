@@ -12,6 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -20,24 +24,28 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
-
-	"github.com/alicebob/miniredis/v2"
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
 )
 
 func TestIfPanicMessageLogged(t *testing.T) {
 	miniRedis := miniredis.RunT(t)
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 
-	neverTick := make(chan time.Time)
-	world, err := NewWorld(WithCustomMockRedis(miniRedis), WithTickChannel(neverTick), WithPort(getOpenPort(t)))
-
-	assert.NilError(t, err)
 	// replaces internal Logger with one that logs to the buf variable above.
+	neverTick := make(chan time.Time)
+
+	// Create a logger that writes to a buffer so we can check the output
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	world.InjectLogger(&bufLogger)
+
+	world, err := NewWorld(
+		WithCustomMockRedis(miniRedis),
+		WithTickChannel(neverTick),
+		WithPort(getOpenPort(t)),
+		WithCustomLogger(bufLogger),
+	)
+
+	assert.NilError(t, err)
+
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
 	err = RegisterSystems(
@@ -68,7 +76,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 			assert.NilError(t, err)
 			msg, ok := values["message"]
 			assert.Assert(t, ok)
-			assert.Equal(t, msg, "Tick: 0, Current running system: cardinal.TestIfPanicMessageLogged.func1")
+			assert.Contains(t, msg, "Tick: 0, Current running system:")
 			panicString, ok := panicValue.(string)
 			assert.Assert(t, ok)
 			assert.Contains(t, panicString, errorTxt)

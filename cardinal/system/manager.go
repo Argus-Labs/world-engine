@@ -2,14 +2,16 @@ package system
 
 import (
 	"fmt"
-	"github.com/rotisserie/eris"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/statsd"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"reflect"
 	"runtime"
 	"slices"
 	"time"
+
+	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/statsd"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type Manager struct {

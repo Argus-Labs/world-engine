@@ -2,22 +2,18 @@ package evm
 
 import (
 	"context"
-	"github.com/argus-labs/world-engine/e2e/tests/clients"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"io"
-	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/e2e/tests/clients"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
 
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
-)
-
-const (
-	adminNakamaID = "00000000-0000-0000-0000-000000000000"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
 type ClaimPersona struct {
@@ -32,6 +28,10 @@ type MoveTx struct {
 	Direction string `json:"direction"`
 }
 
+const (
+	adminNakamaID = "00000000-0000-0000-0000-000000000000"
+)
+
 func TestTransactionStoredOnChain(t *testing.T) {
 	c := clients.NewNakamaClient(t)
 	chain := clients.NewEVMClient(t)
@@ -45,7 +45,8 @@ func TestTransactionStoredOnChain(t *testing.T) {
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	assert.NilError(t, err)
-	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %s", res.StatusCode, string(bodyBytes))
+	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %s", res.StatusCode,
+		string(bodyBytes))
 	time.Sleep(time.Second * 3)
 
 	res, err = c.RPC("nakama/show-persona", ClaimPersona{PersonaTag: persona})

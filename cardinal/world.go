@@ -13,36 +13,31 @@ import (
 	"syscall"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/query"
-	"pkg.world.dev/world-engine/cardinal/search"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-
-	"pkg.world.dev/world-engine/sign"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
-	"pkg.world.dev/world-engine/cardinal/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/system"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
-
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog/log"
-
-	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/statsd"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/system"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
+	"pkg.world.dev/world-engine/sign"
 )
 
 const (
@@ -50,48 +45,47 @@ const (
 	RedisDialTimeOut              = 15
 )
 
-type World struct {
-	server          *server.Server
-	tickChannel     <-chan time.Time
-	tickDoneChannel chan<- uint64
-	serverOptions   []server.Option
-	cleanup         func()
-	mode            RunMode
-	Logger          *zerolog.Logger
+var _ router.Provider = &World{}      //nolint:exhaustruct
+var _ servertypes.Provider = &World{} //nolint:exhaustruct
 
+type World struct {
+	mode      RunMode
+	namespace Namespace
+	cleanup   func()
+
+	// Storage
+	redisStorage *redis.Storage
+	entityStore  gamestate.Manager
+
+	// Networking
+	server        *server.Server
+	serverOptions []server.Option
+	eventHub      *events.EventHub
+
+	// Core modules
 	worldStage       *worldstage.Manager
 	msgManager       *message.Manager
 	systemManager    *system.Manager
 	componentManager *component.Manager
 	queryManager     *query.Manager
+	router           router.Router
+	txPool           *txpool.TxPool
 
-	namespace    Namespace
-	redisStorage *redis.Storage
-	entityStore  gamestate.Manager
-	tick         *atomic.Uint64
-	timestamp    *atomic.Uint64
-
-	evmTxReceipts map[string]EVMTxReceipt
-
-	txPool *txpool.TxPool
-
+	// Receipt
 	receiptHistory *receipt.History
+	evmTxReceipts  map[string]EVMTxReceipt
 
-	router router.Router
-
-	eventHub    *events.EventHub
-	tickResults *TickResults
-
+	// Tick
+	tick            *atomic.Uint64
+	timestamp       *atomic.Uint64
+	tickResults     *TickResults
+	tickChannel     <-chan time.Time
+	tickDoneChannel chan<- uint64
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
 }
 
-var _ router.Provider = &World{}
-var _ servertypes.Provider = &World{}
-
 // NewWorld creates a new World object using Redis as the storage layer
-//
-//nolint:funlen
 func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, cardinalOptions := separateOptions(opts)
 
@@ -124,25 +118,41 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	world := &World{
-		serverOptions: serverOptions,
-		mode:          cfg.CardinalMode,
+	tick := new(atomic.Uint64)
 
+	world := &World{
+		mode:      cfg.CardinalMode,
+		namespace: Namespace(cfg.CardinalNamespace),
+		cleanup:   func() {},
+
+		// Storage
+		redisStorage: &redisMetaStore,
+		entityStore:  entityCommandBuffer,
+
+		// Networking
+		server:        nil, // Will be initialized in StartGame
+		serverOptions: serverOptions,
+		eventHub:      events.NewEventHub(),
+
+		// Core modules
 		worldStage:       worldstage.NewManager(),
 		msgManager:       message.NewManager(),
 		systemManager:    system.NewManager(),
 		componentManager: component.NewManager(&redisMetaStore),
 		queryManager:     query.NewManager(),
+		router:           nil, // Will be set if run mode is production or its injected via options
+		txPool:           txpool.New(),
 
-		redisStorage:  &redisMetaStore,
-		entityStore:   entityCommandBuffer,
-		namespace:     Namespace(cfg.CardinalNamespace),
-		tick:          &atomic.Uint64{},
-		timestamp:     new(atomic.Uint64),
-		txPool:        txpool.New(),
-		Logger:        &log.Logger,
-		evmTxReceipts: make(map[string]EVMTxReceipt),
+		// Receipt
+		receiptHistory: receipt.NewHistory(tick.Load(), DefaultHistoricalTicksToStore),
+		evmTxReceipts:  make(map[string]EVMTxReceipt),
 
+		// Tick
+		tick:                         tick,
+		timestamp:                    new(atomic.Uint64),
+		tickResults:                  NewTickResults(tick.Load()),
+		tickChannel:                  time.Tick(time.Second), //nolint:staticcheck // its ok.
+		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 
@@ -153,6 +163,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			return nil, err
 		}
 	}
+
+	// Apply options
+	for _, opt := range cardinalOptions {
+		opt(world)
+	}
+
+	world.registerInternalPlugin()
 
 	var metricTags []string
 	if cfg.CardinalMode != "" {
@@ -168,29 +185,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		}
 	} else {
 		log.Logger.Warn().Msg("statsd is disabled")
-	}
-
-	world.registerInternalPlugin()
-
-	// Apply options
-	for _, opt := range cardinalOptions {
-		opt(world)
-	}
-
-	if world.receiptHistory == nil {
-		world.receiptHistory = receipt.NewHistory(world.CurrentTick(), DefaultHistoricalTicksToStore)
-	}
-	if world.eventHub == nil {
-		world.eventHub = events.NewEventHub()
-	}
-
-	if world.tickResults == nil {
-		world.tickResults = NewTickResults(world.CurrentTick())
-	}
-
-	// Make game loop tick every second if not set
-	if world.tickChannel == nil {
-		world.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 
 	return world, nil
@@ -238,7 +232,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 		span.Finish()
 	}()
 
-	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
+	log.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
 
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
 	txPool := w.txPool.CopyTransactions()
@@ -299,14 +293,10 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 
 	statsd.EmitTickStat(startTime, "full_tick")
 	if err := statsd.Client().Count("num_of_txs", int64(txPool.GetAmountOfTxs()), nil, 1); err != nil {
-		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
+		log.Warn().Msgf("failed to emit count stat:%v", err)
 	}
 
 	return nil
-}
-
-func (w *World) GetMessageManager() *message.Manager {
-	return w.msgManager
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
@@ -372,6 +362,23 @@ func (w *World) StartGame() error {
 		return err
 	}
 
+	// Warn when no components, messages, queries, or systems are registered
+	if len(w.componentManager.GetComponents()) == 0 {
+		log.Warn().Msg("No components registered")
+	}
+	if len(w.msgManager.GetRegisteredMessages()) == 0 {
+		log.Warn().Msg("No messages registered")
+	}
+	if len(w.queryManager.GetRegisteredQueries()) == 0 {
+		log.Warn().Msg("No queries registered")
+	}
+	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
+		log.Warn().Msg("No systems registered")
+	}
+
+	// Log world info
+	ecslog.World(&log.Logger, w, zerolog.InfoLevel)
+
 	// Game stage: Ready -> Running
 	w.worldStage.Store(worldstage.Running)
 
@@ -398,10 +405,7 @@ func (w *World) startServer() {
 }
 
 func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
-	w.Logger.Info().Msg("Game loop started")
-	ecslog.World(w.Logger, w, zerolog.InfoLevel)
-	w.emitResourcesWarnings()
-
+	log.Info().Msg("Game loop started")
 	go func() {
 		var waitingChs []chan struct{}
 	loop:
@@ -448,21 +452,6 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	}
 	if tickDone != nil {
 		tickDone <- currTick
-	}
-}
-
-func (w *World) emitResourcesWarnings() {
-	if len(w.componentManager.GetComponents()) == 0 {
-		w.Logger.Warn().Msg("No components registered.")
-	}
-	if len(w.msgManager.GetRegisteredMessages()) == 0 {
-		w.Logger.Warn().Msg("No messages registered.")
-	}
-	if len(w.queryManager.GetRegisteredQueries()) == 0 {
-		w.Logger.Warn().Msg("No queries registered.")
-	}
-	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
-		w.Logger.Warn().Msg("No systems registered.")
 	}
 }
 
@@ -547,7 +536,7 @@ func (w *World) handleShutdown() {
 
 func (w *World) handleTickPanic() {
 	if r := recover(); r != nil {
-		w.Logger.Error().Msgf(
+		log.Error().Msgf(
 			"Tick: %d, Current running system: %s",
 			w.CurrentTick(),
 			w.systemManager.GetCurrentSystem(),
@@ -642,11 +631,6 @@ func (w *World) GetEventHub() *events.EventHub {
 	return w.eventHub
 }
 
-func (w *World) InjectLogger(logger *zerolog.Logger) {
-	w.Logger = logger
-	w.GameStateManager().InjectLogger(logger)
-}
-
 func (w *World) SetRouter(rtr router.Router) {
 	w.router = rtr
 }
@@ -711,12 +695,12 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 func (w *World) populateAndEmitTickResults() {
 	receipts, err := w.receiptHistory.GetReceiptsForTick(w.CurrentTick() - 1)
 	if err != nil {
-		w.Logger.Error().Msgf("failed get receipts for tick %d: %v", w.CurrentTick(), err)
+		log.Error().Msgf("failed get receipts for tick %d: %v", w.CurrentTick(), err)
 	}
 	w.tickResults.SetReceipts(receipts)
 	w.tickResults.SetTick(w.CurrentTick() - 1)
 	err = w.eventHub.EmitEvent(w.tickResults)
 	if err != nil {
-		w.Logger.Warn().Msgf("failed to emit TickResults as event: %v", err)
+		log.Warn().Msgf("failed to emit TickResults as event: %v", err)
 	}
 }

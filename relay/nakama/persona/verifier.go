@@ -3,12 +3,15 @@ package persona
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/relay/nakama/events"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/relay/nakama/events"
 )
+
+const personaVerifierSessionName = "persona_verifier"
 
 // Verifier is a helper struct that asynchronously collects both persona tag registration requests (from
 // nakama) AND persona tag transaction receipts from cardinal. When the result of both systems has been recorded,
@@ -36,8 +39,6 @@ type txHashAndUserID struct {
 	userID string
 }
 
-const personaVerifierSessionName = "persona_verifier"
-
 func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 	p.pendingCh <- txHashAndUserID{
 		userID: userID,
@@ -45,7 +46,8 @@ func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 	}
 }
 
-func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, eh *events.EventHub,
+func NewVerifier(
+	logger runtime.Logger, nk runtime.NakamaModule, eh *events.EventHub,
 ) *Verifier {
 	ptv := &Verifier{
 		txHashToPending: map[string]pendingRequest{},

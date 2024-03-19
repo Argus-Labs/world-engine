@@ -2,13 +2,22 @@ package component
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"github.com/wI2L/jsondiff"
+
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"reflect"
 )
+
+// Interface guard
+var _ types.ComponentMetadata = (*componentMetadata[types.Component])(nil)
+
+// Option is a type that can be passed to NewComponentMetadata to augment the creation
+// of the component type.
+type Option[T types.Component] func(c *componentMetadata[T])
 
 // componentMetadata represents a type of component. It is used to identify
 // a component when getting or setting the component of an entity.
@@ -20,9 +29,6 @@ type componentMetadata[T types.Component] struct {
 	schema     []byte
 	defaultVal types.Component
 }
-
-// Interface guard
-var _ types.ComponentMetadata = (*componentMetadata[types.Component])(nil)
 
 // NewComponentMetadata creates a new component type.
 // The function is used to create a new component of the type.
@@ -117,10 +123,6 @@ func (c *componentMetadata[T]) validateDefaultVal() {
 		panic(fmt.Sprintf("default value is not assignable to component type: %s", c.name))
 	}
 }
-
-// Option is a type that can be passed to NewComponentMetadata to augment the creation
-// of the component type.
-type Option[T types.Component] func(c *componentMetadata[T])
 
 // WithDefault updated the created componentMetadata with a default value.
 func WithDefault[T types.Component](defaultVal T) Option[T] {

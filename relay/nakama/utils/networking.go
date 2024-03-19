@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"github.com/rotisserie/eris"
 	"io"
 	"net/http"
+
+	"github.com/rotisserie/eris"
 )
 
 func DoRequest(req *http.Request) (*http.Response, error) {

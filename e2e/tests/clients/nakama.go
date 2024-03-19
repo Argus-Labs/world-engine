@@ -14,37 +14,15 @@ import (
 	"time"
 
 	"nhooyr.io/websocket"
+
 	"pkg.world.dev/world-engine/assert"
 )
 
 const (
 	envNakamaAddress = "NAKAMA_ADDRESS"
 	chBufferSize     = 100
+	chars            = "abcdefghijklmnopqrstuvwxyz"
 )
-
-type NakamaClient struct {
-	t          *testing.T
-	addr       string
-	authHeader string
-	ReceiptCh  chan Receipt
-	EventCh    chan Event
-}
-
-func NewNakamaClient(t *testing.T) *NakamaClient {
-	host := os.Getenv(envNakamaAddress)
-	if host == "" {
-		host = "http://127.0.0.1:7350"
-	}
-	h := &NakamaClient{
-		t:    t,
-		addr: host,
-		// Receipts and events will be placed on these channels. When the channel is filled, new receipts and events
-		// will be dropped.
-		ReceiptCh: make(chan Receipt, chBufferSize),
-		EventCh:   make(chan Event, chBufferSize),
-	}
-	return h
-}
 
 type NotificationItem struct {
 	ID         string    `json:"id"`
@@ -69,6 +47,30 @@ type NotificationCollection struct {
 	Notifications struct {
 		Notifications []NotificationItem `json:"notifications"`
 	} `json:"notifications"`
+}
+
+type NakamaClient struct {
+	t          *testing.T
+	addr       string
+	authHeader string
+	ReceiptCh  chan Receipt
+	EventCh    chan Event
+}
+
+func NewNakamaClient(t *testing.T) *NakamaClient {
+	host := os.Getenv(envNakamaAddress)
+	if host == "" {
+		host = "http://127.0.0.1:7350"
+	}
+	h := &NakamaClient{
+		t:    t,
+		addr: host,
+		// Receipts and events will be placed on these channels. When the channel is filled, new receipts and events
+		// will be dropped.
+		ReceiptCh: make(chan Receipt, chBufferSize),
+		EventCh:   make(chan Event, chBufferSize),
+	}
+	return h
 }
 
 func (c *NakamaClient) listenForNotifications() error {
@@ -168,7 +170,8 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		buf, err := io.ReadAll(resp.Body)
-		return fmt.Errorf("request failed with status code %d. body is:\n%v\nerror:%w", resp.StatusCode, string(buf), err)
+		return fmt.Errorf("request failed with status code %d. body is:\n%v\nerror:%w", resp.StatusCode, string(buf),
+			err)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
@@ -207,8 +210,6 @@ func CopyBody(r *http.Response) string {
 	r.Body = io.NopCloser(bytes.NewReader(buf))
 	return msg
 }
-
-const chars = "abcdefghijklmnopqrstuvwxyz"
 
 func Triple(s string) (string, string, string) {
 	return s, s, s

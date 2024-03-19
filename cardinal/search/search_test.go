@@ -1,13 +1,12 @@
 package search_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type Alpha struct {

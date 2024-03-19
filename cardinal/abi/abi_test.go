@@ -2,12 +2,13 @@ package abi_test
 
 import (
 	"math/big"
-	"pkg.world.dev/world-engine/cardinal/abi"
 	"testing"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/abi"
 )
 
 // TestNoTagPanics tests that it panics when a struct field is of type *big.Int and does not have a `solidity` struct

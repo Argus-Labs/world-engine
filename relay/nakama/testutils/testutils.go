@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -32,6 +33,46 @@ import (
 // someMock.On("SomeFunction", anyContext...) makes it clear that the first parameter is supposed to be a context.
 // context.valueCtx is the type returned by context.Background.
 var AnyContext = mock.AnythingOfType("*context.valueCtx")
+
+// Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
+var _ runtime.Logger = (*FakeLogger)(nil)
+
+type keyTuple struct {
+	collection string
+	key        string
+	userID     string
+}
+
+type storeValue struct {
+	Value   string
+	Version string
+}
+
+type FakeLogger struct {
+	runtime.Logger
+	mu     sync.Mutex
+	Errors []string
+}
+
+func (l *FakeLogger) Debug(string, ...interface{}) {}
+func (l *FakeLogger) Info(string, ...interface{})  {}
+func (l *FakeLogger) Warn(string, ...interface{})  {}
+
+// Capture error messages
+//
+//nolint:goprintffuncname // [not important]
+func (l *FakeLogger) Error(format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.Errors = append(l.Errors, fmt.Sprintf(format, args...))
+}
+
+// GetErrors A method to retrieve captured errors for assertions
+func (l *FakeLogger) GetErrors() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.Errors
+}
 
 // CtxWithUserID saves the given user ID to the background context in a location that Nakama expects to find user IDs.
 func CtxWithUserID(userID string) context.Context {
@@ -106,35 +147,6 @@ func MockMatchWriteKey(key string) interface{} {
 	})
 }
 
-type FakeLogger struct {
-	runtime.Logger
-	mu     sync.Mutex
-	Errors []string
-}
-
-func (l *FakeLogger) Debug(string, ...interface{}) {}
-func (l *FakeLogger) Info(string, ...interface{})  {}
-func (l *FakeLogger) Warn(string, ...interface{})  {}
-
-// Capture error messages
-//
-//nolint:goprintffuncname // [not important]
-func (l *FakeLogger) Error(format string, args ...interface{}) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.Errors = append(l.Errors, fmt.Sprintf(format, args...))
-}
-
-// GetErrors A method to retrieve captured errors for assertions
-func (l *FakeLogger) GetErrors() []string {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.Errors
-}
-
-// Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
-var _ runtime.Logger = (*FakeLogger)(nil)
-
 // FakeNakamaModule is a fake implementation of runtime.NakamaModule that ONLY implements the StorageRead and
 // StorageWrite methods. Under the hood, a map is used to map collection/key/userID tuples onto the stored values.
 // Calling other methods on the NakamaModule interface will panic. In addition, searching for values (e.g. specifying
@@ -142,23 +154,12 @@ var _ runtime.Logger = (*FakeLogger)(nil)
 //
 // This Fake implements the atomic guarantees of StorageRead and StorageWrite.
 // In addition, Version field is populated during StorageRead which allows for compare-and-swap writes.
-type FakeNakamaModule struct {
+type FakeNakamaModule struct { //nolint:decorder
 	runtime.NakamaModule
 	sync.Mutex
 	versionItr   int
 	store        map[keyTuple]storeValue
 	errsToReturn []error
-}
-
-type keyTuple struct {
-	collection string
-	key        string
-	userID     string
-}
-
-type storeValue struct {
-	Value   string
-	Version string
 }
 
 func NewFakeNakamaModule() *FakeNakamaModule {
@@ -201,7 +202,7 @@ func (f *FakeNakamaModule) StorageRead(_ context.Context, reads []*runtime.Stora
 
 func (f *FakeNakamaModule) nextVersion() string {
 	f.versionItr++
-	return fmt.Sprintf("%d", f.versionItr)
+	return strconv.Itoa(f.versionItr)
 }
 
 func (f *FakeNakamaModule) StorageWrite(

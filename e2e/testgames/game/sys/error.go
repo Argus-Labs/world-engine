@@ -3,10 +3,10 @@ package sys
 import (
 	"errors"
 
+	"github.com/argus-labs/world-engine/example/tester/game/msg"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
-
-	"github.com/argus-labs/world-engine/example/tester/game/msg"
 )
 
 // Error is a system that will produce an error for any incoming Error messages. It's

@@ -4,14 +4,14 @@ import (
 	"errors"
 	"log"
 	"os"
-	"pkg.world.dev/world-engine/cardinal/system"
 	"runtime/pprof"
 
+	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
 	"github.com/rotisserie/eris"
 
-	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/system"
 )
 
 func initializeSystems(

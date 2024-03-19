@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gotest.tools/v3/assert"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
+	"gotest.tools/v3/assert"
 )
 
 func TestCanSignAndVerifyPayload(t *testing.T) {

@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
@@ -14,7 +17,6 @@ import (
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
 )
 
 var _ types.Message = &mockMsg{}
@@ -69,6 +71,29 @@ func (f *mockMsg) GetInFieldInformation() map[string]any {
 	return map[string]any{"foo": "bar"}
 }
 
+var _ shard.TransactionHandlerClient = &fakeTxHandler{}
+
+type fakeTxHandler struct {
+	req *shard.RegisterGameShardRequest
+}
+
+func (f *fakeTxHandler) RegisterGameShard(
+	_ context.Context,
+	in *shard.RegisterGameShardRequest,
+	_ ...grpc.CallOption,
+) (*shard.RegisterGameShardResponse, error) {
+	f.req = in
+	return &shard.RegisterGameShardResponse{}, nil
+}
+
+func (f *fakeTxHandler) Submit(
+	_ context.Context,
+	_ *shard.SubmitTransactionsRequest,
+	_ ...grpc.CallOption,
+) (*shard.SubmitTransactionsResponse, error) {
+	panic("intentionally not implemented. this is a mock")
+}
+
 func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 	rtr, provider := getTestRouterAndProvider(t)
 	msg := &mockMsg{evmCompat: false}
@@ -77,7 +102,7 @@ func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 
 	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeUnsupportedMessage)
+	assert.Equal(t, res.GetCode(), CodeUnsupportedMessage)
 }
 
 func TestRouter_SendMessage_FailedDecode(t *testing.T) {
@@ -93,7 +118,7 @@ func TestRouter_SendMessage_FailedDecode(t *testing.T) {
 
 	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeInvalidFormat)
+	assert.Equal(t, res.GetCode(), CodeInvalidFormat)
 }
 
 func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
@@ -115,7 +140,7 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 		&routerv1.SendMessageRequest{MessageId: name, PersonaTag: persona, Sender: sender},
 	)
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeUnauthorized)
+	assert.Equal(t, res.GetCode(), CodeUnauthorized)
 }
 
 func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
@@ -149,7 +174,7 @@ func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 
 	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeNoResult)
+	assert.Equal(t, res.GetCode(), CodeNoResult)
 }
 
 func TestRouter_SendMessage_TxSuccess(t *testing.T) {
@@ -183,7 +208,7 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 
 	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeSuccess)
+	assert.Equal(t, res.GetCode(), CodeSuccess)
 }
 
 func TestRouter_SendMessage_NoAuthorizedAddress(t *testing.T) {
@@ -214,7 +239,7 @@ func TestRouter_SendMessage_NoAuthorizedAddress(t *testing.T) {
 
 	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeUnauthorized)
+	assert.Equal(t, res.GetCode(), CodeUnauthorized)
 }
 
 func TestRouter_SendMessage_TxFailed(t *testing.T) {
@@ -251,30 +276,7 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 
 	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
-	assert.Equal(t, res.Code, CodeTxFailed)
-}
-
-var _ shard.TransactionHandlerClient = &fakeTxHandler{}
-
-type fakeTxHandler struct {
-	req *shard.RegisterGameShardRequest
-}
-
-func (f *fakeTxHandler) RegisterGameShard(
-	_ context.Context,
-	in *shard.RegisterGameShardRequest,
-	_ ...grpc.CallOption,
-) (*shard.RegisterGameShardResponse, error) {
-	f.req = in
-	return &shard.RegisterGameShardResponse{}, nil
-}
-
-func (f *fakeTxHandler) Submit(
-	_ context.Context,
-	_ *shard.SubmitTransactionsRequest,
-	_ ...grpc.CallOption,
-) (*shard.SubmitTransactionsResponse, error) {
-	panic("intentionally not implemented. this is a mock")
+	assert.Equal(t, res.GetCode(), CodeTxFailed)
 }
 
 func TestRegisterCalledWithCorrectParams(t *testing.T) {
@@ -286,8 +288,8 @@ func TestRegisterCalledWithCorrectParams(t *testing.T) {
 	err := rtr.RegisterGameShard(context.Background())
 	assert.NilError(t, err)
 
-	assert.Equal(t, txHandler.req.Namespace, rtr.namespace)
-	assert.Equal(t, txHandler.req.RouterAddress, rtr.serverAddr)
+	assert.Equal(t, txHandler.req.GetNamespace(), rtr.namespace)
+	assert.Equal(t, txHandler.req.GetRouterAddress(), rtr.serverAddr)
 }
 
 func getTestRouterAndProvider(t *testing.T) (*router, *mocks.MockProvider) {

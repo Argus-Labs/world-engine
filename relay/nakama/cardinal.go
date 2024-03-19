@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/events"
-	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
 
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/relay/nakama/events"
+	"pkg.world.dev/world-engine/relay/nakama/persona"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
 type endpoints struct {

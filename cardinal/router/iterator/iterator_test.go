@@ -10,15 +10,18 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
-
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
+	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 var _ shardtypes.QueryClient = &mockQuerier{}
+var fooMsg = testutils.NewMessageType[fooIn, fooOut]("foo")
+
+type fooIn struct{ X int }
+type fooOut struct{}
 
 type mockQuerier struct {
 	i       int
@@ -75,11 +78,6 @@ func TestIteratorReturnsErrorIfQueryFails(t *testing.T) {
 	assert.ErrorContains(t, err, "some error")
 }
 
-type fooIn struct{ X int }
-type fooOut struct{}
-
-var fooMsg = testutils.NewMessageType[fooIn, fooOut]("foo")
-
 func TestIteratorHappyPath(t *testing.T) {
 	err := fooMsg.SetID(10)
 	assert.NilError(t, err)
@@ -133,7 +131,7 @@ func TestIteratorHappyPath(t *testing.T) {
 
 		assert.Equal(t, tx.MsgValue, msgValue)
 		assert.Equal(t, tx.MsgID, fooMsg.ID())
-		assert.Equal(t, tx.Tx.PersonaTag, protoTx.PersonaTag)
+		assert.Equal(t, tx.Tx.PersonaTag, protoTx.GetPersonaTag())
 		assert.True(t, len(tx.Tx.Hash.Bytes()) > 1)
 		assert.Equal(t, tx.Tx.Namespace, namespace)
 		assert.DeepEqual(t, []byte(tx.Tx.Body), msgBytes)

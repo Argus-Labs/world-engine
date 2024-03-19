@@ -2,11 +2,13 @@ package router
 
 import (
 	"context"
+	"net"
+
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"net"
+
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
@@ -17,6 +19,8 @@ import (
 const (
 	defaultPort = "9020"
 )
+
+var _ Router = (*router)(nil)
 
 //go:generate mockgen -source=router.go -package mocks -destination=mocks/router.go
 
@@ -46,8 +50,6 @@ type Router interface {
 	// Start serves the EVM gRPC server.
 	Start() error
 }
-
-var _ Router = (*router)(nil)
 
 type router struct {
 	provider       Provider

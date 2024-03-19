@@ -2,9 +2,11 @@ package message
 
 import (
 	"errors"
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"reflect"
+
+	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type Manager struct {

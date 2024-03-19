@@ -4,13 +4,13 @@ import (
 	"errors"
 	"log"
 
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal"
-
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 	"github.com/argus-labs/world-engine/example/tester/game/query"
 	"github.com/argus-labs/world-engine/example/tester/game/sys"
+	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {

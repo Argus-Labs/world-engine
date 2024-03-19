@@ -8,6 +8,7 @@ import (
 
 	"github.com/argus-labs/world-engine/e2e/tests/clients"
 	"github.com/ethereum/go-ethereum/crypto"
+
 	"pkg.world.dev/world-engine/assert"
 )
 

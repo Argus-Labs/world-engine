@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"github.com/goccy/go-json"
+
 	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
@@ -9,14 +10,23 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
+var _ Plugin = &debugPlugin{}
+
+type DebugStateRequest struct{}
+
+type debugStateElement struct {
+	ID         types.EntityID             `json:"id"`
+	Components map[string]json.RawMessage `json:"components" swaggertype:"object"`
+}
+
+type DebugStateResponse []*debugStateElement
+
 type debugPlugin struct {
 }
 
 func newDebugPlugin() *debugPlugin {
 	return &debugPlugin{}
 }
-
-var _ Plugin = &debugPlugin{}
 
 func (p *debugPlugin) Register(world *World) error {
 	err := p.RegisterQueries(world)
@@ -35,15 +45,6 @@ func (p *debugPlugin) RegisterQueries(world *World) error {
 	}
 	return nil
 }
-
-type DebugStateRequest struct{}
-
-type debugStateElement struct {
-	ID         types.EntityID             `json:"id"`
-	Components map[string]json.RawMessage `json:"components" swaggertype:"object"`
-}
-
-type DebugStateResponse []*debugStateElement
 
 // queryDebugState godoc
 //
