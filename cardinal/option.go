@@ -10,6 +10,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
+	"pkg.world.dev/world-engine/cardinal/router"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -105,6 +106,14 @@ func WithCustomLogger(logger zerolog.Logger) WorldOption {
 	return WorldOption{
 		cardinalOption: func(_ *World) {
 			log.Logger = logger
+		},
+	}
+}
+
+func WithCustomRouter(rtr router.Router) WorldOption {
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			world.router = rtr
 		},
 	}
 }

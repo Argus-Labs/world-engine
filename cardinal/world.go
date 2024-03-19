@@ -19,7 +19,6 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
@@ -60,7 +59,6 @@ type World struct {
 	// Networking
 	server        *server.Server
 	serverOptions []server.Option
-	eventHub      *events.EventHub
 
 	// Core modules
 	worldStage       *worldstage.Manager
@@ -132,7 +130,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		// Networking
 		server:        nil, // Will be initialized in StartGame
 		serverOptions: serverOptions,
-		eventHub:      events.NewEventHub(),
 
 		// Core modules
 		worldStage:       worldstage.NewManager(),
@@ -276,20 +273,13 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	w.tick.Add(1)
 	w.receiptHistory.NextTick() // todo(scott): use channels
 
-	if w.eventHub != nil {
-		// engine can be optionally loaded with or without an eventHub.
-		// If there is one, on every tick it must flush events.
+	// Populate world.TickResults for the current tick and emit it as an Event
+	flushEventStart := time.Now()
+	w.populateAndBroadcastTickResults()
+	statsd.EmitTickStat(flushEventStart, "flush_events")
 
-		// Populate world.TickResults for the current tick and emit it as an Event
-		w.populateAndEmitTickResults()
-
-		flushEventStart := time.Now()
-		w.eventHub.FlushEvents()
-		statsd.EmitTickStat(flushEventStart, "flush_events")
-
-		// Clear the TickResults for this tick in preparation for the next Tick
-		w.tickResults.Clear()
-	}
+	// Clear the TickResults for this tick in preparation for the next Tick
+	w.tickResults.Clear()
 
 	statsd.EmitTickStat(startTime, "full_tick")
 	if err := statsd.Client().Count("num_of_txs", int64(txPool.GetAmountOfTxs()), nil, 1); err != nil {
@@ -354,10 +344,9 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(w, NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
-		w.GetRegisteredQueries(),
-		w.eventHub.NewWebSocketEventHandler(),
-		w.serverOptions...)
+	w.server, err = server.New(w,
+		NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
+		w.GetRegisteredQueries(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
@@ -627,14 +616,6 @@ func (w *World) WaitForNextTick() (success bool) {
 	return w.CurrentTick() > startTick
 }
 
-func (w *World) GetEventHub() *events.EventHub {
-	return w.eventHub
-}
-
-func (w *World) SetRouter(rtr router.Router) {
-	w.router = rtr
-}
-
 func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	qry, err := w.GetQueryByName(name)
 	if err != nil {
@@ -692,15 +673,17 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 	return w.componentManager.GetComponentByName(name)
 }
 
-func (w *World) populateAndEmitTickResults() {
+func (w *World) populateAndBroadcastTickResults() {
 	receipts, err := w.receiptHistory.GetReceiptsForTick(w.CurrentTick() - 1)
 	if err != nil {
-		log.Error().Msgf("failed get receipts for tick %d: %v", w.CurrentTick(), err)
+		log.Error().Err(err).Msgf("failed get receipts for tick %d", w.CurrentTick())
 	}
 	w.tickResults.SetReceipts(receipts)
 	w.tickResults.SetTick(w.CurrentTick() - 1)
-	err = w.eventHub.EmitEvent(w.tickResults)
+
+	// Broadcast the tick results to all clients
+	err = w.server.BroadcastEvent(w.tickResults)
 	if err != nil {
-		log.Warn().Msgf("failed to emit TickResults as event: %v", err)
+		log.Err(err).Msgf("failed to broadcast tick results")
 	}
 }

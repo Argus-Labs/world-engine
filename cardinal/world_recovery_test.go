@@ -38,13 +38,11 @@ func TestWorldRecovery(t *testing.T) {
 		setEnvToCardinalProdMode(t)
 
 		g.BeforeEach(func() {
-			tf = testutils.NewTestFixture(t, nil)
-
 			controller = gomock.NewController(t)
 			router = mocks.NewMockRouter(controller)
+			tf = testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(router))
 
 			world = tf.World
-			world.SetRouter(router)
 			msgName := "foo"
 			err := cardinal.RegisterMessage[
 				fooMessage,

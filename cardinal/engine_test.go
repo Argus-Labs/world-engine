@@ -360,14 +360,15 @@ func TestWithoutRegistration(t *testing.T) {
 func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
 	world := tf.World
-	world.SetRouter(rtr)
+
 	type fooMsg struct {
 		Bar string
 	}
 
 	type fooMsgRes struct{}
+
 	msgName := "foo"
 	err := cardinal.RegisterMessage[fooMsg, fooMsgRes](world, msgName, message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
 	assert.NilError(t, err)
@@ -441,9 +442,8 @@ func TestRecoverFromChain(t *testing.T) {
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
 	world := tf.World
-	world.SetRouter(rtr)
 
 	type fooMsg struct{ I int }
 	type fooMsgRes struct{}

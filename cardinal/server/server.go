@@ -1,10 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"os"
-	"sync/atomic"
 
-	"github.com/gofiber/contrib/websocket"
+	"github.com/gofiber/contrib/socketio"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
@@ -30,21 +30,19 @@ type config struct {
 }
 
 type Server struct {
-	app       *fiber.App
-	config    config
-	isRunning atomic.Bool
+	app    *fiber.App
+	config config
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	provider servertypes.Provider, wCtx engine.Context, components []types.ComponentMetadata, messages []types.Message,
-	queries []engine.Query, wsEventHandler func(conn *websocket.Conn),
-	opts ...Option,
+	provider servertypes.Provider, wCtx engine.Context, components []types.ComponentMetadata,
+	messages []types.Message, queries []engine.Query, opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
-		// Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
-		Network: "tcp",
+		Network: "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
 	})
+
 	s := &Server{
 		app: app,
 		config: config{
@@ -59,14 +57,11 @@ func New(
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, provider, wCtx, messages, queries, wsEventHandler, s.config, components)
+
+	// Register routes
+	s.setupRoutes(provider, wCtx, messages, queries, components)
 
 	return s, nil
-}
-
-// Port returns the port the server listens to.
-func (s *Server) Port() string {
-	return s.config.port
 }
 
 // Serve serves the application, blocking the calling thread.
@@ -76,19 +71,41 @@ func (s *Server) Serve() error {
 	if err != nil {
 		return eris.Wrap(err, "error getting hostname")
 	}
+
+	// Start server
 	log.Info().Msgf("serving at %s:%s", hostname, s.config.port)
-	s.isRunning.Store(true)
 	err = s.app.Listen(":" + s.config.port)
 	if err != nil {
 		return eris.Wrap(err, "error starting Fiber app")
 	}
-	s.isRunning.Store(false)
+
 	return nil
 }
 
-// Shutdown gracefully shuts down the server without interrupting any active connections.
+func (s *Server) BroadcastEvent(event any) error {
+	eventBz, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	socketio.Broadcast(eventBz)
+	return nil
+}
+
+// Shutdown gracefully shuts down the server and closes all active websocket connections.
 func (s *Server) Shutdown() error {
-	return s.app.Shutdown()
+	log.Info().Msg("Shutting down server")
+
+	// Close websocket connections
+	socketio.Broadcast([]byte(""), socketio.CloseMessage)
+	socketio.Fire(socketio.EventClose, nil)
+
+	// Gracefully shutdown Fiber server
+	if err := s.app.Shutdown(); err != nil {
+		return eris.Wrap(err, "error shutting down server")
+	}
+
+	log.Info().Msg("Successfully shut down server")
+	return nil
 }
 
 // @title			Cardinal
@@ -98,11 +115,9 @@ func (s *Server) Shutdown() error {
 // @BasePath		/
 // @consumes		application/json
 // @produces		application/json
-func setupRoutes(
-	app *fiber.App, provider servertypes.Provider, wCtx engine.Context, messages []types.Message,
-	queries []engine.Query,
-	wsEventHandler func(conn *websocket.Conn),
-	cfg config, components []types.ComponentMetadata,
+func (s *Server) setupRoutes(
+	provider servertypes.Provider, wCtx engine.Context, messages []types.Message,
+	queries []engine.Query, components []types.ComponentMetadata,
 ) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
@@ -133,31 +148,31 @@ func setupRoutes(
 	}
 
 	// Route: /swagger/
-	if !cfg.isSwaggerDisabled {
-		app.Get("/swagger/*", swagger.HandlerDefault)
+	if !s.config.isSwaggerDisabled {
+		s.app.Get("/swagger/*", swagger.HandlerDefault)
 	}
 
 	// Route: /events/
-	app.Use("/events", handler.WebSocketUpgrader)
-	app.Get("/events", handler.WebSocketEvents(wsEventHandler))
+	s.app.Use("/events", handler.WebSocketUpgrader)
+	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	app.Get("/world", handler.GetWorld(components, messages, queries))
+	s.app.Get("/world", handler.GetWorld(components, messages, queries))
 
 	// Route: /...
-	app.Get("/health", handler.GetHealth())
+	s.app.Get("/health", handler.GetHealth())
 	// TODO(scott): this should be moved outside of /query, but nakama is currrently depending on it
 	//  so we should do this on a separate PR.
-	app.Get("/query/http/endpoints", handler.GetEndpoints(msgIndex, queryIndex))
+	s.app.Get("/query/http/endpoints", handler.GetEndpoints(msgIndex, queryIndex))
 
 	// Route: /query/...
-	query := app.Group("/query")
+	query := s.app.Group("/query")
 	query.Post("/:group/:name", handler.PostQuery(queryIndex, wCtx))
 
 	// Route: /tx/...
-	tx := app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, cfg.isSignatureVerificationDisabled))
+	tx := s.app.Group("/tx")
+	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, s.config.isSignatureVerificationDisabled))
 
 	// Route: /cql
-	app.Post("/cql", handler.PostCQL(provider))
+	s.app.Post("/cql", handler.PostCQL(provider))
 }
