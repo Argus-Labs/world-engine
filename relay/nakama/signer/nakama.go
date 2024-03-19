@@ -11,6 +11,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -115,7 +116,7 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
 			Collection: privateKeyCollection,
-			UserID:     AdminAccountID,
+			UserID:     utils.AdminAccountID,
 			Key:        key,
 		},
 	})
@@ -146,7 +147,7 @@ func setOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key, value
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
 		{
 			Collection:      privateKeyCollection,
-			UserID:          AdminAccountID,
+			UserID:          utils.AdminAccountID,
 			Key:             key,
 			Value:           string(buf),
 			Version:         "",

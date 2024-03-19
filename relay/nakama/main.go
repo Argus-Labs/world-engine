@@ -112,6 +112,9 @@ func InitModule(
 		return eris.Wrap(err, "failed to init save file query endpoint")
 	}
 
+	if err := initCustomAuthentication(initializer); err != nil {
+		return eris.Wrap(err, "failed to init ethereum authentication")
+	}
 	return nil
 }
 

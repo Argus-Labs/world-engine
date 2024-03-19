@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -222,6 +223,10 @@ func (f *FakeNakamaModule) StorageWrite(
 		currValue, ok := f.store[key]
 		if ok && write.Version != "" && currValue.Version != write.Version {
 			return nil, errors.New("write failed due to out of date version")
+		}
+		// It is a Nakama requirement that this value field is JSON encoded
+		if !json.Valid([]byte(write.Value)) {
+			return nil, errors.New("value field must be JSON encoded")
 		}
 	}
 	// All write items can safely be stored in the storage map.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -140,33 +141,82 @@ func (c *NakamaClient) handleEvent(bz []byte) {
 		c.t.Log("warning: event dropped")
 	}
 }
+func (c *NakamaClient) AuthenticateSIWE(username, signerAddress string, signFn func(msg string) string) error {
+	ctx := context.Background()
+	body := struct {
+		ID   string `json:"id"`
+		Vars struct {
+			Type      string `json:"type"`
+			Signature string `json:"signature"`
+			Message   string `json:"message"`
+		} `json:"vars"`
+	}{}
+	body.Vars.Type = "siwe"
+	body.ID = signerAddress
+
+	// The first authentication post is expected to fail. The failure message will contain an SIWE Message that
+	// be signed and sent back in a second request.
+	path := "v2/account/authenticate/custom"
+	resp, err := c.doAuthPost(ctx, username, path, body)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		return errors.New("expected an initial unauthorized to get the siwe message")
+	}
+	nakamaErrorResponse := struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}{}
+	if err = json.NewDecoder(resp.Body).Decode(&nakamaErrorResponse); err != nil {
+		return err
+	}
+
+	siwe := struct {
+		SIWEMessage string `json:"siwe_message"`
+	}{}
+
+	if err = json.Unmarshal([]byte(nakamaErrorResponse.Message), &siwe); err != nil {
+		return err
+	}
+
+	// Now sign the message and re-send the authenciate/custom request
+	body.Vars.Signature = signFn(siwe.SIWEMessage)
+	body.Vars.Message = siwe.SIWEMessage
+
+	resp, err = c.doAuthPost(ctx, username, path, body)
+	if err != nil {
+		return err
+	}
+	if err = c.validateSuccessfulAuth(resp); err != nil {
+		return err
+	}
+	return nil
+}
 
 func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	path := "v2/account/authenticate/device"
-	options := fmt.Sprintf("create=true&username=%s", username)
-	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
 	body := map[string]any{
 		"id": deviceID,
 	}
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-	reader := bytes.NewReader(buf)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, reader)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	// defaultkey is the default server key. See https://heroiclabs.com/docs/nakama/concepts/authentication/ for more
-	// details.
-	req.SetBasicAuth("defaultkey", "")
 
-	resp, err := http.DefaultClient.Do(req)
-	//	resp, err := http.Post(url, "application/json", reader)
+	resp, err := c.doAuthPost(context.Background(), username, path, body)
 	if err != nil {
 		return err
 	}
+
+	if err = c.validateSuccessfulAuth(resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+
+func (c *NakamaClient) validateSuccessfulAuth(resp *http.Response) error {
+	body := map[string]any{}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		buf, err := io.ReadAll(resp.Body)
@@ -181,8 +231,27 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	if err := c.listenForNotifications(); err != nil {
 		return fmt.Errorf("failed to start streaming notifications: %w", err)
 	}
-
 	return nil
+}
+
+func (c *NakamaClient) doAuthPost(ctx context.Context, username string, path string, body any) (*http.Response, error) {
+	options := fmt.Sprintf("create=true&username=%s", username)
+	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	reader := bytes.NewReader(buf)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	// defaultkey is the default server key. See https://heroiclabs.com/docs/nakama/concepts/authentication/ for more
+	// details.
+	req.SetBasicAuth("defaultkey", "")
+	return http.DefaultClient.Do(req)
 }
 
 func (c *NakamaClient) RPC(path string, body any) (*http.Response, error) {
