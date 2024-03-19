@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
@@ -18,6 +19,7 @@ type GetWorldResponse struct {
 type FieldDetail struct {
 	Name   string         `json:"name"`   // name of the message or query
 	Fields map[string]any `json:"fields"` // variable name and type
+	URL    string         `json:"url,omitempty"`
 }
 
 // GetWorld godoc
@@ -50,6 +52,7 @@ func GetWorld(
 		messagesFields = append(messagesFields, FieldDetail{
 			Name:   message.Name(),
 			Fields: message.GetInFieldInformation(),
+			URL:    utils.GetTxURL(message.Group(), message.Name()),
 		})
 	}
 
@@ -60,6 +63,7 @@ func GetWorld(
 		queriesFields = append(queriesFields, FieldDetail{
 			Name:   query.Name(),
 			Fields: query.GetRequestFieldInformation(),
+			URL:    utils.GetTxURL(query.Group(), query.Name()),
 		})
 	}
 
