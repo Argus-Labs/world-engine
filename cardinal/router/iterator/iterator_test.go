@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -11,14 +12,13 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 var _ shardtypes.QueryClient = &mockQuerier{}
-var fooMsg = testutils.NewMessageType[fooIn, fooOut]("foo")
+var fooMsg = message.NewMessageType[fooIn, fooOut]("foo")
 
 type fooIn struct{ X int }
 type fooOut struct{}
