@@ -25,6 +25,7 @@ type CQLQueryResponse struct {
 }
 
 // PostCQL godoc
+//
 //	@Summary		Query the ecs with CQL (cardinal query language)
 //	@Description	Query the ecs with CQL (cardinal query language)
 //	@Accept			application/json
