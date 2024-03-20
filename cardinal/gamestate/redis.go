@@ -5,7 +5,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
