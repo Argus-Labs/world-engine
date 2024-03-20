@@ -25,13 +25,13 @@ type CQLQueryResponse struct {
 }
 
 // PostCQL godoc
-// @Summary		Query the ecs with CQL (cardinal query language)
-// @Description	Query the ecs with CQL (cardinal query language)
-// @Accept		application/json
-// @Produce		application/json
-// @Param		cql	body		CQLQueryRequest	true	"cql (cardinal query language)"
-// @Success		200	{object}	CQLQueryResponse
-// @Router		/cql [post]
+//	@Summary		Query the ecs with CQL (cardinal query language)
+//	@Description	Query the ecs with CQL (cardinal query language)
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Param			cql	body		CQLQueryRequest	true	"cql (cardinal query language)"
+//	@Success		200	{object}	CQLQueryResponse
+//	@Router			/cql [post]
 func PostCQL(provider servertypes.Provider) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
 	return func(ctx *fiber.Ctx) error {
 		req := new(CQLQueryRequest)
