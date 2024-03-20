@@ -22,6 +22,7 @@ require (
 	github.com/fasthttp/websocket v1.5.8
 	github.com/franela/goblin v0.0.0-20211003143422-0a4f594942bf
 	github.com/goccy/go-json v0.10.2
+	github.com/gofiber/contrib/socketio v1.0.0
 	github.com/gofiber/contrib/websocket v1.3.0
 	github.com/gofiber/fiber/v2 v2.52.2
 	github.com/gofiber/swagger v0.1.14
@@ -101,7 +102,6 @@ require (
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/spec v0.20.8 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
-	github.com/gofiber/contrib/socketio v1.0.0 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/golang/glog v1.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect

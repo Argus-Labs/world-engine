@@ -59,14 +59,6 @@ func NewMessageType[In, Out any](
 	return msg
 }
 
-func (t *MessageType[In, Out]) SetName(name string) {
-	t.name = name
-}
-
-func (t *MessageType[In, Out]) SetGroup(group string) {
-	t.group = group
-}
-
 func (t *MessageType[In, Out]) Name() string {
 	return t.name
 }
