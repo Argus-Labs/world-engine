@@ -1,3 +1,3 @@
 package types
 
-type EntityID uint64
+type EntityID string

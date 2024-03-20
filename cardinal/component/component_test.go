@@ -92,7 +92,7 @@ func TestComponentExample(t *testing.T) {
 	assert.Equal(t, len(peopleIDs)-1, count)
 	first, err := cardinal.NewSearch(wCtx, filter.Contains(Age{})).First()
 	assert.NilError(t, err)
-	assert.Equal(t, first, types.EntityID(1))
+	assert.Equal(t, first, peopleIDs[0])
 
 	// Age does not exist on the target EntityID, so this should result in an error
 	err = cardinal.UpdateComponent[Age](wCtx, targetID, func(a *Age) *Age {
@@ -179,13 +179,13 @@ func TestComponents(t *testing.T) {
 		{
 			[]types.ComponentMetadata{ca},
 			0,
-			0,
+			"",
 			"a",
 		},
 		{
 			[]types.ComponentMetadata{ca, cb},
 			1,
-			0,
+			"",
 			"b",
 		},
 	}

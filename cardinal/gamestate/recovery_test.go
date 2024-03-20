@@ -10,24 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
-	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
-
-	ids, err := manager.CreateManyEntities(50, fooComp)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.FinalizeTick(ctx))
-
-	nextID := ids[len(ids)-1] + 1
-
-	// Make a new manager using the same redis dbStorage. Newly assigned ids should start off where
-	// the previous manager left off
-	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
-	gotID, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
-	assert.Equal(t, nextID, gotID)
-}
-
 func TestComponentSetsCanBeRecovered(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
 	ctx := context.Background()

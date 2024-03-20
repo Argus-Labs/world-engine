@@ -2,6 +2,7 @@ package log_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -118,6 +119,11 @@ func TestWorldLogger(t *testing.T) {
 				"message":"created"
 			}`, logStrings[1],
 	)
+	var deserializedJSON map[string]any = make(map[string]any)
+	err = json.Unmarshal([]byte(logStrings[2]), &deserializedJSON)
+	assert.NilError(t, err)
+	delete(deserializedJSON, "entity_id")
+	serializedJSON, err := json.Marshal(deserializedJSON)
 	require.JSONEq(
 		t, `
 			{
@@ -125,9 +131,8 @@ func TestWorldLogger(t *testing.T) {
 				"components":[{
 				"component_id":2,
 					"component_name":"EnergyComp"
-				}],
-				"entity_id":0,"archetype_id":0
-			}`, logStrings[2],
+				}],"archetype_id":0
+			}`, string(serializedJSON),
 	)
 
 	buf.Reset()
@@ -136,6 +141,12 @@ func TestWorldLogger(t *testing.T) {
 	archetypeID, err := world.GameStateManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
 	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
+	deserializedJSON = make(map[string]any)
+	err = json.Unmarshal([]byte(buf.String()), &deserializedJSON)
+	assert.NilError(t, err)
+	delete(deserializedJSON, "entity_id")
+	serializedJSON, err = json.Marshal(deserializedJSON)
+	assert.NilError(t, err)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",
@@ -144,10 +155,9 @@ func TestWorldLogger(t *testing.T) {
 					"component_id":2,
 					"component_name":"EnergyComp"
 				}],
-			"entity_id":0,
 			"archetype_id":0
 		}`
-	require.JSONEq(t, buf.String(), jsonEntityInfoString)
+	require.JSONEq(t, string(serializedJSON), jsonEntityInfoString)
 
 	// Create a system for logging.
 	buf.Reset()
@@ -165,16 +175,21 @@ func TestWorldLogger(t *testing.T) {
 			}`, logStrings[0],
 	)
 	// test if updating component worked
+	deserializedJSON = make(map[string]any)
+	err = json.Unmarshal([]byte(logStrings[2]), &deserializedJSON)
+	assert.NilError(t, err)
+	delete(deserializedJSON, "entity_id")
+	serializedJSON, err = json.Marshal(deserializedJSON)
+	assert.NilError(t, err)
 	require.JSONEq(
 		t, `
 			{
 				"level":"debug",
-				"entity_id":"0",
 				"component_name":"EnergyComp",
 				"component_id":2,
 				"message":"entity updated",
 				"system":"log_test.testSystemWarningTrigger"
-			}`, logStrings[2],
+			}`, string(serializedJSON),
 	)
 
 	// testing log output for the creation of two entities.
@@ -182,6 +197,12 @@ func TestWorldLogger(t *testing.T) {
 	_, err = cardinal.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
+	deserializedJSON = make(map[string]any)
+	err = json.Unmarshal([]byte(entityCreationStrings[0]), &deserializedJSON)
+	assert.NilError(t, err)
+	delete(deserializedJSON, "entity_id")
+	serializedJSON, err = json.Marshal(deserializedJSON)
+	assert.NilError(t, err)
 	require.JSONEq(
 		t, `
 			{
@@ -193,10 +214,15 @@ func TestWorldLogger(t *testing.T) {
 							"component_name":"EnergyComp"
 						}
 					],
-				"entity_id":1,
 				"archetype_id":0
-			}`, entityCreationStrings[0],
+			}`, string(serializedJSON),
 	)
+	deserializedJSON = make(map[string]any)
+	err = json.Unmarshal([]byte(entityCreationStrings[1]), &deserializedJSON)
+	assert.NilError(t, err)
+	delete(deserializedJSON, "entity_id")
+	serializedJSON, err = json.Marshal(deserializedJSON)
+	assert.NilError(t, err)
 	require.JSONEq(
 		t, `
 			{
@@ -208,8 +234,7 @@ func TestWorldLogger(t *testing.T) {
 							"component_name":"EnergyComp"
 						}
 					],
-				"entity_id":2,
 				"archetype_id":0
-			}`, entityCreationStrings[1],
+			}`, string(serializedJSON),
 	)
 }

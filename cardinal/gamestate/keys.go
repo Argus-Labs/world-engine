@@ -8,7 +8,7 @@ import (
 
 // storageComponentKey is the key that maps an entity ID and a specific component ID to the value of that component.
 func storageComponentKey(typeID types.ComponentID, id types.EntityID) string {
-	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%d", typeID, id)
+	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%s", typeID, id)
 }
 
 // storageNextEntityIDKey is the key that stores the next available entity ID that can be assigned to a newly created
@@ -21,7 +21,7 @@ func storageNextEntityIDKey() string {
 // Note, this key and storageActiveEntityIDKey represent the same information.
 // This maps entity.ID -> archetype.ID.
 func storageArchetypeIDForEntityID(id types.EntityID) string {
-	return fmt.Sprintf("ECB:ARCHETYPE-ID:ENTITY-ID-%d", id)
+	return fmt.Sprintf("ECB:ARCHETYPE-ID:ENTITY-ID-%s", id)
 }
 
 // storageActiveEntityIDKey is the key that maps an archetype ID to all the entities that currently belong

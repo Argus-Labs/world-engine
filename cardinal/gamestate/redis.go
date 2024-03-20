@@ -3,9 +3,10 @@ package gamestate
 import (
 	"context"
 
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -147,7 +148,6 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 		method func(ctx context.Context, pipe PrimitiveStorage[string]) error
 	}{
 		{"component_changes", m.addComponentChangesToPipe},
-		{"next_entity_id", m.addNextEntityIDToPipe},
 		{"pending_arch_ids", m.addPendingArchIDsToPipe},
 		{"entity_id_to_arch_id", m.addEntityIDToArchIDToPipe},
 		{"active_entity_ids", m.addActiveEntityIDsToPipe},
@@ -198,17 +198,6 @@ func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pip
 	}
 
 	return nil
-}
-
-// addNextEntityIDToPipe adds any changes to the next available entity ArchetypeID to the given redis pipe.
-func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe PrimitiveStorage[string]) error {
-	// There are no pending entity id creations, so there's nothing to commit
-	if m.pendingEntityIDs == 0 {
-		return nil
-	}
-	key := storageNextEntityIDKey()
-	nextID := m.nextEntityIDSaved + m.pendingEntityIDs
-	return eris.Wrap(pipe.Set(ctx, key, nextID), "")
 }
 
 // addComponentChangesToPipe adds updated component values for entities to the redis pipe.

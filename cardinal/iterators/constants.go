@@ -2,13 +2,12 @@ package iterators
 
 import (
 	"errors"
-	"math"
 
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var (
-	BadID types.EntityID = math.MaxUint64
+	BadID types.EntityID = ""
 
 	ErrEntityDoesNotExist                = errors.New("entity does not exist")
 	ErrComponentAlreadyOnEntity          = errors.New("component already on entity")

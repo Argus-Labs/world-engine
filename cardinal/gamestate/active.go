@@ -25,7 +25,7 @@ func (a *activeEntities) swapRemove(idToRemove types.EntityID) error {
 		}
 	}
 	if indexOfID == -1 {
-		return eris.Errorf("cannot find entity id %d", idToRemove)
+		return eris.Errorf("cannot find entity id %s", idToRemove)
 	}
 	lastIndex := len(a.ids) - 1
 	if indexOfID < lastIndex {

@@ -309,7 +309,7 @@ func TestCanRemoveEntity(t *testing.T) {
 }
 
 type CountComponent struct {
-	Val int
+	Val string
 }
 
 func (CountComponent) Name() string {
@@ -330,33 +330,37 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
+	ids := make([]string, 0)
 	q := cardinal.NewSearch(wCtx, filter.Contains(CountComponent{}))
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
-				assert.NilError(t, cardinal.SetComponent[CountComponent](wCtx, id, &CountComponent{int(id)}))
+				assert.NilError(t, cardinal.SetComponent[CountComponent](wCtx, id, &CountComponent{string(id)}))
+				ids = append(ids, string(id))
 				return true
 			},
 		),
 	)
 
-	// Remove the even entries
+	// Remove half of the entries
+	amountOfEntities := len(ids)
+
 	itr := 0
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
-				if itr%2 == 0 {
+				if itr < amountOfEntities/2 {
 					assert.NilError(t, cardinal.Remove(wCtx, id))
+					itr++
 				}
-				itr++
 				return true
 			},
 		),
 	)
 	// Verify we did this Each the correct number of times
-	assert.Equal(t, 10, itr)
+	assert.Equal(t, 5, itr)
 
-	seen := map[int]int{}
+	seen := map[string]int{}
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -370,9 +374,6 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 	// Verify we're left with exactly 5 odd values between 1 and 9
 	assert.Equal(t, len(seen), 5)
-	for i := 1; i < 10; i += 2 {
-		assert.Equal(t, seen[i], 1)
-	}
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {

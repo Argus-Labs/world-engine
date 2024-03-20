@@ -94,7 +94,7 @@ func (s *Search) First() (id types.EntityID, err error) {
 		var entities []types.EntityID
 		entities, err = iter.Next()
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 		if len(entities) > 0 {
 			return entities[0], nil

@@ -320,7 +320,7 @@ func TestWithoutRegistration(t *testing.T) {
 	assert.Panics(t, func() { _, _ = cardinal.Create(wCtx, EnergyComponent{}, OwnableComponent{}) })
 	assert.Panics(t, func() {
 		_ = cardinal.UpdateComponent[EnergyComponent](
-			wCtx, 0, func(component *EnergyComponent) *EnergyComponent {
+			wCtx, "", func(component *EnergyComponent) *EnergyComponent {
 				component.Amt += 50
 				return component
 			},
@@ -328,7 +328,7 @@ func TestWithoutRegistration(t *testing.T) {
 	})
 	assert.Panics(t, func() {
 		_ = cardinal.SetComponent[EnergyComponent](
-			wCtx, 0, &EnergyComponent{
+			wCtx, "", &EnergyComponent{
 				Amt: 0,
 				Cap: 0,
 			},

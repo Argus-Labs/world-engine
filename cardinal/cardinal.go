@@ -3,7 +3,6 @@ package cardinal
 import (
 	"errors"
 	"reflect"
-	"strconv"
 
 	"github.com/rotisserie/eris"
 
@@ -149,7 +148,7 @@ func Create(wCtx engine.Context, components ...types.Component) (_ types.EntityI
 	// We don't handle panics here because we let CreateMany handle it for us
 	entityIDs, err := CreateMany(wCtx, 1, components...)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	return entityIDs[0], nil
 }
@@ -227,7 +226,7 @@ func SetComponent[T types.Component](wCtx engine.Context, id types.EntityID, com
 
 	// Log
 	wCtx.Logger().Debug().
-		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
+		Str("entity_id", string(id)).
 		Str("component_name", c.Name()).
 		Int("component_id", int(c.ID())).
 		Msg("entity updated")

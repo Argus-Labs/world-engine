@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -32,11 +33,6 @@ type EntityCommandBuffer struct {
 	typeToComponent    VolatileStorage[types.ComponentID, types.ComponentMetadata]
 
 	activeEntities VolatileStorage[types.ArchetypeID, activeEntities]
-
-	// Fields that track the next valid entity EntityID that can be assigned
-	nextEntityIDSaved uint64
-	pendingEntityIDs  uint64
-	isEntityIDLoaded  bool
 
 	// Archetype EntityID management.
 	entityIDToArchID       VolatileStorage[types.EntityID, types.ArchetypeID]
@@ -106,9 +102,6 @@ func (m *EntityCommandBuffer) DiscardPending() error {
 		return err
 	}
 
-	m.isEntityIDLoaded = false
-	m.pendingEntityIDs = 0
-
 	for _, archID := range m.pendingArchIDs {
 		err = m.archIDToComps.Delete(archID)
 		if err != nil {
@@ -172,7 +165,7 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 func (m *EntityCommandBuffer) CreateEntity(comps ...types.ComponentMetadata) (types.EntityID, error) {
 	ids, err := m.CreateManyEntities(1, comps...)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	return ids[0], nil
 }
@@ -190,7 +183,7 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.Compone
 		return nil, err
 	}
 	for i := range ids {
-		currID, err := m.nextEntityID()
+		currID, err := m.NewEntityID()
 		if err != nil {
 			return nil, err
 		}
@@ -459,29 +452,9 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 	return archID, nil
 }
 
-// nextEntityID returns the next available entity EntityID.
-func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
-	if !m.isEntityIDLoaded {
-		// The next valid entity EntityID needs to be loaded from dbStorage.
-		ctx := context.Background()
-		nextID, err := m.dbStorage.GetUInt64(ctx, storageNextEntityIDKey())
-		err = eris.Wrap(err, "")
-		if err != nil {
-			// todo: make redis.Nil a general error on storage.
-			if !eris.Is(eris.Cause(err), redis.Nil) {
-				return 0, err
-			}
-			// redis.Nil means there's no value at this key. Start with an EntityID of 0
-			nextID = 0
-		}
-		m.nextEntityIDSaved = nextID
-		m.pendingEntityIDs = 0
-		m.isEntityIDLoaded = true
-	}
-
-	id := m.nextEntityIDSaved + m.pendingEntityIDs
-	m.pendingEntityIDs++
-	return types.EntityID(id), nil
+// NewEntityID returns the next available entity EntityID.
+func (m *EntityCommandBuffer) NewEntityID() (types.EntityID, error) {
+	return types.EntityID(uuid.NewString()), nil
 }
 
 // getOrMakeArchIDForComponents converts the given set of components into an archetype EntityID.

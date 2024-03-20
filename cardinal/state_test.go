@@ -222,21 +222,37 @@ func (OneBetaNum) Name() string {
 	return "oneBetaNum"
 }
 
+type OneBetaNumString struct {
+	Num string
+}
+
+func (OneBetaNumString) Name() string {
+	return "oneBetaNumString"
+}
+
 type oneAlphaNumComp struct {
 	Num int
+}
+
+type oneAlphaNumCompString struct {
+	Num string
 }
 
 func (oneAlphaNumComp) Name() string {
 	return "oneAlphaNum"
 }
 
+func (oneAlphaNumCompString) Name() string {
+	return "oneAlphaNumString"
+}
+
 func TestCanReloadState(t *testing.T) {
 	redisStore := miniredis.RunT(t)
 	tf1 := testutils.NewTestFixture(t, redisStore)
 	world1 := tf1.World
-	assert.NilError(t, cardinal.RegisterComponent[oneAlphaNumComp](world1))
+	assert.NilError(t, cardinal.RegisterComponent[oneAlphaNumCompString](world1))
 
-	world1AlphaNum, err := world1.GetComponentByName(oneAlphaNumComp{}.Name())
+	world1AlphaNum, err := world1.GetComponentByName(oneAlphaNumCompString{}.Name())
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(
 		world1,
@@ -245,7 +261,7 @@ func TestCanReloadState(t *testing.T) {
 			assert.NilError(
 				t, q.Each(
 					func(id types.EntityID) bool {
-						err = cardinal.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
+						err = cardinal.SetComponent[oneAlphaNumCompString](wCtx, id, &oneAlphaNumCompString{string(id)})
 						assert.Check(t, err == nil)
 						return true
 					},
@@ -256,7 +272,7 @@ func TestCanReloadState(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	tf1.StartWorld()
-	_, err = cardinal.CreateMany(cardinal.NewWorldContext(world1), 10, oneAlphaNumComp{})
+	_, err = cardinal.CreateMany(cardinal.NewWorldContext(world1), 10, oneAlphaNumCompString{})
 	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
@@ -265,19 +281,19 @@ func TestCanReloadState(t *testing.T) {
 	// Make a new engine, using the original redis DB that (hopefully) has our data
 	tf2 := testutils.NewTestFixture(t, redisStore)
 	world2 := tf2.World
-	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](world2))
+	assert.NilError(t, cardinal.RegisterComponent[OneBetaNumString](world2))
 	tf2.StartWorld()
 
 	count := 0
-	q := cardinal.NewSearch(cardinal.NewWorldContext(world2), filter.Contains(OneBetaNum{}))
+	q := cardinal.NewSearch(cardinal.NewWorldContext(world2), filter.Contains(OneBetaNumString{}))
 	betaWorldCtx := cardinal.NewWorldContext(world2)
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
 				count++
-				num, err := cardinal.GetComponent[OneBetaNum](betaWorldCtx, id)
+				num, err := cardinal.GetComponent[OneBetaNumString](betaWorldCtx, id)
 				assert.NilError(t, err)
-				assert.Equal(t, int(id), num.Num)
+				assert.Equal(t, string(id), num.Num)
 				return true
 			},
 		),

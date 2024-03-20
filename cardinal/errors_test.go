@@ -18,7 +18,7 @@ import (
 
 // TestSystemsReturnNonFatalErrors ensures System will surface non-fatal read and write errors to the user.
 func TestSystemsReturnNonFatalErrors(t *testing.T) {
-	const nonExistentEntityID = 999
+	const nonExistentEntityID = "-999"
 	testCases := []struct {
 		name    string
 		testFn  func(engine.Context) error
