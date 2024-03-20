@@ -11,12 +11,6 @@ func storageComponentKey(typeID types.ComponentID, id types.EntityID) string {
 	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%s", typeID, id)
 }
 
-// storageNextEntityIDKey is the key that stores the next available entity ID that can be assigned to a newly created
-// entity.
-func storageNextEntityIDKey() string {
-	return "ECB:NEXT-ENTITY-ID"
-}
-
 // storageArchetypeIDForEntityID is the key that maps a specific entity ID to its archetype ID.
 // Note, this key and storageActiveEntityIDKey represent the same information.
 // This maps entity.ID -> archetype.ID.

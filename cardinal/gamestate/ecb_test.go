@@ -566,14 +566,14 @@ func TestFinalizeTickPerformanceIsConsistent(t *testing.T) {
 	}
 
 	averageDuration := totalDuration / count
-	//averageAlloc := totalAlloc / count
+	// averageAlloc := totalAlloc / count
 
 	const maxFactor = 5
 	maxDuration := maxFactor * baselineDuration
-	//maxAlloc := maxFactor * baselineAlloc
+	// maxAlloc := maxFactor * baselineAlloc
 
 	assert.Assert(t, averageDuration < maxDuration,
 		"FinalizeTick took an average of %v but must be less than %v", averageDuration, maxDuration)
-	//assert.Assert(t, averageAlloc < maxAlloc,
-	//	"FinalizeTick allocated an average of %v but must be less than %v", averageAlloc, maxAlloc)
+	// assert.Assert(t, averageAlloc < maxAlloc,
+	// "FinalizeTick allocated an average of %v but must be less than %v", averageAlloc, maxAlloc)
 }

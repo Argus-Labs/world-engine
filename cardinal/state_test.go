@@ -230,16 +230,8 @@ func (OneBetaNumString) Name() string {
 	return "oneBetaNumString"
 }
 
-type oneAlphaNumComp struct {
-	Num int
-}
-
 type oneAlphaNumCompString struct {
 	Num string
-}
-
-func (oneAlphaNumComp) Name() string {
-	return "oneAlphaNum"
 }
 
 func (oneAlphaNumCompString) Name() string {

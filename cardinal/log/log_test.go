@@ -119,11 +119,12 @@ func TestWorldLogger(t *testing.T) {
 				"message":"created"
 			}`, logStrings[1],
 	)
-	var deserializedJSON map[string]any = make(map[string]any)
+	deserializedJSON := make(map[string]any)
 	err = json.Unmarshal([]byte(logStrings[2]), &deserializedJSON)
 	assert.NilError(t, err)
 	delete(deserializedJSON, "entity_id")
 	serializedJSON, err := json.Marshal(deserializedJSON)
+	assert.NilError(t, err)
 	require.JSONEq(
 		t, `
 			{
@@ -142,7 +143,7 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
 	deserializedJSON = make(map[string]any)
-	err = json.Unmarshal([]byte(buf.String()), &deserializedJSON)
+	err = json.Unmarshal(buf.Bytes(), &deserializedJSON)
 	assert.NilError(t, err)
 	delete(deserializedJSON, "entity_id")
 	serializedJSON, err = json.Marshal(deserializedJSON)

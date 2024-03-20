@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	BadID types.EntityID = ""
+	BadID types.EntityID
 
 	ErrEntityDoesNotExist                = errors.New("entity does not exist")
 	ErrComponentAlreadyOnEntity          = errors.New("component already on entity")
