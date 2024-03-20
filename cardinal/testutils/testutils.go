@@ -95,7 +95,7 @@ func GetMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, 
 	msgType := reflect.TypeOf(msg)
 	tempRes, ok := wCtx.GetMessageByType(msgType)
 	if !ok {
-		return nil, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
+		return nil, eris.Errorf("Could not find %q, Message may not be registered.", msg.Name())
 	}
 	var _ types.Message = &msg
 	res, ok := tempRes.(*message.MessageType[In, Out])
