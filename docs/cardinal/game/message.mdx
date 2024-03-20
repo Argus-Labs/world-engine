@@ -23,7 +23,7 @@ You can easily create a new message and register it to the world by following th
     <Step title="Define the message and reply struct">
         A message request and and its reply are defined as a Go structs.
 
-        ```go /msg/msg_attack_player.go
+        ```go /msg/attack_player.go
         package msg
         
         type AttackPlayerMsg struct {
@@ -65,7 +65,7 @@ You can easily create a new message and register it to the world by following th
 
 ### Iterating over messages
 
-```go /system/system_attack.go
+```go /system/attack.go
 package system
 
 // If AttackSystem is registered with the cardinal World, it will be executed each tick.

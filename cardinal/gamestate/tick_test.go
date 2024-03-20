@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
@@ -18,8 +19,8 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 		Value int
 	}
 
-	msgAlpha := testutils.NewMessageType[MsgIn, MsgOut]("alpha")
-	msgBeta := testutils.NewMessageType[MsgIn, MsgOut]("beta")
+	msgAlpha := message.NewMessageType[MsgIn, MsgOut]("alpha")
+	msgBeta := message.NewMessageType[MsgIn, MsgOut]("beta")
 	assert.NilError(t, msgAlpha.SetID(16))
 	assert.NilError(t, msgBeta.SetID(32))
 	msgs := []types.Message{msgAlpha, msgBeta}
