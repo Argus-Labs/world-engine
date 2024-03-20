@@ -92,14 +92,20 @@ swaggo-install:
 	go install github.com/swaggo/swag/cmd/swag@latest
 
 swagger:
+	$(MAKE) swaggo-install
 	swag init -g cardinal/server/server.go -o cardinal/server/docs/
 
 swagger-check:
 	$(MAKE) swaggo-install
 
-	echo "--> Generate latest Swagger specs"
-	mkdir -p /tmp/swagger-compare
-	swag init -g cardinal/server/server.go -o /tmp/swagger-compare
+	@echo "--> Generate latest Swagger specs"
+	mkdir -p .tmp/swagger
+	swag init -g cardinal/server/server.go -o .tmp/swagger
 
-	echo "--> Compare Swagger latest spec"
-	swagger-diff cardinal/server/docs/swagger.json /tmp/swagger-compare/swagger.json
+	@echo "--> Compare existing and latest Swagger specs"
+	docker run -it --rm -v ./:/local-repo ghcr.io/argus-labs/devops-infra-swagger-diff:2.0.0 \
+		/local-repo/cardinal/server/docs/swagger.json /local-repo/.tmp/swagger/swagger.json && \
+		echo "swagger-dif: no changes in swagger specs"
+
+	@echo "--> Cleanup"
+	rm -rf .tmp/swagger
