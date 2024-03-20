@@ -38,7 +38,8 @@ type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
 
 // NewMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
 // which defines the data needed to make a state transition, and the second for the message output, commonly used
-// for the results of a state transition.
+// for the results of a state transition. By default, messages will be grouped under the "game" group, however an option
+// may be passed in to change this.
 func NewMessageType[In, Out any](
 	name string,
 	opts ...MessageOption[In, Out],
@@ -66,6 +67,8 @@ func (t *MessageType[In, Out]) Name() string {
 func (t *MessageType[In, Out]) Group() string {
 	return t.group
 }
+
+func (t *MessageType[In, Out]) FullName() string { return t.group + "." + t.name }
 
 func (t *MessageType[In, Out]) IsEVMCompatible() bool {
 	return t.inEVMType != nil && t.outEVMType != nil

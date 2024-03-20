@@ -100,6 +100,9 @@ func EachMessage[In any, Out any](wCtx engine.Context, fn func(message.TxData[In
 	return nil
 }
 
+// RegisterMessage registers a message to the world. Cardinal will automatically set up HTTP routes that map to each
+// registered message. Message URLs are take the form of "group/name". A default group, "game", is used
+// unless the WithCustomMessageGroup option is used. Example: game/throw-rock
 func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
 	if world.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(

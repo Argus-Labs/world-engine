@@ -256,7 +256,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			assert.NilError(t, err)
 			return power.Val
 		}
-		powerTx, ok := world.GetMessageByName(msgName)
+		powerTx, ok := world.GetMessageByFullName("game." + msgName)
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
 			assert.True(t, ok)
