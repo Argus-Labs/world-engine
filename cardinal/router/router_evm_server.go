@@ -8,6 +8,9 @@ import (
 
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
@@ -30,13 +33,35 @@ type evmServer struct {
 
 	provider   Provider
 	grpcServer *grpc.Server
+	token      string
 }
 
-func newEvmServer(p Provider) *evmServer {
-	return &evmServer{
-		provider:   p,
-		grpcServer: grpc.NewServer(),
+func newEvmServer(p Provider, token string) *evmServer {
+	e := &evmServer{
+		provider: p,
+		token:    token,
 	}
+	e.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(e.serverCallInterceptor))
+	return e
+}
+
+// serverCallInterceptor catches calls to handlers and ensures they have the right secret key.
+func (e *evmServer) serverCallInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+	}
+
+	secretKey, ok := md["secret-key"]
+	if !ok || len(secretKey) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "missing secret key")
+	}
+
+	if secretKey[0] != e.token {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid secret key")
+	}
+
+	return handler(ctx, req)
 }
 
 // SendMessage is the grpcServer impl that receives SendMessage requests from the base shard client.

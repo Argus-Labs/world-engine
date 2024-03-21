@@ -42,6 +42,8 @@ type WorldConfig struct {
 	CardinalLogLevel          string  `config:"CARDINAL_LOG_LEVEL"`
 	StatsdAddress             string  `config:"STATSD_ADDRESS"`
 	TraceAddress              string  `config:"TRACE_ADDRESS"`
+	// SecretKey is a JWT token used to secure communications between the game shard and the base shard.
+	SecretKey string `config:"SECRET_KEY"`
 }
 
 func (w WorldConfig) Validate() error {
@@ -57,6 +59,9 @@ func (w WorldConfig) Validate() error {
 	if w.BaseShardSequencerAddress == "" || w.BaseShardQueryAddress == "" {
 		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
 			"mode Cardinal worlds")
+	}
+	if w.SecretKey == "" {
+		return eris.New("must supply SECRET_KEY for production mode Cardinal worlds")
 	}
 	return nil
 }

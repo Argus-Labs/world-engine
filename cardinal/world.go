@@ -154,8 +154,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		world.router, err = router.New(cfg.CardinalNamespace, cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress,
-			world)
+		world.router, err = router.New(
+			cfg.CardinalNamespace,
+			cfg.BaseShardSequencerAddress,
+			cfg.BaseShardQueryAddress,
+			cfg.SecretKey,
+			world,
+		)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"google.golang.org/grpc/metadata"
 	"net"
 
 	"github.com/rotisserie/eris"
@@ -60,16 +61,32 @@ type router struct {
 	// serverAddr is the address the evmServer listens on. This is set once `Start` is called.
 	serverAddr string
 	port       string
+	token      string
 }
 
 func (r *router) TransactionIterator() iterator.Iterator {
 	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
 }
 
-func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
-	rtr := &router{namespace: namespace, port: defaultPort, provider: provider}
+// intercepts grpc invocations and injects the secret-key.
+func (r *router) clientCallInterceptor(
+	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
+) error {
+	md := metadata.New(map[string]string{"secret-key": r.token})
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	return invoker(ctx, method, req, reply, cc, opts...)
+}
+
+func New(namespace, sequencerAddr, baseShardQueryAddr, token string, provider Provider) (Router, error) {
+	rtr := &router{namespace: namespace, port: defaultPort, provider: provider, token: token}
+
+	conn, err := grpc.Dial(
+		sequencerAddr,
+		grpc.WithUnaryInterceptor(rtr.clientCallInterceptor),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
 	}
@@ -82,7 +99,7 @@ func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider)
 	}
 	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
 
-	rtr.server = newEvmServer(provider)
+	rtr.server = newEvmServer(provider, token)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
 }

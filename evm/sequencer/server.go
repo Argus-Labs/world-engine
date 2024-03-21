@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"os"
 	"strconv"
@@ -13,8 +12,6 @@ import (
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -36,7 +33,7 @@ type Sequencer struct {
 	tq         *TxQueue
 
 	// opts
-	creds credentials.TransportCredentials
+	key string
 }
 
 // NewShardSequencer returns a new game shardsequencer server. It runs on a default port of 9601,
@@ -55,31 +52,6 @@ func NewShardSequencer(opts ...Option) *Sequencer {
 		opt(s)
 	}
 	return s
-}
-
-func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials, error) {
-	// Load server's certificate and private key
-	sc, err := os.ReadFile(certPath)
-	if err != nil {
-		return nil, err
-	}
-	sk, err := os.ReadFile(keyPath)
-	if err != nil {
-		return nil, err
-	}
-	serverCert, err := tls.X509KeyPair(sc, sk)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the credentials and return it
-	config := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.NoClientCert,
-		MinVersion:   tls.VersionTLS12,
-	}
-
-	return credentials.NewTLS(config), nil
 }
 
 // Serve serves the server in a new go routine.
