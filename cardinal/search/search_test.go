@@ -7,6 +7,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type Alpha struct {
@@ -102,4 +103,39 @@ func TestSearchExample(t *testing.T) {
 		assert.NilError(t, err, msg)
 		assert.Equal(t, tc.want, count, msg)
 	}
+	amount, err := cardinal.NewSearch(worldCtx, filter.Exact(Alpha{}, Beta{})).Filter(func(_ types.EntityID) bool {
+		return false
+	}).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amount, 0)
+
+	counter := 0
+
+	err =
+		cardinal.NewSearch(worldCtx, filter.Exact(Alpha{})).
+			Filter(func(_ types.EntityID) bool { return true }).
+			Filter(func(_ types.EntityID) bool { return true }).
+			Filter(func(_ types.EntityID) bool { return true }).
+			Filter(func(_ types.EntityID) bool { return true }).
+			Filter(func(_ types.EntityID) bool { return true }).
+			Each(func(id types.EntityID) bool {
+				comp, err := cardinal.GetComponent[Alpha](worldCtx, id)
+				assert.NilError(t, err)
+				if counter%2 == 0 {
+					comp.Name1 = "BLAH"
+				}
+				counter++
+				err = cardinal.SetComponent[Alpha](worldCtx, id, comp)
+				assert.NilError(t, err)
+				return true
+			})
+	assert.NilError(t, err)
+	amount, err = cardinal.NewSearch(worldCtx, filter.Exact(Alpha{})).
+		Filter(func(id types.EntityID) bool {
+			comp, err := cardinal.GetComponent[Alpha](worldCtx, id)
+			assert.NilError(t, err)
+			return comp.Name1 == "BLAH"
+		}).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amount, 5)
 }

@@ -29,6 +29,7 @@ type Search struct {
 	namespace   string
 	reader      gamestate.Reader
 	wCtx        engine.Context
+	filterFuncs []func(id types.EntityID) bool
 }
 
 // NewSearch creates a new search.
@@ -40,7 +41,13 @@ func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *Search {
 		namespace:   wCtx.Namespace(),
 		reader:      wCtx.StoreReader(),
 		wCtx:        wCtx,
+		filterFuncs: make([]func(id types.EntityID) bool, 0),
 	}
+}
+
+func (s *Search) Filter(callback func(id types.EntityID) bool) *Search {
+	s.filterFuncs = append(s.filterFuncs, callback)
+	return s
 }
 
 // Each iterates over all entities that match the search.
@@ -56,9 +63,18 @@ func (s *Search) Each(callback CallbackFn) (err error) {
 			return err
 		}
 		for _, id := range entities {
-			cont := callback(id)
-			if !cont {
-				return nil
+			filterValue := true
+			for _, filterFunc := range s.filterFuncs {
+				filterValue = filterFunc(id) && filterValue
+				if !filterValue {
+					break
+				}
+			}
+			if filterValue {
+				cont := callback(id)
+				if !cont {
+					return nil
+				}
 			}
 		}
 	}
@@ -76,7 +92,18 @@ func (s *Search) Count() (ret int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		ret += len(entities)
+		for _, id := range entities {
+			filterValue := true
+			for _, filterFunc := range s.filterFuncs {
+				filterValue = filterFunc(id) && filterValue
+				if !filterValue {
+					break
+				}
+			}
+			if filterValue {
+				ret++
+			}
+		}
 	}
 	return ret, nil
 }
@@ -91,13 +118,21 @@ func (s *Search) First() (id types.EntityID, err error) {
 		return iterators.BadID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
-		var entities []types.EntityID
-		entities, err = iter.Next()
+		entities, err := iter.Next()
 		if err != nil {
 			return 0, err
 		}
-		if len(entities) > 0 {
-			return entities[0], nil
+		for _, id := range entities {
+			filterValue := true
+			for _, filterFunc := range s.filterFuncs {
+				filterValue = filterFunc(id) && filterValue
+				if !filterValue {
+					break
+				}
+			}
+			if filterValue {
+				return id, nil
+			}
 		}
 	}
 	return iterators.BadID, eris.Wrap(err, "")
