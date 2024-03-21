@@ -3,10 +3,11 @@ package message
 import (
 	"errors"
 	"fmt"
-	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/rotisserie/eris"
 	"reflect"
 	"regexp"
+
+	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
@@ -19,6 +20,9 @@ var (
 	ErrEVMTypeNotSet               = errors.New("EVM type is not set")
 	_                types.Message = &MessageType[struct{}, struct{}]{}
 	defaultGroup                   = "game"
+	// enforces first/last (or single) alphanumeric character, can contain dash/slash in between. does not allow
+	// spaces or special characters.
+	messageRegexp = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$")
 )
 
 type TxData[In any] struct {
@@ -256,10 +260,6 @@ func isStruct[T any]() bool {
 		inType.Elem().Kind() == reflect.Struct) ||
 		inKind == reflect.Struct
 }
-
-// enforces first/last (or single) alphanumeric character, can contain dash/slash in between. does not allow
-// spaces or special characters.
-var messageRegexp = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$")
 
 // isValidMessageText checks that a messages name or group adheres to the regexp.
 func isValidMessageText(txt string) bool {
