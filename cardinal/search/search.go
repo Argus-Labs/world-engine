@@ -45,7 +45,7 @@ func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *Search {
 	}
 }
 
-func (s *Search) Filter(callback func(id types.EntityID) bool) *Search {
+func (s *Search) FilterSelect(callback func(id types.EntityID) bool) *Search {
 	s.filterFuncs = append(s.filterFuncs, callback)
 	return s
 }
