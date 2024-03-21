@@ -81,9 +81,11 @@ func (mr *MockContextMockRecorder) CurrentTick() *gomock.Call {
 }
 
 // EmitEvent mocks base method.
-func (m *MockContext) EmitEvent(arg0 string) {
+func (m *MockContext) EmitEvent(arg0 map[string]any) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "EmitEvent", arg0)
+	ret := m.ctrl.Call(m, "EmitEvent", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // EmitEvent indicates an expected call of EmitEvent.
@@ -316,18 +318,4 @@ func (m *MockContext) Timestamp() uint64 {
 func (mr *MockContextMockRecorder) Timestamp() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Timestamp", reflect.TypeOf((*MockContext)(nil).Timestamp))
-}
-
-// UseNonce mocks base method.
-func (m *MockContext) UseNonce(signerAddress string, nonce uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UseNonce", signerAddress, nonce)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UseNonce indicates an expected call of UseNonce.
-func (mr *MockContextMockRecorder) UseNonce(signerAddress, nonce interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UseNonce", reflect.TypeOf((*MockContext)(nil).UseNonce), signerAddress, nonce)
 }

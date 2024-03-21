@@ -23,7 +23,8 @@ func NewManager() *Manager {
 	}
 }
 
-func (m *Manager) RegisterMessage(name string, msgType types.Message, msgReflectType reflect.Type) error {
+func (m *Manager) RegisterMessage(msgType types.Message, msgReflectType reflect.Type) error {
+	name := msgType.Name()
 	// Checks if the message is already previously registered.
 	if err := errors.Join(m.isMessageNameUnique(name), m.isMessageTypeUnique(msgReflectType)); err != nil {
 		return err
