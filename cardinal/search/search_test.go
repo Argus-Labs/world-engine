@@ -103,7 +103,7 @@ func TestSearchExample(t *testing.T) {
 		assert.NilError(t, err, msg)
 		assert.Equal(t, tc.want, count, msg)
 	}
-	amount, err := cardinal.NewSearch(worldCtx, filter.Exact(Alpha{}, Beta{})).FilterSelect(func(_ types.EntityID) bool {
+	amount, err := cardinal.NewSearch(worldCtx, filter.Exact(Alpha{}, Beta{})).Where(func(_ types.EntityID) bool {
 		return false
 	}).Count()
 	assert.NilError(t, err)
@@ -113,11 +113,11 @@ func TestSearchExample(t *testing.T) {
 
 	err =
 		cardinal.NewSearch(worldCtx, filter.Exact(Alpha{})).
-			FilterSelect(func(_ types.EntityID) bool { return true }).
-			FilterSelect(func(_ types.EntityID) bool { return true }).
-			FilterSelect(func(_ types.EntityID) bool { return true }).
-			FilterSelect(func(_ types.EntityID) bool { return true }).
-			FilterSelect(func(_ types.EntityID) bool { return true }).
+			Where(func(_ types.EntityID) bool { return true }).
+			Where(func(_ types.EntityID) bool { return true }).
+			Where(func(_ types.EntityID) bool { return true }).
+			Where(func(_ types.EntityID) bool { return true }).
+			Where(func(_ types.EntityID) bool { return true }).
 			Each(func(id types.EntityID) bool {
 				comp, err := cardinal.GetComponent[Alpha](worldCtx, id)
 				assert.NilError(t, err)
@@ -131,7 +131,7 @@ func TestSearchExample(t *testing.T) {
 			})
 	assert.NilError(t, err)
 	amount, err = cardinal.NewSearch(worldCtx, filter.Exact(Alpha{})).
-		FilterSelect(func(id types.EntityID) bool {
+		Where(func(id types.EntityID) bool {
 			comp, err := cardinal.GetComponent[Alpha](worldCtx, id)
 			assert.NilError(t, err)
 			return comp.Name1 == "BLAH"
