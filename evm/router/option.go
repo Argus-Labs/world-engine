@@ -2,13 +2,9 @@ package router
 
 type Option func(r *routerImpl)
 
-// WithCredentials sets the SSH credentials for the gRPC server.
-func WithCredentials(credPath string) Option {
+// WithSecretKey sets the secret key for the game shard <> base shard communications.
+func WithSecretKey(key string) Option {
 	return func(r *routerImpl) {
-		c, err := loadClientCredentials(credPath)
-		if err != nil {
-			panic(err)
-		}
-		r.creds = c
+		r.key = key
 	}
 }

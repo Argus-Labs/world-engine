@@ -2,11 +2,7 @@ package router
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -15,12 +11,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"pkg.berachain.dev/polaris/eth/core/types"
 
-	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 )
 
 const (
@@ -63,14 +60,13 @@ type routerImpl struct {
 	getAddr     GetAddressFn
 
 	// opts
-	creds credentials.TransportCredentials
+	key string
 }
 
 // NewRouter returns a Router.
 func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddressFn, opts ...Option) Router {
 	r := &routerImpl{
 		logger:      logger,
-		creds:       insecure.NewCredentials(),
 		queue:       newMsgQueue(),
 		resultStore: NewMemoryResultStorage(defaultStorageTimeout),
 		getQueryCtx: ctxGetter,
@@ -228,30 +224,22 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 	addr := res.Address
 	conn, err := grpc.Dial(
 		addr,
-		grpc.WithTransportCredentials(r.creds),
+		grpc.WithUnaryInterceptor(r.clientCallInterceptor),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", addr, ns)
 	}
 	return routerv1.NewMsgClient(conn), nil
 }
-func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
-	// Load certificate of the CA who signed server's certificate
-	pemServerCA, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
 
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, errors.New("failed to add server CA's certificate")
-	}
+// intercepts grpc invocations and injects the secret-key.
+func (r *routerImpl) clientCallInterceptor(
+	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
+) error {
+	md := metadata.New(map[string]string{"secret-key": r.key})
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	// Create the credentials and return it
-	config := &tls.Config{
-		RootCAs:    certPool,
-		MinVersion: tls.VersionTLS12,
-	}
-
-	return credentials.NewTLS(config), nil
+	return invoker(ctx, method, req, reply, cc, opts...)
 }

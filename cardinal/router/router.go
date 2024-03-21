@@ -2,19 +2,21 @@ package router
 
 import (
 	"context"
-	"google.golang.org/grpc/metadata"
 	"net"
+
+	"google.golang.org/grpc/metadata"
 
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
+
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 const (
@@ -62,21 +64,6 @@ type router struct {
 	serverAddr string
 	port       string
 	token      string
-}
-
-func (r *router) TransactionIterator() iterator.Iterator {
-	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
-}
-
-// intercepts grpc invocations and injects the secret-key.
-func (r *router) clientCallInterceptor(
-	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
-	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
-) error {
-	md := metadata.New(map[string]string{"secret-key": r.token})
-	ctx = metadata.NewOutgoingContext(ctx, md)
-
-	return invoker(ctx, method, req, reply, cc, opts...)
 }
 
 func New(namespace, sequencerAddr, baseShardQueryAddr, token string, provider Provider) (Router, error) {
@@ -143,6 +130,10 @@ func (r *router) SubmitTxBlob(
 	return eris.Wrap(err, "")
 }
 
+func (r *router) TransactionIterator() iterator.Iterator {
+	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
+}
+
 func (r *router) Shutdown() {
 	if r.server != nil {
 		r.server.grpcServer.GracefulStop()
@@ -162,4 +153,15 @@ func (r *router) Start() error {
 	}()
 	r.serverAddr = listener.Addr().String()
 	return nil
+}
+
+// intercepts grpc invocations and injects the secret-key.
+func (r *router) clientCallInterceptor(
+	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
+) error {
+	md := metadata.New(map[string]string{"secret-key": r.token})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	return invoker(ctx, method, req, reply, cc, opts...)
 }

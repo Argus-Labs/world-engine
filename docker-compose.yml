@@ -73,6 +73,7 @@ services:
       - NAMESPACE_AUTHORITY_ADDR=${NAMESPACE_AUTHORITY_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
       - FAUCET_ADDR=${FAUCET_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
       - GAME_SHARD_ADDR=${GAME_SHARD_ADDR:-game:9020}
+      - SECRET_KEY=foobar420
     build:
       context: evm
       dockerfile: Dockerfile
@@ -117,6 +118,7 @@ services:
       - BASE_SHARD_QUERY_ADDRESS=chain:9090
       - STATSD_ADDRESS=${STATSD_ADDRESS}
       - TRACE_ADDRESS=${TRACE_ADDRESS}
+      - SECRET_KEY=foobar420
     build:
       context: ./
       dockerfile: e2e/testgames/game/Dockerfile

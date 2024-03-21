@@ -12,9 +12,13 @@ import (
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
+
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 const (
@@ -56,7 +60,7 @@ func NewShardSequencer(opts ...Option) *Sequencer {
 
 // Serve serves the server in a new go routine.
 func (s *Sequencer) Serve() {
-	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(s.serverCallInterceptor))
 	shard.RegisterTransactionHandlerServer(grpcServer, s)
 	port := defaultPort
 	// check if a custom port was set
@@ -106,4 +110,23 @@ func (s *Sequencer) RegisterGameShard(
 ) (*shard.RegisterGameShardResponse, error) {
 	s.tq.AddInitMsg(req.GetNamespace(), req.GetRouterAddress())
 	return &shard.RegisterGameShardResponse{}, nil
+}
+
+// serverCallInterceptor catches calls to handlers and ensures they have the right secret key.
+func (s *Sequencer) serverCallInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+	}
+
+	secretKey, ok := md["secret-key"]
+	if !ok || len(secretKey) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "missing secret key")
+	}
+
+	if secretKey[0] != s.key {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid secret key")
+	}
+
+	return handler(ctx, req)
 }
