@@ -3,10 +3,10 @@ package message
 import (
 	"errors"
 	"fmt"
-	"reflect"
-
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
+	"reflect"
+	"regexp"
 
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
@@ -15,8 +15,11 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-var ErrEVMTypeNotSet = errors.New("EVM type is not set")
-var _ types.Message = &MessageType[struct{}, struct{}]{}
+var (
+	ErrEVMTypeNotSet               = errors.New("EVM type is not set")
+	_                types.Message = &MessageType[struct{}, struct{}]{}
+	defaultGroup                   = "game"
+)
 
 type TxData[In any] struct {
 	Hash types.TxHash
@@ -44,18 +47,19 @@ func NewMessageType[In, Out any](
 	name string,
 	opts ...MessageOption[In, Out],
 ) *MessageType[In, Out] {
-	if name == "" {
-		panic("cannot create message without name")
-	}
 	if !isStruct[In]() || !isStruct[Out]() {
-		panic(fmt.Sprintf("Invalid MessageType: %s: The In and Out must be both structs", name))
+		panic(fmt.Sprintf("Invalid MessageType: %q: The In and Out must be both structs", name))
 	}
 	msg := &MessageType[In, Out]{
 		name:  name,
-		group: "game",
+		group: defaultGroup,
 	}
 	for _, opt := range opts {
 		opt(msg)
+	}
+	if !isValidMessageText(msg.name) || !isValidMessageText(msg.group) {
+		panic(fmt.Sprintf("Invalid MessageType: %q: message group and name must only contain alphanumerics, "+
+			"dashes (-), and/or underscores (_). Must also start/end with an alphanumeric.", msg.FullName()))
 	}
 	return msg
 }
@@ -181,7 +185,7 @@ func (t *MessageType[In, Out]) ABIEncode(v any) ([]byte, error) {
 		input = in
 		args = ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	default:
-		return nil, eris.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
+		return nil, eris.Errorf("expectedResult input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}
 
 	return args.Pack(input)
@@ -251,4 +255,13 @@ func isStruct[T any]() bool {
 	return (inKind == reflect.Pointer &&
 		inType.Elem().Kind() == reflect.Struct) ||
 		inKind == reflect.Struct
+}
+
+// enforces first/last (or single) alphanumeric character, can contain dash/slash in between. does not allow
+// spaces or special characters.
+var messageRegexp = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$")
+
+// isValidMessageText checks that a messages name or group adheres to the regexp.
+func isValidMessageText(txt string) bool {
+	return messageRegexp.MatchString(txt)
 }
