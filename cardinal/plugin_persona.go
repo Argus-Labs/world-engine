@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -165,6 +166,8 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
 			result.Success = false
+			result.Type = "cardinal-create-persona"
+			fmt.Println("creating result with msg: ", txMsg.PersonaTag)
 
 			if !persona.IsValidPersonaTag(txMsg.PersonaTag) {
 				err := eris.Errorf(
@@ -200,6 +203,7 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 				EntityID:      id,
 			}
 			result.Success = true
+			fmt.Println("made result: ", result)
 			return result, nil
 		},
 	)

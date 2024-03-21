@@ -9,5 +9,6 @@ type CreatePersona struct {
 }
 
 type CreatePersonaResult struct {
-	Success bool `json:"success"`
+	Type    string `json:"type"`
+	Success bool   `json:"success"`
 }
