@@ -39,9 +39,9 @@ var (
 	maxNonce = big.NewInt(0).SetUint64(math.MaxUint64)
 )
 
-// HandleSIWEResult will be serialized to JSON and sent back to a client. The client must sign the message in the
+// GenerateResult will be serialized to JSON and sent back to a client. The client must sign the message in the
 // SIWEMessage field, and resubmit their authentication request.
-type HandleSIWEResult struct {
+type GenerateResult struct {
 	SIWEMessage string `json:"siwe_message"`
 }
 
@@ -60,51 +60,8 @@ type nonceWindow struct {
 	ExpiredAt time.Time `json:"expired_at"`
 }
 
-// HandleSIWE handles a SIWE request.
-// If both message and signature are provided, this is treated as a request to authenticate a user. If the signature is
-// valid, isAuthSuccessful will return true.
-// If both the message and signature are missing, this is treated as a request for a new SIWE message that can be
-// signed. If no errors are encountered, newMsg will be non-nil.
-// An error is returned if only one of message and signature is set.
-// This method could be split into two function, however that would require more business logic to be placed in
-// custom_auth.go (to decide with method to call). Keeping that business logic here makes this logic more testable.
-func HandleSIWE(
-	ctx context.Context,
-	nk runtime.NakamaModule,
-	signerAddress string,
-	message string,
-	signature string,
-) (
-	isAuthSuccessful bool, result *HandleSIWEResult, err error,
-) {
-	if signerAddress == "" {
-		return false, nil, ErrMissingSignerAddress
-	}
-
-	if signature == "" && message != "" {
-		return false, nil, ErrMissingSignature
-	}
-
-	if message == "" && signature != "" {
-		return false, nil, ErrMissingMessage
-	}
-
-	if signature == "" && message == "" {
-		// Neither a signature nor a message was provided. Generate a SIWE Message.
-		result, err = generateNewSIWEMessage(signerAddress)
-		return false, result, err
-	}
-
-	// Both signature and message are set. Validate the signature.
-	if err = validateSignature(ctx, nk, signerAddress, message, signature); err != nil {
-		return false, nil, err
-	}
-	// This signifies that the given message and signature were successfully validated
-	return true, nil, nil
-}
-
-// validateSignature ensures the given message is valid and the given signature is actually a signature for the message.
-func validateSignature(ctx context.Context, nk runtime.NakamaModule, signerAddress, message, signature string) error {
+// ValidateSignature ensures the given message is valid and the given signature is actually a signature for the message.
+func ValidateSignature(ctx context.Context, nk runtime.NakamaModule, signerAddress, message, signature string) error {
 	msg, err := siwe.ParseMessage(message)
 	if err != nil {
 		return eris.Wrap(err, "failed to parse message")
@@ -221,8 +178,8 @@ func useNonce(
 	return true, nil
 }
 
-// generateNewSIWEMessage generates an SIWE Message that can be signed and used to authenticate a user.
-func generateNewSIWEMessage(signerAddress string) (*HandleSIWEResult, error) {
+// GenerateNewSIWEMessage generates an SIWE Message that can be signed and used to authenticate a user.
+func GenerateNewSIWEMessage(signerAddress string) (*GenerateResult, error) {
 	options := makeOptions()
 	nonce, err := makeNonce()
 	if err != nil {
@@ -233,7 +190,7 @@ func generateNewSIWEMessage(signerAddress string) (*HandleSIWEResult, error) {
 		return nil, eris.Wrap(err, "failed to init siwe message")
 	}
 
-	return &HandleSIWEResult{
+	return &GenerateResult{
 		SIWEMessage: msg.String(),
 	}, nil
 }

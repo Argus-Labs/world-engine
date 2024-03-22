@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -18,6 +17,10 @@ import (
 
 const (
 	signInWithEthereumType = "siwe"
+)
+
+var (
+	ErrBadCustomAuthType = errors.New("bad custom auth type")
 )
 
 func initCustomAuthentication(initializer runtime.Initializer) error {
@@ -36,12 +39,12 @@ func handleCustomAuthentication(
 	authType := in.GetAccount().GetVars()["type"]
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
-		return handleSIWEAuthentication(ctx, logger, nk, in)
+		return handleSIWE(ctx, logger, nk, in)
 	}
-	return nil, fmt.Errorf("missing or unknown authentication type: %q", authType)
+	return nil, ErrBadCustomAuthType
 }
 
-func handleSIWEAuthentication(
+func handleSIWE(
 	ctx context.Context,
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
@@ -53,36 +56,43 @@ func handleSIWEAuthentication(
 	signature := in.GetAccount().GetVars()["signature"]
 	message := in.GetAccount().GetVars()["message"]
 
-	// process this request in the siwe package. This single HandleSIWE has the dual purpose of
-	// 1) generating a new siwe message when the message and signature are empty and
-	// 2) validating a siwe message and signature if they are both present
-	// This single method could be split into 2 methods, however testing this handleSIWEAuthentication is tricky
-	// in unit tests. Keeping the majority of the business logic in the single HandleSIWE makes it more testable.
-	isAuthSuccessful, resp, err := siwe.HandleSIWE(ctx, nk, signerAddress, message, signature)
-	if err == nil {
-		if isAuthSuccessful {
-			// A message and signature was provided, and the signature is valid. The user can now be authenticated.
-			return in, nil
-		}
-		// There is no error, and the user is not authenticated. This means a new SIWE message was generated.
-		// Marshal it to JSON and return it with an Unauthorized error.
-		bz, jsonErr := json.Marshal(resp)
-		if jsonErr != nil {
-			_, jsonErr = utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
-			return nil, jsonErr
-		}
-		return nil, runtime.NewError(string(bz), int(codes.Unauthenticated))
-	}
-
-	switch {
-	case errors.Is(err, siwe.ErrMissingSignerAddress):
-		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "id field must be set")
-	case errors.Is(err, siwe.ErrMissingSignature):
-		fallthrough
-	case errors.Is(err, siwe.ErrMissingMessage):
-		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "missing field")
+	if signerAddress == "" {
+		_, err := utils.LogErrorWithMessageAndCode(
+			logger, siwe.ErrMissingSignerAddress, codes.InvalidArgument, "id field must be set")
 		return nil, err
 	}
-	_, err = utils.LogError(logger, err, codes.FailedPrecondition)
-	return nil, err
+	if signature == "" && message != "" {
+		_, err := utils.LogErrorWithMessageAndCode(
+			logger, siwe.ErrMissingSignature, codes.InvalidArgument, "missing field")
+		return nil, err
+	}
+	if signature != "" && message == "" {
+		_, err := utils.LogErrorWithMessageAndCode(
+			logger, siwe.ErrMissingMessage, codes.InvalidArgument, "missing field")
+		return nil, err
+	}
+
+	if signature != "" && message != "" {
+		// The user has provided a signature and a message. Attempt to authenticate the user.
+		if err := siwe.ValidateSignature(ctx, nk, signerAddress, message, signature); err != nil {
+			_, err = utils.LogErrorWithMessageAndCode(
+				logger, siwe.ErrMissingMessage, codes.Unauthenticated, "authentication failed")
+			return nil, err
+		}
+		return in, nil
+	}
+
+	// The signature and message is empty. Generate a new SIWE message for the user.
+	resp, err := siwe.GenerateNewSIWEMessage(signerAddress)
+	if err != nil {
+		_, err = utils.LogError(logger, err, codes.FailedPrecondition)
+		return nil, err
+	}
+
+	bz, err := json.Marshal(resp)
+	if err != nil {
+		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
+		return nil, err
+	}
+	return nil, runtime.NewError(string(bz), int(codes.Unauthenticated))
 }

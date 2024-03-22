@@ -19,37 +19,21 @@ import (
 
 const anySignerAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 
-func TestSignerAddressRequired(t *testing.T) {
-	_, _, err := siwe.HandleSIWE(context.Background(), nil, "", "", "")
-	assert.ErrorIs(t, err, siwe.ErrMissingSignerAddress)
-}
-
-func TestMessageAndSignatureMustBothBePresentOrBothBeMissing(t *testing.T) {
-	_, _, err := siwe.HandleSIWE(context.Background(), nil, "sa", "message", "")
-	assert.ErrorIs(t, err, siwe.ErrMissingSignature)
-
-	_, _, err = siwe.HandleSIWE(context.Background(), nil, "sa", "", "signature")
-	assert.ErrorIs(t, err, siwe.ErrMissingMessage)
-}
-
 func TestSignerAddressInMessage(t *testing.T) {
-	fakeNK := testutils.NewFakeNakamaModule()
 	// No signature and no message was provided, so a new SIWE message should be generated
-	_, resp, err := siwe.HandleSIWE(context.Background(), fakeNK, anySignerAddress, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(anySignerAddress)
 	assert.NilError(t, err)
 	assert.Contains(t, resp.SIWEMessage, anySignerAddress)
 }
 
 func TestDomainInMessage(t *testing.T) {
-	fakeNK := testutils.NewFakeNakamaModule()
-	_, resp, err := siwe.HandleSIWE(context.Background(), fakeNK, anySignerAddress, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(anySignerAddress)
 	assert.NilError(t, err)
 	assert.Contains(t, resp.SIWEMessage, siwe.DefaultDomain)
 }
 
 func TestURIInMessage(t *testing.T) {
-	fakeNK := testutils.NewFakeNakamaModule()
-	_, resp, err := siwe.HandleSIWE(context.Background(), fakeNK, anySignerAddress, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(anySignerAddress)
 	assert.NilError(t, err)
 	assert.Contains(t, resp.SIWEMessage, siwe.DefaultURI)
 }
@@ -72,16 +56,13 @@ func TestCanSignAndValidateMessage(t *testing.T) {
 	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
 	// Get the message that needs to be signed
-	isAuthSuccessful, resp, err := siwe.HandleSIWE(ctx, fakeNK, address, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(address)
 	assert.NilError(t, err)
-	assert.False(t, isAuthSuccessful)
 	assert.NotNil(t, resp)
 
 	signature := signMessage(t, resp.SIWEMessage, privateKey)
-	isAuthSuccessful, resp, err = siwe.HandleSIWE(ctx, fakeNK, address, resp.SIWEMessage, signature)
+	err = siwe.ValidateSignature(ctx, fakeNK, address, resp.SIWEMessage, signature)
 	assert.NilError(t, err)
-	assert.True(t, isAuthSuccessful)
-	assert.Nil(t, resp)
 }
 
 func TestInvalidSignatureIsRejected(t *testing.T) {
@@ -143,9 +124,8 @@ func TestInvalidSignatureIsRejected(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	isAuthSuccessful, resp, err := siwe.HandleSIWE(ctx, fakeNK, address, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(address)
 	assert.NilError(t, err)
-	assert.False(t, isAuthSuccessful)
 	assert.NotNil(t, resp)
 
 	msg, err := spruceswid.ParseMessage(resp.SIWEMessage)
@@ -157,10 +137,9 @@ func TestInvalidSignatureIsRejected(t *testing.T) {
 		// To make sure this test case is actually testing something, make sure the message changes.
 		assert.NotEqual(t, originalMessage, newMsg)
 		signature := signMessage(t, newMsg, privateKey)
-		isAuthSuccessful, _, err = siwe.HandleSIWE(ctx, fakeNK, address, newMsg, signature)
+		err = siwe.ValidateSignature(ctx, fakeNK, address, newMsg, signature)
 		errMsg := fmt.Sprintf("in test case %q, sig verification succeeded when it should have failed", tc.name)
-		assert.Check(t, err != nil, errMsg)
-		assert.False(t, isAuthSuccessful)
+		assert.IsError(t, err, errMsg)
 	}
 }
 
@@ -171,33 +150,24 @@ func TestOnlyOneValidateMessageShouldBeSuccessful(t *testing.T) {
 	assert.NilError(t, err)
 	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	_, resp, err := siwe.HandleSIWE(ctx, fakeNK, address, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(address)
 	assert.NilError(t, err)
-	assert.NotEqual(t, resp.SIWEMessage, "")
+	assert.NotNil(t, resp)
 
 	signature := signMessage(t, resp.SIWEMessage, privateKey)
 
-	type result struct {
-		resp *siwe.HandleSIWEResult
-		err  error
-	}
-
-	results := make(chan result)
+	results := make(chan error)
 	trials := 100
 	for i := 0; i < trials; i++ {
 		go func() {
-			_, currResp, currErr := siwe.HandleSIWE(ctx, fakeNK, address, resp.SIWEMessage, signature)
-			results <- result{
-				resp: currResp,
-				err:  currErr,
-			}
+			results <- siwe.ValidateSignature(ctx, fakeNK, address, resp.SIWEMessage, signature)
 		}()
 	}
 
 	numOfSuccesses := 0
 	for i := 0; i < trials; i++ {
-		currResult := <-results
-		if currResult.err == nil {
+		currErr := <-results
+		if currErr == nil {
 			numOfSuccesses++
 		}
 	}
@@ -212,7 +182,7 @@ func TestCustomNonceCanBeUsed(t *testing.T) {
 	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
 	// Get some random SIWE Message. The nonce will be modified
-	_, resp, err := siwe.HandleSIWE(ctx, fakeNK, address, "", "")
+	resp, err := siwe.GenerateNewSIWEMessage(address)
 	assert.NilError(t, err)
 	assert.NotNil(t, resp)
 
@@ -226,12 +196,10 @@ func TestCustomNonceCanBeUsed(t *testing.T) {
 	signature := signMessage(t, newMsg, privateKey)
 
 	// This verification should succeed
-	isAuthSuccessful, _, err := siwe.HandleSIWE(ctx, fakeNK, address, newMsg, signature)
+	err = siwe.ValidateSignature(ctx, fakeNK, address, newMsg, signature)
 	assert.NilError(t, err)
-	assert.Check(t, isAuthSuccessful)
 
 	// But trying to use the same signature/message should fail
-	isAuthSuccessful, _, err = siwe.HandleSIWE(ctx, fakeNK, address, newMsg, signature)
+	err = siwe.ValidateSignature(ctx, fakeNK, address, newMsg, signature)
 	assert.IsError(t, err)
-	assert.False(t, isAuthSuccessful)
 }
