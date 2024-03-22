@@ -15,10 +15,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 const (
@@ -113,7 +113,12 @@ func (s *Sequencer) RegisterGameShard(
 }
 
 // serverCallInterceptor catches calls to handlers and ensures they have the right secret key.
-func (s *Sequencer) serverCallInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+func (s *Sequencer) serverCallInterceptor(
+	ctx context.Context,
+	req any,
+	_ *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (resp any, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")

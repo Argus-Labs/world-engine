@@ -2,22 +2,19 @@ package router
 
 import (
 	"context"
-	"fmt"
 	"net"
-
-	"google.golang.org/grpc/metadata"
 
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
+	"google.golang.org/grpc/metadata"
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 const (
@@ -161,7 +158,6 @@ func (r *router) clientCallInterceptor(
 	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
 	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
 ) error {
-	fmt.Println("placing secret key in the context")
 	md := metadata.New(map[string]string{"secret-key": r.token})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 

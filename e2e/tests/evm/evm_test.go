@@ -9,11 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/e2e/tests/clients"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
-
-	"github.com/argus-labs/world-engine/e2e/tests/clients"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"

@@ -15,9 +15,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"pkg.berachain.dev/polaris/eth/core/types"
 
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
 const (
