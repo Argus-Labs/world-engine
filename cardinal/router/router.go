@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"google.golang.org/grpc/metadata"
@@ -160,6 +161,7 @@ func (r *router) clientCallInterceptor(
 	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
 	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
 ) error {
+	fmt.Println("placing secret key in the context")
 	md := metadata.New(map[string]string{"secret-key": r.token})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -47,6 +48,10 @@ func newEvmServer(p Provider, token string) *evmServer {
 
 // serverCallInterceptor catches calls to handlers and ensures they have the right secret key.
 func (e *evmServer) serverCallInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+	// we only want to guard the SendMessage method. not the query shard method.
+	if _, ok := req.(*routerv1.SendMessageRequest); !ok {
+		return handler(ctx, req)
+	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
