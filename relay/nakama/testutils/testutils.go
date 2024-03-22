@@ -221,9 +221,20 @@ func (f *FakeNakamaModule) StorageWrite(
 	for _, write := range writes {
 		key := keyTuple{write.Collection, write.Key, write.UserID}
 		currValue, ok := f.store[key]
-		if ok && write.Version != "" && currValue.Version != write.Version {
-			return nil, errors.New("write failed due to out of date version")
+		if write.Version == "*" {
+			// The "*" version instructs Nakama to only save the item if it doesn't already exist.
+			// See: https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes
+			if ok {
+				return nil, errors.New("item already exists in storage")
+			}
+		} else if write.Version != "" {
+			// If this write request has a version, and it doesn't match the saved version, return an error.
+			// A missing currValue will also result in an error here.
+			if currValue.Version != write.Version {
+				return nil, errors.New("write failed due to out of date version")
+			}
 		}
+
 		// It is a Nakama requirement that this value field is JSON encoded
 		if !json.Valid([]byte(write.Value)) {
 			return nil, errors.New("value field must be JSON encoded")
