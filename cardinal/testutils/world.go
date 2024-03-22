@@ -195,7 +195,7 @@ func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	createPersonaMsg, exists := t.World.GetMessageByName(msg.CreatePersonaMessageName)
+	createPersonaMsg, exists := t.World.GetMessageByFullName("persona." + msg.CreatePersonaMessageName)
 	assert.Check(
 		t,
 		exists,
