@@ -214,7 +214,6 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	return nil
 }
 
-
 func (c *NakamaClient) validateSuccessfulAuth(resp *http.Response) error {
 	body := map[string]any{}
 	defer resp.Body.Close()

@@ -33,7 +33,6 @@ func handleCustomAuthentication(
 	_ *sql.DB,
 	nk runtime.NakamaModule,
 	in *api.AuthenticateCustomRequest) (*api.AuthenticateCustomRequest, error) {
-
 	authType := in.GetAccount().GetVars()["type"]
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
