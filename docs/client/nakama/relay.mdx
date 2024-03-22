@@ -148,3 +148,94 @@ catch (ApiResponseException ex)
     Debug.LogFormat("Error: {0}", ex.Message);
 }
 ```
+
+### Viewing Receipts and Events
+
+Game clients can view [events](/cardinal/game/system/event) emitted in systems as well as the results of iterating over [messages](/cardinal/game/message#iterating-over-messages) by listening for notifications from Nakama.
+
+The code to receive notifications will be different depending on the Nakama client you are using. [Client specific instructions can be found here](https://heroiclabs.com/docs/nakama/concepts/notifications/#receive-notifications)
+
+#### Example
+
+Here are structs that can be used to deserialize notification information. Note, the Receipt.Result field is an arbitrary object that will depend on the exact messages you've defined in your game.
+
+```csharp Unity/C# Example
+using System;
+using System.Text.Json.Serialization;
+
+public class NotificationCollection
+{
+    [JsonPropertyName("notifications")]
+    public NotificationList Notifications { get; set; }
+
+    public class NotificationList
+    {
+        [JsonPropertyName("notifications")]
+        public List<NotificationItem> Notifications { get; set; }
+    }
+}
+
+public class NotificationItem
+{
+    [JsonPropertyName("subject")]
+    public string Subject { get; set; }
+
+    [JsonPropertyName("content")]
+    public string Content { get; set; }
+}
+
+public class Event
+{
+    [JsonPropertyName("message")]
+    public string Message { get; set; }
+}
+
+public class Receipt
+{
+    [JsonPropertyName("txHash")]
+    public string TxHash { get; set; }
+
+    [JsonPropertyName("errors")]
+    public List<string> Errors { get; set; }
+
+    // The exact structure of this Result field will depend on the message you defined in your game.
+    [JsonPropertyName("result")]
+    public Dictionary<string, object> Result { get; set; }
+}
+```
+
+This code will listen for Nakama notifications and parse the notifications into receipts and events.
+
+```csharp Unity/C# Example
+
+var client = new Nakama.Client("http", "127.0.0.1", 7350, "defaultkey");
+var socket = client.NewSocket();
+
+bool appearOnline = true;
+int connectionTimeout = 30;
+await socket.ConnectAsync(Session, appearOnline, connectionTimeout);
+
+socket.ReceivedNotification += notification =>
+{
+    // Deserialize the JSON string into a NotificationCollection object
+    var colletion = JsonSerializer.Deserialize<NotificationCollection>(notification.Content);
+
+    if (collection == nil) {
+        Debug.LogError("Failed to deserialize notification collection")
+        return
+    }
+
+    foreach (var n in collection.Notifications.Notifications)
+    {
+        if (n.Subject == "receipt") {
+            var receipt = JsonSerializer.Deserialize<Receipt>(n.Content)
+            // Do something with the receipt...
+        } else if (n.Subject == "event") {
+            var event = JsonSerializer.Deserialize<Event>(n.Content)
+            // Do something with the event...
+        }
+    }
+};
+```
+
+
