@@ -83,7 +83,7 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	personaTag := s.CreateRandomPersona()
-	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
 	s.Require().True(ok)
 	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
 	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
@@ -201,7 +201,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 		PersonaTag: persona,
 		Body:       msgBz,
 	}
-	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
 	s.Require().True(ok)
 	url := "/tx/game/" + moveMessage.Name()
 	res := s.fixture.Post(url, tx)
@@ -245,7 +245,7 @@ func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisab
 	s.setupWorld(cardinal.WithDisableSignatureVerification())
 	s.fixture.DoTick()
 	unclaimedPersona := "some-persona"
-	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
 	assert.True(t, ok)
 	// This persona tag does not have a signer address, but since signature verification is disabled it should
 	// encounter no errors
@@ -258,7 +258,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 	s.setupWorld()
 	s.fixture.DoTick()
 	unclaimedPersona := "some-persona"
-	moveMessage, ok := s.world.GetMessageByName(moveMsgName)
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
 	assert.True(t, ok)
 	payload := MoveMsgInput{Direction: "up"}
 	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace(), s.nonce, payload)

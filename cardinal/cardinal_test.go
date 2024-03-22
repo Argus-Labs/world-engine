@@ -88,7 +88,7 @@ func TestForEachTransaction(t *testing.T) {
 	// Add 10 transactions to the tx pool and keep track of the hashes that we just cardinal.Created
 	knownTxHashes := map[types.TxHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
-		someMsg, ok := world.GetMessageByName(someMsgName)
+		someMsg, ok := world.GetMessageByFullName("game." + someMsgName)
 		assert.True(t, ok)
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
 		txHash := tf.AddTransaction(someMsg.ID(), req, testutils.UniqueSignature())
@@ -265,7 +265,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	tf.StartWorld()
-	modScore, ok := world.GetMessageByName(msgName)
+	modScore, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
 
@@ -351,7 +351,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	tf.StartWorld()
-	modScoreMsg, ok := world.GetMessageByName(msgName)
+	modScoreMsg, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	tf.AddTransaction(modScoreMsg.ID(), &ModifyScoreMsg{})
 
@@ -471,7 +471,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	tf.StartWorld()
-	moveMsg, ok := world.GetMessageByName(msgName)
+	moveMsg, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	_ = tf.AddTransaction(moveMsg.ID(), MoveMsg{99, 100})
 
@@ -543,7 +543,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	tf.StartWorld()
-	numTx, ok := world.GetMessageByName(msgName)
+	numTx, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
@@ -605,7 +605,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	numTx, ok := world.GetMessageByName(msgName)
+	numTx, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
@@ -668,7 +668,7 @@ func TestTransactionExample(t *testing.T) {
 	idToModify := ids[3]
 	amountToModify := 20
 	payload := testutils.UniqueSignature()
-	addHealthToEntity, ok := world.GetMessageByName(msgName)
+	addHealthToEntity, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	testutils.AddTransactionToWorldByAnyTransaction(
 		world, addHealthToEntity,
