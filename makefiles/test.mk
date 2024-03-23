@@ -85,6 +85,27 @@ unit-test-all:
 #################
 #   swagger	    #
 #################
+.PHONY: swaggo-install
+
+swaggo-install:
+	echo "--> Installing swaggo/swag cli"
+	go install github.com/swaggo/swag/cmd/swag@latest
+
 swagger:
+	$(MAKE) swaggo-install
 	swag init -g cardinal/server/server.go -o cardinal/server/docs/
 
+swagger-check:
+	$(MAKE) swaggo-install
+
+	@echo "--> Generate latest Swagger specs"
+	mkdir -p .tmp/swagger
+	swag init -g cardinal/server/server.go -o .tmp/swagger
+
+	@echo "--> Compare existing and latest Swagger specs"
+	docker run --rm -v ./:/local-repo ghcr.io/argus-labs/devops-infra-swagger-diff:2.0.0 \
+		/local-repo/cardinal/server/docs/swagger.json /local-repo/.tmp/swagger/swagger.json && \
+		echo "swagger-diff: no changes detected"
+
+	@echo "--> Cleanup"
+	rm -rf .tmp/swagger
