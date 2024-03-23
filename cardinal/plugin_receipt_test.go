@@ -30,7 +30,7 @@ func TestReceiptsQuery(t *testing.T) {
 		})
 	})
 	assert.NilError(t, err)
-	fooMsg, ok := world.GetMessageByName(msgName)
+	fooMsg, ok := world.GetMessageByFullName("game." + msgName)
 	assert.Assert(t, ok)
 	_, txHash1 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
 	tf.DoTick()

@@ -42,6 +42,8 @@ func (f *mockMsg) Group() string {
 	return ""
 }
 
+func (f *mockMsg) FullName() string { return "" }
+
 func (f *mockMsg) ID() types.MessageID {
 	return f.id
 }
