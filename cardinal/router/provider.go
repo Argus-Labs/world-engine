@@ -11,7 +11,7 @@ import (
 // Provider provides the Router with the necessary functionality to handle API requests from the EVM.
 // The ecs.Engine is expected to implement these methods.
 type Provider interface {
-	GetMessageByName(string) (types.Message, bool)
+	GetMessageByFullName(string) (types.Message, bool)
 	GetMessageByID(id types.MessageID) (types.Message, bool)
 	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
 	GetSignerComponentForPersona(string) (*component.SignerComponent, error)

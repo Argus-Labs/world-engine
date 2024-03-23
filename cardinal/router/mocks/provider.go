@@ -83,10 +83,10 @@ func (mr *MockProviderMockRecorder) GetMessageByID(id interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByID", reflect.TypeOf((*MockProvider)(nil).GetMessageByID), id)
 }
 
-// GetMessageByName mocks base method.
-func (m *MockProvider) GetMessageByName(arg0 string) (types.Message, bool) {
+// GetMessageByFullName mocks base method.
+func (m *MockProvider) GetMessageByFullName(arg0 string) (types.Message, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessageByName", arg0)
+	ret := m.ctrl.Call(m, "GetMessageByFullName", arg0)
 	ret0, _ := ret[0].(types.Message)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
@@ -95,7 +95,7 @@ func (m *MockProvider) GetMessageByName(arg0 string) (types.Message, bool) {
 // GetMessageByName indicates an expected call of GetMessageByName.
 func (mr *MockProviderMockRecorder) GetMessageByName(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByName", reflect.TypeOf((*MockProvider)(nil).GetMessageByName), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByFullName", reflect.TypeOf((*MockProvider)(nil).GetMessageByFullName), arg0)
 }
 
 // GetSignerComponentForPersona mocks base method.

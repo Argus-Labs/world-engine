@@ -134,7 +134,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	msgName := "foo"
 	assert.NilError(t,
 		cardinal.RegisterMessage[FooIn, FooOut](world, msgName, message.WithMsgEVMSupport[FooIn, FooOut]()))
-	fooTx, ok := world.GetMessageByName(msgName)
+	fooTx, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	var returnVal FooOut
 	var returnErr error
@@ -214,7 +214,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 	tf.StartWorld()
 
-	fooTx, ok := world.GetMessageByName(msgName)
+	fooTx, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	// add tx to queue
 	evmTxHash := "0xFooBar"
@@ -376,7 +376,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	evmTxHash := "0x12345"
 	msg := fooMsg{Bar: "hello"}
 	tx := &sign.Transaction{PersonaTag: "ty"}
-	fooMessage, ok := world.GetMessageByName(msgName)
+	fooMessage, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
 	ts := uint64(time.Now().Unix())
@@ -458,7 +458,7 @@ func TestRecoverFromChain(t *testing.T) {
 		})
 	})
 	assert.NilError(t, err)
-	fooMessage, ok := world.GetMessageByName(fooMsgName)
+	fooMessage, ok := world.GetMessageByFullName("game." + fooMsgName)
 	assert.True(t, ok)
 	fakeBatches := []Iterable{
 		{

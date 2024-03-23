@@ -332,7 +332,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		tf.StartWorld()
 
 		relevantTick := world.CurrentTick()
-		someTx, ok := world.GetMessageByName(msgName)
+		someTx, ok := world.GetMessageByFullName("game." + msgName)
 		assert.Assert(t, ok)
 		for i := 0; i < 3; i++ {
 			_ = tf.AddTransaction(someTx.ID(), Msg{}, testutils.UniqueSignature())
