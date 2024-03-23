@@ -5,6 +5,9 @@ type Message interface {
 	Name() string
 	// Group returns the group of the message.
 	Group() string
+	// FullName returns the fully qualified name of the message. It is formed by <group_name>.<message_name>.
+	// example: persona.create-persona
+	FullName() string
 	ID() MessageID
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)

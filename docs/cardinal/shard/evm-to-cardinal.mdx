@@ -66,14 +66,14 @@ interface IRouter {
 
 ### sendMessage
 
-The `sendMessage` method enables smart contracts to send messages to the game shard specified by the given namespace.
+The `sendMessage` method enables smart contracts to send messages to the game shard specified by the given namespace. The messageID must be the fully qualified name of the message. For Cardinal game shards, the fully qualified name is of the form "groupName.MessageName". For example, the `create-persona` message's fully qualified name is `persona.create-persona`. Messages without a specified custom group in Cardinal have a default group called "game".
 
 #### Parameters
 
 | Parameter   | Type     | Description                                                                                |
 |-------------|----------|--------------------------------------------------------------------------------------------|
 | `message`   | `bytes`  | ABI encoded message struct.                                                                |
-| `messageID` | `string` | Message identifier. Usually the name passed into Cardinal's `NewMessageTypeWithEVMSupport` |
+| `messageID` | `string` | Fully qualified message identifier.                                                        |
 | `namespace` | `string` | The namespace of the game shard to send the message to.                                    |
 
 #### Return Value
@@ -181,7 +181,7 @@ contract GameAgent {
         bool Success;
     }
 
-    string internal sendEnergyID = "send-energy";
+    string internal sendEnergyID = "game.send-energy";
 
     struct QueryPlanetEnergyRequest {
         string PlanetID;
