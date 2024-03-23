@@ -36,7 +36,7 @@ func (Beta) Name() string { return "beta" }
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	tf := testutils.NewTestFixtureWithPort(t, nil, "1338", cardinal.WithDisableSignatureVerification())
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world, addr := tf.World, tf.BaseURL
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "send-energy"))
 	counter1 := atomic.Int32{}

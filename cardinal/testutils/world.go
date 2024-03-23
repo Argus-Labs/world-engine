@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/rotisserie/eris"
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -29,8 +30,8 @@ type TestFixture struct {
 
 	// Base url is something like "localhost:5050". You must attach http:// or ws:// as well as a resource path
 	BaseURL string
-	Redis   *miniredis.Miniredis
 	World   *cardinal.World
+	Redis   *miniredis.Miniredis
 
 	StartTickCh chan time.Time
 	DoneTickCh  chan uint64
@@ -38,58 +39,39 @@ type TestFixture struct {
 	startOnce   *sync.Once
 }
 
-func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardinal.WorldOption) *TestFixture {
-	port := getOpenPort(t)
-	return NewTestFixtureWithPort(t, miniRedis, port, opts...)
-}
-
-// NewTestFixture creates a test fixture that manges the cardinal.World, http server, event hub,
-// evm adapter, etc. Cardinal resources (such as Systems and Components) can be registered with the attached
-// cardinal.World, but you must call StartWorld or DoTick to finalize the resources. If a nil miniRedis is passed
-// in, a miniredis instance will be created for you.
-func NewTestFixtureWithPort(
-	t testing.TB,
-	miniRedis *miniredis.Miniredis,
-	cardinalPort string,
-	opts ...cardinal.WorldOption,
-) *TestFixture {
-	if miniRedis == nil {
-		miniRedis = miniredis.RunT(t)
+// NewTestFixture creates a test fixture with user defined port for Cardinal integration tests.
+func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.WorldOption) *TestFixture {
+	if redis == nil {
+		redis = miniredis.RunT(t)
 	}
 
-	evmPort := cardinalPort
-	for retries := 10; retries > 0; retries-- {
-		evmPort = getOpenPort(t)
-		if evmPort != cardinalPort {
-			break
-		}
-		time.Sleep(10 * time.Millisecond) //nolint: gomnd // this is fine.
-	}
-	assert.Assert(t, evmPort != cardinalPort, "failed to find different port for evm")
+	ports, err := findOpenPorts(2) //nolint:gomnd
+	assert.NilError(t, err)
+
+	cardinalPort := ports[0]
+	evmPort := ports[1]
+
 	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
-	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
+	t.Setenv("REDIS_ADDRESS", redis.Addr())
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 
 	defaultOpts := []cardinal.WorldOption{
-		cardinal.WithCustomMockRedis(miniRedis),
 		cardinal.WithTickChannel(startTickCh),
 		cardinal.WithTickDoneChannel(doneTickCh),
 		cardinal.WithPort(cardinalPort),
 	}
 
-	// default options go first so that any user supplied options overwrite the defaults.
-	opts = append(defaultOpts, opts...)
-
-	world, err := cardinal.NewWorld(opts...)
+	// Default options go first so that any user supplied options overwrite the defaults.
+	world, err := cardinal.NewWorld(append(defaultOpts, opts...)...)
 	assert.NilError(t, err)
 
-	testFixture := &TestFixture{
+	return &TestFixture{
 		TB:      t,
 		BaseURL: "localhost:" + cardinalPort,
-		Redis:   miniRedis,
 		World:   world,
+		Redis:   redis,
 
 		StartTickCh: startTickCh,
 		DoneTickCh:  doneTickCh,
@@ -107,8 +89,6 @@ func NewTestFixtureWithPort(
 			close(startTickCh)
 		},
 	}
-
-	return testFixture
 }
 
 // StartWorld starts the game world and registers a cleanup function that will shut down
@@ -179,9 +159,7 @@ func (t *TestFixture) Get(path string) *http.Response {
 	return resp
 }
 
-func (t *TestFixture) AddTransaction(
-	txID types.MessageID, tx any, sigs ...*sign.Transaction,
-) types.TxHash {
+func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign.Transaction) types.TxHash {
 	sig := &sign.Transaction{}
 	if len(sigs) > 0 {
 		sig = sigs[0]
@@ -205,14 +183,75 @@ func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
 	t.DoTick()
 }
 
-func getOpenPort(t testing.TB) string {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	defer func() {
-		assert.NilError(t, l.Close())
-	}()
+// findOpenPorts finds a set of open ports and returns them as a slice of strings.
+// It is guaranteed that the returned slice will have the amount of ports requested and that there is no duplicate
+// ports in the slice.
+func findOpenPorts(amount int) ([]string, error) {
+	ports := make([]string, 0, amount)
 
-	assert.NilError(t, err)
-	tcpAddr, err := net.ResolveTCPAddr(l.Addr().Network(), l.Addr().String())
-	assert.NilError(t, err)
-	return strconv.Itoa(tcpAddr.Port)
+	// Try to find open ports until we find the target amount or we run out of retries
+	for i := 0; i < amount; i++ {
+		var found bool
+
+		// Try to find a random port, retying if it turns out to be a duplicate in list of ports up to 10 times
+		for retries := 10; retries > 0; retries-- {
+			port, err := findOpenPort()
+			if err != nil {
+				continue
+			}
+
+			// Check for duplicate ports
+			for _, existingPort := range ports {
+				if port == existingPort {
+					continue
+				}
+			}
+
+			// Add the port to the list and break out of the inner loop
+			ports = append(ports, port)
+			found = true
+			break
+		}
+
+		if !found {
+			return nil, eris.New("failed to find open ports after retries")
+		}
+	}
+
+	return ports, nil
+}
+
+// findOpenPort finds an open port and returns it as a string.
+// If you need to find multiple ports, use findOpenPorts to make sure that the ports are unique.
+func findOpenPort() (string, error) {
+	findFn := func() (string, error) {
+		// Try to get a random port using the wildcard 0 port
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return "", eris.Wrap(err, "failed to initialize listener")
+		}
+
+		// Get the autoamtically assigned port number from the listener
+		tcpAddr, err := net.ResolveTCPAddr(l.Addr().Network(), l.Addr().String())
+		if err != nil {
+			return "", eris.Wrap(err, "failed to resolve address")
+		}
+
+		// Close the listener when the function returns
+		err = l.Close()
+		if err != nil {
+			return "", eris.Wrap(err, "failed to close listener")
+		}
+		return strconv.Itoa(tcpAddr.Port), nil
+	}
+
+	for retries := 10; retries > 0; retries-- {
+		port, err := findFn()
+		if err == nil {
+			return port, nil
+		}
+		time.Sleep(10 * time.Millisecond) //nolint:gomnd // it's fine.
+	}
+
+	return "", eris.New("failed to find an open port")
 }
