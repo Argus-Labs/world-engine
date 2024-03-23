@@ -148,6 +148,7 @@ func (s *ServerTestSuite) TestGetWorld() {
 			return query.Name() == field.Name
 		}))
 	}
+	assert.Equal(s.T(), s.world.Namespace(), result.Namespace)
 }
 
 // TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
