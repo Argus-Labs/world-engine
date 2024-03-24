@@ -7,8 +7,9 @@ import (
 )
 
 func TestWorldConfig_Defaults(t *testing.T) {
-	cfg := LoadWorldConfig()
-	assert.Equal(t, cfg, defaultConfig)
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, defaultConfig, *cfg)
 }
 
 func TestWorldConfig_LoadFromEnv(t *testing.T) {
@@ -29,9 +30,10 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
 	t.Setenv("BASE_SHARD_Query_ADDRESS", wantCfg.BaseShardQueryAddress)
 
-	gotCfg := LoadWorldConfig()
+	gotCfg, err := loadWorldConfig()
+	assert.NilError(t, err)
 
-	assert.Equal(t, wantCfg, gotCfg)
+	assert.Equal(t, wantCfg, *gotCfg)
 }
 
 func TestWorldConfig_Validate(t *testing.T) {
@@ -64,9 +66,10 @@ func TestWorldConfig_Validate(t *testing.T) {
 			name: "prod with all required values",
 			cfg: WorldConfig{
 				CardinalMode:              RunModeProd,
+				CardinalLogLevel:          DefaultLogLevel,
+				CardinalNamespace:         "foo",
 				RedisAddress:              "localhost:6379",
 				RedisPassword:             "foo",
-				CardinalNamespace:         "foo",
 				BaseShardQueryAddress:     "localhost:8081",
 				BaseShardSequencerAddress: "localhost:8080",
 			},

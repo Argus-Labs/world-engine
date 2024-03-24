@@ -86,7 +86,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
-	cfg := LoadWorldConfig()
+	cfg, err := loadWorldConfig()
+	if err != nil {
+		return nil, eris.Wrap(err, "Failed to load config to start world")
+	}
+
 	log.Info().Msgf("Creating a new Cardinal world in %s mode", cfg.CardinalMode)
 
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
