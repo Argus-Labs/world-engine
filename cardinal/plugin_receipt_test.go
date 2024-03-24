@@ -33,9 +33,11 @@ func TestReceiptsQuery(t *testing.T) {
 	fooMsg, ok := world.GetMessageByFullName("game." + msgName)
 	assert.Assert(t, ok)
 	_, txHash1 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	_, txHash2 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	qry, err := world.GetQueryByName("list")
 	assert.NilError(t, err)

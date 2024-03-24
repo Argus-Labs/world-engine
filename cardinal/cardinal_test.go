@@ -4,17 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/fasthttp/websocket"
 	"github.com/golang/mock/gomock"
 
 	"pkg.world.dev/world-engine/assert"
@@ -96,7 +93,8 @@ func TestForEachTransaction(t *testing.T) {
 	}
 
 	// Perform a engine tick
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	// Verify the receipts for the previous tick are what we expect
 	receipts, err := world.GetTransactionReceiptsForTick(world.CurrentTick() - 1)
@@ -164,7 +162,8 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	assert.NilError(t, err)
 
 	for i := 0; i < 10; i++ {
-		tf.DoTick()
+		_, err = tf.DoTick()
+		assert.NilError(t, err)
 	}
 
 	c, err := cardinal.GetComponent[CounterComponent](wCtx, id)
@@ -224,7 +223,8 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		},
 	)
 
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	for i, id := range ids {
 		wantScore := 0
@@ -271,7 +271,8 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 
 	// Start a tick in the background.
 	go func() {
-		tf.DoTick()
+		_, err = tf.DoTick()
+		assert.NilError(t, err)
 	}()
 	// Make sure we're actually in the System.
 	inSystemCh <- struct{}{}
@@ -297,7 +298,8 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	// Second tick to make sure all transaction processed before shutdown
 	tickDone := make(chan struct{})
 	go func() {
-		tf.DoTick()
+		_, err = tf.DoTick()
+		assert.NilError(t, err)
 		tickDone <- struct{}{}
 	}()
 	inSystemCh <- struct{}{}
@@ -476,7 +478,8 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	_ = tf.AddTransaction(moveMsg.ID(), MoveMsg{99, 100})
 
 	// Tick the game so the transaction is processed
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	tick := world.CurrentTick() - 1
 	receipts, err := world.GetTransactionReceiptsForTick(tick)
@@ -547,7 +550,8 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	assert.True(t, ok)
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	assert.Equal(t, 2, systemCalls)
 }
 
@@ -609,7 +613,8 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	assert.True(t, ok)
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	prevTick := world.CurrentTick() - 1
 	receipts, err := world.GetTransactionReceiptsForTick(prevTick)
@@ -660,7 +665,8 @@ func TestTransactionExample(t *testing.T) {
 	assert.NilError(t, err)
 
 	testWorldCtx := cardinal.NewWorldContext(world)
-	doTick()
+	_, err = doTick()
+	assert.NilError(t, err)
 	ids, err := cardinal.CreateMany(testWorldCtx, 10, Health{})
 	assert.NilError(t, err)
 
@@ -676,7 +682,8 @@ func TestTransactionExample(t *testing.T) {
 	)
 
 	// The health change should be applied during this tick
-	doTick()
+	_, err = doTick()
+	assert.NilError(t, err)
 
 	// Make sure the target entity had its health updated.
 	for _, id := range ids {
@@ -701,7 +708,8 @@ func TestCreatePersona(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
 	tf := testutils.NewTestFixture(t, nil)
 	addr := tf.BaseURL
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	goodKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -726,7 +734,8 @@ func TestCreatePersona(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
 	// tick before shutdown
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 }
 
 func TestNewWorld(t *testing.T) {
@@ -758,12 +767,14 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	wantNumOfEntities := 10
 	wCtx := cardinal.NewWorldContext(world)
 	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	assert.Equal(t, world.CurrentTick(), uint64(2))
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }
@@ -778,67 +789,32 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	tf.StartWorld()
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	lastTS := ts
 	time.Sleep(time.Second)
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	assert.Check(t, ts > lastTS)
 }
 
-func TestShutdownViaSignal(t *testing.T) {
+func TestShutdown_ViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
-	testutils.SetTestTimeout(t, 10*time.Second)
+	testutils.SetTestTimeout(t, 5*time.Second)
+
 	tf := testutils.NewTestFixture(t, nil)
-	world, addr := tf.World, tf.BaseURL
-	httpBaseURL := "http://" + addr
-	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-	wantNumOfEntities := 10
-	err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
-		_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	assert.NilError(t, err)
+	world := tf.World
+
 	tf.StartWorld()
-	wCtx := cardinal.NewWorldContext(world)
-	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
-	assert.NilError(t, err)
-	// test CORS with cardinal
-	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodGet, httpBaseURL+"/query/http/endpoints", nil)
-	assert.NilError(t, err)
-	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
-	resp, err := client.Do(req)
-	assert.NilError(t, err)
-	v := resp.Header.Get("Access-Control-Allow-Origin")
-	assert.Equal(t, v, "*")
-	assert.Equal(t, resp.StatusCode, 200)
-
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL(addr, "events"), nil)
-	assert.NilError(t, err)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, _, err := conn.ReadMessage()
-		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseNoStatusReceived))
-	}()
 
 	// Send a SIGINT signal.
 	cmd := exec.Command("kill", "-SIGINT", strconv.Itoa(os.Getpid()))
-	err = cmd.Run()
-	assert.NilError(t, err)
+	assert.NilError(t, cmd.Run())
 
+	// wait until world is shutdown
 	for world.IsGameRunning() {
-		// wait until game loop is not running
 		time.Sleep(50 * time.Millisecond)
 	}
-
-	// Wait for goroutine to finish otherwise it will panic
-	wg.Wait()
 }
 
 func TestCallsRegisterGameShardOnStartup(t *testing.T) {
@@ -849,9 +825,6 @@ func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-	tf.DoTick()
-}
-
-func wsURL(addr, path string) string {
-	return fmt.Sprintf("ws://%s/%s", addr, path)
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 }

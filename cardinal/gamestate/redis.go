@@ -8,8 +8,13 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
+)
+
+var (
+	// ErrComponentMismatchWithSavedState is an error returned when a ComponentID from
+	// the saved state is not found in the passed in list of components.
+	ErrComponentMismatchWithSavedState = eris.New("registered components do not match with the saved state")
 )
 
 var _ PrimitiveStorage[string] = &RedisStorage{}
@@ -361,7 +366,7 @@ func getArchIDToCompTypesFromRedis(
 		for _, compTypeID := range compTypeIDs {
 			currComp, err := typeToComp.Get(compTypeID)
 			if err != nil {
-				return nil, false, eris.Wrap(iterators.ErrComponentMismatchWithSavedState, "")
+				return nil, false, eris.Wrap(ErrComponentMismatchWithSavedState, "")
 			}
 			currComps = append(currComps, currComp)
 		}

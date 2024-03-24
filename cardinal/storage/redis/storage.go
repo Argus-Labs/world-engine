@@ -6,6 +6,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type Storage struct {
@@ -30,9 +31,10 @@ func NewRedisStorage(options Options, namespace string) Storage {
 }
 
 func (r *Storage) Close() error {
-	err := r.Client.Close()
-	if err != nil {
+	log.Info().Msg("Closing storage connection.")
+	if err := r.Client.Close(); err != nil {
 		return eris.Wrap(err, "")
 	}
+	log.Info().Msg("Successfully closed storage connection.")
 	return nil
 }

@@ -80,7 +80,8 @@ func TestEventsThroughSystems(t *testing.T) {
 		dialers[i] = dial
 	}
 	for i := 0; i < numberToTest; i++ {
-		tf.DoTick()
+		_, err = tf.DoTick()
+		assert.NilError(t, err)
 	}
 
 	waitForDialersToRead := sync.WaitGroup{}

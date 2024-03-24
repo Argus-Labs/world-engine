@@ -8,7 +8,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
@@ -19,12 +18,8 @@ import (
 )
 
 var (
-	ErrEntityMutationOnReadOnly          = errors.New("cannot modify state with read only context")
-	ErrEntitiesCreatedBeforeReady        = errors.New("entities should not be created before world is ready")
-	ErrEntityDoesNotExist                = iterators.ErrEntityDoesNotExist
-	ErrEntityMustHaveAtLeastOneComponent = iterators.ErrEntityMustHaveAtLeastOneComponent
-	ErrComponentNotOnEntity              = iterators.ErrComponentNotOnEntity
-	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
+	ErrEntityMutationOnReadOnly   = errors.New("cannot modify state with read only context")
+	ErrEntitiesCreatedBeforeReady = errors.New("entities should not be created before world is ready")
 )
 
 // Imported

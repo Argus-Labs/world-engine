@@ -61,7 +61,8 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testu
 	assert.NilError(t, err)
 
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	return tf
 }
@@ -73,7 +74,8 @@ func BenchmarkWorld_TickNoSystems(b *testing.B) {
 		name := fmt.Sprintf("%d entities", i)
 		b.Run(name, func(b *testing.B) {
 			for j := 0; j < b.N; j++ {
-				tf.DoTick()
+				_, err := tf.DoTick()
+				assert.NilError(b, err)
 			}
 		})
 	}
@@ -87,7 +89,8 @@ func BenchmarkWorld_TickWithSystem(b *testing.B) {
 		b.Run(
 			name, func(b *testing.B) {
 				for j := 0; j < b.N; j++ {
-					tf.DoTick()
+					_, err := tf.DoTick()
+					assert.NilError(b, err)
 				}
 			},
 		)

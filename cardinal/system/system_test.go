@@ -39,7 +39,8 @@ func TestSystemExample(t *testing.T) {
 	assert.NilError(t, err)
 
 	worldCtx := cardinal.NewWorldContext(world)
-	doTick()
+	_, err = doTick()
+	assert.NilError(t, err)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 
@@ -53,7 +54,8 @@ func TestSystemExample(t *testing.T) {
 
 	// do 5 ticks
 	for i := 0; i < 5; i++ {
-		doTick()
+		_, err = doTick()
+		assert.NilError(t, err)
 	}
 
 	// Health should be 5 for everyone
@@ -83,7 +85,8 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	err := cardinal.RegisterSystems(world, firstSystem, secondSystem)
 	assert.NilError(t, err)
 
-	doTick()
+	_, err = doTick()
+	assert.NilError(t, err)
 
 	assert.Check(t, firstSystemCalled)
 	assert.Check(t, secondSystemCalled)

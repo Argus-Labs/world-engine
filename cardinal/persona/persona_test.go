@@ -69,7 +69,8 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	signers := getSigners(t, world)
 	ourSigner := signers[0]
@@ -86,7 +87,8 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 
 	// Tick the game forward a bit to simulate a game that has been running for a bit of time.
 	for i := 0; i < 10; i++ {
-		tf.DoTick()
+		_, err := tf.DoTick()
+		assert.NilError(t, err)
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
@@ -135,7 +137,8 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	tf.CreatePersona("INVALID PERSONA TAG WITH SPACES", "123_456")
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	signers := getSigners(t, world)
 	count := len(signers)
@@ -179,7 +182,8 @@ func TestCanAuthorizeAddress(t *testing.T) {
 		},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	signers := getSigners(t, world)
 	ourSigner := signers[0]
@@ -213,7 +217,8 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 		}, &sign.Transaction{PersonaTag: personaTag},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	signers := getSigners(t, world)
 	ourSigner := signers[0]
@@ -251,7 +256,8 @@ func TestQuerySigner(t *testing.T) {
 func TestQuerySignerAvailable(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	query, err := world.GetQueryByName("signer")
 	assert.NilError(t, err)
@@ -268,7 +274,8 @@ func TestQuerySignerAvailable(t *testing.T) {
 func TestQuerySignerUnknown(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	engine := tf.World
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	query, err := engine.GetQueryByName("signer")
 	assert.NilError(t, err)

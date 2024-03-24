@@ -1,13 +1,18 @@
 package search
 
 import (
+	"math"
+
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+)
+
+var (
+	BadID types.EntityID = math.MaxUint64
 )
 
 type CallbackFn func(types.EntityID) bool
@@ -56,7 +61,7 @@ func (s *Search) Each(callback CallbackFn) (err error) {
 	defer func() { defer panicOnFatalError(s.wCtx, err) }()
 
 	result := s.evaluateSearch()
-	iter := iterators.NewEntityIterator(0, s.reader, result)
+	iter := NewEntityIterator(0, s.reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -86,7 +91,7 @@ func (s *Search) Count() (ret int, err error) {
 	defer func() { defer panicOnFatalError(s.wCtx, err) }()
 
 	result := s.evaluateSearch()
-	iter := iterators.NewEntityIterator(0, s.reader, result)
+	iter := NewEntityIterator(0, s.reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -113,9 +118,9 @@ func (s *Search) First() (id types.EntityID, err error) {
 	defer func() { defer panicOnFatalError(s.wCtx, err) }()
 
 	result := s.evaluateSearch()
-	iter := iterators.NewEntityIterator(0, s.reader, result)
+	iter := NewEntityIterator(0, s.reader, result)
 	if !iter.HasNext() {
-		return iterators.BadID, eris.Wrap(err, "")
+		return BadID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -135,7 +140,7 @@ func (s *Search) First() (id types.EntityID, err error) {
 			}
 		}
 	}
-	return iterators.BadID, eris.Wrap(err, "")
+	return BadID, eris.Wrap(err, "")
 }
 
 func (s *Search) MustFirst() types.EntityID {

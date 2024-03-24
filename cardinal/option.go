@@ -68,6 +68,15 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 	}
 }
 
+// WithTickPanicChannel sets a channel that will be notified when a panic occurs during the game loop.
+func WithTickPanicChannel(ch chan<- error) WorldOption {
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			world.tickPanicChannel = ch
+		},
+	}
+}
+
 func WithStoreManager(s gamestate.Manager) WorldOption {
 	return WorldOption{
 		cardinalOption: func(world *World) {

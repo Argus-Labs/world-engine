@@ -3,15 +3,15 @@ package search
 import (
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 var NonFatalError = []error{
-	iterators.ErrEntityDoesNotExist,
-	iterators.ErrComponentNotOnEntity,
-	iterators.ErrComponentAlreadyOnEntity,
-	iterators.ErrEntityMustHaveAtLeastOneComponent,
+	gamestate.ErrEntityDoesNotExist,
+	gamestate.ErrComponentNotOnEntity,
+	gamestate.ErrComponentAlreadyOnEntity,
+	gamestate.ErrEntityMustHaveAtLeastOneComponent,
 }
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).

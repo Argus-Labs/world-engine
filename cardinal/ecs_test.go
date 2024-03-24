@@ -6,7 +6,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -121,7 +120,8 @@ func TestECS(t *testing.T) {
 	_, err = cardinal.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	query := cardinal.NewSearch(wCtx, filter.Contains(EnergyComponent{}))
 	err = query.Each(
 		func(id types.EntityID) bool {
@@ -367,7 +367,7 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	wCtx := cardinal.NewWorldContext(world)
 	ent, err := cardinal.Create(wCtx, EnergyComponent{})
 	assert.NilError(t, err)
-	assert.ErrorIs(t, cardinal.AddComponentTo[EnergyComponent](wCtx, ent), iterators.ErrComponentAlreadyOnEntity)
+	assert.ErrorIs(t, cardinal.AddComponentTo[EnergyComponent](wCtx, ent), cardinal.ErrComponentAlreadyOnEntity)
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
@@ -380,7 +380,7 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	ent, err := cardinal.Create(wCtx, ReactorEnergy{})
 	assert.NilError(t, err)
 
-	assert.ErrorIs(t, cardinal.RemoveComponentFrom[WeaponEnergy](wCtx, ent), iterators.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, cardinal.RemoveComponentFrom[WeaponEnergy](wCtx, ent), cardinal.ErrComponentNotOnEntity)
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {

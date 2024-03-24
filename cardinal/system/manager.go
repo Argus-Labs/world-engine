@@ -108,16 +108,31 @@ func (m *Manager) RunSystems(wCtx engine.Context) error {
 		// Inject the system name into the logger
 		wCtx.SetLogger(wCtx.Logger().With().Str("system", systemName).Logger())
 
-		// Executes the system function that the user registered
-		systemStartTime := time.Now()
-		err := m.systemFn[systemName](wCtx)
-		if err != nil {
-			m.currentSystem = nil
-			return eris.Wrapf(err, "system %s generated an error", systemName)
-		}
+		// We use a closure here so that we can recover from panics in the system function
+		var panicVal any
+		err := func() error {
+			// Catch panics in the system function
+			defer func() {
+				if r := recover(); r != nil {
+					panicVal = r
+				}
+			}()
 
-		// Emit the total time it took to run `systemName`
-		statsd.EmitTickStat(systemStartTime, systemName)
+			// Executes the system function that the user registered
+			systemStartTime := time.Now()
+			if err := m.systemFn[systemName](wCtx); err != nil {
+				return err
+			}
+			statsd.EmitTickStat(systemStartTime, systemName)
+
+			return nil
+		}()
+		if err != nil {
+			return eris.Wrapf(err, "system %s exits with error", systemName)
+		}
+		if panicVal != nil {
+			return eris.Wrapf(eris.Errorf("panic: %s", panicVal), "system %s exits with panic", systemName)
+		}
 	}
 
 	// Set the current system to nil to indicate that no system is currently running

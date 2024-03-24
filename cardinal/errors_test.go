@@ -149,7 +149,8 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 				return nil
 			})
 			assert.NilError(t, err)
-			tick()
+			_, err = tick()
+			assert.NilError(t, err)
 		})
 	}
 }
@@ -247,7 +248,8 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 				return nil
 			})
 			assert.NilError(t, err)
-			tick()
+			_, err = tick()
+			assert.NilError(t, err)
 		})
 	}
 }
@@ -304,7 +306,8 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			assert.Check(t, err == nil)
 
 			// Do an initial tick so that the single entity can be cardinal.Created.
-			tick()
+			_, err = tick()
+			assert.NilError(t, err)
 
 			query, err := world.GetQueryByName(queryName)
 			assert.Check(t, err == nil)
@@ -342,7 +345,8 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 		}))
 
 	// Tick so the entity can be cardinal.Created
-	tick()
+	_, err = tick()
+	assert.NilError(t, err)
 
 	query, err := world.GetQueryByName(queryName)
 	assert.NilError(t, err)

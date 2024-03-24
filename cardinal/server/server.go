@@ -1,8 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/gofiber/contrib/socketio"
 	"github.com/gofiber/fiber/v2"
@@ -40,12 +43,14 @@ func New(
 	messages []types.Message, queries []engine.Query, opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
-		Network: "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
+		Network:               "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
+		DisableStartupMessage: true,
 	})
 
 	s := &Server{
 		app: app,
 		config: config{
+
 			port:                            DefaultPort,
 			isSignatureVerificationDisabled: false,
 			isSwaggerDisabled:               false,
@@ -64,9 +69,28 @@ func New(
 	return s, nil
 }
 
-// Serve serves the application, blocking the calling thread.
-// Call this in a new go routine to prevent blocking.
-func (s *Server) Serve() error {
+// Serve starts the server in a goroutine
+func (s *Server) Serve(ctx context.Context) error {
+	shutdown := &sync.WaitGroup{}
+	go func() {
+		// If we receive a cancel signal, shutdown the server gracefully
+		<-ctx.Done()
+		log.Info().Msg("Shutting down server")
+
+		// Wait for shutdown to complete
+		shutdown.Add(1)
+		defer shutdown.Done()
+
+		// Close websocket connections
+		socketio.Broadcast([]byte(""), socketio.CloseMessage)
+		socketio.Fire(socketio.EventClose, nil)
+
+		// Wait for 10 seconds for the server to shutdown gracefully
+		_ = s.app.ShutdownWithTimeout(10 * time.Second) //nolint:gomnd
+		log.Info().Msg("Successfully shut down server")
+	}()
+
+	// Try to get hostname
 	hostname, err := os.Hostname()
 	if err != nil {
 		return eris.Wrap(err, "error getting hostname")
@@ -79,6 +103,9 @@ func (s *Server) Serve() error {
 		return eris.Wrap(err, "error starting Fiber app")
 	}
 
+	// Wait for shutdown to complete
+	shutdown.Wait()
+
 	return nil
 }
 
@@ -88,23 +115,6 @@ func (s *Server) BroadcastEvent(event any) error {
 		return err
 	}
 	socketio.Broadcast(eventBz)
-	return nil
-}
-
-// Shutdown gracefully shuts down the server and closes all active websocket connections.
-func (s *Server) Shutdown() error {
-	log.Info().Msg("Shutting down server")
-
-	// Close websocket connections
-	socketio.Broadcast([]byte(""), socketio.CloseMessage)
-	socketio.Fire(socketio.EventClose, nil)
-
-	// Gracefully shutdown Fiber server
-	if err := s.app.Shutdown(); err != nil {
-		return eris.Wrap(err, "error shutting down server")
-	}
-
-	log.Info().Msg("Successfully shut down server")
 	return nil
 }
 

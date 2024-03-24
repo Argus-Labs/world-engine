@@ -1,94 +1,58 @@
-package cardinal
+package cardinal_test
 
 import (
+	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"net"
-	"reflect"
 	"testing"
-	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
 
 func TestIfPanicMessageLogged(t *testing.T) {
-	miniRedis := miniredis.RunT(t)
-	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
+	// cardinal.Create a logger that writes to a buffer so we can check the output
+	buf := &bytes.Buffer{}
+	bufLogger := zerolog.New(buf)
 
-	// replaces internal Logger with one that logs to the buf variable above.
-	neverTick := make(chan time.Time)
-
-	// Create a logger that writes to a buffer so we can check the output
-	var buf bytes.Buffer
-	bufLogger := zerolog.New(&buf)
-
-	world, err := NewWorld(
-		WithTickChannel(neverTick),
-		WithPort(getOpenPort(t)),
-		WithCustomLogger(bufLogger),
-	)
-
-	assert.NilError(t, err)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomLogger(bufLogger))
+	world := tf.World
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
-	err = RegisterSystems(
+	err := cardinal.RegisterSystems(
 		world,
 		func(engine.Context) error {
 			panic(errorTxt)
 		},
 	)
 	assert.NilError(t, err)
-	go func() {
-		err = world.StartGame()
-		assert.NilError(t, err)
-	}()
-	<-world.worldStage.NotifyOnStage(worldstage.Running)
-	defer func() {
-		assert.NilError(t, world.Shutdown())
-	}()
 
-	ctx := context.Background()
+	tf.StartWorld()
 
-	defer func() {
-		if panicValue := recover(); panicValue != nil {
-			// This test should swallow a panic
-			lastjson, err := findLastJSON(buf.Bytes())
-			assert.NilError(t, err)
-			values := map[string]string{}
-			err = json.Unmarshal(lastjson, &values)
-			assert.NilError(t, err)
-			msg, ok := values["message"]
-			assert.Assert(t, ok)
-			assert.Contains(t, msg, "Tick: 0, Current running system:")
-			panicString, ok := panicValue.(string)
-			assert.Assert(t, ok)
-			assert.Contains(t, panicString, errorTxt)
-		} else {
-			assert.Assert(t, false) // This test should create a panic.
-		}
-	}()
+	// Should panic and return an error
+	_, err = tf.DoTick()
+	assert.NotNil(t, err)
 
-	world.tickTheEngine(ctx, nil)
+	t.Log(buf.String())
+
+	assert.NilError(t, findGameLoopError(buf))
 }
 
 type ScalarComponentStatic struct {
-	Val int
+	TickCounter int
 }
 
 type ScalarComponentToggle struct {
@@ -103,90 +67,104 @@ func (ScalarComponentToggle) Name() string {
 	return "toggle"
 }
 
-func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
-	miniRedis := miniredis.RunT(t)
-	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
+func TestWorld_CanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
+	mr := miniredis.RunT(t)
+	t.Setenv("CARDINAL_LOG_LEVEL", "debug")
 
-	ctx := context.Background()
+	for iteration := range 2 {
+		tf := testutils.NewTestFixture(t, mr)
+		world := tf.World
+		t.Logf("Starting iteration %d", iteration)
 
-	for _, firstEngineIteration := range []bool{true, false} {
-		world, err := NewWorld(WithPort(getOpenPort(t)))
-		assert.NilError(t, err)
-
-		assert.NilError(t, RegisterComponent[ScalarComponentStatic](world))
-		assert.NilError(t, RegisterComponent[ScalarComponentToggle](world))
-
-		wCtx := NewWorldContext(world)
+		assert.NilError(t, cardinal.RegisterComponent[ScalarComponentStatic](world))
+		assert.NilError(t, cardinal.RegisterComponent[ScalarComponentToggle](world))
 
 		errorToggleComponent := errors.New("problem with toggle component")
-		err = RegisterSystems(
-			world,
-			func(wCtx engine.Context) error {
-				// Get the one and only entity ID
-				q := NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
-				id, err := q.First()
-				assert.NilError(t, err)
 
-				s, err := GetComponent[ScalarComponentStatic](wCtx, id)
-				assert.NilError(t, err)
-				s.Val++
-				assert.NilError(t, SetComponent[ScalarComponentStatic](wCtx, id, s))
-				if s.Val%2 == 1 {
-					assert.NilError(t, AddComponentTo[ScalarComponentToggle](wCtx, id))
-				} else {
-					assert.NilError(t, RemoveComponentFrom[ScalarComponentToggle](wCtx, id))
-				}
-
-				if firstEngineIteration && s.Val == 5 {
-					return errorToggleComponent
-				}
-
-				return nil
-			},
-		)
-		assert.NilError(t, err)
-
-		go func() {
-			err = world.StartGame()
+		// Register the main test system
+		err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+			// Get the one and only entity ID
+			q := cardinal.NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
+			id, err := q.First()
 			assert.NilError(t, err)
-		}()
-		<-world.worldStage.NotifyOnStage(worldstage.Running)
 
-		if firstEngineIteration {
-			_, err := Create(wCtx, ScalarComponentStatic{})
+			s, err := cardinal.GetComponent[ScalarComponentStatic](wCtx, id)
 			assert.NilError(t, err)
-		}
-		q := NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
-		id, err := q.First()
-		assert.NilError(t, err)
 
-		if firstEngineIteration {
-			for i := 0; i < 4; i++ {
-				world.tickTheEngine(ctx, nil)
+			s.TickCounter++
+
+			assert.NilError(t, cardinal.SetComponent[ScalarComponentStatic](wCtx, id, s))
+
+			if s.TickCounter%2 == 1 {
+				assert.NilError(t, cardinal.AddComponentTo[ScalarComponentToggle](wCtx, id))
+			} else {
+				assert.NilError(t, cardinal.RemoveComponentFrom[ScalarComponentToggle](wCtx, id))
 			}
-			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
-			_, err = GetComponent[ScalarComponentToggle](wCtx, id)
-			assert.ErrorIs(t, iterators.ErrComponentNotOnEntity, eris.Cause(err))
 
-			// Ticking again should result in an error
-			err = doTickCapturePanic(ctx, world)
+			// On the first iteration, on tick 5, return an error from the system to trigger a panic.
+			if iteration == 0 && s.TickCounter == 5 {
+				return errorToggleComponent
+			}
+
+			return nil
+		})
+		assert.NilError(t, err)
+
+		// Start the world
+		tf.StartWorld()
+
+		// Create a world context for the test
+		wCtx := cardinal.NewWorldContext(world)
+
+		if iteration == 0 {
+			// On the first iteration, the system has an issue and panics on tick 4
+
+			// Create an entity on tick 0
+			_, err = cardinal.Create(wCtx, ScalarComponentStatic{})
+			assert.NilError(t, err)
+
+			// Search for static entity
+			s := cardinal.NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
+			id, err := s.First()
+			assert.NilError(t, err)
+
+			// Tick until tick 3 is reached
+			for i := 0; i < 4; i++ {
+				_, err = tf.DoTick()
+				assert.NilError(t, err)
+			}
+
+			// After tick 3, toggle should have just been removed from the entity.
+			_, err = cardinal.GetComponent[ScalarComponentToggle](wCtx, id)
+			assert.ErrorIs(t, cardinal.ErrComponentNotOnEntity, eris.Cause(err))
+
+			// After tick 3, ScalarComponentStatic.TickCounter should be 4
+			staticComp, err := cardinal.GetComponent[ScalarComponentStatic](wCtx, id)
+			assert.NilError(t, err)
+			assert.Equal(t, 4, staticComp.TickCounter)
+
+			// Ticking again should result in an error because tick counter is now 5
+			_, err = tf.DoTick()
 			assert.ErrorContains(t, err, errorToggleComponent.Error())
 		} else {
-			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
-			// and toggle should have just been added to the entity.
-			_, err = GetComponent[ScalarComponentToggle](wCtx, id)
+			// At this second iteration, the error has been fixed.
+			// The system should recover and not panic on tick 4.
+
+			// Search for static entity
+			s := cardinal.NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
+			id, err := s.First()
 			assert.NilError(t, err)
 
-			s, err := GetComponent[ScalarComponentStatic](wCtx, id)
-
+			// After tick 4, toggle should have just been added to the entity.
+			_, err = cardinal.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.NilError(t, err)
-			assert.Equal(t, 5, s.Val)
+
+			// After tick 4, ScalarComponentStatic.TickCounter should be 5
+			staticComp, err := cardinal.GetComponent[ScalarComponentStatic](wCtx, id)
+			assert.NilError(t, err)
+			assert.Equal(t, 5, staticComp.TickCounter)
 		}
-
-		assert.NilError(t, world.Shutdown())
 	}
-
-	miniRedis.Close()
 }
 
 type PowerComp struct {
@@ -198,33 +176,34 @@ func (PowerComp) Name() string {
 }
 
 func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
-	rs := miniredis.RunT(t)
-	t.Setenv("REDIS_ADDRESS", rs.Addr())
-
-	ctx := context.Background()
+	mr := miniredis.RunT(t)
 
 	errorBadPowerChange := errors.New("bad power change message")
 	for _, isBuggyIteration := range []bool{true, false} {
-		world, err := NewWorld(WithPort(getOpenPort(t)))
-		assert.NilError(t, err)
+		tf := testutils.NewTestFixture(t, mr)
+		world := tf.World
 
-		assert.NilError(t, RegisterComponent[PowerComp](world))
+		assert.NilError(t, cardinal.RegisterComponent[PowerComp](world))
 		msgName := "change_power"
-		assert.NilError(t, RegisterMessage[PowerComp, PowerComp](world, msgName))
+		assert.NilError(t, cardinal.RegisterMessage[PowerComp, PowerComp](world, msgName))
 
-		err = RegisterSystems(
+		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
-				q := NewSearch(wCtx, filter.Contains(PowerComp{}))
+				q := cardinal.NewSearch(wCtx, filter.Contains(PowerComp{}))
 				id := q.MustFirst()
-				entityPower, err := GetComponent[PowerComp](wCtx, id)
+				entityPower, err := cardinal.GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
-				powerTx, err := getMessage[PowerComp, PowerComp](wCtx)
+				changes := make([]message.TxData[PowerComp], 0)
+				err = cardinal.EachMessage[PowerComp, PowerComp](wCtx,
+					func(msg message.TxData[PowerComp]) (PowerComp, error) {
+						changes = append(changes, msg)
+						return msg.Msg, nil
+					})
 				assert.NilError(t, err)
-				changes := powerTx.In(wCtx)
 				assert.Equal(t, 1, len(changes))
 				entityPower.Val += changes[0].Msg.Val
-				assert.NilError(t, SetComponent[PowerComp](wCtx, id, entityPower))
+				assert.NilError(t, cardinal.SetComponent[PowerComp](wCtx, id, entityPower))
 
 				if isBuggyIteration && changes[0].Msg.Val == 666 {
 					return errorBadPowerChange
@@ -233,25 +212,22 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			},
 		)
 		assert.NilError(t, err)
-		go func() {
-			err = world.StartGame()
-			assert.NilError(t, err)
-		}()
-		<-world.worldStage.NotifyOnStage(worldstage.Running)
 
-		wCtx := NewWorldContext(world)
-		// Only Create the entity for the first iteration
+		tf.StartWorld()
+
+		wCtx := cardinal.NewWorldContext(world)
+		// Only create the entity for the first iteration
 		if isBuggyIteration {
-			_, err := Create(wCtx, PowerComp{})
+			_, err := cardinal.Create(wCtx, PowerComp{})
 			assert.NilError(t, err)
 		}
 
 		// fetchPower is a small helper to get the power of the only entity in the engine
 		fetchPower := func() float64 {
-			q := NewSearch(wCtx, filter.Contains(PowerComp{}))
+			q := cardinal.NewSearch(wCtx, filter.Contains(PowerComp{}))
 			id, err := q.First()
 			assert.NilError(t, err)
-			power, err := GetComponent[PowerComp](wCtx, id)
+			power, err := cardinal.GetComponent[PowerComp](wCtx, id)
 			assert.NilError(t, err)
 			return power.Val
 		}
@@ -260,16 +236,19 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			// perform a few ticks that will not result in an error
 			assert.True(t, ok)
 			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
+			_, err = tf.DoTick()
+			assert.NilError(t, err)
 			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
+			_, err = tf.DoTick()
+			assert.NilError(t, err)
 			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
+			_, err = tf.DoTick()
+			assert.NilError(t, err)
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
 			world.AddTransaction(powerTx.ID(), PowerComp{666}, &sign.Transaction{})
-			err = doTickCapturePanic(ctx, world)
+			_, err = tf.DoTick()
 			assert.ErrorContains(t, err, errorBadPowerChange.Error())
 		} else {
 			// Loading the game state above should successfully re-process that final 666 messages.
@@ -277,14 +256,13 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 			// One more tick for good measure
 			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
+			_, err = tf.DoTick()
+			assert.NilError(t, err)
 
 			assert.Equal(t, float64(4666), fetchPower())
 		}
-
-		assert.NilError(t, world.Shutdown())
+		tf.Shutdown()
 	}
-	rs.Close()
 }
 
 type onePowerComponent struct {
@@ -304,25 +282,21 @@ func (twoPowerComponent) Name() string {
 }
 
 func TestCanIdentifyAndFixSystemError(t *testing.T) {
-	rs := miniredis.RunT(t)
-	t.Setenv("REDIS_ADDRESS", rs.Addr())
+	mr := miniredis.RunT(t)
+	tf := testutils.NewTestFixture(t, mr)
+	world := tf.World
 
-	ctx := context.Background()
-
-	world, err := NewWorld(WithPort(getOpenPort(t)))
-	assert.NilError(t, err)
-
-	assert.NilError(t, RegisterComponent[onePowerComponent](world))
+	assert.NilError(t, cardinal.RegisterComponent[onePowerComponent](world))
 
 	errorSystem := errors.New("3 power? That's too much, man")
 
 	// In this test, our "buggy" system fails once Power reaches 3
-	err = RegisterSystems(
+	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			search := NewSearch(wCtx, filter.Exact(onePowerComponent{}))
-			id := search.MustFirst()
-			p, err := GetComponent[onePowerComponent](wCtx, id)
+			s := cardinal.NewSearch(wCtx, filter.Exact(onePowerComponent{}))
+			id := s.MustFirst()
+			p, err := cardinal.GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
 			}
@@ -330,85 +304,70 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 			if p.Power >= 3 {
 				return errorSystem
 			}
-			return SetComponent[onePowerComponent](wCtx, id, p)
+			return cardinal.SetComponent[onePowerComponent](wCtx, id, p)
 		},
 	)
 	assert.NilError(t, err)
 
-	go func() {
-		err = world.StartGame()
-		assert.NilError(t, err)
-	}()
-	<-world.worldStage.NotifyOnStage(worldstage.Running)
+	tf.StartWorld()
 
-	id, err := Create(NewWorldContext(world), onePowerComponent{})
+	id, err := cardinal.Create(cardinal.NewWorldContext(world), onePowerComponent{})
 	assert.NilError(t, err)
 
 	// Power is set to 1
-	world.tickTheEngine(ctx, nil)
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	// Power is set to 2
-	world.tickTheEngine(ctx, nil)
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	// Power is set to 3, then the System fails
-	err = doTickCapturePanic(ctx, world)
+	_, err = tf.DoTick()
 	assert.ErrorContains(t, err, errorSystem.Error())
 
 	assert.NilError(t, world.Shutdown())
 
 	// Set up a new engine using the same storage layer
-	world2, err := NewWorld(WithPort(getOpenPort(t)))
-	assert.NilError(t, err)
-	assert.NilError(t, RegisterComponent[onePowerComponent](world2))
-	assert.NilError(t, RegisterComponent[twoPowerComponent](world2))
+	tf2 := testutils.NewTestFixture(t, mr)
+	world2 := tf2.World
+
+	assert.NilError(t, cardinal.RegisterComponent[onePowerComponent](world2))
+	assert.NilError(t, cardinal.RegisterComponent[twoPowerComponent](world2))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
-	err = RegisterSystems(
+	err = cardinal.RegisterSystems(
 		world2,
 		func(wCtx engine.Context) error {
-			p, err := GetComponent[onePowerComponent](wCtx, id)
+			p, err := cardinal.GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
 			}
 			p.Power++
-			return SetComponent[onePowerComponent](wCtx, id, p)
+			return cardinal.SetComponent[onePowerComponent](wCtx, id, p)
 		},
 	)
 	assert.NilError(t, err)
 
 	// Loading a game state with the fixed system should automatically finish the previous tick.
-	go func() {
-		err = world2.StartGame()
-		assert.NilError(t, err)
-	}()
-	<-world2.worldStage.NotifyOnStage(worldstage.Running)
+	tf2.StartWorld()
 
-	world2Ctx := NewWorldContext(world2)
-	p, err := GetComponent[onePowerComponent](world2Ctx, id)
+	world2Ctx := cardinal.NewWorldContext(world2)
+	p, err := cardinal.GetComponent[onePowerComponent](world2Ctx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
-	world2.tickTheEngine(ctx, nil)
-	p1, err := GetComponent[onePowerComponent](world2Ctx, id)
+	_, err = tf2.DoTick()
+	assert.NilError(t, err)
+	p1, err := cardinal.GetComponent[onePowerComponent](world2Ctx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p1.Power)
 
 	assert.NilError(t, world2.Shutdown())
 }
 
-type Foo struct{}
-
-func (Foo) Name() string { return "foo" }
-
-type Bar struct{}
-
-func (Bar) Name() string { return "bar" }
-
-type Qux struct{}
-
-func (Qux) Name() string { return "qux" }
-
 // TestSystemsPanicOnRedisError ensures systems panic when there is a problem connecting to redis. In general, Systems
 // should panic on ANY fatal error, but this connection problem is how we'll simulate a non ecs state related error.
+
 func TestSystemsPanicOnRedisError(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -416,33 +375,33 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 		failFn func(wCtx engine.Context, goodID types.EntityID)
 	}{
 		{
-			name: "AddComponentTo",
+			name: "cardinal.AddComponentTo",
 			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = AddComponentTo[Qux](wCtx, goodID)
+				_ = cardinal.AddComponentTo[Qux](wCtx, goodID)
 			},
 		},
 		{
-			name: "RemoveComponentFrom",
+			name: "cardinal.RemoveComponentFrom",
 			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = RemoveComponentFrom[Bar](wCtx, goodID)
+				_ = cardinal.RemoveComponentFrom[Bar](wCtx, goodID)
 			},
 		},
 		{
-			name: "GetComponent",
+			name: "cardinal.GetComponent",
 			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_, _ = GetComponent[Foo](wCtx, goodID)
+				_, _ = cardinal.GetComponent[Foo](wCtx, goodID)
 			},
 		},
 		{
-			name: "SetComponent",
+			name: "cardinal.SetComponent",
 			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = SetComponent[Foo](wCtx, goodID, &Foo{})
+				_ = cardinal.SetComponent[Foo](wCtx, goodID, &Foo{})
 			},
 		},
 		{
-			name: "UpdateComponent",
+			name: "cardinal.UpdateComponent",
 			failFn: func(wCtx engine.Context, goodID types.EntityID) {
-				_ = UpdateComponent[Foo](wCtx, goodID, func(f *Foo) *Foo {
+				_ = cardinal.UpdateComponent[Foo](wCtx, goodID, func(f *Foo) *Foo {
 					return f
 				})
 			},
@@ -452,31 +411,27 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			miniRedis := miniredis.RunT(t)
-			t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
+			tf := testutils.NewTestFixture(t, miniRedis)
+			world := tf.World
 
-			ctx := context.Background()
-
-			world, err := NewWorld(WithPort(getOpenPort(t)))
-			assert.NilError(t, err)
-
-			assert.NilError(t, RegisterComponent[Foo](world))
-			assert.NilError(t, RegisterComponent[Bar](world))
-			assert.NilError(t, RegisterComponent[Qux](world))
+			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
+			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
+			assert.NilError(t, cardinal.RegisterComponent[Qux](world))
 
 			// This system will be called 2 times. The first time, a single entity is Created. The second time,
 			// the previously Created entity is fetched, and then miniRedis is closed. Subsequent attempts to access
 			// data should panic.
-			assert.NilError(t, RegisterSystems(world, func(wCtx engine.Context) error {
+			assert.NilError(t, cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
 				// Set up the entity in the first tick
 				if wCtx.CurrentTick() == 0 {
-					_, err := Create(wCtx, Foo{}, Bar{})
+					_, err := cardinal.Create(wCtx, Foo{}, Bar{})
 					assert.Check(t, err == nil)
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := NewSearch(wCtx, filter.Exact(Foo{}, Bar{})).First()
+				id, err := cardinal.NewSearch(wCtx, filter.Exact(Foo{}, Bar{})).First()
 				assert.Check(t, err == nil)
-				assert.Check(t, id != iterators.BadID)
+				assert.Check(t, id != search.BadID)
 
 				// Shut down redis. The testCase's failure function will now be able to fail
 				miniRedis.Close()
@@ -492,74 +447,33 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 				return nil
 			}))
 
-			go func() {
-				err = world.StartGame()
-				assert.NilError(t, err)
-			}()
-			<-world.worldStage.NotifyOnStage(worldstage.Running)
-			defer func() {
-				assert.NilError(t, world.Shutdown())
-			}()
+			tf.StartWorld()
 
 			// The first tick sets up the entity
-			world.tickTheEngine(ctx, nil)
+			_, err := tf.DoTick()
+			assert.NilError(t, err)
+
 			// The second tick calls the test case's failure function.
-			err = doTickCapturePanic(ctx, world)
+			_, err = tf.DoTick()
 			assert.IsError(t, err)
 		})
 	}
 }
 
-func findLastJSON(buf []byte) (json.RawMessage, error) {
-	dec := json.NewDecoder(bytes.NewReader(buf))
-	var lastVal json.RawMessage
-	for {
-		if err := dec.Decode(&lastVal); errors.Is(err, io.EOF) {
-			break
-		} else if err != nil {
-			return nil, err
+func findGameLoopError(buf *bytes.Buffer) error {
+	scanner := bufio.NewScanner(buf)
+	for scanner.Scan() {
+		// Try decoding log line to JSON
+		// If we can't decode the line, just skip it
+		var logLine map[string]any
+		if err := json.Unmarshal(scanner.Bytes(), &logLine); err != nil {
+			continue
+		}
+
+		// If we found the game loop error, return nil error.
+		if logLine["message"] == "error occured during game loop" {
+			return nil
 		}
 	}
-	if lastVal == nil {
-		return nil, fmt.Errorf("no JSON value found")
-	}
-	return lastVal, nil
-}
-
-func doTickCapturePanic(ctx context.Context, world *World) (err error) {
-	defer func() {
-		if panicValue := recover(); panicValue != nil {
-			err = fmt.Errorf(panicValue.(string))
-		}
-	}()
-	world.tickTheEngine(ctx, nil)
-
-	return nil
-}
-
-func getMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
-	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
-	if !ok {
-		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
-	}
-	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
-	if !ok {
-		return &msg, eris.New("wrong type")
-	}
-	return res, nil
-}
-
-func getOpenPort(t testing.TB) string {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	defer func() {
-		assert.NilError(t, l.Close())
-	}()
-
-	assert.NilError(t, err)
-	tcpAddr, err := net.ResolveTCPAddr(l.Addr().Network(), l.Addr().String())
-	assert.NilError(t, err)
-	return fmt.Sprintf("%d", tcpAddr.Port)
+	return eris.New("game loop error not found")
 }

@@ -109,7 +109,7 @@ func TestWorldLogger(t *testing.T) {
 	entityID, err := cardinal.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	t.Log(buf.String())
-	logStrings := strings.Split(buf.String(), "\n")[2:]
+	logStrings := strings.Split(buf.String(), "\n")[5:]
 	require.JSONEq(
 		t, `
 			{
@@ -153,7 +153,8 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:3]
 	// test tick start
 	require.JSONEq(

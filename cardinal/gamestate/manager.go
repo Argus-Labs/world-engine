@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
@@ -26,7 +25,7 @@ type Reader interface {
 	GetEntitiesForArchID(archID types.ArchetypeID) ([]types.EntityID, error)
 
 	// Misc
-	SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator
+	SearchFrom(filter filter.ComponentFilter, start int) *ArchetypeIterator
 	ArchetypeCount() int
 }
 
