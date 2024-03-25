@@ -53,7 +53,8 @@ func TestDebugStateQuery(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, err)
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	qry, err := world.GetQueryByName("state")
 	assert.NilError(t, err)

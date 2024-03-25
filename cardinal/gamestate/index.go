@@ -1,4 +1,4 @@
-package iterators
+package gamestate
 
 import (
 	"pkg.world.dev/world-engine/cardinal/types"

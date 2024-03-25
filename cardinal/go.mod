@@ -19,7 +19,6 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/ethereum/go-ethereum v1.13.4
-	github.com/fasthttp/websocket v1.5.8
 	github.com/franela/goblin v0.0.0-20211003143422-0a4f594942bf
 	github.com/goccy/go-json v0.10.2
 	github.com/gofiber/contrib/socketio v1.0.0
@@ -36,6 +35,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/swag v1.16.2
 	github.com/wI2L/jsondiff v0.5.0
+	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.62.0
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1
@@ -93,6 +93,7 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.5.0 // indirect
+	github.com/fasthttp/websocket v1.5.8 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/getsentry/sentry-go v0.25.0 // indirect
 	github.com/go-kit/kit v0.13.0 // indirect

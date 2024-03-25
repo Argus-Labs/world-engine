@@ -15,6 +15,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rotisserie/eris"
+	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -33,10 +34,11 @@ type TestFixture struct {
 	World   *cardinal.World
 	Redis   *miniredis.Miniredis
 
-	StartTickCh chan time.Time
-	DoneTickCh  chan uint64
-	doCleanup   func()
-	startOnce   *sync.Once
+	StartTickCh  chan time.Time
+	DoneTickCh   chan uint64
+	PanicTickCh  chan error
+	startOnce    *sync.Once
+	shutdownOnce *sync.Once
 }
 
 // NewTestFixture creates a test fixture with user defined port for Cardinal integration tests.
@@ -55,11 +57,12 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.W
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
 	t.Setenv("REDIS_ADDRESS", redis.Addr())
 
-	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
+	startTickCh, doneTickCh, panicTickCh := make(chan time.Time), make(chan uint64), make(chan error)
 
 	defaultOpts := []cardinal.WorldOption{
 		cardinal.WithTickChannel(startTickCh),
 		cardinal.WithTickDoneChannel(doneTickCh),
+		cardinal.WithTickPanicChannel(panicTickCh),
 		cardinal.WithPort(cardinalPort),
 	}
 
@@ -73,59 +76,66 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.W
 		World:   world,
 		Redis:   redis,
 
-		StartTickCh: startTickCh,
-		DoneTickCh:  doneTickCh,
-		startOnce:   &sync.Once{},
-		// Only register this method with t.Cleanup if the game server is actually started
-		doCleanup: func() {
-			// First, make sure completed ticks will never be blocked
-			go func() {
-				for range doneTickCh { //nolint:revive // This pattern drains the channel until closed
-				}
-			}()
-			// Next, shut down the world
-			assert.NilError(t, world.Shutdown())
-			// The world is shut down; No more ticks will be started
-			close(startTickCh)
-		},
+		StartTickCh:  startTickCh,
+		DoneTickCh:   doneTickCh,
+		PanicTickCh:  panicTickCh,
+		startOnce:    &sync.Once{},
+		shutdownOnce: &sync.Once{},
 	}
 }
 
-// StartWorld starts the game world and registers a cleanup function that will shut down
-// the cardinal World at the end of the test. Components/Systems/Queries, etc should
-// be registered before calling this function.
+// StartWorld starts the world and will automatically clean up its resources when the test finishes.
+// Components, systems, queries, etc. should be registered before calling this function.
 func (t *TestFixture) StartWorld() {
 	t.startOnce.Do(func() {
-		timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
-		startupError := make(chan error)
-		go func() {
-			// StartGame is meant to block forever, so any return value will be non-nil and cause for concern.
-			// Also, calling t.Fatal from a non-main thread only reports a failure once the test on the main thread has
-			// completed. By sending this error out on a channel we can fail the test right away (assuming doTick
-			// has been called from the main thread).
-			startupError <- t.World.StartGame()
-		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //nolint:gomnd
+		defer cancel()
+
+		g, gCtx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			return t.World.StartGame()
+		})
+
+		// While world is still not running, wait until there is an error or it times out.
 		for !t.World.IsGameRunning() {
 			select {
-			case err := <-startupError:
-				t.Fatalf("startup error: %v", err)
-			case <-timeout:
-
-				t.Fatal("timeout while waiting for game to start")
+			case <-gCtx.Done():
+				t.Fatal("failed to start world", gCtx.Err())
 			default:
-				time.Sleep(10 * time.Millisecond) //nolint:gomnd // its for testing its ok.
+				time.Sleep(10 * time.Millisecond) //nolint:gomnd
 			}
 		}
-		t.Cleanup(t.doCleanup)
+
+		// If the world successfully starts, register the cleanup function.
+		t.Cleanup(t.Shutdown)
+	})
+}
+
+// Shutdown will gracefully shut down the world and clean up its resources.
+// This function will automatically be called when the test finishes.
+func (t *TestFixture) Shutdown() {
+	t.shutdownOnce.Do(func() {
+		// Next, shut down the world, but only if it is still running
+		// The world might have been shut down via a SIGINT, etc.
+		if t.World.IsGameRunning() {
+			assert.NilError(t, t.World.Shutdown())
+		}
 	})
 }
 
 // DoTick executes one game tick and blocks until the tick is complete. StartWorld is automatically called if it was
 // not called before the first tick.
-func (t *TestFixture) DoTick() {
+func (t *TestFixture) DoTick() (uint64, error) {
 	t.StartWorld()
 	t.StartTickCh <- time.Now()
-	<-t.DoneTickCh
+
+	var tick uint64
+	select {
+	case err := <-t.PanicTickCh:
+		return 0, err
+	case tick = <-t.DoneTickCh:
+		return tick, nil
+	}
 }
 
 func (t *TestFixture) httpURL(path string) string {
@@ -180,7 +190,8 @@ func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
 		"message with name %q not registered in World", msg.CreatePersonaMessageName,
 	)
 	t.AddTransaction(createPersonaMsg.ID(), personaMsg, &sign.Transaction{})
-	t.DoTick()
+	_, err := t.DoTick()
+	assert.NilError(t, err)
 }
 
 // findOpenPorts finds a set of open ports and returns them as a slice of strings.

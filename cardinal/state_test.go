@@ -7,7 +7,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -71,12 +71,13 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 
 	_, err := cardinal.Create(cardinal.NewWorldContext(world1), OneAlphaNum{})
 	assert.NilError(t, err)
-	tf1.DoTick()
+	_, err = tf1.DoTick()
+	assert.NilError(t, err)
 
 	// Too few components registered
 	tf2 := testutils.NewTestFixture(t, tf1.Redis)
 	err = tf2.World.StartGame() // We start this manually instead of tf2.StartWorld() because StartWorld panics on err
-	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
+	assert.ErrorContains(t, err, gamestate.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
 	tf3 := testutils.NewTestFixture(t, tf1.Redis)
@@ -110,7 +111,8 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	matchComponent := filter.CreateComponentMatcher(types.ConvertComponentMetadatasToComponents(wantComps))
 	assert.Check(t, matchComponent(oneNum))
 
-	tf1.DoTick()
+	_, err = tf1.DoTick()
+	assert.NilError(t, err)
 
 	// Make a second instance of the engine using the same storage.
 	tf2 := testutils.NewTestFixture(t, tf1.Redis)
@@ -162,7 +164,8 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, err)
 	// These archetype indices should be preserved between a state save/load
 
-	tf1.DoTick()
+	_, err = tf1.DoTick()
+	assert.NilError(t, err)
 
 	// Create a brand new engine, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
@@ -189,7 +192,8 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// Save and load again to make sure the "two" engine correctly saves its state even though
 	// it never cardinal.Created any entities
-	tf1.DoTick()
+	_, err = tf1.DoTick()
+	assert.NilError(t, err)
 
 	tf3 := testutils.NewTestFixture(t, mr)
 	world3 := tf3.World
@@ -255,7 +259,8 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
-	tf1.DoTick()
+	_, err = tf1.DoTick()
+	assert.NilError(t, err)
 
 	// Make a new engine, using the original redis DB that (hopefully) has our data
 	tf2 := testutils.NewTestFixture(t, tf1.Redis)
@@ -290,7 +295,8 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 		tf.StartWorld()
 		relevantTick := world.CurrentTick()
 		for i := 0; i < 5; i++ {
-			tf.DoTick()
+			_, err := tf.DoTick()
+			assert.NilError(t, err)
 		}
 		// Ignore the actual receipts (they will be empty). Just make sure the tick we're asking
 		// for isn't considered too far in the future.
@@ -331,7 +337,8 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		}
 
 		for i := 0; i < 5; i++ {
-			tf.DoTick()
+			_, err = tf.DoTick()
+			assert.NilError(t, err)
 		}
 
 		receipts, err := world.GetTransactionReceiptsForTick(relevantTick)

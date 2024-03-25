@@ -8,7 +8,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -86,7 +85,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 			count++
 			// Make sure the gamma component is not on this entity
 			_, err = cardinal.GetComponent[Gamma](wCtx, id)
-			assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
+			assert.ErrorIs(t, err, cardinal.ErrComponentNotOnEntity)
 			return true
 		},
 	)

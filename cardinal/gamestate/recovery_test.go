@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -256,7 +256,7 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 
 	// Make sure we can no longer get the foo component
 	_, err = manager.GetComponentForEntity(fooComp, id)
-	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, cardinal.ErrComponentNotOnEntity)
 	// But uhoh, there was a problem. This means the removal of the Foo component
 	// will be undone, and the original value can be found
 	err = manager.DiscardPending()

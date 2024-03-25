@@ -32,7 +32,8 @@ func TestTickHappyPath(t *testing.T) {
 	tf1.StartWorld()
 
 	for i := 0; i < 10; i++ {
-		tf1.DoTick()
+		_, err := tf1.DoTick()
+		assert.NilError(t, err)
 	}
 
 	assert.Equal(t, uint64(10), world1.CurrentTick())

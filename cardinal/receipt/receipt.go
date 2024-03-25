@@ -4,6 +4,7 @@ package receipt
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/rotisserie/eris"
@@ -100,7 +101,8 @@ func (h *History) GetReceiptsForTick(tick uint64) ([]Receipt, error) {
 	// The requested tick is either in the future, or it is currently being processed. We don't yet know
 	// what the results of this tick will be.
 	if currTick <= tick {
-		return nil, eris.Wrap(ErrTickHasNotBeenProcessed, "")
+		return nil, eris.Wrap(ErrTickHasNotBeenProcessed,
+			fmt.Sprintf("tick %d is not yet processed, current tick is %d", tick, currTick))
 	}
 	if currTick-tick >= h.ticksToStore {
 		return nil, eris.Wrap(ErrOldTickHasBeenDiscarded, "")

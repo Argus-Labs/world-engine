@@ -58,7 +58,8 @@ func TestCanWaitForNextTick(t *testing.T) {
 
 	// Make sure the game can tick
 	tf.StartWorld()
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	waitForNextTickDone := make(chan struct{})
 	go func() {
@@ -80,7 +81,7 @@ func TestCanWaitForNextTick(t *testing.T) {
 	}
 }
 
-func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
+func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	startTickCh := tf.StartTickCh
@@ -88,7 +89,8 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 
 	// Make sure the game can tick
 	tf.StartWorld()
-	tf.DoTick()
+	_, err := tf.DoTick()
+	assert.NilError(t, err)
 
 	waitForNextTickDone := make(chan struct{})
 	go func() {
@@ -99,7 +101,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 		close(waitForNextTickDone)
 	}()
 
-	// Shutdown the engine at some point in the near future
+	// Shutdown the world at some point in the near future
 	time.AfterFunc(
 		100*time.Millisecond, func() {
 			assert.NilError(t, world.Shutdown())
@@ -160,7 +162,8 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	evmTxReceipt, ok := world.GetEVMMsgReceipt(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
@@ -174,7 +177,8 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
 
 	assert.Equal(t, ok, true)
@@ -223,7 +227,8 @@ func TestEVMTxConsume(t *testing.T) {
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	evmTxReceipt, ok := world.GetEVMMsgReceipt(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
@@ -237,7 +242,8 @@ func TestEVMTxConsume(t *testing.T) {
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
 	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
 
 	assert.Equal(t, ok, true)
@@ -272,7 +278,8 @@ func TestAddSystems(t *testing.T) {
 	tf.StartWorld()
 	assert.NilError(t, err)
 
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	assert.Equal(t, count, 3)
 }
@@ -297,7 +304,8 @@ func TestSystemExecutionOrder(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 	assert.NilError(t, err)
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 	expectedOrder := []int{1, 2, 3}
 	for i, elem := range order {
 		assert.Equal(t, elem, expectedOrder[i])
@@ -404,7 +412,8 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	tf.StartWorld()
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 
 	// Expect that ticks with no transactions are also submitted
 	rtr.
@@ -418,7 +427,8 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 		Return(nil).
 		Times(1)
 	rtr.EXPECT().Start().AnyTimes()
-	tf.DoTick()
+	_, err = tf.DoTick()
+	assert.NilError(t, err)
 }
 
 // setEnvToCardinalProdMode sets a bunch of environment variables that are required

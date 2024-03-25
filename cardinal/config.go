@@ -145,6 +145,9 @@ func (w *WorldConfig) setLogger() error {
 
 	// Set global logger level
 	zerolog.SetGlobalLevel(level)
+	zerolog.ErrorStackMarshaler = func(err error) interface{} { //nolint:reassign // intentional override
+		return eris.ToJSON(err, true)
+	}
 
 	// Enable pretty logging in development mode
 	if w.CardinalMode == RunModeDev {
