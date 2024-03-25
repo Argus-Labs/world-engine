@@ -18,5 +18,5 @@ jobs:
       - uses: xt0rted/markdownlint-problem-matcher@v3
       - uses: articulate/actions-markdownlint@v1
         with:
-          config: .markdownlint.json
+          config: .markdownlint.yaml
           version: 0.39.0
