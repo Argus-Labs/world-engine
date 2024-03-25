@@ -38,7 +38,6 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	bufLogger := zerolog.New(&buf)
 
 	world, err := NewWorld(
-		WithCustomMockRedis(miniRedis),
 		WithTickChannel(neverTick),
 		WithPort(getOpenPort(t)),
 		WithCustomLogger(bufLogger),

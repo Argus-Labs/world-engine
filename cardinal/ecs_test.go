@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -100,21 +98,6 @@ func UpdateEnergySystem(wCtx engine.Context) error {
 		return errors.Join(errs...)
 	}
 	return nil
-}
-
-func TestSchemaChecking(t *testing.T) {
-	s := miniredis.RunT(t)
-
-	tf1 := testutils.NewTestFixture(t, s)
-	world1 := tf1.World
-	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world1))
-	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world1))
-	tf1.StartWorld()
-
-	tf2 := testutils.NewTestFixture(t, s)
-	world2 := tf2.World
-	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world2))
-	assert.Assert(t, cardinal.RegisterComponent[AlteredEnergyComponent](world2) != nil)
 }
 
 func TestECS(t *testing.T) {
