@@ -14,7 +14,7 @@ on:
       - "**.mdx"
 
 jobs:
-  md-lint:
+  lint-md:
     name: Markdown
     runs-on: ubuntu-latest
     steps:
