@@ -51,7 +51,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
-	createPersonaMsg, ok := world.GetMessageByName("create-persona")
+	createPersonaMsg, ok := world.GetMessageByFullName("persona.create-persona")
 	assert.True(t, ok)
 	tf.AddTransaction(
 		createPersonaMsg.ID(), msg.CreatePersona{
@@ -167,7 +167,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	tf.CreatePersona(wantTag, wantSigner)
 
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
-	authorizePersonaAddressMsg, ok := world.GetMessageByName("authorize-persona-address")
+	authorizePersonaAddressMsg, ok := world.GetMessageByFullName("game.authorize-persona-address")
 	assert.True(t, ok)
 	tf.AddTransaction(
 		authorizePersonaAddressMsg.ID(),
@@ -205,7 +205,7 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	tf.CreatePersona(personaTag, addr)
 
 	invalidAuthAddress := "INVALID ADDRESS"
-	authMsg, exists := world.GetMessageByName("authorize-persona-address")
+	authMsg, exists := world.GetMessageByFullName("game.authorize-persona-address")
 	assert.True(t, exists)
 	tf.AddTransaction(
 		authMsg.ID(), msg.AuthorizePersonaAddress{

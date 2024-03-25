@@ -670,8 +670,8 @@ func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
 	return msg, msg != nil
 }
 
-func (w *World) GetMessageByName(name string) (types.Message, bool) {
-	return w.msgManager.GetMessageByName(name)
+func (w *World) GetMessageByFullName(name string) (types.Message, bool) {
+	return w.msgManager.GetMessageByFullName(name)
 }
 
 func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {

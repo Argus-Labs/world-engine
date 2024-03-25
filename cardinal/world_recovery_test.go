@@ -52,7 +52,7 @@ func TestWorldRecovery(t *testing.T) {
 				message.WithMsgEVMSupport[fooMessage, fooResponse]())
 			g.Assert(err).IsNil()
 			var ok bool
-			fooTx, ok = world.GetMessageByName(msgName)
+			fooTx, ok = world.GetMessageByFullName("game." + msgName)
 			g.Assert(ok).IsTrue()
 		})
 

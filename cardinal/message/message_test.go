@@ -3,18 +3,10 @@ package message
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
-
-type ModifyScoreMsg struct {
-	PlayerID types.EntityID
-	Amount   int
-}
 
 type EmptyMsgResult struct{}
 
@@ -25,28 +17,14 @@ func TestIfNewMessageWillPanic(t *testing.T) {
 		NewMessageType[NotStruct, AStruct]("random")
 	})
 	assert.Panics(t, func() {
+		NewMessageType[NotStruct, NotStruct]("random")
+	})
+	assert.Panics(t, func() {
 		NewMessageType[AStruct, NotStruct]("random")
 	})
 	assert.NotPanics(t, func() {
 		NewMessageType[AStruct, AStruct]("random")
 	})
-}
-
-func TestReadTypeNotStructs(t *testing.T) {
-	defer func() {
-		// test should trigger a panic. it is swallowed here.
-		panicValue := recover()
-		assert.Assert(t, panicValue != nil)
-
-		defer func() {
-			// deferred function should not fail
-			panicValue = recover()
-			assert.Assert(t, panicValue == nil)
-		}()
-
-		NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score2")
-	}()
-	NewMessageType[string, string]("modify_score1")
 }
 
 func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
@@ -93,11 +71,123 @@ func TestCopyTransactions(t *testing.T) {
 	assert.Equal(t, txp.GetAmountOfTxs(), 0)
 }
 
-func TestNewTransactionPanicsIfNoName(t *testing.T) {
+func TestMessageTypePanicsIfNoName(t *testing.T) {
 	type Foo struct{}
-	require.Panics(
+	assert.Panics(
 		t, func() {
 			NewMessageType[Foo, Foo]("")
 		},
 	)
+}
+
+func TestMessageFullName(t *testing.T) {
+	defaultMsg := NewMessageType[struct{}, struct{}]("foo")
+	assert.Equal(t, defaultMsg.FullName(), defaultGroup+".foo")
+
+	withGroup := NewMessageType[struct{}, struct{}](
+		"foo",
+		WithCustomMessageGroup[struct{}, struct{}]("bar"),
+	)
+	assert.Equal(t, withGroup.FullName(), "bar.foo")
+}
+
+func TestIsValidMessageText(t *testing.T) {
+	testCases := []struct {
+		testName       string
+		value          string
+		expectedResult bool
+	}{
+		{
+			testName:       "all alphabetical",
+			value:          "foo",
+			expectedResult: true,
+		},
+		{
+			testName:       "alphanumeric",
+			value:          "foo123",
+			expectedResult: true,
+		},
+		{
+			testName:       "alphanumeric with dash",
+			value:          "foo-123",
+			expectedResult: true,
+		},
+		{
+			testName:       "alphanumeric with underscore",
+			value:          "foo_123",
+			expectedResult: true,
+		},
+		{
+			testName:       "alphanumeric with dash and underscore",
+			value:          "foo-bar_123",
+			expectedResult: true,
+		},
+		{
+			testName:       "single alphabetical character",
+			value:          "a",
+			expectedResult: false,
+		},
+		{
+			testName:       "single digit",
+			value:          "7",
+			expectedResult: false,
+		},
+		{
+			testName:       "empty",
+			value:          "",
+			expectedResult: false,
+		},
+		{
+			testName:       "dash only",
+			value:          "-",
+			expectedResult: false,
+		},
+		{
+			testName:       "underscore only",
+			value:          "_",
+			expectedResult: false,
+		},
+		{
+			testName:       "starts with dash",
+			value:          "-foo",
+			expectedResult: false,
+		},
+		{
+			testName:       "starts with underscore",
+			value:          "_foo",
+			expectedResult: false,
+		},
+		{
+			testName:       "ends with dash",
+			value:          "foo-",
+			expectedResult: false,
+		},
+		{
+			testName:       "ends with underscore",
+			value:          "foo_",
+			expectedResult: false,
+		},
+		{
+			testName:       "contains space",
+			value:          "foo bar",
+			expectedResult: false,
+		},
+		{
+			testName:       "contains special character",
+			value:          "foo$bar",
+			expectedResult: false,
+		},
+		{
+			testName:       "contains non-ASCII character",
+			value:          "foóbar",
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.Equal(t, isValidMessageText(tc.value), tc.expectedResult,
+				"expected %s to be %t", tc.value, tc.expectedResult)
+		})
+	}
 }
