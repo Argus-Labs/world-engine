@@ -111,7 +111,7 @@ func (r *router) SubmitTxBlob(
 				Namespace:  tx.Namespace,
 				Nonce:      tx.Nonce,
 				Signature:  tx.Signature,
-				Body:       tx.Body,
+				Body:       tx.Message,
 			})
 		}
 		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}

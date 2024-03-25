@@ -39,7 +39,7 @@ type Transaction struct {
 	Nonce      uint64          `json:"nonce"`
 	Signature  string          `json:"signature"` // hex encoded string
 	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
-	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
+	Message    json.RawMessage `json:"message" swaggertype:"object"` // json string
 }
 
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {
@@ -70,7 +70,7 @@ func (s *Transaction) checkRequiredFields() error {
 	if s.Signature == "" {
 		return eris.Wrap(ErrNoSignatureField, "")
 	}
-	if len(s.Body) == 0 {
+	if len(s.Message) == 0 {
 		return eris.Wrap(ErrNoBodyField, "")
 	}
 	return nil
@@ -106,7 +106,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "error decoding map structure")
 	}
-	s.Body = serializedBody
+	s.Message = serializedBody
 	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Message:    bz,
 	}
 	sp.populateHash()
 	buf, err := crypto.Sign(sp.Hash.Bytes(), pk)
@@ -255,6 +255,6 @@ func (s *Transaction) populateHash() {
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),
 		[]byte(strconv.FormatUint(s.Nonce, 10)),
-		s.Body,
+		s.Message,
 	)
 }
