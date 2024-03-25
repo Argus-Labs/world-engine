@@ -28,13 +28,6 @@ definitions:
       txHash:
         type: string
     type: object
-  cardinal.debugStateElement:
-    properties:
-      components:
-        type: object
-      id:
-        type: integer
-    type: object
   handler.CQLQueryRequest:
     properties:
       cql:
@@ -88,6 +81,8 @@ definitions:
         items:
           $ref: '#/definitions/handler.FieldDetail'
         type: array
+      namespace:
+        type: string
       queries:
         items:
           $ref: '#/definitions/handler.FieldDetail'
@@ -124,6 +119,13 @@ definitions:
       id:
         type: integer
     type: object
+  handler.debugStateElement:
+    properties:
+      components:
+        type: object
+      id:
+        type: integer
+    type: object
 info:
   contact: {}
   description: Backend server for World Engine
@@ -150,6 +152,19 @@ paths:
           schema:
             $ref: '#/definitions/handler.CQLQueryResponse'
       summary: Query the ecs with CQL (cardinal query language)
+  /debug/state:
+    post:
+      description: Displays the entire game state.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.debugStateElement'
+            type: array
+      summary: Get information on all entities and components in world-engine
   /events:
     get:
       description: websocket connection for events.
@@ -172,19 +187,6 @@ paths:
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Get information on status of world-engine
-  /query/debug/state:
-    post:
-      description: Displays the entire game state.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/cardinal.debugStateElement'
-            type: array
-      summary: Get information on all entities and components in world-engine
   /query/game/{queryType}:
     post:
       consumes:

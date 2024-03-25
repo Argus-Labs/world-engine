@@ -497,9 +497,6 @@ func (w *World) registerInternalPlugin() {
 	// Register Persona plugin
 	w.RegisterPlugin(newPersonaPlugin())
 
-	// Register Debug plugin
-	w.RegisterPlugin(newDebugPlugin())
-
 	// Register Receipt plugin
 	w.RegisterPlugin(newReceiptPlugin())
 }

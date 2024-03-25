@@ -46,6 +46,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/debug/state": {
+            "post": {
+                "description": "Displays the entire game state.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get information on all entities and components in world-engine",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handler.debugStateElement"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "websocket connection for events.",
@@ -75,26 +95,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handler.GetHealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/query/debug/state": {
-            "post": {
-                "description": "Displays the entire game state.",
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get information on all entities and components in world-engine",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/cardinal.debugStateElement"
-                            }
                         }
                     }
                 }
@@ -359,17 +359,6 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal.debugStateElement": {
-            "type": "object",
-            "properties": {
-                "components": {
-                    "type": "object"
-                },
-                "id": {
-                    "type": "integer"
-                }
-            }
-        },
         "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
@@ -450,6 +439,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/handler.FieldDetail"
                     }
                 },
+                "namespace": {
+                    "type": "string"
+                },
                 "queries": {
                     "type": "array",
                     "items": {
@@ -498,6 +490,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.debugStateElement": {
+            "type": "object",
+            "properties": {
+                "components": {
                     "type": "object"
                 },
                 "id": {

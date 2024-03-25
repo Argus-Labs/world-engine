@@ -43,6 +43,26 @@
                 }
             }
         },
+        "/debug/state": {
+            "post": {
+                "description": "Displays the entire game state.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get information on all entities and components in world-engine",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handler.debugStateElement"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "websocket connection for events.",
@@ -72,26 +92,6 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handler.GetHealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/query/debug/state": {
-            "post": {
-                "description": "Displays the entire game state.",
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get information on all entities and components in world-engine",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/cardinal.debugStateElement"
-                            }
                         }
                     }
                 }
@@ -356,17 +356,6 @@
                 }
             }
         },
-        "cardinal.debugStateElement": {
-            "type": "object",
-            "properties": {
-                "components": {
-                    "type": "object"
-                },
-                "id": {
-                    "type": "integer"
-                }
-            }
-        },
         "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
@@ -447,6 +436,9 @@
                         "$ref": "#/definitions/handler.FieldDetail"
                     }
                 },
+                "namespace": {
+                    "type": "string"
+                },
                 "queries": {
                     "type": "array",
                     "items": {
@@ -495,6 +487,17 @@
             "type": "object",
             "properties": {
                 "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.debugStateElement": {
+            "type": "object",
+            "properties": {
+                "components": {
                     "type": "object"
                 },
                 "id": {
