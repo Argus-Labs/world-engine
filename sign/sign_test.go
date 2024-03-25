@@ -267,7 +267,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 	_, err = UnmarshalTransaction(bz)
 	assert.NilError(t, err)
 
-	fieldsToOmit := []string{"personaTag", "namespace", "signature", "body"}
+	fieldsToOmit := []string{"personaTag", "namespace", "signature", "message"}
 
 	copyValidData := func() map[string]any {
 		cpy := map[string]any{}
