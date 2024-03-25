@@ -20,6 +20,7 @@ import (
 
 const (
 	// TODO: This static domain and URI should be configurable via an environment variable.
+	// See: https://linear.app/arguslabs/issue/WORLD-995/make-domain-and-uri-configurable-for-siwe-authentication
 	DefaultDomain = "example.com"
 	DefaultURI    = "https://example.com/v2/account/authenticate/custom"
 
@@ -137,9 +138,12 @@ func getNonceWindow(msg *siwe.Message) (*nonceWindow, error) {
 	}, nil
 }
 
-// useNonce attempts to use the given nonce for the given signer address. If an identical nonce has been used, and
-// that nonce has not yet expired, useNonce will return false. A return value of (true, nil) means the nonce was
-// successfully used.
+// useNonce attempts to use the given nonce for the given signer address. A nonce can only be used 1 time, and if
+// multiple authentication attempts are made concurrently using the same nonce, only 1 should be allowed to succeed.
+// To use a nonce, the slice of previously-used nonces is loaded from Nakama's storage layer. If a copy of the current
+// nonce is already in the slice, the authentication fails. If the nonce is not already in the slice, it is added.
+// Nakama's storage layer support optimistic locking with a version. When saving the modified slice back to Nakama,
+// if the version has changed the write fails and authentication is unsuccessful.
 func useNonce(
 	ctx context.Context,
 	nk runtime.NakamaModule,
@@ -154,7 +158,7 @@ func useNonce(
 	}
 
 	// obj.Nonces contains the set of nonces that have already been used. If the nonce we're considering is NOT
-	// in obj.Nonces, then it's a valid nonce. Add it to the set of nonces and save it back to stoage.
+	// in obj.Nonces, then it is a valid nonce. Add it to the set of nonces and save it back to storage.
 	foundNonce := false
 	for _, n := range obj.Nonces {
 		if n.Nonce == toUse.Nonce {
