@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -14,14 +15,18 @@ import (
 )
 
 func validateSIWE(signer, message, signature string) (isValidationRequest bool, err error) {
+	var errs []error
 	if signer == "" {
-		return false, eris.Wrap(siwe.ErrMissingSignerAddress, "id field must be set")
+		errs = append(errs, eris.Wrap(siwe.ErrMissingSignerAddress, "id field must be set"))
 	}
 	if signature == "" && message != "" {
-		return false, eris.Wrap(siwe.ErrMissingSignature, "signature field must be set")
+		errs = append(errs, eris.Wrap(siwe.ErrMissingSignature, "signature field must be set"))
 	}
 	if signature != "" && message == "" {
-		return false, eris.Wrap(siwe.ErrMissingMessage, "signature field must be set")
+		errs = append(errs, eris.Wrap(siwe.ErrMissingMessage, "signature field must be set"))
+	}
+	if len(errs) > 0 {
+		return false, errors.Join(errs...)
 	}
 	if signature != "" && message != "" {
 		isValidationRequest = true
