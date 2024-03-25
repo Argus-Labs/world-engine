@@ -66,6 +66,7 @@ func TestValidateConfig(t *testing.T) {
 				CardinalNamespace:         "foo",
 				BaseShardQueryAddress:     "bar",
 				BaseShardSequencerAddress: "baz",
+				RouterKey:                 "blah",
 			},
 			wantErr: false,
 		},

@@ -16,8 +16,8 @@ func (app *App) setPlugins(logger log.Logger) {
 	if key == "" {
 		app.Logger().Debug("WARNING: starting the EVM base shard in insecure mode. No SECRET_KEY provided")
 	} else {
-		sequencerOpts = append(sequencerOpts, sequencer.WithSecretKey(key))
-		routerOpts = append(routerOpts, router.WithSecretKey(key))
+		sequencerOpts = append(sequencerOpts, sequencer.WithRouterKey(key))
+		routerOpts = append(routerOpts, router.WithRouterKey(key))
 	}
 	app.ShardSequencer = sequencer.NewShardSequencer(sequencerOpts...)
 	app.ShardSequencer.Serve()

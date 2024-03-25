@@ -158,7 +158,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			cfg.CardinalNamespace,
 			cfg.BaseShardSequencerAddress,
 			cfg.BaseShardQueryAddress,
-			cfg.SecretKey,
+			cfg.RouterKey,
 			world,
 		)
 		if err != nil {

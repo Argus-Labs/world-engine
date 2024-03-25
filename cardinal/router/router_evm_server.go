@@ -61,12 +61,12 @@ func (e *evmServer) serverCallInterceptor(
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
 
-	secretKey, ok := md["secret-key"]
-	if !ok || len(secretKey) == 0 {
+	routerKey, ok := md["router-key"]
+	if !ok || len(routerKey) == 0 {
 		return nil, status.Errorf(codes.Unauthenticated, "missing secret key")
 	}
 
-	if secretKey[0] != e.token {
+	if routerKey[0] != e.token {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid secret key")
 	}
 

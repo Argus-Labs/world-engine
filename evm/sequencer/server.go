@@ -37,10 +37,10 @@ type Sequencer struct {
 	tq         *TxQueue
 
 	// opts
-	key string
+	routerKey string
 }
 
-// NewShardSequencer returns a new game shardsequencer server. It runs on a default port of 9601,
+// NewShardSequencer returns a new game shard sequencer server. It runs on a default port of 9601,
 // unless the SHARD_SEQUENCER_PORT environment variable is set.
 //
 // The sequencer exposes a single gRPC endpoint, SubmitShardTx, which will take in transactions from game shards,
@@ -112,7 +112,7 @@ func (s *Sequencer) RegisterGameShard(
 	return &shard.RegisterGameShardResponse{}, nil
 }
 
-// serverCallInterceptor catches calls to handlers and ensures they have the right secret key.
+// serverCallInterceptor catches calls to handlers and ensures they have the right secret routerKey.
 func (s *Sequencer) serverCallInterceptor(
 	ctx context.Context,
 	req any,
@@ -124,13 +124,13 @@ func (s *Sequencer) serverCallInterceptor(
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
 
-	secretKey, ok := md["secret-key"]
-	if !ok || len(secretKey) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing secret key")
+	routerKey, ok := md["router-routerKey"]
+	if !ok || len(routerKey) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "missing secret routerKey")
 	}
 
-	if secretKey[0] != s.key {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid secret key")
+	if routerKey[0] != s.routerKey {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid secret routerKey")
 	}
 
 	return handler(ctx, req)

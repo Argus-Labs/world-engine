@@ -61,11 +61,11 @@ type router struct {
 	// serverAddr is the address the evmServer listens on. This is set once `Start` is called.
 	serverAddr string
 	port       string
-	token      string
+	routerKey  string
 }
 
-func New(namespace, sequencerAddr, baseShardQueryAddr, token string, provider Provider) (Router, error) {
-	rtr := &router{namespace: namespace, port: defaultPort, provider: provider, token: token}
+func New(namespace, sequencerAddr, baseShardQueryAddr, routerKey string, provider Provider) (Router, error) {
+	rtr := &router{namespace: namespace, port: defaultPort, provider: provider, routerKey: routerKey}
 
 	conn, err := grpc.Dial(
 		sequencerAddr,
@@ -84,7 +84,7 @@ func New(namespace, sequencerAddr, baseShardQueryAddr, token string, provider Pr
 	}
 	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
 
-	rtr.server = newEvmServer(provider, token)
+	rtr.server = newEvmServer(provider, routerKey)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
 }
@@ -153,12 +153,12 @@ func (r *router) Start() error {
 	return nil
 }
 
-// intercepts grpc invocations and injects the secret-key.
+// intercepts grpc invocations and injects the router-key.
 func (r *router) clientCallInterceptor(
 	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
 	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
 ) error {
-	md := metadata.New(map[string]string{"secret-key": r.token})
+	md := metadata.New(map[string]string{"router-key": r.routerKey})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	return invoker(ctx, method, req, reply, cc, opts...)

@@ -2,8 +2,8 @@ package sequencer
 
 type Option func(*Sequencer)
 
-func WithSecretKey(key string) Option {
+func WithRouterKey(key string) Option {
 	return func(server *Sequencer) {
-		server.key = key
+		server.routerKey = key
 	}
 }

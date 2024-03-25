@@ -431,6 +431,7 @@ func setEnvToCardinalProdMode(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "baz")
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "moo")
 	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "oom")
+	t.Setenv("ROUTER_KEY", "uwu")
 }
 
 func TestRecoverFromChain(t *testing.T) {

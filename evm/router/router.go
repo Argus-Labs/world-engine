@@ -232,12 +232,12 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 	return routerv1.NewMsgClient(conn), nil
 }
 
-// intercepts grpc invocations and injects the secret-key.
+// intercepts grpc invocations and injects the router-key.
 func (r *routerImpl) clientCallInterceptor(
 	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
 	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
 ) error {
-	md := metadata.New(map[string]string{"secret-key": r.key})
+	md := metadata.New(map[string]string{"router-key": r.key})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	return invoker(ctx, method, req, reply, cc, opts...)
