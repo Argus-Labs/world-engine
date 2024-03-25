@@ -469,7 +469,7 @@
         "handler.Transaction": {
             "type": "object",
             "properties": {
-                "body": {
+                "message": {
                     "description": "json string",
                     "type": "object"
                 },
