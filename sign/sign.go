@@ -84,7 +84,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		"namespace":  true,
 		"signature":  true,
 		"nonce":      true,
-		"body":       true,
+		"message":    true,
 		"hash":       true,
 	}
 	for key := range tx {
