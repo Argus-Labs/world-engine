@@ -59,7 +59,7 @@ type routerImpl struct {
 	getAddr     GetAddressFn
 
 	// opts
-	key string
+	routerKey string
 }
 
 // NewRouter returns a Router.
@@ -232,12 +232,12 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 	return routerv1.NewMsgClient(conn), nil
 }
 
-// intercepts grpc invocations and injects the router-key.
+// intercepts grpc invocations and injects the router-routerKey.
 func (r *routerImpl) clientCallInterceptor(
 	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
 	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
 ) error {
-	md := metadata.New(map[string]string{"router-key": r.key})
+	md := metadata.New(map[string]string{"router-routerKey": r.routerKey})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	return invoker(ctx, method, req, reply, cc, opts...)

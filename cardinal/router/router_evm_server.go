@@ -33,13 +33,13 @@ type evmServer struct {
 
 	provider   Provider
 	grpcServer *grpc.Server
-	token      string
+	routerKey  string
 }
 
-func newEvmServer(p Provider, token string) *evmServer {
+func newEvmServer(p Provider, routerKey string) *evmServer {
 	e := &evmServer{
-		provider: p,
-		token:    token,
+		provider:  p,
+		routerKey: routerKey,
 	}
 	e.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(e.serverCallInterceptor))
 	return e
@@ -66,7 +66,7 @@ func (e *evmServer) serverCallInterceptor(
 		return nil, status.Errorf(codes.Unauthenticated, "missing secret key")
 	}
 
-	if routerKey[0] != e.token {
+	if routerKey[0] != e.routerKey {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid secret key")
 	}
 
