@@ -3,9 +3,15 @@ name: Lint
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - "**.md"
+      - "**.mdx"
   push:
     branches:
       - main
+    paths:
+      - "**.md"
+      - "**.mdx"
 
 jobs:
   md-lint:
