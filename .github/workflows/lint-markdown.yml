@@ -1,0 +1,21 @@
+name: Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+
+jobs:
+  md-lint:
+    name: Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: articulate/actions-markdownlint@v1
+        with:
+          config: markdownlint-config.json
+          files: '**/*.md'
+          version: 0.39.0
