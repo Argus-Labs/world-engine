@@ -153,9 +153,9 @@ catch (ApiResponseException ex)
 
 Game clients can view [events](/cardinal/game/system/event) emitted in systems as well as the results of iterating over [messages](/cardinal/game/message#iterating-over-messages) by listening for notifications from Nakama.
 
-The code to receive notifications will be different depending on the Nakama client you are using. [Client specific instructions can be found here](https://heroiclabs.com/docs/nakama/concepts/notifications/#receive-notifications)
-
 #### Example
+
+The code to receive notifications will be different depending on the game engine/client you are using. Learn more about how to receive notifications for your game client at [Nakama docs](https://heroiclabs.com/docs/nakama/concepts/notifications/#receive-notifications).
 
 Here are structs that can be used to deserialize notification information. Note, the Receipt.Result field is an arbitrary object that will depend on the exact messages you've defined in your game.
 
