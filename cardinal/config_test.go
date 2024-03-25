@@ -6,18 +6,20 @@ import (
 	"pkg.world.dev/world-engine/assert"
 )
 
-func TestConfigDefaults(t *testing.T) {
-	cfg := getWorldConfig()
-	assert.Equal(t, cfg, defaultConfig)
+func TestWorldConfig_Defaults(t *testing.T) {
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, defaultConfig, *cfg)
 }
 
-func TestConfigLoadsFromEnv(t *testing.T) {
+func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	wantCfg := WorldConfig{
-		RedisAddress:              "foo",
+		RedisAddress:              "localhost:6379",
 		RedisPassword:             "bar",
 		CardinalNamespace:         "baz",
 		CardinalMode:              RunModeProd,
-		BaseShardSequencerAddress: "moo",
+		BaseShardSequencerAddress: "localhost:8080",
+		BaseShardQueryAddress:     "localhost:8081",
 		CardinalLogLevel:          DefaultLogLevel,
 		StatsdAddress:             DefaultStatsdAddress,
 	}
@@ -26,13 +28,15 @@ func TestConfigLoadsFromEnv(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", wantCfg.CardinalNamespace)
 	t.Setenv("CARDINAL_MODE", string(wantCfg.CardinalMode))
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
+	t.Setenv("BASE_SHARD_Query_ADDRESS", wantCfg.BaseShardQueryAddress)
 
-	gotCfg := getWorldConfig()
+	gotCfg, err := loadWorldConfig()
+	assert.NilError(t, err)
 
-	assert.Equal(t, wantCfg, gotCfg)
+	assert.Equal(t, wantCfg, *gotCfg)
 }
 
-func TestValidateConfig(t *testing.T) {
+func TestWorldConfig_Validate(t *testing.T) {
 	testCases := []struct {
 		name    string
 		cfg     WorldConfig
@@ -62,10 +66,12 @@ func TestValidateConfig(t *testing.T) {
 			name: "prod with all required values",
 			cfg: WorldConfig{
 				CardinalMode:              RunModeProd,
-				RedisPassword:             "foo",
+				CardinalLogLevel:          DefaultLogLevel,
 				CardinalNamespace:         "foo",
-				BaseShardQueryAddress:     "bar",
-				BaseShardSequencerAddress: "baz",
+				RedisAddress:              "localhost:6379",
+				RedisPassword:             "foo",
+				BaseShardQueryAddress:     "localhost:8081",
+				BaseShardSequencerAddress: "localhost:8080",
 			},
 			wantErr: false,
 		},
