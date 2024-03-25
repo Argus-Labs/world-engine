@@ -316,7 +316,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 		"namespace":  "namespace",
 		"nonce":      100,
 		"signature":  tx.Signature,
-		"body":       body,
+		"message":    body,
 	}
 	gotTx, err := MappedTransaction(dataAsMap)
 	assert.NilError(t, err)
