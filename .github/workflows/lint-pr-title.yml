@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, edited, reopened]
 
 jobs:
-  lint-pr:
+  lint-pr-title:
     name: PR Title
     permissions:
       pull-requests: read # for amannn/action-semantic-pull-request to analyze PRs
