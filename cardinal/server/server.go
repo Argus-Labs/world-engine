@@ -157,7 +157,7 @@ func (s *Server) setupRoutes(
 	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	s.app.Get("/world", handler.GetWorld(components, messages, queries))
+	s.app.Get("/world", handler.GetWorld(components, messages, queries, wCtx.Namespace()))
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())

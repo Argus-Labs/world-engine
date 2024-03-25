@@ -11,6 +11,7 @@ import (
 )
 
 type GetWorldResponse struct {
+	Namespace  string        `json:"namespace"`
 	Components []FieldDetail `json:"components"` // list of component names
 	Messages   []FieldDetail `json:"messages"`
 	Queries    []FieldDetail `json:"queries"`
@@ -33,7 +34,7 @@ type FieldDetail struct {
 //	@Router			/world [get]
 func GetWorld(
 	components []types.ComponentMetadata, messages []types.Message,
-	queries []engine.Query,
+	queries []engine.Query, namespace string,
 ) func(*fiber.Ctx) error {
 	// Collecting name of all registered components
 	comps := make([]FieldDetail, 0, len(components))
@@ -63,12 +64,13 @@ func GetWorld(
 		queriesFields = append(queriesFields, FieldDetail{
 			Name:   query.Name(),
 			Fields: query.GetRequestFieldInformation(),
-			URL:    utils.GetTxURL(query.Group(), query.Name()),
+			URL:    utils.GetQueryURL(query.Group(), query.Name()),
 		})
 	}
 
 	return func(ctx *fiber.Ctx) error {
 		return ctx.JSON(GetWorldResponse{
+			Namespace:  namespace,
 			Components: comps,
 			Messages:   messagesFields,
 			Queries:    queriesFields,
