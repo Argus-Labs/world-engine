@@ -1,11 +1,12 @@
+
+<h1 align="center"><img alt="World Engine" src="https://i.imgur.com/P6YpZCT.png" width=250 /></h1>
 <div align="center">
-  <img src="https://i.imgur.com/P6YpZCT.png" width=250 />
   <br/>
   The world’s first Gamechain SDK that utilizes Argus Labs’ novel sharded rollup architecture.
   <br/>
   <br/>
   <a href="https://codecov.io/gh/Argus-Labs/world-engine" >
-    <img src="https://codecov.io/gh/Argus-Labs/world-engine/branch/main/graph/badge.svg?token=XMH4P082HZ"/>
+    <img alt="Code Coverage" src="https://codecov.io/gh/Argus-Labs/world-engine/branch/main/graph/badge.svg?token=XMH4P082HZ"/>
   </a>
   <a href="https://goreportcard.com/report/pkg.world.dev/world-engine/cardinal">
     <img src="https://goreportcard.com/badge/pkg.world.dev/world-engine/cardinal" alt="Go Report Card">

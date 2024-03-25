@@ -48,7 +48,9 @@ This gRPC server runs, by default, at port `9601`, but can be configured by sett
 
 The rollup provides an extension to its underlying EVM environment with a specialized precompile that allows messages to be forwarded from smart contracts to game shards that implement the router server.
 
-In order for the router to communicate with game shards, their namespaces must be mapped to their gRPC address. These are stored through the x/namespace module, and can be updated via an authority address. The authority address is loaded at the start of the application from an environment variable named `NAMESPACE_AUTHORITY_ADDR`. If unset, the authority for the namespace module will be set to the governance module address, allowing for namespaces to be added via governance.
+In order for the router to communicate with game shards, their namespaces must be mapped to their gRPC address. These are stored through the x/namespace module, and can be updated via an authority address.
+The authority address is loaded at the start of the application from an environment variable named `NAMESPACE_AUTHORITY_ADDR`.
+If unset, the authority for the namespace module will be set to the governance module address, allowing for namespaces to be added via governance.
 
 When namespace authority is set, you can update the namespaces via the `register` command provided by world-evm.
 
@@ -163,18 +165,18 @@ Game shards can be queried using the same contructs as above, however, the preco
   QueryLocationResponse memory res = abi.decode(bz, (QueryLocationResponse));
 ```
 
-# Running the Sequencer
+## Running the Sequencer
 
 Below are the following environment variables needed to run the sequencer.
 
-## Faucet
+### Faucet
 
 - FAUCET_ADDR
 The application is capable of supplying a faucet address with funds. Setting the `FAUCET_ADDR` will keep an account topped up to be used in a faucet.
 
-## x/namespace
+### x/namespace
 
-- NAMESPACE_AUTHORITY_ADDR=<world engine address>
+- NAMESPACE_AUTHORITY_ADDR=`<world-engine-address>`
   - the address of the account you want to be able to update namespace mappings with.
 
 ### Secure gRPC Connections
