@@ -13,7 +13,7 @@ import (
 func TestGetSignerComponentForPersona(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	msg, exists := world.GetMessageByName("create-persona")
+	msg, exists := world.GetMessageByFullName("persona.create-persona")
 	assert.True(t, exists)
 	personaTag := "tyler"
 	signer := "foobar"

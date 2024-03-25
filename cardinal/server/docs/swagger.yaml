@@ -56,6 +56,8 @@ definitions:
       name:
         description: name of the message or query
         type: string
+      url:
+        type: string
     type: object
   handler.GetEndpointsResponse:
     properties:
@@ -257,10 +259,8 @@ paths:
     post:
       consumes:
       - application/json
-      - application/json
-      description: |-
-        Submit a transaction to Cardinal
-        Create a Persona transaction to Cardinal
+      description: Submit a transaction to Cardinal / Create a Persona transaction
+        to Cardinal
       parameters:
       - description: label of the transaction that wants to be submitted
         in: path
@@ -275,7 +275,6 @@ paths:
           $ref: '#/definitions/handler.Transaction'
       produces:
       - application/json
-      - application/json
       responses:
         "200":
           description: OK
@@ -285,15 +284,13 @@ paths:
           description: Invalid transaction request
           schema:
             type: string
-      summary: Create a Persona transaction to Cardinal
+      summary: Submit a transaction to Cardinal
   /tx/persona/create-persona:
     post:
       consumes:
       - application/json
-      - application/json
-      description: |-
-        Submit a transaction to Cardinal
-        Create a Persona transaction to Cardinal
+      description: Submit a transaction to Cardinal / Create a Persona transaction
+        to Cardinal
       parameters:
       - description: Transaction details
         in: body
@@ -303,7 +300,6 @@ paths:
           $ref: '#/definitions/handler.Transaction'
       produces:
       - application/json
-      - application/json
       responses:
         "200":
           description: OK
@@ -313,7 +309,7 @@ paths:
           description: Invalid transaction request
           schema:
             type: string
-      summary: Create a Persona transaction to Cardinal
+      summary: Submit a transaction to Cardinal
   /world:
     get:
       consumes:

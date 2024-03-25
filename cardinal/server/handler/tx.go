@@ -31,24 +31,21 @@ type Transaction = sign.Transaction
 // PostTransaction godoc
 //
 //	@Summary		Submit a transaction to Cardinal
-//	@Description	Submit a transaction to Cardinal
+//	@Description	Submit a transaction to Cardinal / Create a Persona transaction to Cardinal
 //	@Accept			application/json
 //	@Produce		application/json
-//	@Param			txType	path		string	true	"label of the transaction that wants to be submitted"
-//	@Success		200		{object}	PostTransactionResponse
-//	@Failure		400		{string}	string	"Invalid transaction request"
+//	@Success		200	{object}	PostTransactionResponse
+//	@Failure		400	{string}	string	"Invalid transaction request"
+//
+// PostTransaction with label godoc
+//
 //	@Router			/tx/game/{txType} [post]
+//	@Param			txType	path	string	true	"label of the transaction that wants to be submitted"
 //
 // PostTransaction with Persona godoc
 //
-//	@Summary		Create a Persona transaction to Cardinal
-//	@Description	Create a Persona transaction to Cardinal
-//	@Accept			application/json
-//	@Produce		application/json
-//	@Param			txBody	body		Transaction	true	"Transaction details"
-//	@Success		200		{object}	PostTransactionResponse
-//	@Failure		400		{string}	string	"Invalid transaction request"
 //	@Router			/tx/persona/create-persona [post]
+//	@Param			txBody	body	Transaction	true	"Transaction details"
 func PostTransaction(
 	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
