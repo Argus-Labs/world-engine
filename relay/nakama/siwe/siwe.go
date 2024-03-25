@@ -48,6 +48,8 @@ type GenerateResult struct {
 // nonceStorageObj is the struct that is serizlied to JSON and saved to the Nakama storage layer. Each signer address
 // maps to a different nonceStorageObj. A signature is valid if the nonce contained in the signed message does NOT
 // already have an entry in this object.
+// NOTE: These nonces are different from the nonces that Cardinal stores for messages/transactions. The nonces here
+// are only used for validating SIWE requests.
 type nonceStorageObj struct {
 	Nonces  []*nonceWindow `json:"nonces"`
 	Version string         `json:"-"`
@@ -180,8 +182,8 @@ func useNonce(
 
 // GenerateNewSIWEMessage generates an SIWE Message that can be signed and used to authenticate a user.
 func GenerateNewSIWEMessage(signerAddress string) (*GenerateResult, error) {
-	options := makeOptions()
-	nonce, err := makeNonce()
+	options := newOptions()
+	nonce, err := generateNonce()
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +260,7 @@ func getNonceStorageObject(
 	return &nonceObj, nil
 }
 
-func makeOptions() map[string]any {
+func newOptions() map[string]any {
 	now := time.Now().UTC()
 	return map[string]any{
 		"issuedAt":       now.Format(time.RFC3339),
@@ -267,7 +269,7 @@ func makeOptions() map[string]any {
 	}
 }
 
-func makeNonce() (string, error) {
+func generateNonce() (string, error) {
 	n, err := rand.Int(rand.Reader, maxNonce)
 	if err != nil {
 		return "", eris.Wrap(err, "failed to generate nonce")
