@@ -93,20 +93,20 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		}
 	}
 	// json.Marshal will encode an empty body to "null", so verify the body exists before attempting to Marshal it.
-	if _, ok := tx["body"]; !ok {
+	if _, ok := tx["message"]; !ok {
 		return nil, ErrNoBodyField
 	}
-	serializedBody, err := json.Marshal(tx["body"])
+	serializedMessage, err := json.Marshal(tx["message"])
 	if err != nil {
 		return nil, err
 	}
 	delete(tx, "hash")
-	delete(tx, "body")
+	delete(tx, "message")
 	err = mapstructure.Decode(tx, s)
 	if err != nil {
 		return nil, eris.Wrap(err, "error decoding map structure")
 	}
-	s.Message = serializedBody
+	s.Message = serializedMessage
 	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
