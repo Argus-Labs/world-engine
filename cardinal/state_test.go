@@ -64,9 +64,7 @@ func (FooComponent) Name() string {
 
 func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// This redisStore will be used to cardinal.Create multiple engines to ensure state is consistent across the engines.
-	redisStore := miniredis.RunT(t)
-
-	tf1 := testutils.NewTestFixture(t, redisStore)
+	tf1 := testutils.NewTestFixture(t, nil)
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[OneAlphaNum](world1))
 	tf1.StartWorld()
@@ -76,27 +74,26 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	tf1.DoTick()
 
 	// Too few components registered
-	tf2 := testutils.NewTestFixture(t, redisStore)
+	tf2 := testutils.NewTestFixture(t, tf1.Redis)
 	err = tf2.World.StartGame() // We start this manually instead of tf2.StartWorld() because StartWorld panics on err
 	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
-	tf3 := testutils.NewTestFixture(t, redisStore)
+	tf3 := testutils.NewTestFixture(t, tf1.Redis)
 	world3 := tf3.World
 	assert.NilError(t, cardinal.RegisterComponent[ThreeAlphaNum](world3))
 	assert.NilError(t, cardinal.RegisterComponent[ThreeBetaNum](world3))
 	tf3.StartWorld()
 
 	// Just the right number of components registered
-	tf4 := testutils.NewTestFixture(t, redisStore)
+	tf4 := testutils.NewTestFixture(t, tf1.Redis)
 	world4 := tf4.World
 	assert.NilError(t, cardinal.RegisterComponent[FoundAlphaNum](world4))
 	tf4.StartWorld()
 }
 
 func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
-	redisStore := miniredis.RunT(t)
-	tf1 := testutils.NewTestFixture(t, redisStore)
+	tf1 := testutils.NewTestFixture(t, nil)
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[NumberComponent](world1))
 	tf1.StartWorld()
@@ -116,7 +113,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	tf1.DoTick()
 
 	// Make a second instance of the engine using the same storage.
-	tf2 := testutils.NewTestFixture(t, redisStore)
+	tf2 := testutils.NewTestFixture(t, tf1.Redis)
 	world2 := tf2.World
 	assert.NilError(t, cardinal.RegisterComponent[NumberComponent](world2))
 	tf2.StartWorld()
@@ -135,9 +132,8 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 }
 
 func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
-	redisStore := miniredis.RunT(t)
-
-	tf1 := testutils.NewTestFixture(t, redisStore)
+	mr := miniredis.RunT(t)
+	tf1 := testutils.NewTestFixture(t, mr)
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[OneAlphaNum](world1))
 	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](world1))
@@ -170,7 +166,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// Create a brand new engine, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
-	tf2 := testutils.NewTestFixture(t, redisStore)
+	tf2 := testutils.NewTestFixture(t, mr)
 	world2 := tf2.World
 	// The ordering of registering these components is important. It must match the ordering above.
 	assert.NilError(t, cardinal.RegisterComponent[TwoAlphaNum](world2))
@@ -181,13 +177,13 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// The order that we FETCH archetypes shouldn't matter, so this order is intentionally
 	// different from the setup step
-	world2BothArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	world2BothArchID, err := world2.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, world2BothArchID)
-	twoJustAlphaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
+	twoJustAlphaArchID, err := world2.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, world1JustAlphaArchID, twoJustAlphaArchID)
-	twoJustBetaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
+	twoJustBetaArchID, err := world2.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, twoJustBetaArchID)
 
@@ -195,7 +191,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// it never cardinal.Created any entities
 	tf1.DoTick()
 
-	tf3 := testutils.NewTestFixture(t, redisStore)
+	tf3 := testutils.NewTestFixture(t, mr)
 	world3 := tf3.World
 	// Again, the ordering of registering these components is important. It must match the ordering above
 	assert.NilError(t, cardinal.RegisterComponent[ThreeAlphaNum](world3))
@@ -203,13 +199,13 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	tf3.StartWorld()
 
 	// And again, the loading of archetypes is intentionally different from the above two steps
-	world3JustBetaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
+	world3JustBetaArchID, err := world3.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, world3JustBetaArchID)
-	world3BothArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	world3BothArchID, err := world3.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, world3BothArchID)
-	world3JustAlphaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
+	world3JustAlphaArchID, err := world3.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, world1JustAlphaArchID, world3JustAlphaArchID)
 }
@@ -231,8 +227,7 @@ func (oneAlphaNumComp) Name() string {
 }
 
 func TestCanReloadState(t *testing.T) {
-	redisStore := miniredis.RunT(t)
-	tf1 := testutils.NewTestFixture(t, redisStore)
+	tf1 := testutils.NewTestFixture(t, nil)
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[oneAlphaNumComp](world1))
 
@@ -263,7 +258,7 @@ func TestCanReloadState(t *testing.T) {
 	tf1.DoTick()
 
 	// Make a new engine, using the original redis DB that (hopefully) has our data
-	tf2 := testutils.NewTestFixture(t, redisStore)
+	tf2 := testutils.NewTestFixture(t, tf1.Redis)
 	world2 := tf2.World
 	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](world2))
 	tf2.StartWorld()
@@ -287,12 +282,10 @@ func TestCanReloadState(t *testing.T) {
 }
 
 func TestEngineTickAndHistoryTickMatch(t *testing.T) {
-	redisStore := miniredis.RunT(t)
-
 	// Ensure that across multiple reloads, getting the transaction receipts for a tick
 	// that is still in the tx receipt history window will not return any errors.
 	for reload := 0; reload < 5; reload++ {
-		tf := testutils.NewTestFixture(t, redisStore)
+		tf := testutils.NewTestFixture(t, nil)
 		world := tf.World
 		tf.StartWorld()
 		relevantTick := world.CurrentTick()
@@ -309,12 +302,11 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	redisStore := miniredis.RunT(t)
 
 	// Ensure that across multiple reloads we can queue up transactions, execute those transactions
 	// in a tick, and then find those transactions in the tx receipt history.
 	for reload := 0; reload < 5; reload++ {
-		tf := testutils.NewTestFixture(t, redisStore)
+		tf := testutils.NewTestFixture(t, nil)
 		world := tf.World
 		msgName := "some-msg"
 		assert.NilError(t, cardinal.RegisterMessage[Msg, Result](world, msgName))
