@@ -63,11 +63,11 @@ func (e *evmServer) serverCallInterceptor(
 
 	routerKey, ok := md["router-key"]
 	if !ok || len(routerKey) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing secret key")
+		return nil, status.Errorf(codes.Unauthenticated, "missing router key")
 	}
 
 	if routerKey[0] != e.routerKey {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid secret key")
+		return nil, status.Errorf(codes.Unauthenticated, "invalid router key")
 	}
 
 	return handler(ctx, req)
