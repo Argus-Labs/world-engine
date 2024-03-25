@@ -3,8 +3,6 @@ package cardinal_test
 import (
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
@@ -28,8 +26,7 @@ func (ScalarComponentBeta) Name() string {
 }
 
 func TestTickHappyPath(t *testing.T) {
-	rs := miniredis.RunT(t)
-	tf1 := testutils.NewTestFixture(t, rs)
+	tf1 := testutils.NewTestFixture(t, nil)
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world1))
 	tf1.StartWorld()
@@ -40,7 +37,7 @@ func TestTickHappyPath(t *testing.T) {
 
 	assert.Equal(t, uint64(10), world1.CurrentTick())
 
-	tf2 := testutils.NewTestFixture(t, rs)
+	tf2 := testutils.NewTestFixture(t, tf1.Redis)
 	world2 := tf2.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world2))
 	tf2.StartWorld()

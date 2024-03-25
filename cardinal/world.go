@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -50,7 +49,6 @@ var _ servertypes.Provider = &World{} //nolint:exhaustruct
 type World struct {
 	mode      RunMode
 	namespace Namespace
-	cleanup   func()
 
 	// Storage
 	redisStorage *redis.Storage
@@ -88,19 +86,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
-	cfg := getWorldConfig()
-	if err := cfg.Validate(); err != nil {
-		return nil, eris.Wrapf(err, "invalid configuration")
-	}
-	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
-		return nil, eris.Wrap(err, "")
+	cfg, err := loadWorldConfig()
+	if err != nil {
+		return nil, eris.Wrap(err, "Failed to load config to start world")
 	}
 
-	if cfg.CardinalMode == RunModeDev {
-		// Enable pretty printing of logs in development mode.
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	}
-	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
+	log.Info().Msgf("Creating a new Cardinal world in %s mode", cfg.CardinalMode)
 
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
 		Addr:        cfg.RedisAddress,
@@ -110,7 +101,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}, cfg.CardinalNamespace)
 
 	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
-
 	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(&redisStore)
 	if err != nil {
 		return nil, err
@@ -121,7 +111,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	world := &World{
 		mode:      cfg.CardinalMode,
 		namespace: Namespace(cfg.CardinalNamespace),
-		cleanup:   func() {},
 
 		// Storage
 		redisStorage: &redisMetaStore,
@@ -153,11 +142,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 
+	// Shard router must be set in production mode
 	if cfg.CardinalMode == RunModeProd {
 		world.router, err = router.New(cfg.CardinalNamespace, cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress,
 			world)
 		if err != nil {
-			return nil, err
+			return nil, eris.Wrap(err, "Failed to initialize shard router")
 		}
 	}
 
@@ -169,12 +159,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	world.registerInternalPlugin()
 
 	var metricTags []string
-	if cfg.CardinalMode != "" {
-		metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
-	}
-	if cfg.CardinalNamespace != "" {
-		metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
-	}
+	metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
+	metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
 
 	if cfg.StatsdAddress != "" || cfg.TraceAddress != "" {
 		if err = statsd.Init(cfg.StatsdAddress, cfg.TraceAddress, metricTags); err != nil {
@@ -184,16 +170,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
-	return world, nil
-}
-
-// NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
-// If you are creating a World for unit tests, use NewTestWorld.
-func NewMockWorld(opts ...WorldOption) (*World, error) {
-	world, err := NewWorld(append(opts, withMockRedis())...)
-	if err != nil {
-		return world, err
-	}
 	return world, nil
 }
 
@@ -466,10 +442,6 @@ func (w *World) Shutdown() error {
 	// Block until the world has stopped ticking
 	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
 
-	if w.cleanup != nil {
-		w.cleanup()
-	}
-
 	if w.server != nil {
 		if err := w.server.Shutdown(); err != nil {
 			return err
@@ -485,25 +457,6 @@ func (w *World) Shutdown() error {
 	}
 	log.Info().Msg("Successfully closed storage connection.")
 
-	return nil
-}
-
-func setLogLevel(levelStr string) error {
-	if levelStr == "" {
-		return eris.New("log level must not be empty")
-	}
-	level, err := zerolog.ParseLevel(levelStr)
-	if err != nil {
-		var exampleLogLevels = strings.Join([]string{
-			zerolog.DebugLevel.String(),
-			zerolog.InfoLevel.String(),
-			zerolog.WarnLevel.String(),
-			zerolog.ErrorLevel.String(),
-			zerolog.Disabled.String(),
-		}, ", ")
-		return eris.Errorf("log level %q is invalid, try one of: %v.", levelStr, exampleLogLevels)
-	}
-	zerolog.SetGlobalLevel(level)
 	return nil
 }
 

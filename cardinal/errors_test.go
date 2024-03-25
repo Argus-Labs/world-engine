@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/component"
@@ -321,8 +319,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 }
 
 func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
-	miniRedis := miniredis.RunT(t)
-	tf := testutils.NewTestFixture(t, miniRedis)
+	tf := testutils.NewTestFixture(t, nil)
 	world, tick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
@@ -351,7 +348,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Uhoh, redis is now broken.
-	miniRedis.Close()
+	tf.Redis.Close()
 
 	readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
 	// This will fail with a redis connection error, and since we're in a Query, we should NOT panic

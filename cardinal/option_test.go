@@ -19,7 +19,6 @@ func TestOptionFunctionSignatures(_ *testing.T) {
 	// public facing functions was changed.
 	cardinal.WithReceiptHistorySize(1)
 	cardinal.WithCustomLogger(zerolog.New(os.Stdout))
-	cardinal.WithCustomMockRedis(nil)
 	cardinal.WithPort("")
 	cardinal.WithPrettyLog() //nolint:staticcheck // not applicable.
 }
