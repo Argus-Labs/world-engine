@@ -209,16 +209,14 @@ const docTemplate = `{
         },
         "/tx/game/{txType}": {
             "post": {
-                "description": "Submit a transaction to Cardinal\nCreate a Persona transaction to Cardinal",
+                "description": "Submit a transaction to Cardinal / Create a Persona transaction to Cardinal",
                 "consumes": [
-                    "application/json",
                     "application/json"
                 ],
                 "produces": [
-                    "application/json",
                     "application/json"
                 ],
-                "summary": "Create a Persona transaction to Cardinal",
+                "summary": "Submit a transaction to Cardinal",
                 "parameters": [
                     {
                         "type": "string",
@@ -255,16 +253,14 @@ const docTemplate = `{
         },
         "/tx/persona/create-persona": {
             "post": {
-                "description": "Submit a transaction to Cardinal\nCreate a Persona transaction to Cardinal",
+                "description": "Submit a transaction to Cardinal / Create a Persona transaction to Cardinal",
                 "consumes": [
-                    "application/json",
                     "application/json"
                 ],
                 "produces": [
-                    "application/json",
                     "application/json"
                 ],
-                "summary": "Create a Persona transaction to Cardinal",
+                "summary": "Submit a transaction to Cardinal",
                 "parameters": [
                     {
                         "description": "Transaction details",
@@ -403,6 +399,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "description": "name of the message or query",
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }

@@ -78,7 +78,7 @@ func (e *evmServer) SendMessage(
 	_ context.Context, req *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
-	msgType, exists := e.provider.GetMessageByName(req.GetMessageId())
+	msgType, exists := e.provider.GetMessageByFullName(req.GetMessageId())
 	if !exists || !msgType.IsEVMCompatible() {
 		return &routerv1.SendMessageResponse{
 			Errs: fmt.Errorf(
