@@ -235,7 +235,7 @@ func TestRejectSignatureWithExtraField(t *testing.T) {
 		"namespace":  "namespace",
 		"nonce":      100,
 		"signature":  "xyzzy",
-		"body":       "bar",
+		"Message":    "bar",
 	}
 
 	bz, err := json.Marshal(data)
