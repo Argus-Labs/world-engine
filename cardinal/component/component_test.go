@@ -3,8 +3,6 @@ package component_test
 import (
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -340,16 +338,13 @@ func (NewComponent) Name() string {
 }
 
 func TestRegisterComponent_ErrorOnSchemaMismatch(t *testing.T) {
-	// We create a miniredis instance to reuse across the two world instance
-	redis := miniredis.RunT(t)
-
 	// Create first world, this should work normally
-	tf1 := testutils.NewTestFixture(t, redis)
+	tf1 := testutils.NewTestFixture(t, nil)
 	world := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[OldComponent](world))
 
 	// Create second world, this should fail because the schema of the new component does not match the old component
-	tf2 := testutils.NewTestFixture(t, redis)
+	tf2 := testutils.NewTestFixture(t, tf1.Redis)
 	world = tf2.World
 	assert.ErrorContains(t, cardinal.RegisterComponent[NewComponent](world),
 		"component schema does not match target schema")

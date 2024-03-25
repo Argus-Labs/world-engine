@@ -93,7 +93,7 @@ func (m *Manager) registerSystems(isInit bool, systems ...System) error {
 func (m *Manager) RunSystems(wCtx engine.Context) error {
 	var systemsToRun []string
 	if wCtx.CurrentTick() == 0 {
-		//nolint:gocritic,appendAssign // We need to use the append function to concat
+		//nolint:gocritic // We need to use the append function to concat
 		systemsToRun = append(m.registeredInitSystems, m.registeredSystems...)
 	} else {
 		systemsToRun = m.registeredSystems
