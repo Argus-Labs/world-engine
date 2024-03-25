@@ -1,6 +1,5 @@
-
-<h1 align="center"><img alt="World Engine" src="https://i.imgur.com/P6YpZCT.png" width=250 /></h1>
-<div align="center">
+<div align="center"> <!-- markdownlint-disable-line first-line-heading -->
+  <img alt="World Engine" src="https://i.imgur.com/P6YpZCT.png" width=250 />
   <br/>
   The world’s first Gamechain SDK that utilizes Argus Labs’ novel sharded rollup architecture.
   <br/>

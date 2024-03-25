@@ -19,4 +19,5 @@ jobs:
       - uses: articulate/actions-markdownlint@v1
         with:
           config: .markdownlint.yaml
+          ignore: vendor
           version: 0.39.0
