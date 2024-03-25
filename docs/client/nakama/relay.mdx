@@ -161,25 +161,40 @@ Here are structs that can be used to deserialize notification information. Note,
 
 ```csharp Unity/C# Example
 using System;
-using System.Text.Json.Serialization;
 
-public class Event
+public class CardinalEvent
 {
-    [JsonPropertyName("message")]
-    public string Message { get; set; }
+    [Serializable]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public struct Message
+    {
+        public string message;
+    }
 }
 
-public class Receipt
+public class CardinalReceipt
 {
-    [JsonPropertyName("txHash")]
-    public string TxHash { get; set; }
+    [Serializable]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public struct TxHash
+    {
+        public string txHash;
+    }
 
-    [JsonPropertyName("errors")]
-    public List<string> Errors { get; set; }
+    [Serializable]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public struct Errors
+    {
+        public string errors;
+    }
 
     // The exact structure of this Result field will depend on the message you defined in your game.
-    [JsonPropertyName("result")]
-    public Dictionary<string, object> Result { get; set; }
+    [Serializable]
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public struct Result
+    {
+        public string result;
+    }
 }
 ```
 
@@ -196,11 +211,11 @@ await socket.ConnectAsync(Session, appearOnline, connectionTimeout);
 socket.ReceivedNotification += notification =>
 {
     if (notification.Subject == "receipt") {
-        var receipt = JsonSerializer.Deserialize<Receipt>(n.Content)
-        // The exact structure of receipt.Result will be game specific
+        var cardinalReceipt = JosnUtility.FromJson<CardinalReceipt>(n.Content)
+        // The exact structure of cardinalReceipt.Result will be game specific
     } else if (notification.Subject == "event") {
-        var event = JsonSerializer.Deserialize<Event>(n.Content)
-        // The exact content and structure of event.Message will be game specific
+        var cardinalEvent = JosnUtility.FromJson<CardinalEvent>(n.Content)
+        // The exact content and structure of cardinalEvent.Message will be game specific
     }
 };
 ```
