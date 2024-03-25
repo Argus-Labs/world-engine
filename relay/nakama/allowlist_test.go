@@ -14,8 +14,8 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
-	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
 type AllowListTestSuite struct {
@@ -40,7 +40,7 @@ func (a *AllowListTestSuite) SetupTest() {
 	// Create a valid beta key using the allowlist package directly. Below, there is a more comprehensive
 	// test to make sure the rpc handler to generate beta keys is working as intended. This is a courtesy for tests
 	// that want a valid beta key but aren't testing the beta key creation logic.
-	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
+	ctx := testutils.CtxWithUserID(utils.AdminAccountID)
 	resp, err := allowlist.GenerateBetaKeys(ctx, a.fakeNK, allowlist.GenKeysMsg{Amount: 10})
 	assert.NilError(a.T(), err)
 	a.validBetaKeys = resp.Keys
@@ -188,7 +188,7 @@ func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 	assert.ErrorContains(t, err, "unauthorized")
 
 	// The GenKeys payload is malformed
-	ctx = testutils.CtxWithUserID(signer.AdminAccountID)
+	ctx = testutils.CtxWithUserID(utils.AdminAccountID)
 	_, err = handleGenerateKey(ctx, a.logger, nil, nil, `{"bad-payload":{{{{`)
 	assert.IsError(t, err)
 
@@ -216,7 +216,7 @@ func parseGenerateKeysResponse(t *testing.T, resp string) []string {
 
 func (a *AllowListTestSuite) TestCanAddAndClaimBetaKeys() {
 	t := a.T()
-	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
+	ctx := testutils.CtxWithUserID(utils.AdminAccountID)
 	numOfKeysToGenerate := 100
 
 	payload := fmt.Sprintf(`{"amount":%d}`, numOfKeysToGenerate)

@@ -12,7 +12,6 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
@@ -70,7 +69,7 @@ func GenerateBetaKeys(ctx context.Context, nk runtime.NakamaModule, msg GenKeysM
 		return res, eris.Wrap(err, "failed to get userID for claim key request")
 	}
 
-	if userID != signer.AdminAccountID {
+	if userID != utils.AdminAccountID {
 		return res, eris.Wrap(ErrPermissionDenied, "unauthorized: only admin may call generate-beta-keys")
 	}
 
@@ -161,7 +160,7 @@ func writeVerifiedAndUsedKey(
 	verifiedStoreWrite := &runtime.StorageWrite{
 		Collection:      AllowedUsers,
 		Key:             userID,
-		UserID:          signer.AdminAccountID,
+		UserID:          utils.AdminAccountID,
 		Value:           verifiedValue,
 		Version:         versionWriteIfDoesNotExist,
 		PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
@@ -174,7 +173,7 @@ func writeVerifiedAndUsedKey(
 	useKeyWrite := &runtime.StorageWrite{
 		Collection:      KeyCollection,
 		Key:             ks.Key,
-		UserID:          signer.AdminAccountID,
+		UserID:          utils.AdminAccountID,
 		Value:           string(bz),
 		Version:         keyVersion,
 		PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
@@ -195,7 +194,7 @@ func IsUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string)
 		{
 			Collection: AllowedUsers,
 			Key:        userID,
-			UserID:     signer.AdminAccountID,
+			UserID:     utils.AdminAccountID,
 		},
 	})
 	if err != nil {
@@ -212,7 +211,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (ks *KeyS
 		{
 			Collection: KeyCollection,
 			Key:        key,
-			UserID:     signer.AdminAccountID,
+			UserID:     utils.AdminAccountID,
 		},
 	})
 	if err != nil {
