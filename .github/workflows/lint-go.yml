@@ -2,7 +2,7 @@ name: Lint
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [ opened, synchronize, reopened, ready_for_review ]
     paths-ignore:
       - "docs/**"
   push:
@@ -44,7 +44,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.56.2
-          args: --timeout=10m --concurrency 8 -v ${{ steps.go-dir.outputs.path }}
+          version: v1.57.1
+          args: --timeout=10m -v ${{ steps.go-dir.outputs.path }}
           ## skip cache, use Namespace volume cache
           skip-cache: true

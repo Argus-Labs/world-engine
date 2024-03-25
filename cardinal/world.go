@@ -50,7 +50,6 @@ var _ servertypes.Provider = &World{} //nolint:exhaustruct
 type World struct {
 	mode      RunMode
 	namespace Namespace
-	cleanup   func()
 
 	// Storage
 	redisStorage *redis.Storage
@@ -121,7 +120,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	world := &World{
 		mode:      cfg.CardinalMode,
 		namespace: Namespace(cfg.CardinalNamespace),
-		cleanup:   func() {},
 
 		// Storage
 		redisStorage: &redisMetaStore,
@@ -184,16 +182,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
-	return world, nil
-}
-
-// NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
-// If you are creating a World for unit tests, use NewTestWorld.
-func NewMockWorld(opts ...WorldOption) (*World, error) {
-	world, err := NewWorld(append(opts, withMockRedis())...)
-	if err != nil {
-		return world, err
-	}
 	return world, nil
 }
 
@@ -465,10 +453,6 @@ func (w *World) Shutdown() error {
 
 	// Block until the world has stopped ticking
 	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
-
-	if w.cleanup != nil {
-		w.cleanup()
-	}
 
 	if w.server != nil {
 		if err := w.server.Shutdown(); err != nil {
