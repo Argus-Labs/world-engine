@@ -45,7 +45,7 @@ type Transaction = sign.Transaction
 // PostTransaction with Persona godoc
 //
 //	@Router			/tx/persona/create-persona [post]
-//	@Param			txBody	message	Transaction	true	"Transaction details"
+//	@Param			txBody	body	Transaction	true	"Transaction details"
 func PostTransaction(
 	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
