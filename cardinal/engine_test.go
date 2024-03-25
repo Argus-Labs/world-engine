@@ -425,12 +425,11 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 // for Cardinal to be able to run in Production Mode.
 func setEnvToCardinalProdMode(t *testing.T) {
 	t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
-
-	t.Setenv("REDIS_ADDRESS", "foo")
+	t.Setenv("REDIS_ADDRESS", "localhost:6379")
 	t.Setenv("REDIS_PASSWORD", "bar")
 	t.Setenv("CARDINAL_NAMESPACE", "baz")
-	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "moo")
-	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "oom")
+	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "localhost:8080")
+	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "localhost:8081")
 }
 
 func TestRecoverFromChain(t *testing.T) {
