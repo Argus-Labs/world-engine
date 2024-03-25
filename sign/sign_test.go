@@ -258,7 +258,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 		"namespace":  "namespace",
 		"nonce":      100,
 		"signature":  "xyzzy",
-		"body":       "bar",
+		"message":    "bar",
 	}
 
 	// Make sure the valid data can actually be unmarshalled
