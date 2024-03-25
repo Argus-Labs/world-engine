@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      # detect errors from markdownlint-cli and create annotations for them
+      - uses: xt0rted/markdownlint-problem-matcher@v3
       - uses: articulate/actions-markdownlint@v1
         with:
           config: markdownlint-config.json

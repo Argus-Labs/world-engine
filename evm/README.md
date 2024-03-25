@@ -18,19 +18,20 @@ Verify installation success
 
 ## Running a Test Sequencer Node w/ Docker Compose
 
-World Engine provides simple scripts to start a testing sequencer node with a local celestia devnet for DA. 
+World Engine provides simple scripts to start a testing sequencer node with a local celestia devnet for DA.
 
 Assuming you have the repository cloned and are in the root directory, run the following make command:
 
 `make rollup`
 
-The rollups exposes the default ports that comes with the Cosmos SDK. Head over to the Cosmos SDK documentation to learn more about which ports are exposed: https://docs.cosmos.network/v0.50/learn/advanced/grpc_rest
+The rollups exposes the default ports that comes with the Cosmos SDK. Head over to the Cosmos SDK documentation to learn more about which ports are exposed: <https://docs.cosmos.network/v0.50/learn/advanced/grpc_rest>
 
 ### From Prebuilt Docker Image
 
 If you want to make your own setup script, but still want to use the world-evm binary, you can grab a docker image of the world-evm here:
 
 Prebuilt Docker Image:
+
 ```bash
 us-docker.pkg.dev/argus-labs/world-engine/evm:<latest/tag_version>
 ```
@@ -47,14 +48,13 @@ This gRPC server runs, by default, at port `9601`, but can be configured by sett
 
 The rollup provides an extension to its underlying EVM environment with a specialized precompile that allows messages to be forwarded from smart contracts to game shards that implement the router server.
 
-In order for the router to communicate with game shards, their namespaces must be mapped to their gRPC address. These are stored through the x/namespace module, and can be updated via an authority address. The authority address is loaded at the start of the application from an environment variable named `NAMESPACE_AUTHORITY_ADDR`. If unset, the authority for the namespace module will be set to the governance module address, allowing for namespaces to be added via governance. 
+In order for the router to communicate with game shards, their namespaces must be mapped to their gRPC address. These are stored through the x/namespace module, and can be updated via an authority address. The authority address is loaded at the start of the application from an environment variable named `NAMESPACE_AUTHORITY_ADDR`. If unset, the authority for the namespace module will be set to the governance module address, allowing for namespaces to be added via governance.
 
-When namespace authority is set, you can update the namespaces via the `register` command provided by world-evm. 
+When namespace authority is set, you can update the namespaces via the `register` command provided by world-evm.
 
 ```bash
 world-evm tx namespace register foobar foo.bar.com:9020
 ```
-
 
 #### Using the Router in Solidity
 
@@ -67,7 +67,7 @@ The precompile address will always be `0x356833c4666fFB6bFccbF8D600fa7282290dE07
 Instantiating the precompile:
 
 ```solidity
-// the path of import will change depending on where you copied the 
+// the path of import will change depending on where you copied the
 // precompile contract code to.
 import {IRouter} from "./precompile/router.sol";
 
@@ -88,18 +88,20 @@ First, a smart contract needs structs that are mirrors of the EVM enabled messag
 For example:
 
 Game Shard Foo message:
+
 ```go
 type Foo struct {
-	Bar int64
-	Baz string
+ Bar int64
+ Baz string
 }
 
 type FooResult struct {
-	Success bool
+ Success bool
 }
 ```
 
 Solidity Mirror:
+
 ```solidity
 struct Foo {
   int64 Bar;
@@ -123,8 +125,7 @@ bool ok = router.sendMessage(encodedFooMsg, "foo", "game-shard-1");
 
 Receiving message results must be done in a separate transaction, due to World Engine's asynchronous architecture. In order to get the results of a message, we use another precompile method from the router: `messageResult`.
 
-
-messageResult takes in the transaction hash of the original EVM transaction that triggered the cross-shard transaction. It returns the abi encoded message result, an error message, and an arbitrary status code. 
+messageResult takes in the transaction hash of the original EVM transaction that triggered the cross-shard transaction. It returns the abi encoded message result, an error message, and an arbitrary status code.
 
 ```solidity
  (bytes memory txResult, string memory errMsg, uint32 code) =  router.messageResult(txHash);
@@ -135,6 +136,7 @@ To decode the result, use `abi.decode`
 ```solidity
 FooResult memory res = abi.decode(txResult, (FooResult));
 ```
+
 The following codes may be returned:
 
 Cardinal Codes:
@@ -152,9 +154,10 @@ EVM Base Shard Codes:
 
 ### Querying Game Shards
 
-Game shards can be queried using the same contructs as above, however, the precompile will return the results synchronously. 
+Game shards can be queried using the same contructs as above, however, the precompile will return the results synchronously.
+
 ```solidity
-  QueryLocation memory q = QueryLocation(name); 
+  QueryLocation memory q = QueryLocation(name);
   bytes memory queryBz = abi.encode(q);
   bytes memory bz = router.query(queryBz, queryLocationName, Namespace);
   QueryLocationResponse memory res = abi.decode(bz, (QueryLocationResponse));
@@ -170,16 +173,20 @@ Below are the following environment variables needed to run the sequencer.
 The application is capable of supplying a faucet address with funds. Setting the `FAUCET_ADDR` will keep an account topped up to be used in a faucet.
 
 ## x/namespace
+
 - NAMESPACE_AUTHORITY_ADDR=<world engine address>
   - the address of the account you want to be able to update namespace mappings with.
 
 ### Secure gRPC Connections
+
 For production environments, you'll want to setup secure connections between gRPC servers handling cross-shard communication. To make use of these, set the following environment variables to the path of your SSL certification files:
+
 - SERVER_CERT_PATH=<path/to/server/cert>
 - SERVER_KEY_PATH=<path/to/server/key>
 - CLIENT_CERT_PATH=<path/to/client/cert>
 
 ### DA Layer
+
 The following variables are used to configure the connection to the Data Availability layer (Celestia).
 
 Required:
