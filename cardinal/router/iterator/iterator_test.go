@@ -134,7 +134,7 @@ func TestIteratorHappyPath(t *testing.T) {
 		assert.Equal(t, tx.Tx.PersonaTag, protoTx.GetPersonaTag())
 		assert.True(t, len(tx.Tx.Hash.Bytes()) > 1)
 		assert.Equal(t, tx.Tx.Namespace, namespace)
-		assert.DeepEqual(t, []byte(tx.Tx.Body), msgBytes)
+		assert.DeepEqual(t, []byte(tx.Tx.Message), msgBytes)
 
 		return nil
 	})

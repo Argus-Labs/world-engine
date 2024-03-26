@@ -80,7 +80,7 @@ func (c *NakamaClient) listenForNotifications() error {
 		HTTPHeader: http.Header{},
 	}
 	opts.HTTPHeader.Set("Authorization", c.authHeader)
-	//nolint:bodyclose // Docs say "You never need to close resp.Body yourself"
+	//nolint:bodyclose // Docs say "You never need to close resp.Message yourself"
 	conn, _, err := websocket.Dial(context.Background(), url, &opts)
 	if err != nil {
 		return err

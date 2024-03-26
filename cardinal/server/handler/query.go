@@ -13,7 +13,7 @@ import (
 //	@Accept			application/json
 //	@Produce		application/json
 //	@Param			queryType	path		string	true	"The query type"
-//	@Param			queryBody	body		object	true	"Query Body"
+//	@Param			queryBody	body		object	true	"Query Message"
 //	@Success		200			{object}	object	"query response"
 //	@Failure		400			{string}	string	"Invalid query request"
 //	@Router			/query/game/{queryType} [post]

@@ -43,7 +43,7 @@ require (
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/evm v1.0.4-0.20240227035346-26b21454bb27
 	pkg.world.dev/world-engine/rift v1.1.0-beta
-	pkg.world.dev/world-engine/sign v1.0.1-beta
+	pkg.world.dev/world-engine/sign v1.0.5-beta
 )
 
 require (

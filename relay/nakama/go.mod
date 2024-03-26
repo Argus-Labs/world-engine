@@ -13,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.60.0
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/sign v1.0.1-beta
+	pkg.world.dev/world-engine/sign v1.0.5-beta
 )
 
 require (
@@ -47,9 +47,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/stretchr/objx v0.5.1 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	google.golang.org/api v0.153.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect

@@ -288,7 +288,7 @@ type Transaction struct {
 	Namespace  string `protobuf:"bytes,2,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
 	Nonce      uint64 `protobuf:"varint,3,opt,name=Nonce,proto3" json:"Nonce,omitempty"`
 	Signature  string `protobuf:"bytes,4,opt,name=Signature,proto3" json:"Signature,omitempty"`
-	Body       []byte `protobuf:"bytes,5,opt,name=Body,proto3" json:"Body,omitempty"`
+	Body       []byte `protobuf:"bytes,5,opt,name=Message,proto3" json:"Message,omitempty"`
 }
 
 func (x *Transaction) Reset() {

@@ -67,7 +67,7 @@ func PostTransaction(
 		}
 
 		// Decode the message from the transaction
-		msg, err := msgType.Decode(tx.Body)
+		msg, err := msgType.Decode(tx.Message)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction")
 		}

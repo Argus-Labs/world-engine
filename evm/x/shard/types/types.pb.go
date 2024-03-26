@@ -24,7 +24,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Transaction struct {
 	// tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
-	// to unmarshal the payload.Body into.
+	// to unmarshal the payload.Message into.
 	TxId uint64 `protobuf:"varint,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
 	// game_shard_transaction is an encoded game shard transaction.
 	GameShardTransaction []byte `protobuf:"bytes,2,opt,name=game_shard_transaction,json=gameShardTransaction,proto3" json:"game_shard_transaction,omitempty"`

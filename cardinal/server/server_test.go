@@ -177,7 +177,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.Require().NoError(err)
 	tx := &sign.Transaction{
 		PersonaTag: persona,
-		Body:       msgBz,
+		Message:    msgBz,
 	}
 	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
 	s.Require().True(ok)

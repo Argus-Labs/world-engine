@@ -203,7 +203,7 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 		gotSP, err = UnmarshalTransaction(buf)
 		assert.NilError(t, err)
 		var gotStruct SomeStruct
-		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))
+		assert.NilError(t, json.Unmarshal(gotSP.Message, &gotStruct))
 		assert.Equal(t, "a-string", gotStruct.Str)
 		assert.Equal(t, 99, gotStruct.Num)
 	}

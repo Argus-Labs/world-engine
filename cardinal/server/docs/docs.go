@@ -119,7 +119,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Query Body",
+                        "description": "Query Message",
                         "name": "queryBody",
                         "in": "body",
                         "required": true,
