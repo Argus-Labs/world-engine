@@ -22,6 +22,7 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		BaseShardQueryAddress:     "localhost:8081",
 		CardinalLogLevel:          DefaultLogLevel,
 		StatsdAddress:             DefaultStatsdAddress,
+		RouterKey:                 "foobar",
 	}
 	t.Setenv("REDIS_ADDRESS", wantCfg.RedisAddress)
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
@@ -29,6 +30,7 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("CARDINAL_MODE", string(wantCfg.CardinalMode))
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
 	t.Setenv("BASE_SHARD_Query_ADDRESS", wantCfg.BaseShardQueryAddress)
+	t.Setenv("ROUTER_KEY", wantCfg.RouterKey)
 
 	gotCfg, err := loadWorldConfig()
 	assert.NilError(t, err)
