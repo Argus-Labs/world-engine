@@ -68,7 +68,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	}
 	sys5 := func(wCtx engine.Context) error {
 		err := wCtx.EmitEvent(event)
-		assert.Check(t, err == nil, "emit event encountered error is system 4: %v", err)
+		assert.Check(t, err == nil, "emit event encountered error is system 5: %v", err)
 		counter1.Add(1)
 		return nil
 	}
