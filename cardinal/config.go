@@ -103,6 +103,7 @@ func (w *WorldConfig) Validate() error {
 	}
 
 	// Validate production mode configs
+	//nolint:nestif // its fine..
 	if w.CardinalMode == RunModeProd {
 		// Validate that Redis password is set
 		if w.RedisPassword == "" {
