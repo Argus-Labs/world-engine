@@ -64,7 +64,7 @@ type WorldConfig struct {
 	// Telemetry
 	StatsdAddress string `config:"STATSD_ADDRESS"`
 	TraceAddress  string `config:"TRACE_ADDRESS"`
-	// RouterKey is a JWT token used to secure communications between the game shard and the base shard.
+	// RouterKey is a token used to secure communications between the game shard and the base shard.
 	RouterKey string `config:"ROUTER_KEY"`
 }
 
