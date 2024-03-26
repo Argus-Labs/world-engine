@@ -12,14 +12,14 @@ import (
 )
 
 func (app *App) setPlugins(logger log.Logger) {
-	routerKey := os.Getenv(credentials.TokenKey)
+	routerKey := os.Getenv("ROUTER_KEY")
 	var sequencerOpts []sequencer.Option
 	var routerOpts []router.Option
 	if routerKey == "" {
 		app.Logger().Debug("WARNING: starting the EVM base shard in insecure mode. No ROUTER_KEY provided")
 	} else {
 		if err := credentials.ValidateKey(routerKey); err != nil {
-			panic(fmt.Errorf("invalid %s: %w", credentials.TokenKey, err))
+			panic(fmt.Errorf("invalid ROUTER_KEY: %w", err))
 		}
 		sequencerOpts = append(sequencerOpts, sequencer.WithRouterKey(routerKey))
 		routerOpts = append(routerOpts, router.WithRouterKey(routerKey))
