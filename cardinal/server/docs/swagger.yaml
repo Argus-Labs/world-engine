@@ -52,17 +52,6 @@ definitions:
       url:
         type: string
     type: object
-  handler.GetEndpointsResponse:
-    properties:
-      queryEndpoints:
-        items:
-          type: string
-        type: array
-      txEndpoints:
-        items:
-          type: string
-        type: array
-    type: object
   handler.GetHealthResponse:
     properties:
       isGameLoopRunning:
@@ -96,21 +85,6 @@ definitions:
         type: string
     type: object
   handler.Transaction:
-    properties:
-      body:
-        description: json string
-        type: object
-      hash:
-        type: string
-      namespace:
-        type: string
-      nonce:
-        type: integer
-      personaTag:
-        type: string
-      signature:
-        description: hex encoded string
-        type: string
     type: object
   handler.cqlData:
     properties:
@@ -177,7 +151,7 @@ paths:
           description: Server and game loop status
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
-      summary: Get the World Engine's health status
+      summary: Get Cardinal's health status
   /query/debug/state:
     post:
       description: Retrieves a list of all entities in the game state
@@ -219,6 +193,7 @@ paths:
           description: Invalid request body or invalid query body
           schema:
             type: string
+      summary: Run a query on Cardinal
   /query/receipts/list:
     post:
       consumes:

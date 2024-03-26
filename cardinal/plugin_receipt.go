@@ -56,14 +56,14 @@ func (p *receiptPlugin) RegisterQueries(world *World) error {
 
 // queryReceipts godoc
 //
-//	@Summary		Get transaction receipts from Cardinal
-//	@Description	Retrieves all transaction receipts from Cardinal
-//	@Accept			application/json
-//	@Produce		application/json
-//	@Param			ListTxReceiptsRequest	body		ListTxReceiptsRequest	true	"Query body"
-//	@Success		200						{object}	ListTxReceiptsResponse "List of receipts"
-//	@Failure		400						{string}	string	"Invalid request body"
-//	@Router			/query/receipts/list [post]
+//  @Summary      Get transaction receipts from Cardinal
+//  @Description  Retrieves all transaction receipts from Cardinal
+//  @Accept       application/json
+//  @Produce      application/json
+//  @Param        ListTxReceiptsRequest  body      ListTxReceiptsRequest  true  "Query body"
+//  @Success      200                    {object}  ListTxReceiptsResponse "List of receipts"
+//  @Failure      400                    {string}  string                 "Invalid request body"
+//  @Router       /query/receipts/list [post]
 func queryReceipts(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxReceiptsResponse, error) {
 	reply := ListTxReceiptsResponse{}
 	reply.EndTick = ctx.CurrentTick()

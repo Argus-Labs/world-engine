@@ -101,7 +101,7 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get the World Engine's health status",
+                "summary": "Get Cardinal's health status",
                 "responses": {
                     "200": {
                         "description": "Server and game loop status",
@@ -176,7 +176,6 @@ const docTemplate = `{
                 }
             }
         },
-
         "/query/receipts/list": {
             "post": {
                 "description": "Retrieves all transaction receipts from Cardinal",
@@ -402,23 +401,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.GetEndpointsResponse": {
-            "type": "object",
-            "properties": {
-                "queryEndpoints": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "txEndpoints": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "handler.GetHealthResponse": {
             "type": "object",
             "properties": {
@@ -469,29 +451,7 @@ const docTemplate = `{
             }
         },
         "handler.Transaction": {
-            "type": "object",
-            "properties": {
-                "body": {
-                    "description": "json string",
-                    "type": "object"
-                },
-                "hash": {
-                    "type": "string"
-                },
-                "namespace": {
-                    "type": "string"
-                },
-                "nonce": {
-                    "type": "integer"
-                },
-                "personaTag": {
-                    "type": "string"
-                },
-                "signature": {
-                    "description": "hex encoded string",
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "handler.cqlData": {
             "type": "object",

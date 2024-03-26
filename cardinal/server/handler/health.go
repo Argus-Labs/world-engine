@@ -11,11 +11,11 @@ type GetHealthResponse struct {
 
 // GetHealth godoc
 //
-//	@Summary		Get the World Engine's health status
-//	@Description	Retrieves the running status of the Cardinal server and game loop
-//	@Produce		application/json
-//	@Success		200	{object}	GetHealthResponse "Server and game loop status"
-//	@Router			/health [get]
+//  @Summary      Get Cardinal's health status
+//  @Description  Retrieves the running status of the Cardinal server and game loop
+//  @Produce      application/json
+//  @Success      200  {object}  GetHealthResponse  "Server and game loop status"
+//  @Router       /health [get]
 func GetHealth() func(c *fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		return ctx.JSON(GetHealthResponse{
