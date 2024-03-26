@@ -22,7 +22,7 @@ require (
 	nhooyr.io/websocket v1.8.10
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/evm v0.0.0-00010101000000-000000000000
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326214017-e0d096b8e171
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326220748-bc11c4234f5b
 )
 
 require (
@@ -147,7 +147,7 @@ require (
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.17.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
