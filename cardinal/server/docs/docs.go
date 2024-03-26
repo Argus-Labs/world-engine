@@ -17,17 +17,17 @@ const docTemplate = `{
     "paths": {
         "/cql": {
             "post": {
-                "description": "Query the ecs with CQL (cardinal query language)",
+                "description": "Runs the provided CQL query on Cardinal and return the results",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Query the ecs with CQL (cardinal query language)",
+                "summary": "Query game entities with CQL (cardinal query language)",
                 "parameters": [
                     {
-                        "description": "cql (cardinal query language)",
+                        "description": "CQL query to be executed",
                         "name": "cql",
                         "in": "body",
                         "required": true,
@@ -38,9 +38,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "CQL query result",
                         "schema": {
                             "$ref": "#/definitions/handler.CQLQueryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or invalid CQL query",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -74,14 +80,14 @@ const docTemplate = `{
         },
         "/events": {
             "get": {
-                "description": "websocket connection for events.",
+                "description": "Websocket connection for events.",
                 "produces": [
                     "application/json"
                 ],
                 "summary": "Endpoint for events",
                 "responses": {
                     "101": {
-                        "description": "switch protocol to ws",
+                        "description": "Switch protocol to ws",
                         "schema": {
                             "type": "string"
                         }
@@ -91,14 +97,14 @@ const docTemplate = `{
         },
         "/health": {
             "get": {
-                "description": "Displays information on http server and world game loop",
+                "description": "Retrieves the running status of the Cardinal server and game loop",
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get information on status of world-engine",
+                "summary": "Get the World Engine's health status",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Server and game loop status",
                         "schema": {
                             "$ref": "#/definitions/handler.GetHealthResponse"
                         }
@@ -106,26 +112,46 @@ const docTemplate = `{
                 }
             }
         },
-        "/query/game/{queryType}": {
+        "/query/debug/state": {
             "post": {
-                "description": "Query the ecs",
+                "description": "Retrieves a list of all entities in the game state",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get all game entities",
+                "responses": {
+                    "200": {
+                        "description": "List of entities",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/cardinal.debugStateElement"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/query/game/{queryName}": {
+            "post": {
+                "description": "Runs a registered query on Cardinal and returns the results",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Query the ecs",
+                "summary": "Run a query on Cardinal",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "The query type",
-                        "name": "queryType",
+                        "description": "Name of the registered query",
+                        "name": "queryName",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Query Body",
+                        "description": "Query body",
                         "name": "queryBody",
                         "in": "body",
                         "required": true,
@@ -136,13 +162,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "query response",
+                        "description": "Query results",
                         "schema": {
                             "type": "object"
                         }
                     },
                     "400": {
-                        "description": "Invalid query request",
+                        "description": "Invalid request body or invalid query body",
                         "schema": {
                             "type": "string"
                         }
@@ -153,7 +179,7 @@ const docTemplate = `{
 
         "/query/receipts/list": {
             "post": {
-                "description": "Get transaction receipts from Cardinal",
+                "description": "Retrieves all transaction receipts from Cardinal",
                 "consumes": [
                     "application/json"
                 ],
@@ -163,7 +189,7 @@ const docTemplate = `{
                 "summary": "Get transaction receipts from Cardinal",
                 "parameters": [
                     {
-                        "description": "List Transaction Receipts Request",
+                        "description": "Query body",
                         "name": "ListTxReceiptsRequest",
                         "in": "body",
                         "required": true,
@@ -174,13 +200,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of receipts",
                         "schema": {
                             "$ref": "#/definitions/cardinal.ListTxReceiptsResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid transaction request",
+                        "description": "Invalid request body",
                         "schema": {
                             "type": "string"
                         }
@@ -188,43 +214,43 @@ const docTemplate = `{
                 }
             }
         },
-        "/tx/game/{txType}": {
+        "/tx/game/{txName}": {
             "post": {
-                "description": "Submit a transaction to Cardinal / Create a Persona transaction to Cardinal",
+                "description": "Submits a message to Cardinal and returns the transaction hash and tick",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Submit a transaction to Cardinal",
+                "summary": "Submit a message to Cardinal",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "label of the transaction that wants to be submitted",
-                        "name": "txType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Transaction details",
+                        "description": "Message body",
                         "name": "txBody",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/handler.Transaction"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of the registered message",
+                        "name": "txName",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Transaction hash and tick",
                         "schema": {
                             "$ref": "#/definitions/handler.PostTransactionResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid transaction request",
+                        "description": "Invalid request body",
                         "schema": {
                             "type": "string"
                         }
@@ -234,17 +260,17 @@ const docTemplate = `{
         },
         "/tx/persona/create-persona": {
             "post": {
-                "description": "Submit a transaction to Cardinal / Create a Persona transaction to Cardinal",
+                "description": "Creates a persona in Cardinal and returns the transaction hash and tick",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Submit a transaction to Cardinal",
+                "summary": "Create a persona",
                 "parameters": [
                     {
-                        "description": "Transaction details",
+                        "description": "Message body",
                         "name": "txBody",
                         "in": "body",
                         "required": true,
@@ -255,13 +281,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Transaction hash and tick",
                         "schema": {
                             "$ref": "#/definitions/handler.PostTransactionResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid transaction request",
+                        "description": "Invalid request body",
                         "schema": {
                             "type": "string"
                         }
@@ -271,23 +297,23 @@ const docTemplate = `{
         },
         "/world": {
             "get": {
-                "description": "Get field information of registered components, messages, queries",
+                "description": "Retrieves details of registered components, messages, and queries",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get field information of registered components, messages, queries",
+                "summary": "Get registered components, messages, and queries",
                 "responses": {
                     "200": {
-                        "description": "Field information of registered components, messages, queries",
+                        "description": "List of registered components, messages, and queries",
                         "schema": {
                             "$ref": "#/definitions/handler.GetWorldResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body",
                         "schema": {
                             "type": "string"
                         }
