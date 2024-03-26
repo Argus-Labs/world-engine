@@ -22,7 +22,7 @@ require (
 	nhooyr.io/websocket v1.8.10
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/evm v0.0.0-00010101000000-000000000000
-	pkg.world.dev/world-engine/rift v1.0.0-beta.0.20240229194424-80acab903631
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326164912-453f6a19d34d
 )
 
 require (
@@ -155,9 +155,6 @@ require (
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
-	go.opentelemetry.io/otel v1.21.0 // indirect
-	go.opentelemetry.io/otel/metric v1.21.0 // indirect
-	go.opentelemetry.io/otel/trace v1.21.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
