@@ -3,6 +3,7 @@ module pkg.world.dev/world-engine/rift
 go 1.22.1
 
 require (
+	github.com/rotisserie/eris v0.5.4
 	google.golang.org/grpc v1.62.0
 	google.golang.org/protobuf v1.32.0
 )

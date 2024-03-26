@@ -25,25 +25,27 @@ const (
 	DefaultStatsdAddress = "localhost:8125"
 )
 
-var validLogLevels = []string{
-	zerolog.DebugLevel.String(),
-	zerolog.InfoLevel.String(),
-	zerolog.WarnLevel.String(),
-	zerolog.ErrorLevel.String(),
-	zerolog.Disabled.String(),
-}
+var (
+	validLogLevels = []string{
+		zerolog.DebugLevel.String(),
+		zerolog.InfoLevel.String(),
+		zerolog.WarnLevel.String(),
+		zerolog.ErrorLevel.String(),
+		zerolog.Disabled.String(),
+	}
 
-var defaultConfig = WorldConfig{
-	RedisAddress:              DefaultRedisAddress,
-	RedisPassword:             "",
-	CardinalNamespace:         DefaultNamespace,
-	CardinalMode:              DefaultRunMode,
-	BaseShardSequencerAddress: "",
-	BaseShardQueryAddress:     "",
-	CardinalLogLevel:          DefaultLogLevel,
-	StatsdAddress:             DefaultStatsdAddress,
-	TraceAddress:              "",
-}
+	defaultConfig = WorldConfig{
+		RedisAddress:              DefaultRedisAddress,
+		RedisPassword:             "",
+		CardinalNamespace:         DefaultNamespace,
+		CardinalMode:              DefaultRunMode,
+		BaseShardSequencerAddress: "",
+		BaseShardQueryAddress:     "",
+		CardinalLogLevel:          DefaultLogLevel,
+		StatsdAddress:             DefaultStatsdAddress,
+		TraceAddress:              "",
+	}
+)
 
 type RunMode string
 
