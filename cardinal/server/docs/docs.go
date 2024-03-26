@@ -451,7 +451,29 @@ const docTemplate = `{
             }
         },
         "handler.Transaction": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "body": {
+                    "description": "json string",
+                    "type": "object"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "nonce": {
+                    "type": "integer"
+                },
+                "personaTag": {
+                    "type": "string"
+                },
+                "signature": {
+                    "description": "hex encoded string",
+                    "type": "string"
+                }
+            }
         },
         "handler.cqlData": {
             "type": "object",

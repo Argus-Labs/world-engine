@@ -85,6 +85,21 @@ definitions:
         type: string
     type: object
   handler.Transaction:
+    properties:
+      body:
+        description: json string
+        type: object
+      hash:
+        type: string
+      namespace:
+        type: string
+      nonce:
+        type: integer
+      personaTag:
+        type: string
+      signature:
+        description: hex encoded string
+        type: string
     type: object
   handler.cqlData:
     properties:
