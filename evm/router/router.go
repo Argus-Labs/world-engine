@@ -12,10 +12,10 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"pkg.berachain.dev/polaris/eth/core/types"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
@@ -213,8 +213,6 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 }
 
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
-	// CLI is currently broken. Rollkit is looking into the issue.
-	// So for now, we just use an address loaded from env.
 	ctx := r.getSDKCtx()
 	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
 	if err != nil {
@@ -223,22 +221,11 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 	addr := res.Address
 	conn, err := grpc.Dial(
 		addr,
-		grpc.WithUnaryInterceptor(r.clientCallInterceptor),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(credentials.NewSimpleTokenCredential(r.routerKey)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", addr, ns)
 	}
 	return routerv1.NewMsgClient(conn), nil
-}
-
-// intercepts grpc invocations and injects the router-routerKey.
-func (r *routerImpl) clientCallInterceptor(
-	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
-	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
-) error {
-	md := metadata.New(map[string]string{"router-routerKey": r.routerKey})
-	ctx = metadata.NewOutgoingContext(ctx, md)
-
-	return invoker(ctx, method, req, reply, cc, opts...)
 }

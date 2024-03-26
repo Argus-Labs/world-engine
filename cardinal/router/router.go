@@ -8,11 +8,11 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
+	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
@@ -69,8 +69,8 @@ func New(namespace, sequencerAddr, baseShardQueryAddr, routerKey string, provide
 
 	conn, err := grpc.Dial(
 		sequencerAddr,
-		grpc.WithUnaryInterceptor(rtr.clientCallInterceptor),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(credentials.NewSimpleTokenCredential(routerKey)),
 	)
 	if err != nil {
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
@@ -151,15 +151,4 @@ func (r *router) Start() error {
 	}()
 	r.serverAddr = listener.Addr().String()
 	return nil
-}
-
-// intercepts grpc invocations and injects the router-key.
-func (r *router) clientCallInterceptor(
-	ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
-	invoker grpc.UnaryInvoker, opts ...grpc.CallOption,
-) error {
-	md := metadata.New(map[string]string{"router-key": r.routerKey})
-	ctx = metadata.NewOutgoingContext(ctx, md)
-
-	return invoker(ctx, method, req, reply, cc, opts...)
 }

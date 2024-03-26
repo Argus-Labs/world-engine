@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -61,13 +62,13 @@ func (e *evmServer) serverCallInterceptor(
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
 
-	routerKey, ok := md["router-key"]
-	if !ok || len(routerKey) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing router key")
+	routerKey := md[credentials.TokenKey]
+	if len(routerKey) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "missing %s", credentials.TokenKey)
 	}
 
 	if routerKey[0] != e.routerKey {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid router key")
+		return nil, status.Errorf(codes.Unauthenticated, "invalid %s", credentials.TokenKey)
 	}
 
 	return handler(ctx, req)

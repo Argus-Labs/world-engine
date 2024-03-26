@@ -18,6 +18,7 @@ import (
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	"pkg.world.dev/world-engine/rift/credentials"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
@@ -123,14 +124,13 @@ func (s *Sequencer) serverCallInterceptor(
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
-
-	routerKey, ok := md["router-routerKey"]
-	if !ok || len(routerKey) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing secret routerKey")
+	routerKey := md[credentials.TokenKey]
+	if len(routerKey) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "missing %s", credentials.TokenKey)
 	}
 
 	if routerKey[0] != s.routerKey {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid secret routerKey")
+		return nil, status.Errorf(codes.Unauthenticated, "invalid %s", credentials.TokenKey)
 	}
 
 	return handler(ctx, req)
