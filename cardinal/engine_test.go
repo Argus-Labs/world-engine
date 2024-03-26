@@ -430,7 +430,7 @@ func setEnvToCardinalProdMode(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "baz")
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "localhost:8080")
 	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "localhost:8081")
-	t.Setenv("ROUTER_KEY", "05383ef6371f912a7643dd6519deba4c93608e689e76ec016fda27770f55604c")
+	t.Setenv("ROUTER_KEY", "77cf59146831dbd94bd19dd4b259b268ee07a7c1fdba67e92b0f7c1cfdfb7a9b")
 }
 
 func TestRecoverFromChain(t *testing.T) {

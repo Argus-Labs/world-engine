@@ -13,7 +13,7 @@ var (
 
 	_ credentials.PerRPCCredentials = &simpleTokenCredential{}
 
-	routerKeyRegexp = regexp.MustCompile(`^[a-zA-Z0-9]{32}$`)
+	routerKeyRegexp = regexp.MustCompile(`^[a-zA-Z0-9]{32,64}$`)
 )
 
 type simpleTokenCredential struct {

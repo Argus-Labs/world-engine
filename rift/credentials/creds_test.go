@@ -12,24 +12,121 @@ func TestValidateKey(t *testing.T) {
 		input       string
 		expectError bool
 	}{
-		{"Valid lowercase", "abcdefghijklmnopqrstuvwxyz012345", false},
-		{"Valid uppercase", "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345", false},
-		{"Valid mixed case", "abcdefghijklmnopqrstuvwxyz012345", false},
-		{"Valid digits only", "01234567890123456789012345678901", false},
-		{"Valid letters only", "abcdefghijklmnopqrstuvwxyzABCDEF", false},
-		{"Empty string", "", true},
-		{"Too short", "abcdefghijklmnopqrstuvwxyz01234", true},
-		{"Too long", "abcdefghijklmnopqrstuvwxyz0123456", true},
-		{"Contains underscore", "abcdefghijklmnopqrstuvwxyz01234_", true},
-		{"Contains hyphen", "abcdefghijklmnopqrstuvwxyz-12345", true},
-		{"Contains space", "abcdefghijklmnopqrstuvwxyz 12345", true},
-		{"Contains special characters", "abcdefghijklmnopqrstuvwxyz!@#$%^", true},
-		{"Contains non-ASCII characters", "abcdefghijklmnopqrstuvwxyzรถรครฉรฑรง", true},
-		{"Unicode letters and digits", "αβγδεζηθικλμνξοπρστυφχψωАБВГДЕЁЖ", true},
-		{"Leading space", " abcdefghijklmnopqrstuvwxyz012345", true},
-		{"Trailing space", "abcdefghijklmnopqrstuvwxyz012345 ", true},
-		{"Leading underscore", "_abcdefghijklmnopqrstuvwxyz012345", true},
-		{"Trailing underscore", "abcdefghijklmnopqrstuvwxyz012345_", true},
+		{
+			name:        "Valid lowercase (32 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyz012345",
+			expectError: false,
+		},
+		{
+			name:        "Valid uppercase (32 chars)",
+			input:       "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345",
+			expectError: false,
+		},
+		{
+			name:        "Valid mixed case (32 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyz012345",
+			expectError: false,
+		},
+		{
+			name:        "Valid digits only (32 chars)",
+			input:       "01234567890123456789012345678901",
+			expectError: false,
+		},
+		{
+			name:        "Valid letters only (32 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyzABCDEF",
+			expectError: false,
+		},
+		{
+			name:        "Valid lowercase (64 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01",
+			expectError: false,
+		},
+		{
+			name:        "Valid uppercase (64 chars)",
+			input:       "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
+			expectError: false,
+		},
+		{
+			name:        "Valid mixed case (64 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
+			expectError: false,
+		},
+		{
+			name:        "Valid digits only (64 chars)",
+			input:       "0123456789012345678901234567890123456789012345678901234567890123",
+			expectError: false,
+		},
+		{
+			name:        "Valid letters only (64 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijkl",
+			expectError: false,
+		},
+		{
+			name:        "Empty string",
+			input:       "",
+			expectError: true,
+		},
+		{
+			name:        "Too short",
+			input:       "abcdefghijklmnopqrstuvwxyz01234",
+			expectError: true,
+		},
+		{
+			name:        "Too long",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz012",
+			expectError: true,
+		},
+		{
+			name:        "Contains underscore",
+			input:       "abcdefghijklmnopqrstuvwxyz01234_abcdefghijklmnopqrstuvwxyz01234",
+			expectError: true,
+		},
+		{
+			name:        "Contains hyphen",
+			input:       "abcdefghijklmnopqrstuvwxyz-1234567890abcdefghijklmnopqrstuvwxyz",
+			expectError: true,
+		},
+		{
+			name:        "Contains space",
+			input:       "abcdefghijklmnopqrstuvwxyz 1234567890abcdefghijklmnopqrstuvwxyz",
+			expectError: true,
+		},
+		{
+			name:        "Contains special characters",
+			input:       "abcdefghijklmnopqrstuvwxyz!@#$%^abcdefghijklmnopqrstuvwxyz0123",
+			expectError: true,
+		},
+		{
+			name:        "Contains non-ASCII characters",
+			input:       "abcdefghijklmnopqrstuvwxyzöäüéñçabcdefghijklmnopqrstuvwxyz0123",
+			expectError: true,
+		},
+		{
+			name:        "Unicode letters and digits",
+			input:       "αβγδεζηθικλμνξοπρστυφχψωАБВГДЕЁЖабвгдежзийклмнопрстуфхцчшщъыьэ",
+			expectError: true,
+		},
+		{
+			name:        "Leading space",
+			input:       " abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz",
+			expectError: true,
+		},
+		{
+			name:        "Trailing space",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz ",
+			expectError: true,
+		},
+		{
+			name:        "Leading underscore",
+			input:       "_abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz",
+			expectError: true,
+		},
+		{
+			name:        "Trailing underscore",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz_",
+			expectError: true,
+		},
 	}
 
 	for _, tc := range testCases {

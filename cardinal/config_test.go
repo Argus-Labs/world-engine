@@ -22,7 +22,7 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		BaseShardQueryAddress:     "localhost:8081",
 		CardinalLogLevel:          DefaultLogLevel,
 		StatsdAddress:             DefaultStatsdAddress,
-		RouterKey:                 "foobar",
+		RouterKey:                 "abcdefghijklmnopqrstuvwxyz012345",
 	}
 	t.Setenv("REDIS_ADDRESS", wantCfg.RedisAddress)
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
