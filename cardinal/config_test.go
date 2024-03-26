@@ -22,7 +22,7 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		BaseShardQueryAddress:     "localhost:8081",
 		CardinalLogLevel:          DefaultLogLevel,
 		StatsdAddress:             DefaultStatsdAddress,
-		RouterKey:                 "abcdefghijklmnopqrstuvwxyz012345",
+		RouterKey:                 "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
 	}
 	t.Setenv("REDIS_ADDRESS", wantCfg.RedisAddress)
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
@@ -88,7 +88,7 @@ func TestWorldConfig_Validate(t *testing.T) {
 				RedisPassword:             "foo",
 				BaseShardQueryAddress:     "localhost:8081",
 				BaseShardSequencerAddress: "localhost:8080",
-				RouterKey:                 "677b92d59fba49f806b0fc8188c65362af00022683caa4f60084f857733f761f",
+				RouterKey:                 "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
 			},
 			wantErr: false,
 		},

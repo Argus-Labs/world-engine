@@ -13,31 +13,6 @@ func TestValidateKey(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "Valid lowercase (32 chars)",
-			input:       "abcdefghijklmnopqrstuvwxyz012345",
-			expectError: false,
-		},
-		{
-			name:        "Valid uppercase (32 chars)",
-			input:       "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345",
-			expectError: false,
-		},
-		{
-			name:        "Valid mixed case (32 chars)",
-			input:       "abcdefghijklmnopqrstuvwxyz012345",
-			expectError: false,
-		},
-		{
-			name:        "Valid digits only (32 chars)",
-			input:       "01234567890123456789012345678901",
-			expectError: false,
-		},
-		{
-			name:        "Valid letters only (32 chars)",
-			input:       "abcdefghijklmnopqrstuvwxyzABCDEF",
-			expectError: false,
-		},
-		{
 			name:        "Valid lowercase (64 chars)",
 			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01",
 			expectError: false,
@@ -68,48 +43,53 @@ func TestValidateKey(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "Too short",
-			input:       "abcdefghijklmnopqrstuvwxyz01234",
+			name:        "Too short (32 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyz012345",
 			expectError: true,
 		},
 		{
-			name:        "Too long",
+			name:        "Too short (63 chars)",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0",
+			expectError: true,
+		},
+		{
+			name:        "Too long (65 chars)",
 			input:       "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz012",
 			expectError: true,
 		},
 		{
 			name:        "Contains underscore",
-			input:       "abcdefghijklmnopqrstuvwxyz01234_abcdefghijklmnopqrstuvwxyz01234",
+			input:       "abcdefghijklmnopqrstuvwxyz01234_6789abcdefghijklmnopqrstuvwxyz01",
 			expectError: true,
 		},
 		{
 			name:        "Contains hyphen",
-			input:       "abcdefghijklmnopqrstuvwxyz-1234567890abcdefghijklmnopqrstuvwxyz",
+			input:       "abcdefghijklmnopqrstuvwxyz-1234567890abcdefghijklmnopqrstuvwxyz0",
 			expectError: true,
 		},
 		{
 			name:        "Contains space",
-			input:       "abcdefghijklmnopqrstuvwxyz 1234567890abcdefghijklmnopqrstuvwxyz",
+			input:       "abcdefghijklmnopqrstuvwxyz 1234567890abcdefghijklmnopqrstuvwxyz0",
 			expectError: true,
 		},
 		{
 			name:        "Contains special characters",
-			input:       "abcdefghijklmnopqrstuvwxyz!@#$%^abcdefghijklmnopqrstuvwxyz0123",
+			input:       "abcdefghijklmnopqrstuvwxyz!@#$%^abcdefghijklmnopqrstuvwxyz012345",
 			expectError: true,
 		},
 		{
 			name:        "Contains non-ASCII characters",
-			input:       "abcdefghijklmnopqrstuvwxyzöäüéñçabcdefghijklmnopqrstuvwxyz0123",
+			input:       "abcdefghijklmnopqrstuvwxyzöäüéñçabcdefghijklmnopqrstuvwxyz012345",
 			expectError: true,
 		},
 		{
 			name:        "Unicode letters and digits",
-			input:       "αβγδεζηθικλμνξοπρστυφχψωАБВГДЕЁЖабвгдежзийклмнопрстуфхцчшщъыьэ",
+			input:       "αβγδεζηθικλμνξοπρστυφχψωАБВГДЕЁЖабвгдежзийклмнопрстуфхцчшщъыьэюя",
 			expectError: true,
 		},
 		{
 			name:        "Leading space",
-			input:       " abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz",
+			input:       " abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0",
 			expectError: true,
 		},
 		{
