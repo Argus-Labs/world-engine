@@ -65,6 +65,20 @@ func TestWorldConfig_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "good prod mode, but bad token",
+			cfg: WorldConfig{
+				CardinalMode:              RunModeProd,
+				CardinalLogLevel:          DefaultLogLevel,
+				CardinalNamespace:         "foo",
+				RedisAddress:              "localhost:6379",
+				RedisPassword:             "foo",
+				BaseShardQueryAddress:     "localhost:8081",
+				BaseShardSequencerAddress: "localhost:8080",
+				RouterKey:                 "not a good token!",
+			},
+			wantErr: true,
+		},
+		{
 			name: "prod with all required values",
 			cfg: WorldConfig{
 				CardinalMode:              RunModeProd,
@@ -74,7 +88,7 @@ func TestWorldConfig_Validate(t *testing.T) {
 				RedisPassword:             "foo",
 				BaseShardQueryAddress:     "localhost:8081",
 				BaseShardSequencerAddress: "localhost:8080",
-				RouterKey:                 "blah",
+				RouterKey:                 "677b92d59fba49f806b0fc8188c65362af00022683caa4f60084f857733f761f",
 			},
 			wantErr: false,
 		},

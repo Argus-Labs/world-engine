@@ -52,7 +52,7 @@ require (
 	pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05
 	pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326164912-453f6a19d34d
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326214017-e0d096b8e171
 )
 
 require (

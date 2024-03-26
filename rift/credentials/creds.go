@@ -34,6 +34,8 @@ func (s simpleTokenCredential) RequireTransportSecurity() bool {
 	return false
 }
 
+// ValidateKey validates a router key. It will return nil if the key is exactly length 32 and only contains
+// alphanumeric characters.
 func ValidateKey(k string) error {
 	if !routerKeyRegexp.MatchString(k) {
 		return eris.Errorf("invalid %s, must be length 32 and only contain alphanumerics", TokenKey)

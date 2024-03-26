@@ -10,6 +10,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"pkg.world.dev/world-engine/rift/credentials"
 )
 
 const (
@@ -115,6 +117,9 @@ func (w *WorldConfig) Validate() error {
 		}
 		if w.RouterKey == "" {
 			return eris.New("ROUTER_KEY must be set in production mode")
+		}
+		if err := credentials.ValidateKey(w.RouterKey); err != nil {
+			return err
 		}
 	}
 
