@@ -89,6 +89,9 @@ func loadWorldConfig() (*WorldConfig, error) {
 	return &cfg, nil
 }
 
+// Validate validates the config values and ensures that when the RunMode is production, the required values are set.
+//
+//nolint:gocognit // its fine.
 func (w *WorldConfig) Validate() error {
 	// Validate run mode
 	if w.CardinalMode != RunModeProd && w.CardinalMode != RunModeDev {
