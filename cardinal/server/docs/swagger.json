@@ -147,32 +147,6 @@
                 }
             }
         },
-        "/query/http/endpoints": {
-            "get": {
-                "description": "Get all http endpoints from cardinal",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get all http endpoints from cardinal",
-                "responses": {
-                    "200": {
-                        "description": "list of query endpoints",
-                        "schema": {
-                            "$ref": "#/definitions/handler.GetEndpointsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid query request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/query/receipts/list": {
             "post": {
                 "description": "Get transaction receipts from Cardinal",

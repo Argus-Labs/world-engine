@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
 func TestConcurrentKeyClaims(t *testing.T) {
@@ -20,7 +20,7 @@ func TestConcurrentKeyClaims(t *testing.T) {
 		numOfBetaKeys = 10
 	)
 	fakeNK := testutils.NewFakeNakamaModule()
-	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
+	ctx := testutils.CtxWithUserID(utils.AdminAccountID)
 	resp, err := GenerateBetaKeys(ctx, fakeNK, GenKeysMsg{numOfBetaKeys})
 	assert.NilError(t, err)
 

@@ -807,7 +807,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.NilError(t, err)
 	// test CORS with cardinal
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodGet, httpBaseURL+"/query/http/endpoints", nil)
+	req, err := http.NewRequest(http.MethodGet, httpBaseURL+"/world", nil)
 	assert.NilError(t, err)
 	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
 	resp, err := client.Do(req)

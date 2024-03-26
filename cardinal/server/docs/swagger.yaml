@@ -220,23 +220,6 @@ paths:
           schema:
             type: string
       summary: Query the ecs
-  /query/http/endpoints:
-    get:
-      consumes:
-      - application/json
-      description: Get all http endpoints from cardinal
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: list of query endpoints
-          schema:
-            $ref: '#/definitions/handler.GetEndpointsResponse'
-        "400":
-          description: Invalid query request
-          schema:
-            type: string
-      summary: Get all http endpoints from cardinal
   /query/receipts/list:
     post:
       consumes:

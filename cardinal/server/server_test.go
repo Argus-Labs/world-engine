@@ -93,29 +93,6 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.Require().Equal(LocationComponent{0, 1}, loc)
 }
 
-// TestCanListEndpoints tests the endpoints endpoint.
-func (s *ServerTestSuite) TestCanListEndpoints() {
-	s.setupWorld()
-	s.fixture.DoTick()
-	res := s.fixture.Get("/query/http/endpoints")
-	var result handler.GetEndpointsResponse
-	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
-	s.Require().NoError(err)
-	msgs := s.world.GetRegisteredMessages()
-	queries := s.world.GetRegisteredQueries()
-
-	s.Require().Len(msgs, len(result.TxEndpoints))
-	s.Require().Len(queries, len(result.QueryEndpoints))
-
-	// Map iters are not guaranteed to be in the same order, so we just check that the endpoints are in the list
-	for _, msg := range msgs {
-		s.Require().True(slices.Contains(result.TxEndpoints, utils.GetTxURL(msg.Group(), msg.Name())))
-	}
-	for _, query := range queries {
-		s.Require().True(slices.Contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
-	}
-}
-
 // TestGetFieldInformation tests the fields endpoint.
 func (s *ServerTestSuite) TestGetWorld() {
 	s.setupWorld()
