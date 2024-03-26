@@ -30,15 +30,15 @@ type Transaction = sign.Transaction
 
 // PostTransaction godoc
 //
-//  @Summary      Submit a message to Cardinal
-//  @Description  Submits a message to Cardinal and returns the transaction hash and tick
-//  @Accept       application/json
-//  @Produce      application/json
-//  @Param        txBody  body      Transaction              true  "Message body"
-//  @Param        txName  path      string                   true  "Name of the registered message"
-//  @Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
-//  @Failure      400     {string}  string                   "Invalid request body"
-//  @Router       /tx/game/{txName} [post]
+//	@Summary      Submit a message to Cardinal
+//	@Description  Submits a message to Cardinal and returns the transaction hash and tick
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        txBody  body      Transaction              true  "Message body"
+//	@Param        txName  path      string                   true  "Name of the registered message"
+//	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
+//	@Failure      400     {string}  string                   "Invalid request body"
+//	@Router       /tx/game/{txName} [post]
 func PostTransaction(
 	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
