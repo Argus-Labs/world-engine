@@ -16,6 +16,7 @@ import (
 	"github.com/rotisserie/eris"
 	"google.golang.org/api/option"
 
+	"pkg.world.dev/world-engine/relay/nakama/auth"
 	"pkg.world.dev/world-engine/relay/nakama/events"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
@@ -112,6 +113,9 @@ func InitModule(
 		return eris.Wrap(err, "failed to init save file query endpoint")
 	}
 
+	if err := auth.InitCustomAuthentication(initializer); err != nil {
+		return eris.Wrap(err, "failed to init ethereum authentication")
+	}
 	return nil
 }
 

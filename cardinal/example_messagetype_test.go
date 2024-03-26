@@ -21,7 +21,7 @@ type MovePlayerResult struct {
 }
 
 func ExampleMessageType() {
-	world, err := cardinal.NewMockWorld()
+	world, err := cardinal.NewWorld(cardinal.WithMockRedis())
 	if err != nil {
 		panic(err)
 	}

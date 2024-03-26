@@ -76,30 +76,23 @@ func WithStoreManager(s gamestate.Manager) WorldOption {
 	}
 }
 
-func withMockRedis() WorldOption {
-	// We manually set the start address to make the port deterministic
-	s := miniredis.NewMiniRedis()
-	err := s.StartAddr(":6379")
+// WithMockRedis runs the World with an embedded miniredis instance on port 6379.
+func WithMockRedis() WorldOption {
+	// Start a miniredis instance on port 6379.
+	mr := miniredis.NewMiniRedis()
+	err := mr.StartAddr(":6379")
 	if err != nil {
-		panic(
-			"Unable to start miniredis. Make sure there is no other redis instance running on port 6379",
-		)
+		log.Fatal().Err(err).Msg("failed to start miniredis")
 	}
-	log.Logger.Debug().Msgf("miniredis started at %s", s.Addr())
+	log.Debug().Msgf("miniredis started at %s", mr.Addr())
 
-	return WithCustomMockRedis(s)
-}
-
-func WithCustomMockRedis(miniRedis *miniredis.Miniredis) WorldOption {
-	return WorldOption{
-		cardinalOption: func(world *World) {
-			world.cleanup = func() {
-				log.Logger.Debug().Msg("miniredis shutting down")
-				miniRedis.Close()
-				log.Logger.Debug().Msg("miniredis shutdown successful")
-			}
-		},
+	// Set the REDIS_ADDRESS environment variable to the miniredis address.
+	err = os.Setenv("REDIS_ADDRESS", mr.Addr())
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to set REDIS_ADDRESS")
 	}
+
+	return WorldOption{}
 }
 
 func WithCustomLogger(logger zerolog.Logger) WorldOption {
