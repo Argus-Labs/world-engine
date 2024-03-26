@@ -53,7 +53,7 @@ func newPrecomputedTx() *sign.Transaction {
 		PersonaTag: precomputedPersonaTag,
 		Namespace:  precomputedNamespace,
 		Nonce:      precomputedNonce,
-		Body:       json.RawMessage(precomputedBody),
+		Message:    json.RawMessage(precomputedBody),
 	}
 }
 
@@ -81,7 +81,7 @@ func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	assert.Equal(t, tx.PersonaTag, wantTx.PersonaTag)
 	assert.Equal(t, tx.Namespace, wantTx.Namespace)
 	assert.Equal(t, tx.Nonce, wantTx.Nonce)
-	assert.Equal(t, string(tx.Body), string(wantTx.Body))
+	assert.Equal(t, string(tx.Message), string(wantTx.Message))
 
 	// Also make sure the resulting signature can be verified by the sign package.
 	assert.NilError(t, tx.Verify(precomputedSignerAddress))

@@ -129,7 +129,7 @@ func protoTxToSignTx(t *shard.Transaction) *sign.Transaction {
 		Nonce:      t.GetNonce(),
 		Signature:  t.GetSignature(),
 		Hash:       common.Hash{},
-		Body:       t.GetBody(),
+		Message:    t.GetBody(),
 	}
 	// HashHex will populate the hash.
 	tx.HashHex()

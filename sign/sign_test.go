@@ -203,7 +203,7 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 		gotSP, err = UnmarshalTransaction(buf)
 		assert.NilError(t, err)
 		var gotStruct SomeStruct
-		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))
+		assert.NilError(t, json.Unmarshal(gotSP.Message, &gotStruct))
 		assert.Equal(t, "a-string", gotStruct.Str)
 		assert.Equal(t, 99, gotStruct.Num)
 	}
@@ -235,7 +235,7 @@ func TestRejectSignatureWithExtraField(t *testing.T) {
 		"namespace":  "namespace",
 		"nonce":      100,
 		"signature":  "xyzzy",
-		"body":       "bar",
+		"Message":    "bar",
 	}
 
 	bz, err := json.Marshal(data)
@@ -258,7 +258,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 		"namespace":  "namespace",
 		"nonce":      100,
 		"signature":  "xyzzy",
-		"body":       "bar",
+		"message":    "bar",
 	}
 
 	// Make sure the valid data can actually be unmarshalled
@@ -267,7 +267,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 	_, err = UnmarshalTransaction(bz)
 	assert.NilError(t, err)
 
-	fieldsToOmit := []string{"personaTag", "namespace", "signature", "body"}
+	fieldsToOmit := []string{"personaTag", "namespace", "signature", "message"}
 
 	copyValidData := func() map[string]any {
 		cpy := map[string]any{}
@@ -316,7 +316,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 		"namespace":  "namespace",
 		"nonce":      100,
 		"signature":  tx.Signature,
-		"body":       body,
+		"message":    body,
 	}
 	gotTx, err := MappedTransaction(dataAsMap)
 	assert.NilError(t, err)

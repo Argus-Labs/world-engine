@@ -88,7 +88,7 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Message:    bz,
 	}
 	digest := calculateDigest(unsignedTx)
 
@@ -135,7 +135,7 @@ func calculateDigest(tx *sign.Transaction) common.Hash {
 		[]byte(tx.PersonaTag),
 		[]byte(tx.Namespace),
 		[]byte(strconv.FormatUint(tx.Nonce, 10)),
-		tx.Body,
+		tx.Message,
 	)
 }
 

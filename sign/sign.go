@@ -39,7 +39,7 @@ type Transaction struct {
 	Nonce      uint64          `json:"nonce"`
 	Signature  string          `json:"signature"` // hex encoded string
 	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
-	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
+	Message    json.RawMessage `json:"message" swaggertype:"object"` // json string
 }
 
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {
@@ -70,7 +70,7 @@ func (s *Transaction) checkRequiredFields() error {
 	if s.Signature == "" {
 		return eris.Wrap(ErrNoSignatureField, "")
 	}
-	if len(s.Body) == 0 {
+	if len(s.Message) == 0 {
 		return eris.Wrap(ErrNoBodyField, "")
 	}
 	return nil
@@ -84,7 +84,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		"namespace":  true,
 		"signature":  true,
 		"nonce":      true,
-		"body":       true,
+		"message":    true,
 		"hash":       true,
 	}
 	for key := range tx {
@@ -93,20 +93,20 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		}
 	}
 	// json.Marshal will encode an empty body to "null", so verify the body exists before attempting to Marshal it.
-	if _, ok := tx["body"]; !ok {
+	if _, ok := tx["message"]; !ok {
 		return nil, ErrNoBodyField
 	}
-	serializedBody, err := json.Marshal(tx["body"])
+	serializedMessage, err := json.Marshal(tx["message"])
 	if err != nil {
 		return nil, err
 	}
 	delete(tx, "hash")
-	delete(tx, "body")
+	delete(tx, "message")
 	err = mapstructure.Decode(tx, s)
 	if err != nil {
 		return nil, eris.Wrap(err, "error decoding map structure")
 	}
-	s.Body = serializedBody
+	s.Message = serializedMessage
 	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Message:    bz,
 	}
 	sp.populateHash()
 	buf, err := crypto.Sign(sp.Hash.Bytes(), pk)
@@ -255,6 +255,6 @@ func (s *Transaction) populateHash() {
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),
 		[]byte(strconv.FormatUint(s.Nonce, 10)),
-		s.Body,
+		s.Message,
 	)
 }
