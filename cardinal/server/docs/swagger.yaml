@@ -164,7 +164,11 @@ paths:
             items:
               $ref: '#/definitions/handler.debugStateElement'
             type: array
-      summary: Get information on all entities and components in world-engine
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get all entities and components in Cardinal
   /events:
     get:
       description: websocket connection for events.

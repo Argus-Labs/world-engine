@@ -17,15 +17,16 @@ type debugStateElement struct {
 	Components map[string]json.RawMessage `json:"components" swaggertype:"object"`
 }
 
-type DebugStateResponse []*debugStateElement
+type DebugStateResponse []debugStateElement
 
 // GetDebugState godoc
 //
-//	@Summary		Get information on all entities and components in world-engine
-//	@Description	Displays the entire game state.
-//	@Produce		application/json
-//	@Success		200	{object}	DebugStateResponse
-//	@Router			/debug/state [post]
+// @Summary     Get all entities and components in Cardinal
+// @Description Displays the entire game state.
+// @Produce     application/json
+// @Success     200 {object} DebugStateResponse
+// @Failure     500 {string} string "Internal server error"
+// @Router      /debug/state [post]
 func GetDebugState(provider servertypes.Provider) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		result := make(DebugStateResponse, 0)
@@ -50,7 +51,7 @@ func GetDebugState(provider servertypes.Provider) func(*fiber.Ctx) error {
 					}
 					resultElement.Components[c.Name()] = data
 				}
-				result = append(result, &resultElement)
+				result = append(result, resultElement)
 				return true
 			},
 		)

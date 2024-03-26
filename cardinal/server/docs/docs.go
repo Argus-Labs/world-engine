@@ -52,7 +52,7 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get information on all entities and components in world-engine",
+                "summary": "Get all entities and components in Cardinal",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -61,6 +61,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/handler.debugStateElement"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
