@@ -161,7 +161,7 @@
         "x-codegen-request-body-name": "QueryPersonaSignerRequest"
       }
     },
-    "/query/http/endpoints": {
+    "/endpoints": {
       "post": {
         "tags": [
           "Query"

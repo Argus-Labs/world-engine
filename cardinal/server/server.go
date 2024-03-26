@@ -161,9 +161,6 @@ func (s *Server) setupRoutes(
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())
-	// TODO(scott): this should be moved outside of /query, but nakama is currrently depending on it
-	//  so we should do this on a separate PR.
-	s.app.Get("/query/http/endpoints", handler.GetEndpoints(msgIndex, queryIndex))
 
 	// Route: /query/...
 	query := s.app.Group("/query")
