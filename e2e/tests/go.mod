@@ -22,7 +22,7 @@ require (
 	nhooyr.io/websocket v1.8.10
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/evm v0.0.0-00010101000000-000000000000
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326220748-bc11c4234f5b
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326221949-e4f338a55da1
 )
 
 require (
