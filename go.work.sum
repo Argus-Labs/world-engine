@@ -2031,7 +2031,7 @@ pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27/go.mod h1:TZ
 pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05 h1:09v9iMKb9ceBq1vrjiJ+nTdSwYzlfv0J2G6Z+WcX9dk=
 pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05/go.mod h1:CH0uJJxVi6Sx9mTfBu2u9rwl7frH1fnSuc098wTPCPk=
 pkg.world.dev/world-engine/cardinal v1.0.7-beta.0.20240227191311-c62d82a98e45/go.mod h1:hGs4+YdFfUqR5OmpP4PypRgKQECx2IQivq9CKhNuEpA=
-pkg.world.dev/world-engine/sign v1.0.4-beta/go.mod h1:nGOJVpQnb3HqDO1JnkU+5lpMoyU5orPjow7NdcljiWw=
+pkg.world.dev/world-engine/sign v1.0.5-beta/go.mod h1:FmdM+X2mgiIKAzzMS0lXmlUIf+5Q5b3MU2KRQqfU24E=
 rsc.io/binaryregexp v0.2.0 h1:HfqmD5MEmC0zvwBuF187nq9mdnXjXsSivRiXN7SmRkE=
 rsc.io/pdf v0.1.1 h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=
 rsc.io/quote/v3 v3.1.0 h1:9JKUTTIUgS6kzR9mK1YuGKv6Nl+DijDNIc0ghT58FaY=

@@ -1,8 +1,6 @@
 module pkg.world.dev/world-engine/relay/nakama
 
-go 1.21.1
-
-toolchain go1.22.1
+go 1.21.0
 
 require (
 	cloud.google.com/go/kms v1.15.5
@@ -14,7 +12,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.60.0
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/sign v1.0.4-beta
+	pkg.world.dev/world-engine/sign v1.0.5-beta
 )
 
 require (

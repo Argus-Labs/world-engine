@@ -208,5 +208,5 @@ honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 pkg.world.dev/world-engine/assert v1.0.0 h1:vD6+QLT1pvQa86FPFi+wGcVA7PEwTGndXr+PkTY/Fpw=
 pkg.world.dev/world-engine/assert v1.0.0/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
-pkg.world.dev/world-engine/sign v1.0.4-beta h1:9xm6gZDB5Pv0thvpQ2x+MXzsIihnCRFKeUESAhUzv9w=
-pkg.world.dev/world-engine/sign v1.0.4-beta/go.mod h1:nGOJVpQnb3HqDO1JnkU+5lpMoyU5orPjow7NdcljiWw=
+pkg.world.dev/world-engine/sign v1.0.5-beta h1:hG9VM8yJVFZWAC1c6BO52b2eDCw2Sc9GDX6C0LaBLJA=
+pkg.world.dev/world-engine/sign v1.0.5-beta/go.mod h1:FmdM+X2mgiIKAzzMS0lXmlUIf+5Q5b3MU2KRQqfU24E=
