@@ -28,7 +28,7 @@ const (
 	EnvCardinalNamespace      = "CARDINAL_NAMESPACE"
 	EnvKMSCredentialsFile     = "GCP_KMS_CREDENTIALS_FILE" // #nosec G101
 	EnvKMSKeyName             = "GCP_KMS_KEY_NAME"
-	ListEndpoints             = "query/http/endpoints"
+	WorldEndpoint             = "world"
 	EventEndpoint             = "events"
 	TransactionEndpointPrefix = "tx/"
 )

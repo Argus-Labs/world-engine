@@ -46,6 +46,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/debug/state": {
+            "post": {
+                "description": "Displays the entire game state.",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Get all entities and components in Cardinal",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handler.debugStateElement"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/events": {
             "get": {
                 "description": "websocket connection for events.",
@@ -75,26 +101,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handler.GetHealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/query/debug/state": {
-            "post": {
-                "description": "Displays the entire game state.",
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get information on all entities and components in world-engine",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/cardinal.debugStateElement"
-                            }
                         }
                     }
                 }
@@ -144,32 +150,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/query/http/endpoints": {
-            "get": {
-                "description": "Get all http endpoints from cardinal",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get all http endpoints from cardinal",
-                "responses": {
-                    "200": {
-                        "description": "list of query endpoints",
-                        "schema": {
-                            "$ref": "#/definitions/handler.GetEndpointsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid query request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
+
         "/query/receipts/list": {
             "post": {
                 "description": "Get transaction receipts from Cardinal",
@@ -359,17 +340,6 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal.debugStateElement": {
-            "type": "object",
-            "properties": {
-                "components": {
-                    "type": "object"
-                },
-                "id": {
-                    "type": "integer"
-                }
-            }
-        },
         "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
@@ -450,6 +420,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/handler.FieldDetail"
                     }
                 },
+                "namespace": {
+                    "type": "string"
+                },
                 "queries": {
                     "type": "array",
                     "items": {
@@ -498,6 +471,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.debugStateElement": {
+            "type": "object",
+            "properties": {
+                "components": {
                     "type": "object"
                 },
                 "id": {

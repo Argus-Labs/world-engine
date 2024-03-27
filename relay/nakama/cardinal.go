@@ -16,14 +16,24 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
-type endpoints struct {
-	TxEndpoints    []string `json:"txEndpoints"`
-	QueryEndpoints []string `json:"queryEndpoints"`
+// world is the response from the cardinal world endpoint.
+type world struct {
+	Namespace  string        `json:"namespace"`
+	Components []fieldDetail `json:"components"` // list of component names
+	Messages   []fieldDetail `json:"messages"`
+	Queries    []fieldDetail `json:"queries"`
+}
+
+// fieldDetail is the response from the cardinal world endpoint.
+type fieldDetail struct {
+	Name   string         `json:"name"`   // name of the message or query
+	Fields map[string]any `json:"fields"` // variable name and type
+	URL    string         `json:"url,omitempty"`
 }
 
 func getCardinalEndpoints(cardinalAddress string) (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := utils.MakeHTTPURL(ListEndpoints, cardinalAddress)
+	url := utils.MakeHTTPURL(WorldEndpoint, cardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Get(url)
 	if err != nil {
@@ -37,12 +47,18 @@ func getCardinalEndpoints(cardinalAddress string) (txEndpoints []string, queryEn
 		return txEndpoints, queryEndpoints, err
 	}
 	dec := json.NewDecoder(resp.Body)
-	var ep endpoints
-	if err = dec.Decode(&ep); err != nil {
+	var w world
+	if err = dec.Decode(&w); err != nil {
 		return txEndpoints, queryEndpoints, eris.Wrap(err, "")
 	}
-	txEndpoints = ep.TxEndpoints
-	queryEndpoints = ep.QueryEndpoints
+	txEndpoints = make([]string, 0)
+	for _, msg := range w.Messages {
+		txEndpoints = append(txEndpoints, msg.URL)
+	}
+	queryEndpoints = make([]string, 0)
+	for _, qry := range w.Queries {
+		queryEndpoints = append(queryEndpoints, qry.URL)
+	}
 	return txEndpoints, queryEndpoints, err
 }
 
