@@ -42,7 +42,7 @@ require (
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/evm v1.0.4-0.20240227035346-26b21454bb27
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240326221949-e4f338a55da1
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327025007-cee404a08465
 	pkg.world.dev/world-engine/sign v1.0.1-beta
 )
 
