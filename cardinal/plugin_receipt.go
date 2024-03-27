@@ -56,8 +56,8 @@ func (p *receiptPlugin) RegisterQueries(world *World) error {
 
 // queryReceipts godoc
 //
-//	@Summary      Get transaction receipts from Cardinal
-//	@Description  Retrieves all transaction receipts from Cardinal
+//	@Summary      Retrieves all transaction receipts
+//	@Description  Retrieves all transaction receipts
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        ListTxReceiptsRequest  body      ListTxReceiptsRequest  true  "Query body"

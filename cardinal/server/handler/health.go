@@ -11,8 +11,8 @@ type GetHealthResponse struct {
 
 // GetHealth godoc
 //
-//	@Summary      Get Cardinal's health status
-//	@Description  Retrieves the running status of the Cardinal server and game loop
+//	@Summary      Retrieves the status of the server and game loop
+//	@Description  Retrieves the status of the server and game loop
 //	@Produce      application/json
 //	@Success      200  {object}  GetHealthResponse  "Server and game loop status"
 //	@Router       /health [get]

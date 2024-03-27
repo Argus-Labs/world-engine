@@ -17,14 +17,14 @@ const docTemplate = `{
     "paths": {
         "/cql": {
             "post": {
-                "description": "Runs the provided CQL query on Cardinal and return the results",
+                "description": "Executes a CQL (Cardinal Query Language) query",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Query game entities with CQL (cardinal query language)",
+                "summary": "Executes a CQL (Cardinal Query Language) query",
                 "parameters": [
                     {
                         "description": "CQL query to be executed",
@@ -38,13 +38,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "CQL query result",
+                        "description": "Results of the executed CQL query",
                         "schema": {
                             "$ref": "#/definitions/handler.CQLQueryResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or invalid CQL query",
+                        "description": "Invalid request parameters",
                         "schema": {
                             "type": "string"
                         }
@@ -54,25 +54,19 @@ const docTemplate = `{
         },
         "/debug/state": {
             "post": {
-                "description": "Displays the entire game state.",
+                "description": "Retrieves a list of all entities in the game state",
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get all entities and components in Cardinal",
+                "summary": "Retrieves a list of all entities in the game state",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "List of all entities",
                         "schema": {
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/handler.debugStateElement"
                             }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 }
@@ -80,11 +74,11 @@ const docTemplate = `{
         },
         "/events": {
             "get": {
-                "description": "Websocket connection for events.",
+                "description": "Establishes a new websocket connection to retrieve system events",
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Endpoint for events",
+                "summary": "Establishes a new websocket connection to retrieve system events",
                 "responses": {
                     "101": {
                         "description": "Switch protocol to ws",
@@ -97,11 +91,11 @@ const docTemplate = `{
         },
         "/health": {
             "get": {
-                "description": "Retrieves the running status of the Cardinal server and game loop",
+                "description": "Retrieves the status of the server and game loop",
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get Cardinal's health status",
+                "summary": "Retrieves the status of the server and game loop",
                 "responses": {
                     "200": {
                         "description": "Server and game loop status",
@@ -112,46 +106,26 @@ const docTemplate = `{
                 }
             }
         },
-        "/query/debug/state": {
-            "post": {
-                "description": "Retrieves a list of all entities in the game state",
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Get all game entities",
-                "responses": {
-                    "200": {
-                        "description": "List of entities",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/cardinal.debugStateElement"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/query/game/{queryName}": {
             "post": {
-                "description": "Runs a registered query on Cardinal and returns the results",
+                "description": "Executes a query",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Run a query on Cardinal",
+                "summary": "Executes a query",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Name of the registered query",
+                        "description": "Name of a registered query",
                         "name": "queryName",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Query body",
+                        "description": "Query body as defined in its go type definition",
                         "name": "queryBody",
                         "in": "body",
                         "required": true,
@@ -162,13 +136,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Query results",
+                        "description": "Results of the executed query",
                         "schema": {
                             "type": "object"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or invalid query body",
+                        "description": "Invalid request parameters",
                         "schema": {
                             "type": "string"
                         }
@@ -178,14 +152,14 @@ const docTemplate = `{
         },
         "/query/receipts/list": {
             "post": {
-                "description": "Retrieves all transaction receipts from Cardinal",
+                "description": "Retrieves all transaction receipts",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get transaction receipts from Cardinal",
+                "summary": "Retrieves all transaction receipts",
                 "parameters": [
                     {
                         "description": "Query body",
@@ -215,30 +189,30 @@ const docTemplate = `{
         },
         "/tx/game/{txName}": {
             "post": {
-                "description": "Submits a message to Cardinal and returns the transaction hash and tick",
+                "description": "Submits a transaction",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Submit a message to Cardinal",
+                "summary": "Submits a transaction",
                 "parameters": [
                     {
-                        "description": "Message body",
+                        "type": "string",
+                        "description": "Name of a registered message",
+                        "name": "txName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Transaction details \u0026 message body as defined in its go type definition",
                         "name": "txBody",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/handler.Transaction"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Name of the registered message",
-                        "name": "txName",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -249,7 +223,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Invalid request parameter",
                         "schema": {
                             "type": "string"
                         }
@@ -259,17 +233,17 @@ const docTemplate = `{
         },
         "/tx/persona/create-persona": {
             "post": {
-                "description": "Creates a persona in Cardinal and returns the transaction hash and tick",
+                "description": "Creates a persona",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Create a persona",
+                "summary": "Creates a persona",
                 "parameters": [
                     {
-                        "description": "Message body",
+                        "description": "Transaction details",
                         "name": "txBody",
                         "in": "body",
                         "required": true,
@@ -286,7 +260,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Invalid request parameter",
                         "schema": {
                             "type": "string"
                         }
@@ -296,23 +270,23 @@ const docTemplate = `{
         },
         "/world": {
             "get": {
-                "description": "Retrieves details of registered components, messages, and queries",
+                "description": "Contains the registered components, messages, queries, and the Cardinal namespace",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get registered components, messages, and queries",
+                "summary": "Retrieves details of the game world",
                 "responses": {
                     "200": {
-                        "description": "List of registered components, messages, and queries",
+                        "description": "List of registered components, messages, queries, and the Cardinal namespace",
                         "schema": {
                             "$ref": "#/definitions/handler.GetWorldResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Invalid request parameters",
                         "schema": {
                             "type": "string"
                         }

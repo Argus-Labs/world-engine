@@ -26,13 +26,13 @@ type CQLQueryResponse struct {
 
 // PostCQL godoc
 //
-//	@Summary      Query game entities with CQL (cardinal query language)
-//	@Description  Runs the provided CQL query on Cardinal and return the results
+//	@Summary      Executes a CQL (Cardinal Query Language) query
+//	@Description  Executes a CQL (Cardinal Query Language) query
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        cql  body      CQLQueryRequest   true  "CQL query to be executed"
-//	@Success      200  {object}  CQLQueryResponse  "CQL query result"
-//	@Failure      400  {string}  string            "Invalid request body or invalid CQL query"
+//	@Success      200  {object}  CQLQueryResponse  "Results of the executed CQL query"
+//	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /cql [post]
 func PostCQL(provider servertypes.Provider) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
 	return func(ctx *fiber.Ctx) error {

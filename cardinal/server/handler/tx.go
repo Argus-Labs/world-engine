@@ -30,14 +30,14 @@ type Transaction = sign.Transaction
 
 // PostTransaction godoc
 //
-//	@Summary      Submit a message to Cardinal
-//	@Description  Submits a message to Cardinal and returns the transaction hash and tick
+//	@Summary      Submits a transaction
+//	@Description  Submits a transaction
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        txBody  body      Transaction              true  "Message body"
-//	@Param        txName  path      string                   true  "Name of the registered message"
+//	@Param        txName  path      string                   true  "Name of a registered message"
+//	@Param        txBody  body      Transaction              true  "Transaction details & message body as defined in its go type definition"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
-//	@Failure      400     {string}  string                   "Invalid request body"
+//	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/game/{txName} [post]
 func PostTransaction(
 	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
@@ -93,13 +93,13 @@ func PostTransaction(
 // NOTE: duplication for cleaner swagger JSON file
 // PostTransaction godoc
 //
-//	@Summary      Create a persona
-//	@Description  Creates a persona in Cardinal and returns the transaction hash and tick
+//	@Summary      Creates a persona
+//	@Description  Creates a persona
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        txBody  body      Transaction              true  "Message body"
+//	@Param        txBody  body      Transaction              true  "Transaction details"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
-//	@Failure      400     {string}  string                   "Invalid request body"
+//	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
 	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,

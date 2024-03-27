@@ -8,14 +8,14 @@ import (
 
 // PostQuery godoc
 //
-//	@Summary      Run a query on Cardinal
-//	@Description  Runs a registered query on Cardinal and returns the results
+//	@Summary      Executes a query
+//	@Description  Executes a query
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        queryName  path      string  true  "Name of the registered query"
-//	@Param        queryBody  body      object  true  "Query body"
-//	@Success      200        {object}  object  "Query results"
-//	@Failure      400        {string}  string  "Invalid request body or invalid query body"
+//	@Param        queryName  path      string  true  "Name of a registered query"
+//	@Param        queryBody  body      object  true  "Query body as defined in its go type definition"
+//	@Success      200        {object}  object  "Results of the executed query"
+//	@Failure      400        {string}  string  "Invalid request parameters"
 //	@Router       /query/game/{queryName} [post]
 func PostQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {

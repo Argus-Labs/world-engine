@@ -9,8 +9,8 @@ import (
 
 // WebSocketEvents godoc
 //
-//	@Summary      Endpoint for events
-//	@Description  Websocket connection for events.
+//	@Summary      Establishes a new websocket connection to retrieve system events
+//	@Description  Establishes a new websocket connection to retrieve system events
 //	@Produce      application/json
 //	@Success      101  {string}  string  "Switch protocol to ws"
 //	@Router       /events [get]
