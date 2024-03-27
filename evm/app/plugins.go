@@ -1,35 +1,31 @@
 package app
 
 import (
+	"fmt"
 	"os"
 
 	"cosmossdk.io/log"
 
 	"pkg.world.dev/world-engine/evm/router"
 	"pkg.world.dev/world-engine/evm/sequencer"
+	"pkg.world.dev/world-engine/rift/credentials"
 )
 
 func (app *App) setPlugins(logger log.Logger) {
-	certPath := os.Getenv("SERVER_CERT_PATH")
-	keyPath := os.Getenv("SERVER_KEY_PATH")
-	if certPath == "" || keyPath == "" {
-		logger.Info("running shard sequencer without SSL certs")
-		app.ShardSequencer = sequencer.NewShardSequencer()
+	routerKey := os.Getenv("ROUTER_KEY")
+	var sequencerOpts []sequencer.Option
+	var routerOpts []router.Option
+	if routerKey == "" {
+		app.Logger().Debug("WARNING: starting the EVM base shard in insecure mode. No ROUTER_KEY provided")
 	} else {
-		logger.Info("running shard sequencer with SSL certs")
-		app.ShardSequencer = sequencer.NewShardSequencer(sequencer.WithCredentials(certPath, keyPath))
+		if err := credentials.ValidateKey(routerKey); err != nil {
+			panic(fmt.Errorf("invalid ROUTER_KEY: %w", err))
+		}
+		sequencerOpts = append(sequencerOpts, sequencer.WithRouterKey(routerKey))
+		routerOpts = append(routerOpts, router.WithRouterKey(routerKey))
 	}
-
+	app.ShardSequencer = sequencer.NewShardSequencer(sequencerOpts...)
 	app.ShardSequencer.Serve()
 
-	var opts []router.Option
-	clientCert := os.Getenv("CLIENT_CERT_PATH")
-	if clientCert != "" {
-		logger.Info("running router with client certification")
-		opts = append(opts, router.WithCredentials(clientCert))
-	} else {
-		logger.Error("WARNING: running router client without client certification. this will cause issues if " +
-			"the game shard instance uses SSL credentials")
-	}
-	app.Router = router.NewRouter(logger, app.CreateQueryContext, app.NamespaceKeeper.Address, opts...)
+	app.Router = router.NewRouter(logger, app.CreateQueryContext, app.NamespaceKeeper.Address, routerOpts...)
 }

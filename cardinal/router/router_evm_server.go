@@ -8,7 +8,10 @@ import (
 
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
+	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -30,13 +33,40 @@ type evmServer struct {
 
 	provider   Provider
 	grpcServer *grpc.Server
+	routerKey  string
 }
 
-func newEvmServer(p Provider) *evmServer {
-	return &evmServer{
-		provider:   p,
-		grpcServer: grpc.NewServer(),
+func newEvmServer(p Provider, routerKey string) *evmServer {
+	e := &evmServer{
+		provider:  p,
+		routerKey: routerKey,
 	}
+	e.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(e.serverCallInterceptor))
+	return e
+}
+
+// serverCallInterceptor catches calls to handlers and ensures they have the right secret key.
+func (e *evmServer) serverCallInterceptor(
+	ctx context.Context,
+	req any,
+	_ *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (resp any, err error) {
+	// we only want to guard the SendMessage method. not the query shard method.
+	if _, ok := req.(*routerv1.SendMessageRequest); !ok {
+		return handler(ctx, req)
+	}
+
+	rtrKey, err := credentials.TokenFromIncomingContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if rtrKey != e.routerKey {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid %s", credentials.TokenKey)
+	}
+
+	return handler(ctx, req)
 }
 
 // SendMessage is the grpcServer impl that receives SendMessage requests from the base shard client.

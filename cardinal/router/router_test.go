@@ -298,5 +298,5 @@ func getTestRouterAndProvider(t *testing.T) (*router, *mocks.MockProvider) {
 	ctrl := gomock.NewController(t)
 	provider := mocks.NewMockProvider(ctrl)
 
-	return &router{provider: provider, server: newEvmServer(provider)}, provider
+	return &router{provider: provider, server: newEvmServer(provider, "")}, provider
 }
