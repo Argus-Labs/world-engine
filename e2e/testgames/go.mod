@@ -134,7 +134,7 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
 	github.com/swaggo/swag v1.16.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
@@ -172,7 +172,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
 	pkg.world.dev/world-engine/evm v1.0.4-0.20240227035346-26b21454bb27 // indirect
-	pkg.world.dev/world-engine/rift v1.1.0-beta // indirect
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327175559-74add9112b93 // indirect
 	pkg.world.dev/world-engine/sign v1.0.1-beta // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

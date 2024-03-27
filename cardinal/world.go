@@ -144,8 +144,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Shard router must be set in production mode
 	if cfg.CardinalMode == RunModeProd {
-		world.router, err = router.New(cfg.CardinalNamespace, cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress,
-			world)
+		world.router, err = router.New(
+			cfg.CardinalNamespace,
+			cfg.BaseShardSequencerAddress,
+			cfg.BaseShardQueryAddress,
+			cfg.RouterKey,
+			world,
+		)
 		if err != nil {
 			return nil, eris.Wrap(err, "Failed to initialize shard router")
 		}

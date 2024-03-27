@@ -2,7 +2,10 @@ package evm
 
 import (
 	"context"
+	"crypto/rand"
 	"io"
+	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,16 +31,12 @@ type MoveTx struct {
 	Direction string `json:"direction"`
 }
 
-const (
-	adminNakamaID = "00000000-0000-0000-0000-000000000000"
-)
-
 func TestTransactionStoredOnChain(t *testing.T) {
 	c := clients.NewNakamaClient(t)
 	chain := clients.NewEVMClient(t)
-	user := "foo"
-	persona := "swag"
-	err := c.RegisterDevice(user, adminNakamaID)
+	user := randomString()
+	persona := randomString()
+	err := c.RegisterDevice(user, generateRandomNakamaID())
 	assert.NilError(t, err)
 
 	res, err := c.RPC("nakama/claim-persona", ClaimPersona{PersonaTag: persona})
@@ -88,5 +87,32 @@ func TestNamespaceSaved(t *testing.T) {
 	client := routerv1.NewMsgClient(conn)
 	_, err = client.QueryShard(context.Background(), &routerv1.QueryShardRequest{Request: []byte("nah")})
 	// if we got any sort of contextual error message back, we know that Cardinal received this request.
-	assert.ErrorContains(t, err, "query with name  not found")
+	assert.ErrorContains(t, err, `is not registered`)
+}
+
+func randomString() string {
+	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	sb := strings.Builder{}
+	sb.Grow(10)
+	for i := 0; i < 10; i++ {
+		idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(alphabet))))
+		sb.WriteByte(alphabet[idx.Int64()])
+	}
+	return sb.String()
+}
+
+func generateRandomNakamaID() string {
+	const format = "00000000-0000-0000-0000-000000000000"
+	const digits = "0123456789"
+
+	result := make([]byte, len(format))
+	for i := 0; i < len(format); i++ {
+		if format[i] != '-' {
+			idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
+			result[i] = digits[idx.Int64()]
+		} else {
+			result[i] = '-'
+		}
+	}
+	return string(result)
 }

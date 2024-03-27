@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"os"
 	"strconv"
@@ -13,10 +12,12 @@ import (
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	"pkg.world.dev/world-engine/rift/credentials"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
@@ -36,10 +37,10 @@ type Sequencer struct {
 	tq         *TxQueue
 
 	// opts
-	creds credentials.TransportCredentials
+	routerKey string
 }
 
-// NewShardSequencer returns a new game shardsequencer server. It runs on a default port of 9601,
+// NewShardSequencer returns a new game shard sequencer server. It runs on a default port of 9601,
 // unless the SHARD_SEQUENCER_PORT environment variable is set.
 //
 // The sequencer exposes a single gRPC endpoint, SubmitShardTx, which will take in transactions from game shards,
@@ -57,34 +58,9 @@ func NewShardSequencer(opts ...Option) *Sequencer {
 	return s
 }
 
-func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials, error) {
-	// Load server's certificate and private key
-	sc, err := os.ReadFile(certPath)
-	if err != nil {
-		return nil, err
-	}
-	sk, err := os.ReadFile(keyPath)
-	if err != nil {
-		return nil, err
-	}
-	serverCert, err := tls.X509KeyPair(sc, sk)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the credentials and return it
-	config := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.NoClientCert,
-		MinVersion:   tls.VersionTLS12,
-	}
-
-	return credentials.NewTLS(config), nil
-}
-
 // Serve serves the server in a new go routine.
 func (s *Sequencer) Serve() {
-	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(s.serverCallInterceptor))
 	shard.RegisterTransactionHandlerServer(grpcServer, s)
 	port := defaultPort
 	// check if a custom port was set
@@ -134,4 +110,23 @@ func (s *Sequencer) RegisterGameShard(
 ) (*shard.RegisterGameShardResponse, error) {
 	s.tq.AddInitMsg(req.GetNamespace(), req.GetRouterAddress())
 	return &shard.RegisterGameShardResponse{}, nil
+}
+
+// serverCallInterceptor catches calls to handlers and ensures they have the right secret routerKey.
+func (s *Sequencer) serverCallInterceptor(
+	ctx context.Context,
+	req any,
+	_ *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (resp any, err error) {
+	rtrKey, err := credentials.TokenFromIncomingContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if rtrKey != s.routerKey {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid %s", credentials.TokenKey)
+	}
+
+	return handler(ctx, req)
 }

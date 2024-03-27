@@ -10,6 +10,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"pkg.world.dev/world-engine/rift/credentials"
 )
 
 const (
@@ -25,25 +27,27 @@ const (
 	DefaultStatsdAddress = "localhost:8125"
 )
 
-var validLogLevels = []string{
-	zerolog.DebugLevel.String(),
-	zerolog.InfoLevel.String(),
-	zerolog.WarnLevel.String(),
-	zerolog.ErrorLevel.String(),
-	zerolog.Disabled.String(),
-}
+var (
+	validLogLevels = []string{
+		zerolog.DebugLevel.String(),
+		zerolog.InfoLevel.String(),
+		zerolog.WarnLevel.String(),
+		zerolog.ErrorLevel.String(),
+		zerolog.Disabled.String(),
+	}
 
-var defaultConfig = WorldConfig{
-	RedisAddress:              DefaultRedisAddress,
-	RedisPassword:             "",
-	CardinalNamespace:         DefaultNamespace,
-	CardinalMode:              DefaultRunMode,
-	BaseShardSequencerAddress: "",
-	BaseShardQueryAddress:     "",
-	CardinalLogLevel:          DefaultLogLevel,
-	StatsdAddress:             DefaultStatsdAddress,
-	TraceAddress:              "",
-}
+	defaultConfig = WorldConfig{
+		RedisAddress:              DefaultRedisAddress,
+		RedisPassword:             "",
+		CardinalNamespace:         DefaultNamespace,
+		CardinalMode:              DefaultRunMode,
+		BaseShardSequencerAddress: "",
+		BaseShardQueryAddress:     "",
+		CardinalLogLevel:          DefaultLogLevel,
+		StatsdAddress:             DefaultStatsdAddress,
+		TraceAddress:              "",
+	}
+)
 
 type RunMode string
 
@@ -64,6 +68,8 @@ type WorldConfig struct {
 	// Telemetry
 	StatsdAddress string `config:"STATSD_ADDRESS"`
 	TraceAddress  string `config:"TRACE_ADDRESS"`
+	// RouterKey is a token used to secure communications between the game shard and the base shard.
+	RouterKey string `config:"ROUTER_KEY"`
 }
 
 func loadWorldConfig() (*WorldConfig, error) {
@@ -87,6 +93,9 @@ func loadWorldConfig() (*WorldConfig, error) {
 	return &cfg, nil
 }
 
+// Validate validates the config values and ensures that when the RunMode is production, the required values are set.
+//
+//nolint:gocognit // its fine.
 func (w *WorldConfig) Validate() error {
 	// Validate run mode
 	if w.CardinalMode != RunModeProd && w.CardinalMode != RunModeDev {
@@ -94,6 +103,7 @@ func (w *WorldConfig) Validate() error {
 	}
 
 	// Validate production mode configs
+	//nolint:nestif // its fine..
 	if w.CardinalMode == RunModeProd {
 		// Validate that Redis password is set
 		if w.RedisPassword == "" {
@@ -105,6 +115,12 @@ func (w *WorldConfig) Validate() error {
 		}
 		if _, _, err := net.SplitHostPort(w.BaseShardQueryAddress); err != nil {
 			return eris.Wrap(err, "BASE_SHARD_QUERY_ADDRESS must follow the format <host>:<port>")
+		}
+		if w.RouterKey == "" {
+			return eris.New("ROUTER_KEY must be set in production mode")
+		}
+		if err := credentials.ValidateKey(w.RouterKey); err != nil {
+			return err
 		}
 	}
 
