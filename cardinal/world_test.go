@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 
@@ -259,16 +260,16 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
 			assert.True(t, ok)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
+			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 1, Signature: fakeSignature(t, 1)})
 			world.tickTheEngine(ctx, nil)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
+			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 2, Signature: fakeSignature(t, 2)})
 			world.tickTheEngine(ctx, nil)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
+			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 3, Signature: fakeSignature(t, 3)})
 			world.tickTheEngine(ctx, nil)
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
-			world.AddTransaction(powerTx.ID(), PowerComp{666}, &sign.Transaction{})
+			world.AddTransaction(powerTx.ID(), PowerComp{666}, &sign.Transaction{Nonce: 4, Signature: fakeSignature(t, 4)})
 			err = doTickCapturePanic(ctx, world)
 			assert.ErrorContains(t, err, errorBadPowerChange.Error())
 		} else {
@@ -276,7 +277,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
+			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 5, Signature: fakeSignature(t, 5)})
 			world.tickTheEngine(ctx, nil)
 
 			assert.Equal(t, float64(4666), fetchPower())
@@ -285,6 +286,14 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, world.Shutdown())
 	}
 	rs.Close()
+}
+
+func fakeSignature(t *testing.T, nonce uint64) string {
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	sp, err := sign.NewTransaction(goodKey, "foo", "bar", nonce, `{"msg": "this is a request body"}`)
+	assert.NilError(t, err)
+	return sp.Signature
 }
 
 type onePowerComponent struct {
