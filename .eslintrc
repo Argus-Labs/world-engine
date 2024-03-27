@@ -1,0 +1,7 @@
+{
+  "extends": ["plugin:mdx/recommended"],
+  // lint code blocks true
+  "settings": {
+    "mdx/code-blocks": true
+  }
+}
