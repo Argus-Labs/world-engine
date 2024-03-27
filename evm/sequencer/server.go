@@ -13,7 +13,6 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
@@ -120,16 +119,12 @@ func (s *Sequencer) serverCallInterceptor(
 	_ *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (resp any, err error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
-	}
-	routerKey := md[credentials.TokenKey]
-	if len(routerKey) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing %s", credentials.TokenKey)
+	rtrKey, err := credentials.TokenFromIncomingContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	if routerKey[0] != s.routerKey {
+	if rtrKey != s.routerKey {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid %s", credentials.TokenKey)
 	}
 

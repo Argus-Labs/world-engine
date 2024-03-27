@@ -3123,6 +3123,8 @@ pkg.world.dev/world-engine/assert v1.0.0 h1:vD6+QLT1pvQa86FPFi+wGcVA7PEwTGndXr+P
 pkg.world.dev/world-engine/assert v1.0.0/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
 pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327025007-cee404a08465 h1:U6jZVJeHiN+bvGSjoZCob7+yBMmsKp69T2lA/Csdtoo=
 pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327025007-cee404a08465/go.mod h1:XAD40g4r3qOp3CTa66JBY+ACEUtjr01loyHiUZIheN8=
+pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327175559-74add9112b93 h1:cJazHqUgZ+Ae/BacmbUzj+Jv5/L+2N9e6pu+w6Iffr4=
+pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327175559-74add9112b93/go.mod h1:XAD40g4r3qOp3CTa66JBY+ACEUtjr01loyHiUZIheN8=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=

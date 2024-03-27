@@ -9,7 +9,6 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"pkg.world.dev/world-engine/rift/credentials"
@@ -57,17 +56,13 @@ func (e *evmServer) serverCallInterceptor(
 	if _, ok := req.(*routerv1.SendMessageRequest); !ok {
 		return handler(ctx, req)
 	}
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+
+	rtrKey, err := credentials.TokenFromIncomingContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	routerKey := md[credentials.TokenKey]
-	if len(routerKey) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing %s", credentials.TokenKey)
-	}
-
-	if routerKey[0] != e.routerKey {
+	if rtrKey != e.routerKey {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid %s", credentials.TokenKey)
 	}
 
