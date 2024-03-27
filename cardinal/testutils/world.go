@@ -3,6 +3,7 @@ package testutils
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
 	"gotest.tools/v3/assert"
 
@@ -37,6 +39,8 @@ type TestFixture struct {
 	DoneTickCh  chan uint64
 	doCleanup   func()
 	startOnce   *sync.Once
+	nonce       uint64
+	key         *ecdsa.PrivateKey
 }
 
 // NewTestFixture creates a test fixture with user defined port for Cardinal integration tests.
@@ -66,6 +70,8 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.W
 	// Default options go first so that any user supplied options overwrite the defaults.
 	world, err := cardinal.NewWorld(append(defaultOpts, opts...)...)
 	assert.NilError(t, err)
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
 
 	return &TestFixture{
 		TB:      t,
@@ -76,6 +82,7 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.W
 		StartTickCh: startTickCh,
 		DoneTickCh:  doneTickCh,
 		startOnce:   &sync.Once{},
+		key:         key,
 		// Only register this method with t.Cleanup if the game server is actually started
 		doCleanup: func() {
 			// First, make sure completed ticks will never be blocked
@@ -160,12 +167,25 @@ func (t *TestFixture) Get(path string) *http.Response {
 }
 
 func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign.Transaction) types.TxHash {
-	sig := &sign.Transaction{}
+	sig, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
+	assert.NilError(t, err)
+	t.nonce++
 	if len(sigs) > 0 {
 		sig = sigs[0]
 	}
 	_, id := t.World.AddTransaction(txID, tx, sig)
 	return id
+}
+
+func (t *TestFixture) AddEVMTransaction(txID types.MessageID, tx any, evmTxHash string, sigs ...*sign.Transaction) (*sign.Transaction, types.TxHash) {
+	sig, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
+	assert.NilError(t, err)
+	t.nonce++
+	if len(sigs) > 0 {
+		sig = sigs[0]
+	}
+	_, id := t.World.AddEVMTransaction(txID, tx, sig, evmTxHash)
+	return sig, id
 }
 
 func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {

@@ -153,7 +153,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 
 	// add tx to queue
 	evmTxHash := "0xFooBar"
-	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	tf.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, evmTxHash)
 
 	tf.StartWorld()
 
@@ -173,7 +173,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	// lets check against a system that returns an error
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
-	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	tf.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, evmTxHash)
 	tf.DoTick()
 	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
 
@@ -218,7 +218,7 @@ func TestEVMTxConsume(t *testing.T) {
 	assert.True(t, ok)
 	// add tx to queue
 	evmTxHash := "0xFooBar"
-	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	tf.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, evmTxHash)
 
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
@@ -236,7 +236,7 @@ func TestEVMTxConsume(t *testing.T) {
 	// lets check against a system that returns an error
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
-	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	tf.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, evmTxHash)
 	tf.DoTick()
 	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
 
@@ -375,10 +375,9 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 
 	evmTxHash := "0x12345"
 	msg := fooMsg{Bar: "hello"}
-	tx := &sign.Transaction{PersonaTag: "ty"}
 	fooMessage, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
-	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
+	tx, txHash := tf.AddEVMTransaction(fooMessage.ID(), msg, evmTxHash)
 	ts := uint64(time.Now().Unix())
 
 	rtr.

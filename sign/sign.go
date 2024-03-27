@@ -250,6 +250,27 @@ func (s *Transaction) Verify(hexAddress string) error {
 	return nil
 }
 
+func (s *Transaction) PubKey() (string, error) {
+	if isZeroHash(s.Hash) {
+		s.populateHash()
+	}
+	sig := common.Hex2Bytes(s.Signature)
+	if len(sig) < crypto.RecoveryIDOffset {
+		return "", eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
+	}
+	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
+		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	}
+
+	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
+	err = eris.Wrap(err, "")
+	if err != nil {
+		return "", err
+	}
+	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
+	return signerAddr.String(), nil
+}
+
 func (s *Transaction) populateHash() {
 	s.Hash = crypto.Keccak256Hash(
 		[]byte(s.PersonaTag),

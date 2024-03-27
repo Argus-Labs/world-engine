@@ -226,6 +226,10 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 		return err
 	}
 
+	if err := w.consumeNonces(txPool.Transactions()); err != nil {
+		return eris.Wrap(err, "failed to consume nonces")
+	}
+
 	finalizeTickStartTime := time.Now()
 	if err := w.entityStore.FinalizeTick(ctx); err != nil {
 		return err
@@ -262,6 +266,22 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 		log.Warn().Msgf("failed to emit count stat:%v", err)
 	}
 
+	return nil
+}
+
+// consumeNonces consumes the nonce values of the transactions in the txPool.
+func (w *World) consumeNonces(txm txpool.TxMap) error {
+	for _, txs := range txm {
+		for _, tx := range txs {
+			addr, err := tx.Tx.PubKey()
+			if err != nil {
+				return err
+			}
+			if err := w.useNonce(addr, tx.Tx.Nonce); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -544,7 +564,7 @@ func (w *World) AddEVMTransaction(
 	return tick, txHash
 }
 
-func (w *World) UseNonce(signerAddress string, nonce uint64) error {
+func (w *World) useNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 

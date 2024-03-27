@@ -1028,5 +1028,7 @@ pkg.world.dev/world-engine/rift v1.1.0-beta h1:ApeDoPeCUABiDrzP3qYsAirpGoOhDrA0M
 pkg.world.dev/world-engine/rift v1.1.0-beta/go.mod h1:d9cVe5sCuNM8kvxTR3za4RRRFas7F7QOPdeKayBW1Ek=
 pkg.world.dev/world-engine/sign v1.0.1-beta h1:ZwVeJYdf88t6qIHPurbdKJKVxUN0dfp0gSF7OCA9xt8=
 pkg.world.dev/world-engine/sign v1.0.1-beta/go.mod h1:U6XdRfjzoodAScJ/bH4qzxY7gbqbgGV2Od+k3tSTekE=
+pkg.world.dev/world-engine/sign v1.0.1-beta.0.20240326231545-a99497b7bfb7 h1:8QuXGlAthGq16s3SN0SGNOlDvPQt6ckyL829a1gLQi0=
+pkg.world.dev/world-engine/sign v1.0.1-beta.0.20240326231545-a99497b7bfb7/go.mod h1:Wl4MPEAuAR13gggMUYRotd3QeqMbN+CvA73FAjJgq0o=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=
 sigs.k8s.io/yaml v1.3.0/go.mod h1:GeOyir5tyXNByN85N/dRIT9es5UQNerPYEKK56eTBm8=
