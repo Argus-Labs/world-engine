@@ -106,6 +106,7 @@ func (c *NakamaClient) listenForNotifications() error {
 			for _, n := range data.Notifications.Notifications {
 				switch n.Subject {
 				case "receipt":
+					fmt.Println("got receipt")
 					c.handleReceipt([]byte(n.Content))
 				case "event":
 					c.handleEvent([]byte(n.Content))
@@ -123,6 +124,7 @@ func (c *NakamaClient) handleReceipt(bz []byte) {
 	if err := json.Unmarshal(bz, &receipt); err != nil {
 		assert.Check(c.t, false, "failed to unmarshal receipt", err)
 	}
+	fmt.Println("receipt: ", receipt)
 	select {
 	case c.ReceiptCh <- receipt:
 	default:
@@ -135,6 +137,7 @@ func (c *NakamaClient) handleEvent(bz []byte) {
 	if err := json.Unmarshal(bz, &event); err != nil {
 		assert.Check(c.t, false, "failed to unmarshal event", err)
 	}
+	fmt.Println("event: ", event)
 	select {
 	case c.EventCh <- event:
 	default:

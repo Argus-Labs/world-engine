@@ -21,7 +21,7 @@ import (
 var (
 	createPersonaEndpoint            = "tx/persona/create-persona"
 	readPersonaSignerEndpoint        = "query/persona/signer"
-	createPersonaSuccess             = "success"
+	createPersonaResultKey           = "cardinal-create-persona"
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
 
