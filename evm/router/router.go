@@ -222,7 +222,7 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 	conn, err := grpc.Dial(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithPerRPCCredentials(credentials.NewSimpleTokenCredential(r.routerKey)),
+		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(r.routerKey)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", addr, ns)

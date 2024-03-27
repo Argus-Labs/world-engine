@@ -70,7 +70,7 @@ func New(namespace, sequencerAddr, baseShardQueryAddr, routerKey string, provide
 	conn, err := grpc.Dial(
 		sequencerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithPerRPCCredentials(credentials.NewSimpleTokenCredential(routerKey)),
+		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),
 	)
 	if err != nil {
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)

@@ -11,26 +11,26 @@ import (
 var (
 	TokenKey = "router_key"
 
-	_ credentials.PerRPCCredentials = &simpleTokenCredential{}
+	_ credentials.PerRPCCredentials = &tokenCredential{}
 
 	routerKeyRegexp = regexp.MustCompile(`^[a-zA-Z0-9]{64}$`)
 )
 
-type simpleTokenCredential struct {
+type tokenCredential struct {
 	token string
 }
 
-func NewSimpleTokenCredential(token string) credentials.PerRPCCredentials {
-	return &simpleTokenCredential{token: token}
+func NewTokenCredential(token string) credentials.PerRPCCredentials {
+	return &tokenCredential{token: token}
 }
 
-func (s simpleTokenCredential) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+func (s tokenCredential) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return map[string]string{
 		TokenKey: s.token,
 	}, nil
 }
 
-func (s simpleTokenCredential) RequireTransportSecurity() bool {
+func (s tokenCredential) RequireTransportSecurity() bool {
 	return false
 }
 
