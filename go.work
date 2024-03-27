@@ -8,5 +8,4 @@ use (
 	e2e/tests
 	relay/nakama
 	sign
-	rift
 )
