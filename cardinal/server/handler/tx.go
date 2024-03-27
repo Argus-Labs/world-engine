@@ -30,22 +30,15 @@ type Transaction = sign.Transaction
 
 // PostTransaction godoc
 //
-//	@Summary		Submit a transaction to Cardinal
-//	@Description	Submit a transaction to Cardinal / Create a Persona transaction to Cardinal
-//	@Accept			application/json
-//	@Produce		application/json
-//	@Success		200	{object}	PostTransactionResponse
-//	@Failure		400	{string}	string	"Invalid transaction request"
-//
-// PostTransaction with label godoc
-//
-//	@Router			/tx/game/{txType} [post]
-//	@Param			txType	path	string	true	"label of the transaction that wants to be submitted"
-//
-// PostTransaction with Persona godoc
-//
-//	@Router			/tx/persona/create-persona [post]
-//	@Param			txBody	body	Transaction	true	"Transaction details"
+//	@Summary      Submits a transaction
+//	@Description  Submits a transaction
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        txName  path      string                   true  "Name of a registered message"
+//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
+//	@Failure      400     {string}  string                   "Invalid request parameter"
+//	@Router       /tx/game/{txName} [post]
 func PostTransaction(
 	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
@@ -95,6 +88,23 @@ func PostTransaction(
 			Tick:   tick,
 		})
 	}
+}
+
+// NOTE: duplication for cleaner swagger JSON file
+// PostTransaction godoc
+//
+//	@Summary      Creates a persona
+//	@Description  Creates a persona
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
+//	@Failure      400     {string}  string                   "Invalid request parameter"
+//	@Router       /tx/persona/create-persona [post]
+func PostPersonaTransaction(
+	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+) func(*fiber.Ctx) error {
+	return PostTransaction(provider, msgs, disableSigVerification)
 }
 
 func lookupSignerAndValidateSignature(provider servertypes.Provider, signerAddress string, tx *Transaction) error {
