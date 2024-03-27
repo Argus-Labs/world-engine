@@ -13,7 +13,7 @@ import (
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        queryName  path      string  true  "Name of a registered query"
-//	@Param        queryBody  body      object  true  "Query body as defined in its go type definition"
+//	@Param        queryBody  body      object  true  "Query to be executed"
 //	@Success      200        {object}  object  "Results of the executed query"
 //	@Failure      400        {string}  string  "Invalid request parameters"
 //	@Router       /query/game/{queryName} [post]

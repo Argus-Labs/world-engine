@@ -191,7 +191,7 @@ paths:
         name: queryName
         required: true
         type: string
-      - description: Query body as defined in its go type definition
+      - description: Query to be executed
         in: body
         name: queryBody
         required: true
@@ -244,8 +244,7 @@ paths:
         name: txName
         required: true
         type: string
-      - description: Transaction details & message body as defined in its go type
-          definition
+      - description: Transaction details & message to be submitted
         in: body
         name: txBody
         required: true
@@ -269,7 +268,7 @@ paths:
       - application/json
       description: Creates a persona
       parameters:
-      - description: Transaction details
+      - description: Transaction details & message to be submitted
         in: body
         name: txBody
         required: true
@@ -291,14 +290,12 @@ paths:
     get:
       consumes:
       - application/json
-      description: Contains the registered components, messages, queries, and the
-        Cardinal namespace
+      description: Contains the registered components, messages, queries, and namespace
       produces:
       - application/json
       responses:
         "200":
-          description: List of registered components, messages, queries, and the Cardinal
-            namespace
+          description: Details of the game world
           schema:
             $ref: '#/definitions/handler.GetWorldResponse'
         "400":

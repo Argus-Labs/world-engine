@@ -125,7 +125,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Query body as defined in its go type definition",
+                        "description": "Query to be executed",
                         "name": "queryBody",
                         "in": "body",
                         "required": true,
@@ -206,7 +206,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Transaction details \u0026 message body as defined in its go type definition",
+                        "description": "Transaction details \u0026 message to be submitted",
                         "name": "txBody",
                         "in": "body",
                         "required": true,
@@ -243,7 +243,7 @@ const docTemplate = `{
                 "summary": "Creates a persona",
                 "parameters": [
                     {
-                        "description": "Transaction details",
+                        "description": "Transaction details \u0026 message to be submitted",
                         "name": "txBody",
                         "in": "body",
                         "required": true,
@@ -270,7 +270,7 @@ const docTemplate = `{
         },
         "/world": {
             "get": {
-                "description": "Contains the registered components, messages, queries, and the Cardinal namespace",
+                "description": "Contains the registered components, messages, queries, and namespace",
                 "consumes": [
                     "application/json"
                 ],
@@ -280,7 +280,7 @@ const docTemplate = `{
                 "summary": "Retrieves details of the game world",
                 "responses": {
                     "200": {
-                        "description": "List of registered components, messages, queries, and the Cardinal namespace",
+                        "description": "Details of the game world",
                         "schema": {
                             "$ref": "#/definitions/handler.GetWorldResponse"
                         }

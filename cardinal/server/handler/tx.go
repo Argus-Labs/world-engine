@@ -35,7 +35,7 @@ type Transaction = sign.Transaction
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        txName  path      string                   true  "Name of a registered message"
-//	@Param        txBody  body      Transaction              true  "Transaction details & message body as defined in its go type definition"
+//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/game/{txName} [post]
@@ -97,7 +97,7 @@ func PostTransaction(
 //	@Description  Creates a persona
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        txBody  body      Transaction              true  "Transaction details"
+//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/persona/create-persona [post]
