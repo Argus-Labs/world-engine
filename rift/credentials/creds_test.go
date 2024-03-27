@@ -1,9 +1,12 @@
 package credentials
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestValidateKey(t *testing.T) {
@@ -116,6 +119,59 @@ func TestValidateKey(t *testing.T) {
 				assert.Error(t, result)
 			} else {
 				assert.Nil(t, result)
+			}
+		})
+	}
+}
+
+func TestTokenFromContext(t *testing.T) {
+	testCases := []struct {
+		name          string
+		ctx           context.Context
+		expectedToken string
+		expectedError string
+	}{
+		{
+			name: "Valid token",
+			ctx: metadata.NewIncomingContext(
+				context.Background(),
+				metadata.New(map[string]string{TokenKey: "foo"}),
+			),
+			expectedToken: "foo",
+			expectedError: "",
+		},
+		{
+			name:          "Missing metadata",
+			ctx:           context.Background(),
+			expectedToken: "",
+			expectedError: "missing metadata",
+		},
+		{
+			name:          "Missing token key",
+			ctx:           metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{})),
+			expectedToken: "",
+			expectedError: fmt.Sprintf("missing %s", TokenKey),
+		},
+		{
+			name: "Empty token value",
+			ctx: metadata.NewIncomingContext(
+				context.Background(),
+				metadata.New(map[string]string{TokenKey: ""}),
+			),
+			expectedToken: "",
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotToken, err := TokenFromIncomingContext(tc.ctx)
+
+			if tc.expectedError != "" {
+				assert.ErrorContains(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedToken, gotToken)
 			}
 		})
 	}
