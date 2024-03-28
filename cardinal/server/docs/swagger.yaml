@@ -52,17 +52,6 @@ definitions:
       url:
         type: string
     type: object
-  handler.GetEndpointsResponse:
-    properties:
-      queryEndpoints:
-        items:
-          type: string
-        type: array
-      txEndpoints:
-        items:
-          type: string
-        type: array
-    type: object
   handler.GetHealthResponse:
     properties:
       isGameLoopRunning:
@@ -136,9 +125,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Query the ecs with CQL (cardinal query language)
+      description: Executes a CQL (Cardinal Query Language) query
       parameters:
-      - description: cql (cardinal query language)
+      - description: CQL query to be executed
         in: body
         name: cql
         required: true
@@ -148,61 +137,61 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Results of the executed CQL query
           schema:
             $ref: '#/definitions/handler.CQLQueryResponse'
-      summary: Query the ecs with CQL (cardinal query language)
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Executes a CQL (Cardinal Query Language) query
   /debug/state:
     post:
-      description: Displays the entire game state.
+      description: Retrieves a list of all entities in the game state
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of all entities
           schema:
             items:
               $ref: '#/definitions/handler.debugStateElement'
             type: array
-        "500":
-          description: Internal server error
-          schema:
-            type: string
-      summary: Get all entities and components in Cardinal
+      summary: Retrieves a list of all entities in the game state
   /events:
     get:
-      description: websocket connection for events.
+      description: Establishes a new websocket connection to retrieve system events
       produces:
       - application/json
       responses:
         "101":
-          description: switch protocol to ws
+          description: Switch protocol to ws
           schema:
             type: string
-      summary: Endpoint for events
+      summary: Establishes a new websocket connection to retrieve system events
   /health:
     get:
-      description: Displays information on http server and world game loop
+      description: Retrieves the status of the server and game loop
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Server and game loop status
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
-      summary: Get information on status of world-engine
-  /query/game/{queryType}:
+      summary: Retrieves the status of the server and game loop
+  /query/game/{queryName}:
     post:
       consumes:
       - application/json
-      description: Query the ecs
+      description: Executes a query
       parameters:
-      - description: The query type
+      - description: Name of a registered query
         in: path
-        name: queryType
+        name: queryName
         required: true
         type: string
-      - description: Query Body
+      - description: Query to be executed
         in: body
         name: queryBody
         required: true
@@ -212,21 +201,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: query response
+          description: Results of the executed query
           schema:
             type: object
         "400":
-          description: Invalid query request
+          description: Invalid request parameters
           schema:
             type: string
-      summary: Query the ecs
+      summary: Executes a query
   /query/receipts/list:
     post:
       consumes:
       - application/json
-      description: Get transaction receipts from Cardinal
+      description: Retrieves all transaction receipts
       parameters:
-      - description: List Transaction Receipts Request
+      - description: Query body
         in: body
         name: ListTxReceiptsRequest
         required: true
@@ -236,27 +225,26 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of receipts
           schema:
             $ref: '#/definitions/cardinal.ListTxReceiptsResponse'
         "400":
-          description: Invalid transaction request
+          description: Invalid request body
           schema:
             type: string
-      summary: Get transaction receipts from Cardinal
-  /tx/game/{txType}:
+      summary: Retrieves all transaction receipts
+  /tx/game/{txName}:
     post:
       consumes:
       - application/json
-      description: Submit a transaction to Cardinal / Create a Persona transaction
-        to Cardinal
+      description: Submits a transaction
       parameters:
-      - description: label of the transaction that wants to be submitted
+      - description: Name of a registered message
         in: path
-        name: txType
+        name: txName
         required: true
         type: string
-      - description: Transaction details
+      - description: Transaction details & message to be submitted
         in: body
         name: txBody
         required: true
@@ -266,22 +254,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Transaction hash and tick
           schema:
             $ref: '#/definitions/handler.PostTransactionResponse'
         "400":
-          description: Invalid transaction request
+          description: Invalid request parameter
           schema:
             type: string
-      summary: Submit a transaction to Cardinal
+      summary: Submits a transaction
   /tx/persona/create-persona:
     post:
       consumes:
       - application/json
-      description: Submit a transaction to Cardinal / Create a Persona transaction
-        to Cardinal
+      description: Creates a persona
       parameters:
-      - description: Transaction details
+      - description: Transaction details & message to be submitted
         in: body
         name: txBody
         required: true
@@ -291,31 +278,31 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Transaction hash and tick
           schema:
             $ref: '#/definitions/handler.PostTransactionResponse'
         "400":
-          description: Invalid transaction request
+          description: Invalid request parameter
           schema:
             type: string
-      summary: Submit a transaction to Cardinal
+      summary: Creates a persona
   /world:
     get:
       consumes:
       - application/json
-      description: Get field information of registered components, messages, queries
+      description: Contains the registered components, messages, queries, and namespace
       produces:
       - application/json
       responses:
         "200":
-          description: Field information of registered components, messages, queries
+          description: Details of the game world
           schema:
             $ref: '#/definitions/handler.GetWorldResponse'
         "400":
-          description: Bad Request
+          description: Invalid request parameters
           schema:
             type: string
-      summary: Get field information of registered components, messages, queries
+      summary: Retrieves details of the game world
 schemes:
 - http
 - ws
