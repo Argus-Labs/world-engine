@@ -33,5 +33,8 @@ jobs:
           ignore: vendor
           version: 0.39.0
       - name: MDX Lint
-        run: |
-          npx eslint ./docs --ext js,md,mdx --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules
+        uses: sibiraj-s/action-eslint@v3
+        with:
+          eslint-args: "--ignore-path=.gitignore --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules"
+          extensions: "js,mdx"
+          annotations: true
