@@ -3,6 +3,9 @@ package txpool
 import (
 	"sync"
 
+	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/storage"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -14,20 +17,23 @@ type TxData struct {
 	Msg    any
 	TxHash types.TxHash
 	Tx     *sign.Transaction
-	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
+	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx. This field will only be populated for
+	// transactions received from the EVM via Router.
 	EVMSourceTxHash string
 }
 
 type TxPool struct {
-	m         TxMap
-	txsInPool int
-	mux       *sync.Mutex
+	m          TxMap
+	txsInPool  int
+	mux        *sync.Mutex
+	nonceStore storage.NonceValidator
 }
 
-func New() *TxPool {
+func New(ns storage.NonceValidator) *TxPool {
 	return &TxPool{
-		m:   TxMap{},
-		mux: &sync.Mutex{},
+		m:          TxMap{},
+		mux:        &sync.Mutex{},
+		nonceStore: ns,
 	}
 }
 
@@ -53,8 +59,15 @@ func (t *TxPool) GetEVMTxs() []TxData {
 	return transactions
 }
 
-func (t *TxPool) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) types.TxHash {
-	return t.addTransaction(id, v, sig, "")
+func (t *TxPool) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (types.TxHash, error) {
+	addr, err := sig.PubKey()
+	if err != nil {
+		return "", eris.Wrap(err, "failed to get PubKey from transaction")
+	}
+	if err := t.nonceStore.IsNonceValid(addr, sig.Nonce); err != nil {
+		return "", eris.Wrap(err, "failed to validate nonce")
+	}
+	return t.addTransaction(id, v, sig, ""), nil
 }
 
 func (t *TxPool) AddEVMTransaction(id types.MessageID, v any, sig *sign.Transaction, evmTxHash string) types.TxHash {

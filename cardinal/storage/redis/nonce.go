@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -24,11 +25,11 @@ const (
 	// will spend removing old nonces, but the total number of nonces saved will be larger.
 	numOfNoncesToTriggerCleanup = NonceSlidingWindowSize * 1.5
 
-	// maxValidNonce is the largest nonce that is guaranteed to have a unique ZSet score from all smaller nonces.
+	// MaxValidNonce is the largest nonce that is guaranteed to have a unique ZSet score from all smaller nonces.
 	// A ZSet in redis is used to track unique nonces. Each item in a ZSet has a score, which is stored as a float64.
 	// Due to the precision loss when converting large integers to floating point numbers, at some point 2 distinct
 	// nonces will map to the same score in the Redis ZSet.
-	maxValidNonce       = (1 << (float64MantissaSize + 1)) - 1
+	MaxValidNonce       = (1 << (float64MantissaSize + 1)) - 1
 	float64MantissaSize = 52
 )
 
@@ -55,10 +56,53 @@ func NewNonceStorage(client *redis.Client) NonceStorage {
 	}
 }
 
+// IsNonceValid checks if a nonce is valid. It does so by checking the given nonce is within the sliding window
+// as well as if the nonce has already been used.
+func (r *NonceStorage) IsNonceValid(signerAddress string, nonce uint64) error {
+	if nonce > MaxValidNonce {
+		return eris.New("nonce is too large")
+	}
+	ctx := context.Background()
+	signerAddressKey := r.nonceSetKey(signerAddress)
+
+	// All redis and in-memory map operations happen inside a lock. This could be improved by creating a separate lock
+	// for each signer address.
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	maxNonce, err := r.getMaxNonceForKey(ctx, signerAddressKey)
+	if err != nil {
+		return eris.Wrap(err, "failed to get max nonce for signer address")
+	}
+
+	// Nonces beyond the sliding window are invalid and can be rejected outright.
+	if nonce < maxNonce && maxNonce-nonce >= NonceSlidingWindowSize {
+		return eris.New("nonce is too old")
+	}
+
+	zItem := redis.Z{
+		Score:  float64(nonce),
+		Member: nonce,
+	}
+
+	existingScore, err := r.Client.ZScore(ctx, signerAddressKey, fmt.Sprintf("%d", zItem.Member)).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) { // no score, nonce not used!
+			return nil
+		}
+		return eris.Wrap(err, "failed to check nonce")
+	}
+	// If the score is not 0, it means the item already exists.
+	if existingScore != 0 {
+		return eris.Wrapf(ErrNonceHasAlreadyBeenUsed, "signer %q has already used nonce %d", signerAddress, nonce)
+	}
+	return nil
+}
+
 // UseNonce atomically marks the given nonce as used. The nonce is valid if nil is returned. A non-nil error means
 // there was an error verifying the nonce, or the nonce was already used.
 func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
-	if nonce > maxValidNonce {
+	if nonce > MaxValidNonce {
 		return eris.New("nonce is too large")
 	}
 	ctx := context.Background()

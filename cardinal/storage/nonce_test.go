@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
@@ -22,6 +23,63 @@ func GetRedisStorage(t *testing.T) redis.Storage {
 		DB:       0,  // use default DB
 	}, Namespace)
 }
+
+func TestIsNonceValid(t *testing.T) {
+	testCases := []struct {
+		name          string
+		signerAddress string
+		nonce         uint64
+		usedNonces    []uint64
+		expectedError error
+	}{
+		{
+			name:          "Nonce too large",
+			signerAddress: "some-address",
+			nonce:         redis.MaxValidNonce + 1,
+			expectedError: eris.New("nonce is too large"),
+		},
+		{
+			name:          "Nonce too old",
+			signerAddress: "some-address",
+			nonce:         1,
+			usedNonces:    []uint64{1001},
+			expectedError: eris.New("nonce is too old"),
+		},
+		{
+			name:          "Nonce already used",
+			signerAddress: "some-address",
+			nonce:         100,
+			usedNonces:    []uint64{100},
+			expectedError: eris.New("nonce has already been used"),
+		},
+		{
+			name:          "Valid nonce",
+			signerAddress: "some-address",
+			nonce:         200,
+			usedNonces:    []uint64{150},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rs := GetRedisStorage(t)
+			rs.Client.FlushAll(context.Background())
+
+			for _, usedNonce := range tc.usedNonces {
+				assert.NilError(t, rs.UseNonce(tc.signerAddress, usedNonce))
+			}
+
+			err := rs.IsNonceValid(tc.signerAddress, tc.nonce)
+			if tc.expectedError == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedError.Error())
+			}
+		})
+	}
+}
+
 func TestUseNonce(t *testing.T) {
 	rs := GetRedisStorage(t)
 	address := "some-address"

@@ -52,12 +52,12 @@ func (mr *MockContextMockRecorder) AddMessageError(id, err interface{}) *gomock.
 }
 
 // AddTransaction mocks base method.
-func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
+func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddTransaction", id, v, sig)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(types.TxHash)
-	return ret0, ret1
+	return ret0, ret1, nil
 }
 
 // AddTransaction indicates an expected call of AddTransaction.

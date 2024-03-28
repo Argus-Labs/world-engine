@@ -1,5 +1,9 @@
 package storage
 
+type NonceValidator interface {
+	IsNonceValid(signerAddress string, nonce uint64) error
+}
+
 type NonceStorage interface {
 	UseNonce(signerAddress string, nonce uint64) error
 }

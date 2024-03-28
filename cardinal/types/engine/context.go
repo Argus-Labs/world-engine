@@ -37,7 +37,7 @@ type Context interface {
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 	ReceiptHistorySize() uint64
-	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
+	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash, error)
 	IsWorldReady() bool
 	StoreReader() gamestate.Reader
 	StoreManager() gamestate.Manager

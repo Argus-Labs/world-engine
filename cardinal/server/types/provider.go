@@ -10,7 +10,7 @@ import (
 
 type Provider interface {
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
-	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
+	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash, error)
 	Namespace() string
 	GetComponentByName(name string) (types.ComponentMetadata, error)
 	Search(filter filter.ComponentFilter) *search.Search

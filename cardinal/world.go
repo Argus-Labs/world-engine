@@ -127,7 +127,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		componentManager: component.NewManager(&redisMetaStore),
 		queryManager:     query.NewManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
-		txPool:           txpool.New(),
+		txPool:           txpool.New(&redisMetaStore.NonceStorage),
 
 		// Receipt
 		receiptHistory: receipt.NewHistory(tick.Load(), DefaultHistoricalTicksToStore),
@@ -224,10 +224,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// This will run the registered init systems if the current tick is 0
 	if err := w.systemManager.RunSystems(wCtx); err != nil {
 		return err
-	}
-
-	if err := w.consumeNonces(txPool.Transactions()); err != nil {
-		return eris.Wrap(err, "failed to consume nonces")
 	}
 
 	finalizeTickStartTime := time.Now()
@@ -538,17 +534,18 @@ func (w *World) drainChannelsWaitingForNextTick() {
 	}()
 }
 
-// AddTransaction adds a transaction to the transaction pool. This should not be used directly.
-// Instead, use a MessageType.AddTransaction to ensure type consistency. Returns the tick this transaction will be
-// executed in.
-func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (
-	tick uint64, txHash types.TxHash,
-) {
+// AddTransaction adds a transaction to the transaction pool, if the transaction's nonce is valid.
+// This should not be used directly. Returns the tick this transaction will be executed in.
+func (w *World) AddTransaction(
+	id types.MessageID,
+	v any,
+	sig *sign.Transaction,
+) (tick uint64, txHash types.TxHash, err error) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
 	tick = w.CurrentTick()
-	txHash = w.txPool.AddTransaction(id, v, sig)
-	return tick, txHash
+	txHash, err = w.txPool.AddTransaction(id, v, sig)
+	return tick, txHash, err
 }
 
 func (w *World) AddEVMTransaction(

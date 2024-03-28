@@ -88,7 +88,7 @@ func PostTransaction(
 
 		// Add the transaction to the engine
 		// TODO(scott): this should just deal with txpool instead of having to go through engine
-		tick, hash := provider.AddTransaction(msgType.ID(), msg, tx)
+		tick, hash, _ := provider.AddTransaction(msgType.ID(), msg, tx)
 
 		return ctx.JSON(&PostTransactionResponse{
 			TxHash: string(hash),

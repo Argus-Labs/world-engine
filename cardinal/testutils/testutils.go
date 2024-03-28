@@ -87,7 +87,7 @@ func AddTransactionToWorldByAnyTransaction(
 		)
 	}
 
-	_, _ = world.AddTransaction(txID, value, tx)
+	_, _, _ = world.AddTransaction(txID, value, tx)
 }
 
 func GetMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
