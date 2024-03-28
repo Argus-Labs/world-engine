@@ -21,12 +21,11 @@ type DebugStateResponse []debugStateElement
 
 // GetDebugState godoc
 //
-// @Summary     Get all entities and components in Cardinal
-// @Description Displays the entire game state.
-// @Produce     application/json
-// @Success     200 {object} DebugStateResponse
-// @Failure     500 {string} string "Internal server error"
-// @Router      /debug/state [post]
+// @Summary      Retrieves a list of all entities in the game state
+// @Description  Retrieves a list of all entities in the game state
+// @Produce      application/json
+// @Success      200  {object}  DebugStateResponse "List of all entities"
+// @Router       /debug/state [post]
 func GetDebugState(provider servertypes.Provider) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		result := make(DebugStateResponse, 0)
