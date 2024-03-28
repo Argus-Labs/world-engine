@@ -36,5 +36,6 @@ jobs:
         uses: sibiraj-s/action-eslint@v3
         with:
           eslint-args: "--ignore-path=.gitignore --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules"
+          all-files: true
           extensions: "js,mdx"
           annotations: true
