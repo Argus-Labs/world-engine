@@ -3,5 +3,9 @@
   // lint code blocks true
   "settings": {
     "mdx/code-blocks": true
+  },
+  "rules": {
+    // this rule didn't compatible with Mintlify REST/OpenAPI definition
+    "no-unused-expressions": "off"
   }
 }
