@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 jobs:
-  go-lint:
+  lint-go:
     name: Go
     runs-on: namespace-profile-linux-4vcpu-8gb-cached
     env:

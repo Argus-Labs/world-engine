@@ -25,13 +25,13 @@ type FieldDetail struct {
 
 // GetWorld godoc
 //
-//	@Summary		Get field information of registered components, messages, queries
-//	@Description	Get field information of registered components, messages, queries
-//	@Accept			application/json
-//	@Produce		application/json
-//	@Success		200	{object}	GetWorldResponse	"Field information of registered components, messages, queries"
-//	@Failure		400	{string}	string				""
-//	@Router			/world [get]
+//	@Summary      Retrieves details of the game world
+//	@Description  Contains the registered components, messages, queries, and namespace
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Success      200  {object}  GetWorldResponse  "Details of the game world"
+//	@Failure      400  {string}  string            "Invalid request parameters"
+//	@Router       /world [get]
 func GetWorld(
 	components []types.ComponentMetadata, messages []types.Message,
 	queries []engine.Query, namespace string,

@@ -2,11 +2,7 @@ package router
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -15,11 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"pkg.berachain.dev/polaris/eth/core/types"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
@@ -63,14 +59,13 @@ type routerImpl struct {
 	getAddr     GetAddressFn
 
 	// opts
-	creds credentials.TransportCredentials
+	routerKey string
 }
 
 // NewRouter returns a Router.
 func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddressFn, opts ...Option) Router {
 	r := &routerImpl{
 		logger:      logger,
-		creds:       insecure.NewCredentials(),
 		queue:       newMsgQueue(),
 		resultStore: NewMemoryResultStorage(defaultStorageTimeout),
 		getQueryCtx: ctxGetter,
@@ -218,8 +213,6 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 }
 
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
-	// CLI is currently broken. Rollkit is looking into the issue.
-	// So for now, we just use an address loaded from env.
 	ctx := r.getSDKCtx()
 	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
 	if err != nil {
@@ -228,30 +221,11 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 	addr := res.Address
 	conn, err := grpc.Dial(
 		addr,
-		grpc.WithTransportCredentials(r.creds),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(r.routerKey)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", addr, ns)
 	}
 	return routerv1.NewMsgClient(conn), nil
-}
-func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
-	// Load certificate of the CA who signed server's certificate
-	pemServerCA, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	certPool := x509.NewCertPool()
-	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, errors.New("failed to add server CA's certificate")
-	}
-
-	// Create the credentials and return it
-	config := &tls.Config{
-		RootCAs:    certPool,
-		MinVersion: tls.VersionTLS12,
-	}
-
-	return credentials.NewTLS(config), nil
 }
