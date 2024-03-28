@@ -173,7 +173,8 @@ func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign
 	if len(sigs) > 0 {
 		sig = sigs[0]
 	}
-	_, id, _ := t.World.AddTransaction(txID, tx, sig)
+	_, id, err := t.World.AddTransaction(txID, tx, sig)
+	assert.NilError(t, err)
 	return id
 }
 

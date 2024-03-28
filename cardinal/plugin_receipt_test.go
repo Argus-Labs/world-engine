@@ -32,9 +32,11 @@ func TestReceiptsQuery(t *testing.T) {
 	assert.NilError(t, err)
 	fooMsg, ok := world.GetMessageByFullName("game." + msgName)
 	assert.Assert(t, ok)
-	_, txHash1, _ := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
+	_, txHash1, err := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
+	assert.NilError(t, err)
 	tf.DoTick()
-	_, txHash2, _ := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
+	_, txHash2, err := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
+	assert.NilError(t, err)
 	tf.DoTick()
 
 	qry, err := world.GetQueryByName("list")
