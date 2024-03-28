@@ -1,0 +1,21 @@
+---
+# Default state for all rules
+default: true
+
+# MD013/line-length : Line length : https://github.com/DavidAnson/markdownlint/blob/v0.34.0/doc/md013.md
+MD013:
+  ## Increase line length from default '80'
+  line_length: 250
+  ## exluce code_blocks from line linter
+  code_blocks: false
+
+# MD033/no-inline-html : Inline HTML : https://github.com/DavidAnson/markdownlint/blob/v0.34.0/doc/md033.md
+MD033:
+  allowed_elements:
+  - img
+  - div
+  - br
+  - a
+  - pre
+  - h1
+  - p
