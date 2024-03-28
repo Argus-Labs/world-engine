@@ -2,7 +2,6 @@ package testutils
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -61,33 +59,6 @@ func UniqueSignatureWithName(name string) *sign.Transaction {
 
 func UniqueSignature() *sign.Transaction {
 	return UniqueSignatureWithName("some_persona_tag")
-}
-
-func AddTransactionToWorldByAnyTransaction(
-	world *cardinal.World,
-	cardinalTx types.Message,
-	value any,
-	tx *sign.Transaction,
-) {
-	txs := world.GetRegisteredMessages()
-	txID := cardinalTx.ID()
-	found := false
-	for _, tx := range txs {
-		if tx.ID() == txID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		panic(
-			fmt.Sprintf(
-				"cannot find transaction %q in registered transactions. Did you register it?",
-				cardinalTx.Name(),
-			),
-		)
-	}
-
-	_, _ = world.AddTransaction(txID, value, tx)
 }
 
 func GetMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
