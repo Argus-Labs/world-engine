@@ -1,25 +1,24 @@
-package cardinal_test
+package server_test
 
 import (
 	"encoding/json"
 	"errors"
-	"testing"
+	"net/http"
 
-	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/sign"
 )
 
-func TestReceiptsQuery(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
-	world := tf.World
+func (s *ServerTestSuite) TestReceiptsQuery() {
+	s.setupWorld()
+	world := s.world
 	type fooIn struct{}
 	type fooOut struct{ Y int }
 	msgName := "foo"
 	err := cardinal.RegisterMessage[fooIn, fooOut](world, msgName)
-	assert.NilError(t, err)
+	s.Require().NoError(err)
 	wantErrorMessage := "THIS_ERROR_MESSAGE_SHOULD_BE_IN_THE_RECEIPT"
 	err = cardinal.RegisterSystems(world, func(ctx cardinal.WorldContext) error {
 		return cardinal.EachMessage[fooIn, fooOut](ctx, func(message.TxData[fooIn]) (fooOut, error) {
@@ -29,51 +28,53 @@ func TestReceiptsQuery(t *testing.T) {
 			return fooOut{}, errors.New(wantErrorMessage)
 		})
 	})
-	assert.NilError(t, err)
+	s.Require().NoError(err)
+
 	fooMsg, ok := world.GetMessageByFullName("game." + msgName)
-	assert.Assert(t, ok)
-	_, txHash1 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
-	tf.DoTick()
-	_, txHash2 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "ty"})
-	tf.DoTick()
+	s.Require().True(ok)
+	_, txHash1 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "alpha"})
+	s.fixture.DoTick()
+	_, txHash2 := world.AddTransaction(fooMsg.ID(), fooIn{}, &sign.Transaction{PersonaTag: "beta"})
+	s.fixture.DoTick()
 
-	qry, err := world.GetQueryByName("list")
-	assert.NilError(t, err)
+	s.Require().NotEqual(txHash1, txHash2)
 
-	res, err := qry.HandleQuery(cardinal.NewReadOnlyWorldContext(world), &cardinal.ListTxReceiptsRequest{})
-	assert.NilError(t, err)
-	reply, ok := res.(*cardinal.ListTxReceiptsResponse)
-	assert.True(t, ok)
+	res := s.fixture.Post("query/receipts/list", handler.ListTxReceiptsRequest{})
+	s.Require().Equal(res.StatusCode, http.StatusOK)
 
-	assert.Equal(t, reply.StartTick, uint64(0))
-	assert.Equal(t, reply.EndTick, world.CurrentTick())
-	assert.Len(t, reply.Receipts, 2)
+	var reply handler.ListTxReceiptsResponse
+	s.Require().NoError(json.NewDecoder(res.Body).Decode(&reply))
 
-	expectedReceipt1 := cardinal.ReceiptEntry{
+	s.Require().Equal(reply.StartTick, uint64(0))
+	s.Require().Equal(reply.EndTick, world.CurrentTick())
+	s.Require().Equal(len(reply.Receipts), 2)
+
+	expectedReceipt1 := handler.ReceiptEntry{
 		TxHash: string(txHash1),
 		Tick:   0,
 		Result: fooOut{Y: 4},
 		Errors: nil,
 	}
 	expectedJSON1, err := json.Marshal(expectedReceipt1)
-	assert.NilError(t, err)
-	expectedReceipt2 := cardinal.ReceiptEntry{
+	s.Require().NoError(err)
+	expectedReceipt2 := handler.ReceiptEntry{
 		TxHash: string(txHash2),
 		Tick:   1,
 		Result: nil,
 		Errors: []string{wantErrorMessage},
 	}
 	expectedJSON2, err := json.Marshal(expectedReceipt2)
-	assert.NilError(t, err)
+	s.Require().NoError(err)
 
 	// comparing via json since internally, eris is involved, and makes it a bit harder to compare.
 	json1, err := json.Marshal(reply.Receipts[0])
-	assert.NilError(t, err)
+	s.Require().NoError(err)
 	json2, err := json.Marshal(reply.Receipts[1])
-	assert.NilError(t, err)
-	// Make sure the text of the error message actually ends up in the JSON
-	assert.Contains(t, string(json2), wantErrorMessage)
+	s.Require().NoError(err)
 
-	assert.Equal(t, string(expectedJSON1), string(json1))
-	assert.Equal(t, string(expectedJSON2), string(json2))
+	// Make sure the text of the error message actually ends up in the JSON
+	s.Require().Contains(string(json2), wantErrorMessage)
+
+	s.Require().Equal(string(expectedJSON1), string(json1))
+	s.Require().Equal(string(expectedJSON2), string(json2))
 }

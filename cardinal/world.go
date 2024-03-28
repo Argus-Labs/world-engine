@@ -161,7 +161,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		opt(world)
 	}
 
-	world.registerInternalPlugin()
+	world.RegisterPlugin(newPersonaPlugin())
 
 	var metricTags []string
 	metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
@@ -496,14 +496,6 @@ func (w *World) RegisterPlugin(plugin Plugin) {
 	if err := plugin.Register(w); err != nil {
 		log.Fatal().Err(err).Msgf("failed to register plugin: %v", err)
 	}
-}
-
-func (w *World) registerInternalPlugin() {
-	// Register Persona plugin
-	w.RegisterPlugin(newPersonaPlugin())
-
-	// Register Receipt plugin
-	w.RegisterPlugin(newReceiptPlugin())
 }
 
 func closeAllChannels(chs []chan struct{}) {

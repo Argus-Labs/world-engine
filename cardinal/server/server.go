@@ -164,6 +164,7 @@ func (s *Server) setupRoutes(
 
 	// Route: /query/...
 	query := s.app.Group("/query")
+	query.Post("/receipts/list", handler.GetReceipts(wCtx))
 	query.Post("/:group/:name", handler.PostQuery(queryIndex, wCtx))
 
 	// Route: /tx/...
