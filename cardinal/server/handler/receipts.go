@@ -30,14 +30,14 @@ type ReceiptEntry struct {
 
 // GetReceipts godoc
 //
-// @Summary     Get transaction receipts from Cardinal
-// @Description Get transaction receipts from Cardinal
-// @Accept      application/json
-// @Produce     application/json
-// @Param       ListTxReceiptsRequest body ListTxReceiptsRequest true "List Transaction Receipts Request"
-// @Success     200 {object} ListTxReceiptsResponse
-// @Failure     400 {string} string                 "Invalid transaction request"
-// @Router      /query/receipts/list [post]
+//	@Summary      Retrieves all transaction receipts
+//	@Description  Retrieves all transaction receipts
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        ListTxReceiptsRequest  body      ListTxReceiptsRequest  true  "Query body"
+//	@Success      200                    {object}  ListTxReceiptsResponse "List of receipts"
+//	@Failure      400                    {string}  string                 "Invalid request body"
+//	@Router       /query/receipts/list [post]
 func GetReceipts(wCtx engine.Context) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		req := new(ListTxReceiptsRequest)
