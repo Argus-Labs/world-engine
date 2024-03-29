@@ -15,11 +15,11 @@ type ComponentFilter[T types.Component] struct {
 	FilterFunc func(comp T) bool
 }
 
-type andedFilterComponent struct {
+type andFilterComponent struct {
 	filterComponents []PredicateEvaluator
 }
 
-type oredFilterComponent struct {
+type orFilterComponent struct {
 	filterComponents []PredicateEvaluator
 }
 
@@ -33,7 +33,7 @@ func FilterFunction[T types.Component](f func(comp T) bool) PredicateEvaluator {
 	}
 }
 
-func (afc *andedFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
+func (afc *andFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	var result = true
 	for _, filterComp := range afc.filterComponents {
 		otherResult, err := filterComp.Evaluate(wCtx, id)
@@ -56,7 +56,7 @@ func (nfc *notFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) 
 	return !result, nil
 }
 
-func (ofc *oredFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
+func (ofc *orFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	var result = true
 	for _, filterComp := range ofc.filterComponents {
 		otherResult, err := filterComp.Evaluate(wCtx, id)

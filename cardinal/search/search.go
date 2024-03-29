@@ -62,8 +62,14 @@ func (s *Search) Contains(component ...ComponentWrapper) *Search {
 }
 
 func (s *Search) All() *Search {
-	s.filter = filter.All()
-	return s
+	return &Search{
+		archMatches:             &cache{},
+		filter:                  filter.All(),
+		namespace:               s.namespace,
+		reader:                  s.reader,
+		wCtx:                    s.wCtx,
+		componentPropertyFilter: s.componentPropertyFilter,
+	}
 }
 
 func (s *Search) Exact(component ...ComponentWrapper) *Search {
@@ -80,7 +86,7 @@ func (s *Search) Exact(component ...ComponentWrapper) *Search {
 
 func (s *Search) Where(componentFilter PredicateEvaluator) *Search {
 	if s.componentPropertyFilter != nil {
-		s.componentPropertyFilter = &andedFilterComponent{filterComponents: []PredicateEvaluator{
+		s.componentPropertyFilter = &andFilterComponent{filterComponents: []PredicateEvaluator{
 			s.componentPropertyFilter, componentFilter,
 		}}
 	} else {
@@ -204,7 +210,7 @@ func (s *Search) evaluateSearch() []types.ArchetypeID {
 func (s *Search) And(otherSearch *Search) *Search {
 	var componentPropertyFilter PredicateEvaluator
 	if s.componentPropertyFilter != nil && otherSearch.componentPropertyFilter != nil {
-		componentPropertyFilter = &andedFilterComponent{filterComponents: []PredicateEvaluator{
+		componentPropertyFilter = &andFilterComponent{filterComponents: []PredicateEvaluator{
 			s.componentPropertyFilter, otherSearch.componentPropertyFilter,
 		}}
 	} else {
@@ -224,7 +230,7 @@ func (s *Search) And(otherSearch *Search) *Search {
 func (s *Search) Or(otherSearch *Search) *Search {
 	var componentPropertyFilter PredicateEvaluator
 	if s.componentPropertyFilter != nil && otherSearch.componentPropertyFilter != nil {
-		componentPropertyFilter = &oredFilterComponent{filterComponents: []PredicateEvaluator{
+		componentPropertyFilter = &orFilterComponent{filterComponents: []PredicateEvaluator{
 			s.componentPropertyFilter, otherSearch.componentPropertyFilter,
 		}}
 	} else {
