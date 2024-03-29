@@ -55,7 +55,7 @@ func (s *Search) Contains(component ...componentWrapper) *Search {
 	}
 	acc := make([]types.Component, 0, len(component))
 	for _, comp := range component {
-		acc = append(acc, comp.Component)
+		acc = append(acc, comp.component)
 	}
 	return &Search{
 		archMatches:             &cache{},
@@ -84,7 +84,7 @@ func (s *Search) Exact(component ...componentWrapper) *Search {
 	}
 	acc := make([]types.Component, 0, len(component))
 	for _, comp := range component {
-		acc = append(acc, comp.Component)
+		acc = append(acc, comp.component)
 	}
 	return &Search{
 		archMatches:             &cache{},

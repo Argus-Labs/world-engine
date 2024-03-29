@@ -36,6 +36,14 @@ var NewSearchWithFilter = search.NewSearchWithFilter
 
 type Search = search.Search
 
+// FilterFunction wrap your component filter function of func(comp T) bool inside FilterFunction to use
+// in search.
+//
+// Usage:
+//
+//	NewSearch(wCtx).Where(FilterFunction[EnergyComp](func(_ EnergyComp) bool {
+//	     return true
+//	}))
 func FilterFunction[T types.Component](f func(comp T) bool) search.PredicateEvaluator {
 	return search.FilterFunction[T](f)
 }

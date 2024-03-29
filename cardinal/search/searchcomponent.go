@@ -9,7 +9,7 @@ import "pkg.world.dev/world-engine/cardinal/types"
 // contain the specified component during the search.
 
 type componentWrapper struct {
-	Component types.Component
+	component types.Component
 }
 
 // Component is public but contains an unexported return type
@@ -20,6 +20,6 @@ type componentWrapper struct {
 func Component[T types.Component]() componentWrapper {
 	var x T
 	return componentWrapper{
-		Component: x,
+		component: x,
 	}
 }
