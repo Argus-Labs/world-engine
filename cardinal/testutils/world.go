@@ -166,7 +166,8 @@ func (t *TestFixture) Get(path string) *http.Response {
 	return resp
 }
 
-func (t *TestFixture) BogusTransaction() *sign.Transaction {
+// DummyTransaction gives you a transaction with dummy data EXCEPT for the nonce. The nonce will be valid.
+func (t *TestFixture) DummyTransaction() *sign.Transaction {
 	tx, err := sign.NewTransaction(
 		t.key,
 		"foo",

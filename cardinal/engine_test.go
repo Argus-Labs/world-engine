@@ -465,12 +465,12 @@ func TestRecoverFromChain(t *testing.T) {
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 1},
-					Tx:       tf.BogusTransaction(),
+					Tx:       tf.DummyTransaction(),
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 2},
-					Tx:       tf.BogusTransaction(),
+					Tx:       tf.DummyTransaction(),
 				},
 			},
 			Tick:      1,
@@ -481,12 +481,12 @@ func TestRecoverFromChain(t *testing.T) {
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 3},
-					Tx:       tf.BogusTransaction(),
+					Tx:       tf.DummyTransaction(),
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 4},
-					Tx:       tf.BogusTransaction(),
+					Tx:       tf.DummyTransaction(),
 				},
 			},
 			Tick:      15,
