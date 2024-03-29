@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	personaQuery "pkg.world.dev/world-engine/cardinal/persona/query"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
@@ -287,7 +286,7 @@ func getSigners(t *testing.T, world *cardinal.World) []*component.SignerComponen
 	wCtx := cardinal.NewWorldContext(world)
 	var signers = make([]*component.SignerComponent, 0)
 
-	q := cardinal.NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
+	q := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[component.SignerComponent]())
 
 	err := q.Each(
 		func(id types.EntityID) bool {

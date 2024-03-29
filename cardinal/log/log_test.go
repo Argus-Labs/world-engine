@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -35,7 +34,7 @@ func (EnergyComp) Name() string {
 
 func testSystem(wCtx engine.Context) error {
 	wCtx.Logger().Log().Msg("test")
-	q := cardinal.NewSearch(wCtx, filter.Contains(EnergyComp{}))
+	q := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[EnergyComp]())
 	err := q.Each(
 		func(entityId types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComp](wCtx, entityId)

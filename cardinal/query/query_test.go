@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/query"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -34,7 +33,7 @@ func handleQueryHealth(
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := cardinal.NewSearch(wCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
+	err := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[Health]()).Each(func(id types.EntityID) bool {
 		var err error
 		var health *Health
 		health, err = cardinal.GetComponent[Health](wCtx, id)

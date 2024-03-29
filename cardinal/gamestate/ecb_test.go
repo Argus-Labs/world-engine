@@ -14,7 +14,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -327,41 +326,90 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, err)
 
 	testCases := []struct {
-		filter  filter.ComponentFilter
+		search  func() map[types.EntityID]bool
 		wantIDs []types.EntityID
 	}{
 		{
-			filter:  filter.Contains(Health{}),
+			search: func() map[types.EntityID]bool {
+				found := map[types.EntityID]bool{}
+				q := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Health]())
+				err = q.Each(
+					func(id types.EntityID) bool {
+						found[id] = true
+						return true
+					},
+				)
+				return found
+
+			},
 			wantIDs: append(justHealthIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  filter.Contains(Power{}),
+			search: func() map[types.EntityID]bool {
+				found := map[types.EntityID]bool{}
+				q := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Power]())
+				err = q.Each(
+					func(id types.EntityID) bool {
+						found[id] = true
+						return true
+					},
+				)
+				return found
+
+			},
 			wantIDs: append(justPowerIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  filter.Exact(Health{}, Power{}),
+			search: func() map[types.EntityID]bool {
+				found := map[types.EntityID]bool{}
+				q := cardinal.NewSearch(wCtx).Exact(
+					cardinal.SearchComponent[Power](),
+					cardinal.SearchComponent[Health]())
+				err = q.Each(
+					func(id types.EntityID) bool {
+						found[id] = true
+						return true
+					},
+				)
+				return found
+
+			},
 			wantIDs: healthAndPowerIDs,
 		},
 		{
-			filter:  filter.Exact(Health{}),
+			search: func() map[types.EntityID]bool {
+				found := map[types.EntityID]bool{}
+				q := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[Health]())
+				err = q.Each(
+					func(id types.EntityID) bool {
+						found[id] = true
+						return true
+					},
+				)
+				return found
+
+			},
 			wantIDs: justHealthIDs,
 		},
 		{
-			filter:  filter.Exact(Power{}),
+			search: func() map[types.EntityID]bool {
+				found := map[types.EntityID]bool{}
+				q := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[Power]())
+				err = q.Each(
+					func(id types.EntityID) bool {
+						found[id] = true
+						return true
+					},
+				)
+				return found
+
+			},
 			wantIDs: justPowerIDs,
 		},
 	}
 
 	for _, tc := range testCases {
-		found := map[types.EntityID]bool{}
-		q := cardinal.NewSearch(wCtx, tc.filter)
-		err = q.Each(
-			func(id types.EntityID) bool {
-				found[id] = true
-				return true
-			},
-		)
-		assert.NilError(t, err)
+		found := tc.search()
 		assert.Equal(t, len(tc.wantIDs), len(found))
 		for _, id := range tc.wantIDs {
 			assert.Check(t, found[id], "id is missing from query result")

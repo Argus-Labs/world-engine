@@ -32,6 +32,17 @@ var (
 // via cardinal.<function_name>
 
 var NewSearch = search.NewSearch
+var NewSearchWithFilter = search.NewSearchWithFilter
+
+type Search = search.Search
+
+func FilterFunction[T types.Component](f func(comp T) bool) search.PredicateEvaluator {
+	return search.FilterFunction[T](f)
+}
+
+func SearchComponent[T types.Component]() search.SearchComponent {
+	return search.Component[T]()
+}
 
 func RegisterSystems(w *World, sys ...system.System) error {
 	if w.worldStage.Current() != worldstage.Init {

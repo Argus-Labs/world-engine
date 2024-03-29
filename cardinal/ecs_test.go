@@ -7,7 +7,7 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -76,7 +76,7 @@ func (WeaponEnergy) Name() string {
 
 func UpdateEnergySystem(wCtx engine.Context) error {
 	var errs []error
-	q := cardinal.NewSearch(wCtx, filter.Contains(EnergyComponent{}))
+	q := cardinal.NewSearch(wCtx).Contains(search.Component[EnergyComponent]())
 	err := q.Each(
 		func(ent types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComponent](wCtx, ent)
@@ -122,7 +122,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 
 	tf.DoTick()
-	query := cardinal.NewSearch(wCtx, filter.Contains(EnergyComponent{}))
+	query := cardinal.NewSearch(wCtx).Contains(search.Component[EnergyComponent]())
 	err = query.Each(
 		func(id types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComponent](wCtx, id)
@@ -133,7 +133,10 @@ func TestECS(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	q := cardinal.NewSearch(wCtx, filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
+	q := cardinal.NewSearch(wCtx).
+		Contains(search.Component[EnergyComponent]()).
+		Or(search.NewSearch(wCtx).
+			Contains(search.Component[OwnableComponent]()))
 	amt, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
@@ -160,7 +163,7 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, cardinal.SetComponent[Vel](wCtx, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	velocityQuery := cardinal.NewSearch(wCtx, filter.Contains(&Vel{}))
+	velocityQuery := cardinal.NewSearch(wCtx).Contains(search.Component[Vel]())
 	err = velocityQuery.Each(
 		func(id types.EntityID) bool {
 			vel, err := cardinal.GetComponent[Vel](wCtx, id)
@@ -236,7 +239,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	q := cardinal.NewSearch(wCtx, filter.Contains(Tuple{}))
+	q := cardinal.NewSearch(wCtx).Contains(search.Component[Tuple]())
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -313,7 +316,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	q := cardinal.NewSearch(wCtx, filter.Contains(CountComponent{}))
+	q := cardinal.NewSearch(wCtx).Contains(search.Component[CountComponent]())
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -458,13 +461,13 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		}
 	}
 	// 3 entities have alpha
-	alphaQuery := cardinal.NewSearch(wCtx, filter.Contains(Alpha{}))
+	alphaQuery := cardinal.NewSearch(wCtx).Contains(search.Component[Alpha]())
 	err = alphaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
-	gammaQuery := cardinal.NewSearch(wCtx, filter.Contains(Gamma{}))
+	gammaQuery := cardinal.NewSearch(wCtx).Contains(search.Component[Gamma]())
 	err = gammaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 0, count)
@@ -555,8 +558,7 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Only one entity has the components a and b
-	abFilter := filter.Contains(A{}, B{})
-	q := cardinal.NewSearch(wCtx, abFilter)
+	q := cardinal.NewSearch(wCtx).Contains(search.Component[A](), search.Component[B]())
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -565,13 +567,12 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 			},
 		),
 	)
-	q = cardinal.NewSearch(wCtx, abFilter)
+	q = cardinal.NewSearch(wCtx).Contains(search.Component[A](), search.Component[B]())
 	num, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	cdFilter := filter.Contains(C{}, D{})
-	q = cardinal.NewSearch(wCtx, cdFilter)
+	q = cardinal.NewSearch(wCtx).Contains(search.Component[C](), search.Component[D]())
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -580,12 +581,15 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 			},
 		),
 	)
-	q = cardinal.NewSearch(wCtx, abFilter)
+	q = cardinal.NewSearch(wCtx).Contains(search.Component[A](), search.Component[B]())
 	num, err = q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	q = cardinal.NewSearch(wCtx, filter.Or(filter.Contains(A{}), filter.Contains(D{})))
+	q = cardinal.NewSearch(wCtx).
+		Contains(search.Component[A]()).
+		Or(
+			search.NewSearch(wCtx).Contains(search.Component[D]()))
 	allCount, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)
