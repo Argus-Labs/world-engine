@@ -61,7 +61,9 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		}
 
 		for _, batch := range batches {
-			w.AddTransaction(batch.MsgID, batch.MsgValue, batch.Tx)
+			if _, _, err := w.AddTransaction(batch.MsgID, batch.MsgValue, batch.Tx); err != nil {
+				return eris.Wrap(err, "failed to add recovered transaction to pool")
+			}
 		}
 
 		if err := w.doTick(ctx, timestamp); err != nil {

@@ -273,22 +273,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	return nil
 }
 
-// consumeNonces consumes the nonce values of the transactions in the txPool.
-func (w *World) consumeNonces(txm txpool.TxMap) error {
-	for _, txs := range txm {
-		for _, tx := range txs {
-			addr, err := tx.Tx.PubKey()
-			if err != nil {
-				return err
-			}
-			if err := w.useNonce(addr, tx.Tx.Nonce); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
 // to this world. After StartGame is called, RegisterComponent, registerMessagesByName,
@@ -567,10 +551,6 @@ func (w *World) AddEVMTransaction(
 	tick = w.CurrentTick()
 	txHash = w.txPool.AddEVMTransaction(id, v, sig, evmTxHash)
 	return tick, txHash
-}
-
-func (w *World) useNonce(signerAddress string, nonce uint64) error {
-	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
 func (w *World) Namespace() string {

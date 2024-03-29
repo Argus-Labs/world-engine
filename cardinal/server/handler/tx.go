@@ -81,7 +81,10 @@ func PostTransaction(
 
 		// Add the transaction to the engine
 		// TODO(scott): this should just deal with txpool instead of having to go through engine
-		tick, hash, _ := provider.AddTransaction(msgType.ID(), msg, tx)
+		tick, hash, err := provider.AddTransaction(msgType.ID(), msg, tx)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "failed to add transaction to tx pool")
+		}
 
 		return ctx.JSON(&PostTransactionResponse{
 			TxHash: string(hash),

@@ -57,7 +57,8 @@ func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transa
 	ret := m.ctrl.Call(m, "AddTransaction", id, v, sig)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(types.TxHash)
-	return ret0, ret1, nil
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // AddTransaction indicates an expected call of AddTransaction.

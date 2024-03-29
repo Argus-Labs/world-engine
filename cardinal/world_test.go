@@ -260,16 +260,20 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
 			assert.True(t, ok)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 1, Signature: fakeSignature(t, 1)})
+			_, _, err = world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 1, Signature: fakeSignature(t, 1)})
+			assert.NilError(t, err)
 			world.tickTheEngine(ctx, nil)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 2, Signature: fakeSignature(t, 2)})
+			_, _, err = world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 2, Signature: fakeSignature(t, 2)})
+			assert.NilError(t, err)
 			world.tickTheEngine(ctx, nil)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 3, Signature: fakeSignature(t, 3)})
+			_, _, err = world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 3, Signature: fakeSignature(t, 3)})
+			assert.NilError(t, err)
 			world.tickTheEngine(ctx, nil)
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
-			world.AddTransaction(powerTx.ID(), PowerComp{666}, &sign.Transaction{Nonce: 4, Signature: fakeSignature(t, 4)})
+			_, _, err = world.AddTransaction(powerTx.ID(), PowerComp{666}, &sign.Transaction{Nonce: 4, Signature: fakeSignature(t, 4)})
+			assert.NilError(t, err)
 			err = doTickCapturePanic(ctx, world)
 			assert.ErrorContains(t, err, errorBadPowerChange.Error())
 		} else {
@@ -277,7 +281,8 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 5, Signature: fakeSignature(t, 5)})
+			_, _, err = world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{Nonce: 5, Signature: fakeSignature(t, 5)})
+			assert.NilError(t, err)
 			world.tickTheEngine(ctx, nil)
 
 			assert.Equal(t, float64(4666), fetchPower())

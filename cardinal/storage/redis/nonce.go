@@ -81,7 +81,6 @@ func (r *NonceStorage) IsNonceValid(signerAddress string, nonce uint64) error {
 	}
 
 	zItem := redis.Z{
-		Score:  float64(nonce),
 		Member: nonce,
 	}
 
