@@ -29,12 +29,28 @@ type TxPool struct {
 	nonceStore storage.NonceValidator
 }
 
-func New(ns storage.NonceValidator) *TxPool {
-	return &TxPool{
-		m:          TxMap{},
-		mux:        &sync.Mutex{},
-		nonceStore: ns,
+type Option func(*TxPool)
+
+// WithNonceValidator enables nonce validation for the txpool. If this option is used, the pool will only accept
+// transactions with a valid nonce value. Do note, however, that there is still a chance that, even though a transaction
+// might be accepted to the pool with a valid nonce, it could still be failed later; this is because a transaction may
+// be appended to the pool while a tick is still processing transactions where one of the transactions has the same
+// nonce.
+func WithNonceValidator(ns storage.NonceValidator) Option {
+	return func(pool *TxPool) {
+		pool.nonceStore = ns
 	}
+}
+
+func New(opts ...Option) *TxPool {
+	txp := &TxPool{
+		m:   TxMap{},
+		mux: &sync.Mutex{},
+	}
+	for _, opt := range opts {
+		opt(txp)
+	}
+	return txp
 }
 
 func (t *TxPool) GetAmountOfTxs() int {
@@ -59,13 +75,17 @@ func (t *TxPool) GetEVMTxs() []TxData {
 	return transactions
 }
 
+// AddTransaction adds a transaction to the pool, returning the tx hash. Note, an error will only be returned if this
+// txpool was instantiated with the WithNonceValidator option.
 func (t *TxPool) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (types.TxHash, error) {
-	addr, err := sig.PubKey()
-	if err != nil {
-		return "", eris.Wrap(err, "failed to get PubKey from transaction")
-	}
-	if err := t.nonceStore.IsNonceValid(addr, sig.Nonce); err != nil {
-		return "", eris.Wrap(err, "failed to validate nonce")
+	if t.nonceStore != nil {
+		addr, err := sig.PubKey()
+		if err != nil {
+			return "", eris.Wrap(err, "failed to get PubKey from transaction")
+		}
+		if err := t.nonceStore.IsNonceValid(addr, sig.Nonce); err != nil {
+			return "", eris.Wrap(err, "failed to validate nonce")
+		}
 	}
 	return t.addTransaction(id, v, sig, ""), nil
 }

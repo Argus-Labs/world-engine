@@ -127,7 +127,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		componentManager: component.NewManager(&redisMetaStore),
 		queryManager:     query.NewManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
-		txPool:           txpool.New(&redisMetaStore.NonceStorage),
+		txPool:           nil, // Will be set with nonce verification if run mode is production.
 
 		// Receipt
 		receiptHistory: receipt.NewHistory(tick.Load(), DefaultHistoricalTicksToStore),
@@ -154,6 +154,9 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		if err != nil {
 			return nil, eris.Wrap(err, "Failed to initialize shard router")
 		}
+		world.txPool = txpool.New(txpool.WithNonceValidator(&redisMetaStore.NonceStorage))
+	} else {
+		world.txPool = txpool.New()
 	}
 
 	// Apply options

@@ -166,6 +166,19 @@ func (t *TestFixture) Get(path string) *http.Response {
 	return resp
 }
 
+func (t *TestFixture) BogusTransaction() *sign.Transaction {
+	tx, err := sign.NewTransaction(
+		t.key,
+		"foo",
+		"bar",
+		t.nonce,
+		`{"msg": "this is a request body"}`,
+	)
+	assert.NilError(t, err)
+	t.nonce++
+	return tx
+}
+
 func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign.Transaction) types.TxHash {
 	sig, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
 	assert.NilError(t, err)

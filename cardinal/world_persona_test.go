@@ -21,7 +21,8 @@ func TestGetSignerComponentForPersona(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signer,
 	}
-	world.AddTransaction(msg.ID(), createPersonaMsg, &sign.Transaction{})
+
+	tf.AddTransaction(msg.ID(), createPersonaMsg, &sign.Transaction{})
 	tf.DoTick()
 
 	sc, err := world.GetSignerComponentForPersona(personaTag)

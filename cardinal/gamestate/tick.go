@@ -121,7 +121,10 @@ func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxPool, erro
 		if err != nil {
 			return nil, err
 		}
-		txPool.AddTransaction(tx.ID(), txData, p.Tx)
+		_, err = txPool.AddTransaction(tx.ID(), txData, p.Tx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return txPool, nil
 }

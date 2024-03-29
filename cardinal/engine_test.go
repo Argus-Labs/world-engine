@@ -15,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
-	"pkg.world.dev/world-engine/sign"
 )
 
 var _ iterator.Iterator = (*FakeIterator)(nil)
@@ -459,18 +458,19 @@ func TestRecoverFromChain(t *testing.T) {
 	assert.NilError(t, err)
 	fooMessage, ok := world.GetMessageByFullName("game." + fooMsgName)
 	assert.True(t, ok)
+	assert.NilError(t, err)
 	fakeBatches := []Iterable{
 		{
 			Batches: []*iterator.TxBatch{
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 1},
-					Tx:       &sign.Transaction{},
+					Tx:       tf.BogusTransaction(),
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 2},
-					Tx:       &sign.Transaction{},
+					Tx:       tf.BogusTransaction(),
 				},
 			},
 			Tick:      1,
@@ -481,12 +481,12 @@ func TestRecoverFromChain(t *testing.T) {
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 3},
-					Tx:       &sign.Transaction{},
+					Tx:       tf.BogusTransaction(),
 				},
 				{
 					MsgID:    fooMessage.ID(),
 					MsgValue: fooMsg{I: 4},
-					Tx:       &sign.Transaction{},
+					Tx:       tf.BogusTransaction(),
 				},
 			},
 			Tick:      15,

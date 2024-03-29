@@ -63,8 +63,10 @@ func TestCopyTransactions(t *testing.T) {
 		X int
 	}
 	txp := txpool.New()
-	txp.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
-	txp.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
+	_, err := txp.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
+	assert.NilError(t, err)
+	_, err = txp.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
+	assert.NilError(t, err)
 
 	copyTxp := txp.CopyTransactions()
 	assert.Equal(t, copyTxp.GetAmountOfTxs(), 2)
