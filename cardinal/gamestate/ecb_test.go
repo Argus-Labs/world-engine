@@ -333,8 +333,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Contains(search.Component[Health]())
-				err = q.Each(
+				err = cardinal.NewSearch(wCtx).Contains(search.Component[Health]()).Each(
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -347,8 +346,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Contains(search.Component[Power]())
-				err = q.Each(
+				err = cardinal.NewSearch(wCtx).Contains(search.Component[Power]()).Each(
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -361,10 +359,9 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Exact(
+				err = cardinal.NewSearch(wCtx).Exact(
 					search.Component[Power](),
-					search.Component[Health]())
-				err = q.Each(
+					search.Component[Health]()).Each(
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -377,8 +374,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Exact(search.Component[Health]())
-				err = q.Each(
+				err = cardinal.NewSearch(wCtx).Exact(search.Component[Health]()).Each(
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -391,8 +387,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Exact(search.Component[Power]())
-				err = q.Each(
+				err = cardinal.NewSearch(wCtx).Exact(search.Component[Power]()).Each(
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
