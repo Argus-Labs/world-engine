@@ -19,6 +19,7 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
@@ -122,7 +123,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			world,
 			func(wCtx engine.Context) error {
 				// Get the one and only entity ID
-				q := NewSearch(wCtx).Contains(SearchComponent[ScalarComponentStatic]())
+				q := NewSearch(wCtx).Contains(search.Component[ScalarComponentStatic]())
 				id, err := q.First()
 				assert.NilError(t, err)
 
@@ -155,7 +156,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			_, err := Create(wCtx, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
-		q := NewSearch(wCtx).Contains(SearchComponent[ScalarComponentStatic]())
+		q := NewSearch(wCtx).Contains(search.Component[ScalarComponentStatic]())
 		id, err := q.First()
 		assert.NilError(t, err)
 
@@ -214,7 +215,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		err = RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
-				q := NewSearch(wCtx).Contains(SearchComponent[PowerComp]())
+				q := NewSearch(wCtx).Contains(search.Component[PowerComp]())
 				id := q.MustFirst()
 				entityPower, err := GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
@@ -247,7 +248,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// fetchPower is a small helper to get the power of the only entity in the engine
 		fetchPower := func() float64 {
-			q := NewSearch(wCtx).Contains(SearchComponent[PowerComp]())
+			q := NewSearch(wCtx).Contains(search.Component[PowerComp]())
 			id, err := q.First()
 			assert.NilError(t, err)
 			power, err := GetComponent[PowerComp](wCtx, id)
@@ -319,7 +320,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	err = RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			search := NewSearch(wCtx).Exact(SearchComponent[onePowerComponent]())
+			search := NewSearch(wCtx).Exact(search.Component[onePowerComponent]())
 			id := search.MustFirst()
 			p, err := GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
@@ -473,7 +474,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := NewSearch(wCtx).Exact(SearchComponent[Foo](), SearchComponent[Bar]()).First()
+				id, err := NewSearch(wCtx).Exact(search.Component[Foo](), search.Component[Bar]()).First()
 				assert.Check(t, err == nil)
 				assert.Check(t, id != iterators.BadID)
 

@@ -5,6 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -64,29 +65,29 @@ func TestSearchExample(t *testing.T) {
 	}{
 		{
 			"exactly alpha",
-			cardinal.NewSearch(worldCtx).Exact(cardinal.SearchComponent[AlphaTest]()),
+			cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()),
 			10,
 		},
 		{
 			"contains alpha",
-			cardinal.NewSearch(worldCtx).Contains(cardinal.SearchComponent[AlphaTest]()),
+			cardinal.NewSearch(worldCtx).Contains(search.Component[AlphaTest]()),
 			40,
 		},
 		{
 			"beta or gamma",
-			cardinal.NewSearch(worldCtx).Exact(cardinal.SearchComponent[BetaTest]()).
-				Or(cardinal.NewSearch(worldCtx).Exact(cardinal.SearchComponent[GammaTest]())),
+			cardinal.NewSearch(worldCtx).Exact(search.Component[BetaTest]()).
+				Or(cardinal.NewSearch(worldCtx).Exact(search.Component[GammaTest]())),
 			20,
 		},
 		{
 			"not alpha",
-			cardinal.NewSearch(worldCtx).Exact(cardinal.SearchComponent[AlphaTest]()).Not(),
+			cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()).Not(),
 			60,
 		},
 		{
 			"alpha and beta",
-			cardinal.NewSearch(worldCtx).Contains(cardinal.SearchComponent[AlphaTest]()).And(
-				cardinal.NewSearch(worldCtx).Contains(cardinal.SearchComponent[BetaTest]()),
+			cardinal.NewSearch(worldCtx).Contains(search.Component[AlphaTest]()).And(
+				cardinal.NewSearch(worldCtx).Contains(search.Component[BetaTest]()),
 			),
 			20,
 		},
@@ -104,7 +105,7 @@ func TestSearchExample(t *testing.T) {
 		assert.Equal(t, tc.want, count, msg)
 	}
 	amount, err := cardinal.NewSearch(worldCtx).
-		Exact(cardinal.SearchComponent[AlphaTest](), cardinal.SearchComponent[BetaTest]()).
+		Exact(search.Component[AlphaTest](), search.Component[BetaTest]()).
 		Where(cardinal.FilterFunction[AlphaTest](func(_ AlphaTest) bool {
 			return false
 		})).Count()
@@ -114,7 +115,7 @@ func TestSearchExample(t *testing.T) {
 	counter := 0
 
 	err =
-		cardinal.NewSearch(worldCtx).Exact(cardinal.SearchComponent[AlphaTest]()).
+		cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()).
 			Where(cardinal.FilterFunction[AlphaTest](func(_ AlphaTest) bool { return true })).
 			Each(func(id types.EntityID) bool {
 				comp, err := cardinal.GetComponent[AlphaTest](worldCtx, id)
@@ -128,7 +129,7 @@ func TestSearchExample(t *testing.T) {
 				return true
 			})
 	assert.NilError(t, err)
-	amount, err = cardinal.NewSearch(worldCtx).Exact(cardinal.SearchComponent[AlphaTest]()).
+	amount, err = cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()).
 		Where(cardinal.FilterFunction[AlphaTest](func(comp AlphaTest) bool {
 			return comp.Name1 == "BLAH"
 		})).Count()

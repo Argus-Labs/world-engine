@@ -14,6 +14,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -332,7 +333,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Health]())
+				q := cardinal.NewSearch(wCtx).Contains(search.Component[Health]())
 				err = q.Each(
 					func(id types.EntityID) bool {
 						found[id] = true
@@ -346,7 +347,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Power]())
+				q := cardinal.NewSearch(wCtx).Contains(search.Component[Power]())
 				err = q.Each(
 					func(id types.EntityID) bool {
 						found[id] = true
@@ -361,8 +362,8 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
 				q := cardinal.NewSearch(wCtx).Exact(
-					cardinal.SearchComponent[Power](),
-					cardinal.SearchComponent[Health]())
+					search.Component[Power](),
+					search.Component[Health]())
 				err = q.Each(
 					func(id types.EntityID) bool {
 						found[id] = true
@@ -376,7 +377,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[Health]())
+				q := cardinal.NewSearch(wCtx).Exact(search.Component[Health]())
 				err = q.Each(
 					func(id types.EntityID) bool {
 						found[id] = true
@@ -390,7 +391,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				q := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[Power]())
+				q := cardinal.NewSearch(wCtx).Exact(search.Component[Power]())
 				err = q.Each(
 					func(id types.EntityID) bool {
 						found[id] = true

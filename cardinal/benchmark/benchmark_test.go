@@ -10,6 +10,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -35,7 +36,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testu
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
-				q := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Health]())
+				q := cardinal.NewSearch(wCtx).Contains(search.Component[Health]())
 				err := q.Each(
 					func(id types.EntityID) bool {
 						health, err := cardinal.GetComponent[Health](wCtx, id)

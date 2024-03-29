@@ -6,6 +6,7 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -81,15 +82,15 @@ func TestComponentExample(t *testing.T) {
 
 	// Age was removed form exactly 1 entity.
 	count, err := cardinal.NewSearch(wCtx).
-		Exact(cardinal.SearchComponent[Height](), cardinal.SearchComponent[Weight]()).Count()
+		Exact(search.Component[Height](), search.Component[Weight]()).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
 	// The rest of the entities still have the Age field.
-	count, err = cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Age]()).Count()
+	count, err = cardinal.NewSearch(wCtx).Contains(search.Component[Age]()).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, len(peopleIDs)-1, count)
-	first, err := cardinal.NewSearch(wCtx).Contains(cardinal.SearchComponent[Age]()).First()
+	first, err := cardinal.NewSearch(wCtx).Contains(search.Component[Age]()).First()
 	assert.NilError(t, err)
 	assert.Equal(t, first, types.EntityID(1))
 

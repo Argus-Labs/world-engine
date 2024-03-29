@@ -21,6 +21,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
+	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -147,7 +148,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			search := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[CounterComponent]())
+			search := cardinal.NewSearch(wCtx).Exact(search.Component[CounterComponent]())
 			id := search.MustFirst()
 			return cardinal.UpdateComponent[CounterComponent](
 				wCtx, id, func(c *CounterComponent) *CounterComponent {
@@ -745,7 +746,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	gotNumOfEntities := 0
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
-		err := cardinal.NewSearch(wCtx).Exact(cardinal.SearchComponent[Foo]()).Each(func(types.EntityID) bool {
+		err := cardinal.NewSearch(wCtx).Exact(search.Component[Foo]()).Each(func(types.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})
