@@ -57,8 +57,14 @@ func (s *Search) Contains(component ...componentWrapper) *Search {
 	for _, comp := range component {
 		acc = append(acc, comp.Component)
 	}
-	s.filter = filter.Contains(acc...)
-	return s
+	return &Search{
+		archMatches:             &cache{},
+		filter:                  filter.Contains(acc...),
+		namespace:               s.namespace,
+		reader:                  s.reader,
+		wCtx:                    s.wCtx,
+		componentPropertyFilter: s.componentPropertyFilter,
+	}
 }
 
 func (s *Search) All() *Search {
@@ -80,19 +86,33 @@ func (s *Search) Exact(component ...componentWrapper) *Search {
 	for _, comp := range component {
 		acc = append(acc, comp.Component)
 	}
-	s.filter = filter.Exact(acc...)
-	return s
+	return &Search{
+		archMatches:             &cache{},
+		filter:                  filter.Exact(acc...),
+		namespace:               s.namespace,
+		reader:                  s.reader,
+		wCtx:                    s.wCtx,
+		componentPropertyFilter: s.componentPropertyFilter,
+	}
 }
 
 func (s *Search) Where(componentFilter PredicateEvaluator) *Search {
+	var componentPropertyFilter PredicateEvaluator
 	if s.componentPropertyFilter != nil {
-		s.componentPropertyFilter = &andFilterComponent{filterComponents: []PredicateEvaluator{
+		componentPropertyFilter = &andFilterComponent{filterComponents: []PredicateEvaluator{
 			s.componentPropertyFilter, componentFilter,
 		}}
 	} else {
-		s.componentPropertyFilter = componentFilter
+		componentPropertyFilter = componentFilter
 	}
-	return s
+	return &Search{
+		archMatches:             &cache{},
+		filter:                  s.filter,
+		namespace:               s.namespace,
+		reader:                  s.reader,
+		wCtx:                    s.wCtx,
+		componentPropertyFilter: componentPropertyFilter,
+	}
 }
 
 // Each iterates over all entities that match the search.
@@ -250,7 +270,7 @@ func (s *Search) Or(otherSearch *Search) *Search {
 func (s *Search) Not() *Search {
 	var componentPropertyFilter PredicateEvaluator
 	if s.componentPropertyFilter != nil {
-		s.componentPropertyFilter = &notFilterComponent{filterComponent: s.componentPropertyFilter}
+		componentPropertyFilter = &notFilterComponent{filterComponent: s.componentPropertyFilter}
 	} else {
 		componentPropertyFilter = nil
 	}

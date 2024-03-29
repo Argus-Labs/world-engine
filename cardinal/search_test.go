@@ -64,6 +64,15 @@ func TestSearchExample(t *testing.T) {
 		want   int
 	}{
 		{
+			"has alpha, where gamma true, not",
+			cardinal.NewSearch(worldCtx).
+				Contains(search.Component[AlphaTest]()).
+				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
+					return true
+				})).Not(),
+			0,
+		},
+		{
 			"exactly alpha",
 			cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()),
 			10,
