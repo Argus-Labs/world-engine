@@ -1,11 +1,10 @@
-package cardinal
+package handler
 
 import (
-	"pkg.world.dev/world-engine/cardinal/query"
+	"github.com/gofiber/fiber/v2"
+
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
-
-var _ Plugin = (*receiptPlugin)(nil)
 
 type ListTxReceiptsRequest struct {
 	StartTick uint64 `json:"startTick" mapstructure:"startTick"`
@@ -29,32 +28,7 @@ type ReceiptEntry struct {
 	Errors []string `json:"errors"`
 }
 
-type receiptPlugin struct {
-}
-
-func newReceiptPlugin() *receiptPlugin {
-	return &receiptPlugin{}
-}
-
-func (p *receiptPlugin) Register(world *World) error {
-	err := p.RegisterQueries(world)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *receiptPlugin) RegisterQueries(world *World) error {
-	err := RegisterQuery[ListTxReceiptsRequest, ListTxReceiptsResponse](world, "list",
-		queryReceipts,
-		query.WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsResponse]("receipts"))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// queryReceipts godoc
+// GetReceipts godoc
 //
 //	@Summary      Retrieves all transaction receipts
 //	@Description  Retrieves all transaction receipts
@@ -64,39 +38,45 @@ func (p *receiptPlugin) RegisterQueries(world *World) error {
 //	@Success      200                    {object}  ListTxReceiptsResponse "List of receipts"
 //	@Failure      400                    {string}  string                 "Invalid request body"
 //	@Router       /query/receipts/list [post]
-func queryReceipts(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxReceiptsResponse, error) {
-	reply := ListTxReceiptsResponse{}
-	reply.EndTick = ctx.CurrentTick()
-	size := ctx.ReceiptHistorySize()
-	if size > reply.EndTick {
-		reply.StartTick = 0
-	} else {
-		reply.StartTick = reply.EndTick - size
-	}
-	// StartTick and EndTick are now at the largest possible range of ticks.
-	// Check to see if we should narrow down the range at all.
-	if req.StartTick > reply.EndTick {
-		// User is asking for ticks in the future.
-		reply.StartTick = reply.EndTick
-	} else if req.StartTick > reply.StartTick {
-		reply.StartTick = req.StartTick
-	}
+func GetReceipts(wCtx engine.Context) func(*fiber.Ctx) error {
+	return func(ctx *fiber.Ctx) error {
+		req := new(ListTxReceiptsRequest)
+		if err := ctx.BodyParser(req); err != nil {
+			return err
+		}
+		reply := ListTxReceiptsResponse{}
+		reply.EndTick = wCtx.CurrentTick()
+		size := wCtx.ReceiptHistorySize()
+		if size > reply.EndTick {
+			reply.StartTick = 0
+		} else {
+			reply.StartTick = reply.EndTick - size
+		}
+		// StartTick and EndTick are now at the largest possible range of ticks.
+		// Check to see if we should narrow down the range at all.
+		if req.StartTick > reply.EndTick {
+			// User is asking for ticks in the future.
+			reply.StartTick = reply.EndTick
+		} else if req.StartTick > reply.StartTick {
+			reply.StartTick = req.StartTick
+		}
 
-	for t := reply.StartTick; t < reply.EndTick; t++ {
-		currReceipts, err := ctx.GetTransactionReceiptsForTick(t)
-		if err != nil || len(currReceipts) == 0 {
-			continue
+		for t := reply.StartTick; t < reply.EndTick; t++ {
+			currReceipts, err := wCtx.GetTransactionReceiptsForTick(t)
+			if err != nil || len(currReceipts) == 0 {
+				continue
+			}
+			for _, r := range currReceipts {
+				reply.Receipts = append(reply.Receipts, ReceiptEntry{
+					TxHash: string(r.TxHash),
+					Tick:   t,
+					Result: r.Result,
+					Errors: convertErrorsToStrings(r.Errs),
+				})
+			}
 		}
-		for _, r := range currReceipts {
-			reply.Receipts = append(reply.Receipts, ReceiptEntry{
-				TxHash: string(r.TxHash),
-				Tick:   t,
-				Result: r.Result,
-				Errors: convertErrorsToStrings(r.Errs),
-			})
-		}
+		return ctx.JSON(reply)
 	}
-	return &reply, nil
 }
 
 func convertErrorsToStrings(errs []error) []string {
