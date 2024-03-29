@@ -75,6 +75,11 @@ func (ofc *orFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (
 	return result, nil
 }
 
+// Evaluate when given an entity id will attempt to fetch the related component on that entity.
+// if the entity fails to get retrieved Evaluate will return an error. The overall search algorithm
+// will interpret this error as a command to pretend that this filter doesn't exist all together.
+// if the component exists it will be passed to the predicate function located within component filter and evaluate
+// to either true or false.
 func (fc *componentFilter[T]) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	// Get the component metadata
 	var t T

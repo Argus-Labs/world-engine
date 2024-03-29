@@ -15,6 +15,8 @@ type componentWrapper struct {
 // Component is public but contains an unexported return type
 // this is done with intent as the user should never use componentWrapper
 // explicitly.
+//
+//revive:disable-next-line:unexported-return
 func Component[T types.Component]() componentWrapper {
 	var x T
 	return componentWrapper{
