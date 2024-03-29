@@ -1,19 +1,11 @@
 package search
 
 import (
-	"fmt"
-
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
-
-func FilterFunction[T types.Component](f func(comp T) bool) PredicateEvaluator {
-	return &ComponentFilter[T]{
-		FilterFunc: f,
-	}
-}
 
 type PredicateEvaluator interface {
 	Evaluate(wCtx engine.Context, id types.EntityID) (bool, error)
@@ -27,21 +19,6 @@ type andedFilterComponent struct {
 	filterComponents []PredicateEvaluator
 }
 
-func (afc *andedFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
-	var result = true
-	for _, filterComp := range afc.filterComponents {
-		otherResult, err := filterComp.Evaluate(wCtx, id)
-		if err != nil {
-			continue
-		}
-		result = result && otherResult
-		if result != true {
-			break
-		}
-	}
-	return result, nil
-}
-
 type oredFilterComponent struct {
 	filterComponents []PredicateEvaluator
 }
@@ -50,12 +27,33 @@ type notFilterComponent struct {
 	filterComponent PredicateEvaluator
 }
 
-func (nfc *notFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
-	result, err := nfc.Evaluate(wCtx, id)
-	if err != nil {
-		return false, err
+func FilterFunction[T types.Component](f func(comp T) bool) PredicateEvaluator {
+	return &ComponentFilter[T]{
+		FilterFunc: f,
+	}
+}
+
+func (afc *andedFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
+	var result = true
+	for _, filterComp := range afc.filterComponents {
+		otherResult, err := filterComp.Evaluate(wCtx, id)
+		if err != nil {
+			continue
+		}
+		result = result && otherResult
+		if !result {
+			break
+		}
 	}
 	return result, nil
+}
+
+func (nfc *notFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
+	result, err := nfc.filterComponent.Evaluate(wCtx, id)
+	if err != nil {
+		return result, err
+	}
+	return !result, nil
 }
 
 func (ofc *oredFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
@@ -66,7 +64,7 @@ func (ofc *oredFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID)
 			continue
 		}
 		result = result || otherResult
-		if result == true {
+		if result {
 			break
 		}
 	}
@@ -76,7 +74,6 @@ func (ofc *oredFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID)
 func (fc *ComponentFilter[T]) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	// Get the component metadata
 	var t T
-	fmt.Println(t.Name())
 	c, err := wCtx.GetComponentByName(t.Name())
 	if err != nil {
 		return false, err
@@ -97,9 +94,6 @@ func (fc *ComponentFilter[T]) Evaluate(wCtx engine.Context, id types.EntityID) (
 		}
 	} else {
 		comp = &t
-	}
-	if err != nil {
-		return false, err
 	}
 	return fc.FilterFunc(*comp), nil
 }

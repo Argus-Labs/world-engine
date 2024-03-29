@@ -2,13 +2,13 @@ package search
 
 import "pkg.world.dev/world-engine/cardinal/types"
 
-type SearchComponent struct {
+type ComponentWrapper struct {
 	Component types.Component
 }
 
-func Component[T types.Component]() SearchComponent {
+func Component[T types.Component]() ComponentWrapper {
 	var x T
-	return SearchComponent{
+	return ComponentWrapper{
 		Component: x,
 	}
 }

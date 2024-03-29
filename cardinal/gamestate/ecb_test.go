@@ -340,7 +340,6 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 					},
 				)
 				return found
-
 			},
 			wantIDs: append(justHealthIDs, healthAndPowerIDs...),
 		},
@@ -355,7 +354,6 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 					},
 				)
 				return found
-
 			},
 			wantIDs: append(justPowerIDs, healthAndPowerIDs...),
 		},
@@ -372,7 +370,6 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 					},
 				)
 				return found
-
 			},
 			wantIDs: healthAndPowerIDs,
 		},
@@ -387,7 +384,6 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 					},
 				)
 				return found
-
 			},
 			wantIDs: justHealthIDs,
 		},
@@ -402,7 +398,6 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 					},
 				)
 				return found
-
 			},
 			wantIDs: justPowerIDs,
 		},
