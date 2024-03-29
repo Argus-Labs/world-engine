@@ -11,6 +11,9 @@ import (
 // It involves creating and combining primitives that represent
 // filtering properties on components.
 
+// PredicateEvaluator is an interface used as input into the where clause for search.
+// if the Evaluate function returns true without an error the search will enable that component for the id.
+// if an error is returned the search will treat the evaluation as if it didn't exist.
 type PredicateEvaluator interface {
 	Evaluate(wCtx engine.Context, id types.EntityID) (bool, error)
 }
