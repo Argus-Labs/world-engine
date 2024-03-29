@@ -31,7 +31,19 @@ var (
 // This section aggregates function from other packages such that they are easily accessible
 // via cardinal.<function_name>
 
+// NewSearch is used to create a search object.
+//
+// Usage:
+//
+// cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]())
 var NewSearch = search.NewSearch
+
+// NewSearchWithFilter allows users to create a Search object with a filter already provided
+// as a property.
+//
+// Usage:
+//
+// cardinal.NewSearchWithFilter(wCtx, filter.Exact(Alpha{}, Beta{}))
 var NewSearchWithFilter = search.NewSearchWithFilter
 
 type Search = search.Search
@@ -41,9 +53,11 @@ type Search = search.Search
 //
 // Usage:
 //
-//	NewSearch(wCtx).Where(FilterFunction[EnergyComp](func(_ EnergyComp) bool {
-//	     return true
-//	}))
+//	cardinal.NewSearch(worldCtx).
+//				Contains(search.Component[AlphaTest]()).
+//				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
+//					return true
+//				}))
 func FilterFunction[T types.Component](f func(comp T) bool) search.PredicateEvaluator {
 	return search.FilterFunction[T](f)
 }
