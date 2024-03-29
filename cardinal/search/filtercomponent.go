@@ -39,15 +39,20 @@ func FilterFunction[T types.Component](f func(comp T) bool) PredicateEvaluator {
 
 func (afc *andFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	var result = true
+	errCount := 0
 	for _, filterComp := range afc.filterComponents {
 		otherResult, err := filterComp.Evaluate(wCtx, id)
 		if err != nil {
+			errCount++
 			continue
 		}
 		result = result && otherResult
 		if !result {
 			break
 		}
+	}
+	if errCount == len(afc.filterComponents) {
+		return false, eris.New("all filter evaluations invalid")
 	}
 	return result, nil
 }
@@ -62,15 +67,20 @@ func (nfc *notFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) 
 
 func (ofc *orFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	var result = true
+	errCount := 0
 	for _, filterComp := range ofc.filterComponents {
 		otherResult, err := filterComp.Evaluate(wCtx, id)
 		if err != nil {
+			errCount++
 			continue
 		}
 		result = result || otherResult
 		if result {
 			break
 		}
+	}
+	if errCount == len(ofc.filterComponents) {
+		return false, eris.New("all filter evaluations invalid")
 	}
 	return result, nil
 }
