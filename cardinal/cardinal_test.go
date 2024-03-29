@@ -669,10 +669,7 @@ func TestTransactionExample(t *testing.T) {
 	payload := testutils.UniqueSignature()
 	addHealthToEntity, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
-	testutils.AddTransactionToWorldByAnyTransaction(
-		world, addHealthToEntity,
-		AddHealthToEntityTx{idToModify, amountToModify}, payload,
-	)
+	tf.AddTransaction(addHealthToEntity.ID(), AddHealthToEntityTx{idToModify, amountToModify}, payload)
 
 	// The health change should be applied during this tick
 	doTick()

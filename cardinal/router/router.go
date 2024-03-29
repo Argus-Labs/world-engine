@@ -12,6 +12,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
+	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
@@ -60,16 +61,17 @@ type router struct {
 	// serverAddr is the address the evmServer listens on. This is set once `Start` is called.
 	serverAddr string
 	port       string
+	routerKey  string
 }
 
-func (r *router) TransactionIterator() iterator.Iterator {
-	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
-}
+func New(namespace, sequencerAddr, baseShardQueryAddr, routerKey string, provider Provider) (Router, error) {
+	rtr := &router{namespace: namespace, port: defaultPort, provider: provider, routerKey: routerKey}
 
-func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
-	rtr := &router{namespace: namespace, port: defaultPort, provider: provider}
-
-	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(
+		sequencerAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),
+	)
 	if err != nil {
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
 	}
@@ -82,7 +84,7 @@ func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider)
 	}
 	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
 
-	rtr.server = newEvmServer(provider)
+	rtr.server = newEvmServer(provider, routerKey)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
 }
@@ -124,6 +126,10 @@ func (r *router) SubmitTxBlob(
 	}
 	_, err := r.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
+}
+
+func (r *router) TransactionIterator() iterator.Iterator {
+	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
 }
 
 func (r *router) Shutdown() {

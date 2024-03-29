@@ -1,0 +1,38 @@
+name: Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.md"
+      - "**.mdx"
+  push:
+    branches:
+      - main
+    paths:
+      - "**.md"
+      - "**.mdx"
+
+jobs:
+  lint-md:
+    name: Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+      - name: Install eslint & eslint-plugin-mdx
+        run: npm install eslint eslint-plugin-mdx --global
+      ## detect errors from markdownlint-cli and create annotations for them
+      - uses: xt0rted/markdownlint-problem-matcher@v3
+      - name: Markdown Lint
+        uses: articulate/actions-markdownlint@v1
+        with:
+          config: .markdownlint.yaml
+          ignore: vendor
+          version: 0.39.0
+      - name: MDX Lint
+        run: |
+          npx eslint . --ext js,mdx \
+          --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules
