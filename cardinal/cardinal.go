@@ -40,12 +40,6 @@ func FilterFunction[T types.Component](f func(comp T) bool) search.PredicateEval
 	return search.FilterFunction[T](f)
 }
 
-func SearchComponent[T types.Component]() struct {
-	Component types.Component
-} {
-	return search.Component[T]()
-}
-
 func RegisterSystems(w *World, sys ...system.System) error {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
