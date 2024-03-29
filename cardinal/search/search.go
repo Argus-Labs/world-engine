@@ -49,7 +49,7 @@ func NewSearchWithFilter(wCtx engine.Context, componentFilter filter.ComponentFi
 	}
 }
 
-func (s *Search) Contains(component ...ComponentWrapper) *Search {
+func (s *Search) Contains(component ...componentWrapper) *Search {
 	if s.filter != nil {
 		panic("Search already contains a filter.")
 	}
@@ -72,7 +72,7 @@ func (s *Search) All() *Search {
 	}
 }
 
-func (s *Search) Exact(component ...ComponentWrapper) *Search {
+func (s *Search) Exact(component ...componentWrapper) *Search {
 	if s.filter != nil {
 		panic("Search already contains a filter.")
 	}

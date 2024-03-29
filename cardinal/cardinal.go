@@ -40,7 +40,9 @@ func FilterFunction[T types.Component](f func(comp T) bool) search.PredicateEval
 	return search.FilterFunction[T](f)
 }
 
-func SearchComponent[T types.Component]() search.ComponentWrapper {
+func SearchComponent[T types.Component]() struct {
+	Component types.Component
+} {
 	return search.Component[T]()
 }
 

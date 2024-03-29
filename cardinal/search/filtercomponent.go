@@ -7,11 +7,15 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
+// This package involves primitives for search.
+// It involves creating and combining primitives that represent
+// filtering properties on components.
+
 type PredicateEvaluator interface {
 	Evaluate(wCtx engine.Context, id types.EntityID) (bool, error)
 }
 
-type ComponentFilter[T types.Component] struct {
+type componentFilter[T types.Component] struct {
 	FilterFunc func(comp T) bool
 }
 
@@ -28,7 +32,7 @@ type notFilterComponent struct {
 }
 
 func FilterFunction[T types.Component](f func(comp T) bool) PredicateEvaluator {
-	return &ComponentFilter[T]{
+	return &componentFilter[T]{
 		FilterFunc: f,
 	}
 }
@@ -71,7 +75,7 @@ func (ofc *orFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (
 	return result, nil
 }
 
-func (fc *ComponentFilter[T]) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
+func (fc *componentFilter[T]) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
 	// Get the component metadata
 	var t T
 	c, err := wCtx.GetComponentByName(t.Name())
