@@ -112,7 +112,7 @@ func TestSearchExample(t *testing.T) {
 			0,
 		},
 		{
-			"jjjj",
+			"vampire or player where hp is 0 and player name is vampire guy",
 			q1.Or(q2).Where(cardinal.FilterFunction[HP](func(comp HP) bool {
 				return comp.amount == 0
 			})).Where(cardinal.FilterFunction[Player](func(comp Player) bool {
@@ -121,7 +121,7 @@ func TestSearchExample(t *testing.T) {
 			0,
 		},
 		{
-			"has alpha, where gamma true, not",
+			"does not have alpha, where gamma true",
 			cardinal.NewSearch(worldCtx).
 				Contains(search.Component[AlphaTest]()).Not().
 				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
