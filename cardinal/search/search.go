@@ -228,13 +228,8 @@ func (s *Search) evaluateSearch() []types.ArchetypeID {
 }
 
 func (s *Search) And(otherSearch *Search) *Search {
-	var componentPropertyFilter PredicateEvaluator
-	if s.componentPropertyFilter != nil && otherSearch.componentPropertyFilter != nil {
-		componentPropertyFilter = &andFilterComponent{filterComponents: []PredicateEvaluator{
-			s.componentPropertyFilter, otherSearch.componentPropertyFilter,
-		}}
-	} else {
-		componentPropertyFilter = otherSearch.componentPropertyFilter
+	if s.componentPropertyFilter != nil || otherSearch.componentPropertyFilter != nil {
+		panic("cannot use operators on search objects that already have the where clause")
 	}
 
 	return &Search{
@@ -243,18 +238,13 @@ func (s *Search) And(otherSearch *Search) *Search {
 		namespace:               s.namespace,
 		reader:                  s.reader,
 		wCtx:                    s.wCtx,
-		componentPropertyFilter: componentPropertyFilter,
+		componentPropertyFilter: nil,
 	}
 }
 
 func (s *Search) Or(otherSearch *Search) *Search {
-	var componentPropertyFilter PredicateEvaluator
-	if s.componentPropertyFilter != nil && otherSearch.componentPropertyFilter != nil {
-		componentPropertyFilter = &orFilterComponent{filterComponents: []PredicateEvaluator{
-			s.componentPropertyFilter, otherSearch.componentPropertyFilter,
-		}}
-	} else {
-		componentPropertyFilter = otherSearch.componentPropertyFilter
+	if s.componentPropertyFilter != nil || otherSearch.componentPropertyFilter != nil {
+		panic("cannot use operators on search objects that already have the where clause")
 	}
 
 	return &Search{
@@ -263,16 +253,13 @@ func (s *Search) Or(otherSearch *Search) *Search {
 		namespace:               s.namespace,
 		reader:                  s.reader,
 		wCtx:                    s.wCtx,
-		componentPropertyFilter: componentPropertyFilter,
+		componentPropertyFilter: nil,
 	}
 }
 
 func (s *Search) Not() *Search {
-	var componentPropertyFilter PredicateEvaluator
 	if s.componentPropertyFilter != nil {
-		componentPropertyFilter = &notFilterComponent{filterComponent: s.componentPropertyFilter}
-	} else {
-		componentPropertyFilter = nil
+		panic("cannot use operators on search objects that already have the where clause")
 	}
 	return &Search{
 		archMatches:             &cache{},
@@ -280,5 +267,5 @@ func (s *Search) Not() *Search {
 		namespace:               s.namespace,
 		reader:                  s.reader,
 		wCtx:                    s.wCtx,
-		componentPropertyFilter: componentPropertyFilter}
+		componentPropertyFilter: nil}
 }

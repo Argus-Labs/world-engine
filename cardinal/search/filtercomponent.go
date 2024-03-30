@@ -69,7 +69,7 @@ func (nfc *notFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) 
 }
 
 func (ofc *orFilterComponent) Evaluate(wCtx engine.Context, id types.EntityID) (bool, error) {
-	var result = true
+	var result = false
 	errCount := 0
 	for _, filterComp := range ofc.filterComponents {
 		otherResult, err := filterComp.Evaluate(wCtx, id)

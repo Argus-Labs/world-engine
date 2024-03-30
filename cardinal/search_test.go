@@ -119,7 +119,7 @@ func TestSearchExample(t *testing.T) {
 		},
 		{
 			"",
-			q1.And(q2),
+			q1.Or(q2),
 			0,
 		},
 		{
