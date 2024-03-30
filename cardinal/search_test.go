@@ -91,16 +91,10 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, err)
 
 	q1 := cardinal.NewSearch(worldCtx).
-		Contains(search.Component[Vampire](), search.Component[HP]()).
-		Where(cardinal.FilterFunction[Player](func(comp Player) bool {
-			return comp.player == "VampireGuy"
-		}))
+		Contains(search.Component[Vampire](), search.Component[HP]())
 
 	q2 := cardinal.NewSearch(worldCtx).
-		Exact(search.Component[Player](), search.Component[HP]()).
-		Where(cardinal.FilterFunction[HP](func(comp HP) bool {
-			return comp.amount == 0
-		}))
+		Exact(search.Component[Player](), search.Component[HP]())
 
 	testCases := []struct {
 		name   string
@@ -108,28 +102,32 @@ func TestSearchExample(t *testing.T) {
 		want   int
 	}{
 		{
-			"",
+			"vampire and hp",
 			q1,
-			0,
+			1,
 		},
 		{
-			"",
+			"player and hp",
 			q2,
 			0,
 		},
 		{
-			"",
-			q1.Or(q2),
+			"jjjj",
+			q1.Or(q2).Where(cardinal.FilterFunction[HP](func(comp HP) bool {
+				return comp.amount == 0
+			})).Where(cardinal.FilterFunction[Player](func(comp Player) bool {
+				return comp.player == "VampireGuy"
+			})),
 			0,
 		},
 		{
 			"has alpha, where gamma true, not",
 			cardinal.NewSearch(worldCtx).
-				Contains(search.Component[AlphaTest]()).
+				Contains(search.Component[AlphaTest]()).Not().
 				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
 					return true
-				})).Not(),
-			0,
+				})),
+			20,
 		},
 		{
 			"exactly alpha",
