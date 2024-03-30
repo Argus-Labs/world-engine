@@ -22,6 +22,30 @@ type GammaTest struct {
 	Name1 string
 }
 
+type Player struct {
+	player string
+}
+
+type Vampire struct {
+	vampire bool
+}
+
+type HP struct {
+	amount int
+}
+
+func (p Player) Name() string {
+	return "Player"
+}
+
+func (a HP) Name() string {
+	return "HP"
+}
+
+func (v Vampire) Name() string {
+	return "Vampire"
+}
+
 func (AlphaTest) Name() string {
 	return "alpha"
 }
@@ -40,6 +64,10 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+	assert.NilError(t, cardinal.RegisterComponent[HP](world))
+
 	tf.StartWorld()
 
 	worldCtx := cardinal.NewWorldContext(world)
@@ -57,12 +85,43 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 1, &Player{
+		player: "AnyName",
+	}, &Vampire{vampire: true}, &HP{amount: 0})
+	assert.NilError(t, err)
+
+	q1 := cardinal.NewSearch(worldCtx).
+		Contains(search.Component[Vampire](), search.Component[HP]()).
+		Where(cardinal.FilterFunction[Player](func(comp Player) bool {
+			return comp.player == "VampireGuy"
+		}))
+
+	q2 := cardinal.NewSearch(worldCtx).
+		Exact(search.Component[Player](), search.Component[HP]()).
+		Where(cardinal.FilterFunction[HP](func(comp HP) bool {
+			return comp.amount == 0
+		}))
 
 	testCases := []struct {
 		name   string
 		search *cardinal.Search
 		want   int
 	}{
+		{
+			"",
+			q1,
+			0,
+		},
+		{
+			"",
+			q2,
+			0,
+		},
+		{
+			"",
+			q1.And(q2),
+			0,
+		},
 		{
 			"has alpha, where gamma true, not",
 			cardinal.NewSearch(worldCtx).
@@ -91,7 +150,7 @@ func TestSearchExample(t *testing.T) {
 		{
 			"not alpha",
 			cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()).Not(),
-			60,
+			61,
 		},
 		{
 			"alpha and beta",
@@ -103,7 +162,7 @@ func TestSearchExample(t *testing.T) {
 		{
 			"all",
 			cardinal.NewSearch(worldCtx).All(),
-			70,
+			71,
 		},
 	}
 	for _, tc := range testCases {
