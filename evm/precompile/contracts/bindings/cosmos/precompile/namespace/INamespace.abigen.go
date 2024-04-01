@@ -31,7 +31,7 @@ var (
 
 // NamespaceMetaData contains all meta data concerning the Namespace contract.
 var NamespaceMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"string\",\"name\":\"namespace\",\"type\":\"string\"}],\"name\":\"addressForNamespace\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"namespace\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"gRPCAddress\",\"type\":\"string\"}],\"name\":\"register\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"addressForNamespace\",\"inputs\":[{\"name\":\"namespace\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"register\",\"inputs\":[{\"name\":\"namespace\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"gRPCAddress\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"}]",
 }
 
 // NamespaceABI is the input ABI used to generate the binding from.

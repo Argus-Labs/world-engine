@@ -543,6 +543,10 @@ func (w *World) AddEVMTransaction(
 	return tick, txHash
 }
 
+func (w *World) UseNonce(signerAddress string, nonce uint64) error {
+	return w.redisStorage.UseNonce(signerAddress, nonce)
+}
+
 func (w *World) Namespace() string {
 	return string(w.namespace)
 }

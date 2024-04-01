@@ -28,7 +28,8 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
 	originalPool := txpool.New()
 	sig := testutils.UniqueSignature()
-	_, _ = originalPool.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
+	_, err := originalPool.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
+	assert.NilError(t, err)
 
 	assert.NilError(t, manager.StartNextTick(msgs, originalPool))
 
