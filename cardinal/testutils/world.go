@@ -168,16 +168,7 @@ func (t *TestFixture) Get(path string) *http.Response {
 
 // DummyTransaction gives you a transaction with dummy data EXCEPT for the nonce. The nonce will be valid.
 func (t *TestFixture) DummyTransaction() *sign.Transaction {
-	tx, err := sign.NewTransaction(
-		t.key,
-		"foo",
-		"bar",
-		t.nonce,
-		`{"msg": "this is a request body"}`,
-	)
-	assert.NilError(t, err)
-	t.nonce++
-	return tx
+	return t.getBogusTx()
 }
 
 func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign.Transaction) types.TxHash {
@@ -199,12 +190,12 @@ func (t *TestFixture) AddEVMTransaction(
 }
 
 func (t *TestFixture) getBogusTx(sigs ...*sign.Transaction) *sign.Transaction {
+	if len(sigs) > 0 {
+		return sigs[0]
+	}
 	tx, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
 	assert.NilError(t, err)
 	t.nonce++
-	if len(sigs) > 0 {
-		tx = sigs[0]
-	}
 	return tx
 }
 
