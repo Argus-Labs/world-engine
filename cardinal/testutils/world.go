@@ -181,7 +181,7 @@ func (t *TestFixture) DummyTransaction() *sign.Transaction {
 }
 
 func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign.Transaction) types.TxHash {
-	t.getBogusTx(sigs...)
+	sig := t.getBogusTx(sigs...)
 	_, id, err := t.World.AddTransaction(txID, tx, sig)
 	assert.NilError(t, err)
 	return id
@@ -193,7 +193,7 @@ func (t *TestFixture) AddEVMTransaction(
 	evmTxHash string,
 	sigs ...*sign.Transaction,
 ) (*sign.Transaction, types.TxHash) {
-	t.getBogusTx(sigs...)
+	sig := t.getBogusTx(sigs...)
 	_, id := t.World.AddEVMTransaction(txID, tx, sig, evmTxHash)
 	return sig, id
 }
