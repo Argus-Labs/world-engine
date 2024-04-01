@@ -181,12 +181,7 @@ func (t *TestFixture) DummyTransaction() *sign.Transaction {
 }
 
 func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign.Transaction) types.TxHash {
-	sig, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
-	assert.NilError(t, err)
-	t.nonce++
-	if len(sigs) > 0 {
-		sig = sigs[0]
-	}
+	t.getBogusTx(sigs...)
 	_, id, err := t.World.AddTransaction(txID, tx, sig)
 	assert.NilError(t, err)
 	return id
@@ -198,14 +193,19 @@ func (t *TestFixture) AddEVMTransaction(
 	evmTxHash string,
 	sigs ...*sign.Transaction,
 ) (*sign.Transaction, types.TxHash) {
-	sig, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
+	t.getBogusTx(sigs...)
+	_, id := t.World.AddEVMTransaction(txID, tx, sig, evmTxHash)
+	return sig, id
+}
+
+func (t *TestFixture) getBogusTx(sigs ...*sign.Transaction) *sign.Transaction {
+	tx, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
 	assert.NilError(t, err)
 	t.nonce++
 	if len(sigs) > 0 {
-		sig = sigs[0]
+		tx = sigs[0]
 	}
-	_, id := t.World.AddEVMTransaction(txID, tx, sig, evmTxHash)
-	return sig, id
+	return tx
 }
 
 func (t *TestFixture) CreatePersona(personaTag, signerAddr string) {
