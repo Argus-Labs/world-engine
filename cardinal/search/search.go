@@ -32,10 +32,22 @@ type Search struct {
 	componentPropertyFilter filterFn
 }
 
+type SearchBuilder struct {
+	archMatches *cache
+	namespace   string
+	reader      gamestate.Reader
+	wCtx        engine.Context
+}
+
 // NewSearch creates a new search.
 // It receives arbitrary filters that are used to filter entities.
-func NewSearch(wCtx engine.Context) *Search {
-	return NewLegacySearch(wCtx, nil)
+func NewSearch(wCtx engine.Context) *SearchBuilder {
+	return &SearchBuilder{
+		archMatches: &cache{},
+		namespace:   wCtx.Namespace(),
+		reader:      wCtx.StoreReader(),
+		wCtx:        wCtx,
+	}
 }
 
 // TODO: should deprecate this in the future.
@@ -50,10 +62,7 @@ func NewLegacySearch(wCtx engine.Context, componentFilter filter.ComponentFilter
 	}
 }
 
-func (s *Search) Contains(component ...componentWrapper) *Search {
-	if s.filter != nil {
-		panic("Search already contains a filter.")
-	}
+func (s *SearchBuilder) Contains(component ...componentWrapper) *Search {
 	acc := make([]types.Component, 0, len(component))
 	for _, comp := range component {
 		acc = append(acc, comp.component)
@@ -64,25 +73,22 @@ func (s *Search) Contains(component ...componentWrapper) *Search {
 		namespace:               s.namespace,
 		reader:                  s.reader,
 		wCtx:                    s.wCtx,
-		componentPropertyFilter: s.componentPropertyFilter,
+		componentPropertyFilter: nil,
 	}
 }
 
-func (s *Search) All() *Search {
+func (s *SearchBuilder) All() *Search {
 	return &Search{
 		archMatches:             &cache{},
 		filter:                  filter.All(),
 		namespace:               s.namespace,
 		reader:                  s.reader,
 		wCtx:                    s.wCtx,
-		componentPropertyFilter: s.componentPropertyFilter,
+		componentPropertyFilter: nil,
 	}
 }
 
-func (s *Search) Exact(component ...componentWrapper) *Search {
-	if s.filter != nil {
-		panic("Search already contains a filter.")
-	}
+func (s *SearchBuilder) Exact(component ...componentWrapper) *Search {
 	acc := make([]types.Component, 0, len(component))
 	for _, comp := range component {
 		acc = append(acc, comp.component)
@@ -93,7 +99,7 @@ func (s *Search) Exact(component ...componentWrapper) *Search {
 		namespace:               s.namespace,
 		reader:                  s.reader,
 		wCtx:                    s.wCtx,
-		componentPropertyFilter: s.componentPropertyFilter,
+		componentPropertyFilter: nil,
 	}
 }
 
