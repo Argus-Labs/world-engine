@@ -44,7 +44,7 @@ var NewSearch = search.NewSearch
 // Usage:
 //
 // cardinal.NewSearchWithFilter(wCtx, filter.Exact(Alpha{}, Beta{}))
-var NewSearchWithFilter = search.NewSearchWithFilter
+var NewLegacySearch = search.NewLegacySearch
 
 type Search = search.Search
 

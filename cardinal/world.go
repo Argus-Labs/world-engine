@@ -582,7 +582,7 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 }
 
 func (w *World) Search(filter filter.ComponentFilter) *search.Search {
-	return search.NewSearchWithFilter(NewReadOnlyWorldContext(w), filter)
+	return search.NewLegacySearch(NewReadOnlyWorldContext(w), filter)
 }
 
 func (w *World) StoreReader() gamestate.Reader {

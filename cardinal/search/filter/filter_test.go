@@ -134,7 +134,7 @@ func TestExactVsContains(t *testing.T) {
 
 	sameQuery, err := cql.Parse("CONTAINS(alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearchWithFilter(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(wCtx, sameQuery).Each(
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -158,7 +158,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("CONTAINS(beta)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearchWithFilter(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(wCtx, sameQuery).Each(
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -181,7 +181,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearchWithFilter(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(wCtx, sameQuery).Each(
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -192,7 +192,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
-	q = cardinal.NewSearchWithFilter(wCtx, filter.Exact(Alpha{}, Beta{}))
+	q = cardinal.NewLegacySearch(wCtx, filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		func(types.EntityID) bool {
 			count++
@@ -205,7 +205,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha, beta)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearchWithFilter(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(wCtx, sameQuery).Each(
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -231,7 +231,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(beta, alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearchWithFilter(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(wCtx, sameQuery).Each(
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -261,7 +261,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	err = cardinal.NewSearchWithFilter(wCtx,
+	err = cardinal.NewLegacySearch(wCtx,
 		filter.Exact(types.ConvertComponentMetadatasToComponents(comps)...)).Each(
 		func(types.EntityID) bool {
 			count++
@@ -292,7 +292,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	sameQuery, err := cql.Parse(queryString, getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearchWithFilter(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(wCtx, sameQuery).Each(
 		func(types.EntityID) bool {
 			count2++
 			return true

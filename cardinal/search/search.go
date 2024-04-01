@@ -35,10 +35,11 @@ type Search struct {
 // NewSearch creates a new search.
 // It receives arbitrary filters that are used to filter entities.
 func NewSearch(wCtx engine.Context) *Search {
-	return NewSearchWithFilter(wCtx, nil)
+	return NewLegacySearch(wCtx, nil)
 }
 
-func NewSearchWithFilter(wCtx engine.Context, componentFilter filter.ComponentFilter) *Search {
+// TODO: should deprecate this in the future.
+func NewLegacySearch(wCtx engine.Context, componentFilter filter.ComponentFilter) *Search {
 	return &Search{
 		archMatches:             &cache{},
 		filter:                  componentFilter,
