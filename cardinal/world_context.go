@@ -115,7 +115,11 @@ func (ctx *worldContext) Namespace() string {
 	return ctx.world.Namespace()
 }
 
-func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash, error) {
+func (ctx *worldContext) AddTransaction(
+	id types.MessageID,
+	v any,
+	sig *sign.Transaction,
+) (uint64, types.TxHash, error) {
 	return ctx.world.AddTransaction(id, v, sig)
 }
 

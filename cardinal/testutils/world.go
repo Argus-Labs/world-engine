@@ -192,7 +192,12 @@ func (t *TestFixture) AddTransaction(txID types.MessageID, tx any, sigs ...*sign
 	return id
 }
 
-func (t *TestFixture) AddEVMTransaction(txID types.MessageID, tx any, evmTxHash string, sigs ...*sign.Transaction) (*sign.Transaction, types.TxHash) {
+func (t *TestFixture) AddEVMTransaction(
+	txID types.MessageID,
+	tx any,
+	evmTxHash string,
+	sigs ...*sign.Transaction,
+) (*sign.Transaction, types.TxHash) {
 	sig, err := sign.NewTransaction(t.key, "foo", "bar", t.nonce, `{"msg": "this is a request body"}`)
 	assert.NilError(t, err)
 	t.nonce++
