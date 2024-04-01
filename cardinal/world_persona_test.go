@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
 	msg2 "pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
 )
 
 func TestGetSignerComponentForPersona(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	msg, exists := world.GetMessageByFullName("persona.create-persona")
 	assert.True(t, exists)

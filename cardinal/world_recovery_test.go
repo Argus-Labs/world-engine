@@ -40,7 +40,12 @@ func TestWorldRecovery(t *testing.T) {
 		g.BeforeEach(func() {
 			controller = gomock.NewController(t)
 			router = mocks.NewMockRouter(controller)
-			tf = testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(router))
+			tf = testutils.NewTestFixture(
+				t,
+				nil,
+				cardinal.WithCustomRouter(router),
+				cardinal.WithDisableSignatureVerification(),
+			)
 
 			world = tf.World
 			msgName := "foo"

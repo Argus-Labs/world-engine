@@ -12,6 +12,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
@@ -44,6 +45,9 @@ func WithReceiptHistorySize(size int) WorldOption {
 func WithDisableSignatureVerification() WorldOption {
 	return WorldOption{
 		serverOption: server.DisableSignatureVerification(),
+		cardinalOption: func(world *World) {
+			world.txPool = txpool.New()
+		},
 	}
 }
 

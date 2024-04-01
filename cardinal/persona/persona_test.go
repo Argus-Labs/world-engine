@@ -45,7 +45,7 @@ func TestPersonaTagIsValid(t *testing.T) {
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 
@@ -80,7 +80,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 
@@ -107,7 +107,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 	personaTag := "jeff"
@@ -129,7 +129,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 	tf.CreatePersona("INVALID PERSONA TAG WITH SPACES", "123_456")
@@ -144,7 +144,7 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 
 func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 	tf.CreatePersona("WowTag", "123_456")
@@ -158,7 +158,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 
@@ -196,7 +196,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.StartWorld()
 
@@ -228,7 +228,7 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 }
 
 func TestQuerySigner(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	personaTag := "CoolMage"
 	signerAddr := "123_456"
@@ -249,7 +249,7 @@ func TestQuerySigner(t *testing.T) {
 }
 
 func TestQuerySignerAvailable(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world := tf.World
 	tf.DoTick()
 
@@ -266,7 +266,7 @@ func TestQuerySignerAvailable(t *testing.T) {
 }
 
 func TestQuerySignerUnknown(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	engine := tf.World
 	tf.DoTick()
 

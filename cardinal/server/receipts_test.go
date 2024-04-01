@@ -12,7 +12,7 @@ import (
 )
 
 func (s *ServerTestSuite) TestReceiptsQuery() {
-	s.setupWorld()
+	s.setupWorld(cardinal.WithDisableSignatureVerification())
 	world := s.world
 	type fooIn struct{}
 	type fooOut struct{ Y int }
