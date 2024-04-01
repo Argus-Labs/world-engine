@@ -29,7 +29,7 @@ type Search struct {
 	namespace               string
 	reader                  gamestate.Reader
 	wCtx                    engine.Context
-	componentPropertyFilter PredicateEvaluator
+	componentPropertyFilter filterFn
 }
 
 // NewSearch creates a new search.
@@ -97,12 +97,10 @@ func (s *Search) Exact(component ...componentWrapper) *Search {
 	}
 }
 
-func (s *Search) Where(componentFilter PredicateEvaluator) *Search {
-	var componentPropertyFilter PredicateEvaluator
+func (s *Search) Where(componentFilter filterFn) *Search {
+	var componentPropertyFilter filterFn
 	if s.componentPropertyFilter != nil {
-		componentPropertyFilter = &andFilterComponent{filterComponents: []PredicateEvaluator{
-			s.componentPropertyFilter, componentFilter,
-		}}
+		componentPropertyFilter = AndFilter(s.componentPropertyFilter, componentFilter)
 	} else {
 		componentPropertyFilter = componentFilter
 	}
@@ -131,7 +129,7 @@ func (s *Search) Each(callback CallbackFn) (err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter.Evaluate(s.wCtx, id)
+				filterValue, err = s.componentPropertyFilter(s.wCtx, id)
 				if err != nil {
 					continue
 				}
@@ -164,7 +162,7 @@ func (s *Search) Count() (ret int, err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter.Evaluate(s.wCtx, id)
+				filterValue, err = s.componentPropertyFilter(s.wCtx, id)
 				if err != nil {
 					continue
 				}
@@ -196,7 +194,7 @@ func (s *Search) First() (id types.EntityID, err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter.Evaluate(s.wCtx, id)
+				filterValue, err = s.componentPropertyFilter(s.wCtx, id)
 				if err != nil {
 					continue
 				}

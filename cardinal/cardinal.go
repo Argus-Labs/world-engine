@@ -58,8 +58,8 @@ type Search = search.Search
 //				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
 //					return true
 //				}))
-func FilterFunction[T types.Component](f func(comp T) bool) search.PredicateEvaluator {
-	return search.FilterFunction[T](f)
+func FilterFunction[T types.Component](f func(comp T) bool) func(ctx engine.Context, id types.EntityID) (bool, error) {
+	return search.ComponentFilter[T](f)
 }
 
 func RegisterSystems(w *World, sys ...system.System) error {
