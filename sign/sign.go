@@ -224,28 +224,12 @@ func (s *Transaction) HashHex() string {
 // https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
 // TODO: Review this signature verification, and compare it to geth's sig verification
 func (s *Transaction) Verify(hexAddress string) error {
-	addr := common.HexToAddress(hexAddress)
-
-	if isZeroHash(s.Hash) {
-		s.populateHash()
-	}
-
-	sig := common.Hex2Bytes(s.Signature)
-	if len(sig) < crypto.RecoveryIDOffset {
-		return eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
-	}
-	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
-		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
-	}
-
-	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
-	err = eris.Wrap(err, "")
+	pubKey, err := s.PubKey()
 	if err != nil {
-		return err
+		return eris.Wrap(err, "failed to get public key from transaction")
 	}
-	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
-	if signerAddr != addr {
-		return eris.Wrap(ErrSignatureValidationFailed, "")
+	if hexAddress != pubKey {
+		return eris.Wrapf(ErrSignatureValidationFailed, "wanted %q, got %q", pubKey, hexAddress)
 	}
 	return nil
 }
