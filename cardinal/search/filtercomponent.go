@@ -13,6 +13,7 @@ import (
 
 type filterFn func(wCtx engine.Context, id types.EntityID) (bool, error)
 
+//revive:disable-next-line:unexported-return
 func ComponentFilter[T types.Component](f func(comp T) bool) filterFn {
 	return func(wCtx engine.Context, id types.EntityID) (bool, error) {
 		var t T
@@ -41,15 +42,16 @@ func ComponentFilter[T types.Component](f func(comp T) bool) filterFn {
 	}
 }
 
+//revive:disable-next-line:unexported-return
 func AndFilter(fns ...filterFn) filterFn {
 	return func(wCtx engine.Context, id types.EntityID) (bool, error) {
-		var result bool = true
+		var result = true
 		var errCount = 0
 		for _, fn := range fns {
 			res, err := fn(wCtx, id)
 			if err != nil {
-				continue
 				errCount++
+				continue
 			}
 			result = result && res
 		}
@@ -60,15 +62,16 @@ func AndFilter(fns ...filterFn) filterFn {
 	}
 }
 
+//revive:disable-next-line:unexported-return
 func OrFilter(fns ...filterFn) filterFn {
 	return func(wCtx engine.Context, id types.EntityID) (bool, error) {
-		var result bool = false
+		var result = false
 		var errCount = 0
 		for _, fn := range fns {
 			res, err := fn(wCtx, id)
 			if err != nil {
-				continue
 				errCount++
+				continue
 			}
 			result = result || res
 		}

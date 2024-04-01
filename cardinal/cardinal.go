@@ -38,7 +38,7 @@ var (
 // cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]())
 var NewSearch = search.NewSearch
 
-// NewSearchWithFilter allows users to create a Search object with a filter already provided
+// NewLegacySearch allows users to create a Search object with a filter already provided
 // as a property.
 //
 // Usage:

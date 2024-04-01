@@ -32,7 +32,7 @@ type Search struct {
 	componentPropertyFilter filterFn
 }
 
-type SearchBuilder struct {
+type Builder struct {
 	archMatches *cache
 	namespace   string
 	reader      gamestate.Reader
@@ -41,8 +41,8 @@ type SearchBuilder struct {
 
 // NewSearch creates a new search.
 // It receives arbitrary filters that are used to filter entities.
-func NewSearch(wCtx engine.Context) *SearchBuilder {
-	return &SearchBuilder{
+func NewSearch(wCtx engine.Context) *Builder {
+	return &Builder{
 		archMatches: &cache{},
 		namespace:   wCtx.Namespace(),
 		reader:      wCtx.StoreReader(),
@@ -62,7 +62,7 @@ func NewLegacySearch(wCtx engine.Context, componentFilter filter.ComponentFilter
 	}
 }
 
-func (s *SearchBuilder) Contains(component ...componentWrapper) *Search {
+func (s *Builder) Contains(component ...componentWrapper) *Search {
 	acc := make([]types.Component, 0, len(component))
 	for _, comp := range component {
 		acc = append(acc, comp.component)
@@ -77,7 +77,7 @@ func (s *SearchBuilder) Contains(component ...componentWrapper) *Search {
 	}
 }
 
-func (s *SearchBuilder) All() *Search {
+func (s *Builder) All() *Search {
 	return &Search{
 		archMatches:             &cache{},
 		filter:                  filter.All(),
@@ -88,7 +88,7 @@ func (s *SearchBuilder) All() *Search {
 	}
 }
 
-func (s *SearchBuilder) Exact(component ...componentWrapper) *Search {
+func (s *Builder) Exact(component ...componentWrapper) *Search {
 	acc := make([]types.Component, 0, len(component))
 	for _, comp := range component {
 		acc = append(acc, comp.component)
