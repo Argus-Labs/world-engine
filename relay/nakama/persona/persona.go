@@ -37,6 +37,32 @@ type TxResponse struct {
 	Tick   uint64 `json:"tick"`
 }
 
+// ReclaimPersona attempts to claim a persona tag that has already been verified with Nakama. This is useful
+// when Cardinal's state is reset and loses all record of previously claimed persona tags. This method is different
+// from the initial ClaimPersona because all the bookkeeping on Nakama's side can be skipped.
+func ReclaimPersona(
+	ctx context.Context,
+	nk runtime.NakamaModule,
+	txSigner signer.Signer,
+	cardinalAddress string,
+	namespace string,
+) error {
+	tag, err := LoadPersonaTagStorageObj(ctx, nk)
+	if err != nil {
+		return eris.Wrap(err, "re-claim failed, storage object could not be found")
+	}
+	if tag.Status != StatusAccepted {
+		return eris.Wrap(err, "re-claim failed, status must already have been accepted")
+	}
+	personaTag := tag.PersonaTag
+
+	_, _, err = createPersona(ctx, txSigner, personaTag, cardinalAddress, namespace)
+	if err != nil {
+		return eris.Wrap(err, "unable to make re-create persona request to cardinal")
+	}
+	return nil
+}
+
 func ClaimPersona(
 	ctx context.Context,
 	nk runtime.NakamaModule,

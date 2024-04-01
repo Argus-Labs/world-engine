@@ -102,6 +102,9 @@ func registerEndpoints(
 		context.Context,
 	) (io.Reader, error),
 	cardinalAddress string,
+	namespace string,
+	txSigner signer.Signer,
+	autoReclaimPersonaTags bool,
 ) error {
 	for _, e := range endpoints {
 		logger.Debug("registering: %v", e)
@@ -109,15 +112,16 @@ func registerEndpoints(
 		if currEndpoint[0] == '/' {
 			currEndpoint = currEndpoint[1:]
 		}
-		err := initializer.RegisterRpc(
+		requestHandler := handleCardinalRequest(
 			currEndpoint,
-			handleCardinalRequest(
-				currEndpoint,
-				createPayload,
-				notifier,
-				cardinalAddress,
-			),
+			createPayload,
+			notifier,
+			cardinalAddress,
+			namespace,
+			txSigner,
+			autoReclaimPersonaTags,
 		)
+		err := initializer.RegisterRpc(currEndpoint, requestHandler)
 		if err != nil {
 			return eris.Wrap(err, "")
 		}

@@ -256,11 +256,33 @@ func initCardinalEndpoints(
 		return formattedPayloadBuffer, nil
 	}
 
-	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction, cardinalAddress)
+	// Register all the transaction endpoints. These require signatures.
+	err = registerEndpoints(
+		logger,
+		initializer,
+		notifier,
+		txEndpoints,
+		createTransaction,
+		cardinalAddress,
+		globalNamespace,
+		txSigner,
+		true,
+	)
 	if err != nil {
 		return err
 	}
-	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction, cardinalAddress)
+	// Register all the query endpoints. These do not require signatures.
+	err = registerEndpoints(
+		// Register all the transaction endpoints. These require signatures.
+		logger,
+		initializer,
+		notifier,
+		queryEndpoints,
+		createUnsignedTransaction,
+		cardinalAddress,
+		globalNamespace,
+		txSigner,
+		false)
 	if err != nil {
 		return err
 	}
