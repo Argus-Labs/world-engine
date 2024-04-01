@@ -118,8 +118,12 @@ func lookupSignerAndValidateSignature(provider servertypes.Provider, signerAddre
 			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
 		}
 	}
-	if err = validateSignature(tx, signerAddress, provider.Namespace(),
-		tx.IsSystemTransaction()); err != nil {
+	if err = validateSignature(
+		tx,
+		signerAddress,
+		provider.Namespace(),
+		tx.IsSystemTransaction(),
+	); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 	}
 	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
