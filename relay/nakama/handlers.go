@@ -267,8 +267,6 @@ func handleCardinalRequest(
 		// /////////////////////////////////
 		// Repeat the initial transaction //
 		// /////////////////////////////////
-		// The re-claiming of the request was successful. Redo the request.
-		// Apparently that was successful. Retry the initial request.
 		resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
