@@ -12,11 +12,17 @@ func GetFieldInformation(t reflect.Type) map[string]any {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
+		fieldName := field.Name
+
+		// Check if the field has a json tag
+		if tag := field.Tag.Get("json"); tag != "" {
+			fieldName = tag
+		}
 
 		if field.Type.Kind() == reflect.Struct {
-			fieldMap[field.Name] = GetFieldInformation(field.Type)
+			fieldMap[fieldName] = GetFieldInformation(field.Type)
 		} else {
-			fieldMap[field.Name] = field.Type.String()
+			fieldMap[fieldName] = field.Type.String()
 		}
 	}
 
