@@ -68,6 +68,21 @@ func (mr *MockProviderMockRecorder) ConsumeEVMMsgResult(evmTxHash interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeEVMMsgResult", reflect.TypeOf((*MockProvider)(nil).ConsumeEVMMsgResult), evmTxHash)
 }
 
+// GetMessageByFullName mocks base method.
+func (m *MockProvider) GetMessageByFullName(arg0 string) (types.Message, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessageByFullName", arg0)
+	ret0, _ := ret[0].(types.Message)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetMessageByFullName indicates an expected call of GetMessageByFullName.
+func (mr *MockProviderMockRecorder) GetMessageByFullName(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByFullName", reflect.TypeOf((*MockProvider)(nil).GetMessageByFullName), arg0)
+}
+
 // GetMessageByID mocks base method.
 func (m *MockProvider) GetMessageByID(id types.MessageID) (types.Message, bool) {
 	m.ctrl.T.Helper()
@@ -81,21 +96,6 @@ func (m *MockProvider) GetMessageByID(id types.MessageID) (types.Message, bool) 
 func (mr *MockProviderMockRecorder) GetMessageByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByID", reflect.TypeOf((*MockProvider)(nil).GetMessageByID), id)
-}
-
-// GetMessageByFullName mocks base method.
-func (m *MockProvider) GetMessageByFullName(arg0 string) (types.Message, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessageByFullName", arg0)
-	ret0, _ := ret[0].(types.Message)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// GetMessageByName indicates an expected call of GetMessageByName.
-func (mr *MockProviderMockRecorder) GetMessageByName(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByFullName", reflect.TypeOf((*MockProvider)(nil).GetMessageByFullName), arg0)
 }
 
 // GetSignerComponentForPersona mocks base method.

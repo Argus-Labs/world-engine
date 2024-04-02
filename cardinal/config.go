@@ -42,7 +42,6 @@ var (
 		CardinalNamespace:         DefaultNamespace,
 		CardinalMode:              DefaultRunMode,
 		BaseShardSequencerAddress: "",
-		BaseShardQueryAddress:     "",
 		CardinalLogLevel:          DefaultLogLevel,
 		StatsdAddress:             DefaultStatsdAddress,
 		TraceAddress:              "",
@@ -63,7 +62,6 @@ type WorldConfig struct {
 
 	// Shard networking
 	BaseShardSequencerAddress string `config:"BASE_SHARD_SEQUENCER_ADDRESS"`
-	BaseShardQueryAddress     string `config:"BASE_SHARD_QUERY_ADDRESS"`
 
 	// Telemetry
 	StatsdAddress string `config:"STATSD_ADDRESS"`
@@ -112,9 +110,6 @@ func (w *WorldConfig) Validate() error {
 		// Validate shard networking config
 		if _, _, err := net.SplitHostPort(w.BaseShardSequencerAddress); err != nil {
 			return eris.Wrap(err, "BASE_SHARD_SEQUENCER_ADDRESS must follow the format <host>:<port>")
-		}
-		if _, _, err := net.SplitHostPort(w.BaseShardQueryAddress); err != nil {
-			return eris.Wrap(err, "BASE_SHARD_QUERY_ADDRESS must follow the format <host>:<port>")
 		}
 		if w.RouterKey == "" {
 			return eris.New("ROUTER_KEY must be set in production mode")

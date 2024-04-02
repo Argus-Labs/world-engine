@@ -10,7 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/cardinal/types"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -29,7 +28,7 @@ type Iterator interface {
 type iterator struct {
 	getMsgByID func(id types.MessageID) (types.Message, bool)
 	namespace  string
-	querier    shardtypes.QueryClient
+	querier    shard.TransactionHandlerClient
 }
 
 type TxBatch struct {
@@ -41,7 +40,7 @@ type TxBatch struct {
 func New(
 	getMessageByID func(id types.MessageID) (types.Message, bool),
 	namespace string,
-	querier shardtypes.QueryClient,
+	querier shard.TransactionHandlerClient,
 ) Iterator {
 	return &iterator{
 		getMsgByID: getMessageByID,
@@ -73,9 +72,9 @@ func (t *iterator) Each(
 	}
 OuterLoop:
 	for {
-		res, err := t.querier.Transactions(context.Background(), &shardtypes.QueryTransactionsRequest{
+		res, err := t.querier.QueryTransactions(context.Background(), &shard.QueryTransactionsRequest{
 			Namespace: t.namespace,
-			Page: &shardtypes.PageRequest{
+			Page: &shard.PageRequest{
 				Key:   nextKey,
 				Limit: 1,
 			},
