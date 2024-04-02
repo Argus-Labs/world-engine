@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -354,6 +355,13 @@ func TestWithoutRegistration(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
+}
+
+func TestThing(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	tx := tf.DummyTransaction()
+	fmt.Println(tx.HashHex())
+	fmt.Println(tx.Signature)
 }
 
 func TestTransactionsSentToRouterAfterTick(t *testing.T) {

@@ -130,3 +130,27 @@ func (t *TxPool) reset() {
 func (t *TxPool) ForID(id types.MessageID) []TxData {
 	return t.m[id]
 }
+
+func (t *TxPool) CleanPool() {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	for txTypeID, txDatas := range t.m {
+		indexesToDelete := make([]int, 0)
+		for i, txData := range txDatas {
+			pk, err := txData.Tx.PubKey()
+			if err != nil {
+				indexesToDelete = append(indexesToDelete, i)
+			} else {
+				if err = t.nonceStore.IsNonceValid(pk, txData.Tx.Nonce); err != nil {
+					indexesToDelete = append(indexesToDelete, i)
+				}
+			}
+		}
+		// Remove transactions in reverse order to maintain the correct indices
+		for i := len(indexesToDelete) - 1; i >= 0; i-- {
+			indexToDelete := indexesToDelete[i]
+			txDatas = append(txDatas[:indexToDelete], txDatas[indexToDelete+1:]...)
+		}
+		t.m[txTypeID] = txDatas
+	}
+}
