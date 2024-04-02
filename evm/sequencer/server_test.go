@@ -2,13 +2,11 @@ package sequencer
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
@@ -95,31 +93,4 @@ func TestGetBothSlices(t *testing.T) {
 
 	assert.Len(t, txs, 1)
 	assert.Len(t, inits, 1)
-}
-
-func TestThingy(t *testing.T) {
-	t1 := &shardtypes.QueryTransactionsResponse{
-		Epochs: []*shardtypes.Epoch{
-			{
-				Epoch:         3,
-				UnixTimestamp: 4,
-				Txs: []*shardtypes.Transaction{
-					{
-						TxId:                 3,
-						GameShardTransaction: []byte("Hello World"),
-					},
-					{
-						TxId:                 4,
-						GameShardTransaction: []byte("Goodbye World"),
-					},
-				},
-			},
-		},
-	}
-	t2 := &shardv2.QueryTransactionsResponse{}
-	bz, err := t1.Marshal()
-	assert.NilError(t, err)
-	err = proto.Unmarshal(bz, t2)
-	assert.NilError(t, err)
-	fmt.Println(t2)
 }

@@ -29,11 +29,14 @@ type mockQuerier struct {
 	request *shard.QueryTransactionsRequest
 }
 
-func (m *mockQuerier) RegisterGameShard(_ context.Context, _ *shard.RegisterGameShardRequest, _ ...grpc.CallOption) (*shard.RegisterGameShardResponse, error) {
+func (m *mockQuerier) RegisterGameShard(
+	_ context.Context, _ *shard.RegisterGameShardRequest, _ ...grpc.CallOption) (
+	*shard.RegisterGameShardResponse, error) {
 	panic("intentionally not implemented. this is a mock.")
 }
 
-func (m *mockQuerier) Submit(_ context.Context, _ *shard.SubmitTransactionsRequest, _ ...grpc.CallOption) (*shard.SubmitTransactionsResponse, error) {
+func (m *mockQuerier) Submit(_ context.Context, _ *shard.SubmitTransactionsRequest, _ ...grpc.CallOption) (
+	*shard.SubmitTransactionsResponse, error) {
 	panic("intentionally not implemented. this is a mock.")
 }
 
@@ -161,7 +164,7 @@ func TestIteratorStartRange(t *testing.T) {
 	_ = it.Each(nil, 5)
 
 	req := querier.request
-	gotStartRange := parsePageKey(req.Page.Key)
+	gotStartRange := parsePageKey(req.GetPage().GetKey())
 	assert.Equal(t, startRange, gotStartRange)
 }
 

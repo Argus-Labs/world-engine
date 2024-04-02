@@ -96,7 +96,11 @@ func (f *fakeTxHandler) Submit(
 	panic("intentionally not implemented. this is a mock")
 }
 
-func (f *fakeTxHandler) QueryTransactions(ctx context.Context, in *shard.QueryTransactionsRequest, opts ...grpc.CallOption) (*shard.QueryTransactionsResponse, error) {
+func (f *fakeTxHandler) QueryTransactions(
+	_ context.Context,
+	_ *shard.QueryTransactionsRequest,
+	_ ...grpc.CallOption,
+) (*shard.QueryTransactionsResponse, error) {
 	panic("intentionally not implemented. this is a mock")
 }
 

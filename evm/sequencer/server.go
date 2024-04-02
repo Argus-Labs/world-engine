@@ -120,20 +120,23 @@ func (s *Sequencer) RegisterGameShard(
 	return &shard.RegisterGameShardResponse{}, nil
 }
 
-func (s *Sequencer) QueryTransactions(ctx context.Context, request *shard.QueryTransactionsRequest) (*shard.QueryTransactionsResponse, error) {
-	ctx, err := s.queryCtxGetter(0, false)
+func (s *Sequencer) QueryTransactions(
+	_ context.Context,
+	request *shard.QueryTransactionsRequest,
+) (*shard.QueryTransactionsResponse, error) {
+	cosmosCtx, err := s.queryCtxGetter(0, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get query context: %w", err)
 	}
 
 	convertedQueryType := types.QueryTransactionsRequest{
-		Namespace: request.Namespace,
+		Namespace: request.GetNamespace(),
 		Page: &types.PageRequest{
-			Key:   request.Page.Key,
-			Limit: request.Page.Limit,
+			Key:   request.GetPage().GetKey(),
+			Limit: request.GetPage().GetLimit(),
 		},
 	}
-	res, err := s.shardKeeper.Transactions(ctx, &convertedQueryType)
+	res, err := s.shardKeeper.Transactions(cosmosCtx, &convertedQueryType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transactions: %w", err)
 	}
