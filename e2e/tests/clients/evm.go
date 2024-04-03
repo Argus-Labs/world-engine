@@ -20,6 +20,10 @@ type EVM struct {
 	Namespace namespacetypes.QueryServiceClient
 }
 
+type RiftClient struct {
+	Rift shard.TransactionHandlerClient
+}
+
 func NewEVMClient(t *testing.T) *EVM {
 	cc, err := grpc.Dial("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
@@ -28,10 +32,6 @@ func NewEVMClient(t *testing.T) *EVM {
 		Bank:      banktypes.NewQueryClient(cc),
 		Namespace: namespacetypes.NewQueryServiceClient(cc),
 	}
-}
-
-type RiftClient struct {
-	Rift shard.TransactionHandlerClient
 }
 
 func NewRiftClient(t *testing.T) *RiftClient {
