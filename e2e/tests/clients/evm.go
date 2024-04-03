@@ -34,8 +34,14 @@ func NewEVMClient(t *testing.T) *EVM {
 	}
 }
 
-func NewRiftClient(t *testing.T) *RiftClient {
-	routerKey := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01"
+func NewRiftClient(t *testing.T, optionalRouterKey ...string) *RiftClient {
+	var routerKey string
+	if len(optionalRouterKey) == 0 {
+		// default routerKey. should match as in the docker-compose file.
+		routerKey = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01"
+	} else {
+		routerKey = optionalRouterKey[0]
+	}
 	cc, err := grpc.Dial(
 		"localhost:9601",
 		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),
