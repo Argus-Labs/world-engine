@@ -204,7 +204,7 @@ func NewApp(
 	}
 
 	// sleeping here as this seems to lessen the chance of the race condition polaris has?? seems to work okay.
-	time.Sleep(5 * time.Second)
+	time.Sleep(5 * time.Second) //nolint:gomnd // this is temporary
 	// Load the last state of the polaris evm.
 	if err := app.Polaris.LoadLastState(
 		app.CommitMultiStore(), uint64(app.LastBlockHeight()),
