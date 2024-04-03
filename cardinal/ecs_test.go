@@ -133,10 +133,9 @@ func TestECS(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	q := cardinal.NewSearch(wCtx).
-		Contains(search.Component[EnergyComponent]()).
-		Or(search.NewSearch(wCtx).
-			Contains(search.Component[OwnableComponent]()))
+	q := search.Or(cardinal.NewSearch(wCtx).
+		Contains(search.Component[EnergyComponent]()), search.NewSearch(wCtx).
+		Contains(search.Component[OwnableComponent]()))
 	amt, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
@@ -586,10 +585,9 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	q = cardinal.NewSearch(wCtx).
-		Contains(search.Component[A]()).
-		Or(
-			search.NewSearch(wCtx).Contains(search.Component[D]()))
+	q = search.Or(cardinal.NewSearch(wCtx).
+		Contains(search.Component[A]()),
+		search.NewSearch(wCtx).Contains(search.Component[D]()))
 	allCount, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)

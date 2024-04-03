@@ -232,7 +232,7 @@ func (s *Search) evaluateSearch() []types.ArchetypeID {
 	return cache.archetypes
 }
 
-func (s *Search) And(otherSearch *Search) *Search {
+func And(s *Search, otherSearch *Search) *Search {
 	if s.componentPropertyFilter != nil || otherSearch.componentPropertyFilter != nil {
 		panic("cannot use operators on search objects that already have the where clause")
 	}
@@ -247,7 +247,7 @@ func (s *Search) And(otherSearch *Search) *Search {
 	}
 }
 
-func (s *Search) Or(otherSearch *Search) *Search {
+func Or(s *Search, otherSearch *Search) *Search {
 	if s.componentPropertyFilter != nil || otherSearch.componentPropertyFilter != nil {
 		panic("cannot use operators on search objects that already have the where clause")
 	}
@@ -262,7 +262,7 @@ func (s *Search) Or(otherSearch *Search) *Search {
 	}
 }
 
-func (s *Search) Not() *Search {
+func Not(s *Search) *Search {
 	if s.componentPropertyFilter != nil {
 		panic("cannot use operators on search objects that already have the where clause")
 	}

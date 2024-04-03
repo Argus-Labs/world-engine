@@ -113,7 +113,7 @@ func TestSearchExample(t *testing.T) {
 		},
 		{
 			"vampire or player where hp is 0 and player name is vampire guy",
-			q1.Or(q2).Where(cardinal.FilterFunction[HP](func(comp HP) bool {
+			search.Or(q1, q2).Where(cardinal.FilterFunction[HP](func(comp HP) bool {
 				return comp.amount == 0
 			})).Where(cardinal.FilterFunction[Player](func(comp Player) bool {
 				return comp.player == "VampireGuy"
@@ -122,8 +122,8 @@ func TestSearchExample(t *testing.T) {
 		},
 		{
 			"does not have alpha, where gamma true",
-			cardinal.NewSearch(worldCtx).
-				Contains(search.Component[AlphaTest]()).Not().
+			search.Not(cardinal.NewSearch(worldCtx).
+				Contains(search.Component[AlphaTest]())).
 				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
 					return true
 				})),
@@ -141,18 +141,18 @@ func TestSearchExample(t *testing.T) {
 		},
 		{
 			"beta or gamma",
-			cardinal.NewSearch(worldCtx).Exact(search.Component[BetaTest]()).
-				Or(cardinal.NewSearch(worldCtx).Exact(search.Component[GammaTest]())),
+			search.Or(cardinal.NewSearch(worldCtx).Exact(search.Component[BetaTest]()),
+				cardinal.NewSearch(worldCtx).Exact(search.Component[GammaTest]())),
 			20,
 		},
 		{
 			"not alpha",
-			cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]()).Not(),
+			search.Not(cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]())),
 			61,
 		},
 		{
 			"alpha and beta",
-			cardinal.NewSearch(worldCtx).Contains(search.Component[AlphaTest]()).And(
+			search.And(cardinal.NewSearch(worldCtx).Contains(search.Component[AlphaTest]()),
 				cardinal.NewSearch(worldCtx).Contains(search.Component[BetaTest]()),
 			),
 			20,
