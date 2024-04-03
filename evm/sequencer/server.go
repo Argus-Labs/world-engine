@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -140,12 +141,12 @@ func (s *Sequencer) QueryTransactions(
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transactions: %w", err)
 	}
-	bz, err := res.Marshal()
+	bz, err := json.Marshal(res)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
 	convertedResponse := new(shard.QueryTransactionsResponse)
-	err = proto.Unmarshal(bz, convertedResponse)
+	err = json.Unmarshal(bz, convertedResponse)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal unmarshal evm type response into rift type resposne: %w", err)
 	}
