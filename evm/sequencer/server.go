@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
@@ -54,10 +53,9 @@ type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
 // indexed by namespace. At every block, the sequencer tx queue is flushed, and processed in the storage shard storage
 // module, persisting the data to the blockchain.
 func New(shardKeeper *keeper.Keeper, queryCtxGetter GetQueryCtxFn, opts ...Option) *Sequencer {
-	addr := authtypes.NewModuleAddress(Name)
 	s := &Sequencer{
-		moduleAddr:     addr,
-		tq:             NewTxQueue(addr.String()),
+		moduleAddr:     shardKeeper.AuthorityAddress(),
+		tq:             NewTxQueue(shardKeeper.AuthorityAddress().String()),
 		queryCtxGetter: queryCtxGetter,
 		shardKeeper:    shardKeeper,
 	}

@@ -65,7 +65,6 @@ import (
 
 	namespacemodule "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
 	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
-	"pkg.world.dev/world-engine/evm/sequencer"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	shardmodule "pkg.world.dev/world-engine/evm/x/shard"
 
@@ -82,7 +81,8 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side effects
-	_ "pkg.world.dev/world-engine/evm/x/namespace"    // import for side effects
+
+	_ "pkg.world.dev/world-engine/evm/x/namespace" // import for side effects
 )
 
 var (
@@ -95,7 +95,7 @@ var (
 		{Account: stakingtypes.NotBondedPoolName, Permissions: []string{authtypes.Burner, stakingtypes.ModuleName}},
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
 		{Account: evmtypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
-		{Account: sequencer.Name},
+		{Account: shardmodule.ModuleName},
 		{Account: namespacetypes.ModuleName},
 	}
 

@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	ModuleName       = "shard"
+	ModuleName       = types.ModuleName
 	ConsensusVersion = 1
 )
 
