@@ -429,7 +429,6 @@ func setEnvToCardinalProdMode(t *testing.T) {
 	t.Setenv("REDIS_PASSWORD", "bar")
 	t.Setenv("CARDINAL_NAMESPACE", "baz")
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "localhost:8080")
-	t.Setenv("BASE_SHARD_QUERY_ADDRESS", "localhost:8081")
 	t.Setenv("ROUTER_KEY", "77cf59146831dbd94bd19dd4b259b268ee07a7c1fdba67e92b0f7c1cfdfb7a9b")
 }
 
