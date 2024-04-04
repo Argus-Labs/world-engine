@@ -97,6 +97,7 @@ cardinal.RegisterQuery(w, "player-health", qry.WithCustomQueryGroup[query.Player
 
 Queries can be sent by EVM smart contracts by using the `WithQueryEVMSupport` option when you register your queries. This will generate the ABI types necessary for interactions with smart contracts.
 
+
 ```go
 import (
     "pkg.world.dev/world-engine/cardinal"
@@ -104,7 +105,10 @@ import (
 )
 
 cardinal.RegisterQuery(w, "player-health", qry.WithQueryEVMSupport[query.PlayerHealthRequest, query.PlayerHealthResponse]())
-
 ```
+
+<Note>
+  Not all go types are supported for the `Request` & `Response` struct fields when using this option. See [EVM+ Message and Query](/cardinal/game/evm) to learn more.
+</Note>
 
 ---

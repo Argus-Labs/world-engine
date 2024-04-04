@@ -96,6 +96,10 @@ import (
 cardinal.RegisterMessage(w, "attack-player", message.WithMsgEVMSupport[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]())}
 ```
 
+<Note>
+  Not all go types are supported for the `Message` & `Reply` struct fields when using this option. See [EVM+ Message and Query](/cardinal/game/evm) to learn more.
+</Note>
+
 ---
 
 ## Common Message Patterns
