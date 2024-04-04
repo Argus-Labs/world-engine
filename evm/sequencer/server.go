@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -125,7 +124,7 @@ func (s *Sequencer) QueryTransactions(
 ) (*shard.QueryTransactionsResponse, error) {
 	cosmosCtx, err := s.queryCtxGetter(0, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get query context: %w", err)
+		return nil, eris.Wrap(err, "failed to get query context")
 	}
 
 	convertedQueryType := types.QueryTransactionsRequest{
@@ -137,16 +136,16 @@ func (s *Sequencer) QueryTransactions(
 	}
 	res, err := s.shardKeeper.Transactions(cosmosCtx, &convertedQueryType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query transactions: %w", err)
+		return nil, eris.Wrap(err, "failed to query transactions")
 	}
 	bz, err := json.Marshal(res)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal response: %w", err)
+		return nil, eris.Wrap(err, "failed to marshal response")
 	}
 	convertedResponse := new(shard.QueryTransactionsResponse)
 	err = json.Unmarshal(bz, convertedResponse)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal unmarshal evm type response into rift type resposne: %w", err)
+		return nil, eris.Wrap(err, "failed to unmarshal evm type response into rift type response")
 	}
 	return convertedResponse, nil
 }
