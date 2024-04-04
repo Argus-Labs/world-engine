@@ -3,6 +3,7 @@ name: Release
 ## workflow will trigger on below condition,
 ## except image release that have jobs condition to trigger only on tagging
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'evm/v*.*.*'
