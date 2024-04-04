@@ -1,33 +1,5 @@
 basePath: /
 definitions:
-  cardinal.ListTxReceiptsRequest:
-    properties:
-      startTick:
-        type: integer
-    type: object
-  cardinal.ListTxReceiptsResponse:
-    properties:
-      endTick:
-        type: integer
-      receipts:
-        items:
-          $ref: '#/definitions/cardinal.ReceiptEntry'
-        type: array
-      startTick:
-        type: integer
-    type: object
-  cardinal.ReceiptEntry:
-    properties:
-      errors:
-        items:
-          type: string
-        type: array
-      result: {}
-      tick:
-        type: integer
-      txHash:
-        type: string
-    type: object
   handler.CQLQueryRequest:
     properties:
       cql:
@@ -77,8 +49,36 @@ definitions:
           $ref: '#/definitions/handler.FieldDetail'
         type: array
     type: object
+  handler.ListTxReceiptsRequest:
+    properties:
+      startTick:
+        type: integer
+    type: object
+  handler.ListTxReceiptsResponse:
+    properties:
+      endTick:
+        type: integer
+      receipts:
+        items:
+          $ref: '#/definitions/handler.ReceiptEntry'
+        type: array
+      startTick:
+        type: integer
+    type: object
   handler.PostTransactionResponse:
     properties:
+      tick:
+        type: integer
+      txHash:
+        type: string
+    type: object
+  handler.ReceiptEntry:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      result: {}
       tick:
         type: integer
       txHash:
@@ -180,12 +180,17 @@ paths:
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Retrieves the status of the server and game loop
-  /query/game/{queryName}:
+  /query/{queryGroup}/{queryName}:
     post:
       consumes:
       - application/json
       description: Executes a query
       parameters:
+      - description: Query group
+        in: path
+        name: queryGroup
+        required: true
+        type: string
       - description: Name of a registered query
         in: path
         name: queryName
@@ -220,25 +225,30 @@ paths:
         name: ListTxReceiptsRequest
         required: true
         schema:
-          $ref: '#/definitions/cardinal.ListTxReceiptsRequest'
+          $ref: '#/definitions/handler.ListTxReceiptsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: List of receipts
           schema:
-            $ref: '#/definitions/cardinal.ListTxReceiptsResponse'
+            $ref: '#/definitions/handler.ListTxReceiptsResponse'
         "400":
           description: Invalid request body
           schema:
             type: string
       summary: Retrieves all transaction receipts
-  /tx/game/{txName}:
+  /tx/{txGroup}/{txName}:
     post:
       consumes:
       - application/json
       description: Submits a transaction
       parameters:
+      - description: Message group
+        in: path
+        name: txGroup
+        required: true
+        type: string
       - description: Name of a registered message
         in: path
         name: txName
