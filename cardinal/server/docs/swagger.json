@@ -103,7 +103,44 @@
                 }
             }
         },
-        "/query/game/{queryName}": {
+        "/query/receipts/list": {
+            "post": {
+                "description": "Retrieves all transaction receipts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Retrieves all transaction receipts",
+                "parameters": [
+                    {
+                        "description": "Query body",
+                        "name": "ListTxReceiptsRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ListTxReceiptsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of receipts",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ListTxReceiptsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/{queryGroup}/{queryName}": {
             "post": {
                 "description": "Executes a query",
                 "consumes": [
@@ -114,6 +151,13 @@
                 ],
                 "summary": "Executes a query",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Query group",
+                        "name": "queryGroup",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "description": "Name of a registered query",
@@ -147,61 +191,17 @@
                 }
             }
         },
-        "/query/receipts/list": {
+        "/tx/persona/create-persona": {
             "post": {
-                "description": "Retrieves all transaction receipts",
+                "description": "Creates a persona",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Retrieves all transaction receipts",
+                "summary": "Creates a persona",
                 "parameters": [
-                    {
-                        "description": "Query body",
-                        "name": "ListTxReceiptsRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/cardinal.ListTxReceiptsRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of receipts",
-                        "schema": {
-                            "$ref": "#/definitions/cardinal.ListTxReceiptsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/tx/game/{txName}": {
-            "post": {
-                "description": "Submits a transaction",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Submits a transaction",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Name of a registered message",
-                        "name": "txName",
-                        "in": "path",
-                        "required": true
-                    },
                     {
                         "description": "Transaction details \u0026 message to be submitted",
                         "name": "txBody",
@@ -228,17 +228,31 @@
                 }
             }
         },
-        "/tx/persona/create-persona": {
+        "/tx/{txGroup}/{txName}": {
             "post": {
-                "description": "Creates a persona",
+                "description": "Submits a transaction",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Creates a persona",
+                "summary": "Submits a transaction",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message group",
+                        "name": "txGroup",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of a registered message",
+                        "name": "txName",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "description": "Transaction details \u0026 message to be submitted",
                         "name": "txBody",
@@ -293,49 +307,6 @@
         }
     },
     "definitions": {
-        "cardinal.ListTxReceiptsRequest": {
-            "type": "object",
-            "properties": {
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
-        "cardinal.ListTxReceiptsResponse": {
-            "type": "object",
-            "properties": {
-                "endTick": {
-                    "type": "integer"
-                },
-                "receipts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cardinal.ReceiptEntry"
-                    }
-                },
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
-        "cardinal.ReceiptEntry": {
-            "type": "object",
-            "properties": {
-                "errors": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "result": {},
-                "tick": {
-                    "type": "integer"
-                },
-                "txHash": {
-                    "type": "string"
-                }
-            }
-        },
         "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
@@ -410,9 +381,52 @@
                 }
             }
         },
+        "handler.ListTxReceiptsRequest": {
+            "type": "object",
+            "properties": {
+                "startTick": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.ListTxReceiptsResponse": {
+            "type": "object",
+            "properties": {
+                "endTick": {
+                    "type": "integer"
+                },
+                "receipts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.ReceiptEntry"
+                    }
+                },
+                "startTick": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.PostTransactionResponse": {
             "type": "object",
             "properties": {
+                "tick": {
+                    "type": "integer"
+                },
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ReceiptEntry": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "result": {},
                 "tick": {
                     "type": "integer"
                 },
