@@ -27,18 +27,21 @@ You can easily create a new query and register it to the world by following thes
     <Step title="Define the request/response struct and the handler function">
         A query is defined using a pair of Go structs and a handler function. You can write any arbitrary logic in the handler function and access the game state using `cardinal.WorldContext`.
 
-        ```go /query/query_world_vars.go
-        type Request struct {
-            PlayerName string
+        ```go /query/player_health.go
+        package query
+
+        import "pkg.world.dev/world-engine/cardinal"
+
+        type PlayerHealthRequest struct {
+            Nickname string
+        }
+
+        type PlayerHealthResponse struct {
+            HP int
         }
     
-        type Response struct {
-            X int
-            Y int
-        }
-    
-        func PlayerLocation(worldCtx cardinal.WorldContext, req *Request) (*Response, error) {
-            // Handle WorldVarsRequest -> WorldVarsResponse here
+        func PlayerHealth(world cardinal.WorldContext, req *PlayerHealthRequest) (*PlayerHealthResponse, error) {
+            // Handle PlayerHealthRequest -> PlayerHealthResponse here
         }
         ```
     </Step>
@@ -48,6 +51,11 @@ You can easily create a new query and register it to the world by following thes
         ```go main.go
         package main
 
+        import (
+            "pkg.world.dev/world-engine/cardinal"
+            // ...
+        )
+
         func main() {
             w, err := cardinal.NewWorld()
             if err != nil {
@@ -56,7 +64,7 @@ You can easily create a new query and register it to the world by following thes
 
             // Register queries
             // NOTE: You must register your queries here for it to be accessible.
-            err := cardinal.RegisterQuery[query.WorldVarsRequest, query.WorldVarsResponse](w, "world-vars", query.WorldVars))
+            err := cardinal.RegisterQuery[query.PlayerHealthRequest, query.PlayerHealthResponse](w, "world-vars", query.PlayerHealthResponse))
             if err != nil {
                 log.Fatal().Err(err).Msg("failed to register query")
             }
@@ -68,3 +76,35 @@ You can easily create a new query and register it to the world by following thes
 </Steps>
 
 --- 
+
+## Query Options
+
+### Custom Query Group
+
+By default, queries are registered under the "game" group, which maps it to the `/query/game/{queryName}` route. You can specify a custom group name using `WithCustomQueryGroup` when you register your queries.
+
+```go
+import (
+    "pkg.world.dev/world-engine/cardinal"
+    qry "pkg.world.dev/world-engine/cardinal/query"
+)
+
+// This will register your query at `/query/player/player-health`
+cardinal.RegisterQuery(w, "player-health", qry.WithCustomQueryGroup[query.PlayerHealthRequest, query.PlayerHealthResponse]("player"))
+```
+
+### EVM Support
+
+Queries can be sent by EVM smart contracts by using the `WithQueryEVMSupport` option when you register your queries. This will generate the ABI types necessary for interactions with smart contracts.
+
+```go
+import (
+    "pkg.world.dev/world-engine/cardinal"
+    qry "pkg.world.dev/world-engine/cardinal/query"
+)
+
+cardinal.RegisterQuery(w, "player-health", qry.WithQueryEVMSupport[query.PlayerHealthRequest, query.PlayerHealthResponse]())
+
+```
+
+---

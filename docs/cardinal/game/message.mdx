@@ -41,6 +41,11 @@ You can easily create a new message and register it to the world by following th
         ```go main.go
         package main
 
+        import (
+            "pkg.world.dev/world-engine/cardinal"
+            // ...
+        )
+
         func main() {
             w, err := cardinal.NewWorld()
             if err != nil {
@@ -49,7 +54,7 @@ You can easily create a new message and register it to the world by following th
     
             // Register messages (user action)
             // NOTE: You must register your message here for it to be executed.
-            err := cardinal.RegisterMessage[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply](w, "attack_player")
+            err := cardinal.RegisterMessage[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply](w, "attack-player")
             if err != nil {
                 log.Fatal().Err(err).Msg("failed to register message")
             }
@@ -61,6 +66,38 @@ You can easily create a new message and register it to the world by following th
 </Steps>
 
 --- 
+
+## Message Options
+
+### Custom Message Group
+
+By default, messages are registered under the "game" group, which maps it to the `/tx/game/{txName}` route. You can specify a custom group name using `WithCustomMessageGroup` when you register your messages.
+
+```go
+import (
+    "pkg.world.dev/world-engine/cardinal"
+    "pkg.world.dev/world-engine/cardinal/message"
+)
+
+// This will register your message at `/tx/player/attack-player`
+cardinal.RegisterMessage(w, "attack-player", message.WithCustomMessageGroup[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]("player"))
+```
+
+### EVM Support
+
+Messages can be submitted by EVM smart contracts by using the `WithMsgEVMSupport` option when you register your messages. This will generate the ABI types necessary for interactions with smart contracts.
+
+```go
+import (
+    "pkg.world.dev/world-engine/cardinal"
+    "pkg.world.dev/world-engine/cardinal/message"
+)
+
+cardinal.RegisterMessage(w, "attack-player", message.WithMsgEVMSupport[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]())}
+```
+
+---
+
 ## Common Message Patterns
 
 ### Iterating over messages
