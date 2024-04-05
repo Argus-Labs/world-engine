@@ -103,6 +103,50 @@
                 }
             }
         },
+        "/query/game/{queryName}": {
+            "post": {
+                "description": "Executes a query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Executes a query",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of a registered query",
+                        "name": "queryName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Query to be executed",
+                        "name": "queryBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results of the executed query",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/query/receipts/list": {
             "post": {
                 "description": "Retrieves all transaction receipts",
@@ -184,6 +228,50 @@
                     },
                     "400": {
                         "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tx/game/{txName}": {
+            "post": {
+                "description": "Submits a transaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Submits a transaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of a registered message",
+                        "name": "txName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Transaction details \u0026 message to be submitted",
+                        "name": "txBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.Transaction"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transaction hash and tick",
+                        "schema": {
+                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameter",
                         "schema": {
                             "type": "string"
                         }

@@ -214,6 +214,35 @@ paths:
           schema:
             type: string
       summary: Executes a query
+  /query/game/{queryName}:
+    post:
+      consumes:
+      - application/json
+      description: Executes a query
+      parameters:
+      - description: Name of a registered query
+        in: path
+        name: queryName
+        required: true
+        type: string
+      - description: Query to be executed
+        in: body
+        name: queryBody
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results of the executed query
+          schema:
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Executes a query
   /query/receipts/list:
     post:
       consumes:
@@ -249,6 +278,35 @@ paths:
         name: txGroup
         required: true
         type: string
+      - description: Name of a registered message
+        in: path
+        name: txName
+        required: true
+        type: string
+      - description: Transaction details & message to be submitted
+        in: body
+        name: txBody
+        required: true
+        schema:
+          $ref: '#/definitions/handler.Transaction'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction hash and tick
+          schema:
+            $ref: '#/definitions/handler.PostTransactionResponse'
+        "400":
+          description: Invalid request parameter
+          schema:
+            type: string
+      summary: Submits a transaction
+  /tx/game/{txName}:
+    post:
+      consumes:
+      - application/json
+      description: Submits a transaction
+      parameters:
       - description: Name of a registered message
         in: path
         name: txName

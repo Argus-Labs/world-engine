@@ -91,7 +91,25 @@ func PostTransaction(
 	}
 }
 
-// NOTE: duplication for cleaner swagger JSON file
+// NOTE: duplication for cleaner swagger docs
+// PostTransaction godoc
+//
+//	@Summary      Submits a transaction
+//	@Description  Submits a transaction
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        txName  path      string                   true  "Name of a registered message"
+//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
+//	@Failure      400     {string}  string                   "Invalid request parameter"
+//	@Router       /tx/game/{txName} [post]
+func PostGameTransaction(
+	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+) func(*fiber.Ctx) error {
+	return PostTransaction(provider, msgs, disableSigVerification)
+}
+
+// NOTE: duplication for cleaner swagger docs
 // PostTransaction godoc
 //
 //	@Summary      Creates a persona

@@ -34,3 +34,19 @@ func PostQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) 
 		return ctx.Send(resBz)
 	}
 }
+
+// NOTE: duplication for cleaner swagger docs
+// PostQuery godoc
+//
+//	@Summary      Executes a query
+//	@Description  Executes a query
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        queryName   path      string  true  "Name of a registered query"
+//	@Param        queryBody   body      object  true  "Query to be executed"
+//	@Success      200         {object}  object  "Results of the executed query"
+//	@Failure      400         {string}  string  "Invalid request parameters"
+//	@Router       /query/game/{queryName} [post]
+func PostGameQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) func(*fiber.Ctx) error {
+	return PostQuery(queries, wCtx)
+}
