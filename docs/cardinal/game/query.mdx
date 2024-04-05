@@ -53,7 +53,7 @@ You can easily create a new query and register it to the world by following thes
 
         import (
             "pkg.world.dev/world-engine/cardinal"
-            // ...
+            "github.com/argus-labs/starter-game-template/cardinal/query"
         )
 
         func main() {
@@ -79,20 +79,6 @@ You can easily create a new query and register it to the world by following thes
 
 ## Query Options
 
-### Custom Query Group
-
-By default, queries are registered under the "game" group, which maps it to the `/query/game/{queryName}` route. You can specify a custom group name using `WithCustomQueryGroup` when you register your queries.
-
-```go
-import (
-    "pkg.world.dev/world-engine/cardinal"
-    qry "pkg.world.dev/world-engine/cardinal/query"
-)
-
-// This will register your query at `/query/player/player-health`
-cardinal.RegisterQuery(w, "player-health", qry.WithCustomQueryGroup[query.PlayerHealthRequest, query.PlayerHealthResponse]("player"))
-```
-
 ### EVM Support
 
 Queries can be sent by EVM smart contracts by using the `WithQueryEVMSupport` option when you register your queries. This will generate the ABI types necessary for interactions with smart contracts.
@@ -102,6 +88,7 @@ Queries can be sent by EVM smart contracts by using the `WithQueryEVMSupport` op
 import (
     "pkg.world.dev/world-engine/cardinal"
     qry "pkg.world.dev/world-engine/cardinal/query"
+    "github.com/argus-labs/starter-game-template/cardinal/query"
 )
 
 cardinal.RegisterQuery(w, "player-health", qry.WithQueryEVMSupport[query.PlayerHealthRequest, query.PlayerHealthResponse]())

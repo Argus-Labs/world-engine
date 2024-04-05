@@ -43,7 +43,7 @@ You can easily create a new message and register it to the world by following th
 
         import (
             "pkg.world.dev/world-engine/cardinal"
-            // ...
+            "github.com/argus-labs/starter-game-template/cardinal/msg"
         )
 
         func main() {
@@ -69,20 +69,6 @@ You can easily create a new message and register it to the world by following th
 
 ## Message Options
 
-### Custom Message Group
-
-By default, messages are registered under the "game" group, which maps it to the `/tx/game/{txName}` route. You can specify a custom group name using `WithCustomMessageGroup` when you register your messages.
-
-```go
-import (
-    "pkg.world.dev/world-engine/cardinal"
-    "pkg.world.dev/world-engine/cardinal/message"
-)
-
-// This will register your message at `/tx/player/attack-player`
-cardinal.RegisterMessage(w, "attack-player", message.WithCustomMessageGroup[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]("player"))
-```
-
 ### EVM Support
 
 Messages can be submitted by EVM smart contracts by using the `WithMsgEVMSupport` option when you register your messages. This will generate the ABI types necessary for interactions with smart contracts.
@@ -91,6 +77,7 @@ Messages can be submitted by EVM smart contracts by using the `WithMsgEVMSupport
 import (
     "pkg.world.dev/world-engine/cardinal"
     "pkg.world.dev/world-engine/cardinal/message"
+    "github.com/argus-labs/starter-game-template/cardinal/msg"
 )
 
 cardinal.RegisterMessage(w, "attack-player", message.WithMsgEVMSupport[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]())}
