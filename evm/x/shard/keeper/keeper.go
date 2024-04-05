@@ -8,7 +8,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-	"pkg.world.dev/world-engine/evm/sequencer"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
@@ -19,7 +18,7 @@ type Keeper struct {
 
 func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 	if auth == "" {
-		auth = authtypes.NewModuleAddress(sequencer.Name).String()
+		auth = authtypes.NewModuleAddress(types.ModuleName).String()
 		if strings.HasPrefix(auth, "cosmos") {
 			log.Fatal("address had 'cosmos' bech32 prefix, should be 'world'")
 		}
@@ -55,4 +54,8 @@ func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 		return true
 	})
 	return res
+}
+
+func (k *Keeper) AuthorityAddress() sdk.AccAddress {
+	return authtypes.NewModuleAddress(k.auth)
 }

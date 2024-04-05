@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/evm/x/shard/keeper"
 	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
@@ -14,7 +15,7 @@ import (
 // they are properly ordered and proto marshalled as expected.
 func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	t.Parallel()
-	seq := NewShardSequencer()
+	seq := New(keeper.NewKeeper(nil, "foo"), nil)
 	namespace := "bruh"
 	req := shardv2.SubmitTransactionsRequest{
 		Epoch:         10,
@@ -67,7 +68,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 
 func TestGetBothSlices(t *testing.T) {
 	t.Parallel()
-	seq := NewShardSequencer()
+	seq := New(keeper.NewKeeper(nil, "foo"), nil)
 	_, err := seq.RegisterGameShard(context.Background(), &shardv2.RegisterGameShardRequest{
 		Namespace:     "foo",
 		RouterAddress: "bar",

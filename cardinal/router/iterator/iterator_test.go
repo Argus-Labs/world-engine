@@ -13,11 +13,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
-var _ shardtypes.QueryClient = &mockQuerier{}
+var _ shard.TransactionHandlerClient = &mockQuerier{}
 var fooMsg = message.NewMessageType[fooIn, fooOut]("foo")
 
 type fooIn struct{ X int }
@@ -26,17 +25,28 @@ type fooOut struct{}
 type mockQuerier struct {
 	i       int
 	retErr  error
-	ret     []*shardtypes.QueryTransactionsResponse
-	request *shardtypes.QueryTransactionsRequest
+	ret     []*shard.QueryTransactionsResponse
+	request *shard.QueryTransactionsRequest
+}
+
+func (m *mockQuerier) RegisterGameShard(
+	_ context.Context, _ *shard.RegisterGameShardRequest, _ ...grpc.CallOption) (
+	*shard.RegisterGameShardResponse, error) {
+	panic("intentionally not implemented. this is a mock.")
+}
+
+func (m *mockQuerier) Submit(_ context.Context, _ *shard.SubmitTransactionsRequest, _ ...grpc.CallOption) (
+	*shard.SubmitTransactionsResponse, error) {
+	panic("intentionally not implemented. this is a mock.")
 }
 
 // this mock will return its error, if set, otherwise, it will return whatever is in ret[i], where i represents the
 // amount of times this was called.
-func (m *mockQuerier) Transactions(
+func (m *mockQuerier) QueryTransactions(
 	_ context.Context,
-	req *shardtypes.QueryTransactionsRequest,
+	req *shard.QueryTransactionsRequest,
 	_ ...grpc.CallOption,
-) (*shardtypes.QueryTransactionsResponse, error) {
+) (*shard.QueryTransactionsResponse, error) {
 	m.request = req
 	if m.retErr != nil {
 		return nil, m.retErr
@@ -47,13 +57,13 @@ func (m *mockQuerier) Transactions(
 
 func TestIteratorReturnsErrorWhenQueryNotFound(t *testing.T) {
 	querier := &mockQuerier{
-		ret: []*shardtypes.QueryTransactionsResponse{
+		ret: []*shard.QueryTransactionsResponse{
 			{
-				Epochs: []*shardtypes.Epoch{
+				Epochs: []*shard.Epoch{
 					{
 						Epoch:         1,
 						UnixTimestamp: 1,
-						Txs: []*shardtypes.Transaction{
+						Txs: []*shard.TxData{
 							{
 								TxId:                 1,
 								GameShardTransaction: nil,
@@ -64,9 +74,13 @@ func TestIteratorReturnsErrorWhenQueryNotFound(t *testing.T) {
 			},
 		},
 	}
-	it := iterator.New(func(types.MessageID) (types.Message, bool) {
-		return nil, false
-	}, "", querier)
+	it := iterator.New(
+		func(types.MessageID) (types.Message, bool) {
+			return nil, false
+		},
+		"",
+		querier,
+	)
 	err := it.Each(nil)
 	assert.ErrorContains(t, err, "queried message with ID 1, but it does not exist in Cardinal")
 }
@@ -95,13 +109,13 @@ func TestIteratorHappyPath(t *testing.T) {
 	txBz, err := proto.Marshal(protoTx)
 	assert.NilError(t, err)
 	querier := &mockQuerier{
-		ret: []*shardtypes.QueryTransactionsResponse{
+		ret: []*shard.QueryTransactionsResponse{
 			{
-				Epochs: []*shardtypes.Epoch{
+				Epochs: []*shard.Epoch{
 					{
 						Epoch:         12,
 						UnixTimestamp: 15,
-						Txs: []*shardtypes.Transaction{
+						Txs: []*shard.TxData{
 							{
 								TxId:                 uint64(fooMsg.ID()),
 								GameShardTransaction: txBz,
@@ -109,7 +123,7 @@ func TestIteratorHappyPath(t *testing.T) {
 						},
 					},
 				},
-				Page: &shardtypes.PageResponse{},
+				Page: &shard.PageResponse{},
 			},
 		},
 	}
@@ -150,7 +164,7 @@ func TestIteratorStartRange(t *testing.T) {
 	_ = it.Each(nil, 5)
 
 	req := querier.request
-	gotStartRange := parsePageKey(req.Page.Key)
+	gotStartRange := parsePageKey(req.GetPage().GetKey())
 	assert.Equal(t, startRange, gotStartRange)
 }
 
@@ -171,13 +185,13 @@ func TestIteratorStopRange(t *testing.T) {
 	txBz, err := proto.Marshal(protoTx)
 	assert.NilError(t, err)
 	querier := &mockQuerier{
-		ret: []*shardtypes.QueryTransactionsResponse{
+		ret: []*shard.QueryTransactionsResponse{
 			{
-				Epochs: []*shardtypes.Epoch{
+				Epochs: []*shard.Epoch{
 					{
 						Epoch:         12,
 						UnixTimestamp: 15,
-						Txs: []*shardtypes.Transaction{
+						Txs: []*shard.TxData{
 							{
 								TxId:                 uint64(fooMsg.ID()),
 								GameShardTransaction: txBz,
@@ -188,7 +202,7 @@ func TestIteratorStopRange(t *testing.T) {
 						Epoch: 20,
 					},
 				},
-				Page: &shardtypes.PageResponse{},
+				Page: &shard.PageResponse{},
 			},
 		},
 	}

@@ -140,5 +140,8 @@ func (ctx *worldContext) StoreReader() gamestate.Reader {
 }
 
 func (ctx *worldContext) IsWorldReady() bool {
-	return ctx.world.worldStage.Current() == worldstage.Ready || ctx.world.worldStage.Current() == worldstage.Running
+	stage := ctx.world.worldStage.Current()
+	return stage == worldstage.Ready ||
+		stage == worldstage.Running ||
+		stage == worldstage.Recovering
 }
