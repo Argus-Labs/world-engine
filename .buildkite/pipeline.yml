@@ -4,3 +4,8 @@ steps:
       - golang#v2.0.0:
           version: 1.22.1
           import: github.com/buildkite/agent
+      - cache#v1.0.0:
+          manifest: package-lock.json
+          path: .cache/golangci-lint
+          restore: pipeline
+          save: pipeline
