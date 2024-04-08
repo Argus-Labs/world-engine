@@ -1,0 +1,6 @@
+steps:
+  - command: make lint
+    plugins:
+      - golang#v2.0.0:
+          version: 1.22.1
+          import: github.com/buildkite/agent

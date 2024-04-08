@@ -6,7 +6,7 @@ lint_version=v1.57.1
 
 lint-install:
 	@echo "--> Checking if golangci-lint $(lint_version) is installed"
-	@if [ $$(golangci-lint --version 2> /dev/null | awk '{print $$4}') != "$(lint_version)" ]; then \
+	@if [[ $$(golangci-lint --version 2> /dev/null | awk '{print $$4}') != "$(lint_version)" ]]; then \
 		echo "--> Installing golangci-lint $(lint_version)"; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(lint_version); \
 	else \
