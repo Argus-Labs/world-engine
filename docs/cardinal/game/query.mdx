@@ -64,7 +64,7 @@ You can easily create a new query and register it to the world by following thes
 
             // Register queries
             // NOTE: You must register your queries here for it to be accessible.
-            err := cardinal.RegisterQuery[query.PlayerHealthRequest, query.PlayerHealthResponse](w, "world-vars", query.PlayerHealthResponse))
+            err := cardinal.RegisterQuery[query.PlayerHealthRequest, query.PlayerHealthResponse](w, "world-vars", query.PlayerHealth))
             if err != nil {
                 log.Fatal().Err(err).Msg("failed to register query")
             }
