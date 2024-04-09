@@ -1,11 +1,12 @@
 steps:
   - command: make lint
     plugins:
-      - golang#v2.0.0:
-          version: 1.22.1
-          import: github.com/buildkite/agent
+      - docker#v5.1.0:
+          image: "golangci/golangci-lint:v1.57-alpine"
+          volumes:
+            - ".cache/go-build:.cache/go-build"
+            - ".cache/golangci-lint:.cache/golangci-lint"
       - cache#v1.0.0:
-          manifest: package-lock.json
           path: .cache/golangci-lint
           restore: pipeline
           save: pipeline
