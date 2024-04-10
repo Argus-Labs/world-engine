@@ -75,7 +75,7 @@ type Search struct {
      │              │              │           │          │
      │              │              │           │          │
      └──────┬───────┘              └───┬───────┘          │
-            │  And, Or, Not functions  │                  │
+            │  And, Or, Not Set funcs  │                  │
             │  that take search types  ├──────────────────┘
             │                          │
             │                          │
