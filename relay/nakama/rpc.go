@@ -96,6 +96,7 @@ func registerEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
 	notifier *events.Notifier,
+	eventHub *events.EventHub,
 	endpoints []string,
 	createPayload func(
 		string, string, runtime.NakamaModule,
@@ -116,6 +117,7 @@ func registerEndpoints(
 			currEndpoint,
 			createPayload,
 			notifier,
+			eventHub,
 			cardinalAddress,
 			namespace,
 			txSigner,

@@ -209,6 +209,7 @@ func handleCardinalRequest(
 	currEndpoint string,
 	createPayload func(string, string, runtime.NakamaModule, context.Context) (io.Reader, error),
 	notifier *events.Notifier,
+	eventHub *events.EventHub,
 	cardinalAddress string,
 	namespace string,
 	txSigner signer.Signer,
@@ -253,7 +254,7 @@ func handleCardinalRequest(
 		}
 
 		// The rest of this function will attempt to re-register the persona tag and then re-try the initial request.
-		err = persona.ReclaimPersona(ctx, nk, txSigner, cardinalAddress, namespace)
+		txHash, err := persona.ReclaimPersona(ctx, nk, txSigner, cardinalAddress, namespace)
 		if err != nil {
 			logger.Error("failed to re-register the persona tag: %v", err)
 			return initialResult, initialErr
@@ -262,7 +263,7 @@ func handleCardinalRequest(
 		// The ReclaimPersona request was successful, now we need to wait for a Cardinal tick to be completed.
 		// This is a bad practice, but plumbing the events system here for an essentially dev-only behavior seems
 		// worse.
-		time.Sleep(time.Second)
+		blockUntilPersonaTagTxHasBeenProcessed(logger, eventHub, txHash)
 
 		// /////////////////////////////////
 		// Repeat the initial transaction //
@@ -276,6 +277,32 @@ func handleCardinalRequest(
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 		}
 		return result, nil
+	}
+}
+
+func blockUntilPersonaTagTxHasBeenProcessed(logger runtime.Logger, eventHub *events.EventHub, txHash string) {
+	ch := eventHub.SubscribeToReceipts(txHash)
+	defer func() {
+		eventHub.Unsubscribe(txHash)
+	}()
+	done := false
+	timeout := time.After(time.Second)
+	for !done {
+		select {
+		case receipts := <-ch:
+			for _, receipt := range receipts {
+				if receipt.TxHash == txHash {
+					// We just care that hte person tag re-claim tx was processed. Weather it was successful or not
+					// will become apparent when the initial tx is re-issued.
+					logger.Info("result of persona tag re-claim: %v", receipt.Result)
+					done = true
+					break
+				}
+			}
+		case <-timeout:
+			logger.Info("timeout while waiting for persona tag to be re-claimed")
+			done = true
+		}
 	}
 }
 

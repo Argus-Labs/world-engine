@@ -46,21 +46,21 @@ func ReclaimPersona(
 	txSigner signer.Signer,
 	cardinalAddress string,
 	namespace string,
-) error {
+) (txHash string, err error) {
 	tag, err := LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		return eris.Wrap(err, "re-claim failed, storage object could not be found")
+		return "", eris.Wrap(err, "re-claim failed, storage object could not be found")
 	}
 	if tag.Status != StatusAccepted {
-		return eris.Wrap(err, "re-claim failed, status must already have been accepted")
+		return "", eris.Wrap(err, "re-claim failed, status must already have been accepted")
 	}
 	personaTag := tag.PersonaTag
 
-	_, _, err = createPersona(ctx, txSigner, personaTag, cardinalAddress, namespace)
+	txHash, _, err = createPersona(ctx, txSigner, personaTag, cardinalAddress, namespace)
 	if err != nil {
-		return eris.Wrap(err, "unable to make re-create persona request to cardinal")
+		return "", eris.Wrap(err, "unable to make re-create persona request to cardinal")
 	}
-	return nil
+	return txHash, nil
 }
 
 func ClaimPersona(
