@@ -60,15 +60,42 @@ func (GammaTest) Name() string {
 	return "gamma"
 }
 
+func TestSetOperationsOnSearch(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	tf.StartWorld()
+
+	worldCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(worldCtx, 10, AlphaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
+	assert.NilError(t, err)
+
+	q1 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(filter.Component[AlphaTest]()))
+	q2 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(filter.Component[BetaTest]()))
+	q3 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(filter.Component[GammaTest]()))
+	amt, err := search.And(q1, q2).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 0)
+	amt, err = search.Or(q1, q2).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 20)
+	amt, err = search.Not(search.Or(q1, q2, q3)).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 0)
+}
+
 func TestSearchExample(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
-	assert.NilError(t, cardinal.RegisterComponent[Player](world))
-	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
-	assert.NilError(t, cardinal.RegisterComponent[HP](world))
 
 	tf.StartWorld()
 
