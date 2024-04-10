@@ -12,7 +12,7 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
-	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v1.0.4-hooks
+	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v1.0.7-hooks
 	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v1.0.0-hooks
 )
 
@@ -52,7 +52,7 @@ require (
 	pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05
 	pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327175559-74add9112b93
+	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a
 )
 
 require (

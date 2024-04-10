@@ -24,7 +24,7 @@ func (app *App) setPlugins(logger log.Logger) {
 		sequencerOpts = append(sequencerOpts, sequencer.WithRouterKey(routerKey))
 		routerOpts = append(routerOpts, router.WithRouterKey(routerKey))
 	}
-	app.ShardSequencer = sequencer.NewShardSequencer(sequencerOpts...)
+	app.ShardSequencer = sequencer.New(app.ShardKeeper, app.CreateQueryContext, sequencerOpts...)
 	app.ShardSequencer.Serve()
 
 	app.Router = router.NewRouter(logger, app.CreateQueryContext, app.NamespaceKeeper.Address, routerOpts...)

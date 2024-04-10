@@ -307,8 +307,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP2+08jFMw88y4klk=
-github.com/argus-labs/polaris/cosmos v1.0.4-hooks h1:XYv2m2/oUWqkCXhYavdRNCRfJRps9kYEhGfxEG7cEdc=
-github.com/argus-labs/polaris/cosmos v1.0.4-hooks/go.mod h1:fYG4X358ZsUpa5pln07LCZtNvc91igEyDMQ0YjaFry0=
+github.com/argus-labs/polaris/cosmos v1.0.7-hooks h1:HpmQiCGq04ircWofCaMNNe3/ISeQig0JRmREO+WqUAg=
+github.com/argus-labs/polaris/cosmos v1.0.7-hooks/go.mod h1:fYG4X358ZsUpa5pln07LCZtNvc91igEyDMQ0YjaFry0=
 github.com/argus-labs/polaris/eth v1.0.0-hooks h1:gKUOAO9k2xPqfYyeHI7DfPNLia76vuPR4zQHVr1fYtI=
 github.com/argus-labs/polaris/eth v1.0.0-hooks/go.mod h1:CH0uJJxVi6Sx9mTfBu2u9rwl7frH1fnSuc098wTPCPk=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -3121,8 +3121,8 @@ pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d h1:LMuJ+fYqzSbz
 pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d/go.mod h1:6w+5Axb6GV66PLllrYf7h1G3x8Pwu5nvd7ZiibiI3HM=
 pkg.world.dev/world-engine/assert v1.0.0 h1:vD6+QLT1pvQa86FPFi+wGcVA7PEwTGndXr+PkTY/Fpw=
 pkg.world.dev/world-engine/assert v1.0.0/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
-pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327175559-74add9112b93 h1:cJazHqUgZ+Ae/BacmbUzj+Jv5/L+2N9e6pu+w6Iffr4=
-pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240327175559-74add9112b93/go.mod h1:XAD40g4r3qOp3CTa66JBY+ACEUtjr01loyHiUZIheN8=
+pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a h1:P9pf6itjPBlooxj8p0jTkIY7ozcjSgCYsuh/BkbL56o=
+pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a/go.mod h1:XAD40g4r3qOp3CTa66JBY+ACEUtjr01loyHiUZIheN8=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=

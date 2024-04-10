@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
@@ -177,11 +178,11 @@ func NewApp(
 
 	// Build the app using the app builder.
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+	app.setPlugins(logger)
+
 	app.Polaris = polarruntime.New(
 		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
 	)
-
-	app.setPlugins(logger)
 
 	// Setup Polaris Runtime.
 	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook); err != nil {
@@ -202,6 +203,8 @@ func NewApp(
 		panic(err)
 	}
 
+	// sleeping here as this seems to lessen the chance of the race condition polaris has?? seems to work okay.
+	time.Sleep(10 * time.Second) //nolint:gomnd // this is temporary
 	// Load the last state of the polaris evm.
 	if err := app.Polaris.LoadLastState(
 		app.CommitMultiStore(), uint64(app.LastBlockHeight()),

@@ -147,7 +147,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		world.router, err = router.New(
 			cfg.CardinalNamespace,
 			cfg.BaseShardSequencerAddress,
-			cfg.BaseShardQueryAddress,
 			cfg.RouterKey,
 			world,
 		)

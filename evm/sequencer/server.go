@@ -2,12 +2,12 @@ package sequencer
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"os"
 	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
+	"pkg.world.dev/world-engine/evm/x/shard/keeper"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"pkg.world.dev/world-engine/rift/credentials"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -33,24 +34,29 @@ var (
 // Sequencer handles sequencing game shard transactions.
 type Sequencer struct {
 	shard.UnimplementedTransactionHandlerServer
-	moduleAddr sdk.AccAddress
-	tq         *TxQueue
+	moduleAddr     sdk.AccAddress
+	tq             *TxQueue
+	queryCtxGetter GetQueryCtxFn
+	shardKeeper    *keeper.Keeper
 
 	// opts
 	routerKey string
 }
 
-// NewShardSequencer returns a new game shard sequencer server. It runs on a default port of 9601,
+type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
+
+// New returns a new game shard sequencer server. It runs on a default port of 9601,
 // unless the SHARD_SEQUENCER_PORT environment variable is set.
 //
 // The sequencer exposes a single gRPC endpoint, SubmitShardTx, which will take in transactions from game shards,
 // indexed by namespace. At every block, the sequencer tx queue is flushed, and processed in the storage shard storage
 // module, persisting the data to the blockchain.
-func NewShardSequencer(opts ...Option) *Sequencer {
-	addr := authtypes.NewModuleAddress(Name)
+func New(shardKeeper *keeper.Keeper, queryCtxGetter GetQueryCtxFn, opts ...Option) *Sequencer {
 	s := &Sequencer{
-		moduleAddr: addr,
-		tq:         NewTxQueue(addr.String()),
+		moduleAddr:     shardKeeper.AuthorityAddress(),
+		tq:             NewTxQueue(shardKeeper.AuthorityAddress().String()),
+		queryCtxGetter: queryCtxGetter,
+		shardKeeper:    shardKeeper,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -110,6 +116,38 @@ func (s *Sequencer) RegisterGameShard(
 ) (*shard.RegisterGameShardResponse, error) {
 	s.tq.AddInitMsg(req.GetNamespace(), req.GetRouterAddress())
 	return &shard.RegisterGameShardResponse{}, nil
+}
+
+func (s *Sequencer) QueryTransactions(
+	_ context.Context,
+	request *shard.QueryTransactionsRequest,
+) (*shard.QueryTransactionsResponse, error) {
+	cosmosCtx, err := s.queryCtxGetter(0, false)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to get query context")
+	}
+
+	convertedQueryType := types.QueryTransactionsRequest{
+		Namespace: request.GetNamespace(),
+		Page: &types.PageRequest{
+			Key:   request.GetPage().GetKey(),
+			Limit: request.GetPage().GetLimit(),
+		},
+	}
+	res, err := s.shardKeeper.Transactions(cosmosCtx, &convertedQueryType)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to query transactions")
+	}
+	bz, err := json.Marshal(res)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to marshal response")
+	}
+	convertedResponse := new(shard.QueryTransactionsResponse)
+	err = json.Unmarshal(bz, convertedResponse)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to unmarshal evm type response into rift type response")
+	}
+	return convertedResponse, nil
 }
 
 // serverCallInterceptor catches calls to handlers and ensures they have the right secret routerKey.

@@ -402,7 +402,6 @@ func (w *World) StartGame() error
 | CARDINAL_NAMESPACE           | "world-1"        | The cardinal namespace; must not be the default value in "production" mode.                                                                                     |
 | CARDINAL_LOG_LEVEL           | "info"           | The zerolog log level to emit. Values include "debug", "info", "warn", and "error".                                                                             |
 | BASE_SHARD_SEQUENCER_ADDRESS | ""               | The address of the base shard’s router service that handles sequencing game shard txs.                                                                          |
-| BASE_SHARD_QUERY_ADDRESS     | ""               | The gRPC address of the x/shard query module that facilitates querying sequenced game shard txs.                                                                |
 | REDIS_ADDRESS                | "localhost:6379" | The URL of a redis instance to use for persistent storage.                                                                                                      |
 | REDIS_PASSWORD               | ""               | The password for the redis instance.                                                                                                                            |
 | STATSD_ADDRESS               | "localhost:8125" | The address of a statsd metric agent that will collect stats from cardinal.                                                                                     |
