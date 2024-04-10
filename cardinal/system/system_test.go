@@ -6,7 +6,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -20,8 +20,8 @@ func (Health) Name() string { return "health" }
 
 func HealthSystem(wCtx engine.Context) error {
 	var errs []error
-	errs = append(errs, cardinal.NewSearch(wCtx).
-		Exact(search.Component[Health]()).
+	errs = append(errs, cardinal.NewSearch(wCtx).Entity(filter.
+		Exact(filter.Component[Health]())).
 		Each(func(id types.EntityID) bool {
 			errs = append(errs, cardinal.UpdateComponent[Health](wCtx, id, func(h *Health) *Health {
 				h.Value++

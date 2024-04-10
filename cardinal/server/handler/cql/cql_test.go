@@ -86,11 +86,11 @@ func TestParser(t *testing.T) {
 	testResult := filter.Or(
 		filter.Not(
 			filter.And(
-				filter.Exact(emptyComponent, emptyComponent),
-				filter.Exact(emptyComponent),
+				filter.Exact(filter.Component[EmptyComponent](), filter.Component[EmptyComponent]()),
+				filter.Exact(filter.Component[EmptyComponent]()),
 			),
 		),
-		filter.Contains(emptyComponent),
+		filter.Contains(filter.Component[EmptyComponent]()),
 	)
 	// have to do the below because of unexported fields in ComponentFilter datastructures.
 	assert.Assert(t, reflect.DeepEqual(filterResult, testResult))
@@ -103,12 +103,12 @@ func TestParser(t *testing.T) {
 		filter.Or(
 			filter.And(
 				filter.And(
-					filter.Contains(emptyComponent),
-					filter.Contains(emptyComponent, emptyComponent),
+					filter.Contains(filter.Component[EmptyComponent]()),
+					filter.Contains(filter.Component[EmptyComponent](), filter.Component[EmptyComponent]()),
 				),
-				filter.Contains(emptyComponent, emptyComponent, emptyComponent),
+				filter.Contains(filter.Component[EmptyComponent](), filter.Component[EmptyComponent](), filter.Component[EmptyComponent]()),
 			),
-			filter.Exact(emptyComponent),
+			filter.Exact(filter.Component[EmptyComponent]()),
 		)
 	assert.Assert(t, reflect.DeepEqual(testResult2, result))
 

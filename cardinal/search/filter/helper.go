@@ -31,3 +31,11 @@ func CreateComponentMatcher(components []types.Component) func(types.Component) 
 		return ok
 	}
 }
+
+func ConvertComponentMetadatasToComponentWrappers(comps []types.ComponentMetadata) []ComponentWrapper {
+	ret := make([]ComponentWrapper, len(comps))
+	for i, comp := range comps {
+		ret[i] = ComponentWrapper{Component: comp}
+	}
+	return ret
+}

@@ -9,7 +9,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -235,7 +234,7 @@ func TestCanReloadState(t *testing.T) {
 	err := cardinal.RegisterSystems(
 		world1,
 		func(wCtx engine.Context) error {
-			q := cardinal.NewSearch(wCtx).Contains(search.Component[oneAlphaNumComp]())
+			q := cardinal.NewSearch(wCtx).Entity(filter.Contains(filter.Component[oneAlphaNumComp]()))
 			assert.NilError(
 				t, q.Each(
 					func(id types.EntityID) bool {
@@ -263,7 +262,7 @@ func TestCanReloadState(t *testing.T) {
 	tf2.StartWorld()
 
 	count := 0
-	q := cardinal.NewSearch(cardinal.NewWorldContext(world2)).Contains(search.Component[OneBetaNum]())
+	q := cardinal.NewSearch(cardinal.NewWorldContext(world2)).Entity(filter.Contains(filter.Component[OneBetaNum]()))
 	betaWorldCtx := cardinal.NewWorldContext(world2)
 	assert.NilError(
 		t, q.Each(
@@ -351,7 +350,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	wCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, total, FooComponent{})
 	assert.NilError(t, err)
-	q := cardinal.NewSearch(wCtx).Exact(search.Component[FooComponent]())
+	q := cardinal.NewSearch(wCtx).Entity(filter.Exact(filter.Component[FooComponent]()))
 	assert.NilError(
 		t, q.Each(
 			func(types.EntityID) bool {
@@ -363,7 +362,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	q = cardinal.NewSearch(wCtx).Exact(search.Component[FooComponent]())
+	q = cardinal.NewSearch(wCtx).Entity(filter.Exact(filter.Component[FooComponent]()))
 	assert.NilError(
 		t, q.Each(
 			func(types.EntityID) bool {

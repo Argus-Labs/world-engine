@@ -5,7 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
@@ -61,7 +61,7 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		q := cardinal.NewSearch(wCtx).Contains(search.Component[ScalarComponentAlpha]())
+		q := cardinal.NewSearch(wCtx).Entity(filter.Contains(filter.Component[ScalarComponentAlpha]()))
 		gotID, err := q.First()
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)

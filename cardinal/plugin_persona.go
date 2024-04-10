@@ -14,6 +14,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/query"
 	querylib "pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
+	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
@@ -211,7 +212,7 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 func buildPersonaIndex(wCtx engine.Context) (personaIndex, error) {
 	personaTagToAddress := map[string]personaIndexEntry{}
 	var errs []error
-	s := search.NewSearch(wCtx).Exact(search.Component[component.SignerComponent]())
+	s := search.NewSearch(wCtx).Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 	err := s.Each(
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)
