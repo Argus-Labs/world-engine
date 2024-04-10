@@ -106,7 +106,10 @@ func TestParser(t *testing.T) {
 					filter.Contains(filter.Component[EmptyComponent]()),
 					filter.Contains(filter.Component[EmptyComponent](), filter.Component[EmptyComponent]()),
 				),
-				filter.Contains(filter.Component[EmptyComponent](), filter.Component[EmptyComponent](), filter.Component[EmptyComponent]()),
+				filter.Contains(
+					filter.Component[EmptyComponent](),
+					filter.Component[EmptyComponent](),
+					filter.Component[EmptyComponent]()),
 			),
 			filter.Exact(filter.Component[EmptyComponent]()),
 		)

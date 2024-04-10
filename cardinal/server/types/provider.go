@@ -14,6 +14,6 @@ type Provider interface {
 	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	Namespace() string
 	GetComponentByName(name string) (types.ComponentMetadata, error)
-	Search(filter filter.ComponentFilter) *search.Search
+	Search(filter filter.ComponentFilter) search.SearchBuilder
 	StoreReader() gamestate.Reader
 }

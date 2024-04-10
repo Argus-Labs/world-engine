@@ -1,7 +1,6 @@
 package cardinal_test
 
 import (
-	"fmt"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -75,10 +74,15 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
 	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, GammaTest{})
+	assert.NilError(t, err)
 
-	q1 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(filter.Component[AlphaTest]()))
-	q2 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(filter.Component[BetaTest]()))
-	q3 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(filter.Component[GammaTest]()))
+	q1 := cardinal.NewSearch(worldCtx).Entity(filter.Exact(filter.Component[AlphaTest]()))
+	q2 := cardinal.NewSearch(worldCtx).Entity(filter.Exact(filter.Component[BetaTest]()))
+	q3 := cardinal.NewSearch(worldCtx).Entity(filter.Exact(filter.Component[GammaTest]()))
+	q4 := cardinal.NewSearch(worldCtx).Entity(filter.Contains(
+		filter.Component[AlphaTest](),
+		filter.Component[AlphaTest]()))
 	amt, err := search.And(q1, q2).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 0)
@@ -87,7 +91,13 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	assert.Equal(t, amt, 20)
 	amt, err = search.Not(search.Or(q1, q2, q3)).Count()
 	assert.NilError(t, err)
-	assert.Equal(t, amt, 0)
+	assert.Equal(t, amt, 10)
+	amt, err = search.Not(search.And(q1, q2, q3)).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 30)
+	amt, err = search.Not(q4).Count()
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 10)
 }
 
 func TestSearchExample(t *testing.T) {
@@ -96,6 +106,9 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+	assert.NilError(t, cardinal.RegisterComponent[HP](world))
 
 	tf.StartWorld()
 
@@ -167,15 +180,16 @@ func TestSearchExample(t *testing.T) {
 			71,
 		},
 	}
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		msg := "problem with " + tc.name
 		var count int
 		count, err = tc.search.Count()
 		assert.NilError(t, err, msg)
-		fmt.Println(i)
 		assert.Equal(t, tc.want, count, msg)
 	}
-	amount, err := cardinal.NewSearch(worldCtx).Entity(filter.Exact(filter.Component[AlphaTest](), filter.Component[BetaTest]())).
+	amount, err := cardinal.NewSearch(worldCtx).Entity(filter.Exact(
+		filter.Component[AlphaTest](),
+		filter.Component[BetaTest]())).
 		Where(cardinal.FilterFunction[AlphaTest](func(_ AlphaTest) bool {
 			return false
 		})).Count()

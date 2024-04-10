@@ -1,8 +1,6 @@
 package search
 
 import (
-	"errors"
-
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/gamestate"
@@ -34,10 +32,66 @@ type Search struct {
 	componentPropertyFilter filterFn
 }
 
-type SearchBuiler interface {
+// interfaces restrict order of operations.
+
+// Once new search is instantiated the first and only thing you can do is call Entity()
+// 1. Call Entity()
+// 2. Optionally Call Where() multiple times, Once Entity is called, you can no longer call Entity again.
+// 3. Call Each, First, MuchFirst, or Count to evaluate the search or Optionally compose searches with Set operators.
+// 4. Once set operators are used the interface settles into Searchable which means, Entity and Where are no longer
+// callable.
+
+// In the following example a set operator is used on two different searches.
+// Ex1: search.And(NewSearch(wCtx).Entity(..).Where(...), NewSearch(wCtx).Entity(..).Where(...)).Each(...)
+
+// The following example is of a search without set operator
+// Ex2: search.And(NewSearch(wCtx).Entity(..).Where(...).Where(...).Each(...)
+
+/*
+                                                                                     ┌─────────────────
+                                                                                     │                │
+                                                                                     ▼                │
+         ┌──────────────────┐              ┌─────────────────┐              ┌────────────────┐        │
+         │                  │              │                 │              │                │        │
+         │ NewSearch(wCtx)  ├──────────────▶   Entity(...)   ├──────────────▶   Where(...)   │────────┘
+  ┌──────┴─────────┐        │    ┌─────────┴─────┐           │ ┌────────────┴──┐             │
+  │  Return Type:  ├────────┘    │ Return Type:  ├───────────┘ │ Return Type:  ├─────────────┘
+  │preSearchBuilder│             │ SearchBuilder │             │ SearchBuilder │     │
+  └────────────────┘             └───────────────┘             └───────────────┘     │
+                                                                       │             │
+                                                                       │             └────┐
+                                                                       │                  │
+            ┌──────────────────────────────────────────────────────────┘                  │    ┌─────────────┐
+            │                                                                             │    │   Methods   │
+            │                                                                             ▼    │ return void │
+            │                                                                  ┌───────────────┤ or integer  │
+            ▼                                                                  │               └─────┬───────┘
+     ┌──────────────┐              ┌───────────┐                               │     Each(...),      │
+     │              │              │           │                               │     First(...),     │
+     │              ◀──────────────┤           │          ┌───────────────────▶│   MustFirst(...),   │
+     │ Input type:  │              │  Return   │          │                    │     Count(...)      │
+     │SearchBuilder ├──────────────┤   Type:   │          │                    │                     │
+     │or Searchable │              │Searchable │          │                    └─────────────────────┘
+     │              │              │           │          │
+     │              │              │           │          │
+     └──────┬───────┘              └───┬───────┘          │
+            │  And, Or, Not functions  │                  │
+            │  that take search types  ├──────────────────┘
+            │                          │
+            │                          │
+            │                          │
+            │                          │
+            └──────────────────────────┘
+*/
+
+type preSearchBuilder interface {
+	Entity(componentFilter filter.ComponentFilter) SearchBuilder
+}
+
+//revive:disable-next-line
+type SearchBuilder interface {
 	Searchable
-	Entity(componentFilter filter.ComponentFilter) SearchBuiler
-	Where(componentFilter filterFn) SearchBuiler
+	Where(componentFilter filterFn) SearchBuilder
 }
 
 type Searchable interface {
@@ -52,12 +106,12 @@ type Searchable interface {
 
 // NewSearch creates a new search.
 // It receives arbitrary filters that are used to filter entities.
-func NewSearch(wCtx engine.Context) *Search {
-	return NewLegacySearch(wCtx, nil)
+func NewSearch(wCtx engine.Context) preSearchBuilder {
+	return NewLegacySearch(wCtx, nil).(preSearchBuilder)
 }
 
 // TODO: should deprecate this in the future.
-func NewLegacySearch(wCtx engine.Context, componentFilter filter.ComponentFilter) *Search {
+func NewLegacySearch(wCtx engine.Context, componentFilter filter.ComponentFilter) SearchBuilder {
 	return &Search{
 		archMatches:             &cache{},
 		filter:                  componentFilter,
@@ -72,12 +126,12 @@ func (s *Search) getEctx() engine.Context {
 	return s.wCtx
 }
 
-func (s *Search) Entity(componentFilter filter.ComponentFilter) SearchBuiler {
+func (s *Search) Entity(componentFilter filter.ComponentFilter) SearchBuilder {
 	s.filter = componentFilter
 	return s
 }
 
-func (s *Search) Where(componentFilter filterFn) SearchBuiler {
+func (s *Search) Where(componentFilter filterFn) SearchBuilder {
 	var componentPropertyFilter filterFn
 	if s.componentPropertyFilter != nil {
 		componentPropertyFilter = AndFilter(s.componentPropertyFilter, componentFilter)
@@ -129,7 +183,7 @@ func (s *Search) Each(callback CallbackFn) (err error) {
 }
 
 func (s *Search) collect() ([]types.EntityID, error) {
-	acc := make([]types.EntityID, 0, 0)
+	acc := make([]types.EntityID, 0)
 	err := s.Each(func(id types.EntityID) bool {
 		acc = append(acc, id)
 		return true
@@ -216,274 +270,4 @@ func (s *Search) evaluateSearch() []types.ArchetypeID {
 	}
 	cache.seen = s.reader.ArchetypeCount()
 	return cache.archetypes
-}
-
-type OrSearch struct {
-	searches []Searchable
-}
-
-func (orSearch *OrSearch) evaluateSearch() []types.ArchetypeID {
-	acc := make([]types.ArchetypeID, 0, 0)
-	for _, search := range orSearch.searches {
-		acc = append(acc, search.evaluateSearch()...)
-	}
-	return acc
-}
-
-func (orSearch *OrSearch) Each(callback CallbackFn) error {
-	var err error = nil
-	for _, search := range orSearch.searches {
-		err = errors.Join(err, search.Each(callback))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (orSearch *OrSearch) collect() ([]types.EntityID, error) {
-	resMap := make(map[types.EntityID]bool)
-	for _, search := range orSearch.searches {
-		ids, err := search.collect()
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range ids {
-			resMap[id] = true
-		}
-	}
-	res := make([]types.EntityID, 0, 0)
-	for id, _ := range resMap {
-		res = append(res, id)
-	}
-
-	return res, nil
-}
-
-func (orSearch *OrSearch) First() (types.EntityID, error) {
-	ids, err := orSearch.collect()
-	if err != nil {
-		return 0, err
-	}
-	if len(ids) == 0 {
-		return 0, eris.New("No search results")
-	}
-	return ids[0], nil
-}
-
-func (orSearch *OrSearch) MustFirst() types.EntityID {
-	id, err := orSearch.First()
-	if err != nil {
-		panic("no search results")
-	}
-	return id
-}
-
-func (orSearch *OrSearch) Count() (int, error) {
-	ids, err := orSearch.collect()
-	if err != nil {
-		return 0, err
-	}
-	return len(ids), nil
-}
-
-func (orSearch *OrSearch) getEctx() engine.Context {
-	return orSearch.searches[0].getEctx()
-}
-
-type AndSearch struct {
-	searches []Searchable
-}
-
-func (andSearch *AndSearch) Each(callback CallbackFn) error {
-	ids := make(map[types.EntityID]int)
-	for _, search := range andSearch.searches {
-		subIds, err := search.collect()
-		if err != nil {
-			return err
-		}
-		for _, subid := range subIds {
-			v, ok := ids[subid]
-			if !ok {
-				ids[subid] = 1
-			} else {
-				ids[subid] = v + 1
-			}
-		}
-	}
-	for k, v := range ids {
-		if v == len(andSearch.searches) {
-			if !callback(k) {
-				return nil
-			}
-		}
-	}
-	return nil
-}
-
-func (andSearch *AndSearch) collect() ([]types.EntityID, error) {
-	results := make([]types.EntityID, 0, 0)
-	err := andSearch.Each(func(id types.EntityID) bool {
-		results = append(results, id)
-		return false
-	})
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
-}
-
-func (andSearch *AndSearch) First() (types.EntityID, error) {
-	ids, err := andSearch.collect()
-	if err != nil {
-		return 0, err
-	}
-	if len(ids) == 0 {
-		return 0, eris.New("No search results")
-	}
-	return 0, nil
-}
-
-func (andSearch *AndSearch) MustFirst() types.EntityID {
-	id, err := andSearch.First()
-	if err != nil {
-		panic("No search results")
-	}
-	return id
-}
-
-func (andSearch *AndSearch) Count() (int, error) {
-	ids, err := andSearch.collect()
-	if err != nil {
-		return 0, err
-	}
-	return len(ids), nil
-}
-
-func (andSearch *AndSearch) evaluateSearch() []types.ArchetypeID {
-	searchCounts := make(map[types.ArchetypeID]int)
-	for _, search := range andSearch.searches {
-		ids := search.evaluateSearch()
-		for _, id := range ids {
-			v, ok := searchCounts[id]
-			if !ok {
-				searchCounts[id] = 0
-			} else {
-				searchCounts[id] = v + 1
-			}
-		}
-	}
-	acc := make([]types.ArchetypeID, 0, 0)
-	for key, searchCount := range searchCounts {
-		if searchCount == len(andSearch.searches) {
-			acc = append(acc, key)
-		}
-	}
-	return acc
-}
-
-func (andSearch AndSearch) getEctx() engine.Context {
-	return andSearch.searches[0].getEctx()
-}
-
-type NotSearch struct {
-	search Searchable
-}
-
-func (notSearch *NotSearch) Each(callback CallbackFn) error {
-	ids, err := notSearch.collect()
-	if err != nil {
-		return err
-	}
-	for _, id := range ids {
-		if !callback(id) {
-			return nil
-		}
-	}
-	return nil
-}
-
-func (notSearch *NotSearch) collect() ([]types.EntityID, error) {
-	allsearch := NewSearch(notSearch.getEctx()).Entity(filter.All())
-	allids, err := allsearch.collect()
-	if err != nil {
-		return nil, err
-	}
-	excludedIdsMap := make(map[types.EntityID]bool)
-	excludedids, err := notSearch.search.collect()
-	if err != nil {
-		return nil, err
-	}
-	for _, id := range excludedids {
-		excludedIdsMap[id] = true
-	}
-	result := make([]types.EntityID, 0, 0)
-	for _, id := range allids {
-		_, ok := excludedIdsMap[id]
-		if !ok {
-			result = append(result, id)
-		}
-	}
-	return result, nil
-}
-
-func (notSearch *NotSearch) First() (types.EntityID, error) {
-	ids, err := notSearch.collect()
-	if err != nil {
-		return 0, err
-	}
-	if len(ids) == 0 {
-		return 0, eris.New("No results found")
-	}
-	return ids[0], nil
-}
-
-func (notSearch *NotSearch) MustFirst() types.EntityID {
-	id, err := notSearch.First()
-	if err != nil {
-		panic("No search results")
-	}
-	return id
-}
-
-func (notSearch *NotSearch) Count() (int, error) {
-	ids, err := notSearch.collect()
-	if err != nil {
-		return 0, err
-	}
-	return len(ids), nil
-}
-
-func (notSearch *NotSearch) getEctx() engine.Context {
-	return notSearch.search.getEctx()
-}
-
-func (notSearch *NotSearch) evaluateSearch() []types.ArchetypeID {
-	searchBuilder := NewSearch(notSearch.getEctx())
-	allResults := searchBuilder.Entity(filter.All()).evaluateSearch()
-	allResultsMap := make(map[types.ArchetypeID]bool)
-	for _, result := range allResults {
-		allResultsMap[result] = true
-	}
-	subResults := notSearch.evaluateSearch()
-	finalResult := make([]types.ArchetypeID, 0, 0)
-	for _, subResult := range subResults {
-		_, ok := allResultsMap[subResult]
-		if ok {
-			finalResult = append(finalResult, subResult)
-		}
-	}
-	return finalResult
-}
-
-func Or(searches ...Searchable) Searchable {
-	return &OrSearch{searches: searches}
-}
-
-func And(searches ...Searchable) Searchable {
-	return &AndSearch{searches: searches}
-}
-
-func Not(search Searchable) Searchable {
-	return &NotSearch{search: search}
 }

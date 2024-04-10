@@ -580,7 +580,7 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	return qry.EncodeEVMReply(reply)
 }
 
-func (w *World) Search(filter filter.ComponentFilter) *search.Search {
+func (w *World) Search(filter filter.ComponentFilter) search.SearchBuilder {
 	return search.NewLegacySearch(NewReadOnlyWorldContext(w), filter)
 }
 
