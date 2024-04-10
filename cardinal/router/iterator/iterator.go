@@ -10,7 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/cardinal/types"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -29,7 +28,7 @@ type Iterator interface {
 type iterator struct {
 	getMsgByID func(id types.MessageID) (types.Message, bool)
 	namespace  string
-	querier    shardtypes.QueryClient
+	querier    shard.TransactionHandlerClient
 }
 
 type TxBatch struct {
@@ -41,7 +40,7 @@ type TxBatch struct {
 func New(
 	getMessageByID func(id types.MessageID) (types.Message, bool),
 	namespace string,
-	querier shardtypes.QueryClient,
+	querier shard.TransactionHandlerClient,
 ) Iterator {
 	return &iterator{
 		getMsgByID: getMessageByID,
@@ -73,9 +72,9 @@ func (t *iterator) Each(
 	}
 OuterLoop:
 	for {
-		res, err := t.querier.Transactions(context.Background(), &shardtypes.QueryTransactionsRequest{
+		res, err := t.querier.QueryTransactions(context.Background(), &shard.QueryTransactionsRequest{
 			Namespace: t.namespace,
-			Page: &shardtypes.PageRequest{
+			Page: &shard.PageRequest{
 				Key:   nextKey,
 				Limit: 1,
 			},
@@ -83,20 +82,22 @@ OuterLoop:
 		if err != nil {
 			return eris.Wrap(err, "failed to query transactions from base shard")
 		}
-		for _, epoch := range res.Epochs {
-			if stopTick != 0 && epoch.Epoch > stopTick {
+		for _, epoch := range res.GetEpochs() {
+			if stopTick != 0 && epoch.GetEpoch() > stopTick {
 				return nil
 			}
-			tickNumber := epoch.Epoch
-			timestamp := epoch.UnixTimestamp
-			batches := make([]*TxBatch, 0, len(epoch.Txs))
-			for _, tx := range epoch.Txs {
-				msgType, exists := t.getMsgByID(types.MessageID(tx.TxId))
+			tickNumber := epoch.GetEpoch()
+			timestamp := epoch.GetUnixTimestamp()
+			batches := make([]*TxBatch, 0, len(epoch.GetTxs()))
+			for _, tx := range epoch.GetTxs() {
+				msgType, exists := t.getMsgByID(types.MessageID(tx.GetTxId()))
 				if !exists {
-					return eris.Errorf("queried message with ID %d, but it does not exist in Cardinal", tx.TxId)
+					return eris.Errorf(
+						"queried message with ID %d, but it does not exist in Cardinal", tx.GetTxId(),
+					)
 				}
 				protoTx := new(shard.Transaction)
-				err := proto.Unmarshal(tx.GameShardTransaction, protoTx)
+				err := proto.Unmarshal(tx.GetGameShardTransaction(), protoTx)
 				if err != nil {
 					return eris.Wrap(err, "failed to unmarshal transaction data")
 				}
@@ -114,10 +115,10 @@ OuterLoop:
 				return err
 			}
 		}
-		if res.Page.Key == nil {
+		if res.GetPage().GetKey() == nil {
 			break OuterLoop
 		}
-		nextKey = res.Page.Key
+		nextKey = res.GetPage().GetKey()
 	}
 	return nil
 }

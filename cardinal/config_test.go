@@ -19,7 +19,6 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		CardinalNamespace:         "baz",
 		CardinalMode:              RunModeProd,
 		BaseShardSequencerAddress: "localhost:8080",
-		BaseShardQueryAddress:     "localhost:8081",
 		CardinalLogLevel:          DefaultLogLevel,
 		StatsdAddress:             DefaultStatsdAddress,
 		RouterKey:                 "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
@@ -29,7 +28,6 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", wantCfg.CardinalNamespace)
 	t.Setenv("CARDINAL_MODE", string(wantCfg.CardinalMode))
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
-	t.Setenv("BASE_SHARD_Query_ADDRESS", wantCfg.BaseShardQueryAddress)
 	t.Setenv("ROUTER_KEY", wantCfg.RouterKey)
 
 	gotCfg, err := loadWorldConfig()
@@ -72,7 +70,6 @@ func TestWorldConfig_Validate(t *testing.T) {
 				CardinalNamespace:         "foo",
 				RedisAddress:              "localhost:6379",
 				RedisPassword:             "foo",
-				BaseShardQueryAddress:     "localhost:8081",
 				BaseShardSequencerAddress: "localhost:8080",
 				RouterKey:                 "not a good token!",
 			},
@@ -86,7 +83,6 @@ func TestWorldConfig_Validate(t *testing.T) {
 				CardinalNamespace:         "foo",
 				RedisAddress:              "localhost:6379",
 				RedisPassword:             "foo",
-				BaseShardQueryAddress:     "localhost:8081",
 				BaseShardSequencerAddress: "localhost:8080",
 				RouterKey:                 "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
 			},

@@ -167,7 +167,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal.ListTxReceiptsRequest"
+                            "$ref": "#/definitions/handler.ListTxReceiptsRequest"
                         }
                     }
                 ],
@@ -175,11 +175,62 @@ const docTemplate = `{
                     "200": {
                         "description": "List of receipts",
                         "schema": {
-                            "$ref": "#/definitions/cardinal.ListTxReceiptsResponse"
+                            "$ref": "#/definitions/handler.ListTxReceiptsResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request body",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/{queryGroup}/{queryName}": {
+            "post": {
+                "description": "Executes a query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Executes a query",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Query group",
+                        "name": "queryGroup",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of a registered query",
+                        "name": "queryName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Query to be executed",
+                        "name": "queryBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results of the executed query",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
                         "schema": {
                             "type": "string"
                         }
@@ -268,6 +319,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/tx/{txGroup}/{txName}": {
+            "post": {
+                "description": "Submits a transaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Submits a transaction",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message group",
+                        "name": "txGroup",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of a registered message",
+                        "name": "txName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Transaction details \u0026 message to be submitted",
+                        "name": "txBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.Transaction"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transaction hash and tick",
+                        "schema": {
+                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameter",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/world": {
             "get": {
                 "description": "Contains the registered components, messages, queries, and namespace",
@@ -296,49 +398,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "cardinal.ListTxReceiptsRequest": {
-            "type": "object",
-            "properties": {
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
-        "cardinal.ListTxReceiptsResponse": {
-            "type": "object",
-            "properties": {
-                "endTick": {
-                    "type": "integer"
-                },
-                "receipts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cardinal.ReceiptEntry"
-                    }
-                },
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
-        "cardinal.ReceiptEntry": {
-            "type": "object",
-            "properties": {
-                "errors": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "result": {},
-                "tick": {
-                    "type": "integer"
-                },
-                "txHash": {
-                    "type": "string"
-                }
-            }
-        },
         "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
@@ -413,9 +472,52 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.ListTxReceiptsRequest": {
+            "type": "object",
+            "properties": {
+                "startTick": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.ListTxReceiptsResponse": {
+            "type": "object",
+            "properties": {
+                "endTick": {
+                    "type": "integer"
+                },
+                "receipts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.ReceiptEntry"
+                    }
+                },
+                "startTick": {
+                    "type": "integer"
+                }
+            }
+        },
         "handler.PostTransactionResponse": {
             "type": "object",
             "properties": {
+                "tick": {
+                    "type": "integer"
+                },
+                "txHash": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ReceiptEntry": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "result": {},
                 "tick": {
                     "type": "integer"
                 },

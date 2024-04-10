@@ -96,11 +96,19 @@ func (f *fakeTxHandler) Submit(
 	panic("intentionally not implemented. this is a mock")
 }
 
+func (f *fakeTxHandler) QueryTransactions(
+	_ context.Context,
+	_ *shard.QueryTransactionsRequest,
+	_ ...grpc.CallOption,
+) (*shard.QueryTransactionsResponse, error) {
+	panic("intentionally not implemented. this is a mock")
+}
+
 func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 	rtr, provider := getTestRouterAndProvider(t)
 	msg := &mockMsg{evmCompat: false}
 	name := "foobar"
-	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(name).Return(msg, true).Times(1)
 
 	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
@@ -116,7 +124,7 @@ func TestRouter_SendMessage_FailedDecode(t *testing.T) {
 	}
 	name := "foo"
 
-	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(name).Return(msg, true).Times(1)
 
 	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
@@ -134,7 +142,7 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 	sender := "0xtyler"
 	persona := "tyler"
 
-	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(name).Return(msg, true).Times(1)
 	provider.EXPECT().GetSignerComponentForPersona(persona).Return(nil, fmt.Errorf("not found")).Times(1)
 
 	res, err := router.server.SendMessage(
@@ -165,7 +173,7 @@ func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 		EvmTxHash:  evmTxHash,
 	}
 
-	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(msgName).Return(msg, true).Times(1)
 	provider.EXPECT().
 		GetSignerComponentForPersona(persona).
 		Return(&component.SignerComponent{AuthorizedAddresses: []string{sender}}, nil).
@@ -199,7 +207,7 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 		EvmTxHash:  evmTxHash,
 	}
 
-	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(msgName).Return(msg, true).Times(1)
 	provider.EXPECT().
 		GetSignerComponentForPersona(persona).
 		Return(&component.SignerComponent{AuthorizedAddresses: []string{sender}}, nil).
@@ -233,7 +241,7 @@ func TestRouter_SendMessage_NoAuthorizedAddress(t *testing.T) {
 		EvmTxHash:  evmTxHash,
 	}
 
-	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(msgName).Return(msg, true).Times(1)
 	provider.EXPECT().
 		GetSignerComponentForPersona(persona).
 		Return(&component.SignerComponent{AuthorizedAddresses: []string{"bogus"}}, nil).
@@ -264,7 +272,7 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 		EvmTxHash:  evmTxHash,
 	}
 
-	provider.EXPECT().GetMessageByName(msgName).Return(msg, true).Times(1)
+	provider.EXPECT().GetMessageByFullName(msgName).Return(msg, true).Times(1)
 	provider.EXPECT().
 		GetSignerComponentForPersona(persona).
 		Return(&component.SignerComponent{AuthorizedAddresses: []string{sender}}, nil).

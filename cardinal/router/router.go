@@ -11,7 +11,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
-	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -55,7 +54,6 @@ type Router interface {
 type router struct {
 	provider       Provider
 	ShardSequencer shard.TransactionHandlerClient
-	ShardQuerier   shardtypes.QueryClient
 	namespace      string
 	server         *evmServer
 	// serverAddr is the address the evmServer listens on. This is set once `Start` is called.
@@ -64,7 +62,7 @@ type router struct {
 	routerKey  string
 }
 
-func New(namespace, sequencerAddr, baseShardQueryAddr, routerKey string, provider Provider) (Router, error) {
+func New(namespace, sequencerAddr, routerKey string, provider Provider) (Router, error) {
 	rtr := &router{namespace: namespace, port: defaultPort, provider: provider, routerKey: routerKey}
 
 	conn, err := grpc.Dial(
@@ -76,14 +74,6 @@ func New(namespace, sequencerAddr, baseShardQueryAddr, routerKey string, provide
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
 	}
 	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
-
-	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
-	conn2, err := grpc.Dial(baseShardQueryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, eris.Wrapf(err, "error dialing evm base shard address at %q", baseShardQueryAddr)
-	}
-	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
-
 	rtr.server = newEvmServer(provider, routerKey)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
@@ -129,7 +119,7 @@ func (r *router) SubmitTxBlob(
 }
 
 func (r *router) TransactionIterator() iterator.Iterator {
-	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
+	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardSequencer)
 }
 
 func (r *router) Shutdown() {

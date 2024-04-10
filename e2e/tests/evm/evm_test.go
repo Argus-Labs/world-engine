@@ -17,6 +17,7 @@ import (
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 type ClaimPersona struct {
@@ -70,6 +71,14 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.Check(t, len(txs.Epochs) != 0)
+
+	rift := clients.NewRiftClient(t)
+	txRes, err := rift.Rift.QueryTransactions(context.Background(), &shardv2.QueryTransactionsRequest{
+		Namespace: "TESTGAME",
+		Page:      nil,
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, len(txRes.GetEpochs()), len(txs.GetEpochs()))
 }
 
 // TestNamespaceSaved ensures that when the stack is running, namespaces can be queried

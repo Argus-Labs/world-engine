@@ -1,33 +1,5 @@
 basePath: /
 definitions:
-  cardinal.ListTxReceiptsRequest:
-    properties:
-      startTick:
-        type: integer
-    type: object
-  cardinal.ListTxReceiptsResponse:
-    properties:
-      endTick:
-        type: integer
-      receipts:
-        items:
-          $ref: '#/definitions/cardinal.ReceiptEntry'
-        type: array
-      startTick:
-        type: integer
-    type: object
-  cardinal.ReceiptEntry:
-    properties:
-      errors:
-        items:
-          type: string
-        type: array
-      result: {}
-      tick:
-        type: integer
-      txHash:
-        type: string
-    type: object
   handler.CQLQueryRequest:
     properties:
       cql:
@@ -77,8 +49,36 @@ definitions:
           $ref: '#/definitions/handler.FieldDetail'
         type: array
     type: object
+  handler.ListTxReceiptsRequest:
+    properties:
+      startTick:
+        type: integer
+    type: object
+  handler.ListTxReceiptsResponse:
+    properties:
+      endTick:
+        type: integer
+      receipts:
+        items:
+          $ref: '#/definitions/handler.ReceiptEntry'
+        type: array
+      startTick:
+        type: integer
+    type: object
   handler.PostTransactionResponse:
     properties:
+      tick:
+        type: integer
+      txHash:
+        type: string
+    type: object
+  handler.ReceiptEntry:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      result: {}
       tick:
         type: integer
       txHash:
@@ -180,6 +180,40 @@ paths:
           schema:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Retrieves the status of the server and game loop
+  /query/{queryGroup}/{queryName}:
+    post:
+      consumes:
+      - application/json
+      description: Executes a query
+      parameters:
+      - description: Query group
+        in: path
+        name: queryGroup
+        required: true
+        type: string
+      - description: Name of a registered query
+        in: path
+        name: queryName
+        required: true
+        type: string
+      - description: Query to be executed
+        in: body
+        name: queryBody
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results of the executed query
+          schema:
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Executes a query
   /query/game/{queryName}:
     post:
       consumes:
@@ -220,19 +254,53 @@ paths:
         name: ListTxReceiptsRequest
         required: true
         schema:
-          $ref: '#/definitions/cardinal.ListTxReceiptsRequest'
+          $ref: '#/definitions/handler.ListTxReceiptsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: List of receipts
           schema:
-            $ref: '#/definitions/cardinal.ListTxReceiptsResponse'
+            $ref: '#/definitions/handler.ListTxReceiptsResponse'
         "400":
           description: Invalid request body
           schema:
             type: string
       summary: Retrieves all transaction receipts
+  /tx/{txGroup}/{txName}:
+    post:
+      consumes:
+      - application/json
+      description: Submits a transaction
+      parameters:
+      - description: Message group
+        in: path
+        name: txGroup
+        required: true
+        type: string
+      - description: Name of a registered message
+        in: path
+        name: txName
+        required: true
+        type: string
+      - description: Transaction details & message to be submitted
+        in: body
+        name: txBody
+        required: true
+        schema:
+          $ref: '#/definitions/handler.Transaction'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction hash and tick
+          schema:
+            $ref: '#/definitions/handler.PostTransactionResponse'
+        "400":
+          description: Invalid request parameter
+          schema:
+            type: string
+      summary: Submits a transaction
   /tx/game/{txName}:
     post:
       consumes:
