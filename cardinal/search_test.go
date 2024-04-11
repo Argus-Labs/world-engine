@@ -85,13 +85,30 @@ func TestFullSearch(t *testing.T) {
 		err = worldCtx.StoreManager().SetComponentForEntity(c, id, HP{amount: i})
 		assert.NilError(t, err)
 	}
-	cardinal.NewSearch().Entity(filter.Not(filter.Or(
+	amt, err := cardinal.NewSearch().Entity(filter.Not(filter.Or(
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
 	)).Where(func(wCtx engine.Context, id types.EntityID) (bool, error) {
 		return true, nil
-	})
+	}).Count(worldCtx)
+	assert.Equal(t, amt, 10)
+	amt, err = cardinal.NewSearch().Entity(filter.Not(filter.Or(
+		filter.Contains(filter.Component[AlphaTest]()),
+		filter.Contains(filter.Component[BetaTest]()),
+		filter.Contains(filter.Component[GammaTest]())),
+	)).Where(func(wCtx engine.Context, id types.EntityID) (bool, error) {
+		c, err := cardinal.GetComponent[HP](wCtx, id)
+		if err != nil {
+			return false, err
+		}
+		if c.amount < 3 {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	}).Count(worldCtx)
+	assert.Equal(t, amt, 3)
 }
 
 func TestSetOperationsOnSearch(t *testing.T) {
