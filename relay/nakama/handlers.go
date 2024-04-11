@@ -292,8 +292,8 @@ func blockUntilPersonaTagTxHasBeenProcessed(logger runtime.Logger, eventHub *eve
 		case receipts := <-ch:
 			for _, receipt := range receipts {
 				if receipt.TxHash == txHash {
-					// We just care that hte person tag re-claim tx was processed. Weather it was successful or not
-					// will become apparent when the initial tx is re-issued.
+					// We just care that the person tag re-claim tx was processed. Whether it was successful or not
+					// will become apparent when the initial tx is resent.
 					logger.Info("result of persona tag re-claim: %v", receipt.Result)
 					done = true
 					break
