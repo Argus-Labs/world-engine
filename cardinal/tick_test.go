@@ -61,8 +61,8 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		q := cardinal.NewSearch(wCtx).Entity(filter.Contains(filter.Component[ScalarComponentAlpha]()))
-		gotID, err := q.First()
+		q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[ScalarComponentAlpha]()))
+		gotID, err := q.First(wCtx)
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)
 

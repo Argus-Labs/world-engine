@@ -212,8 +212,8 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 func buildPersonaIndex(wCtx engine.Context) (personaIndex, error) {
 	personaTagToAddress := map[string]personaIndexEntry{}
 	var errs []error
-	s := search.NewSearch(wCtx).Entity(filter.Exact(filter.Component[component.SignerComponent]()))
-	err := s.Each(
+	s := search.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
+	err := s.Each(wCtx,
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)
 			if err != nil {

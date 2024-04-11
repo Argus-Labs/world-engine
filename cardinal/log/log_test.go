@@ -35,8 +35,8 @@ func (EnergyComp) Name() string {
 
 func testSystem(wCtx engine.Context) error {
 	wCtx.Logger().Log().Msg("test")
-	q := cardinal.NewSearch(wCtx).Entity(filter.Contains(filter.Component[EnergyComp]()))
-	err := q.Each(
+	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComp]()))
+	err := q.Each(wCtx,
 		func(entityId types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComp](wCtx, entityId)
 			if err != nil {

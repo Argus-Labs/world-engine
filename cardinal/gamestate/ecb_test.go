@@ -333,7 +333,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				err = cardinal.NewSearch(wCtx).Entity(filter.Contains(filter.Component[Health]())).Each(
+				err = cardinal.NewSearch().Entity(filter.Contains(filter.Component[Health]())).Each(wCtx,
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -346,7 +346,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				err = cardinal.NewSearch(wCtx).Entity(filter.Contains(filter.Component[Power]())).Each(
+				err = cardinal.NewSearch().Entity(filter.Contains(filter.Component[Power]())).Each(wCtx,
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -359,9 +359,9 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				err = cardinal.NewSearch(wCtx).Entity(filter.Exact(
+				err = cardinal.NewSearch().Entity(filter.Exact(
 					filter.Component[Power](),
-					filter.Component[Health]())).Each(
+					filter.Component[Health]())).Each(wCtx,
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -374,7 +374,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				err = cardinal.NewSearch(wCtx).Entity(filter.Exact(filter.Component[Health]())).Each(
+				err = cardinal.NewSearch().Entity(filter.Exact(filter.Component[Health]())).Each(wCtx,
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true
@@ -387,7 +387,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		{
 			search: func() map[types.EntityID]bool {
 				found := map[types.EntityID]bool{}
-				err = cardinal.NewSearch(wCtx).Entity(filter.Exact(filter.Component[Power]())).Each(
+				err = cardinal.NewSearch().Entity(filter.Exact(filter.Component[Power]())).Each(wCtx,
 					func(id types.EntityID) bool {
 						found[id] = true
 						return true

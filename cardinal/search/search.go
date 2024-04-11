@@ -3,7 +3,6 @@ package search
 import (
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -26,9 +25,6 @@ type cache struct {
 type Search struct {
 	archMatches             *cache
 	filter                  filter.ComponentFilter
-	namespace               string
-	reader                  gamestate.Reader
-	wCtx                    engine.Context
 	componentPropertyFilter filterFn
 }
 
@@ -56,7 +52,7 @@ type Search struct {
          │ NewSearch(wCtx)  ├──────────────▶   Entity(...)   ├──────────────▶   Where(...)   │────────┘
   ┌──────┴─────────┐        │    ┌─────────┴─────┐           │ ┌────────────┴──┐             │
   │  Return Type:  ├────────┘    │ Return Type:  ├───────────┘ │ Return Type:  ├─────────────┘
-  │preSearchBuilder│             │ SearchBuilder │             │ SearchBuilder │     │
+  │searchBuilder   │             │ EntitySearch  │             │ EntitySearch  │     │
   └────────────────┘             └───────────────┘             └───────────────┘     │
                                                                        │             │
                                                                        │             └────┐
@@ -70,7 +66,7 @@ type Search struct {
      │              │              │           │                               │     First(...),     │
      │              ◀──────────────┤           │          ┌───────────────────▶│   MustFirst(...),   │
      │ Input type:  │              │  Return   │          │                    │     Count(...)      │
-     │SearchBuilder ├──────────────┤   Type:   │          │                    │                     │
+     │EntitySearch  ├──────────────┤   Type:   │          │                    │                     │
      │or Searchable │              │Searchable │          │                    └─────────────────────┘
      │              │              │           │          │
      │              │              │           │          │
@@ -84,54 +80,46 @@ type Search struct {
             └──────────────────────────┘
 */
 
-type preSearchBuilder interface {
-	Entity(componentFilter filter.ComponentFilter) SearchBuilder
+type searchBuilder interface {
+	Entity(componentFilter filter.ComponentFilter) EntitySearch
 }
 
 //revive:disable-next-line
-type SearchBuilder interface {
+type EntitySearch interface {
 	Searchable
-	Where(componentFilter filterFn) SearchBuilder
+	Where(componentFilter filterFn) EntitySearch
 }
 
 type Searchable interface {
-	evaluateSearch() []types.ArchetypeID
-	getEctx() engine.Context
-	Each(callback CallbackFn) error
-	First() (types.EntityID, error)
-	MustFirst() types.EntityID
-	Count() (int, error)
-	collect() ([]types.EntityID, error)
+	evaluateSearch(eCtx engine.Context) []types.ArchetypeID
+	Each(eCtx engine.Context, callback CallbackFn) error
+	First(eCtx engine.Context) (types.EntityID, error)
+	MustFirst(eCtx engine.Context) types.EntityID
+	Count(eCtx engine.Context) (int, error)
+	collect(eCtx engine.Context) ([]types.EntityID, error)
 }
 
 // NewSearch creates a new search.
 // It receives arbitrary filters that are used to filter entities.
-func NewSearch(wCtx engine.Context) preSearchBuilder {
-	return NewLegacySearch(wCtx, nil).(preSearchBuilder)
+func NewSearch() searchBuilder {
+	return NewLegacySearch(nil).(searchBuilder)
 }
 
 // TODO: should deprecate this in the future.
-func NewLegacySearch(wCtx engine.Context, componentFilter filter.ComponentFilter) SearchBuilder {
+func NewLegacySearch(componentFilter filter.ComponentFilter) EntitySearch {
 	return &Search{
 		archMatches:             &cache{},
 		filter:                  componentFilter,
-		namespace:               wCtx.Namespace(),
-		reader:                  wCtx.StoreReader(),
-		wCtx:                    wCtx,
 		componentPropertyFilter: nil,
 	}
 }
 
-func (s *Search) getEctx() engine.Context {
-	return s.wCtx
-}
-
-func (s *Search) Entity(componentFilter filter.ComponentFilter) SearchBuilder {
+func (s *Search) Entity(componentFilter filter.ComponentFilter) EntitySearch {
 	s.filter = componentFilter
 	return s
 }
 
-func (s *Search) Where(componentFilter filterFn) SearchBuilder {
+func (s *Search) Where(componentFilter filterFn) EntitySearch {
 	var componentPropertyFilter filterFn
 	if s.componentPropertyFilter != nil {
 		componentPropertyFilter = AndFilter(s.componentPropertyFilter, componentFilter)
@@ -141,20 +129,17 @@ func (s *Search) Where(componentFilter filterFn) SearchBuilder {
 	return &Search{
 		archMatches:             &cache{},
 		filter:                  s.filter,
-		namespace:               s.namespace,
-		reader:                  s.reader,
-		wCtx:                    s.wCtx,
 		componentPropertyFilter: componentPropertyFilter,
 	}
 }
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (s *Search) Each(callback CallbackFn) (err error) {
-	defer func() { defer panicOnFatalError(s.wCtx, err) }()
+func (s *Search) Each(eCtx engine.Context, callback CallbackFn) (err error) {
+	defer func() { defer panicOnFatalError(eCtx, err) }()
 
-	result := s.evaluateSearch()
-	iter := iterators.NewEntityIterator(0, s.reader, result)
+	result := s.evaluateSearch(eCtx)
+	iter := iterators.NewEntityIterator(0, eCtx.StoreReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -163,7 +148,7 @@ func (s *Search) Each(callback CallbackFn) (err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter(s.wCtx, id)
+				filterValue, err = s.componentPropertyFilter(eCtx, id)
 				if err != nil {
 					continue
 				}
@@ -182,9 +167,9 @@ func (s *Search) Each(callback CallbackFn) (err error) {
 	return nil
 }
 
-func (s *Search) collect() ([]types.EntityID, error) {
+func (s *Search) collect(eCtx engine.Context) ([]types.EntityID, error) {
 	acc := make([]types.EntityID, 0)
-	err := s.Each(func(id types.EntityID) bool {
+	err := s.Each(eCtx, func(id types.EntityID) bool {
 		acc = append(acc, id)
 		return true
 	})
@@ -195,11 +180,11 @@ func (s *Search) collect() ([]types.EntityID, error) {
 }
 
 // Count returns the number of entities that match the search.
-func (s *Search) Count() (ret int, err error) {
-	defer func() { defer panicOnFatalError(s.wCtx, err) }()
+func (s *Search) Count(eCtx engine.Context) (ret int, err error) {
+	defer func() { defer panicOnFatalError(eCtx, err) }()
 
-	result := s.evaluateSearch()
-	iter := iterators.NewEntityIterator(0, s.reader, result)
+	result := s.evaluateSearch(eCtx)
+	iter := iterators.NewEntityIterator(0, eCtx.StoreReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -208,7 +193,7 @@ func (s *Search) Count() (ret int, err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter(s.wCtx, id)
+				filterValue, err = s.componentPropertyFilter(eCtx, id)
 				if err != nil {
 					continue
 				}
@@ -224,11 +209,11 @@ func (s *Search) Count() (ret int, err error) {
 }
 
 // First returns the first entity that matches the search.
-func (s *Search) First() (id types.EntityID, err error) {
-	defer func() { defer panicOnFatalError(s.wCtx, err) }()
+func (s *Search) First(eCtx engine.Context) (id types.EntityID, err error) {
+	defer func() { defer panicOnFatalError(eCtx, err) }()
 
-	result := s.evaluateSearch()
-	iter := iterators.NewEntityIterator(0, s.reader, result)
+	result := s.evaluateSearch(eCtx)
+	iter := iterators.NewEntityIterator(0, eCtx.StoreReader(), result)
 	if !iter.HasNext() {
 		return iterators.BadID, eris.Wrap(err, "")
 	}
@@ -240,7 +225,7 @@ func (s *Search) First() (id types.EntityID, err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter(s.wCtx, id)
+				filterValue, err = s.componentPropertyFilter(eCtx, id)
 				if err != nil {
 					continue
 				}
@@ -255,19 +240,19 @@ func (s *Search) First() (id types.EntityID, err error) {
 	return iterators.BadID, eris.Wrap(err, "")
 }
 
-func (s *Search) MustFirst() types.EntityID {
-	id, err := s.First()
+func (s *Search) MustFirst(eCtx engine.Context) types.EntityID {
+	id, err := s.First(eCtx)
 	if err != nil {
 		panic("no entity matches the search")
 	}
 	return id
 }
 
-func (s *Search) evaluateSearch() []types.ArchetypeID {
+func (s *Search) evaluateSearch(eCtx engine.Context) []types.ArchetypeID {
 	cache := s.archMatches
-	for it := s.reader.SearchFrom(s.filter, cache.seen); it.HasNext(); {
+	for it := eCtx.StoreReader().SearchFrom(s.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = s.reader.ArchetypeCount()
+	cache.seen = eCtx.StoreReader().ArchetypeCount()
 	return cache.archetypes
 }

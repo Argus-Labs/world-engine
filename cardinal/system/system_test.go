@@ -20,9 +20,9 @@ func (Health) Name() string { return "health" }
 
 func HealthSystem(wCtx engine.Context) error {
 	var errs []error
-	errs = append(errs, cardinal.NewSearch(wCtx).Entity(filter.
+	errs = append(errs, cardinal.NewSearch().Entity(filter.
 		Exact(filter.Component[Health]())).
-		Each(func(id types.EntityID) bool {
+		Each(wCtx, func(id types.EntityID) bool {
 			errs = append(errs, cardinal.UpdateComponent[Health](wCtx, id, func(h *Health) *Health {
 				h.Value++
 				return h

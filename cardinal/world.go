@@ -580,8 +580,8 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	return qry.EncodeEVMReply(reply)
 }
 
-func (w *World) Search(filter filter.ComponentFilter) search.SearchBuilder {
-	return search.NewLegacySearch(NewReadOnlyWorldContext(w), filter)
+func (w *World) Search(filter filter.ComponentFilter) search.EntitySearch {
+	return search.NewLegacySearch(filter)
 }
 
 func (w *World) StoreReader() gamestate.Reader {
@@ -601,7 +601,9 @@ func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 func (w *World) GetRegisteredSystemNames() []string {
 	return w.systemManager.GetRegisteredSystemNames()
 }
-
+func (w *World) GetReadOnlyCtx() engine.Context {
+	return NewReadOnlyWorldContext(w)
+}
 func (w *World) GetQueryByName(name string) (engine.Query, error) {
 	return w.queryManager.GetQueryByName(name)
 }

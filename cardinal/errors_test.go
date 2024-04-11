@@ -267,7 +267,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			testFn: func(wCtx engine.Context) error {
 				// Get a valid entity to ensure the error we find is related to the component and NOT
 				// due to an invalid entity.
-				id, err := cardinal.NewSearch(wCtx).Entity(filter.Exact(filter.Component[Foo]())).First()
+				id, err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[Foo]())).First(wCtx)
 				assert.Check(t, err == nil)
 				_, err = cardinal.GetComponent[UnregisteredComp](wCtx, id)
 				return err
@@ -335,7 +335,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 		world,
 		queryName,
 		func(wCtx engine.Context, _ *QueryRequest) (*QueryResponse, error) {
-			id, err := cardinal.NewSearch(wCtx).Entity(filter.Exact(filter.Component[Foo]())).First()
+			id, err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[Foo]())).First(wCtx)
 			assert.Check(t, err == nil)
 			_, err = cardinal.GetComponent[Foo](wCtx, id)
 			return nil, err
