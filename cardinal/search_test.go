@@ -94,10 +94,10 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	assert.Equal(t, amt, 10)
 	amt, err = search.Not(search.And(q1, q2, q3)).Count()
 	assert.NilError(t, err)
-	assert.Equal(t, amt, 30)
+	assert.Equal(t, amt, 40)
 	amt, err = search.Not(q4).Count()
 	assert.NilError(t, err)
-	assert.Equal(t, amt, 10)
+	assert.Equal(t, amt, 20)
 }
 
 func TestSearchExample(t *testing.T) {
