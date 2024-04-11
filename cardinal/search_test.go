@@ -82,6 +82,7 @@ func TestFullSearch(t *testing.T) {
 	assert.NilError(t, err)
 	for i, id := range hpids {
 		c, err := worldCtx.GetComponentByName(HP{}.Name())
+		assert.NilError(t, err)
 		err = worldCtx.StoreManager().SetComponentForEntity(c, id, HP{amount: i})
 		assert.NilError(t, err)
 	}
@@ -89,9 +90,10 @@ func TestFullSearch(t *testing.T) {
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
-	)).Where(func(wCtx engine.Context, id types.EntityID) (bool, error) {
+	)).Where(func(_ engine.Context, _ types.EntityID) (bool, error) {
 		return true, nil
 	}).Count(worldCtx)
+	assert.NilError(t, err)
 	assert.Equal(t, amt, 10)
 	amt, err = cardinal.NewSearch().Entity(filter.Not(filter.Or(
 		filter.Contains(filter.Component[AlphaTest]()),
@@ -104,10 +106,10 @@ func TestFullSearch(t *testing.T) {
 		}
 		if c.amount < 3 {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	}).Count(worldCtx)
+	assert.NilError(t, err)
 	assert.Equal(t, amt, 3)
 }
 
