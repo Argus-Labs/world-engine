@@ -47,10 +47,10 @@ input_version=${input_version:-$new_version}  # Use the suggested version if use
 
 # Create the new tag with prefix
 new_tag="$TAG_PREFIX$input_version"
-#git tag $new_tag
+git tag $new_tag
 
 # Push the new tag to the remote repository
-#git push origin $new_tag
+git push origin $new_tag
 
 echo "New tag $new_tag pushed to origin."
 
