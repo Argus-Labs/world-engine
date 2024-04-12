@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
@@ -208,6 +210,9 @@ func handleCardinalRequest(
 	createPayload func(string, string, runtime.NakamaModule, context.Context) (io.Reader, error),
 	notifier *events.Notifier,
 	cardinalAddress string,
+	namespace string,
+	txSigner signer.Signer,
+	autoReClaimPersonaTags bool,
 ) nakamaRPCHandler {
 	return func(
 		ctx context.Context,
@@ -217,17 +222,63 @@ func handleCardinalRequest(
 		payload string,
 	) (string, error) {
 		logger.Debug("Got request for %q", currEndpoint)
-		var resultPayload io.Reader
+		// This request may fail if the Cardinal DB has been wiped since Nakama registered this persona tag.
+		// This function will:
+		// 1) Make the initial request. If this succeeds, great. We're done.
+		// 2) Re-register the persona tag if appropriate (The feature may not be enabled or the error may not look like
+		//    a missing signer address failure).
+		// 3) Make the request again. If this fails again, there's nothing else we can do.
+
+		// //////////////////////////////
+		// Try to send the transaction //
+		// //////////////////////////////
 		resultPayload, err := createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
-
 		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
+		if err == nil {
+			// The request was successful. Return the result.
+			return result, nil
+		}
+		initialResult, initialErr := utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
+
+		// ///////////////////////////
+		// Re-claim the persona tag //
+		// ///////////////////////////
+		if !autoReClaimPersonaTags || !isResultASignerError(err) {
+			// We're not configured to re-register persona tags, or the returned error doesn't even look like
+			// a signer address error. Just return the error.
+			return initialResult, initialErr
+		}
+
+		// The rest of this function will attempt to re-register the persona tag and then re-try the initial request.
+		err = persona.ReclaimPersona(ctx, nk, txSigner, cardinalAddress, namespace)
+		if err != nil {
+			logger.Error("failed to re-register the persona tag: %v", err)
+			return initialResult, initialErr
+		}
+
+		// The ReclaimPersona request was successful, now we need to wait for a Cardinal tick to be completed.
+		// This is a bad practice, but plumbing the events system here for an essentially dev-only behavior seems
+		// worse.
+		time.Sleep(time.Second)
+
+		// /////////////////////////////////
+		// Repeat the initial transaction //
+		// /////////////////////////////////
+		resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
+		if err != nil {
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
+		}
+		result, err = makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
 		if err != nil {
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 		}
-
 		return result, nil
 	}
+}
+
+func isResultASignerError(err error) bool {
+	return strings.Contains(err.Error(), "could not get signer for persona")
 }
