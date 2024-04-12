@@ -33,7 +33,7 @@ else
     major=${ADDR[0]}
     minor=${ADDR[1]}
     patch=${ADDR[2]}
-    let "patch+=1"  # Increment the patch version by default
+    ((patch+=1))  # Increment the patch version by default
 fi
 
 ## REMOVE THIS SUGGGESTIONS VERSION. JUST SAY DEFAULT
@@ -42,15 +42,15 @@ new_version="$major.$minor.$patch"
 echo "Suggested new version: $new_version"
 
 # Ask the user for the new version components
-read -p "Enter new version [$new_version]: " input_version
+read -rp "Enter new version [$new_version]: " input_version
 input_version=${input_version:-$new_version}  # Use the suggested version if user input is empty
 
 # Create the new tag with prefix
 new_tag="$TAG_PREFIX$input_version"
-git tag $new_tag
+git tag "$new_tag"
 
 # Push the new tag to the remote repository
-git push origin $new_tag
+git push origin "$new_tag"
 
 echo "New tag $new_tag pushed to origin."
 
