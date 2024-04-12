@@ -52,12 +52,12 @@ func InitModule(
 		return eris.Wrap(err, "failed to init globalNamespace")
 	}
 
-	globalEventHub, err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress)
+	eventHub, err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress)
 	if err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
-	notifier := events.NewNotifier(logger, nk, globalEventHub)
+	notifier := events.NewNotifier(logger, nk, eventHub)
 
 	txSigner, err := selectSigner(ctx, logger, nk)
 	if err != nil {
@@ -75,7 +75,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
-	verifier := persona.NewVerifier(logger, nk, globalEventHub)
+	verifier := persona.NewVerifier(logger, nk, eventHub)
 
 	if err := initPersonaTagEndpoints(
 		logger,
@@ -94,6 +94,7 @@ func InitModule(
 		logger,
 		initializer,
 		notifier,
+		eventHub,
 		txSigner,
 		cardinalAddress,
 		globalNamespace,
@@ -222,6 +223,7 @@ func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
 	notifier *events.Notifier,
+	eventHub *events.EventHub,
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,
@@ -261,6 +263,7 @@ func initCardinalEndpoints(
 		logger,
 		initializer,
 		notifier,
+		eventHub,
 		txEndpoints,
 		createTransaction,
 		cardinalAddress,
@@ -277,6 +280,7 @@ func initCardinalEndpoints(
 		logger,
 		initializer,
 		notifier,
+		eventHub,
 		queryEndpoints,
 		createUnsignedTransaction,
 		cardinalAddress,
