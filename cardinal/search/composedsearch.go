@@ -95,12 +95,7 @@ func (andSearch *AndSearch) Each(eCtx engine.Context, callback CallbackFn) error
 			return err
 		}
 		for _, subid := range subIDs {
-			v, ok := ids[subid]
-			if !ok {
-				ids[subid] = 1
-			} else {
-				ids[subid] = v + 1
-			}
+			ids[subid]++
 		}
 	}
 	for k, v := range ids {
@@ -117,7 +112,7 @@ func (andSearch *AndSearch) collect(eCtx engine.Context) ([]types.EntityID, erro
 	results := make([]types.EntityID, 0)
 	err := andSearch.Each(eCtx, func(id types.EntityID) bool {
 		results = append(results, id)
-		return false
+		return true
 	})
 	if err != nil {
 		return nil, err
@@ -133,7 +128,7 @@ func (andSearch *AndSearch) First(eCtx engine.Context) (types.EntityID, error) {
 	if len(ids) == 0 {
 		return 0, eris.New("No search results")
 	}
-	return 0, nil
+	return ids[0], nil
 }
 
 func (andSearch *AndSearch) MustFirst(eCtx engine.Context) types.EntityID {
@@ -157,12 +152,7 @@ func (andSearch *AndSearch) evaluateSearch(eCtx engine.Context) []types.Archetyp
 	for _, search := range andSearch.searches {
 		ids := search.evaluateSearch(eCtx)
 		for _, id := range ids {
-			v, ok := searchCounts[id]
-			if !ok {
-				searchCounts[id] = 0
-			} else {
-				searchCounts[id] = v + 1
-			}
+			searchCounts[id]++
 		}
 	}
 	acc := make([]types.ArchetypeID, 0)
