@@ -35,7 +35,7 @@ func TestWorldRecovery(t *testing.T) {
 		var fooTx types.Message
 
 		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
-		setEnvToCardinalProdMode(t)
+		setEnvToCardinalRollupMode(t)
 
 		g.BeforeEach(func() {
 			controller = gomock.NewController(t)

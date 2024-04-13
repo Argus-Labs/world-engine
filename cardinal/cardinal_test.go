@@ -728,7 +728,7 @@ func TestCreatePersona(t *testing.T) {
 
 func TestNewWorld(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
-	assert.Equal(t, tf.World.Namespace(), cardinal.DefaultNamespace)
+	assert.Equal(t, tf.World.Namespace(), cardinal.DefaultCardinalNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {

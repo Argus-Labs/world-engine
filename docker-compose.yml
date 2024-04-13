@@ -5,7 +5,7 @@ services:
     # Only use cockroachdb single-node clusters for non-production environment
     image: cockroachdb/cockroach:latest-v23.1
     command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
-    restart:  unless-stopped
+    restart: unless-stopped
     environment:
       - COCKROACH_DATABASE=nakama
       - COCKROACH_USER=root
@@ -117,7 +117,7 @@ services:
       - BASE_SHARD_SEQUENCER_ADDRESS=chain:9601
       - STATSD_ADDRESS=${STATSD_ADDRESS}
       - TRACE_ADDRESS=${TRACE_ADDRESS}
-      - ROUTER_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
+      - BASE_SHARD_ROUTER_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
     build:
       context: ./
       dockerfile: e2e/testgames/game/Dockerfile
