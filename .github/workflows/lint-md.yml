@@ -34,4 +34,5 @@ jobs:
           version: 0.39.0
       - name: MDX Lint
         run: |
-          npx eslint ./docs --ext js,md,mdx --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules
+          npx eslint ./docs --ext js,md,mdx \
+          --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules
