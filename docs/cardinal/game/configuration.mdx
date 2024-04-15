@@ -34,3 +34,8 @@ Below are the key value pairs that can be set in either the `world.toml` file or
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
 | ENABLE_ALLOWLIST    | Can be either **true** or **false**. Enables the allowlist functionality of Nakama. This gives Nakama endpoints to generate and claim keys. |
 | OUTGOING_QUEUE_SIZE | The number of events Nakama will hold for a client before terminating the connection with the client. Default: 64                           |
+
+## Common `[common]`
+| Name       | Description                                                                         |
+|------------|-------------------------------------------------------------------------------------|
+| ROUTER_KEY | Key that secures router communication. Can be generated with `openssl rand -hex 32` |
