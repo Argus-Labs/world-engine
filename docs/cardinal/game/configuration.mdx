@@ -1,31 +1,36 @@
 ---
 title: 'Configuration'
-description: 'How to configure your Cardinal game shard'
+description: 'Configuring the Cardinal game shard'
 ---
 
-This page assumes you are using the [World CLI](https://github.com/Argus-Labs/world-cli) to  manage your Cardinal project.
+Each service in the World Engine stack reads its configuration values from environment variables. Using the [World CLI](https://github.com/Argus-Labs/world-cli) makes configuring your project even easier via its `world.toml` file, where all World Engine configuration values are in one place.
 
-Projects using the World ClI come with a file, called `world.toml`. The following table explains the values and requirements of the toml file for each section.
+Below are the key value pairs that can be set in either the `world.toml` file or directly in environment variables.
 
 
+## Cardinal `[cardinal]`
+| Name                         | Description                                                                                                                                                                                                          | Required for Production |
+|------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------|
+| CARDINAL_NAMESPACE           | The name of your cardinal game shard. If you are running multiple game shards in a single World Engine instance, this MUST be unique for each game shard. Must only be alphanumeric characters.                      | YES                     |
+| CARDINAL_MODE                | The cardinal mode determines how your game shard runs. Must be either "development" or "production". In development, Cardinal will not submit any transactions to the base shard, and security concerns are lowered. | N/A                     |
+| REDIS_ADDRESS                | The address of the redis instance.                                                                                                                                                                                   | YES                     |
+| REDIS_PASSWORD               | The password of your redis instance.                                                                                                                                                                                 | YES                     |
+| CARDINAL_LOG_LEVEL           | The level of logging Cardinal should output. See [Leveled Logging](https://github.com/rs/zerolog?tab=readme-ov-file#leveled-logging) for more details.                                                               | NO                      |
+| BASE_SHARD_SEQUENCER_ADDRESS | The address of your EVM Base Shard deployment. This will typically be running on port 9601.                                                                                                                          | YES                     |
 
-## Cardinal
-| Name                         | Description                                                                                                                                                      | Required for Production |
-|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------|
-| CARDINAL_NAMESPACE           | The name of your cardinal game shard. If you are running multiple game shards in a single World Engine instance, this MUST be unique.                            | YES                     |
-| CARDINAL_MODE                | The cardinal mode determines how your game shard runs. In development, it will not submit any transactions to the base shard, and security concerns are lowered. | N/A                     |
-| REDIS_ADDRESS                | The address of the redis instance.                                                                                                                               | YES                     |
-| REDIS_PASSWORD               | The password of your redis instance.                                                                                                                             | YES                     |
-| CARDINAL_LOG_LEVEL           | The level of logging Cardinal should output. See (Leveled Logging)[https://github.com/rs/zerolog?tab=readme-ov-file#leveled-logging] for more details.           | NO                      |
-| BASE_SHARD_SEQUENCER_ADDRESS | The address of your EVM Base Shard deployment. This will typically be running on port 9601.                                                                      | YES                     |
+## EVM Base Shard `[evm]`
+| Name            | Description                                                                                                                                                                                           |
+|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DA_AUTH_TOKEN   | The authentication token required to communicate with the Celestia DA Layer. This is typically generated by the celestia light client, and can be found in the logs during startup                    |
+| DA_BASE_URL     | The base URL of the DA layer.                                                                                                                                                                         |
+| DA_NAMESPACE_ID | The namespace the EVM will post its blobs under. Learn more about DA namespaces here [Namespaces](https://celestia.org/glossary/namespaced-merkle-tree/) Can be generated with `openssl rand -hex 10` |                                                                                                                 |
+| CHAIN_ID        | The chain identifier. This is used to prevent replay attacks across different chains.                                                                                                                 |
+| KEY_MNEMONIC    | The mnemonic of the account to instantiate the chain with. This will allocate some funds to the account.                                                                                              |
+| FAUCET_ADDR     | Supplying a faucet address enables the given account a supply of funds to use for faucet purposes.                                                                                                    |
+| BLOCK_TIME      | The interval at which the EVM Base Shard should produce blocks. Examples: `1s`, `2s`, `3s`...                                                                                                         |
 
-## EVM Base Shard
-| Name            | Description                                                                                                                                              |
-|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| DA_AUTH_TOKEN   | The authentication token required to communicate with the Celestia DA Layer. Can be generated with `openssl rand -hex 10`                                |
-| DA_BASE_URL     | The base URL of the DA layer.                                                                                                                            |
-| DA_NAMESPACE_ID | The namespace the EVM will post its blobs under. Learn more about DA namespaces here [Namespaces](https://celestia.org/glossary/namespaced-merkle-tree/) |                                                                                                                 |
-| CHAIN_ID        | The chain identifier. This is used to prevent replay attacks across different chains.                                                                    |
-| KEY_MNEMONIC    | The mnemonic of the account to instantiate the chain with. This will allocate some funds to the account.                                                 |
-| FAUCET_ADDR     | The address of the EVM faucet. This account can be used in faucets to drip EVM tokens.                                                                   |
-| BLOCK_TIME      | The interval at which the EVM Base Shard should produce blocks.                                                                                          |
+## Nakama Relayer `[nakama]`
+| Name                | Description                                                                                                                                 |
+|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| ENABLE_ALLOWLIST    | Can be either **true** or **false**. Enables the allowlist functionality of Nakama. This gives Nakama endpoints to generate and claim keys. |
+| OUTGOING_QUEUE_SIZE | The number of events Nakama will hold for a client before terminating the connection with the client. Default: 64                           |
