@@ -15,3 +15,6 @@ tag-sign:
 
 tag-nakama:
 	@$(MAKE) tag TAG_PREFIX=relay/nakama/v
+
+tag-rift:
+	@(MAKE) tag TAG_PREFIX=rift/v
