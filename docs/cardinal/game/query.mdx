@@ -91,7 +91,8 @@ import (
     "github.com/argus-labs/starter-game-template/cardinal/query"
 )
 
-cardinal.RegisterQuery(w, "player-health", qry.WithQueryEVMSupport[query.PlayerHealthRequest, query.PlayerHealthResponse]())
+cardinal.RegisterQuery[query.PlayerHealthRequest, query.PlayerHealthResponse](w, "player-health", 
+    qry.WithQueryEVMSupport[query.PlayerHealthRequest, query.PlayerHealthResponse]())
 ```
 
 <Note>

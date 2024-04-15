@@ -80,7 +80,8 @@ import (
     "github.com/argus-labs/starter-game-template/cardinal/msg"
 )
 
-cardinal.RegisterMessage(w, "attack-player", message.WithMsgEVMSupport[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]())}
+cardinal.RegisterMessage[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply](w, "attack-player", 
+    message.WithMsgEVMSupport[msg.AttackPlayerMsg, msg.AttackPlayerMsgReply]())
 ```
 
 <Note>
