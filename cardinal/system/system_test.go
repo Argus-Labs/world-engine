@@ -94,10 +94,10 @@ func TestInitSystemRunsOnce(t *testing.T) {
 	w := tf.World
 	count := 0
 	count2 := 0
-	err := cardinal.RegisterInitSystems(w, func(ctx engine.Context) error {
+	err := cardinal.RegisterInitSystems(w, func(_ engine.Context) error {
 		count++
 		return nil
-	}, func(ctx engine.Context) error {
+	}, func(_ engine.Context) error {
 		count2 += 2
 		return nil
 	})
