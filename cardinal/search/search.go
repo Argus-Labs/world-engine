@@ -1,6 +1,8 @@
 package search
 
 import (
+	"slices"
+
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -180,18 +182,7 @@ func maxid(ids []types.EntityID) types.EntityID {
 }
 
 func fastSortIDs(ids []types.EntityID) {
-	largestID := maxid(ids)
-	sortedIDs := make([]bool, largestID+1)
-	for _, id := range ids {
-		sortedIDs[id] = true
-	}
-	index := 0
-	for id, exists := range sortedIDs {
-		if exists {
-			ids[index] = types.EntityID(id)
-			index++
-		}
-	}
+	slices.Sort(ids)
 }
 
 func (s *Search) Collect(eCtx engine.Context) ([]types.EntityID, error) {
