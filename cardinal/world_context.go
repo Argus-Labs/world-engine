@@ -99,6 +99,10 @@ func (ctx *worldContext) EmitEvent(event map[string]any) error {
 	return ctx.world.tickResults.AddEvent(event)
 }
 
+func (ctx *worldContext) EmitStringEvent(e string) error {
+	return ctx.world.tickResults.AddStringEvent(e)
+}
+
 func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	return ctx.world.GetSignerForPersonaTag(personaTag, tick)
 }
