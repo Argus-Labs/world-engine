@@ -380,7 +380,7 @@ func TestUnregisteredComponentOnSearch(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[Player](world))
 	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
-	//assert.NilError(t, cardinal.RegisterComponent[HP](world)) // unregistered
+	// assert.NilError(t, cardinal.RegisterComponent[HP](world)) // unregistered
 
 	tf.StartWorld()
 
@@ -413,7 +413,7 @@ func TestUnregisteredComponentOnSetOperators(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[Player](world))
 	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
-	//assert.NilError(t, cardinal.RegisterComponent[HP](world)) // unregistered
+	// assert.NilError(t, cardinal.RegisterComponent[HP](world)) // unregistered
 
 	tf.StartWorld()
 
