@@ -187,16 +187,9 @@ func fastSortIDs(ids []types.EntityID) {
 	}
 	index := 0
 	for id, exists := range sortedIDs {
-		if index >= len(ids) {
-			if exists {
-				ids = append(ids, types.EntityID(id))
-				index++
-			}
-		} else {
-			if exists {
-				ids[index] = types.EntityID(id)
-				index++
-			}
+		if exists {
+			ids[index] = types.EntityID(id)
+			index++
 		}
 	}
 }
