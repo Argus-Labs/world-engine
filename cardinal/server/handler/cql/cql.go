@@ -170,13 +170,13 @@ func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) 
 		if len(value.Exact.Components) == 0 {
 			return nil, eris.New("EXACT cannot have zero parameters")
 		}
-		components := make([]types.Component, 0, len(value.Exact.Components))
+		components := make([]filter.ComponentWrapper, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
 				return nil, eris.Wrap(err, "")
 			}
-			components = append(components, comp)
+			components = append(components, filter.ComponentWrapper{Component: comp})
 		}
 		return filter.Exact(components...), nil
 	} else if value.All != nil {
@@ -185,13 +185,13 @@ func valueToComponentFilter(value *cqlValue, stringToComponent componentByName) 
 		if len(value.Contains.Components) == 0 {
 			return nil, eris.New("CONTAINS cannot have zero parameters")
 		}
-		components := make([]types.Component, 0, len(value.Contains.Components))
+		components := make([]filter.ComponentWrapper, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
 				return nil, eris.Wrap(err, "")
 			}
-			components = append(components, comp)
+			components = append(components, filter.ComponentWrapper{Component: comp})
 		}
 		return filter.Contains(components...), nil
 	} else if value.Subexpression != nil {

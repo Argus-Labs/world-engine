@@ -231,16 +231,14 @@ func TestCanReloadState(t *testing.T) {
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[oneAlphaNumComp](world1))
 
-	world1AlphaNum, err := world1.GetComponentByName(oneAlphaNumComp{}.Name())
-	assert.NilError(t, err)
-	err = cardinal.RegisterSystems(
+	err := cardinal.RegisterSystems(
 		world1,
 		func(wCtx engine.Context) error {
-			q := cardinal.NewSearch(wCtx, filter.Contains(world1AlphaNum))
+			q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[oneAlphaNumComp]()))
 			assert.NilError(
-				t, q.Each(
+				t, q.Each(wCtx,
 					func(id types.EntityID) bool {
-						err = cardinal.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
+						err := cardinal.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
 						assert.Check(t, err == nil)
 						return true
 					},
@@ -264,10 +262,10 @@ func TestCanReloadState(t *testing.T) {
 	tf2.StartWorld()
 
 	count := 0
-	q := cardinal.NewSearch(cardinal.NewWorldContext(world2), filter.Contains(OneBetaNum{}))
+	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[OneBetaNum]()))
 	betaWorldCtx := cardinal.NewWorldContext(world2)
 	assert.NilError(
-		t, q.Each(
+		t, q.Each(cardinal.NewWorldContext(world2),
 			func(id types.EntityID) bool {
 				count++
 				num, err := cardinal.GetComponent[OneBetaNum](betaWorldCtx, id)
@@ -352,9 +350,9 @@ func TestSearchEarlyTermination(t *testing.T) {
 	wCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, total, FooComponent{})
 	assert.NilError(t, err)
-	q := cardinal.NewSearch(wCtx, filter.Exact(FooComponent{}))
+	q := cardinal.NewSearch().Entity(filter.Exact(filter.Component[FooComponent]()))
 	assert.NilError(
-		t, q.Each(
+		t, q.Each(wCtx,
 			func(types.EntityID) bool {
 				count++
 				return count != stop
@@ -364,9 +362,9 @@ func TestSearchEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	q = cardinal.NewSearch(wCtx, filter.Exact(FooComponent{}))
+	q = cardinal.NewSearch().Entity(filter.Exact(filter.Component[FooComponent]()))
 	assert.NilError(
-		t, q.Each(
+		t, q.Each(wCtx,
 			func(types.EntityID) bool {
 				count++
 				return true

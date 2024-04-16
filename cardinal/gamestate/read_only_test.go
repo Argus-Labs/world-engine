@@ -196,7 +196,7 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	_, err = cardinal.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
-	componentFilter := filter.Contains(Health{})
+	componentFilter := filter.Contains(filter.Component[Health]())
 
 	roManager := manager.ToReadOnly()
 

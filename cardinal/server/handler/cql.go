@@ -59,7 +59,7 @@ func PostCQL(provider servertypes.Provider) func(*fiber.Ctx) error { //nolint:go
 
 		result := make([]cqlData, 0)
 		var eachError error
-		searchErr := provider.Search(resultFilter).Each(
+		searchErr := provider.Search(resultFilter).Each(provider.GetReadOnlyCtx(),
 			func(id types.EntityID) bool {
 				components, err := provider.StoreReader().GetComponentTypesForEntity(id)
 				if err != nil {
