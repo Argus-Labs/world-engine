@@ -96,7 +96,7 @@ type Searchable interface {
 	First(eCtx engine.Context) (types.EntityID, error)
 	MustFirst(eCtx engine.Context) types.EntityID
 	Count(eCtx engine.Context) (int, error)
-	collect(eCtx engine.Context) ([]types.EntityID, error)
+	Collect(eCtx engine.Context) ([]types.EntityID, error)
 }
 
 // NewSearch creates a new search.
@@ -167,7 +167,39 @@ func (s *Search) Each(eCtx engine.Context, callback CallbackFn) (err error) {
 	return nil
 }
 
-func (s *Search) collect(eCtx engine.Context) ([]types.EntityID, error) {
+func maxid(ids []types.EntityID) types.EntityID {
+	var acc types.EntityID = 0
+	for _, id := range ids {
+		if id > acc {
+			acc = id
+		}
+	}
+	return acc
+}
+
+func fastSortIds(ids []types.EntityID) {
+	largestId := maxid(ids)
+	sortedIds := make([]bool, largestId+1, largestId+1)
+	for _, id := range ids {
+		sortedIds[id] = true
+	}
+	index := 0
+	for id, exists := range sortedIds {
+		if index >= len(ids) {
+			if exists {
+				ids = append(ids, types.EntityID(id))
+				index++
+			}
+		} else {
+			if exists {
+				ids[index] = types.EntityID(id)
+				index++
+			}
+		}
+	}
+}
+
+func (s *Search) Collect(eCtx engine.Context) ([]types.EntityID, error) {
 	acc := make([]types.EntityID, 0)
 	err := s.Each(eCtx, func(id types.EntityID) bool {
 		acc = append(acc, id)
@@ -176,6 +208,7 @@ func (s *Search) collect(eCtx engine.Context) ([]types.EntityID, error) {
 	if err != nil {
 		return nil, err
 	}
+	fastSortIds(acc)
 	return acc, nil
 }
 

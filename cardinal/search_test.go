@@ -95,7 +95,7 @@ func TestFullSearch(t *testing.T) {
 	}).Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 10)
-	amt, err = cardinal.NewSearch().Entity(filter.Not(filter.Or(
+	q := cardinal.NewSearch().Entity(filter.Not(filter.Or(
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
@@ -108,9 +108,26 @@ func TestFullSearch(t *testing.T) {
 			return true, nil
 		}
 		return false, nil
-	}).Count(worldCtx)
+	})
+	amt, err = q.Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 3)
+	ids, err := q.Collect(worldCtx)
+	assert.NilError(t, err)
+	assert.True(t, areIdsSorted(ids))
+}
+
+func areIdsSorted(ids []types.EntityID) bool {
+	for index, id := range ids {
+		if index < len(ids)-1 {
+			if id <= ids[index+1] {
+				continue
+			} else {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func TestSetOperationsOnSearch(t *testing.T) {
@@ -136,19 +153,36 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	q3 := cardinal.NewSearch().Entity(filter.Exact(filter.Component[GammaTest]()))
 	q4 := cardinal.NewSearch().Entity(filter.Contains(
 		filter.Component[AlphaTest]()))
-	amt, err := search.And(q1, q2).Count(worldCtx)
+	cq1 := search.And(q1, q2)
+	amt, err := cq1.Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 0)
-	amt, err = search.Or(q1, q2).Count(worldCtx)
+	ids, err := cq1.Collect(worldCtx)
+	assert.NilError(t, err)
+	assert.True(t, areIdsSorted(ids))
+	cq2 := search.Or(q1, q2)
+	amt, err = cq2.Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 20)
-	amt, err = search.Not(search.Or(q1, q2, q3)).Count(worldCtx)
+	ids, err = cq2.Collect(worldCtx)
+	assert.NilError(t, err)
+	assert.True(t, areIdsSorted(ids))
+	cq3 := search.Not(search.Or(q1, q2, q3))
+	amt, err = cq3.Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 10)
-	amt, err = search.Not(search.And(q1, q2, q3)).Count(worldCtx)
+	ids, err = cq3.Collect(worldCtx)
+	assert.NilError(t, err)
+	assert.True(t, areIdsSorted(ids))
+	cq4 := search.Not(search.And(q1, q2, q3))
+	amt, err = cq4.Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 40)
-	amt, err = search.Not(q4).Count(worldCtx)
+	ids, err = cq4.Collect(worldCtx)
+	assert.NilError(t, err)
+	assert.True(t, areIdsSorted(ids))
+	cq5 := search.Not(q4)
+	amt, err = cq5.Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 20)
 }
