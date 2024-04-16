@@ -60,7 +60,7 @@ func (GammaTest) Name() string {
 	return "gamma"
 }
 
-func TestFullSearch(t *testing.T) {
+func TestSearchUsingAllMethods(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
@@ -152,38 +152,36 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	q3 := cardinal.NewSearch().Entity(filter.Exact(filter.Component[GammaTest]()))
 	q4 := cardinal.NewSearch().Entity(filter.Contains(
 		filter.Component[AlphaTest]()))
-	cq1 := search.And(q1, q2)
-	amt, err := cq1.Count(worldCtx)
-	assert.NilError(t, err)
-	assert.Equal(t, amt, 0)
-	ids, err := cq1.Collect(worldCtx)
-	assert.NilError(t, err)
-	assert.True(t, areIDsSorted(ids))
-	cq2 := search.Or(q1, q2)
-	amt, err = cq2.Count(worldCtx)
-	assert.NilError(t, err)
-	assert.Equal(t, amt, 20)
-	ids, err = cq2.Collect(worldCtx)
-	assert.NilError(t, err)
-	assert.True(t, areIDsSorted(ids))
-	cq3 := search.Not(search.Or(q1, q2, q3))
-	amt, err = cq3.Count(worldCtx)
-	assert.NilError(t, err)
-	assert.Equal(t, amt, 10)
-	ids, err = cq3.Collect(worldCtx)
-	assert.NilError(t, err)
-	assert.True(t, areIDsSorted(ids))
-	cq4 := search.Not(search.And(q1, q2, q3))
-	amt, err = cq4.Count(worldCtx)
-	assert.NilError(t, err)
-	assert.Equal(t, amt, 40)
-	ids, err = cq4.Collect(worldCtx)
-	assert.NilError(t, err)
-	assert.True(t, areIDsSorted(ids))
-	cq5 := search.Not(q4)
-	amt, err = cq5.Count(worldCtx)
-	assert.NilError(t, err)
-	assert.Equal(t, amt, 20)
+
+	tests := []struct {
+		search search.Searchable
+		count  int
+	}{
+		{
+			search: search.And(q1, q2),
+			count:  0,
+		}, {
+			search: search.Or(q1, q2),
+			count:  20,
+		}, {
+			search: search.Not(search.Or(q1, q2, q3)),
+			count:  10,
+		}, {
+			search: search.Not(search.And(q1, q2, q3)),
+			count:  40,
+		}, {
+			search: search.Not(q4),
+			count:  20,
+		},
+	}
+	for _, searchStruct := range tests {
+		amt, err := searchStruct.search.Count(worldCtx)
+		assert.NilError(t, err)
+		assert.Equal(t, amt, searchStruct.count)
+		ids, err := searchStruct.search.Collect(worldCtx)
+		assert.NilError(t, err)
+		assert.True(t, areIDsSorted(ids))
+	}
 }
 
 func TestSearchExample(t *testing.T) {
