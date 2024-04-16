@@ -53,7 +53,10 @@ type Search = search.Search
 //
 // Usage:
 //
-//
+// cardinal.NewSearch().Entity(filter.Not(filter.
+// Contains(filter.Component[AlphaTest]()))).Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
+//  	return true
+// }))
 
 func FilterFunction[T types.Component](f func(comp T) bool) func(ctx engine.Context, id types.EntityID) (bool, error) {
 	return search.ComponentFilter[T](f)

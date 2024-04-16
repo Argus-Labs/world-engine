@@ -119,6 +119,8 @@ func (s *Search) Entity(componentFilter filter.ComponentFilter) EntitySearch {
 	return s
 }
 
+// Once the where clause method is activated the search will ONLY return results
+// if a where clause returns true and no error.
 func (s *Search) Where(componentFilter filterFn) EntitySearch {
 	var componentPropertyFilter filterFn
 	if s.componentPropertyFilter != nil {

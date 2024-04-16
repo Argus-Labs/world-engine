@@ -184,7 +184,7 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	}
 }
 
-func TestSearchExample(t *testing.T) {
+func TestSearchEntityMethod(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
@@ -304,4 +304,198 @@ func TestSearchExample(t *testing.T) {
 			})).Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amount, 5)
+}
+
+func TestExactFilterOnSearch(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+	assert.NilError(t, cardinal.RegisterComponent[HP](world))
+
+	tf.StartWorld()
+
+	worldCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(worldCtx, 10, AlphaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 12, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+
+	amt, err := search.NewSearch().Entity(filter.Exact(filter.Component[BetaTest]())).Count(worldCtx)
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 12)
+}
+
+func TestContainsFilterOnSearch(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+	assert.NilError(t, cardinal.RegisterComponent[HP](world))
+
+	tf.StartWorld()
+
+	worldCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(worldCtx, 10, AlphaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 12, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+
+	amt, err := search.NewSearch().Entity(filter.Contains(filter.Component[BetaTest]())).Count(worldCtx)
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 42)
+}
+
+func TestUnregisteredComponentOnSearch(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+	//assert.NilError(t, cardinal.RegisterComponent[HP](world)) // unregistered
+
+	tf.StartWorld()
+
+	worldCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(worldCtx, 10, AlphaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 12, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+
+	amt, err := search.NewSearch().Entity(filter.Contains(filter.Component[HP]())).Count(worldCtx)
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 0)
+}
+
+func TestUnregisteredComponentOnSetOperators(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+	//assert.NilError(t, cardinal.RegisterComponent[HP](world)) // unregistered
+
+	tf.StartWorld()
+
+	worldCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(worldCtx, 10, AlphaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 12, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+
+	q1 := search.NewSearch().Entity(filter.Contains(filter.Component[HP]()))
+	q2 := search.NewSearch().Entity(filter.Contains(filter.Component[AlphaTest]()))
+
+	tests := []struct {
+		search search.Searchable
+		count  int
+	}{
+		{
+			search: search.And(q1, q2),
+			count:  0,
+		},
+		{
+			search: search.Or(q1, q2),
+			count:  40,
+		},
+		{
+			search: search.Not(q1),
+			count:  72,
+		},
+	}
+	for _, searchStruct := range tests {
+		amt, err := searchStruct.search.Count(worldCtx)
+		assert.NilError(t, err)
+		assert.Equal(t, amt, searchStruct.count)
+	}
+}
+
+func TestWhereClauseOnSearch(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[GammaTest](world))
+	assert.NilError(t, cardinal.RegisterComponent[Player](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vampire](world))
+
+	tf.StartWorld()
+
+	worldCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(worldCtx, 10, AlphaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 12, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
+	assert.NilError(t, err)
+
+	q1 := cardinal.NewSearch().Entity(filter.All()).Where(func(wCtx engine.Context, id types.EntityID) (bool, error) {
+		_, err := cardinal.GetComponent[AlphaTest](wCtx, id)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+
+	amt, err := q1.Count(worldCtx)
+	assert.NilError(t, err)
+	assert.Equal(t, amt, 40)
 }
