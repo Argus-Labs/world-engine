@@ -168,7 +168,7 @@ func (s *Search) Each(eCtx engine.Context, callback CallbackFn) (err error) {
 }
 
 func maxid(ids []types.EntityID) types.EntityID {
-	var acc types.EntityID = 0
+	var acc types.EntityID
 	for _, id := range ids {
 		if id > acc {
 			acc = id
@@ -177,14 +177,14 @@ func maxid(ids []types.EntityID) types.EntityID {
 	return acc
 }
 
-func fastSortIds(ids []types.EntityID) {
-	largestId := maxid(ids)
-	sortedIds := make([]bool, largestId+1, largestId+1)
+func fastSortIDs(ids []types.EntityID) {
+	largestID := maxid(ids)
+	sortedIDs := make([]bool, largestID+1)
 	for _, id := range ids {
-		sortedIds[id] = true
+		sortedIDs[id] = true
 	}
 	index := 0
-	for id, exists := range sortedIds {
+	for id, exists := range sortedIDs {
 		if index >= len(ids) {
 			if exists {
 				ids = append(ids, types.EntityID(id))
@@ -208,7 +208,7 @@ func (s *Search) Collect(eCtx engine.Context) ([]types.EntityID, error) {
 	if err != nil {
 		return nil, err
 	}
-	fastSortIds(acc)
+	fastSortIDs(acc)
 	return acc, nil
 }
 

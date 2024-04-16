@@ -29,7 +29,7 @@ func (orSearch *OrSearch) evaluateSearch(eCtx engine.Context) []types.ArchetypeI
 }
 
 func (orSearch *OrSearch) Each(eCtx engine.Context, callback CallbackFn) error {
-	//deduplicate
+	// deduplicate
 	idCount := make(map[types.EntityID]int)
 	for _, search := range orSearch.searches {
 		subids, err := search.Collect(eCtx)
@@ -41,14 +41,14 @@ func (orSearch *OrSearch) Each(eCtx engine.Context, callback CallbackFn) error {
 		}
 	}
 	idSlice := make([]types.EntityID, 0, len(idCount))
-	for id, _ := range idCount {
+	for id := range idCount {
 		idSlice = append(idSlice, id)
 	}
 
-	//sort
-	fastSortIds(idSlice)
+	// sort
+	fastSortIDs(idSlice)
 
-	//execute
+	// execute
 	for _, id := range idSlice {
 		if !callback(id) {
 			return nil
@@ -70,12 +70,12 @@ func (orSearch *OrSearch) Collect(eCtx engine.Context) ([]types.EntityID, error)
 			idExists[id] = true
 		}
 	}
-	for id, _ := range idExists {
+	for id := range idExists {
 		res = append(res, id)
 	}
 
 	// sort
-	fastSortIds(res)
+	fastSortIDs(res)
 
 	return res, nil
 }
@@ -129,7 +129,7 @@ func (andSearch *AndSearch) Each(eCtx engine.Context, callback CallbackFn) error
 	}
 
 	// sort
-	fastSortIds(idSlice)
+	fastSortIDs(idSlice)
 
 	// execute
 	for _, id := range idSlice {
@@ -152,7 +152,7 @@ func (andSearch *AndSearch) Collect(eCtx engine.Context) ([]types.EntityID, erro
 	}
 
 	// sort
-	fastSortIds(results)
+	fastSortIDs(results)
 
 	return results, nil
 }
@@ -225,7 +225,6 @@ func (notSearch *NotSearch) Collect(eCtx engine.Context) ([]types.EntityID, erro
 	if err != nil {
 		return nil, err
 	}
-
 	// Get ids to exclude
 	excludedIDsMap := make(map[types.EntityID]bool)
 	excludedids, err := notSearch.search.Collect(eCtx)
@@ -246,7 +245,7 @@ func (notSearch *NotSearch) Collect(eCtx engine.Context) ([]types.EntityID, erro
 	}
 
 	// sort ids
-	fastSortIds(result)
+	fastSortIDs(result)
 
 	return result, nil
 }
