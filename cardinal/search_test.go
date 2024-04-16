@@ -184,7 +184,7 @@ func TestSetOperationsOnSearch(t *testing.T) {
 	}
 }
 
-func TestSearchEntityMethod(t *testing.T) {
+func TestSearch_Integration(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
