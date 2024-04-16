@@ -372,7 +372,7 @@ func TestContainsFilterOnSearch(t *testing.T) {
 	assert.Equal(t, amt, 42)
 }
 
-func TestUnregisteredComponentOnSearch(t *testing.T) {
+func TestSearch_ComponentNotRegistered_ReturnsZeroEntityWithNoError(*testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
