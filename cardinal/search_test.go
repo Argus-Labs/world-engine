@@ -306,7 +306,7 @@ func TestSearch_Integration(t *testing.T) {
 	assert.Equal(t, amount, 5)
 }
 
-func TestExactFilterOnSearch(t *testing.T) {
+func TestSearch_Exact_ReturnsExactComponentMatch(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
