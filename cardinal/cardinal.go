@@ -35,15 +35,15 @@ var (
 //
 // Usage:
 //
-// cardinal.NewSearch(worldCtx).Exact(search.Component[AlphaTest]())
+// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
 var NewSearch = search.NewSearch
 
 // NewLegacySearch allows users to create a Search object with a filter already provided
 // as a property.
 //
-// Usage:
+// Example Usage:
 //
-// cardinal.NewSearchWithFilter(wCtx, filter.Exact(Alpha{}, Beta{}))
+// cardinal.NewLegacySearch().Entity(filter.Exact(Alpha{}, Beta{})).Count()
 var NewLegacySearch = search.NewLegacySearch
 
 type Search = search.Search
@@ -53,11 +53,8 @@ type Search = search.Search
 //
 // Usage:
 //
-//	cardinal.NewSearch(worldCtx).
-//				Contains(search.Component[AlphaTest]()).
-//				Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
-//					return true
-//				}))
+//
+
 func FilterFunction[T types.Component](f func(comp T) bool) func(ctx engine.Context, id types.EntityID) (bool, error) {
 	return search.ComponentFilter[T](f)
 }
