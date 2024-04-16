@@ -90,3 +90,23 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	assert.Check(t, firstSystemCalled)
 	assert.Check(t, secondSystemCalled)
 }
+
+func TestInitSystemRunsOnce(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	w := tf.World
+	count := 0
+	count2 := 0
+	err := cardinal.RegisterInitSystems(w, func(_ engine.Context) error {
+		count++
+		return nil
+	}, func(_ engine.Context) error {
+		count2 += 2
+		return nil
+	})
+	assert.NilError(t, err)
+	tf.DoTick()
+	tf.DoTick()
+
+	assert.Equal(t, count, 1)
+	assert.Equal(t, count2, 2)
+}
