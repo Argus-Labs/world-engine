@@ -58,7 +58,6 @@ func (orSearch *OrSearch) Each(eCtx engine.Context, callback CallbackFn) error {
 }
 
 func (orSearch *OrSearch) Collect(eCtx engine.Context) ([]types.EntityID, error) {
-
 	// deduplicate
 	idExists := make(map[types.EntityID]bool)
 	res := make([]types.EntityID, 0)
@@ -109,7 +108,6 @@ func (orSearch *OrSearch) Count(eCtx engine.Context) (int, error) {
 }
 
 func (andSearch *AndSearch) Each(eCtx engine.Context, callback CallbackFn) error {
-
 	// count
 	idCount := make(map[types.EntityID]int)
 	for _, search := range andSearch.searches {
@@ -143,7 +141,6 @@ func (andSearch *AndSearch) Each(eCtx engine.Context, callback CallbackFn) error
 }
 
 func (andSearch *AndSearch) Collect(eCtx engine.Context) ([]types.EntityID, error) {
-
 	// filter
 	results := make([]types.EntityID, 0)
 	err := andSearch.Each(eCtx, func(id types.EntityID) bool {
@@ -205,7 +202,6 @@ func (andSearch *AndSearch) evaluateSearch(eCtx engine.Context) []types.Archetyp
 }
 
 func (notSearch *NotSearch) Each(eCtx engine.Context, callback CallbackFn) error {
-
 	// sort
 	ids, err := notSearch.Collect(eCtx)
 	if err != nil {
@@ -223,7 +219,6 @@ func (notSearch *NotSearch) Each(eCtx engine.Context, callback CallbackFn) error
 }
 
 func (notSearch *NotSearch) Collect(eCtx engine.Context) ([]types.EntityID, error) {
-
 	// Get all ids
 	allsearch := NewSearch().Entity(filter.All())
 	allids, err := allsearch.Collect(eCtx)
