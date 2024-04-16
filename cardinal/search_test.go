@@ -339,7 +339,7 @@ func TestSearch_Exact_ReturnsExactComponentMatch(t *testing.T) {
 	assert.Equal(t, amt, 12)
 }
 
-func TestSearch_Contains_ReturnsEntityThatContainsComponents`(t *testing.T) {
+func TestSearch_Contains_ReturnsEntityThatContainsComponents(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
@@ -372,7 +372,7 @@ func TestSearch_Contains_ReturnsEntityThatContainsComponents`(t *testing.T) {
 	assert.Equal(t, amt, 42)
 }
 
-func TestSearch_ComponentNotRegistered_ReturnsZeroEntityWithNoError(*testing.T) {
+func TestSearch_ComponentNotRegistered_ReturnsZeroEntityWithNoError(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
