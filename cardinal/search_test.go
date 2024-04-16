@@ -339,7 +339,7 @@ func TestExactFilterOnSearch(t *testing.T) {
 	assert.Equal(t, amt, 12)
 }
 
-func TestContainsFilterOnSearch(t *testing.T) {
+func TestSearch_Contains_ReturnsEntityThatContainsComponents`(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
