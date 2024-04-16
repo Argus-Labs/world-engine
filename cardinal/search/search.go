@@ -171,16 +171,6 @@ func (s *Search) Each(eCtx engine.Context, callback CallbackFn) (err error) {
 	return nil
 }
 
-func maxid(ids []types.EntityID) types.EntityID {
-	var acc types.EntityID
-	for _, id := range ids {
-		if id > acc {
-			acc = id
-		}
-	}
-	return acc
-}
-
 func fastSortIDs(ids []types.EntityID) {
 	slices.Sort(ids)
 }
