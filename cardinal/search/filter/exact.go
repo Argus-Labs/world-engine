@@ -9,9 +9,13 @@ type exact struct {
 }
 
 // Exact matches archetypes that contain exactly the same components specified.
-func Exact(components ...types.Component) ComponentFilter {
+func Exact(components ...ComponentWrapper) ComponentFilter {
+	acc := make([]types.Component, 0, len(components))
+	for _, wrapper := range components {
+		acc = append(acc, wrapper.Component)
+	}
 	return exact{
-		components: components,
+		components: acc,
 	}
 }
 

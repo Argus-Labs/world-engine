@@ -9,8 +9,12 @@ type contains struct {
 }
 
 // Contains matches archetypes that contain all the components specified.
-func Contains(components ...types.Component) ComponentFilter {
-	return &contains{components: components}
+func Contains(components ...ComponentWrapper) ComponentFilter {
+	acc := make([]types.Component, 0, len(components))
+	for _, wrapper := range components {
+		acc = append(acc, wrapper.Component)
+	}
+	return &contains{components: acc}
 }
 
 func (f *contains) MatchesComponents(components []types.Component) bool {

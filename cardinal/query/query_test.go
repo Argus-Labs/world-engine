@@ -34,7 +34,7 @@ func handleQueryHealth(
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := cardinal.NewSearch(wCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
+	err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[Health]())).Each(wCtx, func(id types.EntityID) bool {
 		var err error
 		var health *Health
 		health, err = cardinal.GetComponent[Health](wCtx, id)

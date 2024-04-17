@@ -123,8 +123,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			world,
 			func(wCtx engine.Context) error {
 				// Get the one and only entity ID
-				q := NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
-				id, err := q.First()
+				q := NewSearch().Entity(filter.Contains(filter.Component[ScalarComponentStatic]()))
+				id, err := q.First(wCtx)
 				assert.NilError(t, err)
 
 				s, err := GetComponent[ScalarComponentStatic](wCtx, id)
@@ -156,8 +156,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			_, err := Create(wCtx, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
-		q := NewSearch(wCtx, filter.Contains(ScalarComponentStatic{}))
-		id, err := q.First()
+		q := NewSearch().Entity(filter.Contains(filter.Component[ScalarComponentStatic]()))
+		id, err := q.First(wCtx)
 		assert.NilError(t, err)
 
 		if firstEngineIteration {
@@ -215,8 +215,8 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		err = RegisterSystems(
 			world,
 			func(wCtx engine.Context) error {
-				q := NewSearch(wCtx, filter.Contains(PowerComp{}))
-				id := q.MustFirst()
+				q := NewSearch().Entity(filter.Contains(filter.Component[PowerComp]()))
+				id := q.MustFirst(wCtx)
 				entityPower, err := GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
 				powerTx, err := getMessage[PowerComp, PowerComp](wCtx)
@@ -248,8 +248,8 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// fetchPower is a small helper to get the power of the only entity in the engine
 		fetchPower := func() float64 {
-			q := NewSearch(wCtx, filter.Contains(PowerComp{}))
-			id, err := q.First()
+			q := NewSearch().Entity(filter.Contains(filter.Component[PowerComp]()))
+			id, err := q.First(wCtx)
 			assert.NilError(t, err)
 			power, err := GetComponent[PowerComp](wCtx, id)
 			assert.NilError(t, err)
@@ -320,8 +320,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	err = RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			search := NewSearch(wCtx, filter.Exact(onePowerComponent{}))
-			id := search.MustFirst()
+			searchObject := NewSearch().Entity(filter.Exact(filter.Component[onePowerComponent]()))
+			id := searchObject.MustFirst(wCtx)
 			p, err := GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
@@ -474,7 +474,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := NewSearch(wCtx, filter.Exact(Foo{}, Bar{})).First()
+				id, err := NewSearch().Entity(filter.Exact(filter.Component[Foo](), filter.Component[Bar]())).First(wCtx)
 				assert.Check(t, err == nil)
 				assert.Check(t, id != iterators.BadID)
 

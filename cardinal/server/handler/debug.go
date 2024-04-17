@@ -31,7 +31,7 @@ func GetDebugState(provider servertypes.Provider) func(*fiber.Ctx) error {
 		result := make(DebugStateResponse, 0)
 		s := provider.Search(filter.All())
 		var eachClosureErr error
-		searchEachErr := s.Each(
+		searchEachErr := s.Each(provider.GetReadOnlyCtx(),
 			func(id types.EntityID) bool {
 				var components []types.ComponentMetadata
 				components, eachClosureErr = provider.StoreReader().GetComponentTypesForEntity(id)

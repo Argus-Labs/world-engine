@@ -48,8 +48,8 @@ func TestGetEverythingFilter(t *testing.T) {
 	count := 0
 	// Loop over every entity. There should
 	// only be 50 + 20 entities.
-	q := cardinal.NewSearch(wCtx, filter.All())
-	err = q.Each(
+	q := cardinal.NewSearch().Entity(filter.All())
+	err = q.Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -80,8 +80,10 @@ func TestCanFilterByArchetype(t *testing.T) {
 	count := 0
 	// Loop over every entity that has exactly the alpha and beta components. There should
 	// only be subsetCount entities.
-	q := cardinal.NewSearch(wCtx, filter.Exact(Alpha{}, Beta{}))
-	err = q.Each(
+	q := cardinal.NewSearch().Entity(filter.Exact(
+		filter.Component[Alpha](),
+		filter.Component[Beta]()))
+	err = q.Each(wCtx,
 		func(id types.EntityID) bool {
 			count++
 			// Make sure the gamma component is not on this entity
@@ -110,8 +112,8 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
-	q := cardinal.NewSearch(wCtx, filter.Contains(Alpha{}))
-	err = q.Each(
+	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[Alpha]()))
+	err = q.Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -131,7 +133,7 @@ func TestExactVsContains(t *testing.T) {
 
 	sameQuery, err := cql.Parse("CONTAINS(alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(sameQuery).Each(wCtx,
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -142,8 +144,8 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
-	q = cardinal.NewSearch(wCtx, filter.Contains(Beta{}))
-	err = q.Each(
+	q = cardinal.NewSearch().Entity(filter.Contains(filter.Component[Beta]()))
+	err = q.Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -155,7 +157,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("CONTAINS(beta)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(sameQuery).Each(wCtx,
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -165,8 +167,8 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
-	q = cardinal.NewSearch(wCtx, filter.Exact(Alpha{}))
-	err = q.Each(
+	q = cardinal.NewSearch().Entity(filter.Exact(filter.Component[Alpha]()))
+	err = q.Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -178,7 +180,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(sameQuery).Each(wCtx,
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -189,8 +191,8 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
-	q = cardinal.NewSearch(wCtx, filter.Exact(Alpha{}, Beta{}))
-	err = q.Each(
+	q = cardinal.NewLegacySearch(filter.Exact(filter.Component[Alpha](), filter.Component[Beta]()))
+	err = q.Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -202,7 +204,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha, beta)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(sameQuery).Each(wCtx,
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -213,8 +215,10 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
-	q = cardinal.NewSearch(wCtx, filter.Exact(Beta{}, Alpha{}))
-	err = q.Each(
+	q = cardinal.NewSearch().Entity(filter.Exact(
+		filter.Component[Beta](),
+		filter.Component[Alpha]()))
+	err = q.Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -226,7 +230,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(beta, alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(sameQuery).Each(wCtx,
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -256,8 +260,8 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	err = cardinal.NewSearch(wCtx,
-		filter.Exact(types.ConvertComponentMetadatasToComponents(comps)...)).Each(
+	err = cardinal.NewLegacySearch(
+		filter.Exact(filter.ConvertComponentMetadatasToComponentWrappers(comps)...)).Each(wCtx,
 		func(types.EntityID) bool {
 			count++
 			return true
@@ -287,7 +291,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	sameQuery, err := cql.Parse(queryString, getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(wCtx, sameQuery).Each(
+	err = cardinal.NewLegacySearch(sameQuery).Each(wCtx,
 		func(types.EntityID) bool {
 			count2++
 			return true
@@ -341,8 +345,10 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		count := 0
-		q := cardinal.NewSearch(wCtx, filter.Exact(Alpha{}, Beta{}))
-		err = q.Each(
+		q := cardinal.NewSearch().Entity(filter.Exact(
+			filter.Component[Alpha](),
+			filter.Component[Beta]()))
+		err = q.Each(wCtx,
 			func(types.EntityID) bool {
 				count++
 				return true
