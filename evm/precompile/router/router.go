@@ -2,8 +2,6 @@ package router
 
 import (
 	"context"
-	"errors"
-
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
@@ -23,6 +21,9 @@ type Contract struct {
 
 // NewPrecompileContract returns a new instance of the Router precompile.
 func NewPrecompileContract(r router.Router) *Contract {
+	if r == nil {
+		panic("NewPrecompileContract: nil router")
+	}
 	return &Contract{
 		BaseContract: ethprecompile.NewBaseContract(
 			generated.RouterMetaData.ABI,
@@ -42,17 +43,13 @@ func (c *Contract) SendMessage(
 ) (bool, error) {
 	log.Logger.Debug().Msg("inside SendMessage precompile function called")
 	pCtx := vm.UnwrapPolarContext(ctx)
-	if c.rtr != nil {
-		err := c.rtr.SendMessage(ctx, personaTag, namespace, pCtx.MsgSender().String(), messageID, message)
-		if err != nil {
-			log.Logger.Err(err).Msg("failed to queue message in router")
-			return false, err
-		}
-		log.Logger.Debug().Msgf("successfully queued message to %s from %s", namespace, pCtx.MsgSender().String())
-		return true, nil
+	err := c.rtr.SendMessage(ctx, personaTag, namespace, pCtx.MsgSender().String(), messageID, message)
+	if err != nil {
+		log.Logger.Err(err).Msg("failed to queue message in router")
+		return false, err
 	}
-	log.Logger.Debug().Msg("the precompile had a nil Router")
-	return false, errors.New("nil router")
+	log.Logger.Debug().Msgf("successfully queued message to %s from %s", namespace, pCtx.MsgSender().String())
+	return true, nil
 }
 
 func (c *Contract) MessageResult(ctx context.Context, evmTxHash string) ([]byte, string, uint32, error) {
