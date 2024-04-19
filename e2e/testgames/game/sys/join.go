@@ -37,6 +37,11 @@ func Join(ctx cardinal.WorldContext) error {
 			if err != nil {
 				return msg.JoinOutput{}, err
 			}
+			err = ctx.EmitStringEvent("this is a string event")
+			if err != nil {
+				return msg.JoinOutput{}, err
+			}
+
 			return msg.JoinOutput{Success: true}, nil
 		},
 	)

@@ -11,10 +11,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argus-labs/world-engine/e2e/tests/clients"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/argus-labs/world-engine/e2e/tests/clients"
+
 	"pkg.world.dev/world-engine/assert"
+)
+
+const (
+	stringEventPattern = "this is a string event"
+	mapEventPattern    = "player created"
 )
 
 func TestEvents(t *testing.T) {
@@ -49,7 +55,8 @@ func TestEvents(t *testing.T) {
 	// Fetch events and verify
 	var events []clients.Event
 	timeout := time.After(5 * time.Second)
-	for len(events) < amountOfPlayers {
+	// There are 2 event messages per player
+	for len(events) < amountOfPlayers*2 {
 		select {
 		case e := <-c.EventCh:
 			events = append(events, e)
@@ -58,10 +65,22 @@ func TestEvents(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, len(events), amountOfPlayers, "Expected number of player creation events does not match")
+	assert.Equal(t, len(events), amountOfPlayers*2,
+		"Expected number of player creation events does not match")
+	numOfStringEvents := 0
+	numOfMapEvents := 0
 	for _, event := range events {
-		assert.Contains(t, event.Message, "player created", "Event message does not contain expected text")
+		if strings.Contains(event.Message, stringEventPattern) {
+			numOfStringEvents++
+		} else if strings.Contains(event.Message, mapEventPattern) {
+			numOfMapEvents++
+		} else {
+			assert.Fail(t, fmt.Sprintf("message %q does not contain %q nor %q",
+				event.Message, stringEventPattern, mapEventPattern))
+		}
 	}
+	assert.Equal(t, amountOfPlayers, numOfStringEvents)
+	assert.Equal(t, amountOfPlayers, numOfMapEvents)
 }
 
 func TestReceipts(t *testing.T) {
