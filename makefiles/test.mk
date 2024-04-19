@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 DIRS_E2E = e2e/tests/nakama e2e/testgames/game relay/nakama
 DIRS_E2E_BENCHMARK = e2e/tests/bench e2e/testgames/gamebenchmark relay/nakama
 DIRS_E2E_EVM = e2e/tests/evm e2e/testgames/game relay/nakama
@@ -11,7 +12,7 @@ e2e-nakama:
 		cd $(ROOT_DIR); \
 	)
 
-	@docker compose up --build game nakama test_nakama --abort-on-container-exit --exit-code-from test_nakama 2>&1 | grep --color=force "test_nakama   | "
+	@(set -o pipefail; docker compose up --build game nakama test_nakama --abort-on-container-exit --exit-code-from test_nakama 2>&1 | grep --color=force "test_nakama   | ");
 	@docker compose down --volumes -v
 
 e2e-benchmark:
