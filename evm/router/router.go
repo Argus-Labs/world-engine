@@ -102,9 +102,11 @@ func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts typ
 					)
 					r.dispatchMessage(toAddr, receipt.TxHash)
 				}
+				r.queue.Remove(toAddr)
 			}
 		}
 	}
+	// clear it just in case anything was left over.
 	r.queue.Clear()
 }
 
