@@ -11,9 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/argus-labs/world-engine/e2e/tests/clients"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"pkg.world.dev/world-engine/assert"
 )
@@ -70,11 +69,12 @@ func TestEvents(t *testing.T) {
 	numOfStringEvents := 0
 	numOfMapEvents := 0
 	for _, event := range events {
-		if strings.Contains(event.Message, stringEventPattern) {
+		switch {
+		case strings.Contains(event.Message, stringEventPattern):
 			numOfStringEvents++
-		} else if strings.Contains(event.Message, mapEventPattern) {
+		case strings.Contains(event.Message, mapEventPattern):
 			numOfMapEvents++
-		} else {
+		default:
 			assert.Fail(t, fmt.Sprintf("message %q does not contain %q nor %q",
 				event.Message, stringEventPattern, mapEventPattern))
 		}
