@@ -171,7 +171,7 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 	// the game tick has executed. We spin on this check until we find the desired results or until we time out.
 	yAndNameNotFound := true
 	for yAndNameNotFound {
-		resp, err = c.RPC("/cql", struct {
+		resp, err = c.RPC("cql", struct {
 			CQL string `json:"CQL"`
 		}{"CONTAINS(player)"})
 		assert.NilError(t, err)
