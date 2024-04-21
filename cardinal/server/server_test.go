@@ -65,7 +65,7 @@ func TestServer(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
 }
 
-// SetupSuite runs before each test in the suite.
+// SetupTest runs before each test in the suite.
 func (s *ServerTestSuite) SetupTest() {
 	var err error
 	s.privateKey, err = crypto.GenerateKey()
@@ -93,7 +93,7 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.Require().Equal(LocationComponent{0, 1}, loc)
 }
 
-// TestGetFieldInformation tests the fields endpoint.
+// TestGetWorld tests the fields endpoint.
 func (s *ServerTestSuite) TestGetWorld() {
 	s.setupWorld()
 	s.fixture.DoTick()

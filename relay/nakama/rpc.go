@@ -16,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 )
 
-// initPersonaEndpoints sets up the nakame RPC endpoints that are used to claim a persona tag and display a persona tag.
+// initPersonaTagEndpoints sets up the nakama RPC endpoints that are used to claim a persona tag and display a persona tag.
 func initPersonaTagEndpoints(
 	_ runtime.Logger,
 	initializer runtime.Initializer,

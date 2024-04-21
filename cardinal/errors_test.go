@@ -158,7 +158,7 @@ type UnregisteredComp struct{}
 
 func (UnregisteredComp) Name() string { return "unregistered_comp" }
 
-// TestSystemPanicOnComponentHasNotBeenRegistered ensures Systems that encounter a component that has not been
+// TestSystemsPanicOnComponentHasNotBeenRegistered ensures Systems that encounter a component that has not been
 // registered will panic.
 func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	testCases := []struct {
