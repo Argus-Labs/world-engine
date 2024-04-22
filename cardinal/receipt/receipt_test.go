@@ -8,6 +8,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -145,4 +146,27 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	rh.NextTick()
 	_, err := rh.GetReceiptsForTick(tickToGet)
 	assert.ErrorIs(t, ErrOldTickHasBeenDiscarded, eris.Cause(err))
+}
+
+func TestReceipt_ReceiptErrorsArePresentInJSON(t *testing.T) {
+	var (
+		receiptHash   = "some_tx_hash"
+		receiptResult = "some_receipt_result"
+		receiptError  = "some_receipt_error"
+	)
+	receipt := &Receipt{
+		TxHash: types.TxHash(receiptHash),
+		Result: map[string]string{
+			"field": receiptResult,
+		},
+		Errs: []error{
+			errors.New(receiptError),
+		},
+	}
+	bz, err := codec.Encode(receipt)
+	assert.NilError(t, err)
+	body := string(bz)
+	assert.Contains(t, body, receiptHash)
+	assert.Contains(t, body, receiptResult)
+	assert.Contains(t, body, receiptError)
 }
