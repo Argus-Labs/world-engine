@@ -230,6 +230,9 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 			return eris.Wrap(err, "")
 		}
 	}
+	if err = m.compValuesToDelete.Clear(); err != nil {
+		return eris.Wrap(err, "failed to clear to-be-deleted component values store")
+	}
 	keys, err := m.compValues.Keys()
 	if err != nil {
 		return err
