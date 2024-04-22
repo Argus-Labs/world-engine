@@ -280,6 +280,9 @@ func initCardinalEndpoints(
 		return err
 	}
 	// Register all the query endpoints. These do not require signatures.
+	// cql and debug/state are similar to normal cardinal queries, but they are not created by the same mechanism,
+	// so they don't show up in the queryEndpoints slice.
+	queryEndpoints = append(queryEndpoints, "cql", "debug/state")
 	err = registerEndpoints(
 		// Register all the transaction endpoints. These require signatures.
 		logger,
