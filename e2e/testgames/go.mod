@@ -5,7 +5,9 @@ go 1.22.1
 replace pkg.world.dev/world-engine/cardinal => ../../cardinal
 
 require (
+	github.com/ByteArena/box2d v1.0.2
 	github.com/rotisserie/eris v0.5.4
+	github.com/rs/zerolog v1.31.0
 	pkg.world.dev/world-engine/cardinal v1.0.6-beta.0.20240104191834-89728d063830
 )
 
@@ -58,7 +60,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/redis/go-redis/v9 v9.1.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/rs/zerolog v1.31.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect

@@ -1,6 +1,7 @@
 DIRS_E2E = e2e/tests/nakama e2e/testgames/game relay/nakama
 DIRS_E2E_BENCHMARK = e2e/tests/bench e2e/testgames/gamebenchmark relay/nakama
 DIRS_E2E_EVM = e2e/tests/evm e2e/testgames/game relay/nakama
+AGAR_DIRS_E2E_BENCHMARK = e2e/tests/bench e2e/testgames/agarbenchmark relay/nakama
 ROOT_DIR := $(shell pwd)
 
 e2e-nakama:
@@ -16,13 +17,27 @@ e2e-nakama:
 
 e2e-benchmark:
 	$(foreach dir, $(DIRS_E2E_BENCHMARK), \
+		pwd && \
 		cd $(dir) && \
-		go mod tidy && \
-		go mod vendor && \
+        go mod tidy && \
+        go work vendor && \
 		cd $(ROOT_DIR); \
 	)
 
 	@docker compose -f docker-compose.benchmark.yml up --build --exit-code-from game_benchmark --abort-on-container-exit --attach game_benchmark
+	@docker compose down --volumes -v
+
+
+agar-benchmark:
+	$(foreach dir, $(AGAR_DIRS_E2E_BENCHMARK), \
+		pwd && \
+		cd $(dir) && \
+		go mod tidy && \
+		go work vendor && \
+		cd $(ROOT_DIR); \
+	)
+
+	@docker compose -f docker-compose.agar.benchmark.yml up --build --exit-code-from agar_benchmark --abort-on-container-exit --attach agar_benchmark
 	@docker compose down --volumes -v
 
 
