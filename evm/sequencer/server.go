@@ -43,14 +43,12 @@ type Sequencer struct {
 	routerKey string
 }
 
+// GetQueryCtxFn is a function provided by the Cosmos `App` type which gives us a context that can be used
+// in module queries.
 type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
 
 // New returns a new game shard sequencer server. It runs on a default port of 9601,
 // unless the SHARD_SEQUENCER_PORT environment variable is set.
-//
-// The sequencer exposes a single gRPC endpoint, SubmitShardTx, which will take in transactions from game shards,
-// indexed by namespace. At every block, the sequencer tx queue is flushed, and processed in the storage shard storage
-// module, persisting the data to the blockchain.
 func New(shardKeeper *keeper.Keeper, queryCtxGetter GetQueryCtxFn, opts ...Option) *Sequencer {
 	s := &Sequencer{
 		moduleAddr:     shardKeeper.AuthorityAddress(),
@@ -110,6 +108,7 @@ func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsReque
 	return &shard.SubmitTransactionsResponse{}, nil
 }
 
+// RegisterGameShard saves a namespace <> gRPC address pair for use with Router.
 func (s *Sequencer) RegisterGameShard(
 	_ context.Context,
 	req *shard.RegisterGameShardRequest,
@@ -118,6 +117,8 @@ func (s *Sequencer) RegisterGameShard(
 	return &shard.RegisterGameShardResponse{}, nil
 }
 
+// QueryTransactions is a proxy method that calls x/shard's QueryTransactions. This is needed so Cardinal can just
+// run a `Rift` gRPC client, instead of needing to run the `Cosmos` gRPC client.
 func (s *Sequencer) QueryTransactions(
 	_ context.Context,
 	request *shard.QueryTransactionsRequest,
