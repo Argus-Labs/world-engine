@@ -167,8 +167,13 @@ func initEventHub(
 		ch := eventHub.SubscribeToEvents("main")
 		for event := range ch {
 			content := make(map[string]any)
-			err = json.Unmarshal(event, &content)
-			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, false), "")
+			err := json.Unmarshal(event, &content)
+			if err != nil {
+				// The event content isn't in JSON format. Wrap whatever it is in a JSON blob.
+				content["message"] = string(event)
+			}
+
+			err = eris.Wrap(nk.NotificationSendAll(ctx, "event", content, 1, false), "")
 			if err != nil {
 				log.Error("error sending notifications: %s", eris.ToString(err, true))
 			}
@@ -275,6 +280,9 @@ func initCardinalEndpoints(
 		return err
 	}
 	// Register all the query endpoints. These do not require signatures.
+	// cql and debug/state are similar to normal cardinal queries, but they are not created by the same mechanism,
+	// so they don't show up in the queryEndpoints slice.
+	queryEndpoints = append(queryEndpoints, "cql", "debug/state")
 	err = registerEndpoints(
 		// Register all the transaction endpoints. These require signatures.
 		logger,

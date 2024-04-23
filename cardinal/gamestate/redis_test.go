@@ -70,7 +70,13 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	// Now remove the alpha component from the entity.
 	assert.NilError(t, manager.RemoveComponentFromEntity(alphaComp, id))
 
+	// One component should be marked for deletion
+	assert.Equal(t, 1, manager.compValuesToDelete.Len())
+
 	assert.NilError(t, manager.FinalizeTick(ctx))
+
+	// The list of components to be deleted should be cleared after each tick
+	assert.Equal(t, 0, manager.compValuesToDelete.Len())
 
 	// Verify the component in question no longer exists in the DB
 	err = client.Get(ctx, key).Err()

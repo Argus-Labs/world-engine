@@ -8,6 +8,7 @@ import (
 
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -27,9 +28,26 @@ type History struct {
 
 // Receipt contains a transaction hash, an arbitrary result, and a list of errors.
 type Receipt struct {
-	TxHash types.TxHash `json:"txHash"`
-	Result any          `json:"result"`
-	Errs   []error      `json:"errs"`
+	TxHash types.TxHash
+	Result any
+	Errs   []error
+}
+
+func (r Receipt) MarshalJSON() ([]byte, error) {
+	errStrings := make([]string, len(r.Errs))
+	for i, err := range r.Errs {
+		errStrings[i] = err.Error()
+	}
+
+	return codec.Encode(struct {
+		TxHash types.TxHash `json:"txHash"`
+		Result any          `json:"result"`
+		Errs   []string     `json:"errors"`
+	}{
+		TxHash: r.TxHash,
+		Result: r.Result,
+		Errs:   errStrings,
+	})
 }
 
 // NewHistory creates a object that can track transaction receipts over a number of ticks.
