@@ -1,3 +1,5 @@
+//nolint:mnd // linting is not done in agar shooter
+
 package system
 
 import (

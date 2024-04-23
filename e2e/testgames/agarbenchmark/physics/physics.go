@@ -1,10 +1,12 @@
 package physics
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/ByteArena/box2d"
+
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -206,7 +208,7 @@ func (physics2D *Physics2D) DestroyBody(entityID types.EntityID) error {
 		return fmt.Errorf("Physics2D.DestroyBody: Failed to get body")
 	}
 	if body == nil {
-		return fmt.Errorf("Physics2D.DestroyBody: Body is nil")
+		return errors.New("Physics2D.DestroyBody: Body is nil")
 	}
 	physics2D.world2D.DestroyBody(body)
 	delete(physics2D.rigidBodies, entityID)

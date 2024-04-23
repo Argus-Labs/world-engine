@@ -1,3 +1,5 @@
+// nolint:mnd // agar shooter isn't linted for now. This will be a todo in the future.
+
 package system
 
 import (
