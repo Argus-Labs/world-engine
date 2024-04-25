@@ -42,6 +42,7 @@ contract Game {
     constructor() {
         // comes from common.BytesToAddress(authtypes.NewModuleAddress(name)) where name == world_engine_router.
         // see: evm/precompile/router/router.go L31
+        // https://world.dev/cardinal/shard/evm-to-cardinal#precompile-address
         router = IRouter(0x356833c4666fFB6bFccbF8D600fa7282290dE073);
     }
 
