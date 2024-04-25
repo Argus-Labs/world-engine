@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"

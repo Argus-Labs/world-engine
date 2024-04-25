@@ -37,14 +37,14 @@ type Router interface {
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 	// MessageResult gets the game shard transaction Result that originated from an EVM tx.
 	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
-	// PostBlockHook is a custom hook function that is executed in Polaris after a block is formed. This is ONLY available
-	// via our custom fork of Polaris. This function works by iterating over all the transactions and checking if we have
-	// any matches currently in the queue. Two conditions need to be met to fire off a transaction:
+	// PostBlockHook is a custom hook function that is executed in Polaris after a block is formed. This is ONLY
+	// available via our custom fork of Polaris. This function works by iterating over all the transactions and checking
+	// if we have any matches currently in the queue. Two conditions need to be met to fire off a transaction:
 	//
-	// 1. The transaction's `To` address is in the queue. This is because, within the precompile, msg.sender is likely the
-	// address of the contract that the user wrote to interact with the router/cardinal system. Thus, if their contract addr
-	// is 0xFoo, then msg.sender in the context of the precompile will be 0xFoo, and the user calling the contract will have
-	// the `To` address of the transaction be 0xFoo. This isn't ideal, but it works.
+	// 1. The transaction's `To` address is in the queue. This is because, within the precompile, msg.sender is likely
+	// the address of the contract that the user wrote to interact with the router/cardinal system. Thus, if their
+	// contract addr is 0xFoo, then msg.sender in the context of the precompile will be 0xFoo, and the user calling the
+	// contract will have the `To` address of the transaction be 0xFoo.
 	//
 	// 2. The transaction was actually successful. We don't want to fire off the cross-shard transaction if their EVM
 	// transaction reverted.
