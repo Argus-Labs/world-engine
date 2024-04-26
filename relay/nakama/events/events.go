@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -52,13 +51,13 @@ func NewEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress s
 // running ErrEventHubIsShuttingDown will be returned
 func (eh *EventHub) connectWithRetry(logger runtime.Logger) error {
 	for tries := 1; ; tries++ {
-		if err := eh.establishConnection(); errors.Is(err, &net.DNSError{}) {
+		if err := eh.establishConnection(); errors.Is(err, ErrEventHubIsShuttingDown) {
+			return ErrEventHubIsShuttingDown
+		} else if err != nil {
 			// sleep a little try again...
 			logger.Info("No host found: %v", err)
 			time.Sleep(2 * time.Second) //nolint:gomnd // its ok.
 			continue
-		} else if err != nil {
-			return eris.Wrapf(err, "failed to connect after %d attempts", tries)
 		}
 
 		// success!
