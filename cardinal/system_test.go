@@ -1,4 +1,4 @@
-package system_test
+package cardinal_test
 
 import (
 	"errors"
@@ -11,12 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
-
-type Health struct {
-	Value int
-}
-
-func (Health) Name() string { return "health" }
 
 func HealthSystem(wCtx engine.Context) error {
 	var errs []error
