@@ -66,7 +66,7 @@ func (p *personaPlugin) RegisterQueries(world *World) error {
 }
 
 func (p *personaPlugin) RegisterSystems(world *World) error {
-	err := RegisterSystems(world, CreatePersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterSystems(world, createPersonaSystem, authorizePersonaAddressSystem)
 	if err != nil {
 		return err
 	}
@@ -98,10 +98,10 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 // Persona Messages
 // -----------------------------------------------------------------------------
 
-// AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
+// authorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
+func authorizePersonaAddressSystem(wCtx engine.Context) error {
 	personaTagToAddress, err := buildPersonaIndex(wCtx)
 	if err != nil {
 		return err
@@ -153,9 +153,9 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 // Persona System
 // -----------------------------------------------------------------------------
 
-// CreatePersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
+// createPersonaSystem is an System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func CreatePersonaSystem(wCtx engine.Context) error {
+func createPersonaSystem(wCtx engine.Context) error {
 	personaTagToAddress, err := buildPersonaIndex(wCtx)
 	if err != nil {
 		return err

@@ -146,7 +146,7 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption
 `RegisterSystems` registers one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
 
 ```go
-func RegisterSystems(w *World, s ...system.System)
+func RegisterSystems(w *World, s ...cardinal.SystemFunc)
 ```
 
 ### Example
@@ -178,7 +178,7 @@ func main() {
 `RegisterInitSystems` registers one or more init systems to the `World`. Init systems are executed exactly one time on tick 0. Init systems will not be run when loading a pre-existing world from permanent storage (e.g. on a server restart).
 
 ```go
-func RegisterInitSystems(world *World, s ...system.System)
+func RegisterInitSystems(world *World, s ...cardinal.SystemFunc)
 ```
 
 ### Example
