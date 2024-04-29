@@ -40,6 +40,6 @@ Below are the key value pairs that can be set in either the `world.toml` file or
 | OUTGOING_QUEUE_SIZE | The number of events Nakama will hold for a client before terminating the connection with the client. Default: 64                           |
 
 ## Common `[common]`
-| Name       | Description                                                                         |
-|------------|-------------------------------------------------------------------------------------|
-| ROUTER_KEY | Key that secures router communication. Can be generated with `openssl rand -hex 32` |
+| Name                  | Description                                                                                                                          |
+|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| BASE_SHARD_ROUTER_KEY | Key that secures router communication. Can be generated with `openssl rand -hex 32` Will automatically be set if using the World CLI |
