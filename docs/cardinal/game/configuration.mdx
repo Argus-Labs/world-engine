@@ -9,14 +9,18 @@ Below are the key value pairs that can be set in either the `world.toml` file or
 
 
 ## Cardinal `[cardinal]`
-| Name                         | Description                                                                                                                                                                                                                          | Required for Production |
+| Name                         | Description                                                                                                                                                                                                                          | Required in Rollup Mode |
 |------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------|
 | CARDINAL_NAMESPACE           | The name of your Cardinal game shard. If you are running multiple game shards in a single World Engine instance, this MUST be unique for each game shard. Must only be alphanumeric characters and hyphens (-).                      | YES                     |
-| CARDINAL_MODE                | The Cardinal mode determines how your game shard runs. Must be either "development" or "production". In development, Cardinal will not submit any transactions to the base shard, and security concerns are lowered.                 | N/A                     |
+| ROLLUP_MODE                  | When false, Cardinal will behave like a traditional game server. When true, Cardinal will use the EVM base shard to sequence game transactions, as well as enable the Router.                                                        | N/A                     |
 | REDIS_ADDRESS                | The address of the Redis instance.                                                                                                                                                                                                   | YES                     |
 | REDIS_PASSWORD               | The password of your Redis instance.                                                                                                                                                                                                 | YES                     |
 | CARDINAL_LOG_LEVEL           | The level of logging Cardinal should output. Can be one of "panic", "fatal", "error", "warn", "info", "debug", or "trace". See [Leveled Logging](https://github.com/rs/zerolog?tab=readme-ov-file#leveled-logging) for more details. | NO                      |
 | BASE_SHARD_SEQUENCER_ADDRESS | The address of your EVM Base Shard deployment. This will typically be running on port 9601.                                                                                                                                          | YES                     |
+| TELEMETRY_ENABLED            | When set to true, Cardinal will emit telemetry data.                                                                                                                                                                                 | NO                      |
+| TELEMETRY_STATSD_ADDRESS     | The address of a statsd metric agent that will collect stats from cardinal.                                                                                                                                                          | NO                      |
+| TELEMETRY_TRACE_ADDRESS      | The address of an agent that supports the collection of traces (e.g. a DataDog agent)                                                                                                                                                | NO                      |
+
 
 ## EVM Base Shard `[evm]`
 | Name            | Description                                                                                                                                                                                            |
