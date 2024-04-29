@@ -102,15 +102,25 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
-	personaTagToAddress, err := buildPersonaIndex(wCtx)
-	if err != nil {
-		return err
-	}
+	// The persona tag index will be lazily built for the first AuthorizePersonaAddress message. If no such messages
+	// are present, the index will not be built.
+	var personaTagToAddress personaIndex
+	var personaTagToAddressErr error
 	return EachMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 		wCtx,
 		func(txData message.TxData[msg.AuthorizePersonaAddress]) (
 			result msg.AuthorizePersonaAddressResult, err error,
 		) {
+			if personaTagToAddress == nil {
+				personaTagToAddress, personaTagToAddressErr = buildPersonaIndex(wCtx)
+			}
+			if personaTagToAddressErr != nil {
+				return result, personaTagToAddressErr
+			}
+			// If this is still nil, assign it to an empty map to prevent us from trying to rebuild it again.
+			if personaTagToAddress == nil {
+				personaTagToAddress = personaIndex{}
+			}
 			txMsg, tx := txData.Msg, txData.Tx
 			result.Success = false
 
@@ -153,16 +163,27 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 // Persona System
 // -----------------------------------------------------------------------------
 
-// CreatePersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
+// CreatePersonaSystem is a system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func CreatePersonaSystem(wCtx engine.Context) error {
-	personaTagToAddress, err := buildPersonaIndex(wCtx)
-	if err != nil {
-		return err
-	}
+	// The persona tag index will be lazily built for the first CreatePersona message. If no such messages
+	// are present, the index will not be built.
+	var personaTagToAddress personaIndex
+	var personaTagToAddressErr error
 	return EachMessage[msg.CreatePersona, msg.CreatePersonaResult](
 		wCtx,
 		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
+			if personaTagToAddress == nil {
+				personaTagToAddress, personaTagToAddressErr = buildPersonaIndex(wCtx)
+			}
+			if personaTagToAddressErr != nil {
+				return result, personaTagToAddressErr
+			}
+			// If this is still nil, assign it to an empty map to prevent us from trying to rebuild it again.
+			if personaTagToAddress == nil {
+				personaTagToAddress = personaIndex{}
+			}
+
 			txMsg := txData.Msg
 			result.Success = false
 
