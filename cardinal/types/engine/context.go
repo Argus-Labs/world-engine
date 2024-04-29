@@ -20,8 +20,11 @@ type Context interface {
 	CurrentTick() uint64
 	// Logger returns the logger that can be used to log messages from within system or query.
 	Logger() *zerolog.Logger
-	// EmitEvent emits an event that will be broadcasted to all websocket subscribers.
+	// EmitEvent emits an event that will be broadcast to all websocket subscribers.
 	EmitEvent(map[string]any) error
+	// EmitStringEvent emits a string event that will be broadcast to all websocket subscribers.
+	// This method is provided for backwards compatability. EmitEvent should be used for most cases.
+	EmitStringEvent(string) error
 	// Namespace returns the namespace of the world.
 	Namespace() string
 

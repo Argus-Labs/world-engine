@@ -99,6 +99,7 @@
             "cardinal/game/world/api-reference"
           ]
         },
+        "cardinal/game/configuration",
         "cardinal/game/component",
         {
           "group": "System",

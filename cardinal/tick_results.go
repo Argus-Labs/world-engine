@@ -31,6 +31,11 @@ func (tr *TickResults) AddEvent(event any) error {
 	return nil
 }
 
+func (tr *TickResults) AddStringEvent(e string) error {
+	tr.Events = append(tr.Events, []byte(e))
+	return nil
+}
+
 func (tr *TickResults) SetReceipts(newReceipts []receipt.Receipt) {
 	tr.Receipts = newReceipts
 }
