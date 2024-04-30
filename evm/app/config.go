@@ -97,6 +97,7 @@ var (
 		{Account: evmtypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: shardmodule.ModuleName},
 		{Account: namespacetypes.ModuleName},
+		{Account: RouterName},
 	}
 
 	// blocked account addresses.
