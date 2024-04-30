@@ -2,44 +2,11 @@ package cardinal
 
 import (
 	"context"
-	"time"
 
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 )
-
-// recoverAndExecutePendingTxs checks whether the last tick is successfully completed. If not, it will recover
-// the pending transactions.
-func (w *World) recoverAndExecutePendingTxs() error {
-	start, end, err := w.entityStore.GetTickNumbers()
-	if err != nil {
-		return err
-	}
-	w.tick.Store(end)
-	// We successfully completed the last tick. Everything is fine
-	if start == end {
-		return nil
-	}
-
-	recoveredTxs, err := w.entityStore.Recover(w.msgManager.GetRegisteredMessages())
-	if err != nil {
-		return err
-	}
-
-	// If there is recovered transactions, we need to reprocess them
-	if recoveredTxs != nil {
-		w.txPool = recoveredTxs
-		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
-		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
-		//  from the game loop.
-		if err = w.doTick(context.Background(), uint64(time.Now().Unix())); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 // RecoverFromChain will attempt to recover the state of the engine based on historical transaction data.
 // The function puts the World in a recovery state, and will then query all transaction batches under the World's

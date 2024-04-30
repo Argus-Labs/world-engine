@@ -23,7 +23,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
-	"pkg.world.dev/world-engine/sign"
 )
 
 func TestIfPanicMessageLogged(t *testing.T) {
@@ -137,6 +136,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 					assert.NilError(t, RemoveComponentFrom[ScalarComponentToggle](wCtx, id))
 				}
 
+				// Pretend this is a "bug". On the first engine iteration, when s.Val reaches 5, an error will be
+				// returned. On the second engine iteration, the "bug" is fixed, and no error will be returned.
 				if firstEngineIteration && s.Val == 5 {
 					return errorToggleComponent
 				}
@@ -172,8 +173,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			err = doTickCapturePanic(ctx, world)
 			assert.ErrorContains(t, err, errorToggleComponent.Error())
 		} else {
-			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
-			// and toggle should have just been added to the entity.
+			// Do another tick after "fixing" the errorToggleComponent bug.
+			world.tickTheEngine(ctx, nil)
+
+			// static.Val should be 5 and toggle should have just been added to the entity.
 			_, err = GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.NilError(t, err)
 
@@ -187,104 +190,6 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	}
 
 	miniRedis.Close()
-}
-
-type PowerComp struct {
-	Val float64
-}
-
-func (PowerComp) Name() string {
-	return "powerComp"
-}
-
-func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
-	rs := miniredis.RunT(t)
-	t.Setenv("REDIS_ADDRESS", rs.Addr())
-
-	ctx := context.Background()
-
-	errorBadPowerChange := errors.New("bad power change message")
-	for _, isBuggyIteration := range []bool{true, false} {
-		world, err := NewWorld(WithPort(getOpenPort(t)))
-		assert.NilError(t, err)
-
-		assert.NilError(t, RegisterComponent[PowerComp](world))
-		msgName := "change_power"
-		assert.NilError(t, RegisterMessage[PowerComp, PowerComp](world, msgName))
-
-		err = RegisterSystems(
-			world,
-			func(wCtx engine.Context) error {
-				q := NewSearch().Entity(filter.Contains(filter.Component[PowerComp]()))
-				id := q.MustFirst(wCtx)
-				entityPower, err := GetComponent[PowerComp](wCtx, id)
-				assert.NilError(t, err)
-				powerTx, err := getMessage[PowerComp, PowerComp](wCtx)
-				assert.NilError(t, err)
-				changes := powerTx.In(wCtx)
-				assert.Equal(t, 1, len(changes))
-				entityPower.Val += changes[0].Msg.Val
-				assert.NilError(t, SetComponent[PowerComp](wCtx, id, entityPower))
-
-				if isBuggyIteration && changes[0].Msg.Val == 666 {
-					return errorBadPowerChange
-				}
-				return nil
-			},
-		)
-		assert.NilError(t, err)
-		go func() {
-			err = world.StartGame()
-			assert.NilError(t, err)
-		}()
-		<-world.worldStage.NotifyOnStage(worldstage.Running)
-
-		wCtx := NewWorldContext(world)
-		// Only Create the entity for the first iteration
-		if isBuggyIteration {
-			_, err := Create(wCtx, PowerComp{})
-			assert.NilError(t, err)
-		}
-
-		// fetchPower is a small helper to get the power of the only entity in the engine
-		fetchPower := func() float64 {
-			q := NewSearch().Entity(filter.Contains(filter.Component[PowerComp]()))
-			id, err := q.First(wCtx)
-			assert.NilError(t, err)
-			power, err := GetComponent[PowerComp](wCtx, id)
-			assert.NilError(t, err)
-			return power.Val
-		}
-		powerTx, ok := world.GetMessageByFullName("game." + msgName)
-		if isBuggyIteration {
-			// perform a few ticks that will not result in an error
-			assert.True(t, ok)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
-			assert.Equal(t, float64(3000), fetchPower())
-
-			// In this "buggy" iteration, the above system cannot handle a power of 666.
-			world.AddTransaction(powerTx.ID(), PowerComp{666}, &sign.Transaction{})
-			err = doTickCapturePanic(ctx, world)
-			assert.ErrorContains(t, err, errorBadPowerChange.Error())
-		} else {
-			// Loading the game state above should successfully re-process that final 666 messages.
-			assert.Equal(t, float64(3666), fetchPower())
-
-			// One more tick for good measure
-			world.AddTransaction(powerTx.ID(), PowerComp{1000}, &sign.Transaction{})
-			world.tickTheEngine(ctx, nil)
-
-			assert.Equal(t, float64(4666), fetchPower())
-		}
-
-		assert.NilError(t, world.Shutdown())
-	}
-	rs.Close()
 }
 
 type onePowerComponent struct {
@@ -374,12 +279,14 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	// Loading a game state with the fixed system should automatically finish the previous tick.
 	go func() {
 		err = world2.StartGame()
 		assert.NilError(t, err)
 	}()
 	<-world2.worldStage.NotifyOnStage(worldstage.Running)
+
+	// After loading the game state and executing a tick, the Power value should be 3.
+	world2.tickTheEngine(ctx, nil)
 
 	world2Ctx := NewWorldContext(world2)
 	p, err := GetComponent[onePowerComponent](world2Ctx, id)

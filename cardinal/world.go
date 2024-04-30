@@ -224,10 +224,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
 	txPool := w.txPool.CopyTransactions()
 
-	if err := w.entityStore.StartNextTick(w.msgManager.GetRegisteredMessages(), txPool); err != nil {
-		return err
-	}
-
 	// Store the timestamp for this tick
 	w.timestamp.Store(timestamp)
 
@@ -285,6 +281,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 // RegisterQueries, and RegisterSystems may not be called. If StartGame doesn't encounter any errors, it will
 // block forever, running the server and ticking the game in the background.
 func (w *World) StartGame() error {
+	ctx := context.Background()
 	// Game stage: Init -> Starting
 	ok := w.worldStage.CompareAndSwap(worldstage.Init, worldstage.Starting)
 	if !ok {
@@ -306,21 +303,22 @@ func (w *World) StartGame() error {
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
-		if err := w.router.RegisterGameShard(context.Background()); err != nil {
+		if err := w.router.RegisterGameShard(ctx); err != nil {
 			return eris.Wrap(err, "failed to register game shard to base shard")
 		}
 	}
 
 	w.worldStage.Store(worldstage.Recovering)
-	// Recover pending transactions from redis
-	err := w.recoverAndExecutePendingTxs()
+
+	currentTick, err := w.entityStore.GetTickNumber(ctx)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "failed to load current tick")
 	}
+	w.tick.Store(currentTick)
 
 	// If Cardinal is in rollup mode and router is set, recover any old state of Caridnal from base shard.
 	if w.rollupEnabled && w.router != nil {
-		if err := w.RecoverFromChain(context.Background()); err != nil {
+		if err := w.RecoverFromChain(ctx); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
@@ -362,7 +360,7 @@ func (w *World) StartGame() error {
 	w.worldStage.Store(worldstage.Running)
 
 	// Start the game loop
-	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	w.startGameLoop(ctx, w.tickChannel, w.tickDoneChannel)
 
 	// Start the server
 	w.startServer()
