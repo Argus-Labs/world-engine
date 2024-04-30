@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"net"
+	"os"
 
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
@@ -139,6 +140,10 @@ func (r *router) Start() error {
 			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}
 	}()
-	r.serverAddr = listener.Addr().String()
+	hostname, err := os.Hostname()
+	if err != nil {
+		return eris.Wrap(err, "error getting hostname")
+	}
+	r.serverAddr = hostname + ":" + r.port
 	return nil
 }

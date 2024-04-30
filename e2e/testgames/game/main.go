@@ -11,6 +11,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
 )
 
 func main() {
@@ -30,8 +31,16 @@ func main() {
 		log.Fatal(err, eris.ToString(err, true))
 	}
 	err = errors.Join(
-		cardinal.RegisterMessage[msg.JoinInput, msg.JoinOutput](world, "join"),
-		cardinal.RegisterMessage[msg.MoveInput, msg.MoveOutput](world, "move"),
+		cardinal.RegisterMessage[msg.JoinInput, msg.JoinOutput](
+			world,
+			"join",
+			message.WithMsgEVMSupport[msg.JoinInput, msg.JoinOutput](),
+		),
+		cardinal.RegisterMessage[msg.MoveInput, msg.MoveOutput](
+			world,
+			"move",
+			message.WithMsgEVMSupport[msg.MoveInput, msg.MoveOutput](),
+		),
 		cardinal.RegisterMessage[msg.ErrorInput, msg.ErrorOutput](world, "error"),
 	)
 	if err != nil {
