@@ -94,6 +94,20 @@ func (mr *MockContextMockRecorder) EmitEvent(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmitEvent", reflect.TypeOf((*MockContext)(nil).EmitEvent), arg0)
 }
 
+// EmitStringEvent mocks base method.
+func (m *MockContext) EmitStringEvent(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EmitStringEvent", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EmitStringEvent indicates an expected call of EmitStringEvent.
+func (mr *MockContextMockRecorder) EmitStringEvent(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmitStringEvent", reflect.TypeOf((*MockContext)(nil).EmitStringEvent), arg0)
+}
+
 // GetComponentByName mocks base method.
 func (m *MockContext) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	m.ctrl.T.Helper()

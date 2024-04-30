@@ -15,7 +15,7 @@ contract Game {
         bool Success;
     }
 
-    string internal JoinID = "join";
+    string internal JoinID = "game.join";
 
     struct Move {
         string Direction;
@@ -26,7 +26,7 @@ contract Game {
         int64 Y;
     }
 
-    string internal MoveID = "move";
+    string internal MoveID = "game.move";
 
     struct QueryLocation {
         string ID;
@@ -37,9 +37,12 @@ contract Game {
         int64 Y;
     }
 
-    string internal queryLocationName = "location";
+    string internal queryLocationName = "game.location";
 
     constructor() {
+        // comes from common.BytesToAddress(authtypes.NewModuleAddress(name)) where name == world_engine_router.
+        // see: evm/precompile/router/router.go L31
+        // https://world.dev/cardinal/shard/evm-to-cardinal#precompile-address
         router = IRouter(0x356833c4666fFB6bFccbF8D600fa7282290dE073);
     }
 

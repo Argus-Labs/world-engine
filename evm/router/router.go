@@ -37,8 +37,22 @@ type Router interface {
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 	// MessageResult gets the game shard transaction Result that originated from an EVM tx.
 	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
-	// PostBlockHook implements the polaris EVM PostBlock hook. It runs after an EVM tx execution has finished
-	// processing.
+	// PostBlockHook is a custom hook function that is executed in Polaris after a block is formed. This is ONLY
+	// available via our custom fork of Polaris. This function works by iterating over all the transactions and checking
+	// if we have any matches currently in the queue. Two conditions need to be met to fire off a transaction:
+	//
+	// 1. The transaction's `To` address is in the queue. This is because, within the precompile, msg.sender is likely
+	// the address of the contract that the user wrote to interact with the router/cardinal system. Thus, if their
+	// contract addr is 0xFoo, then msg.sender in the context of the precompile will be 0xFoo, and the user calling the
+	// contract will have the `To` address of the transaction be 0xFoo.
+	//
+	// 2. The transaction was actually successful. We don't want to fire off the cross-shard transaction if their EVM
+	// transaction reverted.
+	//
+	// There are problems with this approach, however. The tie between what's in the queue and an EVM transaction is
+	// incredibly weak. It would be better if we had access to tx_hash in the precompile, as this can uniquely identify
+	// an EVM transaction. Consider a user who calls the contract 0xFoo two times in one block. How do we know which
+	// one called the Router? TODO: work with polaris to find a solution to this problem.
 	PostBlockHook(types.Transactions, types.Receipts, types.Signer)
 }
 
@@ -102,23 +116,28 @@ func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts typ
 					)
 					r.dispatchMessage(toAddr, receipt.TxHash)
 				}
+				r.queue.Remove(toAddr)
 			}
 		}
 	}
+	// clear it just in case anything was left over.
 	r.queue.Clear()
 }
 
+// dispatchMessage dispatches the message associated with the sender to Cardinal. It does so by first attempting to
+// get the address associated with the requested namespace, if any. Then, it will send the message in a new Go routine.
+// This Go routine will send the message, and then store the result in the ephemeral result storage.
 func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) {
 	// get the message from the queue.
-	nsMsg, exists := r.queue.Message(sender)
+	gameShardTx, exists := r.queue.Message(sender)
 	if !exists {
 		r.logger.Error("no message found in queue for sender", "sender", sender.String())
 		return
 	}
 	r.logger.Info("found cross-shard message in queue", "tx_hash", txHash.String())
-	msg := nsMsg.msg
+	msg := gameShardTx.msg
 	msg.Sender = strings.ToLower(msg.GetSender()) // normalize the request
-	namespace := nsMsg.namespace
+	namespace := gameShardTx.namespace
 	msg.EvmTxHash = txHash.String()
 	r.logger.Info("attempting to get client connection")
 	client, err := r.getConnectionForNamespace(namespace)
@@ -128,7 +147,7 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 			&routerv1.SendMessageResponse{
 				EvmTxHash: msg.GetEvmTxHash(),
 				Code:      CodeConnectionError,
-				Errs:      "error getting game shard gRPC connection",
+				Errs:      "error getting game shard gRPC connection: " + err.Error(),
 			},
 		)
 		r.logger.Error("error getting game shard gRPC connection", "error", err, "namespace", namespace)
@@ -212,6 +231,8 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 	return res.GetResponse(), nil
 }
 
+// getConnectionForNamespace attempts to find the gRPC address associated with the namespace. Namespace:Address pairs
+// are sent to the EVM base shard when Cardinal starts up in Rollup Mode.
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	ctx := r.getSDKCtx()
 	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
