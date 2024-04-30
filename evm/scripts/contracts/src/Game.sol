@@ -49,7 +49,7 @@ contract Game {
     function joinGame() public returns (bool) {
         Join memory joinMsg = Join(true);
         bytes memory encoded = abi.encode(joinMsg);
-        bool ok = router.sendMessage(encoded, JoinID, Namespace);
+        bool ok = router.sendMessage("foo", encoded, JoinID, Namespace);
         if (!ok) {
             revert("router couldn't send the message");
         }
@@ -68,7 +68,7 @@ contract Game {
     function movePlayer(string calldata direction) public returns (bool) {
         Move memory moveMsg = Move(direction);
         bytes memory encoded = abi.encode(moveMsg);
-        bool ok = router.sendMessage(encoded, MoveID, Namespace);
+        bool ok = router.sendMessage("foo", encoded, MoveID, Namespace);
         if (!ok) {
             revert("router couldn't send the message");
         }

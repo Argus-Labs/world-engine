@@ -34,7 +34,7 @@ func TestWorldRecovery(t *testing.T) {
 		var world *cardinal.World
 		var fooTx types.Message
 
-		// Set CARDINAL_MODE to production so that RecoverFromChain() is called
+		// Set CARDINAL_ROLLUP_MODE to true so that RecoverFromChain() is called
 		setEnvToCardinalRollupMode(t)
 
 		g.BeforeEach(func() {

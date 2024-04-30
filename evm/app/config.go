@@ -81,7 +81,8 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side effects
-	_ "pkg.world.dev/world-engine/evm/x/namespace"    // import for side effects
+
+	_ "pkg.world.dev/world-engine/evm/x/namespace" // import for side effects
 )
 
 var (
@@ -256,12 +257,16 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 				Config: appconfig.WrapAny(&evmmodulev1alpha1.Module{}),
 			},
 			{
-				Name:   shardmodule.ModuleName,
-				Config: appconfig.WrapAny(&shardmodulev1.Module{}),
+				Name: shardmodule.ModuleName,
+				Config: appconfig.WrapAny(&shardmodulev1.Module{
+					Authority: RouterModuleAddress.String(),
+				}),
 			},
 			{
-				Name:   namespacetypes.ModuleName,
-				Config: appconfig.WrapAny(&namespacemodule.Module{}),
+				Name: namespacetypes.ModuleName,
+				Config: appconfig.WrapAny(&namespacemodule.Module{
+					Authority: RouterModuleAddress.String(),
+				}),
 			},
 		},
 	}),

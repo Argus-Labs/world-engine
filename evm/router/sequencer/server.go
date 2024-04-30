@@ -27,14 +27,12 @@ const (
 )
 
 var (
-	Name                                = "shard_sequencer"
-	_    shard.TransactionHandlerServer = &Sequencer{}
+	_ shard.TransactionHandlerServer = &Sequencer{}
 )
 
 // Sequencer handles sequencing game shard transactions.
 type Sequencer struct {
 	shard.UnimplementedTransactionHandlerServer
-	moduleAddr     sdk.AccAddress
 	tq             *TxQueue
 	queryCtxGetter GetQueryCtxFn
 	shardKeeper    *keeper.Keeper
@@ -49,10 +47,9 @@ type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
 
 // New returns a new game shard sequencer server. It runs on a default port of 9601,
 // unless the SHARD_SEQUENCER_PORT environment variable is set.
-func New(shardKeeper *keeper.Keeper, queryCtxGetter GetQueryCtxFn, opts ...Option) *Sequencer {
+func New(authority string, shardKeeper *keeper.Keeper, queryCtxGetter GetQueryCtxFn, opts ...Option) *Sequencer {
 	s := &Sequencer{
-		moduleAddr:     shardKeeper.AuthorityAddress(),
-		tq:             NewTxQueue(shardKeeper.AuthorityAddress().String()),
+		tq:             NewTxQueue(authority),
 		queryCtxGetter: queryCtxGetter,
 		shardKeeper:    shardKeeper,
 	}

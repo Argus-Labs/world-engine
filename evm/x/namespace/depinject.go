@@ -30,7 +30,7 @@ type DepInjectOutput struct {
 func ProvideModule(in DepInjectInput) DepInjectOutput {
 	k := keeper.NewKeeper(
 		in.StoreKey,
-		"",
+		in.Config.Authority,
 	)
 	m := NewAppModule(k)
 	return DepInjectOutput{Keeper: k, Module: m}

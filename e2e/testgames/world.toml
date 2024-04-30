@@ -6,13 +6,13 @@
 CARDINAL_NAMESPACE="my-world-1" # required to be set in production
 REDIS_ADDRESS=""  # required to be set in production
 REDIS_PASSWORD="" # required to be set in production
-CARDINAL_MODE="development"     # can be either "development" or "production". leaving blank will default to "development"
+CARDINAL_ROLLUP_MODE=false     # can be either true or false. leaving blank will default to false.
 CARDINAL_LOG_LEVEL="info"      # must be one of (debug, info, warn, error, fatal, panic, disabled, trace)
 BASE_SHARD_SEQUENCER_ADDRESS="" # required to be set in production
 
 # Uncomment this line to specify a custom redis address
 # REDIS_ADDRESS="localhost:6379"
-# Uncomment this line to specify a redis password; this must be non-empty when CARDINAL_MODE="production"
+# Uncomment this line to specify a redis password; this must be non-empty when CARDINAL_ROLLUP_MODE=true
 # REDIS_PASSWORD=""
 
 [evm]

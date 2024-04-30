@@ -15,7 +15,7 @@ import (
 // they are properly ordered and proto marshalled as expected.
 func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	t.Parallel()
-	seq := New(keeper.NewKeeper(nil, "foo"), nil)
+	seq := New("", keeper.NewKeeper(nil, "foo"), nil)
 	namespace := "bruh"
 	req := shardv2.SubmitTransactionsRequest{
 		Epoch:         10,
@@ -68,7 +68,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 
 func TestGetBothSlices(t *testing.T) {
 	t.Parallel()
-	seq := New(keeper.NewKeeper(nil, "foo"), nil)
+	seq := New("", keeper.NewKeeper(nil, "foo"), nil)
 	_, err := seq.RegisterGameShard(context.Background(), &shardv2.RegisterGameShardRequest{
 		Namespace:     "foo",
 		RouterAddress: "bar",

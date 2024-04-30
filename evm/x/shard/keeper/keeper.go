@@ -1,9 +1,6 @@
 package keeper
 
 import (
-	"log"
-	"strings"
-
 	"cosmossdk.io/core/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -18,10 +15,7 @@ type Keeper struct {
 
 func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 	if auth == "" {
-		auth = authtypes.NewModuleAddress(types.ModuleName).String()
-		if strings.HasPrefix(auth, "cosmos") {
-			log.Fatal("address had 'cosmos' bech32 prefix, should be 'world'")
-		}
+		panic("shard keeper: no auth address")
 	}
 	k := &Keeper{storeService: ss, auth: auth}
 	return k

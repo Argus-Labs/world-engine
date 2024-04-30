@@ -64,7 +64,7 @@ import (
 	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
 
 	"pkg.world.dev/world-engine/evm/router"
-	"pkg.world.dev/world-engine/evm/sequencer"
+	"pkg.world.dev/world-engine/evm/router/sequencer"
 	namespacekeeper "pkg.world.dev/world-engine/evm/x/namespace/keeper"
 	shardkeeper "pkg.world.dev/world-engine/evm/x/shard/keeper"
 )
