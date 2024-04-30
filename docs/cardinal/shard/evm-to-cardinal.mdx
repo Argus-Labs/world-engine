@@ -47,14 +47,12 @@ Before using the Router, a user must first authorize the contract address that w
 ## Precompile Interface
 
 ```solidity
-interface IRouter {
-    function sendMessage(bytes memory message, string memory messageID, string memory namespace)
-        external
-        returns (bool);
+pragma solidity ^0.8.4;
 
-    function messageResult(string memory txHash)
-        external
-        returns (bytes memory, string memory, uint32);
+interface IRouter {
+    function sendMessage(string memory personaTag, bytes memory message, string memory messageID, string memory namespace) external returns (bool);
+
+    function messageResult(string memory txHash) external returns (bytes memory, string memory, uint32);
 
     function query(bytes memory request, string memory resource, string memory namespace)
         external
@@ -70,11 +68,12 @@ The `sendMessage` method enables smart contracts to send messages to the game sh
 
 #### Parameters
 
-| Parameter   | Type     | Description                                                                                |
-|-------------|----------|--------------------------------------------------------------------------------------------|
-| `message`   | `bytes`  | ABI encoded message struct.                                                                |
-| `messageID` | `string` | Fully qualified message identifier.                                                        |
-| `namespace` | `string` | The namespace of the game shard to send the message to.                                    |
+| Parameter    | Type     | Description                                                                                                                    |
+|--------------|----------|--------------------------------------------------------------------------------------------------------------------------------|
+| `personaTag` | `string` | The persona tag to send the message as. You MUST have this persona tag tied to your EVM address via `AuthorizePersonaAddress`. |
+| `message`    | `bytes`  | ABI encoded message struct.                                                                                                    |
+| `messageID`  | `string` | Fully qualified message identifier.                                                                                            |
+| `namespace`  | `string` | The namespace of the game shard to send the message to.                                                                        |
 
 #### Return Value
 
@@ -165,10 +164,12 @@ struct SendEnergy {
 contract GameAgent {
     IRouter internal router;
     string internal namespace;
+    string internal personaTag;
 
-    constructor(address _precompileAddr, string _namespace) {
+    constructor(address _precompileAddr, string _namespace, string _myPersonaTag) {
         router = IRouter(_precompileAddr);
         namespace = _namespace;
+        personaTag = _myPersonaTag;
     }
 
     struct SendEnergy {
@@ -191,12 +192,12 @@ contract GameAgent {
         uint64 Energy;
     }
 
-    string internal queryPlanetEnergyID = "planet-energy";
+    string internal queryPlanetEnergyID = "game.planet-energy";
 
     function sendSomeEnergy(string calldata _planetTo, string calldata _planetFrom, uint64 _amount) public {
         SendEnergy memory sendEnergyMsg = SendEnergy(_planetTo, _planetFrom, _amount);
         bytes memory encoded = abi.encode(sendEnergyMsg);
-        bool ok = router.sendMessage(encoded, sendEnergyID, namespace);
+        bool ok = router.sendMessage(personaTag, encoded, sendEnergyID, namespace);
         if (!ok) {
             revert("router failed to send message");
         }
