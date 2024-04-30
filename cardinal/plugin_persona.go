@@ -22,12 +22,17 @@ import (
 var (
 	_ Plugin = (*personaPlugin)(nil)
 
+	// TODO: Replace these global variables when indexing/fast-searching is supported.
+	// See https://linear.app/arguslabs/issue/WORLD-1057/spec-out-component-indexing
+	// These global variables are used to quickly identify already-created persona tags. The map should exactly match
+	// the persona tag information stored in the ECS layer. When Cardinal restarts, this map needs to be rebuilt.
+	//
 	// globalPersonaTagToAddressIndex keeps track of the mapping of persona-tags->signer-address so it doesn't need to
 	// be recomputed each tick.
 	globalPersonaTagToAddressIndex personaIndex
-	// The tick that the globalPersonaTagToAddressIndex was built on. In normal usage, wCtx.CurrentTick should always
-	// be greater than this number, but during tests the currentTick will be reset. Tracking this number at the global
-	// is easier than updating each test to reset this global value.
+	// tickOfPersonaTagToAddressIndex is the tick that the globalPersonaTagToAddressIndex was built on. In normal usage,
+	// wCtx.CurrentTick should always be greater than this number, but during tests the currentTick will be reset.
+	// Tracking this number at the global is easier than updating each test to reset these global value.
 	tickOfPersonaTagToAddressIndex uint64
 )
 
