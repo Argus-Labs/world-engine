@@ -148,8 +148,8 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			search := cardinal.NewSearch(wCtx, filter.Exact(CounterComponent{}))
-			id := search.MustFirst()
+			search := cardinal.NewSearch().Entity(filter.Exact(filter.Component[CounterComponent]()))
+			id := search.MustFirst(wCtx)
 			return cardinal.UpdateComponent[CounterComponent](
 				wCtx, id, func(c *CounterComponent) *CounterComponent {
 					c.Count++
@@ -728,7 +728,7 @@ func TestCreatePersona(t *testing.T) {
 
 func TestNewWorld(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
-	assert.Equal(t, tf.World.Namespace(), cardinal.DefaultNamespace)
+	assert.Equal(t, tf.World.Namespace(), cardinal.DefaultCardinalNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {
@@ -746,7 +746,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	gotNumOfEntities := 0
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
-		err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).Each(func(types.EntityID) bool {
+		err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[Foo]())).Each(wCtx, func(types.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})

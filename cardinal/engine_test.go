@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -421,22 +422,19 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	tf.DoTick()
 }
 
-// setEnvToCardinalProdMode sets a bunch of environment variables that are required
-// for Cardinal to be able to run in Production Mode.
-func setEnvToCardinalProdMode(t *testing.T) {
-	t.Setenv("CARDINAL_MODE", string(cardinal.RunModeProd))
-	t.Setenv("REDIS_ADDRESS", "localhost:6379")
-	t.Setenv("REDIS_PASSWORD", "bar")
-	t.Setenv("CARDINAL_NAMESPACE", "baz")
-	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "localhost:8080")
-	t.Setenv("ROUTER_KEY", "77cf59146831dbd94bd19dd4b259b268ee07a7c1fdba67e92b0f7c1cfdfb7a9b")
+// setEnvToCardinalRollupMode sets a bunch of environment variables that are required
+// for Cardinal to be able to run in rollup node.
+func setEnvToCardinalRollupMode(t *testing.T) {
+	t.Setenv("CARDINAL_ROLLUP_ENABLED", strconv.FormatBool(true))
+	t.Setenv("BASE_SHARD_ROUTER_KEY", "77cf59146831dbd94bd19dd4b259b268ee07a7c1fdba67e92b0f7c1cfdfb7a9b")
 }
 
 func TestRecoverFromChain(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
-	// Set CARDINAL_MODE to production so that RecoverFromChain() is called
-	setEnvToCardinalProdMode(t)
+
+	// Set CARDINAL_ROLLUP_ENABLED=true so that RecoverFromChain() is called
+	setEnvToCardinalRollupMode(t)
 
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)

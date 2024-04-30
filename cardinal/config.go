@@ -15,16 +15,10 @@ import (
 )
 
 const (
-	RunModeProd RunMode = "production"
-	RunModeDev  RunMode = "development"
-
-	// Default configuration values.
-
-	DefaultRunMode       = RunModeDev
-	DefaultNamespace     = "world-1"
-	DefaultRedisAddress  = "localhost:6379"
-	DefaultLogLevel      = "info"
-	DefaultStatsdAddress = "localhost:8125"
+	DefaultCardinalNamespace         = "world-1"
+	DefaultCardinalLogLevel          = "info"
+	DefaultRedisAddress              = "localhost:6379"
+	DefaultBaseShardSequencerAddress = "localhost:9601"
 )
 
 var (
@@ -37,53 +31,66 @@ var (
 	}
 
 	defaultConfig = WorldConfig{
+		CardinalNamespace:         DefaultCardinalNamespace,
+		CardinalRollupEnabled:     false,
+		CardinalLogPretty:         false,
+		CardinalLogLevel:          DefaultCardinalLogLevel,
 		RedisAddress:              DefaultRedisAddress,
 		RedisPassword:             "",
-		CardinalNamespace:         DefaultNamespace,
-		CardinalMode:              DefaultRunMode,
-		BaseShardSequencerAddress: "",
-		CardinalLogLevel:          DefaultLogLevel,
-		StatsdAddress:             DefaultStatsdAddress,
-		TraceAddress:              "",
+		BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
+		BaseShardRouterKey:        "",
+		TelemetryEnabled:          false,
+		TelemetryStatsdAddress:    "",
+		TelemetryTraceAddress:     "",
 	}
 )
 
-type RunMode string
-
 type WorldConfig struct {
-	// Cardinal
-	CardinalMode      RunMode `config:"CARDINAL_MODE"`
-	CardinalNamespace string  `config:"CARDINAL_NAMESPACE"`
-	CardinalLogLevel  string  `config:"CARDINAL_LOG_LEVEL"`
+	// CardinalNamespace The shard namespace for Cardinal. This needs to be unique to prevent signature replay attacks.
+	CardinalNamespace string `config:"CARDINAL_NAMESPACE"`
 
-	// Redis
-	RedisAddress  string `config:"REDIS_ADDRESS"`
+	// CardinalRollupEnabled When true, Cardinal will sequence and recover to/from base shard.
+	CardinalRollupEnabled bool `config:"CARDINAL_ROLLUP_ENABLED"`
+
+	// CardinalLogLevel Determines the log level for Cardinal.
+	CardinalLogLevel string `config:"CARDINAL_LOG_LEVEL"`
+
+	// CardinalLogPretty Pretty logging, disable by default due to performance impact.
+	CardinalLogPretty bool `config:"CARDINAL_LOG_PRETTY"`
+
+	// RedisAddress The address of the redis server, supports unix sockets.
+	RedisAddress string `config:"REDIS_ADDRESS"`
+
+	// RedisPassword The password for the redis server. Make sure to use a password in production.
 	RedisPassword string `config:"REDIS_PASSWORD"`
 
-	// Shard networking
+	// BaseShardSequencerAddress This is the address that Cardinal will use to sequence and recover to/from base shard.
 	BaseShardSequencerAddress string `config:"BASE_SHARD_SEQUENCER_ADDRESS"`
 
-	// Telemetry
-	StatsdAddress string `config:"STATSD_ADDRESS"`
-	TraceAddress  string `config:"TRACE_ADDRESS"`
-	// RouterKey is a token used to secure communications between the game shard and the base shard.
-	RouterKey string `config:"ROUTER_KEY"`
+	// BaseShardRouterKey is a token used to secure communications between the game shard and the base shard.
+	BaseShardRouterKey string `config:"BASE_SHARD_ROUTER_KEY"`
+
+	// TelemetryEnabled When true, Cardinal will send telemetry to a telemetry agent.
+	TelemetryEnabled bool `config:"TELEMETRY_ENABLED"`
+
+	// TelemetryStatsdAddress The address of a statsd metric agent that will collect stats from Cardinal.
+	TelemetryStatsdAddress string `config:"TELEMETRY_STATSD_ADDRESS"`
+
+	// TelemetryTraceAddress The address of an agent that supports the collection of traces (e.g. a DataDog agent).
+	TelemetryTraceAddress string `config:"TELEMETRY_TRACE_ADDRESS"`
 }
 
 func loadWorldConfig() (*WorldConfig, error) {
 	cfg := defaultConfig
 
-	// Load config from environment variables
 	if err := config.FromEnv().To(&cfg); err != nil {
 		return nil, eris.Wrap(err, "Failed to load config")
 	}
 
-	// Validate config
 	if err := cfg.Validate(); err != nil {
 		return nil, eris.Wrap(err, "Invalid config")
 	}
 
-	// Set logger config
 	if err := cfg.setLogger(); err != nil {
 		return nil, eris.Wrap(err, "Failed to set log level")
 	}
@@ -91,35 +98,11 @@ func loadWorldConfig() (*WorldConfig, error) {
 	return &cfg, nil
 }
 
-// Validate validates the config values and ensures that when the RunMode is production, the required values are set.
-//
-//nolint:gocognit // its fine.
-func (w *WorldConfig) Validate() error {
-	// Validate run mode
-	if w.CardinalMode != RunModeProd && w.CardinalMode != RunModeDev {
-		return eris.Errorf("CARDINAL_MODE must be either %q or %q", RunModeProd, RunModeDev)
-	}
-
-	// Validate production mode configs
-	if w.CardinalMode == RunModeProd {
-		// Validate that Redis password is set
-		if w.RedisPassword == "" {
-			return eris.New("REDIS_PASSWORD must be set in production mode")
-		}
-		// Validate shard networking config
-		if _, _, err := net.SplitHostPort(w.BaseShardSequencerAddress); err != nil {
-			return eris.Wrap(err, "BASE_SHARD_SEQUENCER_ADDRESS must follow the format <host>:<port>")
-		}
-		if w.RouterKey == "" {
-			return eris.New("ROUTER_KEY must be set in production mode")
-		}
-		if err := credentials.ValidateKey(w.RouterKey); err != nil {
-			return err
-		}
-	}
-
+// Validate validates the config values.
+// If CARDINAL_ROLLUP=true, the BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_ROUTER_KEY are required.
+func (w *WorldConfig) Validate() error { //nolint:gocognit
 	// Validate Cardinal configs
-	if err := Namespace(w.CardinalNamespace).Validate(w.CardinalMode); err != nil {
+	if err := Namespace(w.CardinalNamespace).Validate(); err != nil {
 		return eris.Wrap(err, "CARDINAL_NAMESPACE is not a valid namespace")
 	}
 	if w.CardinalLogLevel == "" || !slices.Contains(validLogLevels, w.CardinalLogLevel) {
@@ -131,15 +114,31 @@ func (w *WorldConfig) Validate() error {
 		return eris.New("REDIS_ADDRESS must follow the format <host>:<port>")
 	}
 
-	// Validate telemetry config
-	if w.StatsdAddress != "" {
-		if _, _, err := net.SplitHostPort(w.StatsdAddress); err != nil {
-			return eris.New("STATSD_ADDRESS must follow the format <host>:<port>")
+	// Validate base shard configs (only required when rollup mode is enabled)
+	if w.CardinalRollupEnabled {
+		if _, _, err := net.SplitHostPort(w.BaseShardSequencerAddress); err != nil {
+			return eris.Wrap(err, "BASE_SHARD_SEQUENCER_ADDRESS must follow the format <host>:<port>")
+		}
+		if w.BaseShardRouterKey == "" {
+			return eris.New("BASE_SHARD_ROUTER_KEY must be when rollup mode is enabled")
+		}
+		if err := credentials.ValidateKey(w.BaseShardRouterKey); err != nil {
+			return err
 		}
 	}
-	if w.TraceAddress != "" {
-		if _, _, err := net.SplitHostPort(w.TraceAddress); err != nil {
-			return eris.New("TRACE_ADDRESS must follow the format <host>:<port>")
+
+	// Validate telemetry configs
+	if w.TelemetryEnabled { //nolint:nestif // better consistency and readability
+		if w.TelemetryStatsdAddress != "" {
+			if _, _, err := net.SplitHostPort(w.TelemetryStatsdAddress); err != nil {
+				return eris.New("TELEMETRY_STATSD_ADDRESS must follow the format <host>:<port>")
+			}
+		}
+
+		if w.TelemetryTraceAddress != "" {
+			if _, _, err := net.SplitHostPort(w.TelemetryTraceAddress); err != nil {
+				return eris.New("TELEMETRY_TRACE_ADDRESS must follow the format <host>:<port>")
+			}
 		}
 	}
 
@@ -147,17 +146,15 @@ func (w *WorldConfig) Validate() error {
 }
 
 func (w *WorldConfig) setLogger() error {
-	// Parse the log level
+	// Set global logger level
 	level, err := zerolog.ParseLevel(w.CardinalLogLevel)
 	if err != nil {
 		return eris.Wrap(err, "CARDINAL_LOG_LEVEL is not a valid log level")
 	}
-
-	// Set global logger level
 	zerolog.SetGlobalLevel(level)
 
-	// Enable pretty logging in development mode
-	if w.CardinalMode == RunModeDev {
+	// Override global logger to console writer if pretty logging is enabled
+	if w.CardinalLogPretty {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 

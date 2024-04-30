@@ -18,15 +18,10 @@ func (n Namespace) String() string {
 	return string(n)
 }
 
-// Validate validates that the namespace is alphanumeric and not the default namespace in production mode.
-func (n Namespace) Validate(mode RunMode) error {
+// Validate validates that the namespace is alphanumeric or - (hyphen).
+func (n Namespace) Validate() error {
 	if !regexAlphanumeric.MatchString(n.String()) {
 		return eris.New("Invalid namespace. A namespace must be alphanumeric.")
-	}
-	if mode == RunModeProd {
-		if n.String() == DefaultNamespace {
-			return eris.New("Default namespace is not allowed in production mode.")
-		}
 	}
 	return nil
 }

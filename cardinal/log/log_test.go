@@ -35,8 +35,8 @@ func (EnergyComp) Name() string {
 
 func testSystem(wCtx engine.Context) error {
 	wCtx.Logger().Log().Msg("test")
-	q := cardinal.NewSearch(wCtx, filter.Contains(EnergyComp{}))
-	err := q.Each(
+	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComp]()))
+	err := q.Each(wCtx,
 		func(entityId types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComp](wCtx, entityId)
 			if err != nil {
@@ -60,6 +60,10 @@ func testSystemWarningTrigger(wCtx engine.Context) error {
 }
 
 func TestWorldLogger(t *testing.T) {
+	// TODO(scott): this test is extremely brittle.
+	//  If there is any additioanl logger added, this test will fail.
+	//  We should find a way to make this test more robust.
+
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -93,7 +97,10 @@ func TestWorldLogger(t *testing.T) {
 						]
 				}
 `
-	require.JSONEq(t, jsonWorldInfoString, buf.String())
+	// Split the buffer's contents by newline
+	lines := bytes.Split(buf.Bytes(), []byte("\n"))
+
+	require.JSONEq(t, jsonWorldInfoString, string(lines[0]))
 	buf.Reset()
 
 	energy, err := world.GetComponentByName(EnergyComp{}.Name())

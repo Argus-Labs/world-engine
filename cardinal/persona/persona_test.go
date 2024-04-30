@@ -287,9 +287,9 @@ func getSigners(t *testing.T, world *cardinal.World) []*component.SignerComponen
 	wCtx := cardinal.NewWorldContext(world)
 	var signers = make([]*component.SignerComponent, 0)
 
-	q := cardinal.NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
+	q := cardinal.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 
-	err := q.Each(
+	err := q.Each(wCtx,
 		func(id types.EntityID) bool {
 			sc, err := cardinal.GetComponent[component.SignerComponent](wCtx, id)
 			assert.NilError(t, err)

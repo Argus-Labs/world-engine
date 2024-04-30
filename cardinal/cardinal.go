@@ -31,7 +31,36 @@ var (
 // This section aggregates function from other packages such that they are easily accessible
 // via cardinal.<function_name>
 
+// NewSearch is used to create a search object.
+//
+// Usage:
+//
+// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
 var NewSearch = search.NewSearch
+
+// NewLegacySearch allows users to create a Search object with a filter already provided
+// as a property.
+//
+// Example Usage:
+//
+// cardinal.NewLegacySearch().Entity(filter.Exact(Alpha{}, Beta{})).Count()
+var NewLegacySearch = search.NewLegacySearch
+
+type Search = search.Search
+
+// FilterFunction wrap your component filter function of func(comp T) bool inside FilterFunction to use
+// in search.
+//
+// Usage:
+//
+// cardinal.NewSearch().Entity(filter.Not(filter.
+// Contains(filter.Component[AlphaTest]()))).Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
+//  	return true
+// }))
+
+func FilterFunction[T types.Component](f func(comp T) bool) func(ctx engine.Context, id types.EntityID) (bool, error) {
+	return search.ComponentFilter[T](f)
+}
 
 func RegisterSystems(w *World, sys ...system.System) error {
 	if w.worldStage.Current() != worldstage.Init {

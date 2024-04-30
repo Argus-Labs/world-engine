@@ -47,8 +47,8 @@ var _ router.Provider = &World{}      //nolint:exhaustruct
 var _ servertypes.Provider = &World{} //nolint:exhaustruct
 
 type World struct {
-	mode      RunMode
-	namespace Namespace
+	namespace     Namespace
+	rollupEnabled bool
 
 	// Storage
 	redisStorage *redis.Storage
@@ -91,7 +91,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, eris.Wrap(err, "Failed to load config to start world")
 	}
 
-	log.Info().Msgf("Creating a new Cardinal world in %s mode", cfg.CardinalMode)
+	if cfg.CardinalRollupEnabled {
+		log.Info().Msgf("Creating a new Cardinal world in rollup mode")
+	} else {
+		log.Warn().Msg("Cardinal is running in development mode without rollup sequencing. " +
+			"If you intended to run this for production use, set CARDINAL_ROLLUP=true")
+	}
 
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
 		Addr:        cfg.RedisAddress,
@@ -109,8 +114,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	tick := new(atomic.Uint64)
 
 	world := &World{
-		mode:      cfg.CardinalMode,
-		namespace: Namespace(cfg.CardinalNamespace),
+		namespace:     Namespace(cfg.CardinalNamespace),
+		rollupEnabled: cfg.CardinalRollupEnabled,
 
 		// Storage
 		redisStorage: &redisMetaStore,
@@ -142,12 +147,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 
-	// Shard router must be set in production mode
-	if cfg.CardinalMode == RunModeProd {
+	// Initialize shard router if running in rollup mode
+	if cfg.CardinalRollupEnabled {
 		world.router, err = router.New(
 			cfg.CardinalNamespace,
 			cfg.BaseShardSequencerAddress,
-			cfg.RouterKey,
+			cfg.BaseShardRouterKey,
 			world,
 		)
 		if err != nil {
@@ -163,15 +168,20 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	world.RegisterPlugin(newPersonaPlugin())
 
 	var metricTags []string
-	metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
 	metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
 
-	if cfg.StatsdAddress != "" || cfg.TraceAddress != "" {
-		if err = statsd.Init(cfg.StatsdAddress, cfg.TraceAddress, metricTags); err != nil {
-			return nil, eris.Wrap(err, "unable to init statsd")
+	if cfg.TelemetryEnabled {
+		// If both telemetry statsd and trace address are set, then we will enable telemetry
+		if cfg.TelemetryStatsdAddress != "" && cfg.TelemetryTraceAddress != "" {
+			if err = statsd.Init(cfg.TelemetryStatsdAddress, cfg.TelemetryTraceAddress, metricTags); err != nil {
+				return nil, eris.Wrap(err, "failed to init statsd telemetry")
+			}
+		} else {
+			log.Logger.Warn().Msg(
+				"TELEMETRY_ENABLED=true but TELEMETRY_STATSD_ADDRESS and TELEMETRY_TRACE_ADDRESS are not set. " +
+					"Telemetry data will not be submitted to the agent.",
+			)
 		}
-	} else {
-		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
 	return world, nil
@@ -308,8 +318,8 @@ func (w *World) StartGame() error {
 		return err
 	}
 
-	// If Cardinal is in Prod and Router is set, recover any old state of the engine from the chain
-	if w.mode == RunModeProd && w.router != nil {
+	// If Cardinal is in rollup mode and router is set, recover any old state of Caridnal from base shard.
+	if w.rollupEnabled && w.router != nil {
 		if err := w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
@@ -580,8 +590,8 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	return qry.EncodeEVMReply(reply)
 }
 
-func (w *World) Search(filter filter.ComponentFilter) *search.Search {
-	return NewSearch(NewReadOnlyWorldContext(w), filter)
+func (w *World) Search(filter filter.ComponentFilter) search.EntitySearch {
+	return search.NewLegacySearch(filter)
 }
 
 func (w *World) StoreReader() gamestate.Reader {
@@ -601,7 +611,9 @@ func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 func (w *World) GetRegisteredSystemNames() []string {
 	return w.systemManager.GetRegisteredSystemNames()
 }
-
+func (w *World) GetReadOnlyCtx() engine.Context {
+	return NewReadOnlyWorldContext(w)
+}
 func (w *World) GetQueryByName(name string) (engine.Query, error) {
 	return w.queryManager.GetQueryByName(name)
 }
