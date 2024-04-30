@@ -11,6 +11,7 @@ import (
 	"pkg.berachain.dev/polaris/lib/utils"
 
 	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
+	"pkg.world.dev/world-engine/evm/router"
 )
 
 type RouterTestSuite struct {
@@ -24,9 +25,10 @@ func TestRouter(t *testing.T) {
 }
 
 func (r *RouterTestSuite) SetupTest() {
+	rtr := router.NewRouter(nil, nil, nil)
 	r.contract = utils.MustGetAs[*Contract](
 		NewPrecompileContract(
-			nil,
+			rtr,
 		),
 	)
 	r.sf = ethprecompile.NewStatefulFactory()
