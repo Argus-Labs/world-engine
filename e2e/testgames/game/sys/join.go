@@ -7,7 +7,6 @@ import (
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -16,7 +15,7 @@ var PlayerEntityID = make(map[string]types.EntityID)
 func Join(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
 	return cardinal.EachMessage[msg.JoinInput, msg.JoinOutput](
-		ctx, func(jtx message.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
+		ctx, func(jtx cardinal.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
 			logger.Info().Msgf("got join transaction from: %s", jtx.Tx.PersonaTag)
 			entityID, err := cardinal.Create(ctx, comp.Location{}, comp.Player{})
 			if err != nil {

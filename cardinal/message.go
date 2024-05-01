@@ -31,10 +31,10 @@ type TxData[In any] struct {
 	Tx   *sign.Transaction
 }
 
-type MessageOption[In, Out any] func(mt *MessageType[In, Out]) //nolint:revive // this is fine for now
+type MessageOption[In, Out any] func(mt *MessageType[In, Out])
 
 // MessageType manages a user defined state transition message struct.
-type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
+type MessageType[In, Out any] struct {
 	id         types.MessageID
 	isIDSet    bool
 	name       string
