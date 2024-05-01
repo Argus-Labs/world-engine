@@ -8,7 +8,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -312,7 +311,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 			world,
 			func(wCtx engine.Context) error {
 				someTx, err := testutils.GetMessage[Msg, Result](wCtx)
-				return cardinal.EachMessage[Msg, Result](wCtx, func(tx message.TxData[Msg]) (Result, error) {
+				return cardinal.EachMessage[Msg, Result](wCtx, func(tx cardinal.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})
 					return Result{}, err
 				})

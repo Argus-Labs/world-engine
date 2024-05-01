@@ -1,4 +1,4 @@
-package query_test
+package cardinal_test
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -71,7 +70,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
 		},
-		query.WithQueryEVMSupport[FooReq, FooReply](),
+		cardinal.WithQueryEVMSupport[FooReq, FooReply](),
 	)
 }
 
@@ -153,7 +152,7 @@ func TestQueryEVM(t *testing.T) {
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
-		query.WithQueryEVMSupport[FooRequest, FooReply](),
+		cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
 	)
 
 	assert.NilError(t, err)

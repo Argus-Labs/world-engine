@@ -20,8 +20,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
 	"pkg.world.dev/world-engine/cardinal/search"
@@ -60,10 +58,10 @@ type World struct {
 
 	// Core modules
 	worldStage       *worldstage.Manager
-	msgManager       *message.Manager
+	msgManager       *MessageManager
 	systemManager    *system.Manager
 	componentManager *component.Manager
-	queryManager     *query.Manager
+	queryManager     *QueryManager
 	router           router.Router
 	txPool           *txpool.TxPool
 
@@ -127,10 +125,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 		// Core modules
 		worldStage:       worldstage.NewManager(),
-		msgManager:       message.NewManager(),
+		msgManager:       NewMessageManager(),
 		systemManager:    system.NewManager(),
 		componentManager: component.NewManager(&redisMetaStore),
-		queryManager:     query.NewManager(),
+		queryManager:     NewQueryManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
 		txPool:           txpool.New(),
 

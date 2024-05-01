@@ -1,4 +1,4 @@
-package query
+package cardinal
 
 import (
 	"github.com/rotisserie/eris"
@@ -6,19 +6,19 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-type Manager struct {
+type QueryManager struct {
 	registeredQueries map[string]engine.Query
 }
 
-func NewManager() *Manager {
-	return &Manager{
+func NewQueryManager() *QueryManager {
+	return &QueryManager{
 		registeredQueries: make(map[string]engine.Query),
 	}
 }
 
 // RegisterQuery registers a query with the query manager.
 // There can only be one query with a given name.
-func (m *Manager) RegisterQuery(name string, query engine.Query) error {
+func (m *QueryManager) RegisterQuery(name string, query engine.Query) error {
 	// Check that the query is not already registered
 	if err := m.isQueryNameUnique(name); err != nil {
 		return err
@@ -31,7 +31,7 @@ func (m *Manager) RegisterQuery(name string, query engine.Query) error {
 }
 
 // GetRegisteredQueries returns all the registered queries.
-func (m *Manager) GetRegisteredQueries() []engine.Query {
+func (m *QueryManager) GetRegisteredQueries() []engine.Query {
 	registeredQueries := make([]engine.Query, 0, len(m.registeredQueries))
 	for _, query := range m.registeredQueries {
 		registeredQueries = append(registeredQueries, query)
@@ -40,7 +40,7 @@ func (m *Manager) GetRegisteredQueries() []engine.Query {
 }
 
 // GetQueryByName returns a query corresponding to its name.
-func (m *Manager) GetQueryByName(name string) (engine.Query, error) {
+func (m *QueryManager) GetQueryByName(name string) (engine.Query, error) {
 	query, ok := m.registeredQueries[name]
 	if !ok {
 		return nil, eris.Errorf("query %q is not registered", name)
@@ -48,7 +48,7 @@ func (m *Manager) GetQueryByName(name string) (engine.Query, error) {
 	return query, nil
 }
 
-func (m *Manager) isQueryNameUnique(name string) error {
+func (m *QueryManager) isQueryNameUnique(name string) error {
 	if _, ok := m.registeredQueries[name]; ok {
 		return eris.Errorf("query %q is already registered", name)
 	}

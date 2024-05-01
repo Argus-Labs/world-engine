@@ -7,12 +7,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/query"
-	querylib "pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -73,7 +71,7 @@ func (p *personaPlugin) Register(world *World) error {
 func (p *personaPlugin) RegisterQueries(world *World) error {
 	err := RegisterQuery[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse](world, "signer",
 		query.PersonaSignerQuery,
-		querylib.WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
+		WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
 	if err != nil {
 		return err
 	}
@@ -101,8 +99,8 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 		RegisterMessage[msg.CreatePersona, msg.CreatePersonaResult](
 			world,
 			msg.CreatePersonaMessageName,
-			message.WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
-			message.WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult]()),
+			WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
+			WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult]()),
 		RegisterMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 			world,
 			"authorize-persona-address",
@@ -122,7 +120,7 @@ func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
 	}
 	return EachMessage[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 		wCtx,
-		func(txData message.TxData[msg.AuthorizePersonaAddress]) (
+		func(txData TxData[msg.AuthorizePersonaAddress]) (
 			result msg.AuthorizePersonaAddressResult, err error,
 		) {
 			txMsg, tx := txData.Msg, txData.Tx
@@ -175,7 +173,7 @@ func CreatePersonaSystem(wCtx engine.Context) error {
 	}
 	return EachMessage[msg.CreatePersona, msg.CreatePersonaResult](
 		wCtx,
-		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
+		func(txData TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
 			result.Success = false
 

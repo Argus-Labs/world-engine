@@ -18,7 +18,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -537,15 +536,15 @@ func doTickCapturePanic(ctx context.Context, world *World) (err error) {
 	return nil
 }
 
-func getMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
+func getMessage[In any, Out any](wCtx engine.Context) (*MessageType[In, Out], error) {
+	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
 	tempRes, ok := wCtx.GetMessageByType(msgType)
 	if !ok {
 		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
 	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
+	res, ok := tempRes.(*MessageType[In, Out])
 	if !ok {
 		return &msg, eris.New("wrong type")
 	}

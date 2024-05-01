@@ -9,8 +9,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -113,15 +111,15 @@ func MustRegisterComponent[T types.Component](w *World) {
 	}
 }
 
-func EachMessage[In any, Out any](wCtx engine.Context, fn func(message.TxData[In]) (Out, error)) error {
-	var msg message.MessageType[In, Out]
+func EachMessage[In any, Out any](wCtx engine.Context, fn func(TxData[In]) (Out, error)) error {
+	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
 	tempRes, ok := wCtx.GetMessageByType(msgType)
 	if !ok {
 		return eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
 	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
+	res, ok := tempRes.(*MessageType[In, Out])
 	if !ok {
 		return eris.New("wrong type")
 	}
@@ -132,7 +130,7 @@ func EachMessage[In any, Out any](wCtx engine.Context, fn func(message.TxData[In
 // RegisterMessage registers a message to the world. Cardinal will automatically set up HTTP routes that map to each
 // registered message. Message URLs are take the form of "group.name". A default group, "game", is used
 // unless the WithCustomMessageGroup option is used. Example: game.throw-rock
-func RegisterMessage[In any, Out any](world *World, name string, opts ...message.MessageOption[In, Out]) error {
+func RegisterMessage[In any, Out any](world *World, name string, opts ...MessageOption[In, Out]) error {
 	if world.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
 			"engine state is %s, expected %s to register messages",
@@ -142,7 +140,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...message
 	}
 
 	// Create the message type
-	msgType := message.NewMessageType[In, Out](name, opts...)
+	msgType := NewMessageType[In, Out](name, opts...)
 
 	// Register the message with the manager
 	err := world.msgManager.RegisterMessage(msgType, reflect.TypeOf(*msgType))
@@ -157,7 +155,7 @@ func RegisterQuery[Request any, Reply any](
 	w *World,
 	name string,
 	handler func(wCtx engine.Context, req *Request) (*Reply, error),
-	opts ...query.Option[Request, Reply],
+	opts ...QueryOption[Request, Reply],
 ) (err error) {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
@@ -167,7 +165,7 @@ func RegisterQuery[Request any, Reply any](
 		)
 	}
 
-	q, err := query.NewQueryType[Request, Reply](name, handler, opts...)
+	q, err := NewQueryType[Request, Reply](name, handler, opts...)
 	if err != nil {
 		return err
 	}
