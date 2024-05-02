@@ -81,7 +81,11 @@ func (r *Notifier) sendNotifications(ch chan []Receipt) {
 
 	for {
 		select {
-		case receipts := <-ch:
+		case receipts, ok := <-ch:
+			if !ok {
+				// The incoming notification channel has been closed. No more receipts will arrive.
+				return
+			}
 			if err := r.handleReceipt(receipts); err != nil {
 				r.logger.Debug("failed to send batch of receipts of len %d: %v", len(receipts), err)
 			}
