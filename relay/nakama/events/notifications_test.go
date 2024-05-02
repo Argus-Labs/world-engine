@@ -15,13 +15,13 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
-var (
+const (
 	eventsEndpoint = "events"
 )
 
 // Test that the Notifications system works as expected with the Dispatcher and a Mock Server
 func TestNotifierIntegrationWithEventHub(t *testing.T) {
-	ch := make(chan TickResults)
+	ch := make(chan TickResults, 1)
 	nk := mocks.NewNakamaModule(t)
 	logger := &testutils.FakeLogger{}
 	mockServer := setupMockWebSocketServer(t, ch)
@@ -49,37 +49,48 @@ func TestNotifierIntegrationWithEventHub(t *testing.T) {
 			Persistent: false,
 		},
 	}
-	nk.On("NotificationsSend", mock.Anything, expectedNotifications).Return(nil).Once()
+	sendNotificationSuccessful := make(chan bool)
+	nk.On("NotificationsSend", mock.Anything, expectedNotifications).
+		Return(nil).
+		Once().
+		Run(func(mock.Arguments) {
+			sendNotificationSuccessful <- true
+		})
 
+	dispatchErrCh := make(chan error)
 	// Start dispatching events
 	go func() {
-		if err := eh.Dispatch(logger); err != nil {
-			t.Logf("Error dispatching: %v", err)
-		}
+		dispatchErrCh <- eh.Dispatch(logger)
 	}()
 
 	// Simulate Cardinal sending TickResults to the Nakama EventHub
-	go func() {
-		event, err := json.Marshal(map[string]any{"message": "test event"})
-		if err != nil {
-			t.Error("failed to marshal map")
-			return
-		}
-		tr := TickResults{
-			Tick:     100,
-			Receipts: nil,
-			Events:   nil,
-		}
-		tr.Events = append(tr.Events, event)
-		tr.Receipts = append(tr.Receipts, Receipt{
-			TxHash: txHash,
-			Result: map[string]any{"status": "success"},
-			Errors: []string{},
-		})
-		ch <- tr
-	}()
+	event, err := json.Marshal(map[string]any{"message": "test event"})
+	if err != nil {
+		t.Error("failed to marshal map")
+		return
+	}
+	tr := TickResults{
+		Tick:     100,
+		Receipts: nil,
+		Events:   nil,
+	}
+	tr.Events = append(tr.Events, event)
+	tr.Receipts = append(tr.Receipts, Receipt{
+		TxHash: txHash,
+		Result: map[string]any{"status": "success"},
+		Errors: []string{},
+	})
+	ch <- tr
 
-	time.Sleep(time.Second)
+	select {
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "timeout while waiting for a notification to be sent")
+	case <-sendNotificationSuccessful: // success
+		break
+	}
+
+	eh.Shutdown()
+	assert.NoError(t, <-dispatchErrCh)
 }
 
 func TestAddTxHashToPendingNotifications(t *testing.T) {

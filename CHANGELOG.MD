@@ -58,6 +58,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (cardinal) #WORLD-702: Cardinal's transactions are now sent at the end of a tick, instead of one by one at the server handler.
 
+- (nakama) GDEV-1024: Nakama will automatically attempt to reconnect a websocket when cardinal is restarted.
+
 ### Deprecated
 
 ### Bug Fixes
