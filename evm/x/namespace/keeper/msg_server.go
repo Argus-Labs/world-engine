@@ -14,6 +14,7 @@ var _ types.MsgServer = &Keeper{}
 func (k *Keeper) UpdateNamespace(ctx context.Context, request *types.UpdateNamespaceRequest) (
 	*types.UpdateNamespaceResponse, error,
 ) {
+	// check that router module called this method, not an external user.
 	if k.authority != request.Authority {
 		return nil, sdkerrors.ErrUnauthorized.
 			Wrapf("%s is not allowed to update namespaces, expected %s", request.Authority, k.authority)

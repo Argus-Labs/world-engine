@@ -9,6 +9,12 @@ import (
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
+/*
+	Results storage is a rudimentary storage system. It uses a sync.Map to store things, and records the time the result
+    was placed in storage. Each time a Result is fetched, we make a call to clear the stale entries.
+
+*/
+
 type Result struct {
 	*routerv1.SendMessageResponse
 	timeEntered time.Time

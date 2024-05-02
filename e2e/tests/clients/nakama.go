@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -86,7 +87,9 @@ func (c *NakamaClient) listenForNotifications() error {
 		return err
 	}
 
+	isTestOver := &atomic.Bool{}
 	c.t.Cleanup(func() {
+		isTestOver.Store(true)
 		assert.Check(c.t, nil == conn.Close(websocket.StatusNormalClosure, "test over"))
 	})
 
@@ -94,7 +97,7 @@ func (c *NakamaClient) listenForNotifications() error {
 		for {
 			_, buf, err := conn.Read(context.Background())
 			if err != nil {
-				if !strings.Contains(err.Error(), "StatusNormalClosure") {
+				if !isTestOver.Load() {
 					assert.Check(c.t, err == nil, "failed to read from we socket:", err)
 				}
 				return

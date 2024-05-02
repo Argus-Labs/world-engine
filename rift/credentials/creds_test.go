@@ -3,11 +3,16 @@ package credentials
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 )
+
+func TestCredentialsWorksWithGRPCOption(t *testing.T) {
+	_ = grpc.WithPerRPCCredentials(NewTokenCredential("foobar"))
+}
 
 func TestValidateKey(t *testing.T) {
 	testCases := []struct {
