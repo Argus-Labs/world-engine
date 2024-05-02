@@ -17,6 +17,8 @@ const (
 	noActiveSystemName = ""
 )
 
+var _ SystemManager = &systemManager{}
+
 type SystemFunc func(ctx engine.Context) error
 
 type System struct {
@@ -47,8 +49,6 @@ type systemManager struct {
 	// currentSystem is the name of the System that is currently running.
 	currentSystem string
 }
-
-var _ SystemManager = &systemManager{}
 
 func newSystemManager() SystemManager {
 	var sm SystemManager = &systemManager{
@@ -107,7 +107,8 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...SystemFunc) 
 func (m *systemManager) runSystems(wCtx engine.Context) error {
 	var systemsToRun []System
 	if wCtx.CurrentTick() == 0 {
-		systemsToRun = append(m.registeredInitSystems, m.registeredSystems...)
+		systemsToRun = append([]System{}, m.registeredInitSystems...)
+		systemsToRun = append(systemsToRun, m.registeredSystems...)
 	} else {
 		systemsToRun = m.registeredSystems
 	}
@@ -142,7 +143,8 @@ func (m *systemManager) runSystems(wCtx engine.Context) error {
 }
 
 func (m *systemManager) GetRegisteredSystems() []string {
-	sys := append(m.registeredInitSystems, m.registeredSystems...)
+	sys := append([]System{}, m.registeredInitSystems...)
+	sys = append(sys, m.registeredSystems...)
 	sysNames := make([]string, len(sys))
 	for i, sys := range append(m.registeredInitSystems, m.registeredSystems...) {
 		sysNames[i] = sys.Name
