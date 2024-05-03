@@ -92,8 +92,8 @@ func TestWorldLogger(t *testing.T) {
 					"total_systems":2,
 					"systems":
 						[
-							"cardinal.CreatePersonaSystem",
-							"cardinal.AuthorizePersonaAddressSystem"
+							"cardinal.createPersonaSystem",
+							"cardinal.authorizePersonaAddressSystem"
 						]
 				}
 `

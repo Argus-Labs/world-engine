@@ -14,7 +14,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-// TestSystemsReturnNonFatalErrors ensures System will surface non-fatal read and write errors to the user.
+// TestSystemsReturnNonFatalErrors ensures system will surface non-fatal read and write errors to the user.
 func TestSystemsReturnNonFatalErrors(t *testing.T) {
 	const nonExistentEntityID = 999
 	testCases := []struct {
@@ -134,7 +134,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
 			err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
 				defer func() {
-					// In Systems, Cardinal is designed to panic when a fatal error is encountered.
+					// In systems, Cardinal is designed to panic when a fatal error is encountered.
 					// This test is not supposed to panic, but if it does panic it happens in a non-main thread which
 					// makes it hard to track down where the panic actually came from.
 					// Recover here and complain about any non-nil panics to allow the remaining tests in this

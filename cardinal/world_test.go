@@ -348,7 +348,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	world.tickTheEngine(ctx, nil)
 	// Power is set to 2
 	world.tickTheEngine(ctx, nil)
-	// Power is set to 3, then the System fails
+	// Power is set to 3, then the system fails
 	err = doTickCapturePanic(ctx, world)
 	assert.ErrorContains(t, err, errorSystem.Error())
 
@@ -474,7 +474,8 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := NewSearch().Entity(filter.Exact(filter.Component[Foo](), filter.Component[Bar]())).First(wCtx)
+				id, err := NewSearch().Entity(filter.Exact(filter.Component[Foo](),
+					filter.Component[Bar]())).First(wCtx)
 				assert.Check(t, err == nil)
 				assert.Check(t, id != iterators.BadID)
 

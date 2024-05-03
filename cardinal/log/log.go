@@ -10,7 +10,7 @@ import (
 
 type Loggable interface {
 	GetRegisteredComponents() []types.ComponentMetadata
-	GetRegisteredSystemNames() []string
+	GetRegisteredSystems() []string
 }
 
 func loadComponentIntoArrayLogger(
@@ -36,15 +36,11 @@ func loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, target Loggable) *zer
 	return zeroLoggerEvent.Array("components", arrayLogger)
 }
 
-func loadSystemIntoArrayLogger(name string, arrayLogger *zerolog.Array) *zerolog.Array {
-	return arrayLogger.Str(name)
-}
-
 func loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, target Loggable) *zerolog.Event {
-	zeroLoggerEvent.Int("total_systems", len(target.GetRegisteredSystemNames()))
+	zeroLoggerEvent.Int("total_systems", len(target.GetRegisteredSystems()))
 	arrayLogger := zerolog.Arr()
-	for _, name := range target.GetRegisteredSystemNames() {
-		arrayLogger = loadSystemIntoArrayLogger(name, arrayLogger)
+	for _, sysName := range target.GetRegisteredSystems() {
+		arrayLogger = arrayLogger.Str(sysName)
 	}
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
@@ -76,7 +72,7 @@ func System(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
 	zeroLoggerEvent.Send()
 }
 
-// LogEntity logs entity info given an entityID.
+// Entity logs entity info given an entityID.
 func Entity(
 	logger *zerolog.Logger,
 	level zerolog.Level, entityID types.EntityID, archID types.ArchetypeID,
