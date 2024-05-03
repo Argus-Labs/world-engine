@@ -58,7 +58,7 @@ type World struct {
 
 	// Core modules
 	worldStage       *worldstage.Manager
-	msgManager       *MessageManager
+	msgManager       MessageManager
 	systemManager    *system.Manager
 	componentManager *component.Manager
 	queryManager     *QueryManager
