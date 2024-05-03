@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search"
-	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
@@ -60,32 +59,32 @@ func FilterFunction[T types.Component](f func(comp T) bool) func(ctx engine.Cont
 	return search.ComponentFilter[T](f)
 }
 
-func RegisterSystems(w *World, sys ...system.System) error {
+func RegisterSystems(w *World, sys ...System) error {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
-			"engine state is %s, expected %s to register systems",
+			"world state is %s, expected %s to register systems",
 			w.worldStage.Current(),
 			worldstage.Init,
 		)
 	}
-	return w.systemManager.RegisterSystems(sys...)
+	return w.SystemManager.registerSystems(false, sys...)
 }
 
-func RegisterInitSystems(w *World, sys ...system.System) error {
+func RegisterInitSystems(w *World, sys ...System) error {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
-			"engine state is %s, expected %s to register init systems",
+			"world state is %s, expected %s to register init systems",
 			w.worldStage.Current(),
 			worldstage.Init,
 		)
 	}
-	return w.systemManager.RegisterInitSystems(sys...)
+	return w.SystemManager.registerSystems(true, sys...)
 }
 
 func RegisterComponent[T types.Component](w *World) error {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
-			"engine state is %s, expected %s to register component",
+			"world state is %s, expected %s to register component",
 			w.worldStage.Current(),
 			worldstage.Init,
 		)
@@ -133,7 +132,7 @@ func EachMessage[In any, Out any](wCtx engine.Context, fn func(TxData[In]) (Out,
 func RegisterMessage[In any, Out any](world *World, name string, opts ...MessageOption[In, Out]) error {
 	if world.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
-			"engine state is %s, expected %s to register messages",
+			"world state is %s, expected %s to register messages",
 			world.worldStage.Current(),
 			worldstage.Init,
 		)
@@ -159,7 +158,7 @@ func RegisterQuery[Request any, Reply any](
 ) (err error) {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(
-			"engine state is %s, expected %s to register query",
+			"world state is %s, expected %s to register query",
 			w.worldStage.Current(),
 			worldstage.Init,
 		)
@@ -371,7 +370,7 @@ func RemoveComponentFrom[T types.Component](wCtx engine.Context, id types.Entity
 	return nil
 }
 
-// Remove removes the given Entity from the engine.
+// Remove removes the given Entity from the world.
 func Remove(wCtx engine.Context, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
