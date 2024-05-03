@@ -61,9 +61,9 @@ type World struct {
 	msgManager       MessageManager
 	systemManager    *system.Manager
 	componentManager *component.Manager
-	queryManager     QueryManager
-	router           router.Router
-	txPool           *txpool.TxPool
+	QueryManager
+	router router.Router
+	txPool *txpool.TxPool
 
 	// Receipt
 	receiptHistory *receipt.History
@@ -128,7 +128,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		msgManager:       NewMessageManager(),
 		systemManager:    system.NewManager(),
 		componentManager: component.NewManager(&redisMetaStore),
-		queryManager:     NewQueryManager(),
+		QueryManager:     NewQueryManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
 		txPool:           txpool.New(),
 
@@ -346,7 +346,7 @@ func (w *World) StartGame() error {
 	if len(w.msgManager.GetRegisteredMessages()) == 0 {
 		log.Warn().Msg("No messages registered")
 	}
-	if len(w.queryManager.GetRegisteredQueries()) == 0 {
+	if len(w.GetRegisteredQueries()) == 0 {
 		log.Warn().Msg("No queries registered")
 	}
 	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
@@ -596,9 +596,6 @@ func (w *World) StoreReader() gamestate.Reader {
 	return w.entityStore.ToReadOnly()
 }
 
-func (w *World) GetRegisteredQueries() []engine.Query {
-	return w.queryManager.GetRegisteredQueries()
-}
 func (w *World) GetRegisteredMessages() []types.Message {
 	return w.msgManager.GetRegisteredMessages()
 }
@@ -611,9 +608,6 @@ func (w *World) GetRegisteredSystemNames() []string {
 }
 func (w *World) GetReadOnlyCtx() engine.Context {
 	return NewReadOnlyWorldContext(w)
-}
-func (w *World) GetQueryByName(name string) (engine.Query, error) {
-	return w.queryManager.GetQueryByName(name)
 }
 
 func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
