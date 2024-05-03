@@ -11,12 +11,12 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/system"
 )
 
 func initializeSystems(
 	initSystems []cardinal.System,
-	systems []cardinal.System) ([]cardinal.System, []cardinal.System) {
+	systems []cardinal.System,
+) ([]cardinal.System, []cardinal.System) {
 	initSystems = append(initSystems, sys.InitTenThousandEntities)
 	initSystems = append(initSystems, sys.InitOneHundredEntities)
 	initSystems = append(initSystems, sys.InitTreeEntities)
@@ -40,8 +40,8 @@ func main() {
 	}
 	defer pprof.StopCPUProfile()
 
-	initsystems := []system.System{}
-	systems := []system.System{}
+	initsystems := []cardinal.System{}
+	systems := []cardinal.System{}
 
 	options := []cardinal.WorldOption{
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.

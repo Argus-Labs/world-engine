@@ -28,7 +28,6 @@ import (
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
@@ -45,6 +44,8 @@ var _ router.Provider = &World{}      //nolint:exhaustruct
 var _ servertypes.Provider = &World{} //nolint:exhaustruct
 
 type World struct {
+	SystemManager
+
 	namespace     Namespace
 	rollupEnabled bool
 
@@ -59,7 +60,6 @@ type World struct {
 	// Core modules
 	worldStage       *worldstage.Manager
 	msgManager       MessageManager
-	systemManager    *system.Manager
 	componentManager *component.Manager
 	QueryManager
 	router router.Router
@@ -126,7 +126,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		// Core modules
 		worldStage:       worldstage.NewManager(),
 		msgManager:       NewMessageManager(),
-		systemManager:    system.NewManager(),
+		SystemManager:    newSystemManager(),
 		componentManager: component.NewManager(&redisMetaStore),
 		QueryManager:     NewQueryManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
@@ -190,7 +190,7 @@ func (w *World) CurrentTick() uint64 {
 }
 
 // doTick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
-// each System in turn with the snapshot of transactions.
+// each system in turn with the snapshot of transactions.
 func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// Record tick start time for statsd.
 	// Not to be confused with `timestamp` that represents the time context for the tick
@@ -234,7 +234,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 
 	// Run all registered systems.
 	// This will run the registered init systems if the current tick is 0
-	if err := w.systemManager.RunSystems(wCtx); err != nil {
+	if err := w.SystemManager.runSystems(wCtx); err != nil {
 		return err
 	}
 
@@ -349,7 +349,7 @@ func (w *World) StartGame() error {
 	if len(w.GetRegisteredQueries()) == 0 {
 		log.Warn().Msg("No queries registered")
 	}
-	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
+	if len(w.SystemManager.GetRegisteredSystems()) == 0 {
 		log.Warn().Msg("No systems registered")
 	}
 
@@ -493,7 +493,7 @@ func (w *World) handleTickPanic() {
 		log.Error().Msgf(
 			"Tick: %d, Current running system: %s",
 			w.CurrentTick(),
-			w.systemManager.GetCurrentSystem(),
+			w.SystemManager.GetCurrentSystem(),
 		)
 		panic(r)
 	}
@@ -603,9 +603,7 @@ func (w *World) GetRegisteredMessages() []types.Message {
 func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 	return w.componentManager.GetComponents()
 }
-func (w *World) GetRegisteredSystemNames() []string {
-	return w.systemManager.GetRegisteredSystemNames()
-}
+
 func (w *World) GetReadOnlyCtx() engine.Context {
 	return NewReadOnlyWorldContext(w)
 }
