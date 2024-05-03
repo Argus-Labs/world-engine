@@ -3,12 +3,12 @@ package router
 import (
 	"testing"
 
+	"github.com/berachain/polaris/eth/accounts/abi"
+	ethprecompile "github.com/berachain/polaris/eth/core/precompile"
+	"github.com/berachain/polaris/lib/utils"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/suite"
-	"pkg.berachain.dev/polaris/eth/accounts/abi"
-	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
-	"pkg.berachain.dev/polaris/lib/utils"
 
 	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
 	"pkg.world.dev/world-engine/evm/router"

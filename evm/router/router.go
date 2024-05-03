@@ -12,7 +12,6 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"pkg.berachain.dev/polaris/eth/core/types"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/rift/credentials"
@@ -53,7 +52,7 @@ type Router interface {
 	// incredibly weak. It would be better if we had access to tx_hash in the precompile, as this can uniquely identify
 	// an EVM transaction. Consider a user who calls the contract 0xFoo two times in one block. How do we know which
 	// one called the Router? TODO: work with polaris to find a solution to this problem.
-	PostBlockHook(types.Transactions, types.Receipts, types.Signer)
+	PostBlockHook(ethtypes.Transactions, ethtypes.Receipts, ethtypes.Signer)
 }
 
 type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
@@ -96,7 +95,7 @@ func (r *routerImpl) getSDKCtx() sdk.Context {
 	return ctx
 }
 
-func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, _ types.Signer) {
+func (r *routerImpl) PostBlockHook(transactions ethtypes.Transactions, receipts ethtypes.Receipts, _ ethtypes.Signer) {
 	// loop over all txs
 	for i, tx := range transactions {
 		r.logger.Info("working on transaction", "tx_hash", tx.Hash().String())

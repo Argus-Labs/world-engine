@@ -61,6 +61,9 @@ e2e-evm:
 		GOWORK=off go mod vendor && \
 		cd $(ROOT_DIR); \
 	)
+	  
+	@echo "--> Purging running Docker containers, if any"
+	@docker compose rm --force --stop
 
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
 	docker compose up chain --build -d

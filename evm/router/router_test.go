@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	"github.com/berachain/polaris/eth/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	types2 "github.com/ethereum/go-ethereum/core/types"
 	"gotest.tools/v3/assert"
-	"pkg.berachain.dev/polaris/eth/core/types"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 )

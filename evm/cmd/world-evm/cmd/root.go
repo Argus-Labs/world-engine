@@ -30,6 +30,11 @@ import (
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
+	evmv1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/v1alpha1"
+	polarconfig "github.com/berachain/polaris/cosmos/config"
+	ethcryptocodec "github.com/berachain/polaris/cosmos/crypto/codec"
+	"github.com/berachain/polaris/cosmos/crypto/keyring"
+	signinglib "github.com/berachain/polaris/cosmos/lib/signing"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -56,11 +61,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
-	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
-	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
-	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
-	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 
 	"pkg.world.dev/world-engine/evm/app"
 )
@@ -84,7 +84,7 @@ func NewRootCmd() *cobra.Command {
 		depinject.Configs(
 			app.MakeAppConfig(bech32Prefix),
 			depinject.Supply(
-				app.PolarisConfigFn(evmconfig.DefaultConfig()),
+				app.PolarisConfigFn(polarconfig.DefaultPolarisConfig()),
 				app.QueryContextFn((&app.App{})),
 				log.NewNopLogger(),
 				simtestutil.NewAppOptionsWithFlagHome(tempDir()),

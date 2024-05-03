@@ -14,6 +14,15 @@ EXPOSE 26656 26657 1317 9090 8546 8545 9601
 
 USER 0
 
+# Disable prompts from apt.
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -y &&\
+ apt-get install -y --no-install-recommends curl jq bash && \
+ apt-get autoremove -y && \
+ apt-get clean -y && \
+ rm -rf /tmp/* /var/tmp/* /var/cache/apt/archives/* /var/lib/apt/lists/*
+
 COPY scripts/start-sequencer.sh start-sequencer.sh
 RUN chmod +x start-sequencer.sh
 COPY scripts/app.toml app.toml
