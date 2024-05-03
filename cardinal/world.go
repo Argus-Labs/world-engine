@@ -61,7 +61,7 @@ type World struct {
 	msgManager       MessageManager
 	systemManager    *system.Manager
 	componentManager *component.Manager
-	queryManager     *QueryManager
+	queryManager     QueryManager
 	router           router.Router
 	txPool           *txpool.TxPool
 
