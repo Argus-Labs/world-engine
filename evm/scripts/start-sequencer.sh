@@ -21,6 +21,7 @@ LOG_LEVEL=${LOG_LEVEL:-"info"}
 
 # Faucet configs
 FAUCET_ENABLED=${FAUCET_ENABLED:-"true"}
+FAUCET_ADDR=${FAUCET_ADDR:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x, default: account 0 of KEY_MNEMONIC
 
 # DA related configs
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet"}"
@@ -73,6 +74,9 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   PUB_KEY=$(jq -r '.pub_key' $HOME/.world-evm/config/priv_validator_key.json)
   jq --argjson pubKey "$PUB_KEY" '.consensus["validators"]=[{"address": "'$ADDRESS'", "pub_key": $pubKey, "power": "1000000000000000", "name": "Rollkit Sequencer"}]' "$GENESIS" >"$TMP_GENESIS" && mv "$TMP_GENESIS" "$GENESIS"
   
+  sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"$FAUCET_ADDR"#g' $HOME/.world-evm/config/genesis.json
+  sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' $HOME/.world-evm/config/genesis.json
+  
   # Run this to ensure everything worked and that the genesis file is setup correctly
   world-evm genesis validate-genesis
   
@@ -80,7 +84,7 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   cp app.toml $HOME/.world-evm/config/app.toml
   
   # Replace CometBFT API port to avoid collision with Celestia light client
-  # sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' $HOME/.world-evm/config/config.toml
+  sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://localhost:26657"#g' $HOME/.world-evm/config/config.toml
 fi
 
 # set the data availability layer's block height from local-celestia-devnet
