@@ -48,7 +48,7 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   # -------------------------
   KEY_SEQUENCER_NAME="sequencer"
   ## Create sequencer account from mnemonic (notice the account number 0 is used in the HD derivation path)
-  printf "%s\n\n" "${KEY_MNEMONIC}" | world-evm keys add $KEY_SEQUENCER_NAME --keyring-backend=$KEY_BACKEND --algo="eth_secp256k1" --recover --account 0
+  printf "%s\n\n" "${KEY_MNEMONIC}" | world-evm keys add $KEY_SEQUENCER_NAME --keyring-backend=$KEY_BACKEND --algo="eth_secp256k1" --recover --hd-path "m/44/60/0/0"
   world-evm genesis add-genesis-account $KEY_SEQUENCER_NAME $FAUCET_AMOUNT --keyring-backend=$KEY_BACKEND
 
   if [[ $FAUCET_ENABLED == "true" ]]; then
@@ -57,7 +57,7 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
       # -------------------------
       KEY_FAUCET_NAME="faucet"
       ## Create faucet account from mnemonic (notice the account number 1 is used in the HD derivation path)
-      printf "%s\n\n" "${KEY_MNEMONIC}" | world-evm keys add $KEY_FAUCET_NAME --keyring-backend=$KEY_BACKEND --algo="eth_secp256k1" --recover --account 1
+      printf "%s\n\n" "${KEY_MNEMONIC}" | world-evm keys add $KEY_FAUCET_NAME --keyring-backend=$KEY_BACKEND --algo="eth_secp256k1" --recover --hd-path "m/44/60/1/0"
       ## Seed the faucet account with tokens
       world-evm genesis add-genesis-account $KEY_FAUCET_NAME $FAUCET_AMOUNT --keyring-backend=$KEY_BACKEND
   fi 
@@ -80,7 +80,7 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   cp app.toml $HOME/.world-evm/config/app.toml
   
   # Replace CometBFT API port to avoid collision with Celestia light client
-  sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26667"#g' $HOME/.world-evm/config/config.toml
+  # sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' $HOME/.world-evm/config/config.toml
 fi
 
 # set the data availability layer's block height from local-celestia-devnet
@@ -94,4 +94,4 @@ echo $DA_BLOCK_HEIGHT
 #  --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME
 
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
-world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 10s
+world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 2s
