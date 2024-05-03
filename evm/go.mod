@@ -7,7 +7,7 @@ replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 
-	github.com/berachain/polaris/cosmos => github.com/argus-labs/polaris/cosmos v1.1.0-hooks
+	github.com/berachain/polaris/cosmos => github.com/argus-labs/polaris/cosmos v1.1.3-hooks
 	github.com/berachain/polaris/eth => github.com/argus-labs/polaris/eth v1.1.0-hooks
 	// Use branch with the mempool race condition fix.
 	github.com/comet/cometbft => github.com/cometbft/cometbft v0.38.3-0.20240117033245-e65a966827e0

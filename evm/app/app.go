@@ -21,12 +21,10 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
@@ -225,7 +223,6 @@ func NewApp(
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
 	// World Engine custom preBlocker
-	app.SetInitChainer(app.initChainer)
 	app.SetPreBlocker(app.preBlocker)
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
@@ -239,19 +236,6 @@ func NewApp(
 	}
 
 	return app
-}
-
-func (app *App) initChainer(ctx sdk.Context, req *types.RequestInitChain) (*types.ResponseInitChain, error) {
-	// Halt execution for 10s due to race condition in Polaris
-	// TODO(scott): this should be removed once the race condition is fixed
-	app.Logger().Info("Halting execution for 3s due to race condition in Polaris")
-	time.Sleep(3 * time.Second) //nolint:gomnd // temporary
-
-	var genesisState map[string]json.RawMessage
-	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
-		panic(err)
-	}
-	return app.App.InitChainer(ctx, req)
 }
 
 // preBlocker is an ABCI preBlocker hook called at the beginning of each block.
