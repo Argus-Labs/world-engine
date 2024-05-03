@@ -6,19 +6,25 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-type QueryManager struct {
+type QueryManager interface {
+	RegisterQuery(name string, query engine.Query) error
+	GetRegisteredQueries() []engine.Query
+	GetQueryByName(name string) (engine.Query, error)
+}
+
+type QueryManagerImpl struct {
 	registeredQueries map[string]engine.Query
 }
 
-func NewQueryManager() *QueryManager {
-	return &QueryManager{
+func NewQueryManager() QueryManager {
+	return &QueryManagerImpl{
 		registeredQueries: make(map[string]engine.Query),
 	}
 }
 
 // RegisterQuery registers a query with the query manager.
 // There can only be one query with a given name.
-func (m *QueryManager) RegisterQuery(name string, query engine.Query) error {
+func (m *QueryManagerImpl) RegisterQuery(name string, query engine.Query) error {
 	// Check that the query is not already registered
 	if err := m.isQueryNameUnique(name); err != nil {
 		return err
@@ -31,7 +37,7 @@ func (m *QueryManager) RegisterQuery(name string, query engine.Query) error {
 }
 
 // GetRegisteredQueries returns all the registered queries.
-func (m *QueryManager) GetRegisteredQueries() []engine.Query {
+func (m *QueryManagerImpl) GetRegisteredQueries() []engine.Query {
 	registeredQueries := make([]engine.Query, 0, len(m.registeredQueries))
 	for _, query := range m.registeredQueries {
 		registeredQueries = append(registeredQueries, query)
@@ -40,7 +46,7 @@ func (m *QueryManager) GetRegisteredQueries() []engine.Query {
 }
 
 // GetQueryByName returns a query corresponding to its name.
-func (m *QueryManager) GetQueryByName(name string) (engine.Query, error) {
+func (m *QueryManagerImpl) GetQueryByName(name string) (engine.Query, error) {
 	query, ok := m.registeredQueries[name]
 	if !ok {
 		return nil, eris.Errorf("query %q is not registered", name)
@@ -48,7 +54,7 @@ func (m *QueryManager) GetQueryByName(name string) (engine.Query, error) {
 	return query, nil
 }
 
-func (m *QueryManager) isQueryNameUnique(name string) error {
+func (m *QueryManagerImpl) isQueryNameUnique(name string) error {
 	if _, ok := m.registeredQueries[name]; ok {
 		return eris.Errorf("query %q is already registered", name)
 	}
