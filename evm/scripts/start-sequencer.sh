@@ -16,7 +16,6 @@ KEY_MNEMONIC=${KEY_MNEMONIC:-"enact adjust liberty squirrel bulk ticket invest t
 KEY_BACKEND=${KEY_BACKEND:-"test"}
 FAUCET_AMOUNT=${FAUCET_AMOUNT:-"10000000000000000000000world"}
 TOKEN_DENOM="world"
-STAKING_AMOUNT="1000000world"
 MIN_GAS_PRICE="0world"
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
@@ -40,12 +39,10 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   world-evm init $MONIKER --chain-id $CHAIN_ID --default-denom $TOKEN_DENOM
     
   # Set client config
-  echo "setting client config"
   world-evm config set client keyring-backend $KEY_BACKEND
   world-evm config set client chain-id "$CHAIN_ID"
 
 
-  echo "setting minimum gas price"
   # -------------------------
   # Setup sequencer account
   # -------------------------
@@ -53,8 +50,6 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   ## Create sequencer account from mnemonic (notice the account number 0 is used in the HD derivation path)
   printf "%s\n\n" "${KEY_MNEMONIC}" | world-evm keys add $KEY_SEQUENCER_NAME --keyring-backend=$KEY_BACKEND --algo="eth_secp256k1" --recover --account 0
   world-evm genesis add-genesis-account $KEY_SEQUENCER_NAME $FAUCET_AMOUNT --keyring-backend=$KEY_BACKEND
-  ## Create genesis stake tx using sequencer account
-  world-evm genesis gentx $KEY_SEQUENCER_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend=$KEY_BACKEND
 
   if [[ $FAUCET_ENABLED == "true" ]]; then
       # -------------------------
@@ -66,6 +61,9 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
       ## Seed the faucet account with tokens
       world-evm genesis add-genesis-account $KEY_FAUCET_NAME $FAUCET_AMOUNT --keyring-backend=$KEY_BACKEND
   fi 
+
+  # Create genesis stake tx using sequencer account
+  world-evm genesis gentx $KEY_SEQUENCER_NAME 1000000000000000000000world --chain-id $CHAIN_ID --keyring-backend=$KEY_BACKEND
 
   # Collect genesis tx
   world-evm genesis collect-gentxs
@@ -98,4 +96,4 @@ echo $DA_BLOCK_HEIGHT
 AUTH_TOKEN=$(docker exec $(docker ps -q) celestia bridge auth admin --node.store /home/celestia/bridge)
 
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
-./build/bin/polard start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 2s
+world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 2s
