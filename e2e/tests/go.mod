@@ -22,7 +22,7 @@ replace (
 )
 
 require (
-	github.com/cosmos/cosmos-sdk v0.51.0
+	github.com/cosmos/cosmos-sdk v0.50.6
 	github.com/ethereum/go-ethereum v1.13.10
 	google.golang.org/grpc v1.63.2
 	gotest.tools/v3 v3.5.1

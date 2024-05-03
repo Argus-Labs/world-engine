@@ -16,7 +16,7 @@ KEY_MNEMONIC=${KEY_MNEMONIC:-"enact adjust liberty squirrel bulk ticket invest t
 KEY_BACKEND=${KEY_BACKEND:-"test"}
 FAUCET_AMOUNT=${FAUCET_AMOUNT:-"10000000000000000000000world"}
 TOKEN_DENOM="world"
-MIN_GAS_PRICE="0world"
+MIN_GAS_PRICE="0.0001world"
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
 # Faucet configs
@@ -79,12 +79,12 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   # Copy app.toml to the home directory
   cp app.toml $HOME/.world-evm/config/app.toml
   
-  # CometBFT API
-  sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' $HOME/.world-evm/config/config.toml
+  # Replace CometBFT API port to avoid collision with Celestia light client
+  sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26667"#g' $HOME/.world-evm/config/config.toml
 fi
 
 # set the data availability layer's block height from local-celestia-devnet
-DA_BLOCK_HEIGHT=$(curl $DA_BASE_URL:26660/block | jq -r '.result.block.header.height')
+DA_BLOCK_HEIGHT=$(curl $DA_BASE_URL:26657/block | jq -r '.result.block.header.height')
 echo $DA_BLOCK_HEIGHT
 
 ## start the node.
@@ -93,7 +93,5 @@ echo $DA_BLOCK_HEIGHT
 #  --rollkit.da_auth_token=$AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID &&
 #  --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME
 
-AUTH_TOKEN=$(docker exec $(docker ps -q) celestia bridge auth admin --node.store /home/celestia/bridge)
-
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
-world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 2s
+world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 10s

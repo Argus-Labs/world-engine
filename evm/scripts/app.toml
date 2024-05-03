@@ -64,7 +64,7 @@ inter-block-cache = true
 index-events = []
 
 # IavlCacheSize set the size of the iavl tree cache (in number of nodes).
-iavl-cache-size = 10000
+iavl-cache-size = 20000
 
 # IAVLDisableFastNode enables or disables the fast node feature of IAVL.
 # Default is false.
@@ -108,6 +108,17 @@ prometheus-retention-time = 0
 # [["chain_id", "cosmoshub-1"]]
 global-labels = []
 
+# MetricsSink defines the type of metrics sink to use.
+metrics-sink = ""
+
+# StatsdAddr defines the address of a statsd server to send metrics to.
+# Only utilized if MetricsSink is set to "statsd" or "dogstatsd".
+statsd-addr = ""
+
+# DatadogHostname defines the hostname to use when emitting metrics to
+# Datadog. Only utilized if MetricsSink is set to "dogstatsd".
+datadog-hostname = ""
+
 ###############################################################################
 ###                           API Configuration                             ###
 ###############################################################################
@@ -118,7 +129,7 @@ global-labels = []
 enable = true
 
 # Swagger defines if swagger documentation should automatically be registered.
-swagger = true
+swagger = false
 
 # Address defines the API server to listen on.
 address = "tcp://0.0.0.0:1317"
@@ -148,7 +159,7 @@ enabled-unsafe-cors = false
 enable = true
 
 # Address defines the gRPC server address to bind to.
-address = "0.0.0.0:9090"
+address = "localhost:9090"
 
 # MaxRecvMsgSize defines the max message size in bytes the server can receive.
 # The default value is 10MB.
@@ -221,13 +232,14 @@ stop-node-on-err = true
 #
 # Note, this configuration only applies to SDK built-in app-side mempool
 # implementations.
-max-txs = 5000
+max-txs = -1
 
 ###############################################################################
 ###                                 Polaris                                 ###
 ###############################################################################
 # General Polaris settings
 [polaris]
+optimistic-execution = false
 
 [polaris.polar]
 # Gas cap for RPC requests
@@ -242,7 +254,7 @@ rpc-tx-fee-cap = "1"
 
 # Chain config
 [polaris.polar.chain]
-chain-id = "2020"
+chain-id = "80085"
 
 # Homestead switch block
 homestead-block = "0"
@@ -313,7 +325,6 @@ terminal-total-difficulty-passed = "true"
 # DevMode enabled
 is-dev-mode = false
 
-
 # Miner config
 [polaris.polar.miner]
 # The address to which mining rewards will be sent
@@ -371,7 +382,7 @@ locals = []
 no-locals = false
 
 # Journal of local transactions to survive node restarts
-journal = "transactions.rlp"
+journal = ""
 
 #  Time interval to regenerate the local transaction journal
 rejournal = "1h0m0s"
