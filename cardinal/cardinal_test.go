@@ -273,7 +273,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	go func() {
 		tf.DoTick()
 	}()
-	// Make sure we're actually in the System.
+	// Make sure we're actually in the system.
 	inSystemCh <- struct{}{}
 
 	// Make sure we can call AddTransaction again in a reasonable amount of time

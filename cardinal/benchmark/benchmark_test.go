@@ -25,7 +25,7 @@ func (Health) Name() string {
 }
 
 // setupWorld Creates a new *cardinal.World and initializes the world to have numOfEntities already cardinal.Created. If
-// enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
+// enableHealthSystem is set, a system will be added to the world that increments every entity's "health" by 1 every
 // tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testutils.TestFixture {
 	tf := testutils.NewTestFixture(t, nil)
