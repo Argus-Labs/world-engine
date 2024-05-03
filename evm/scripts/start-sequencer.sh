@@ -74,7 +74,7 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   PUB_KEY=$(jq -r '.pub_key' $HOME/.world-evm/config/priv_validator_key.json)
   jq --argjson pubKey "$PUB_KEY" '.consensus["validators"]=[{"address": "'$ADDRESS'", "pub_key": $pubKey, "power": "1000000000000000", "name": "Rollkit Sequencer"}]' "$GENESIS" >"$TMP_GENESIS" && mv "$TMP_GENESIS" "$GENESIS"
   
-  sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"$FAUCET_ADDR"#g' $HOME/.world-evm/config/genesis.json
+  sed -i'.bak' "s#20f33ce90a13a4b5e7697e3544c3083b8f8a51d4#$FAUCET_ADDR#g" $HOME/.world-evm/config/genesis.json
   sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' $HOME/.world-evm/config/genesis.json
   
   # Run this to ensure everything worked and that the genesis file is setup correctly
@@ -98,4 +98,4 @@ echo $DA_BLOCK_HEIGHT
 #  --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME
 
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
-world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 2s
+world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=0.0001world --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace 00000000000000000000000000000000000000000008e5f679bf7116cb --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time 12s --rollkit.block_time 1s
