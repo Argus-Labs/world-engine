@@ -26,7 +26,7 @@ FAUCET_ADDR=${FAUCET_ADDR:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH add
 # DA related configs
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet"}"
 DA_BLOCK_TIME="${DA_BLOCK_TIME:-"12s"}"
-DA_NAMESPACE_ID="${DA_NAMESPACE_ID:-"67480c4a88c4d12935d4"}" # Use 10 bytes hex encoded value (generate random value: `openssl rand -hex 10`)
+DA_NAMESPACE_ID="${DA_NAMESPACE_ID:-"00000000000000000000000000000000000000000008e5f679bf7116cb"}" # Use 10 bytes hex encoded value (generate random value: `openssl rand -hex 10`)
 echo "DA_NAMESPACE_ID: $DA_NAMESPACE_ID"
 
 # Path configs
