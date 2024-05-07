@@ -125,7 +125,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 		// Core modules
 		worldStage:       worldstage.NewManager(),
-		msgManager:       NewMessageManager(),
+		msgManager:       newMessageManager(),
 		SystemManager:    newSystemManager(),
 		componentManager: component.NewManager(&redisMetaStore),
 		QueryManager:     NewQueryManager(),

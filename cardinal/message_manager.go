@@ -24,7 +24,7 @@ type messageManager struct {
 	nextMessageID            types.MessageID
 }
 
-func NewMessageManager() MessageManager {
+func newMessageManager() MessageManager {
 	return &messageManager{
 		registeredMessages:       map[string]types.Message{},
 		registeredMessagesByType: map[reflect.Type]types.Message{},
