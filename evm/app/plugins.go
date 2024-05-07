@@ -16,7 +16,7 @@ func (app *App) setPlugins(logger log.Logger) {
 	var sequencerOpts []sequencer.Option
 	var routerOpts []router.Option
 	if routerKey == "" {
-		app.Logger().Debug("WARNING: starting the EVM base shard in insecure mode. No BASE_SHARD_ROUTER_KEY provided")
+		app.Logger().Warn("Starting the EVM base shard in insecure mode. No BASE_SHARD_ROUTER_KEY provided")
 	} else {
 		if err := credentials.ValidateKey(routerKey); err != nil {
 			panic(fmt.Errorf("invalid BASE_SHARD_ROUTER_KEY: %w", err))

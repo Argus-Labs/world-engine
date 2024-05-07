@@ -11,6 +11,7 @@ include makefiles/test.mk
 ###############################################################################
 
 include makefiles/build.mk
+include makefiles/start.mk
 
 ###############################################################################
 ###                                Tagging and Release                      ###

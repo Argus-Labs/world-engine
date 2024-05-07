@@ -1,32 +1,42 @@
-# Compile the argus binary
-FROM golang:1.22.1-bullseye AS argusd-builder
-WORKDIR /src/app/
-COPY go.mod go.sum* ./
-COPY . .
-RUN go mod download
-ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
-RUN CGO_ENABLED=1 make install
+################################
+# Build Image
+################################
+FROM golang:1.22.1-bullseye AS build
 
-# build on ubuntu
-FROM ubuntu:18.04
-COPY --from=argusd-builder /go/bin/world-evm /usr/local/bin/
+WORKDIR /go/src/app/
+
+# Copy the go module files and download the dependencies
+# We do this before copying the rest of the source code to avoid
+# having to re-download the dependencies every time we build the image
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the source code and build the binary
+COPY . .
+ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
+RUN CGO_ENABLED=1 make install # Binary will be in /go/bin/world-evm
+
+################################
+# Runtime Image
+################################
+FROM ubuntu:18.04 as runtime
+
+# Expose ports needed by the World EVM
 EXPOSE 26656 26657 1317 9090 8546 8545 9601
 
-USER 0
-
-# Disable prompts from apt.
+# Install package dependencies for start script
 ENV DEBIAN_FRONTEND noninteractive
-
 RUN apt-get update -y &&\
  apt-get install -y --no-install-recommends curl jq bash && \
  apt-get autoremove -y && \
  apt-get clean -y && \
  rm -rf /tmp/* /var/tmp/* /var/cache/apt/archives/* /var/lib/apt/lists/*
 
-COPY scripts/start-sequencer.sh start-sequencer.sh
+# Copy the World EVM binary, start script, and configuration files
+COPY --from=build /go/bin/world-evm /usr/local/bin/
+COPY scripts/start-sequencer.sh scripts/app.toml ./
+
+# Start the World EVM sequencer
+USER 0
 RUN chmod +x start-sequencer.sh
-COPY scripts/app.toml app.toml
-
-HEALTHCHECK --interval=5s --timeout=80s CMD curl --fail http://localhost:26657 || exit 1
-
 ENTRYPOINT ["./start-sequencer.sh"]

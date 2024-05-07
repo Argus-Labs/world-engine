@@ -27,7 +27,7 @@ services:
       - world-engine
 
   nakama:
-    container_name: relay_nakama
+    container_name: nakama
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
@@ -68,12 +68,11 @@ services:
     container_name: evm_base_shard
     environment:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/evm/README.md
-      ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
+      ## Get AUTH_TOKEN from celestia_devnet container: `$(docker exec $(docker ps -q) celestia bridge auth admin --node.store /home/celestia/bridge`
+      - DA_BASE_URL=${DA_BASE_URL:-http://celestia_devnet}
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
-      - NAMESPACE_AUTHORITY_ADDR=${NAMESPACE_AUTHORITY_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
       - FAUCET_ADDR=${FAUCET_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
-      - GAME_SHARD_ADDR=${GAME_SHARD_ADDR:-game:9020}
-      - BASE_SHARD_ROUTER_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
+      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
     build:
       context: evm
       dockerfile: Dockerfile
@@ -107,17 +106,19 @@ services:
       - "9090"
 
   game:
-    container_name: test_game
+    container_name: cardinal
     environment:
-      - REDIS_ADDRESS=redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - CARDINAL_NAMESPACE=TESTGAME
+      - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE:-testgame}
+      - CARDINAL_ROLLUP_ENABLED=${CARDINAL_ROLLUP_ENABLED:-false}
       - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL:-info}
-      - CARDINAL_MODE=${CARDINAL_MODE:-development}
-      - BASE_SHARD_SEQUENCER_ADDRESS=chain:9601
-      - STATSD_ADDRESS=${STATSD_ADDRESS}
-      - TRACE_ADDRESS=${TRACE_ADDRESS}
-      - BASE_SHARD_ROUTER_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
+      - CARDINAL_LOG_PRETTY=${CARDINAL_LOG_PRETTY:-false}
+      - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - BASE_SHARD_SEQUENCER_ADDRESS=${BASE_SHARD_SEQUENCER_ADDRESS:-chain:9601}
+      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
+      - TELEMETRY_ENABLED=${TELEMETRY_ENABLED:-false}
+      - TELEMETRY_STATSD_ADDRESS=${TELEMETRY_STATSD_ADDRESS}
+      - TELEMETRY_TRACE_ADDRESS=${TELEMETRY_TRACE_ADDRESS}
     build:
       context: ./
       dockerfile: e2e/testgames/game/Dockerfile
