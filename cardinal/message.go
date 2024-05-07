@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -104,15 +103,15 @@ func (t *MessageType[In, Out]) SetID(id types.MessageID) error {
 	return nil
 }
 
-func (t *MessageType[In, Out]) AddError(wCtx engine.Context, hash types.TxHash, err error) {
+func (t *MessageType[In, Out]) AddError(wCtx Context, hash types.TxHash, err error) {
 	wCtx.AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(wCtx engine.Context, hash types.TxHash, result Out) {
+func (t *MessageType[In, Out]) SetResult(wCtx Context, hash types.TxHash, result Out) {
 	wCtx.SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(wCtx engine.Context, hash types.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(wCtx Context, hash types.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
 	iface, errs, ok := wCtx.GetTransactionReceipt(hash)
@@ -130,7 +129,7 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx engine.Context, hash types.TxHash
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Out, error)) {
+func (t *MessageType[In, Out]) Each(wCtx Context, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
@@ -148,7 +147,7 @@ func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Ou
 }
 
 // In extracts all the TxData in the tx pool that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(wCtx engine.Context) []TxData[In] {
+func (t *MessageType[In, Out]) In(wCtx Context) []TxData[In] {
 	tq := wCtx.GetTxPool()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {

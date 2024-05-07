@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type EnergyComponent struct {
@@ -75,7 +74,7 @@ func (WeaponEnergy) Name() string {
 	return "weaponsEnergy"
 }
 
-func UpdateEnergySystem(wCtx engine.Context) error {
+func UpdateEnergySystem(wCtx cardinal.Context) error {
 	var errs []error
 	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
 	err := q.Each(wCtx,

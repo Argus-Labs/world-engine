@@ -29,7 +29,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
@@ -40,8 +39,8 @@ const (
 	RedisDialTimeOut              = 15
 )
 
-var _ router.Provider = &World{}      //nolint:exhaustruct
-var _ servertypes.Provider = &World{} //nolint:exhaustruct
+var _ router.Provider = &World{}           //nolint:exhaustruct
+var _ servertypes.ProviderWorld = &World{} //nolint:exhaustruct
 
 type World struct {
 	SystemManager
@@ -329,12 +328,23 @@ func (w *World) StartGame() error {
 	//  receiptHistory tick separately.
 	w.receiptHistory.SetTick(w.CurrentTick())
 
+	//BELOW CODE CANNOT WORK. we may have to move server down to cardinal.
+	queries := w.GetRegisteredQueries()
+	providerQueries := make([]servertypes.ProviderQuery, len(queries))
+	for _, q := range queries {
+		pq, success := q.(servertypes.ProviderQuery)
+		if !success {
+			return eris.New("failed to cast into provider")
+		}
+		providerQueries = append(providerQueries, pq)
+	}
+
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
 	w.server, err = server.New(w,
 		NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
-		w.GetRegisteredQueries(), w.serverOptions...)
+		providerQueries, w.serverOptions...)
 	if err != nil {
 		return err
 	}
@@ -604,7 +614,7 @@ func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 	return w.componentManager.GetComponents()
 }
 
-func (w *World) GetReadOnlyCtx() engine.Context {
+func (w *World) GetReadOnlyCtx() Context {
 	return NewReadOnlyWorldContext(w)
 }
 

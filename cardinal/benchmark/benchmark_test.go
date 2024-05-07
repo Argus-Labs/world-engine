@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type Health struct {
@@ -35,7 +34,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testu
 	if enableHealthSystem {
 		err := cardinal.RegisterSystems(
 			world,
-			func(wCtx engine.Context) error {
+			func(wCtx cardinal.Context) error {
 				q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[Health]()))
 				err := q.Each(wCtx,
 					func(id types.EntityID) bool {

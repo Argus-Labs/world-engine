@@ -26,12 +26,12 @@ type DebugStateResponse []debugStateElement
 // @Produce      application/json
 // @Success      200  {object}  DebugStateResponse "List of all entities"
 // @Router       /debug/state [post]
-func GetDebugState(provider servertypes.Provider) func(*fiber.Ctx) error {
+func GetDebugState(provider servertypes.ProviderWorld, wCtx servertypes.ProviderContext) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		result := make(DebugStateResponse, 0)
 		s := provider.Search(filter.All())
 		var eachClosureErr error
-		searchEachErr := s.Each(provider.GetReadOnlyCtx(),
+		searchEachErr := s.Each(wCtx,
 			func(id types.EntityID) bool {
 				var components []types.ComponentMetadata
 				components, eachClosureErr = provider.StoreReader().GetComponentTypesForEntity(id)

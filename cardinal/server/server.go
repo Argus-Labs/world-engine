@@ -11,12 +11,10 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 
+	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
-	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
 
 const (
@@ -36,8 +34,8 @@ type Server struct {
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	provider servertypes.Provider, wCtx engine.Context, components []types.ComponentMetadata,
-	messages []types.Message, queries []engine.Query, opts ...Option,
+	provider servertypes.ProviderWorld, wCtx servertypes.ProviderContext, components []types.ComponentMetadata,
+	messages []types.Message, queries []servertypes.ProviderQuery, opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
 		Network: "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
@@ -116,14 +114,14 @@ func (s *Server) Shutdown() error {
 // @consumes		application/json
 // @produces		application/json
 func (s *Server) setupRoutes(
-	provider servertypes.Provider, wCtx engine.Context, messages []types.Message,
-	queries []engine.Query, components []types.ComponentMetadata,
+	provider servertypes.ProviderWorld, wCtx servertypes.ProviderContext, messages []types.Message,
+	queries []servertypes.ProviderQuery, components []types.ComponentMetadata,
 ) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
 	// /query/:group/:queryType
 	// maps group -> queryType -> query
-	queryIndex := make(map[string]map[string]engine.Query)
+	queryIndex := make(map[string]map[string]servertypes.ProviderQuery)
 
 	// /tx/:group/:txType
 	// maps group -> txType -> tx
@@ -133,7 +131,7 @@ func (s *Server) setupRoutes(
 	for _, query := range queries {
 		// Initialize inner map if it doesn't exist
 		if _, ok := queryIndex[query.Group()]; !ok {
-			queryIndex[query.Group()] = make(map[string]engine.Query)
+			queryIndex[query.Group()] = make(map[string]servertypes.ProviderQuery)
 		}
 		queryIndex[query.Group()][query.Name()] = query
 	}
@@ -172,8 +170,8 @@ func (s *Server) setupRoutes(
 	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, s.config.isSignatureVerificationDisabled))
 
 	// Route: /cql
-	s.app.Post("/cql", handler.PostCQL(provider))
+	s.app.Post("/cql", handler.PostCQL(provider, wCtx))
 
 	// Route: /debug/state
-	s.app.Post("/debug/state", handler.GetDebugState(provider))
+	s.app.Post("/debug/state", handler.GetDebugState(provider, wCtx))
 }

@@ -34,7 +34,7 @@ type CQLQueryResponse struct {
 //	@Success      200  {object}  CQLQueryResponse  "Results of the executed CQL query"
 //	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /cql [post]
-func PostCQL(provider servertypes.Provider) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
+func PostCQL(provider servertypes.ProviderWorld, wCtx servertypes.ProviderContext) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
 	return func(ctx *fiber.Ctx) error {
 		req := new(CQLQueryRequest)
 		if err := ctx.BodyParser(req); err != nil {
@@ -59,7 +59,7 @@ func PostCQL(provider servertypes.Provider) func(*fiber.Ctx) error { //nolint:go
 
 		result := make([]cqlData, 0)
 		var eachError error
-		searchErr := provider.Search(resultFilter).Each(provider.GetReadOnlyCtx(),
+		searchErr := provider.Search(resultFilter).Each(wCtx,
 			func(id types.EntityID) bool {
 				components, err := provider.StoreReader().GetComponentTypesForEntity(id)
 				if err != nil {

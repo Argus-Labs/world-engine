@@ -5,7 +5,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type OrSearch struct {
@@ -20,7 +19,7 @@ type NotSearch struct {
 	search Searchable
 }
 
-func (orSearch *OrSearch) evaluateSearch(eCtx engine.Context) []types.ArchetypeID {
+func (orSearch *OrSearch) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	acc := make([]types.ArchetypeID, 0)
 	for _, search := range orSearch.searches {
 		acc = append(acc, search.evaluateSearch(eCtx)...)
@@ -28,7 +27,7 @@ func (orSearch *OrSearch) evaluateSearch(eCtx engine.Context) []types.ArchetypeI
 	return acc
 }
 
-func (orSearch *OrSearch) Each(eCtx engine.Context, callback CallbackFn) error {
+func (orSearch *OrSearch) Each(eCtx Context, callback CallbackFn) error {
 	// deduplicate
 	idCount := make(map[types.EntityID]int)
 	for _, search := range orSearch.searches {
@@ -57,7 +56,7 @@ func (orSearch *OrSearch) Each(eCtx engine.Context, callback CallbackFn) error {
 	return nil
 }
 
-func (orSearch *OrSearch) Collect(eCtx engine.Context) ([]types.EntityID, error) {
+func (orSearch *OrSearch) Collect(eCtx Context) ([]types.EntityID, error) {
 	// deduplicate
 	idExists := make(map[types.EntityID]bool)
 	res := make([]types.EntityID, 0)
@@ -80,7 +79,7 @@ func (orSearch *OrSearch) Collect(eCtx engine.Context) ([]types.EntityID, error)
 	return res, nil
 }
 
-func (orSearch *OrSearch) First(eCtx engine.Context) (types.EntityID, error) {
+func (orSearch *OrSearch) First(eCtx Context) (types.EntityID, error) {
 	ids, err := orSearch.Collect(eCtx)
 	if err != nil {
 		return 0, err
@@ -91,7 +90,7 @@ func (orSearch *OrSearch) First(eCtx engine.Context) (types.EntityID, error) {
 	return ids[0], nil
 }
 
-func (orSearch *OrSearch) MustFirst(eCtx engine.Context) types.EntityID {
+func (orSearch *OrSearch) MustFirst(eCtx Context) types.EntityID {
 	id, err := orSearch.First(eCtx)
 	if err != nil {
 		panic("no search results")
@@ -99,7 +98,7 @@ func (orSearch *OrSearch) MustFirst(eCtx engine.Context) types.EntityID {
 	return id
 }
 
-func (orSearch *OrSearch) Count(eCtx engine.Context) (int, error) {
+func (orSearch *OrSearch) Count(eCtx Context) (int, error) {
 	ids, err := orSearch.Collect(eCtx)
 	if err != nil {
 		return 0, err
@@ -107,7 +106,7 @@ func (orSearch *OrSearch) Count(eCtx engine.Context) (int, error) {
 	return len(ids), nil
 }
 
-func (andSearch *AndSearch) Each(eCtx engine.Context, callback CallbackFn) error {
+func (andSearch *AndSearch) Each(eCtx Context, callback CallbackFn) error {
 	// count
 	idCount := make(map[types.EntityID]int)
 	for _, search := range andSearch.searches {
@@ -140,7 +139,7 @@ func (andSearch *AndSearch) Each(eCtx engine.Context, callback CallbackFn) error
 	return nil
 }
 
-func (andSearch *AndSearch) Collect(eCtx engine.Context) ([]types.EntityID, error) {
+func (andSearch *AndSearch) Collect(eCtx Context) ([]types.EntityID, error) {
 	// filter
 	results := make([]types.EntityID, 0)
 	err := andSearch.Each(eCtx, func(id types.EntityID) bool {
@@ -157,7 +156,7 @@ func (andSearch *AndSearch) Collect(eCtx engine.Context) ([]types.EntityID, erro
 	return results, nil
 }
 
-func (andSearch *AndSearch) First(eCtx engine.Context) (types.EntityID, error) {
+func (andSearch *AndSearch) First(eCtx Context) (types.EntityID, error) {
 	ids, err := andSearch.Collect(eCtx)
 	if err != nil {
 		return 0, err
@@ -168,7 +167,7 @@ func (andSearch *AndSearch) First(eCtx engine.Context) (types.EntityID, error) {
 	return ids[0], nil
 }
 
-func (andSearch *AndSearch) MustFirst(eCtx engine.Context) types.EntityID {
+func (andSearch *AndSearch) MustFirst(eCtx Context) types.EntityID {
 	id, err := andSearch.First(eCtx)
 	if err != nil {
 		panic("No search results")
@@ -176,7 +175,7 @@ func (andSearch *AndSearch) MustFirst(eCtx engine.Context) types.EntityID {
 	return id
 }
 
-func (andSearch *AndSearch) Count(eCtx engine.Context) (int, error) {
+func (andSearch *AndSearch) Count(eCtx Context) (int, error) {
 	ids, err := andSearch.Collect(eCtx)
 	if err != nil {
 		return 0, err
@@ -184,7 +183,7 @@ func (andSearch *AndSearch) Count(eCtx engine.Context) (int, error) {
 	return len(ids), nil
 }
 
-func (andSearch *AndSearch) evaluateSearch(eCtx engine.Context) []types.ArchetypeID {
+func (andSearch *AndSearch) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	searchCounts := make(map[types.ArchetypeID]int)
 	for _, search := range andSearch.searches {
 		ids := search.evaluateSearch(eCtx)
@@ -201,7 +200,7 @@ func (andSearch *AndSearch) evaluateSearch(eCtx engine.Context) []types.Archetyp
 	return acc
 }
 
-func (notSearch *NotSearch) Each(eCtx engine.Context, callback CallbackFn) error {
+func (notSearch *NotSearch) Each(eCtx Context, callback CallbackFn) error {
 	// sort
 	ids, err := notSearch.Collect(eCtx)
 	if err != nil {
@@ -218,7 +217,7 @@ func (notSearch *NotSearch) Each(eCtx engine.Context, callback CallbackFn) error
 	return nil
 }
 
-func (notSearch *NotSearch) Collect(eCtx engine.Context) ([]types.EntityID, error) {
+func (notSearch *NotSearch) Collect(eCtx Context) ([]types.EntityID, error) {
 	// Get all ids
 	allsearch := NewSearch().Entity(filter.All())
 	allids, err := allsearch.Collect(eCtx)
@@ -250,7 +249,7 @@ func (notSearch *NotSearch) Collect(eCtx engine.Context) ([]types.EntityID, erro
 	return result, nil
 }
 
-func (notSearch *NotSearch) First(eCtx engine.Context) (types.EntityID, error) {
+func (notSearch *NotSearch) First(eCtx Context) (types.EntityID, error) {
 	ids, err := notSearch.Collect(eCtx)
 	if err != nil {
 		return 0, err
@@ -261,7 +260,7 @@ func (notSearch *NotSearch) First(eCtx engine.Context) (types.EntityID, error) {
 	return ids[0], nil
 }
 
-func (notSearch *NotSearch) MustFirst(eCtx engine.Context) types.EntityID {
+func (notSearch *NotSearch) MustFirst(eCtx Context) types.EntityID {
 	id, err := notSearch.First(eCtx)
 	if err != nil {
 		panic("No search results")
@@ -269,7 +268,7 @@ func (notSearch *NotSearch) MustFirst(eCtx engine.Context) types.EntityID {
 	return id
 }
 
-func (notSearch *NotSearch) Count(eCtx engine.Context) (int, error) {
+func (notSearch *NotSearch) Count(eCtx Context) (int, error) {
 	ids, err := notSearch.Collect(eCtx)
 	if err != nil {
 		return 0, err
@@ -277,7 +276,7 @@ func (notSearch *NotSearch) Count(eCtx engine.Context) (int, error) {
 	return len(ids), nil
 }
 
-func (notSearch *NotSearch) evaluateSearch(eCtx engine.Context) []types.ArchetypeID {
+func (notSearch *NotSearch) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	searchBuilder := NewSearch()
 	allResults := searchBuilder.Entity(filter.All()).evaluateSearch(eCtx)
 	allResultsMap := make(map[types.ArchetypeID]bool)

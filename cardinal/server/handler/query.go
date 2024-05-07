@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/server/types"
 )
 
 // PostQuery godoc
@@ -18,7 +18,7 @@ import (
 //	@Success      200         {object}  object  "Results of the executed query"
 //	@Failure      400         {string}  string  "Invalid request parameters"
 //	@Router       /query/{queryGroup}/{queryName} [post]
-func PostQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) func(*fiber.Ctx) error {
+func PostQuery(queries map[string]map[string]types.ProviderQuery, wCtx types.ProviderContext) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		query, ok := queries[ctx.Params("group")][ctx.Params("name")]
 		if !ok {
@@ -26,7 +26,7 @@ func PostQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) 
 		}
 
 		ctx.Set("Content-Type", "application/json")
-		resBz, err := query.HandleQueryRaw(wCtx, ctx.Body())
+		resBz, err := query.HandleProviderQueryRaw(wCtx, ctx.Body())
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: "+err.Error())
 		}
@@ -47,6 +47,6 @@ func PostQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) 
 //	@Success      200         {object}  object  "Results of the executed query"
 //	@Failure      400         {string}  string  "Invalid request parameters"
 //	@Router       /query/game/{queryName} [post]
-func PostGameQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) func(*fiber.Ctx) error {
+func PostGameQuery(queries map[string]map[string]types.ProviderQuery, wCtx types.ProviderContext) func(*fiber.Ctx) error {
 	return PostQuery(queries, wCtx)
 }

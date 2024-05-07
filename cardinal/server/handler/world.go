@@ -5,9 +5,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type GetWorldResponse struct {
@@ -34,7 +34,7 @@ type FieldDetail struct {
 //	@Router       /world [get]
 func GetWorld(
 	components []types.ComponentMetadata, messages []types.Message,
-	queries []engine.Query, namespace string,
+	queries []servertypes.ProviderQuery, namespace string,
 ) func(*fiber.Ctx) error {
 	// Collecting name of all registered components
 	comps := make([]FieldDetail, 0, len(components))

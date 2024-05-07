@@ -1,10 +1,9 @@
-package query
+package cardinal
 
 import (
 	"errors"
 
 	"pkg.world.dev/world-engine/cardinal/persona"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 const (
@@ -28,7 +27,7 @@ type PersonaSignerQueryResponse struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
-func PersonaSignerQuery(wCtx engine.Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
+func PersonaSignerQuery(wCtx Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
 	var status string
 
 	addr, err := wCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
