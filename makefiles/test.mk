@@ -66,7 +66,7 @@ e2e-evm:
 	@docker compose rm --force --stop
 
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
-	docker compose up chain --build -d
+	docker compose up chain --build
 	$(call check_url,localhost:1317,501)
 
 	CARDINAL_MODE=production REDIS_PASSWORD=foo docker compose up game nakama -d
