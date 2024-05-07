@@ -328,16 +328,6 @@ func (w *World) StartGame() error {
 	//  receiptHistory tick separately.
 	w.receiptHistory.SetTick(w.CurrentTick())
 
-	//BELOW CODE CANNOT WORK. we may have to move server down to cardinal.
-	queries := w.GetRegisteredQueries()
-	providerQueries := make([]servertypes.ProviderQuery, len(queries))
-	for _, q := range queries {
-		pq, success := q.(servertypes.ProviderQuery)
-		if !success {
-			return eris.New("failed to cast into provider")
-		}
-		providerQueries = append(providerQueries, pq)
-	}
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.

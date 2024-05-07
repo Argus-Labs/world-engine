@@ -1,7 +1,7 @@
 package engine
 
 //go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
-//type Context interface {
+// type Context interface {
 //	// Timestamp returns the UNIX timestamp of the tick.
 //	Timestamp() uint64
 //	// CurrentTick returns the current tick.

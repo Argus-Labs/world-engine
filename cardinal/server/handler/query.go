@@ -47,6 +47,8 @@ func PostQuery(queries map[string]map[string]types.ProviderQuery, wCtx types.Pro
 //	@Success      200         {object}  object  "Results of the executed query"
 //	@Failure      400         {string}  string  "Invalid request parameters"
 //	@Router       /query/game/{queryName} [post]
-func PostGameQuery(queries map[string]map[string]types.ProviderQuery, wCtx types.ProviderContext) func(*fiber.Ctx) error {
+func PostGameQuery(
+	queries map[string]map[string]types.ProviderQuery,
+	wCtx types.ProviderContext) func(*fiber.Ctx) error {
 	return PostQuery(queries, wCtx)
 }
