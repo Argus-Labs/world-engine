@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
@@ -33,7 +32,7 @@ func ExampleMessageType() {
 
 	err = cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
 		return cardinal.EachMessage[MovePlayerMsg, MovePlayerResult](wCtx,
-			func(txData message.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+			func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 				// handle the transaction
 				// ...
 

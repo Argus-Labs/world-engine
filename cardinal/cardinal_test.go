@@ -19,7 +19,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -52,12 +51,6 @@ type Qux struct{}
 
 func (Qux) Name() string { return "qux" }
 
-type Health struct {
-	Value int
-}
-
-func (Health) Name() string { return "health" }
-
 func TestForEachTransaction(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
@@ -73,7 +66,7 @@ func TestForEachTransaction(t *testing.T) {
 
 	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
 		return cardinal.EachMessage[SomeMsgRequest, SomeMsgResponse](wCtx,
-			func(t message.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+			func(t cardinal.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 				if t.Msg.GenerateError {
 					return result, errors.New("some error")
 				}
@@ -183,7 +176,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		world,
 		func(wCtx engine.Context) error {
 			return cardinal.EachMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx,
-				func(msData message.TxData[*ModifyScoreMsg]) (*EmptyMsgResult, error) {
+				func(msData cardinal.TxData[*ModifyScoreMsg]) (*EmptyMsgResult, error) {
 					ms := msData.Msg
 					err := cardinal.UpdateComponent[ScoreComponent](
 						wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
@@ -644,7 +637,7 @@ func TestTransactionExample(t *testing.T) {
 		}
 		// test same as above but with .Each
 		addHealthToEntity.Each(wCtx,
-			func(tx message.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
+			func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
 				targetID := tx.Msg.TargetID
 				err := cardinal.UpdateComponent[Health](wCtx, targetID,
 					func(h *Health) *Health {
