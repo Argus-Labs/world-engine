@@ -10,14 +10,14 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 var _ shard.TransactionHandlerClient = &mockQuerier{}
-var fooMsg = message.NewMessageType[fooIn, fooOut]("foo")
+var fooMsg = cardinal.NewMessageType[fooIn, fooOut]("foo")
 
 type fooIn struct{ X int }
 type fooOut struct{}

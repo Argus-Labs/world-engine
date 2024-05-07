@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )
@@ -40,7 +42,10 @@ func (w *World) setEvmResults(txs []txpool.TxData) {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		msg := w.msgManager.GetMessageByID(tx.MsgID)
+		msg, ok := w.GetMessageByID(tx.MsgID)
+		if !ok {
+			rec.Errs = append(rec.Errs, eris.New("failed to get message by id?"))
+		}
 		if rec.Result != nil {
 			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {

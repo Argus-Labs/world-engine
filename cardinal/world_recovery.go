@@ -22,7 +22,7 @@ func (w *World) recoverAndExecutePendingTxs() error {
 		return nil
 	}
 
-	recoveredTxs, err := w.entityStore.Recover(w.msgManager.GetRegisteredMessages())
+	recoveredTxs, err := w.entityStore.Recover(w.GetRegisteredMessages())
 	if err != nil {
 		return err
 	}

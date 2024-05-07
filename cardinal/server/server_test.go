@@ -19,9 +19,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -209,7 +207,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		query.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
+		cardinal.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()
@@ -283,7 +281,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
 		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
-			func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+			func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 				posID, exists := personaToPosition[tx.Tx.PersonaTag]
 				if !exists {
 					id, err := cardinal.Create(context, LocationComponent{})

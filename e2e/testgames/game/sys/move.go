@@ -7,13 +7,12 @@ import (
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 )
 
 func Move(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
 	return cardinal.EachMessage[msg.MoveInput, msg.MoveOutput](ctx,
-		func(mtx message.TxData[msg.MoveInput]) (msg.MoveOutput, error) {
+		func(mtx cardinal.TxData[msg.MoveInput]) (msg.MoveOutput, error) {
 			logger.Info().Msgf("got move transaction from: %s", mtx.Tx.PersonaTag)
 			playerEntityID, ok := PlayerEntityID[mtx.Tx.PersonaTag]
 			if !ok {

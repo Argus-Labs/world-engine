@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
@@ -61,15 +61,15 @@ func UniqueSignature() *sign.Transaction {
 	return UniqueSignatureWithName("some_persona_tag")
 }
 
-func GetMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
+func GetMessage[In any, Out any](wCtx engine.Context) (*cardinal.MessageType[In, Out], error) {
+	var msg cardinal.MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
 	tempRes, ok := wCtx.GetMessageByType(msgType)
 	if !ok {
 		return nil, eris.Errorf("Could not find %q, Message may not be registered.", msg.Name())
 	}
 	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
+	res, ok := tempRes.(*cardinal.MessageType[In, Out])
 	if !ok {
 		return &msg, eris.New("wrong type")
 	}
