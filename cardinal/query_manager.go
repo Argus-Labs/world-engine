@@ -16,7 +16,7 @@ type QueryManagerImpl struct {
 	registeredQueries map[string]engine.Query
 }
 
-func NewQueryManager() QueryManager {
+func newQueryManager() QueryManager {
 	return &QueryManagerImpl{
 		registeredQueries: make(map[string]engine.Query),
 	}

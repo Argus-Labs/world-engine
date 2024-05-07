@@ -128,7 +128,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		msgManager:       newMessageManager(),
 		SystemManager:    newSystemManager(),
 		componentManager: component.NewManager(&redisMetaStore),
-		QueryManager:     NewQueryManager(),
+		QueryManager:     newQueryManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
 		txPool:           txpool.New(),
 
