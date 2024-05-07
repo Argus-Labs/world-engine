@@ -27,7 +27,7 @@ type ProviderWorld interface {
 
 type ProviderQuery interface {
 	Name() string
-	HandleProviderQueryRaw(wCtx ProviderContext, bz []byte) ([]byte, error)
+	HandleQueryRaw(wCtx ProviderContext, bz []byte) ([]byte, error)
 	GetRequestFieldInformation() map[string]any
 	Group() string
 }
