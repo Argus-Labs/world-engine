@@ -8,7 +8,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/abi"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -135,23 +134,6 @@ func (r *queryType[req, rep]) HandleQuery(wCtx Context, a any) (any, error) {
 }
 
 func (r *queryType[req, rep]) HandleQueryRaw(wCtx Context, bz []byte) ([]byte, error) {
-	request := new(req)
-	err := json.Unmarshal(bz, request)
-	if err != nil {
-		return nil, eris.Wrapf(err, "unable to unmarshal query request into type %T", *request)
-	}
-	res, err := r.handler(wCtx, request)
-	if err != nil {
-		return nil, err
-	}
-	bz, err = json.Marshal(res)
-	if err != nil {
-		return nil, eris.Wrapf(err, "unable to marshal response %T", res)
-	}
-	return bz, nil
-}
-
-func (r *queryType[req, rep]) HandleProviderQueryRaw(wCtx servertypes.ProviderContext, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {

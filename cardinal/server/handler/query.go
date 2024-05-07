@@ -26,7 +26,7 @@ func PostQuery(queries map[string]map[string]types.ProviderQuery, wCtx types.Pro
 		}
 
 		ctx.Set("Content-Type", "application/json")
-		resBz, err := query.HandleProviderQueryRaw(wCtx, ctx.Body())
+		resBz, err := query.HandleQueryRaw(wCtx, ctx.Body())
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: "+err.Error())
 		}
