@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -140,7 +139,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	var returnErr error
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx engine.Context) error {
+		func(wCtx cardinal.Context) error {
 			return cardinal.EachMessage[FooIn, FooOut](
 				wCtx, func(cardinal.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
@@ -202,7 +201,7 @@ func TestEVMTxConsume(t *testing.T) {
 	var returnVal FooOut
 	var returnErr error
 	err = cardinal.RegisterSystems(world,
-		func(eCtx cardinal.WorldContext) error {
+		func(eCtx cardinal.Context) error {
 			return cardinal.EachMessage[FooIn, FooOut](
 				eCtx, func(cardinal.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
@@ -251,15 +250,15 @@ func TestEVMTxConsume(t *testing.T) {
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys1 := func(engine.Context) error {
+	sys1 := func(cardinal.Context) error {
 		count++
 		return nil
 	}
-	sys2 := func(engine.Context) error {
+	sys2 := func(cardinal.Context) error {
 		count++
 		return nil
 	}
-	sys3 := func(engine.Context) error {
+	sys3 := func(cardinal.Context) error {
 		count++
 		return nil
 	}
@@ -283,13 +282,13 @@ func TestSystemExecutionOrder(t *testing.T) {
 	order := make([]int, 0, 3)
 	err := cardinal.RegisterSystems(
 		world,
-		func(engine.Context) error {
+		func(cardinal.Context) error {
 			order = append(order, 1)
 			return nil
-		}, func(engine.Context) error {
+		}, func(cardinal.Context) error {
 			order = append(order, 2)
 			return nil
-		}, func(engine.Context) error {
+		}, func(cardinal.Context) error {
 			order = append(order, 3)
 			return nil
 		},
@@ -447,7 +446,7 @@ func TestRecoverFromChain(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessage[fooMsg, fooMsgRes](world, fooMsgName))
 
 	fooMessages := 0
-	err := cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
+	err := cardinal.RegisterSystems(world, func(engineContext cardinal.Context) error {
 		return cardinal.EachMessage[fooMsg, fooMsgRes](engineContext, func(cardinal.TxData[fooMsg]) (fooMsgRes, error) {
 			fooMessages++
 			return fooMsgRes{}, nil

@@ -10,7 +10,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/statsd"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 const (
@@ -20,7 +19,7 @@ const (
 var _ SystemManager = &systemManager{}
 
 // System is a user-defined function that is executed at every tick.
-type System func(ctx engine.Context) error
+type System func(ctx Context) error
 
 // systemType is an internal entry used to track registered systems.
 type systemType struct {
@@ -39,7 +38,7 @@ type SystemManager interface {
 	// These methods are intentionally made private to avoid other
 	// packages from trying to modify the system manager in the middle of a tick.
 	registerSystems(isInit bool, systems ...System) error
-	runSystems(wCtx engine.Context) error
+	runSystems(wCtx Context) error
 }
 
 type systemManager struct {
@@ -106,7 +105,7 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) erro
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *systemManager) runSystems(wCtx engine.Context) error {
+func (m *systemManager) runSystems(wCtx Context) error {
 	var systemsToRun []systemType
 	if wCtx.CurrentTick() == 0 {
 		systemsToRun = slices.Concat(m.registeredInitSystems, m.registeredSystems)

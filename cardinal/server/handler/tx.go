@@ -41,7 +41,7 @@ type Transaction = sign.Transaction
 //	@Failure      400      {string}  string                   "Invalid request parameter"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	provider servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -104,7 +104,7 @@ func PostTransaction(
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	provider servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(provider, msgs, disableSigVerification)
 }
@@ -121,12 +121,12 @@ func PostGameTransaction(
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	provider servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(provider, msgs, disableSigVerification)
 }
 
-func lookupSignerAndValidateSignature(provider servertypes.Provider, signerAddress string, tx *Transaction) error {
+func lookupSignerAndValidateSignature(provider servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
 	var err error
 	if signerAddress == "" {
 		signerAddress, err = provider.GetSignerForPersonaTag(tx.PersonaTag, 0)

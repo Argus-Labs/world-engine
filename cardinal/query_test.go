@@ -9,7 +9,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type Health struct {
@@ -29,7 +28,7 @@ type QueryHealthResponse struct {
 }
 
 func handleQueryHealth(
-	wCtx engine.Context,
+	wCtx cardinal.Context,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
@@ -65,7 +64,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		testutils.NewTestFixture(t, nil).World,
 		"query_health",
 		func(
-			_ engine.Context,
+			_ cardinal.Context,
 			_ *FooReq,
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
@@ -122,7 +121,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := cardinal.RegisterQuery[string, string](
 		testutils.NewTestFixture(t, nil).World,
 		"foo",
-		func(engine.Context, *string) (*string, error) {
+		func(cardinal.Context, *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -148,7 +147,7 @@ func TestQueryEVM(t *testing.T) {
 		world,
 		"foo",
 		func(
-			_ engine.Context, _ *FooRequest,
+			_ cardinal.Context, _ *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},

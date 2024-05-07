@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/server/types"
 )
 
 type ListTxReceiptsRequest struct {
@@ -38,7 +38,7 @@ type ReceiptEntry struct {
 //	@Success      200                    {object}  ListTxReceiptsResponse "List of receipts"
 //	@Failure      400                    {string}  string                 "Invalid request body"
 //	@Router       /query/receipts/list [post]
-func GetReceipts(wCtx engine.Context) func(*fiber.Ctx) error {
+func GetReceipts(wCtx types.ProviderContext) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		req := new(ListTxReceiptsRequest)
 		if err := ctx.BodyParser(req); err != nil {

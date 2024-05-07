@@ -4,7 +4,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 var NonFatalError = []error{
@@ -15,7 +14,7 @@ var NonFatalError = []error{
 }
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).
-func panicOnFatalError(wCtx engine.Context, err error) {
+func panicOnFatalError(wCtx Context, err error) {
 	if err != nil && !wCtx.IsReadOnly() && isFatalError(err) {
 		wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 		panic(err)

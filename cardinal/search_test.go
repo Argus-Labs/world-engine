@@ -9,7 +9,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 var _ types.Component
@@ -90,7 +89,7 @@ func TestSearchUsingAllMethods(t *testing.T) {
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
-	)).Where(func(_ engine.Context, _ types.EntityID) (bool, error) {
+	)).Where(func(_ search.Context, _ types.EntityID) (bool, error) {
 		return true, nil
 	}).Count(worldCtx)
 	assert.NilError(t, err)
@@ -99,7 +98,7 @@ func TestSearchUsingAllMethods(t *testing.T) {
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
-	)).Where(func(wCtx engine.Context, id types.EntityID) (bool, error) {
+	)).Where(func(wCtx search.Context, id types.EntityID) (bool, error) {
 		c, err := cardinal.GetComponent[HP](wCtx, id)
 		if err != nil {
 			return false, err
@@ -487,7 +486,7 @@ func TestWhereClauseOnSearch(t *testing.T) {
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
 
-	q1 := cardinal.NewSearch().Entity(filter.All()).Where(func(wCtx engine.Context, id types.EntityID) (bool, error) {
+	q1 := cardinal.NewSearch().Entity(filter.All()).Where(func(wCtx search.Context, id types.EntityID) (bool, error) {
 		_, err := cardinal.GetComponent[AlphaTest](wCtx, id)
 		if err != nil {
 			return false, err

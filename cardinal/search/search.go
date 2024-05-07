@@ -8,7 +8,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type CallbackFn func(types.EntityID) bool
@@ -93,12 +92,12 @@ type EntitySearch interface {
 }
 
 type Searchable interface {
-	evaluateSearch(eCtx engine.Context) []types.ArchetypeID
-	Each(eCtx engine.Context, callback CallbackFn) error
-	First(eCtx engine.Context) (types.EntityID, error)
-	MustFirst(eCtx engine.Context) types.EntityID
-	Count(eCtx engine.Context) (int, error)
-	Collect(eCtx engine.Context) ([]types.EntityID, error)
+	evaluateSearch(eCtx Context) []types.ArchetypeID
+	Each(eCtx Context, callback CallbackFn) error
+	First(eCtx Context) (types.EntityID, error)
+	MustFirst(eCtx Context) types.EntityID
+	Count(eCtx Context) (int, error)
+	Collect(eCtx Context) ([]types.EntityID, error)
 }
 
 // NewSearch creates a new search.
@@ -139,7 +138,7 @@ func (s *Search) Where(componentFilter filterFn) EntitySearch {
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (s *Search) Each(eCtx engine.Context, callback CallbackFn) (err error) {
+func (s *Search) Each(eCtx Context, callback CallbackFn) (err error) {
 	defer func() { defer panicOnFatalError(eCtx, err) }()
 
 	result := s.evaluateSearch(eCtx)
@@ -175,7 +174,7 @@ func fastSortIDs(ids []types.EntityID) {
 	slices.Sort(ids)
 }
 
-func (s *Search) Collect(eCtx engine.Context) ([]types.EntityID, error) {
+func (s *Search) Collect(eCtx Context) ([]types.EntityID, error) {
 	acc := make([]types.EntityID, 0)
 	err := s.Each(eCtx, func(id types.EntityID) bool {
 		acc = append(acc, id)
@@ -189,7 +188,7 @@ func (s *Search) Collect(eCtx engine.Context) ([]types.EntityID, error) {
 }
 
 // Count returns the number of entities that match the search.
-func (s *Search) Count(eCtx engine.Context) (ret int, err error) {
+func (s *Search) Count(eCtx Context) (ret int, err error) {
 	defer func() { defer panicOnFatalError(eCtx, err) }()
 
 	result := s.evaluateSearch(eCtx)
@@ -218,7 +217,7 @@ func (s *Search) Count(eCtx engine.Context) (ret int, err error) {
 }
 
 // First returns the first entity that matches the search.
-func (s *Search) First(eCtx engine.Context) (id types.EntityID, err error) {
+func (s *Search) First(eCtx Context) (id types.EntityID, err error) {
 	defer func() { defer panicOnFatalError(eCtx, err) }()
 
 	result := s.evaluateSearch(eCtx)
@@ -249,7 +248,7 @@ func (s *Search) First(eCtx engine.Context) (id types.EntityID, err error) {
 	return iterators.BadID, eris.Wrap(err, "")
 }
 
-func (s *Search) MustFirst(eCtx engine.Context) types.EntityID {
+func (s *Search) MustFirst(eCtx Context) types.EntityID {
 	id, err := s.First(eCtx)
 	if err != nil {
 		panic("no entity matches the search")
@@ -257,7 +256,7 @@ func (s *Search) MustFirst(eCtx engine.Context) types.EntityID {
 	return id
 }
 
-func (s *Search) evaluateSearch(eCtx engine.Context) []types.ArchetypeID {
+func (s *Search) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	cache := s.archMatches
 	for it := eCtx.StoreReader().SearchFrom(s.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())

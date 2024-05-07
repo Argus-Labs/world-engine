@@ -4,18 +4,17 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // This package involves primitives for search.
 // It involves creating and combining primitives that represent
 // filtering properties on components.
 
-type filterFn func(wCtx engine.Context, id types.EntityID) (bool, error)
+type filterFn func(wCtx Context, id types.EntityID) (bool, error)
 
 //revive:disable-next-line:unexported-return
 func ComponentFilter[T types.Component](f func(comp T) bool) filterFn {
-	return func(wCtx engine.Context, id types.EntityID) (bool, error) {
+	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var t T
 		c, err := wCtx.GetComponentByName(t.Name())
 		if err != nil {
@@ -44,7 +43,7 @@ func ComponentFilter[T types.Component](f func(comp T) bool) filterFn {
 
 //revive:disable-next-line:unexported-return
 func AndFilter(fns ...filterFn) filterFn {
-	return func(wCtx engine.Context, id types.EntityID) (bool, error) {
+	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var result = true
 		var errCount = 0
 		for _, fn := range fns {
@@ -64,7 +63,7 @@ func AndFilter(fns ...filterFn) filterFn {
 
 //revive:disable-next-line:unexported-return
 func OrFilter(fns ...filterFn) filterFn {
-	return func(wCtx engine.Context, id types.EntityID) (bool, error) {
+	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var result = false
 		var errCount = 0
 		for _, fn := range fns {
