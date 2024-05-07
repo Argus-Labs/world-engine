@@ -51,12 +51,6 @@ type Qux struct{}
 
 func (Qux) Name() string { return "qux" }
 
-type CardinalTestHealth struct {
-	Value int
-}
-
-func (CardinalTestHealth) Name() string { return "health" }
-
 func TestForEachTransaction(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
