@@ -1,6 +1,6 @@
 package engine
 
-//type Query interface {
+// type Query interface {
 //	// Name returns the name of the query.
 //	Name() string
 //	// Group returns the group of the query.
