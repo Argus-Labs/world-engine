@@ -338,7 +338,7 @@ func (w *World) StartGame() error {
 		}
 		providerQueries = append(providerQueries, pq)
 	}
-	q := w.GetRegisteredQueries()
+	queries := w.GetRegisteredQueries()
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
