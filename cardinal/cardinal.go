@@ -142,7 +142,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...Message
 	msgType := NewMessageType[In, Out](name, opts...)
 
 	// Register the message with the manager
-	err := world.msgManager.RegisterMessage(msgType, reflect.TypeOf(*msgType))
+	err := world.RegisterMessage(msgType, reflect.TypeOf(*msgType))
 	if err != nil {
 		return err
 	}
