@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	"github.com/berachain/polaris/eth/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	types2 "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"gotest.tools/v3/assert"
 
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
@@ -46,7 +45,7 @@ func TestRouter(t *testing.T) {
 	// test dispatch when there is a successful tx
 	router.PostBlockHook(types.Transactions{tx}, types.Receipts{
 		&types.Receipt{
-			Status: types2.ReceiptStatusSuccessful,
+			Status: types.ReceiptStatusSuccessful,
 			TxHash: txHash,
 		},
 	}, nil)

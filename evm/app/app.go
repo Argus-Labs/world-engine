@@ -194,7 +194,7 @@ func NewApp(
 			FeegrantKeeper:  nil,
 			SigGasConsumer:  ante.EthSecp256k1SigVerificationGasConsumer,
 			SignModeHandler: app.txConfig.SignModeHandler(),
-			TxFeeChecker: func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+			TxFeeChecker: func(_ sdk.Context, _ sdk.Tx) (sdk.Coins, int64, error) {
 				return nil, 0, nil
 			},
 		},
@@ -204,7 +204,6 @@ func NewApp(
 	}
 
 	// Setup Polaris Runtime.
-	app.Logger().Info(fmt.Sprintf("Router: %q", app.Router.PostBlockHook))
 	if err := app.Polaris.Build(
 		app, cosmHandler, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook,
 	); err != nil {

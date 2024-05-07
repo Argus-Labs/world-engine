@@ -81,8 +81,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/params"         // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side effects
-
-	_ "pkg.world.dev/world-engine/evm/x/namespace" // import for side effects
+	_ "pkg.world.dev/world-engine/evm/x/namespace"    // import for side effects
 )
 
 var (
