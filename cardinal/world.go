@@ -44,6 +44,8 @@ var _ servertypes.ProviderWorld = &World{} //nolint:exhaustruct
 
 type World struct {
 	SystemManager
+	MessageManager
+	QueryManager
 
 	namespace     Namespace
 	rollupEnabled bool
@@ -57,12 +59,11 @@ type World struct {
 	serverOptions []server.Option
 
 	// Core modules
-	worldStage       *worldstage.Manager
-	msgManager       MessageManager
+	worldStage *worldstage.Manager
+
 	componentManager *component.Manager
-	QueryManager
-	router router.Router
-	txPool *txpool.TxPool
+	router           router.Router
+	txPool           *txpool.TxPool
 
 	// Receipt
 	receiptHistory *receipt.History
@@ -124,10 +125,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 		// Core modules
 		worldStage:       worldstage.NewManager(),
-		msgManager:       NewMessageManager(),
+		MessageManager:   newMessageManager(),
 		SystemManager:    newSystemManager(),
 		componentManager: component.NewManager(&redisMetaStore),
-		QueryManager:     NewQueryManager(),
+		QueryManager:     newQueryManager(),
 		router:           nil, // Will be set if run mode is production or its injected via options
 		txPool:           txpool.New(),
 
@@ -221,7 +222,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
 	txPool := w.txPool.CopyTransactions()
 
-	if err := w.entityStore.StartNextTick(w.msgManager.GetRegisteredMessages(), txPool); err != nil {
+	if err := w.entityStore.StartNextTick(w.GetRegisteredMessages(), txPool); err != nil {
 		return err
 	}
 
@@ -342,7 +343,7 @@ func (w *World) StartGame() error {
 	if len(w.componentManager.GetComponents()) == 0 {
 		log.Warn().Msg("No components registered")
 	}
-	if len(w.msgManager.GetRegisteredMessages()) == 0 {
+	if len(w.GetRegisteredMessages()) == 0 {
 		log.Warn().Msg("No messages registered")
 	}
 	if len(w.GetRegisteredQueries()) == 0 {
@@ -595,10 +596,6 @@ func (w *World) StoreReader() gamestate.Reader {
 	return w.entityStore.ToReadOnly()
 }
 
-func (w *World) GetRegisteredMessages() []types.Message {
-	return w.msgManager.GetRegisteredMessages()
-}
-
 func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 	return w.componentManager.GetComponents()
 }
@@ -608,12 +605,8 @@ func (w *World) GetReadOnlyCtx() Context {
 }
 
 func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
-	msg := w.msgManager.GetMessageByID(id)
+	msg := w.MessageManager.GetMessageByID(id)
 	return msg, msg != nil
-}
-
-func (w *World) GetMessageByFullName(name string) (types.Message, bool) {
-	return w.msgManager.GetMessageByFullName(name)
 }
 
 func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {

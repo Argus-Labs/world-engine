@@ -17,22 +17,22 @@ type MessageManager interface {
 	GetMessageByType(mType reflect.Type) (types.Message, bool)
 }
 
-type MessageManagerImpl struct {
+type messageManager struct {
 	// registeredMessages maps message FullNames to a types.Message.
 	registeredMessages       map[string]types.Message
 	registeredMessagesByType map[reflect.Type]types.Message
 	nextMessageID            types.MessageID
 }
 
-func NewMessageManager() MessageManager {
-	return &MessageManagerImpl{
+func newMessageManager() MessageManager {
+	return &messageManager{
 		registeredMessages:       map[string]types.Message{},
 		registeredMessagesByType: map[reflect.Type]types.Message{},
 		nextMessageID:            1,
 	}
 }
 
-func (m *MessageManagerImpl) RegisterMessage(msgType types.Message, msgReflectType reflect.Type) error {
+func (m *messageManager) RegisterMessage(msgType types.Message, msgReflectType reflect.Type) error {
 	fullName := msgType.FullName()
 	// Checks if the message is already previously registered.
 	if err := errors.Join(m.isMessageFullNameUnique(fullName), m.isMessageTypeUnique(msgReflectType)); err != nil {
@@ -54,7 +54,7 @@ func (m *MessageManagerImpl) RegisterMessage(msgType types.Message, msgReflectTy
 }
 
 // GetRegisteredMessages returns the list of all registered messages
-func (m *MessageManagerImpl) GetRegisteredMessages() []types.Message {
+func (m *messageManager) GetRegisteredMessages() []types.Message {
 	msgs := make([]types.Message, 0, len(m.registeredMessages))
 	for _, msg := range m.registeredMessages {
 		msgs = append(msgs, msg)
@@ -64,7 +64,7 @@ func (m *MessageManagerImpl) GetRegisteredMessages() []types.Message {
 
 // GetMessageByID iterates over the all registered messages and returns the types.Message associated with the
 // MessageID.
-func (m *MessageManagerImpl) GetMessageByID(id types.MessageID) types.Message {
+func (m *messageManager) GetMessageByID(id types.MessageID) types.Message {
 	for _, msg := range m.registeredMessages {
 		if id == msg.ID() {
 			return msg
@@ -74,18 +74,18 @@ func (m *MessageManagerImpl) GetMessageByID(id types.MessageID) types.Message {
 }
 
 // GetMessageByFullName returns the message with the given full name, if it exists.
-func (m *MessageManagerImpl) GetMessageByFullName(fullName string) (types.Message, bool) {
+func (m *messageManager) GetMessageByFullName(fullName string) (types.Message, bool) {
 	msg, ok := m.registeredMessages[fullName]
 	return msg, ok
 }
 
-func (m *MessageManagerImpl) GetMessageByType(mType reflect.Type) (types.Message, bool) {
+func (m *messageManager) GetMessageByType(mType reflect.Type) (types.Message, bool) {
 	msg, ok := m.registeredMessagesByType[mType]
 	return msg, ok
 }
 
 // isMessageFullNameUnique checks if the message name already exist in messages map.
-func (m *MessageManagerImpl) isMessageFullNameUnique(fullName string) error {
+func (m *messageManager) isMessageFullNameUnique(fullName string) error {
 	_, ok := m.registeredMessages[fullName]
 	if ok {
 		return eris.Errorf("message %q is already registered", fullName)
@@ -94,7 +94,7 @@ func (m *MessageManagerImpl) isMessageFullNameUnique(fullName string) error {
 }
 
 // isMessageTypeUnique checks if the message type name already exist in messages map.
-func (m *MessageManagerImpl) isMessageTypeUnique(msgReflectType reflect.Type) error {
+func (m *messageManager) isMessageTypeUnique(msgReflectType reflect.Type) error {
 	_, ok := m.registeredMessagesByType[msgReflectType]
 	if ok {
 		return eris.Errorf("message type %q is already registered", msgReflectType)

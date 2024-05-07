@@ -10,19 +10,19 @@ type QueryManager interface {
 	GetQueryByName(name string) (Query, error)
 }
 
-type QueryManagerImpl struct {
+type queryManager struct {
 	registeredQueries map[string]Query
 }
 
-func NewQueryManager() QueryManager {
-	return &QueryManagerImpl{
+func newQueryManager() QueryManager {
+	return &queryManager{
 		registeredQueries: make(map[string]Query),
 	}
 }
 
 // RegisterQuery registers a query with the query manager.
 // There can only be one query with a given name.
-func (m *QueryManagerImpl) RegisterQuery(name string, query Query) error {
+func (m *queryManager) RegisterQuery(name string, query Query) error {
 	// Check that the query is not already registered
 	if err := m.isQueryNameUnique(name); err != nil {
 		return err
@@ -35,7 +35,7 @@ func (m *QueryManagerImpl) RegisterQuery(name string, query Query) error {
 }
 
 // GetRegisteredQueries returns all the registered queries.
-func (m *QueryManagerImpl) GetRegisteredQueries() []Query {
+func (m *queryManager) GetRegisteredQueries() []Query {
 	registeredQueries := make([]Query, 0, len(m.registeredQueries))
 	for _, query := range m.registeredQueries {
 		registeredQueries = append(registeredQueries, query)
@@ -44,7 +44,7 @@ func (m *QueryManagerImpl) GetRegisteredQueries() []Query {
 }
 
 // GetQueryByName returns a query corresponding to its name.
-func (m *QueryManagerImpl) GetQueryByName(name string) (Query, error) {
+func (m *queryManager) GetQueryByName(name string) (Query, error) {
 	query, ok := m.registeredQueries[name]
 	if !ok {
 		return nil, eris.Errorf("query %q is not registered", name)
@@ -52,7 +52,7 @@ func (m *QueryManagerImpl) GetQueryByName(name string) (Query, error) {
 	return query, nil
 }
 
-func (m *QueryManagerImpl) isQueryNameUnique(name string) error {
+func (m *queryManager) isQueryNameUnique(name string) error {
 	if _, ok := m.registeredQueries[name]; ok {
 		return eris.Errorf("query %q is already registered", name)
 	}

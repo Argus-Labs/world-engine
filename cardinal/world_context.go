@@ -101,7 +101,7 @@ func (ctx *worldContext) Logger() *zerolog.Logger {
 }
 
 func (ctx *worldContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
-	return ctx.world.msgManager.GetMessageByType(mType)
+	return ctx.world.GetMessageByType(mType)
 }
 
 func (ctx *worldContext) SetLogger(logger zerolog.Logger) {
