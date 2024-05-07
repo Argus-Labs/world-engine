@@ -45,6 +45,8 @@ var _ servertypes.Provider = &World{} //nolint:exhaustruct
 
 type World struct {
 	SystemManager
+	MessageManager
+	QueryManager
 
 	namespace     Namespace
 	rollupEnabled bool
@@ -59,11 +61,10 @@ type World struct {
 
 	// Core modules
 	worldStage *worldstage.Manager
-	MessageManager
+
 	componentManager *component.Manager
-	QueryManager
-	router router.Router
-	txPool *txpool.TxPool
+	router           router.Router
+	txPool           *txpool.TxPool
 
 	// Receipt
 	receiptHistory *receipt.History
