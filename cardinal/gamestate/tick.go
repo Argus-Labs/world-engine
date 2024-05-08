@@ -2,14 +2,14 @@ package gamestate
 
 import (
 	"context"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel/codes"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
@@ -70,29 +70,37 @@ func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, pool *txpool.Tx
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
 // to the DB.
 func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
-	var span tracer.Span
-	span, ctx = tracer.StartSpanFromContext(ctx, "tick.span.finalize")
-	defer func() {
-		span.Finish()
-	}()
-	makePipeStartTime := time.Now()
+	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "ecb.tick.finalize")
+	defer span.End()
+
 	pipe, err := m.makePipeOfRedisCommands(ctx)
 	if err != nil {
-		return err
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to make redis commands pipe")
 	}
-	if err = pipe.Incr(ctx, storageEndTickKey()); err != nil {
-		return eris.Wrap(err, "")
+
+	if err := pipe.Incr(ctx, storageEndTickKey()); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to increment end tick key")
 	}
-	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
-	flushStartTime := time.Now()
-	err = pipe.EndTransaction(ctx)
-	statsd.EmitTickStat(flushStartTime, "pipe_exec")
-	if err != nil {
-		return eris.Wrap(err, "")
+
+	if err := pipe.EndTransaction(ctx); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to end transaction")
 	}
 
 	m.pendingArchIDs = nil
-	return m.DiscardPending()
+
+	if err := m.DiscardPending(); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to discard pending transaction")
+	}
+
+	return nil
 }
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers

@@ -39,9 +39,8 @@ var (
 		RedisPassword:             "",
 		BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
 		BaseShardRouterKey:        "",
-		TelemetryEnabled:          false,
-		TelemetryStatsdAddress:    "",
-		TelemetryTraceAddress:     "",
+		TelemetryTraceEnabled:     false,
+		TelemetryProfilerEnabled:  false,
 	}
 )
 
@@ -70,14 +69,11 @@ type WorldConfig struct {
 	// BaseShardRouterKey is a token used to secure communications between the game shard and the base shard.
 	BaseShardRouterKey string `config:"BASE_SHARD_ROUTER_KEY"`
 
-	// TelemetryEnabled When true, Cardinal will send telemetry to a telemetry agent.
-	TelemetryEnabled bool `config:"TELEMETRY_ENABLED"`
+	// TelemetryTraceEnabled When true, Cardinal will collect OpenTelemetry traces
+	TelemetryTraceEnabled bool `config:"TELEMETRY_TRACE_ENABLED"`
 
-	// TelemetryStatsdAddress The address of a statsd metric agent that will collect stats from Cardinal.
-	TelemetryStatsdAddress string `config:"TELEMETRY_STATSD_ADDRESS"`
-
-	// TelemetryTraceAddress The address of an agent that supports the collection of traces (e.g. a DataDog agent).
-	TelemetryTraceAddress string `config:"TELEMETRY_TRACE_ADDRESS"`
+	// TelemetryProfilerEnabled When true, Cardinal will run Datadog continuous profiling
+	TelemetryProfilerEnabled bool `config:"TELEMETRY_PROFILER_ENABLED"`
 }
 
 func loadWorldConfig() (*WorldConfig, error) {
@@ -100,7 +96,7 @@ func loadWorldConfig() (*WorldConfig, error) {
 
 // Validate validates the config values.
 // If CARDINAL_ROLLUP=true, the BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_ROUTER_KEY are required.
-func (w *WorldConfig) Validate() error { //nolint:gocognit
+func (w *WorldConfig) Validate() error {
 	// Validate Cardinal configs
 	if err := Namespace(w.CardinalNamespace).Validate(); err != nil {
 		return eris.Wrap(err, "CARDINAL_NAMESPACE is not a valid namespace")
@@ -124,21 +120,6 @@ func (w *WorldConfig) Validate() error { //nolint:gocognit
 		}
 		if err := credentials.ValidateKey(w.BaseShardRouterKey); err != nil {
 			return err
-		}
-	}
-
-	// Validate telemetry configs
-	if w.TelemetryEnabled { //nolint:nestif // better consistency and readability
-		if w.TelemetryStatsdAddress != "" {
-			if _, _, err := net.SplitHostPort(w.TelemetryStatsdAddress); err != nil {
-				return eris.New("TELEMETRY_STATSD_ADDRESS must follow the format <host>:<port>")
-			}
-		}
-
-		if w.TelemetryTraceAddress != "" {
-			if _, _, err := net.SplitHostPort(w.TelemetryTraceAddress); err != nil {
-				return eris.New("TELEMETRY_TRACE_ADDRESS must follow the format <host>:<port>")
-			}
 		}
 	}
 
