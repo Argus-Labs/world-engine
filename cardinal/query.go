@@ -284,13 +284,13 @@ func BuildUniversalQueryHandler(world *World) QueryHandler {
 	}
 
 	return func(name string, group string, bz []byte) ([]byte, error) {
-		first, ok := queryIndex[group]
-		if !ok {
-			return nil, eris.Errorf("query with name %s not found", name)
-		}
-		query, ok := first[name]
+		groupIndex, ok := queryIndex[group]
 		if !ok {
 			return nil, eris.Errorf("query with group %s not found", group)
+		}
+		query, ok := groupIndex[name]
+		if !ok {
+			return nil, eris.Errorf("query with name %s not found", name)
 		}
 		return query.HandleQueryRaw(wCtx, bz)
 	}
