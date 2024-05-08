@@ -24,6 +24,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -95,7 +96,7 @@ func (s *ServerTestSuite) TestGetWorld() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	res := s.fixture.Get("/world")
-	var result handler.GetWorldResponse
+	var result engine.GetWorldResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
 	comps := s.world.GetRegisteredComponents()
@@ -108,17 +109,17 @@ func (s *ServerTestSuite) TestGetWorld() {
 
 	// check that the component, message, query name are in the list
 	for _, comp := range comps {
-		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field handler.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field engine.FieldDetail) bool {
 			return comp.Name() == field.Name
 		}))
 	}
 	for _, msg := range msgs {
-		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field handler.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field engine.FieldDetail) bool {
 			return msg.Name() == field.Name
 		}))
 	}
 	for _, query := range queries {
-		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field handler.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field engine.FieldDetail) bool {
 			return query.Name() == field.Name
 		}))
 	}
