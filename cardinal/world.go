@@ -329,12 +329,15 @@ func (w *World) StartGame() error {
 	//  receiptHistory tick separately.
 	w.receiptHistory.SetTick(w.CurrentTick())
 
+	queryHandler := BuildUniversalQueryHandler(w)
+	queryFields := BuildQueryFields(w)
+
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
 	w.server, err = server.New(w,
 		NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
-		w.GetRegisteredQueries(), w.serverOptions...)
+		queryHandler, queryFields, w.serverOptions...)
 	if err != nil {
 		return err
 	}

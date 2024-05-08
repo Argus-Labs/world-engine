@@ -15,6 +15,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 const (
@@ -34,8 +35,13 @@ type Server struct {
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	provider servertypes.ProviderWorld, wCtx servertypes.ProviderContext, components []types.ComponentMetadata,
-	messages []types.Message, queries []servertypes.ProviderQuery, opts ...Option,
+	provider servertypes.ProviderWorld,
+	wCtx servertypes.ProviderContext,
+	components []types.ComponentMetadata,
+	messages []types.Message,
+	queryHandler engine.QueryHandler,
+	queryFields []engine.FieldDetail,
+	opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
 		Network: "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
@@ -57,7 +63,7 @@ func New(
 	app.Use(cors.New())
 
 	// Register routes
-	s.setupRoutes(provider, wCtx, messages, queries, components)
+	s.setupRoutes(provider, wCtx, messages, queryHandler, queryFields, components)
 
 	return s, nil
 }
@@ -114,27 +120,16 @@ func (s *Server) Shutdown() error {
 // @consumes		application/json
 // @produces		application/json
 func (s *Server) setupRoutes(
-	provider servertypes.ProviderWorld, wCtx servertypes.ProviderContext, messages []types.Message,
-	queries []servertypes.ProviderQuery, components []types.ComponentMetadata,
+	provider servertypes.ProviderWorld,
+	wCtx servertypes.ProviderContext,
+	messages []types.Message,
+	queryHandler engine.QueryHandler,
+	queryFields []engine.FieldDetail,
+	components []types.ComponentMetadata,
 ) {
-	// TODO(scott): we should refactor this such that we only dependency inject these maps
-	//  instead of having to dependency inject the entire engine.
-	// /query/:group/:queryType
-	// maps group -> queryType -> query
-	queryIndex := make(map[string]map[string]servertypes.ProviderQuery)
-
 	// /tx/:group/:txType
 	// maps group -> txType -> tx
 	msgIndex := make(map[string]map[string]types.Message)
-
-	// Create query index
-	for _, query := range queries {
-		// Initialize inner map if it doesn't exist
-		if _, ok := queryIndex[query.Group()]; !ok {
-			queryIndex[query.Group()] = make(map[string]servertypes.ProviderQuery)
-		}
-		queryIndex[query.Group()][query.Name()] = query
-	}
 
 	// Create tx index
 	for _, msg := range messages {
@@ -155,7 +150,7 @@ func (s *Server) setupRoutes(
 	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	s.app.Get("/world", handler.GetWorld(components, messages, queries, wCtx.Namespace()))
+	s.app.Get("/world", handler.GetWorld(components, messages, queryFields, wCtx.Namespace()))
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())
@@ -163,7 +158,7 @@ func (s *Server) setupRoutes(
 	// Route: /query/...
 	query := s.app.Group("/query")
 	query.Post("/receipts/list", handler.GetReceipts(wCtx))
-	query.Post("/:group/:name", handler.PostQuery(queryIndex, wCtx))
+	query.Post("/:group/:name", handler.PostQuery(queryHandler, wCtx))
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
