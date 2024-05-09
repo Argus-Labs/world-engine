@@ -269,15 +269,15 @@ func (mr *MockContextMockRecorder) ReceiptHistorySize() *gomock.Call {
 }
 
 // SetLogger mocks base method.
-func (m *MockContext) SetLogger(logger zerolog.Logger) {
+func (m *MockContext) setLogger(logger zerolog.Logger) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetLogger", logger)
+	m.ctrl.Call(m, "setLogger", logger)
 }
 
 // SetLogger indicates an expected call of SetLogger.
 func (mr *MockContextMockRecorder) SetLogger(logger interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLogger", reflect.TypeOf((*MockContext)(nil).SetLogger), logger)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "setLogger", reflect.TypeOf((*MockContext)(nil).setLogger), logger)
 }
 
 // SetMessageResult mocks base method.

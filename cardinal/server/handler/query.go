@@ -3,8 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"pkg.world.dev/world-engine/cardinal/server/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 )
 
 // PostQuery godoc
@@ -19,10 +18,10 @@ import (
 //	@Success      200         {object}  object  "Results of the executed query"
 //	@Failure      400         {string}  string  "Invalid request parameters"
 //	@Router       /query/{queryGroup}/{queryName} [post]
-func PostQuery(queryHandler engine.QueryHandler, wCtx types.ProviderContext) func(*fiber.Ctx) error {
+func PostQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		ctx.Set("Content-Type", "application/json")
-		resBz, err := queryHandler(ctx.Params("name"), ctx.Params("group"), ctx.Body())
+		resBz, err := world.QueryHandler(ctx.Params("name"), ctx.Params("group"), ctx.Body())
 		if err != nil {
 			return fiber.NewError(fiber.StatusNotFound, "query not found")
 		}

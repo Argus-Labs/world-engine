@@ -26,9 +26,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
@@ -110,7 +112,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	tick := new(atomic.Uint64)
-
 	world := &World{
 		namespace:     Namespace(cfg.CardinalNamespace),
 		rollupEnabled: cfg.CardinalRollupEnabled,
@@ -181,7 +182,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			)
 		}
 	}
-
+	world.QueryManager.BuildQueryIndex(world)
 	return world, nil
 }
 
@@ -329,15 +330,10 @@ func (w *World) StartGame() error {
 	//  receiptHistory tick separately.
 	w.receiptHistory.SetTick(w.CurrentTick())
 
-	queryHandler := BuildUniversalQueryHandler(w)
-	queryFields := BuildQueryFields(w)
-
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(w,
-		NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
-		queryHandler, queryFields, w.serverOptions...)
+	w.server, err = server.New(w, w.GetRegisteredComponents(), w.GetRegisteredMessages(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
@@ -382,6 +378,21 @@ func (w *World) startServer() {
 			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
 		}
 	}()
+}
+
+func (w *World) BuildQueryFields() []engine.FieldDetail {
+	// Collecting the structure of all queries
+	queries := w.GetRegisteredQueries()
+	queriesFields := make([]engine.FieldDetail, 0, len(queries))
+	for _, query := range queries {
+		// Extracting the fields of the query
+		queriesFields = append(queriesFields, engine.FieldDetail{
+			Name:   query.Name(),
+			Fields: query.GetRequestFieldInformation(),
+			URL:    utils.GetQueryURL(query.Group(), query.Name()),
+		})
+	}
+	return queriesFields
 }
 
 func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
@@ -555,6 +566,37 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
+func (w *World) GetDebugState() (types.DebugStateResponse, error, error) {
+	result := make(types.DebugStateResponse, 0)
+	s := w.Search(filter.All())
+	var eachClosureErr error
+	wCtx := NewReadOnlyWorldContext(w)
+	searchEachErr := s.Each(wCtx,
+		func(id types.EntityID) bool {
+			var components []types.ComponentMetadata
+			components, eachClosureErr = w.StoreReader().GetComponentTypesForEntity(id)
+			if eachClosureErr != nil {
+				return false
+			}
+			resultElement := types.DebugStateElement{
+				ID:         id,
+				Components: make(map[string]json.RawMessage),
+			}
+			for _, c := range components {
+				var data json.RawMessage
+				data, eachClosureErr = w.StoreReader().GetComponentForEntityInRawJSON(c, id)
+				if eachClosureErr != nil {
+					return false
+				}
+				resultElement.Components[c.Name()] = data
+			}
+			result = append(result, resultElement)
+			return true
+		},
+	)
+	return result, eachClosureErr, searchEachErr
+}
+
 func (w *World) Namespace() string {
 	return string(w.namespace)
 }
@@ -629,4 +671,39 @@ func (w *World) populateAndBroadcastTickResults() {
 	if err != nil {
 		log.Err(err).Msgf("failed to broadcast tick results")
 	}
+}
+
+func (w *World) ReceiptHistorySize() uint64 {
+	return w.receiptHistory.Size()
+}
+
+func (w *World) RunCQLSearch(filter filter.ComponentFilter) ([]types.CqlData, error, error) {
+	result := make([]types.CqlData, 0)
+	var eachError error
+	wCtx := NewReadOnlyWorldContext(w)
+	searchErr := w.Search(filter).Each(wCtx,
+		func(id types.EntityID) bool {
+			components, err := w.StoreReader().GetComponentTypesForEntity(id)
+			if err != nil {
+				eachError = err
+				return false
+			}
+			resultElement := types.CqlData{
+				ID:   id,
+				Data: make([]json.RawMessage, 0),
+			}
+
+			for _, c := range components {
+				data, err := w.StoreReader().GetComponentForEntityInRawJSON(c, id)
+				if err != nil {
+					eachError = err
+					return false
+				}
+				resultElement.Data = append(resultElement.Data, data)
+			}
+			result = append(result, resultElement)
+			return true
+		},
+	)
+	return result, eachError, searchErr
 }

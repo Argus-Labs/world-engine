@@ -18,8 +18,8 @@ package engine
 //
 //	// For internal use.
 //
-//	// SetLogger is used to inject a new logger configuration to an engine context that is already created.
-//	SetLogger(logger zerolog.Logger)
+//	// setLogger is used to inject a new logger configuration to an engine context that is already created.
+//	setLogger(logger zerolog.Logger)
 //	AddMessageError(id types.TxHash, err error)
 //	SetMessageResult(id types.TxHash, a any)
 //	GetComponentByName(name string) (types.ComponentMetadata, error)
