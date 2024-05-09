@@ -8,9 +8,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/abi"
-	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type Query interface {
@@ -269,44 +267,3 @@ func validateQuery[Request any, Reply any](
 }
 
 type QueryHandler = func(name string, group string, bz []byte) ([]byte, error)
-
-func BuildUniversalQueryHandler(world *World) QueryHandler {
-	queries := world.GetRegisteredQueries()
-	queryIndex := make(map[string]map[string]Query)
-	wCtx := NewReadOnlyWorldContext(world)
-	// Create query index
-	for _, query := range queries {
-		// Initialize inner map if it doesn't exist
-		if _, ok := queryIndex[query.Group()]; !ok {
-			queryIndex[query.Group()] = make(map[string]Query)
-		}
-		queryIndex[query.Group()][query.Name()] = query
-	}
-
-	return func(name string, group string, bz []byte) ([]byte, error) {
-		groupIndex, ok := queryIndex[group]
-		if !ok {
-			return nil, eris.Errorf("query with group %s not found", group)
-		}
-		query, ok := groupIndex[name]
-		if !ok {
-			return nil, eris.Errorf("query with name %s not found", name)
-		}
-		return query.HandleQueryRaw(wCtx, bz)
-	}
-}
-
-func BuildQueryFields(world *World) []engine.FieldDetail {
-	// Collecting the structure of all queries
-	queries := world.GetRegisteredQueries()
-	queriesFields := make([]engine.FieldDetail, 0, len(queries))
-	for _, query := range queries {
-		// Extracting the fields of the query
-		queriesFields = append(queriesFields, engine.FieldDetail{
-			Name:   query.Name(),
-			Fields: query.GetRequestFieldInformation(),
-			URL:    utils.GetQueryURL(query.Group(), query.Name()),
-		})
-	}
-	return queriesFields
-}

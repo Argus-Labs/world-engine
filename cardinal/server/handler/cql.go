@@ -3,7 +3,6 @@ package handler
 import "C"
 
 import (
-	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 
 	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
@@ -15,13 +14,8 @@ type CQLQueryRequest struct {
 	CQL string
 }
 
-type cqlData struct {
-	ID   types.EntityID    `json:"id"`
-	Data []json.RawMessage `json:"data" swaggertype:"object"`
-}
-
 type CQLQueryResponse struct {
-	Results []cqlData `json:"results"`
+	Results []types.CqlData `json:"results"`
 }
 
 // PostCQL godoc
@@ -35,8 +29,7 @@ type CQLQueryResponse struct {
 //	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /cql [post]
 func PostCQL(
-	provider servertypes.ProviderWorld,
-	wCtx servertypes.ProviderContext) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
+	provider servertypes.ProviderWorld) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
 	return func(ctx *fiber.Ctx) error {
 		req := new(CQLQueryRequest)
 		if err := ctx.BodyParser(req); err != nil {
@@ -58,33 +51,7 @@ func PostCQL(
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-
-		result := make([]cqlData, 0)
-		var eachError error
-		searchErr := provider.Search(resultFilter).Each(wCtx,
-			func(id types.EntityID) bool {
-				components, err := provider.StoreReader().GetComponentTypesForEntity(id)
-				if err != nil {
-					eachError = err
-					return false
-				}
-				resultElement := cqlData{
-					ID:   id,
-					Data: make([]json.RawMessage, 0),
-				}
-
-				for _, c := range components {
-					data, err := provider.StoreReader().GetComponentForEntityInRawJSON(c, id)
-					if err != nil {
-						eachError = err
-						return false
-					}
-					resultElement.Data = append(resultElement.Data, data)
-				}
-				result = append(result, resultElement)
-				return true
-			},
-		)
+		result, eachError, searchErr := provider.RunCQLSearch(resultFilter)
 		if searchErr != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, searchErr.Error())
 		}

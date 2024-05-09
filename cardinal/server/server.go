@@ -15,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 const (
@@ -36,11 +35,8 @@ type Server struct {
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
 	provider servertypes.ProviderWorld,
-	wCtx servertypes.ProviderContext,
 	components []types.ComponentMetadata,
 	messages []types.Message,
-	queryHandler engine.QueryHandler,
-	queryFields []engine.FieldDetail,
 	opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
@@ -63,7 +59,7 @@ func New(
 	app.Use(cors.New())
 
 	// Register routes
-	s.setupRoutes(provider, wCtx, messages, queryHandler, queryFields, components)
+	s.setupRoutes(provider, messages, components)
 
 	return s, nil
 }
@@ -121,10 +117,7 @@ func (s *Server) Shutdown() error {
 // @produces		application/json
 func (s *Server) setupRoutes(
 	provider servertypes.ProviderWorld,
-	wCtx servertypes.ProviderContext,
 	messages []types.Message,
-	queryHandler engine.QueryHandler,
-	queryFields []engine.FieldDetail,
 	components []types.ComponentMetadata,
 ) {
 	// /tx/:group/:txType
@@ -150,23 +143,23 @@ func (s *Server) setupRoutes(
 	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	s.app.Get("/world", handler.GetWorld(components, messages, queryFields, wCtx.Namespace()))
+	s.app.Get("/world", handler.GetWorld(provider, components, messages, provider.Namespace()))
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())
 
 	// Route: /query/...
 	query := s.app.Group("/query")
-	query.Post("/receipts/list", handler.GetReceipts(wCtx))
-	query.Post("/:group/:name", handler.PostQuery(queryHandler, wCtx))
+	query.Post("/receipts/list", handler.GetReceipts(provider))
+	query.Post("/:group/:name", handler.PostQuery(provider))
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
 	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, s.config.isSignatureVerificationDisabled))
 
 	// Route: /cql
-	s.app.Post("/cql", handler.PostCQL(provider, wCtx))
+	s.app.Post("/cql", handler.PostCQL(provider))
 
 	// Route: /debug/state
-	s.app.Post("/debug/state", handler.GetDebugState(provider, wCtx))
+	s.app.Post("/debug/state", handler.GetDebugState(provider))
 }

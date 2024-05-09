@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -20,8 +21,10 @@ import (
 //	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /world [get]
 func GetWorld(
-	components []types.ComponentMetadata, messages []types.Message,
-	queryFields []engine.FieldDetail, namespace string,
+	world servertypes.ProviderWorld,
+	components []types.ComponentMetadata,
+	messages []types.Message,
+	namespace string,
 ) func(*fiber.Ctx) error {
 	// Collecting name of all registered components
 	comps := make([]engine.FieldDetail, 0, len(components))
@@ -51,7 +54,7 @@ func GetWorld(
 			Namespace:  namespace,
 			Components: comps,
 			Messages:   messagesFields,
-			Queries:    queryFields,
+			Queries:    world.BuildQueryFields(),
 		})
 	}
 }

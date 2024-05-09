@@ -168,7 +168,9 @@ func RegisterQuery[Request any, Reply any](
 		return err
 	}
 
-	return w.RegisterQuery(name, q)
+	res := w.RegisterQuery(name, q)
+	w.BuildQueryIndex(w)
+	return res
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
