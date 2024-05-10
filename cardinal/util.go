@@ -83,3 +83,7 @@ func GetStoreManagerFromContext(wCtx Context) gamestate.Manager {
 func GetComponentByNameFromContext(wCtx Context, name string) (types.ComponentMetadata, error) {
 	return wCtx.getComponentByName(name)
 }
+
+func HandleQuery(wCtx Context, query Query, a any) (any, error) {
+	return query.handleQuery(wCtx, a)
+}
