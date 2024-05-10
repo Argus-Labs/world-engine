@@ -32,7 +32,7 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-func testSystem(wCtx cardinal.Context) error {
+func testSystem(wCtx cardinal.WorldContext) error {
 	wCtx.Logger().Log().Msg("test")
 	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComp]()))
 	err := q.Each(wCtx,
@@ -53,7 +53,7 @@ func testSystem(wCtx cardinal.Context) error {
 	return nil
 }
 
-func testSystemWarningTrigger(wCtx cardinal.Context) error {
+func testSystemWarningTrigger(wCtx cardinal.WorldContext) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(wCtx)
 }

@@ -37,7 +37,7 @@ func separateOptions(opts []WorldOption) (
 }
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).
-func panicOnFatalError(wCtx Context, err error) {
+func panicOnFatalError(wCtx WorldContext, err error) {
 	if err != nil && !wCtx.isReadOnly() && isFatalError(err) {
 		wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 		panic(err)
@@ -53,7 +53,7 @@ func isFatalError(err error) bool {
 	return true
 }
 
-func GetMessage[In any, Out any](wCtx Context) (*MessageType[In, Out], error) {
+func GetMessage[In any, Out any](wCtx WorldContext) (*MessageType[In, Out], error) {
 	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
 	tempRes, ok := wCtx.getMessageByType(msgType)
@@ -68,7 +68,7 @@ func GetMessage[In any, Out any](wCtx Context) (*MessageType[In, Out], error) {
 	return res, nil
 }
 
-func GetTransactionReceiptsForTick(wCtx Context, tick uint64) ([]receipt.Receipt, error) {
+func GetTransactionReceiptsForTick(wCtx WorldContext, tick uint64) ([]receipt.Receipt, error) {
 	ctx, ok := wCtx.(*worldContext)
 	if !ok {
 		return nil, eris.New("error in test type assertion.")
@@ -76,14 +76,14 @@ func GetTransactionReceiptsForTick(wCtx Context, tick uint64) ([]receipt.Receipt
 	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
 
-func GetStoreManagerFromContext(wCtx Context) gamestate.Manager {
+func GetStoreManagerFromContext(wCtx WorldContext) gamestate.Manager {
 	return wCtx.storeManager()
 }
 
-func GetComponentByNameFromContext(wCtx Context, name string) (types.ComponentMetadata, error) {
+func GetComponentByNameFromContext(wCtx WorldContext, name string) (types.ComponentMetadata, error) {
 	return wCtx.getComponentByName(name)
 }
 
-func HandleQuery(wCtx Context, query query, a any) (any, error) {
+func HandleQuery(wCtx WorldContext, query query, a any) (any, error) {
 	return query.handleQuery(wCtx, a)
 }

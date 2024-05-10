@@ -231,7 +231,7 @@ func TestCanReloadState(t *testing.T) {
 
 	err := cardinal.RegisterSystems(
 		world1,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[oneAlphaNumComp]()))
 			assert.NilError(
 				t, q.Each(wCtx,
@@ -308,7 +308,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		assert.NilError(t, cardinal.RegisterMessage[Msg, Result](world, msgName))
 		err := cardinal.RegisterSystems(
 			world,
-			func(wCtx cardinal.Context) error {
+			func(wCtx cardinal.WorldContext) error {
 				someTx, err := cardinal.GetMessage[Msg, Result](wCtx)
 				return cardinal.EachMessage[Msg, Result](wCtx, func(tx cardinal.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})

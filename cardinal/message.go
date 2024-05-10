@@ -103,15 +103,15 @@ func (t *MessageType[In, Out]) SetID(id types.MessageID) error {
 	return nil
 }
 
-func (t *MessageType[In, Out]) AddError(wCtx Context, hash types.TxHash, err error) {
+func (t *MessageType[In, Out]) AddError(wCtx WorldContext, hash types.TxHash, err error) {
 	wCtx.addMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(wCtx Context, hash types.TxHash, result Out) {
+func (t *MessageType[In, Out]) SetResult(wCtx WorldContext, hash types.TxHash, result Out) {
 	wCtx.setMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(wCtx Context, hash types.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash types.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
 	iface, errs, ok := wCtx.getTransactionReceipt(hash)
@@ -129,7 +129,7 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx Context, hash types.TxHash) (
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(wCtx Context, fn func(TxData[In]) (Out, error)) {
+func (t *MessageType[In, Out]) Each(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
@@ -147,7 +147,7 @@ func (t *MessageType[In, Out]) Each(wCtx Context, fn func(TxData[In]) (Out, erro
 }
 
 // In extracts all the TxData in the tx pool that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(wCtx Context) []TxData[In] {
+func (t *MessageType[In, Out]) In(wCtx WorldContext) []TxData[In] {
 	tq := wCtx.getTxPool()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {

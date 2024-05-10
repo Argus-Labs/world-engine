@@ -644,7 +644,7 @@ func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 	return w.componentManager.GetComponents()
 }
 
-func (w *World) GetReadOnlyCtx() Context {
+func (w *World) GetReadOnlyCtx() WorldContext {
 	return NewReadOnlyWorldContext(w)
 }
 

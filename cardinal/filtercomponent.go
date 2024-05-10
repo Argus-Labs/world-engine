@@ -10,11 +10,11 @@ import (
 // It involves creating and combining primitives that represent
 // filtering properties on components.
 
-type FilterFn func(wCtx Context, id types.EntityID) (bool, error)
+type FilterFn func(wCtx WorldContext, id types.EntityID) (bool, error)
 
 //revive:disable-next-line:unexported-return
 func ComponentFilter[T types.Component](f func(comp T) bool) FilterFn {
-	return func(wCtx Context, id types.EntityID) (bool, error) {
+	return func(wCtx WorldContext, id types.EntityID) (bool, error) {
 		var t T
 		c, err := wCtx.getComponentByName(t.Name())
 		if err != nil {
@@ -43,7 +43,7 @@ func ComponentFilter[T types.Component](f func(comp T) bool) FilterFn {
 
 //revive:disable-next-line:unexported-return
 func AndFilter(fns ...FilterFn) FilterFn {
-	return func(wCtx Context, id types.EntityID) (bool, error) {
+	return func(wCtx WorldContext, id types.EntityID) (bool, error) {
 		var result = true
 		var errCount = 0
 		for _, fn := range fns {
@@ -63,7 +63,7 @@ func AndFilter(fns ...FilterFn) FilterFn {
 
 //revive:disable-next-line:unexported-return
 func OrFilter(fns ...FilterFn) FilterFn {
-	return func(wCtx Context, id types.EntityID) (bool, error) {
+	return func(wCtx WorldContext, id types.EntityID) (bool, error) {
 		var result = false
 		var errCount = 0
 		for _, fn := range fns {

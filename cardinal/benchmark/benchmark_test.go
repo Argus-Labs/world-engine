@@ -34,7 +34,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testu
 	if enableHealthSystem {
 		err := cardinal.RegisterSystems(
 			world,
-			func(wCtx cardinal.Context) error {
+			func(wCtx cardinal.WorldContext) error {
 				q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[Health]()))
 				err := q.Each(wCtx,
 					func(id types.EntityID) bool {

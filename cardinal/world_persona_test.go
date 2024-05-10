@@ -97,7 +97,7 @@ func TestCreatePersonaSystem_WhenCardinalIsRestarted_PersonaTagsAreStillRegister
 
 	// emitNumberOfPersonaTagsSystem is a system that finds all the registered persona tags and sends them
 	// across a channel.
-	emitNumberOfPersonaTagsSystem := func(wCtx cardinal.Context) error {
+	emitNumberOfPersonaTagsSystem := func(wCtx cardinal.WorldContext) error {
 		result := countPersonaTagsResult{personaTags: map[string]bool{}}
 		err := cardinal.NewSearch().
 			Entity(filter.Exact(filter.Component[component.SignerComponent]())).

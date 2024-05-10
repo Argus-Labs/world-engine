@@ -29,7 +29,7 @@ func ExampleMessageType() {
 		panic(err)
 	}
 
-	err = cardinal.RegisterSystems(world, func(wCtx cardinal.Context) error {
+	err = cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		return cardinal.EachMessage[MovePlayerMsg, MovePlayerResult](wCtx,
 			func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 				// handle the transaction

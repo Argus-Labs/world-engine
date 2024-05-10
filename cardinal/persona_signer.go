@@ -27,7 +27,7 @@ type PersonaSignerQueryResponse struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
-func PersonaSignerQuery(wCtx Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
+func PersonaSignerQuery(wCtx WorldContext, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
 	var status string
 
 	addr, err := wCtx.getSignerForPersonaTag(req.PersonaTag, req.Tick)

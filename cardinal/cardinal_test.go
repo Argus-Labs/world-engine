@@ -69,7 +69,7 @@ func TestForEachTransaction(t *testing.T) {
 	someMsgName := "some_msg"
 	assert.NilError(t, cardinal.RegisterMessage[SomeMsgRequest, SomeMsgResponse](world, someMsgName))
 
-	err := cardinal.RegisterSystems(world, func(wCtx cardinal.Context) error {
+	err := cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		return cardinal.EachMessage[SomeMsgRequest, SomeMsgResponse](wCtx,
 			func(t cardinal.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 				if t.Msg.GenerateError {
@@ -145,7 +145,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			search := cardinal.NewSearch().Entity(filter.Exact(filter.Component[CounterComponent]()))
 			id := search.MustFirst(wCtx)
 			return cardinal.UpdateComponent[CounterComponent](
@@ -179,7 +179,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			return cardinal.EachMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx,
 				func(msData cardinal.TxData[*ModifyScoreMsg]) (*EmptyMsgResult, error) {
 					ms := msData.Msg
@@ -255,7 +255,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	// to verify that the addition of more transactions doesn't block.
 	err := cardinal.RegisterSystems(
 		world,
-		func(cardinal.Context) error {
+		func(cardinal.WorldContext) error {
 			<-inSystemCh
 			<-inSystemCh
 			return nil
@@ -323,7 +323,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// commands mid-tick.
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			modScoreMsg, err := cardinal.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx)
 			if err != nil {
 				return err
@@ -337,7 +337,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	err = cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			modScoreMsg, err := cardinal.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](wCtx)
 			if err != nil {
 				return err
@@ -441,7 +441,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			// This new In function returns a triplet of information:
 			// 1) The transaction input
 			// 2) An EntityID that uniquely identifies this specific transaction
@@ -504,7 +504,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	systemCalls := 0
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			systemCalls++
 			numTx, err := cardinal.GetMessage[MsgIn, MsgOut](wCtx)
 			if err != nil {
@@ -523,7 +523,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 
 	err = cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			systemCalls++
 			numTx, err := cardinal.GetMessage[MsgIn, MsgOut](wCtx)
 			if err != nil {
@@ -566,7 +566,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	secondResult := MsgOut{5678}
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			systemCalls++
 			numTx, err := cardinal.GetMessage[MsgIn, MsgOut](wCtx)
 			assert.NilError(t, err)
@@ -583,7 +583,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 
 	err = cardinal.RegisterSystems(
 		world,
-		func(wCtx cardinal.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			systemCalls++
 			numTx, err := cardinal.GetMessage[MsgIn, MsgOut](wCtx)
 			if err != nil {
@@ -626,7 +626,7 @@ func TestTransactionExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	msgName := "add_health"
 	assert.NilError(t, cardinal.RegisterMessage[AddHealthToEntityTx, AddHealthToEntityResult](world, msgName))
-	err := cardinal.RegisterSystems(world, func(wCtx cardinal.Context) error {
+	err := cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		// test "In" method
 		addHealthToEntity, err := cardinal.GetMessage[AddHealthToEntityTx, AddHealthToEntityResult](wCtx)
 		if err != nil {
@@ -743,7 +743,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
-	err := cardinal.RegisterSystems(world, func(wCtx cardinal.Context) error {
+	err := cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[Foo]())).Each(wCtx, func(types.EntityID) bool {
 			gotNumOfEntities++
 			return true
@@ -767,7 +767,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	err := cardinal.RegisterSystems(world, func(context cardinal.Context) error {
+	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
 		ts = context.Timestamp()
 		return nil
 	})
@@ -788,7 +788,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	httpBaseURL := "http://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	err := cardinal.RegisterInitSystems(world, func(wCtx cardinal.Context) error {
+	err := cardinal.RegisterInitSystems(world, func(wCtx cardinal.WorldContext) error {
 		_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 		if err != nil {
 			return err

@@ -32,7 +32,7 @@ var (
 //  	return true
 // }))
 
-func FilterFunction[T types.Component](f func(comp T) bool) func(ctx Context, id types.EntityID) (bool, error) {
+func FilterFunction[T types.Component](f func(comp T) bool) func(ctx WorldContext, id types.EntityID) (bool, error) {
 	return ComponentFilter[T](f)
 }
 
@@ -87,7 +87,7 @@ func MustRegisterComponent[T types.Component](w *World) {
 	}
 }
 
-func EachMessage[In any, Out any](wCtx Context, fn func(TxData[In]) (Out, error)) error {
+func EachMessage[In any, Out any](wCtx WorldContext, fn func(TxData[In]) (Out, error)) error {
 	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
 	tempRes, ok := wCtx.getMessageByType(msgType)
@@ -130,7 +130,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...Message
 func RegisterQuery[Request any, Reply any](
 	w *World,
 	name string,
-	handler func(wCtx Context, req *Request) (*Reply, error),
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) (err error) {
 	if w.worldStage.Current() != worldstage.Init {
@@ -153,7 +153,7 @@ func RegisterQuery[Request any, Reply any](
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(wCtx Context, components ...types.Component) (_ types.EntityID, err error) {
+func Create(wCtx WorldContext, components ...types.Component) (_ types.EntityID, err error) {
 	// We don't handle panics here because we let CreateMany handle it for us
 	entityIDs, err := CreateMany(wCtx, 1, components...)
 	if err != nil {
@@ -164,7 +164,7 @@ func Create(wCtx Context, components ...types.Component) (_ types.EntityID, err 
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs []types.EntityID, err error) {
+func CreateMany(wCtx WorldContext, num int, components ...types.Component) (entityIDs []types.EntityID, err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
@@ -212,7 +212,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 }
 
 // SetComponent sets component data to the entity.
-func SetComponent[T types.Component](wCtx Context, id types.EntityID, component *T) (err error) {
+func SetComponent[T types.Component](wCtx WorldContext, id types.EntityID, component *T) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
@@ -244,7 +244,7 @@ func SetComponent[T types.Component](wCtx Context, id types.EntityID, component 
 }
 
 // GetComponent returns component data from the entity.
-func GetComponent[T types.Component](wCtx Context, id types.EntityID) (comp *T, err error) {
+func GetComponent[T types.Component](wCtx WorldContext, id types.EntityID) (comp *T, err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Get the component metadata
@@ -274,7 +274,7 @@ func GetComponent[T types.Component](wCtx Context, id types.EntityID) (comp *T, 
 	return comp, nil
 }
 
-func UpdateComponent[T types.Component](wCtx Context, id types.EntityID, fn func(*T) *T) (err error) {
+func UpdateComponent[T types.Component](wCtx WorldContext, id types.EntityID, fn func(*T) *T) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
@@ -300,7 +300,7 @@ func UpdateComponent[T types.Component](wCtx Context, id types.EntityID, fn func
 	return nil
 }
 
-func AddComponentTo[T types.Component](wCtx Context, id types.EntityID) (err error) {
+func AddComponentTo[T types.Component](wCtx WorldContext, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
@@ -325,7 +325,7 @@ func AddComponentTo[T types.Component](wCtx Context, id types.EntityID) (err err
 }
 
 // RemoveComponentFrom removes a component from an entity.
-func RemoveComponentFrom[T types.Component](wCtx Context, id types.EntityID) (err error) {
+func RemoveComponentFrom[T types.Component](wCtx WorldContext, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
@@ -350,7 +350,7 @@ func RemoveComponentFrom[T types.Component](wCtx Context, id types.EntityID) (er
 }
 
 // Remove removes the given Entity from the world.
-func Remove(wCtx Context, id types.EntityID) (err error) {
+func Remove(wCtx WorldContext, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only

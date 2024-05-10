@@ -73,7 +73,7 @@ func (WeaponEnergy) Name() string {
 	return "weaponsEnergy"
 }
 
-func UpdateEnergySystem(wCtx cardinal.Context) error {
+func UpdateEnergySystem(wCtx cardinal.WorldContext) error {
 	var errs []error
 	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
 	err := q.Each(wCtx,
