@@ -32,6 +32,6 @@ package engine
 //	IsWorldReady() bool
 //	StoreReader() gamestate.Reader
 //	StoreManager() gamestate.Manager
-//	GetTxPool() *txpool.TxPool
+//	getTxPool() *txpool.TxPool
 //	isReadOnly() bool
 //}

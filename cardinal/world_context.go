@@ -49,7 +49,7 @@ type Context interface {
 	IsWorldReady() bool
 	StoreReader() gamestate.Reader
 	StoreManager() gamestate.Manager
-	GetTxPool() *txpool.TxPool
+	getTxPool() *txpool.TxPool
 	isReadOnly() bool
 }
 
@@ -158,7 +158,7 @@ func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Tra
 	return ctx.world.AddTransaction(id, v, sig)
 }
 
-func (ctx *worldContext) GetTxPool() *txpool.TxPool {
+func (ctx *worldContext) getTxPool() *txpool.TxPool {
 	return ctx.txPool
 }
 
