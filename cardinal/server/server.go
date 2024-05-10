@@ -35,7 +35,7 @@ type Server struct {
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	provider servertypes.ProviderWorld,
+	world servertypes.ProviderWorld,
 	components []types.ComponentMetadata,
 	messages []types.Message,
 	opts ...Option,
@@ -60,7 +60,7 @@ func New(
 	app.Use(cors.New())
 
 	// Register routes
-	s.setupRoutes(provider, messages, components)
+	s.setupRoutes(world, messages, components)
 
 	return s, nil
 }
@@ -117,7 +117,7 @@ func (s *Server) Shutdown() error {
 // @consumes		application/json
 // @produces		application/json
 func (s *Server) setupRoutes(
-	provider servertypes.ProviderWorld,
+	world servertypes.ProviderWorld,
 	messages []types.Message,
 	components []types.ComponentMetadata,
 ) {
@@ -144,23 +144,23 @@ func (s *Server) setupRoutes(
 	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	s.app.Get("/world", handler.GetWorld(provider, components, messages, provider.Namespace()))
+	s.app.Get("/world", handler.GetWorld(world, components, messages, world.Namespace()))
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())
 
 	// Route: /query/...
 	query := s.app.Group("/query")
-	query.Post("/receipts/list", handler.GetReceipts(provider))
-	query.Post("/:group/:name", handler.PostQuery(provider))
+	query.Post("/receipts/list", handler.GetReceipts(world))
+	query.Post("/:group/:name", handler.PostQuery(world))
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, s.config.isSignatureVerificationDisabled))
+	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.config.isSignatureVerificationDisabled))
 
 	// Route: /cql
-	s.app.Post("/cql", handler.PostCQL(provider))
+	s.app.Post("/cql", handler.PostCQL(world))
 
 	// Route: /debug/state
-	s.app.Post("/debug/state", handler.GetDebugState(provider))
+	s.app.Post("/debug/state", handler.GetDebugState(world))
 }

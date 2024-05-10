@@ -1,18 +1,6 @@
 basePath: /
 definitions:
-  handler.CQLQueryRequest:
-    properties:
-      cql:
-        type: string
-    type: object
-  handler.CQLQueryResponse:
-    properties:
-      results:
-        items:
-          $ref: '#/definitions/handler.cqlData'
-        type: array
-    type: object
-  handler.FieldDetail:
+  engine.FieldDetail:
     properties:
       fields:
         additionalProperties: {}
@@ -23,6 +11,18 @@ definitions:
         type: string
       url:
         type: string
+    type: object
+  handler.CQLQueryRequest:
+    properties:
+      cql:
+        type: string
+    type: object
+  handler.CQLQueryResponse:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/types.CqlData'
+        type: array
     type: object
   handler.GetHealthResponse:
     properties:
@@ -36,17 +36,17 @@ definitions:
       components:
         description: list of component names
         items:
-          $ref: '#/definitions/handler.FieldDetail'
+          $ref: '#/definitions/engine.FieldDetail'
         type: array
       messages:
         items:
-          $ref: '#/definitions/handler.FieldDetail'
+          $ref: '#/definitions/engine.FieldDetail'
         type: array
       namespace:
         type: string
       queries:
         items:
-          $ref: '#/definitions/handler.FieldDetail'
+          $ref: '#/definitions/engine.FieldDetail'
         type: array
     type: object
   handler.ListTxReceiptsRequest:
@@ -101,14 +101,14 @@ definitions:
         description: hex encoded string
         type: string
     type: object
-  handler.cqlData:
+  types.CqlData:
     properties:
       data:
         type: object
       id:
         type: integer
     type: object
-  handler.debugStateElement:
+  types.DebugStateElement:
     properties:
       components:
         type: object
@@ -155,7 +155,7 @@ paths:
           description: List of all entities
           schema:
             items:
-              $ref: '#/definitions/handler.debugStateElement'
+              $ref: '#/definitions/types.DebugStateElement'
             type: array
       summary: Retrieves a list of all entities in the game state
   /events:
@@ -191,35 +191,6 @@ paths:
         name: queryGroup
         required: true
         type: string
-      - description: Name of a registered query
-        in: path
-        name: queryName
-        required: true
-        type: string
-      - description: Query to be executed
-        in: body
-        name: queryBody
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Results of the executed query
-          schema:
-            type: object
-        "400":
-          description: Invalid request parameters
-          schema:
-            type: string
-      summary: Executes a query
-  /query/game/{queryName}:
-    post:
-      consumes:
-      - application/json
-      description: Executes a query
-      parameters:
       - description: Name of a registered query
         in: path
         name: queryName

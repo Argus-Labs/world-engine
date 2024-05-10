@@ -4,7 +4,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
+
+type DebugStateResponse = types.DebugStateResponse
 
 // GetDebugState godoc
 //
@@ -15,7 +18,10 @@ import (
 // @Router       /debug/state [post]
 func GetDebugState(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		result, eachClosureErr, searchEachErr := world.GetDebugState()
+		var result DebugStateResponse
+		var eachClosureErr error
+		var searchEachErr error
+		result, eachClosureErr, searchEachErr = world.GetDebugState()
 		if eachClosureErr != nil {
 			return eachClosureErr
 		}
