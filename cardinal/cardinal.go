@@ -90,7 +90,7 @@ func MustRegisterComponent[T types.Component](w *World) {
 func EachMessage[In any, Out any](wCtx Context, fn func(TxData[In]) (Out, error)) error {
 	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
+	tempRes, ok := wCtx.getMessageByType(msgType)
 	if !ok {
 		return eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
