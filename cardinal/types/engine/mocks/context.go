@@ -201,7 +201,7 @@ func (mr *MockContextMockRecorder) GetTxPool() *gomock.Call {
 // IsReadOnly mocks base method.
 func (m *MockContext) IsReadOnly() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsReadOnly")
+	ret := m.ctrl.Call(m, "isReadOnly")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
@@ -209,7 +209,7 @@ func (m *MockContext) IsReadOnly() bool {
 // IsReadOnly indicates an expected call of IsReadOnly.
 func (mr *MockContextMockRecorder) IsReadOnly() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReadOnly", reflect.TypeOf((*MockContext)(nil).IsReadOnly))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isReadOnly", reflect.TypeOf((*MockContext)(nil).IsReadOnly))
 }
 
 // IsWorldReady mocks base method.

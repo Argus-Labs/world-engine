@@ -50,7 +50,7 @@ type Context interface {
 	StoreReader() gamestate.Reader
 	StoreManager() gamestate.Manager
 	GetTxPool() *txpool.TxPool
-	IsReadOnly() bool
+	isReadOnly() bool
 }
 
 type worldContext struct {
@@ -162,7 +162,7 @@ func (ctx *worldContext) GetTxPool() *txpool.TxPool {
 	return ctx.txPool
 }
 
-func (ctx *worldContext) IsReadOnly() bool {
+func (ctx *worldContext) isReadOnly() bool {
 	return ctx.readOnly
 }
 
@@ -172,7 +172,7 @@ func (ctx *worldContext) StoreManager() gamestate.Manager {
 
 func (ctx *worldContext) StoreReader() gamestate.Reader {
 	sm := ctx.StoreManager()
-	if ctx.IsReadOnly() {
+	if ctx.isReadOnly() {
 		return sm.ToReadOnly()
 	}
 	return sm
