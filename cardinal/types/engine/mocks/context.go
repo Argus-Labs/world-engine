@@ -141,7 +141,7 @@ func (mr *MockContextMockRecorder) GetMessageByType(mType interface{}) *gomock.C
 // GetSignerForPersonaTag mocks base method.
 func (m *MockContext) GetSignerForPersonaTag(personaTag string, tick uint64) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignerForPersonaTag", personaTag, tick)
+	ret := m.ctrl.Call(m, "getSignerForPersonaTag", personaTag, tick)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -150,7 +150,7 @@ func (m *MockContext) GetSignerForPersonaTag(personaTag string, tick uint64) (st
 // GetSignerForPersonaTag indicates an expected call of GetSignerForPersonaTag.
 func (mr *MockContextMockRecorder) GetSignerForPersonaTag(personaTag, tick interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignerForPersonaTag", reflect.TypeOf((*MockContext)(nil).GetSignerForPersonaTag), personaTag, tick)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getSignerForPersonaTag", reflect.TypeOf((*MockContext)(nil).GetSignerForPersonaTag), personaTag, tick)
 }
 
 // GetTransactionReceipt mocks base method.

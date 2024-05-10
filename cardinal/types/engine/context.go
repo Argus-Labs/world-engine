@@ -25,7 +25,7 @@ package engine
 //	GetComponentByName(name string) (types.ComponentMetadata, error)
 //	GetMessageByType(mType reflect.Type) (types.Message, bool)
 //	getTransactionReceipt(id types.TxHash) (any, []error, bool)
-//	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
+//	getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 //	getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 //	receiptHistorySize() uint64
 //	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
