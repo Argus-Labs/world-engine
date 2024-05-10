@@ -3,7 +3,6 @@ package types
 import (
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
@@ -20,7 +19,7 @@ type ProviderWorld interface {
 	CurrentTick() uint64
 	ReceiptHistorySize() uint64
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
-	EvaluateCQL(filter filter.ComponentFilter) ([]types.CqlData, error, error)
+	EvaluateCQL(cql string) ([]types.CqlData, error, error)
 	GetDebugState() (types.DebugStateResponse, error, error)
 	BuildQueryFields() []engine.FieldDetail
 }
