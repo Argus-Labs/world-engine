@@ -36,9 +36,9 @@ type Context interface {
 	// For internal use.
 
 	// SetLogger is used to inject a new logger configuration to an engine context that is already created.
-	SetLogger(logger zerolog.Logger)
-	AddMessageError(id types.TxHash, err error)
-	SetMessageResult(id types.TxHash, a any)
+	setLogger(logger zerolog.Logger)
+	addMessageError(id types.TxHash, err error)
+	setMessageResult(id types.TxHash, a any)
 	GetComponentByName(name string) (types.ComponentMetadata, error)
 	GetMessageByType(mType reflect.Type) (types.Message, bool)
 	GetTransactionReceipt(id types.TxHash) (any, []error, bool)
@@ -104,7 +104,7 @@ func (ctx *worldContext) GetMessageByType(mType reflect.Type) (types.Message, bo
 	return ctx.world.GetMessageByType(mType)
 }
 
-func (ctx *worldContext) SetLogger(logger zerolog.Logger) {
+func (ctx *worldContext) setLogger(logger zerolog.Logger) {
 	ctx.logger = &logger
 }
 
@@ -112,12 +112,12 @@ func (ctx *worldContext) GetComponentByName(name string) (types.ComponentMetadat
 	return ctx.world.GetComponentByName(name)
 }
 
-func (ctx *worldContext) AddMessageError(id types.TxHash, err error) {
+func (ctx *worldContext) addMessageError(id types.TxHash, err error) {
 	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
 	ctx.world.receiptHistory.AddError(id, err)
 }
 
-func (ctx *worldContext) SetMessageResult(id types.TxHash, a any) {
+func (ctx *worldContext) setMessageResult(id types.TxHash, a any) {
 	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
 	ctx.world.receiptHistory.SetResult(id, a)
 }

@@ -119,7 +119,7 @@ func (m *systemManager) runSystems(wCtx Context) error {
 		m.currentSystem = sys.Name
 
 		// Inject the system name into the logger
-		wCtx.SetLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
+		wCtx.setLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
 
 		// Executes the system function that the user registered
 		systemStartTime := time.Now()

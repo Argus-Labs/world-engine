@@ -104,11 +104,11 @@ func (t *MessageType[In, Out]) SetID(id types.MessageID) error {
 }
 
 func (t *MessageType[In, Out]) AddError(wCtx Context, hash types.TxHash, err error) {
-	wCtx.AddMessageError(hash, err)
+	wCtx.addMessageError(hash, err)
 }
 
 func (t *MessageType[In, Out]) SetResult(wCtx Context, hash types.TxHash, result Out) {
-	wCtx.SetMessageResult(hash, result)
+	wCtx.setMessageResult(hash, result)
 }
 
 func (t *MessageType[In, Out]) GetReceipt(wCtx Context, hash types.TxHash) (

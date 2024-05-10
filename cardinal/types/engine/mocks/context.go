@@ -42,13 +42,13 @@ func (m *MockContext) EXPECT() *MockContextMockRecorder {
 // AddMessageError mocks base method.
 func (m *MockContext) AddMessageError(id types.TxHash, err error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddMessageError", id, err)
+	m.ctrl.Call(m, "addMessageError", id, err)
 }
 
 // AddMessageError indicates an expected call of AddMessageError.
 func (mr *MockContextMockRecorder) AddMessageError(id, err interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessageError", reflect.TypeOf((*MockContext)(nil).AddMessageError), id, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addMessageError", reflect.TypeOf((*MockContext)(nil).AddMessageError), id, err)
 }
 
 // AddTransaction mocks base method.
@@ -268,7 +268,7 @@ func (mr *MockContextMockRecorder) ReceiptHistorySize() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiptHistorySize", reflect.TypeOf((*MockContext)(nil).ReceiptHistorySize))
 }
 
-// SetLogger mocks base method.
+// setLogger mocks base method.
 func (m *MockContext) setLogger(logger zerolog.Logger) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "setLogger", logger)
@@ -283,13 +283,13 @@ func (mr *MockContextMockRecorder) SetLogger(logger interface{}) *gomock.Call {
 // SetMessageResult mocks base method.
 func (m *MockContext) SetMessageResult(id types.TxHash, a any) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMessageResult", id, a)
+	m.ctrl.Call(m, "setMessageResult", id, a)
 }
 
 // SetMessageResult indicates an expected call of SetMessageResult.
 func (mr *MockContextMockRecorder) SetMessageResult(id, a interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMessageResult", reflect.TypeOf((*MockContext)(nil).SetMessageResult), id, a)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "setMessageResult", reflect.TypeOf((*MockContext)(nil).SetMessageResult), id, a)
 }
 
 // StoreManager mocks base method.

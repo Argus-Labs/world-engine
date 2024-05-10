@@ -20,8 +20,8 @@ package engine
 //
 //	// setLogger is used to inject a new logger configuration to an engine context that is already created.
 //	setLogger(logger zerolog.Logger)
-//	AddMessageError(id types.TxHash, err error)
-//	SetMessageResult(id types.TxHash, a any)
+//	addMessageError(id types.TxHash, err error)
+//	setMessageResult(id types.TxHash, a any)
 //	GetComponentByName(name string) (types.ComponentMetadata, error)
 //	GetMessageByType(mType reflect.Type) (types.Message, bool)
 //	GetTransactionReceipt(id types.TxHash) (any, []error, bool)
