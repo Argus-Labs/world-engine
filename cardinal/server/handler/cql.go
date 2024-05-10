@@ -5,7 +5,6 @@ import "C"
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -35,23 +34,7 @@ func PostCQL(
 		if err := ctx.BodyParser(req); err != nil {
 			return err
 		}
-
-		// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.getComponentByName
-		// to types.Component
-		getComponentByName := func(name string) (types.Component, error) {
-			comp, err := world.GetComponentByName(name)
-			if err != nil {
-				return nil, err
-			}
-			return comp, nil
-		}
-
-		// Parse the CQL string into a filter
-		resultFilter, err := cql.Parse(req.CQL, getComponentByName)
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, err.Error())
-		}
-		result, eachError, searchErr := world.EvaluateCQL(resultFilter)
+		result, eachError, searchErr := world.EvaluateCQL(req.CQL)
 		if searchErr != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, searchErr.Error())
 		}

@@ -24,6 +24,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/router"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/statsd"
@@ -675,11 +676,27 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) EvaluateCQL(filter filter.ComponentFilter) ([]types.CqlData, error, error) {
+func (w *World) EvaluateCQL(cqlString string) ([]types.CqlData, error, error) {
+
+	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.getComponentByName
+	// to types.Component
+	getComponentByName := func(name string) (types.Component, error) {
+		comp, err := w.GetComponentByName(name)
+		if err != nil {
+			return nil, err
+		}
+		return comp, nil
+	}
+
+	// Parse the CQL string into a filter
+	cqlFilter, err := cql.Parse(cqlString, getComponentByName)
+	if err != nil {
+		return nil, nil, eris.Errorf("failed to parse cql string: %s", cqlString)
+	}
 	result := make([]types.CqlData, 0)
 	var eachError error
 	wCtx := NewReadOnlyWorldContext(w)
-	searchErr := w.Search(filter).Each(wCtx,
+	searchErr := w.Search(cqlFilter).Each(wCtx,
 		func(id types.EntityID) bool {
 			components, err := w.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {
