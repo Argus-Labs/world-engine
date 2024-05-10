@@ -181,7 +181,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			)
 		}
 	}
-	world.QueryManager.BuildQueryIndex(world)
 	return world, nil
 }
 

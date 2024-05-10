@@ -147,7 +147,6 @@ func RegisterQuery[Request any, Reply any](
 	}
 
 	res := w.RegisterQuery(name, q)
-	w.BuildQueryIndex(w)
 	return res
 }
 

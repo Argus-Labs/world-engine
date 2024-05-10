@@ -21,7 +21,7 @@ import (
 func PostQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		ctx.Set("Content-Type", "application/json")
-		resBz, err := world.QueryHandler(ctx.Params("name"), ctx.Params("group"), ctx.Body())
+		resBz, err := world.QueryHandler(ctx.Params("name"), ctx.Body())
 		if err != nil {
 			return fiber.NewError(fiber.StatusNotFound, "query not found")
 		}
