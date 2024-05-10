@@ -79,3 +79,7 @@ func GetTransactionReceiptsForTick(wCtx Context, tick uint64) ([]receipt.Receipt
 func GetStoreManagerFromContext(wCtx Context) gamestate.Manager {
 	return wCtx.storeManager()
 }
+
+func GetComponentByNameFromContext(wCtx Context, name string) (types.ComponentMetadata, error) {
+	return wCtx.getComponentByName(name)
+}

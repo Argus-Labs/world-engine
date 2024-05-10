@@ -111,7 +111,7 @@ func (mr *MockContextMockRecorder) EmitStringEvent(arg0 interface{}) *gomock.Cal
 // GetComponentByName mocks base method.
 func (m *MockContext) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetComponentByName", name)
+	ret := m.ctrl.Call(m, "getComponentByName", name)
 	ret0, _ := ret[0].(types.ComponentMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -120,7 +120,7 @@ func (m *MockContext) GetComponentByName(name string) (types.ComponentMetadata, 
 // GetComponentByName indicates an expected call of GetComponentByName.
 func (mr *MockContextMockRecorder) GetComponentByName(name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetComponentByName", reflect.TypeOf((*MockContext)(nil).GetComponentByName), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getComponentByName", reflect.TypeOf((*MockContext)(nil).GetComponentByName), name)
 }
 
 // GetMessageByType mocks base method.

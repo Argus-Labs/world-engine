@@ -36,7 +36,7 @@ func PostCQL(
 			return err
 		}
 
-		// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.GetComponentByName
+		// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.getComponentByName
 		// to types.Component
 		getComponentByName := func(name string) (types.Component, error) {
 			comp, err := provider.GetComponentByName(name)
