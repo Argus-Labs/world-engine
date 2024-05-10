@@ -8,23 +8,16 @@ type QueryManager interface {
 	RegisterQuery(name string, query query) error
 	GetRegisteredQueries() []query
 	GetQueryByName(name string) (query, error)
-	BuildQueryIndex(world *World)
-	GetQueryIndex() map[string]map[string]query
 }
 
 type queryManager struct {
 	registeredQueries map[string]query
-	queryIndex        map[string]map[string]query
 }
 
 func newQueryManager() QueryManager {
 	return &queryManager{
 		registeredQueries: make(map[string]query),
 	}
-}
-
-func (m *queryManager) GetQueryIndex() map[string]map[string]query {
-	return m.queryIndex
 }
 
 // RegisterQuery registers a query with the query manager.
@@ -49,31 +42,13 @@ func (m *queryManager) GetRegisteredQueries() []query {
 	return registeredQueries
 }
 
-func (m *queryManager) BuildQueryIndex(world *World) {
-	queries := world.GetRegisteredQueries()
-	m.queryIndex = make(map[string]map[string]query)
-	// Create query index
-	for _, q := range queries {
-		// Initialize inner map if it doesn't exist
-		if _, ok := m.queryIndex[q.Group()]; !ok {
-			m.queryIndex[q.Group()] = make(map[string]query)
-		}
-		m.queryIndex[q.Group()][q.Name()] = q
-	}
-}
-func (w *World) QueryHandler(name string, group string, bz []byte) ([]byte, error) {
-	index := w.QueryManager.GetQueryIndex()
-	groupIndex, ok := index[group]
-
-	if !ok {
-		return nil, eris.Errorf("query with group %s not found", group)
-	}
-	query, ok := groupIndex[name]
-	if !ok {
-		return nil, eris.Errorf("query with name %s not found", name)
+func (w *World) QueryHandler(name string, bz []byte) ([]byte, error) {
+	q, err := w.GetQueryByName(name)
+	if err != nil {
+		return nil, eris.Errorf("could not find query with name: %s", name)
 	}
 	wCtx := NewReadOnlyWorldContext(w)
-	return query.handleQueryRaw(wCtx, bz)
+	return q.handleQueryRaw(wCtx, bz)
 }
 
 // GetQueryByName returns a query corresponding to its name.
