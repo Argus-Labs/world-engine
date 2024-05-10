@@ -172,7 +172,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 		return nil, ErrEntityMutationOnReadOnly
 	}
 
-	if !wCtx.IsWorldReady() {
+	if !wCtx.isWorldReady() {
 		return nil, ErrEntitiesCreatedBeforeReady
 	}
 
