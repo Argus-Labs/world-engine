@@ -5,7 +5,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -89,7 +88,7 @@ func TestSearchUsingAllMethods(t *testing.T) {
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
-	)).Where(func(_ search.Context, _ types.EntityID) (bool, error) {
+	)).Where(func(_ cardinal.Context, _ types.EntityID) (bool, error) {
 		return true, nil
 	}).Count(worldCtx)
 	assert.NilError(t, err)
@@ -98,7 +97,7 @@ func TestSearchUsingAllMethods(t *testing.T) {
 		filter.Contains(filter.Component[AlphaTest]()),
 		filter.Contains(filter.Component[BetaTest]()),
 		filter.Contains(filter.Component[GammaTest]())),
-	)).Where(func(wCtx search.Context, id types.EntityID) (bool, error) {
+	)).Where(func(wCtx cardinal.Context, id types.EntityID) (bool, error) {
 		c, err := cardinal.GetComponent[HP](wCtx, id)
 		if err != nil {
 			return false, err
@@ -153,23 +152,23 @@ func TestSetOperationsOnSearch(t *testing.T) {
 		filter.Component[AlphaTest]()))
 
 	tests := []struct {
-		search search.Searchable
+		search cardinal.Searchable
 		count  int
 	}{
 		{
-			search: search.And(q1, q2),
+			search: cardinal.And(q1, q2),
 			count:  0,
 		}, {
-			search: search.Or(q1, q2),
+			search: cardinal.Or(q1, q2),
 			count:  20,
 		}, {
-			search: search.Not(search.Or(q1, q2, q3)),
+			search: cardinal.Not(cardinal.Or(q1, q2, q3)),
 			count:  10,
 		}, {
-			search: search.Not(search.And(q1, q2, q3)),
+			search: cardinal.Not(cardinal.And(q1, q2, q3)),
 			count:  40,
 		}, {
-			search: search.Not(q4),
+			search: cardinal.Not(q4),
 			count:  20,
 		},
 	}
@@ -217,7 +216,7 @@ func TestSearch_Integration(t *testing.T) {
 
 	testCases := []struct {
 		name   string
-		search search.Searchable
+		search cardinal.Searchable
 		want   int
 	}{
 		{
@@ -240,13 +239,13 @@ func TestSearch_Integration(t *testing.T) {
 		},
 		{
 			"beta or gamma",
-			search.Or(cardinal.NewSearch().Entity(filter.Exact(filter.Component[BetaTest]())),
+			cardinal.Or(cardinal.NewSearch().Entity(filter.Exact(filter.Component[BetaTest]())),
 				cardinal.NewSearch().Entity(filter.Exact(filter.Component[GammaTest]()))),
 			20,
 		},
 		{
 			"not alpha",
-			search.Not(cardinal.NewSearch().Entity(filter.Exact(filter.Component[AlphaTest]()))),
+			cardinal.Not(cardinal.NewSearch().Entity(filter.Exact(filter.Component[AlphaTest]()))),
 			61,
 		},
 		{
@@ -333,7 +332,7 @@ func TestSearch_Exact_ReturnsExactComponentMatch(t *testing.T) {
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
 
-	amt, err := search.NewSearch().Entity(filter.Exact(filter.Component[BetaTest]())).Count(worldCtx)
+	amt, err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[BetaTest]())).Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 12)
 }
@@ -366,7 +365,7 @@ func TestSearch_Contains_ReturnsEntityThatContainsComponents(t *testing.T) {
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
 
-	amt, err := search.NewSearch().Entity(filter.Contains(filter.Component[BetaTest]())).Count(worldCtx)
+	amt, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[BetaTest]())).Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 42)
 }
@@ -399,7 +398,7 @@ func TestSearch_ComponentNotRegistered_ReturnsZeroEntityWithNoError(t *testing.T
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
 
-	amt, err := search.NewSearch().Entity(filter.Contains(filter.Component[HP]())).Count(worldCtx)
+	amt, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[HP]())).Count(worldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, amt, 0)
 }
@@ -432,23 +431,23 @@ func TestUnregisteredComponentOnSetOperators(t *testing.T) {
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
 
-	q1 := search.NewSearch().Entity(filter.Contains(filter.Component[HP]()))
-	q2 := search.NewSearch().Entity(filter.Contains(filter.Component[AlphaTest]()))
+	q1 := cardinal.NewSearch().Entity(filter.Contains(filter.Component[HP]()))
+	q2 := cardinal.NewSearch().Entity(filter.Contains(filter.Component[AlphaTest]()))
 
 	tests := []struct {
-		search search.Searchable
+		search cardinal.Searchable
 		count  int
 	}{
 		{
-			search: search.And(q1, q2),
+			search: cardinal.And(q1, q2),
 			count:  0,
 		},
 		{
-			search: search.Or(q1, q2),
+			search: cardinal.Or(q1, q2),
 			count:  40,
 		},
 		{
-			search: search.Not(q1),
+			search: cardinal.Not(q1),
 			count:  72,
 		},
 	}
@@ -486,7 +485,7 @@ func TestWhereClauseOnSearch(t *testing.T) {
 	_, err = cardinal.CreateMany(worldCtx, 10, AlphaTest{}, BetaTest{}, GammaTest{})
 	assert.NilError(t, err)
 
-	q1 := cardinal.NewSearch().Entity(filter.All()).Where(func(wCtx search.Context, id types.EntityID) (bool, error) {
+	q1 := cardinal.NewSearch().Entity(filter.All()).Where(func(wCtx cardinal.Context, id types.EntityID) (bool, error) {
 		_, err := cardinal.GetComponent[AlphaTest](wCtx, id)
 		if err != nil {
 			return false, err

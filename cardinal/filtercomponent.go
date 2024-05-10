@@ -1,4 +1,4 @@
-package search
+package cardinal
 
 import (
 	"github.com/rotisserie/eris"
@@ -10,10 +10,10 @@ import (
 // It involves creating and combining primitives that represent
 // filtering properties on components.
 
-type filterFn func(wCtx Context, id types.EntityID) (bool, error)
+type FilterFn func(wCtx Context, id types.EntityID) (bool, error)
 
 //revive:disable-next-line:unexported-return
-func ComponentFilter[T types.Component](f func(comp T) bool) filterFn {
+func ComponentFilter[T types.Component](f func(comp T) bool) FilterFn {
 	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var t T
 		c, err := wCtx.GetComponentByName(t.Name())
@@ -42,7 +42,7 @@ func ComponentFilter[T types.Component](f func(comp T) bool) filterFn {
 }
 
 //revive:disable-next-line:unexported-return
-func AndFilter(fns ...filterFn) filterFn {
+func AndFilter(fns ...FilterFn) FilterFn {
 	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var result = true
 		var errCount = 0
@@ -62,7 +62,7 @@ func AndFilter(fns ...filterFn) filterFn {
 }
 
 //revive:disable-next-line:unexported-return
-func OrFilter(fns ...filterFn) filterFn {
+func OrFilter(fns ...FilterFn) FilterFn {
 	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var result = false
 		var errCount = 0

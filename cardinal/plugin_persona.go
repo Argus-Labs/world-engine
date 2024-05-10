@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -226,7 +225,7 @@ func buildGlobalPersonaIndex(wCtx Context) error {
 	tickOfPersonaTagToAddressIndex = wCtx.CurrentTick()
 	globalPersonaTagToAddressIndex = map[string]personaIndexEntry{}
 	var errs []error
-	s := search.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
+	s := NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 	err := s.Each(wCtx,
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)

@@ -1,4 +1,4 @@
-package search
+package cardinal
 
 import (
 	"github.com/rotisserie/eris"
