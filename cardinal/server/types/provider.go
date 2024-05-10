@@ -25,5 +25,4 @@ type ProviderWorld interface {
 	RunCQLSearch(filter filter.ComponentFilter) ([]types.CqlData, error, error)
 	GetDebugState() (types.DebugStateResponse, error, error)
 	BuildQueryFields() []engine.FieldDetail
-	//GetReadOnlyCtx() engine.Context
 }

@@ -10,7 +10,7 @@ import (
 
 // Error is a system that will produce an error for any incoming Error messages. It's
 // used to test receipt errors.
-func Error(ctx cardinal.WorldContext) error {
+func Error(ctx cardinal.Context) error {
 	return cardinal.EachMessage[msg.ErrorInput, msg.ErrorOutput](
 		ctx, func(m cardinal.TxData[msg.ErrorInput]) (msg.ErrorOutput, error) {
 			err := errors.New(m.Msg.ErrorMsg)

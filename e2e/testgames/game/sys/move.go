@@ -9,7 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 )
 
-func Move(ctx cardinal.WorldContext) error {
+func Move(ctx cardinal.Context) error {
 	logger := ctx.Logger()
 	return cardinal.EachMessage[msg.MoveInput, msg.MoveOutput](ctx,
 		func(mtx cardinal.TxData[msg.MoveInput]) (msg.MoveOutput, error) {

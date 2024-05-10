@@ -11,6 +11,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
+var _ Query = &queryType[struct{}, struct{}]{}
+
+type QueryHandler = func(name string, group string, bz []byte) ([]byte, error)
+
 type Query interface {
 	// Name returns the name of the query.
 	Name() string
@@ -34,8 +38,6 @@ type Query interface {
 	// GetRequestFieldInformation returns a map of the fields of the query's request type and their types.
 	GetRequestFieldInformation() map[string]any
 }
-
-var _ Query = &queryType[struct{}, struct{}]{}
 
 type QueryOption[Request, Reply any] func(qt *queryType[Request, Reply])
 
@@ -265,5 +267,3 @@ func validateQuery[Request any, Reply any](
 	}
 	return nil
 }
-
-type QueryHandler = func(name string, group string, bz []byte) ([]byte, error)
