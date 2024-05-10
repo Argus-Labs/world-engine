@@ -62,8 +62,8 @@ type router struct {
 	routerKey  string
 }
 
-func New(namespace, sequencerAddr, routerKey string, provider Provider) (Router, error) {
-	rtr := &router{namespace: namespace, port: defaultPort, provider: provider, routerKey: routerKey}
+func New(namespace, sequencerAddr, routerKey string, world Provider) (Router, error) {
+	rtr := &router{namespace: namespace, port: defaultPort, provider: world, routerKey: routerKey}
 
 	conn, err := grpc.Dial(
 		sequencerAddr,
@@ -74,7 +74,7 @@ func New(namespace, sequencerAddr, routerKey string, provider Provider) (Router,
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
 	}
 	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
-	rtr.server = newEvmServer(provider, routerKey)
+	rtr.server = newEvmServer(world, routerKey)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
 }

@@ -29,7 +29,7 @@ type CQLQueryResponse struct {
 //	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /cql [post]
 func PostCQL(
-	provider servertypes.ProviderWorld) func(*fiber.Ctx) error {
+	world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		req := new(CQLQueryRequest)
 		if err := ctx.BodyParser(req); err != nil {
@@ -39,7 +39,7 @@ func PostCQL(
 		// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.getComponentByName
 		// to types.Component
 		getComponentByName := func(name string) (types.Component, error) {
-			comp, err := provider.GetComponentByName(name)
+			comp, err := world.GetComponentByName(name)
 			if err != nil {
 				return nil, err
 			}
@@ -51,7 +51,7 @@ func PostCQL(
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		result, eachError, searchErr := provider.RunCQLSearch(resultFilter)
+		result, eachError, searchErr := world.RunCQLSearch(resultFilter)
 		if searchErr != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, searchErr.Error())
 		}
