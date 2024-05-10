@@ -5,6 +5,7 @@ import (
 
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -64,4 +65,12 @@ func GetMessage[In any, Out any](wCtx Context) (*MessageType[In, Out], error) {
 		return &msg, eris.New("wrong type")
 	}
 	return res, nil
+}
+
+func GetTransactionReceiptsForTick(wCtx Context, tick uint64) ([]receipt.Receipt, error) {
+	ctx, ok := wCtx.(*worldContext)
+	if !ok {
+		return nil, eris.New("error in test type assertion.")
+	}
+	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
