@@ -1,4 +1,4 @@
-package search
+package cardinal
 
 import (
 	"slices"
@@ -9,8 +9,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
-
-type CallbackFn func(types.EntityID) bool
 
 type cache struct {
 	archetypes []types.ArchetypeID
@@ -26,7 +24,7 @@ type cache struct {
 type Search struct {
 	archMatches             *cache
 	filter                  filter.ComponentFilter
-	componentPropertyFilter filterFn
+	componentPropertyFilter FilterFn
 }
 
 // interfaces restrict order of operations.
@@ -86,27 +84,27 @@ type searchBuilder interface {
 }
 
 //revive:disable-next-line
-type EntitySearch interface {
-	Searchable
-	Where(componentFilter filterFn) EntitySearch
-}
 
-type Searchable interface {
-	evaluateSearch(eCtx Context) []types.ArchetypeID
-	Each(eCtx Context, callback CallbackFn) error
-	First(eCtx Context) (types.EntityID, error)
-	MustFirst(eCtx Context) types.EntityID
-	Count(eCtx Context) (int, error)
-	Collect(eCtx Context) ([]types.EntityID, error)
-}
+// Imported
+// This section aggregates function from other packages such that they are easily accessible
+// via cardinal.<function_name>
 
-// NewSearch creates a new search.
-// It receives arbitrary filters that are used to filter entities.
+// NewSearch is used to create a search object.
+//
+// Usage:
+//
+// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
 func NewSearch() searchBuilder {
 	return NewLegacySearch(nil).(searchBuilder)
 }
 
 // TODO: should deprecate this in the future.
+// NewLegacySearch allows users to create a Search object with a filter already provided
+// as a property.
+//
+// Example Usage:
+//
+// cardinal.NewLegacySearch().Entity(filter.Exact(Alpha{}, Beta{})).Count()
 func NewLegacySearch(componentFilter filter.ComponentFilter) EntitySearch {
 	return &Search{
 		archMatches:             &cache{},
@@ -122,8 +120,8 @@ func (s *Search) Entity(componentFilter filter.ComponentFilter) EntitySearch {
 
 // Once the where clause method is activated the search will ONLY return results
 // if a where clause returns true and no error.
-func (s *Search) Where(componentFilter filterFn) EntitySearch {
-	var componentPropertyFilter filterFn
+func (s *Search) Where(componentFilter FilterFn) EntitySearch {
+	var componentPropertyFilter FilterFn
 	if s.componentPropertyFilter != nil {
 		componentPropertyFilter = AndFilter(s.componentPropertyFilter, componentFilter)
 	} else {
@@ -264,3 +262,20 @@ func (s *Search) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	cache.seen = eCtx.StoreReader().ArchetypeCount()
 	return cache.archetypes
 }
+
+//revive:disable-next-line
+type EntitySearch interface {
+	Searchable
+	Where(componentFilter FilterFn) EntitySearch
+}
+
+type Searchable interface {
+	evaluateSearch(eCtx Context) []types.ArchetypeID
+	Each(eCtx Context, callback CallbackFn) error
+	First(eCtx Context) (types.EntityID, error)
+	MustFirst(eCtx Context) types.EntityID
+	Count(eCtx Context) (int, error)
+	Collect(eCtx Context) ([]types.EntityID, error)
+}
+
+type CallbackFn func(types.EntityID) bool

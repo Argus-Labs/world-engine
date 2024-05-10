@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -100,7 +99,7 @@ func TestCreatePersonaSystem_WhenCardinalIsRestarted_PersonaTagsAreStillRegister
 	// across a channel.
 	emitNumberOfPersonaTagsSystem := func(wCtx cardinal.Context) error {
 		result := countPersonaTagsResult{personaTags: map[string]bool{}}
-		err := search.NewSearch().
+		err := cardinal.NewSearch().
 			Entity(filter.Exact(filter.Component[component.SignerComponent]())).
 			Each(wCtx, func(id types.EntityID) bool {
 				comp, err := cardinal.GetComponent[component.SignerComponent](wCtx, id)

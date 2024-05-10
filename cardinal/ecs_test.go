@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -133,8 +132,8 @@ func TestECS(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	q := search.Or(cardinal.NewSearch().Entity(
-		filter.Contains(filter.Component[EnergyComponent]())), search.NewSearch().Entity(
+	q := cardinal.Or(cardinal.NewSearch().Entity(
+		filter.Contains(filter.Component[EnergyComponent]())), cardinal.NewSearch().Entity(
 		filter.Contains(filter.Component[OwnableComponent]())))
 	amt, err := q.Count(wCtx)
 	assert.NilError(t, err)
@@ -585,9 +584,9 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	searchable := search.Or(cardinal.NewSearch().Entity(
+	searchable := cardinal.Or(cardinal.NewSearch().Entity(
 		filter.Contains(filter.Component[A]())),
-		search.NewSearch().Entity(filter.Contains(filter.Component[D]())))
+		cardinal.NewSearch().Entity(filter.Contains(filter.Component[D]())))
 	allCount, err := searchable.Count(wCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)

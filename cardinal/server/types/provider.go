@@ -3,7 +3,6 @@ package types
 import (
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -16,7 +15,7 @@ type ProviderWorld interface {
 	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	Namespace() string
 	GetComponentByName(name string) (types.ComponentMetadata, error)
-	Search(filter filter.ComponentFilter) search.EntitySearch
+	//Search(filter filter.ComponentFilter) cardinal.EntitySearch
 	StoreReader() gamestate.Reader
 	QueryHandler(name string, group string, bz []byte) ([]byte, error)
 	CurrentTick() uint64

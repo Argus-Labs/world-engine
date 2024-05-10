@@ -9,7 +9,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
@@ -23,27 +22,6 @@ var (
 	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
 )
 
-// Imported
-// This section aggregates function from other packages such that they are easily accessible
-// via cardinal.<function_name>
-
-// NewSearch is used to create a search object.
-//
-// Usage:
-//
-// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
-var NewSearch = search.NewSearch
-
-// NewLegacySearch allows users to create a Search object with a filter already provided
-// as a property.
-//
-// Example Usage:
-//
-// cardinal.NewLegacySearch().Entity(filter.Exact(Alpha{}, Beta{})).Count()
-var NewLegacySearch = search.NewLegacySearch
-
-type Search = search.Search
-
 // FilterFunction wrap your component filter function of func(comp T) bool inside FilterFunction to use
 // in search.
 //
@@ -54,8 +32,8 @@ type Search = search.Search
 //  	return true
 // }))
 
-func FilterFunction[T types.Component](f func(comp T) bool) func(ctx search.Context, id types.EntityID) (bool, error) {
-	return search.ComponentFilter[T](f)
+func FilterFunction[T types.Component](f func(comp T) bool) func(ctx Context, id types.EntityID) (bool, error) {
+	return ComponentFilter[T](f)
 }
 
 func RegisterSystems(w *World, sys ...System) error {

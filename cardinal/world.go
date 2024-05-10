@@ -22,7 +22,6 @@ import (
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
@@ -633,8 +632,8 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	return qry.EncodeEVMReply(reply)
 }
 
-func (w *World) Search(filter filter.ComponentFilter) search.EntitySearch {
-	return search.NewLegacySearch(filter)
+func (w *World) Search(filter filter.ComponentFilter) EntitySearch {
+	return NewLegacySearch(filter)
 }
 
 func (w *World) StoreReader() gamestate.Reader {
