@@ -67,7 +67,7 @@ func WithCustomQueryGroup[Request, Reply any](group string) QueryOption[Request,
 	}
 }
 
-func NewQueryType[Request any, Reply any](
+func newQueryType[Request any, Reply any](
 	name string,
 	handler func(wCtx Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],

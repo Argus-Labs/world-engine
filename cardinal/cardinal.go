@@ -141,7 +141,7 @@ func RegisterQuery[Request any, Reply any](
 		)
 	}
 
-	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	q, err := newQueryType[Request, Reply](name, handler, opts...)
 	if err != nil {
 		return err
 	}
