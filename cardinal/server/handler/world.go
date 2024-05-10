@@ -11,6 +11,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
+type GetWorldResponse = engine.GetWorldResponse
+
 // GetWorld godoc
 //
 //	@Summary      Retrieves details of the game world
@@ -50,7 +52,7 @@ func GetWorld(
 	// Collecting the structure of all queries
 
 	return func(ctx *fiber.Ctx) error {
-		return ctx.JSON(engine.GetWorldResponse{
+		return ctx.JSON(GetWorldResponse{
 			Namespace:  namespace,
 			Components: comps,
 			Messages:   messagesFields,

@@ -104,9 +104,9 @@ func PostTransaction(
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	provider servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(provider, msgs, disableSigVerification)
+	return PostTransaction(world, msgs, disableSigVerification)
 }
 
 // NOTE: duplication for cleaner swagger docs
@@ -121,26 +121,26 @@ func PostGameTransaction(
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	provider servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(provider, msgs, disableSigVerification)
+	return PostTransaction(world, msgs, disableSigVerification)
 }
 
-func lookupSignerAndValidateSignature(provider servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
+func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
 	var err error
 	if signerAddress == "" {
-		signerAddress, err = provider.GetSignerForPersonaTag(tx.PersonaTag, 0)
+		signerAddress, err = world.GetSignerForPersonaTag(tx.PersonaTag, 0)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
 		}
 	}
-	if err = validateSignature(tx, signerAddress, provider.Namespace(),
+	if err = validateSignature(tx, signerAddress, world.Namespace(),
 		tx.IsSystemTransaction()); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 	}
 	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
 	//  to mark the nonce as used once it's included in the tick, not the server.
-	if err = provider.UseNonce(signerAddress, tx.Nonce); err != nil {
+	if err = world.UseNonce(signerAddress, tx.Nonce); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
 	}
 	return nil

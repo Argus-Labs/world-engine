@@ -65,7 +65,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handler.debugStateElement"
+                                "$ref": "#/definitions/types.DebugStateElement"
                             }
                         }
                     }
@@ -101,50 +101,6 @@ const docTemplate = `{
                         "description": "Server and game loop status",
                         "schema": {
                             "$ref": "#/definitions/handler.GetHealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/query/game/{queryName}": {
-            "post": {
-                "description": "Executes a query",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Executes a query",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Name of a registered query",
-                        "name": "queryName",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Query to be executed",
-                        "name": "queryBody",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Results of the executed query",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 }
@@ -398,6 +354,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "engine.FieldDetail": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "description": "variable name and type",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "description": "name of the message or query",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
@@ -412,25 +385,8 @@ const docTemplate = `{
                 "results": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.cqlData"
+                        "$ref": "#/definitions/types.CqlData"
                     }
-                }
-            }
-        },
-        "handler.FieldDetail": {
-            "type": "object",
-            "properties": {
-                "fields": {
-                    "description": "variable name and type",
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "name": {
-                    "description": "name of the message or query",
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
                 }
             }
         },
@@ -452,13 +408,13 @@ const docTemplate = `{
                     "description": "list of component names",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.FieldDetail"
+                        "$ref": "#/definitions/engine.FieldDetail"
                     }
                 },
                 "messages": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.FieldDetail"
+                        "$ref": "#/definitions/engine.FieldDetail"
                     }
                 },
                 "namespace": {
@@ -467,7 +423,7 @@ const docTemplate = `{
                 "queries": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.FieldDetail"
+                        "$ref": "#/definitions/engine.FieldDetail"
                     }
                 }
             }
@@ -551,7 +507,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.cqlData": {
+        "types.CqlData": {
             "type": "object",
             "properties": {
                 "data": {
@@ -562,7 +518,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.debugStateElement": {
+        "types.DebugStateElement": {
             "type": "object",
             "properties": {
                 "components": {
