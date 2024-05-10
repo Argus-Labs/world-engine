@@ -350,7 +350,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	tf.Redis.Close()
 
 	readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
-	// This will fail with a redis connection error, and since we're in a Query, we should NOT panic
+	// This will fail with a redis connection error, and since we're in a query, we should NOT panic
 	defer func() {
 		assert.Check(t, recover() == nil, "expected no panic in a query")
 	}()

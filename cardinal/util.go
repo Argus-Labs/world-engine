@@ -84,6 +84,6 @@ func GetComponentByNameFromContext(wCtx Context, name string) (types.ComponentMe
 	return wCtx.getComponentByName(name)
 }
 
-func HandleQuery(wCtx Context, query Query, a any) (any, error) {
+func HandleQuery(wCtx Context, query query, a any) (any, error) {
 	return query.handleQuery(wCtx, a)
 }
