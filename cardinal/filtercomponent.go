@@ -16,7 +16,7 @@ type FilterFn func(wCtx Context, id types.EntityID) (bool, error)
 func ComponentFilter[T types.Component](f func(comp T) bool) FilterFn {
 	return func(wCtx Context, id types.EntityID) (bool, error) {
 		var t T
-		c, err := wCtx.GetComponentByName(t.Name())
+		c, err := wCtx.getComponentByName(t.Name())
 		if err != nil {
 			return false, err
 		}

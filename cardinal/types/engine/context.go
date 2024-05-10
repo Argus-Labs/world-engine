@@ -22,7 +22,7 @@ package engine
 //	setLogger(logger zerolog.Logger)
 //	addMessageError(id types.TxHash, err error)
 //	setMessageResult(id types.TxHash, a any)
-//	GetComponentByName(name string) (types.ComponentMetadata, error)
+//	getComponentByName(name string) (types.ComponentMetadata, error)
 //	getMessageByType(mType reflect.Type) (types.Message, bool)
 //	getTransactionReceipt(id types.TxHash) (any, []error, bool)
 //	getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)

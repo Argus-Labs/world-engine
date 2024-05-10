@@ -179,7 +179,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 	// Get all component metadata for the given components
 	acc := make([]types.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
-		c, err := wCtx.GetComponentByName(comp.Name())
+		c, err := wCtx.getComponentByName(comp.Name())
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 		}
@@ -196,7 +196,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 	for _, id := range entityIDs {
 		for _, comp := range components {
 			var c types.ComponentMetadata
-			c, err = wCtx.GetComponentByName(comp.Name())
+			c, err = wCtx.getComponentByName(comp.Name())
 			if err != nil {
 				return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 			}
@@ -222,7 +222,7 @@ func SetComponent[T types.Component](wCtx Context, id types.EntityID, component 
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func GetComponent[T types.Component](wCtx Context, id types.EntityID) (comp *T, 
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func AddComponentTo[T types.Component](wCtx Context, id types.EntityID) (err err
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func RemoveComponentFrom[T types.Component](wCtx Context, id types.EntityID) (er
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return err
 	}
