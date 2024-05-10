@@ -44,8 +44,8 @@ type Context interface {
 	GetTransactionReceipt(id types.TxHash) (any, []error, bool)
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
-	ReceiptHistorySize() uint64
-	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
+	receiptHistorySize() uint64
+	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	IsWorldReady() bool
 	storeReader() gamestate.Reader
 	StoreManager() gamestate.Manager
@@ -146,7 +146,7 @@ func (ctx *worldContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.R
 	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
 
-func (ctx *worldContext) ReceiptHistorySize() uint64 {
+func (ctx *worldContext) receiptHistorySize() uint64 {
 	return ctx.world.receiptHistory.Size()
 }
 
@@ -154,7 +154,7 @@ func (ctx *worldContext) Namespace() string {
 	return ctx.world.Namespace()
 }
 
-func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
+func (ctx *worldContext) addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
 	return ctx.world.AddTransaction(id, v, sig)
 }
 

@@ -27,8 +27,8 @@ package engine
 //	GetTransactionReceipt(id types.TxHash) (any, []error, bool)
 //	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 //	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
-//	ReceiptHistorySize() uint64
-//	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
+//	receiptHistorySize() uint64
+//	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 //	IsWorldReady() bool
 //	storeReader() gamestate.Reader
 //	StoreManager() gamestate.Manager

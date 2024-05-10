@@ -54,7 +54,7 @@ func (mr *MockContextMockRecorder) AddMessageError(id, err interface{}) *gomock.
 // AddTransaction mocks base method.
 func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTransaction", id, v, sig)
+	ret := m.ctrl.Call(m, "addTransaction", id, v, sig)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(types.TxHash)
 	return ret0, ret1
@@ -63,7 +63,7 @@ func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transa
 // AddTransaction indicates an expected call of AddTransaction.
 func (mr *MockContextMockRecorder) AddTransaction(id, v, sig interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransaction", reflect.TypeOf((*MockContext)(nil).AddTransaction), id, v, sig)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addTransaction", reflect.TypeOf((*MockContext)(nil).AddTransaction), id, v, sig)
 }
 
 // CurrentTick mocks base method.
@@ -257,7 +257,7 @@ func (mr *MockContextMockRecorder) Namespace() *gomock.Call {
 // ReceiptHistorySize mocks base method.
 func (m *MockContext) ReceiptHistorySize() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReceiptHistorySize")
+	ret := m.ctrl.Call(m, "receiptHistorySize")
 	ret0, _ := ret[0].(uint64)
 	return ret0
 }
@@ -265,7 +265,7 @@ func (m *MockContext) ReceiptHistorySize() uint64 {
 // ReceiptHistorySize indicates an expected call of ReceiptHistorySize.
 func (mr *MockContextMockRecorder) ReceiptHistorySize() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiptHistorySize", reflect.TypeOf((*MockContext)(nil).ReceiptHistorySize))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "receiptHistorySize", reflect.TypeOf((*MockContext)(nil).ReceiptHistorySize))
 }
 
 // setLogger mocks base method.

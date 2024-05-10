@@ -536,7 +536,7 @@ func (w *World) drainChannelsWaitingForNextTick() {
 }
 
 // AddTransaction adds a transaction to the transaction pool. This should not be used directly.
-// Instead, use a MessageType.AddTransaction to ensure type consistency. Returns the tick this transaction will be
+// Instead, use a MessageType.addTransaction to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (
 	tick uint64, txHash types.TxHash,

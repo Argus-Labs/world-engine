@@ -274,7 +274,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	// Make sure we're actually in the system.
 	inSystemCh <- struct{}{}
 
-	// Make sure we can call AddTransaction again in a reasonable amount of time
+	// Make sure we can call addTransaction again in a reasonable amount of time
 	timeout := time.After(500 * time.Millisecond)
 	doneWithAddTx := make(chan struct{})
 
@@ -287,7 +287,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 	case <-doneWithAddTx:
 	// happy path
 	case <-timeout:
-		t.Fatal("timeout while trying to AddTransaction")
+		t.Fatal("timeout while trying to addTransaction")
 	}
 	// release the system
 	inSystemCh <- struct{}{}
