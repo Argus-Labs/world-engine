@@ -23,7 +23,7 @@ package engine
 //	addMessageError(id types.TxHash, err error)
 //	setMessageResult(id types.TxHash, a any)
 //	GetComponentByName(name string) (types.ComponentMetadata, error)
-//	GetMessageByType(mType reflect.Type) (types.Message, bool)
+//	getMessageByType(mType reflect.Type) (types.Message, bool)
 //	getTransactionReceipt(id types.TxHash) (any, []error, bool)
 //	getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 //	getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)

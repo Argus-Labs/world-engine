@@ -309,7 +309,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx cardinal.Context) error {
-				someTx, err := testutils.GetMessage[Msg, Result](wCtx)
+				someTx, err := cardinal.GetMessage[Msg, Result](wCtx)
 				return cardinal.EachMessage[Msg, Result](wCtx, func(tx cardinal.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})
 					return Result{}, err

@@ -126,7 +126,7 @@ func (mr *MockContextMockRecorder) GetComponentByName(name interface{}) *gomock.
 // GetMessageByType mocks base method.
 func (m *MockContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessageByType", mType)
+	ret := m.ctrl.Call(m, "getMessageByType", mType)
 	ret0, _ := ret[0].(types.Message)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
@@ -135,7 +135,7 @@ func (m *MockContext) GetMessageByType(mType reflect.Type) (types.Message, bool)
 // GetMessageByType indicates an expected call of GetMessageByType.
 func (mr *MockContextMockRecorder) GetMessageByType(mType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByType", reflect.TypeOf((*MockContext)(nil).GetMessageByType), mType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getMessageByType", reflect.TypeOf((*MockContext)(nil).GetMessageByType), mType)
 }
 
 // GetSignerForPersonaTag mocks base method.

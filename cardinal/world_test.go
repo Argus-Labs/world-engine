@@ -539,7 +539,7 @@ func doTickCapturePanic(ctx context.Context, world *World) (err error) {
 func getMessage[In any, Out any](wCtx Context) (*MessageType[In, Out], error) {
 	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
+	tempRes, ok := wCtx.getMessageByType(msgType)
 	if !ok {
 		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
