@@ -676,7 +676,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) RunCQLSearch(filter filter.ComponentFilter) ([]types.CqlData, error, error) {
+func (w *World) EvaluateCQL(filter filter.ComponentFilter) ([]types.CqlData, error, error) {
 	result := make([]types.CqlData, 0)
 	var eachError error
 	wCtx := NewReadOnlyWorldContext(w)

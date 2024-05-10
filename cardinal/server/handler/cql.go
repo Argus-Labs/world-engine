@@ -51,7 +51,7 @@ func PostCQL(
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		result, eachError, searchErr := world.RunCQLSearch(resultFilter)
+		result, eachError, searchErr := world.EvaluateCQL(resultFilter)
 		if searchErr != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, searchErr.Error())
 		}

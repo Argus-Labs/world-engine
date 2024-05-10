@@ -20,7 +20,7 @@ type ProviderWorld interface {
 	CurrentTick() uint64
 	ReceiptHistorySize() uint64
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
-	RunCQLSearch(filter filter.ComponentFilter) ([]types.CqlData, error, error)
+	EvaluateCQL(filter filter.ComponentFilter) ([]types.CqlData, error, error)
 	GetDebugState() (types.DebugStateResponse, error, error)
 	BuildQueryFields() []engine.FieldDetail
 }
