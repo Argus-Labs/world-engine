@@ -624,7 +624,7 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	reply, err := qry.HandleQuery(NewReadOnlyWorldContext(w), req)
+	reply, err := qry.handleQuery(NewReadOnlyWorldContext(w), req)
 	if err != nil {
 		return nil, err
 	}

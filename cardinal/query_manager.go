@@ -73,7 +73,7 @@ func (w *World) QueryHandler(name string, group string, bz []byte) ([]byte, erro
 		return nil, eris.Errorf("query with name %s not found", name)
 	}
 	wCtx := NewReadOnlyWorldContext(w)
-	return query.HandleQueryRaw(wCtx, bz)
+	return query.handleQueryRaw(wCtx, bz)
 }
 
 // GetQueryByName returns a query corresponding to its name.

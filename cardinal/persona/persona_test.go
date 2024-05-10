@@ -236,7 +236,7 @@ func TestQuerySigner(t *testing.T) {
 	query, err := world.GetQueryByName("signer")
 	assert.NilError(t, err)
 
-	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world), &cardinal.PersonaSignerQueryRequest{
+	res, err := cardinal.HandleQuery(cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
 		PersonaTag: personaTag,
 	})
 	assert.NilError(t, err)
@@ -254,7 +254,7 @@ func TestQuerySignerAvailable(t *testing.T) {
 
 	query, err := world.GetQueryByName("signer")
 	assert.NilError(t, err)
-	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world), &cardinal.PersonaSignerQueryRequest{
+	res, err := cardinal.HandleQuery(cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
 		PersonaTag: "some-random-nonexistent-persona-tag",
 	})
 	assert.NilError(t, err)
@@ -271,10 +271,11 @@ func TestQuerySignerUnknown(t *testing.T) {
 
 	query, err := engine.GetQueryByName("signer")
 	assert.NilError(t, err)
-	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(engine), &cardinal.PersonaSignerQueryRequest{
-		PersonaTag: "doesnt_matter",
-		Tick:       engine.CurrentTick(),
-	})
+	res, err := cardinal.HandleQuery(cardinal.NewReadOnlyWorldContext(engine), query,
+		&cardinal.PersonaSignerQueryRequest{
+			PersonaTag: "doesnt_matter",
+			Tick:       engine.CurrentTick(),
+		})
 	assert.NilError(t, err)
 
 	response, ok := res.(*cardinal.PersonaSignerQueryResponse)
