@@ -33,7 +33,7 @@ func separateOptions(opts []WorldOption) (
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).
 func panicOnFatalError(wCtx Context, err error) {
-	if err != nil && !wCtx.IsReadOnly() && isFatalError(err) {
+	if err != nil && !wCtx.isReadOnly() && isFatalError(err) {
 		wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 		panic(err)
 	}

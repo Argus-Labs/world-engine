@@ -33,5 +33,5 @@ package engine
 //	StoreReader() gamestate.Reader
 //	StoreManager() gamestate.Manager
 //	GetTxPool() *txpool.TxPool
-//	IsReadOnly() bool
+//	isReadOnly() bool
 //}

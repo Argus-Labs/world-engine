@@ -168,7 +168,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return nil, ErrEntityMutationOnReadOnly
 	}
 
@@ -216,7 +216,7 @@ func SetComponent[T types.Component](wCtx Context, id types.EntityID, component 
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
@@ -278,7 +278,7 @@ func UpdateComponent[T types.Component](wCtx Context, id types.EntityID, fn func
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return err
 	}
 
@@ -304,7 +304,7 @@ func AddComponentTo[T types.Component](wCtx Context, id types.EntityID) (err err
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
@@ -329,7 +329,7 @@ func RemoveComponentFrom[T types.Component](wCtx Context, id types.EntityID) (er
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
@@ -354,7 +354,7 @@ func Remove(wCtx Context, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
