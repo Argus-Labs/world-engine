@@ -15,6 +15,23 @@ type cache struct {
 	seen       int
 }
 
+//revive:disable-next-line
+type EntitySearch interface {
+	Searchable
+	Where(componentFilter FilterFn) EntitySearch
+}
+
+type Searchable interface {
+	evaluateSearch(eCtx Context) []types.ArchetypeID
+	Each(eCtx Context, callback CallbackFn) error
+	First(eCtx Context) (types.EntityID, error)
+	MustFirst(eCtx Context) types.EntityID
+	Count(eCtx Context) (int, error)
+	Collect(eCtx Context) ([]types.EntityID, error)
+}
+
+type CallbackFn func(types.EntityID) bool
+
 // Search represents a search for entities.
 // It is used to filter entities based on their components.
 // It receives arbitrary filters that are used to filter entities.
@@ -262,20 +279,3 @@ func (s *Search) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	cache.seen = eCtx.storeReader().ArchetypeCount()
 	return cache.archetypes
 }
-
-//revive:disable-next-line
-type EntitySearch interface {
-	Searchable
-	Where(componentFilter FilterFn) EntitySearch
-}
-
-type Searchable interface {
-	evaluateSearch(eCtx Context) []types.ArchetypeID
-	Each(eCtx Context, callback CallbackFn) error
-	First(eCtx Context) (types.EntityID, error)
-	MustFirst(eCtx Context) types.EntityID
-	Count(eCtx Context) (int, error)
-	Collect(eCtx Context) ([]types.EntityID, error)
-}
-
-type CallbackFn func(types.EntityID) bool

@@ -15,7 +15,6 @@ type ProviderWorld interface {
 	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	Namespace() string
 	GetComponentByName(name string) (types.ComponentMetadata, error)
-	//Search(filter filter.ComponentFilter) cardinal.EntitySearch
 	StoreReader() gamestate.Reader
 	QueryHandler(name string, group string, bz []byte) ([]byte, error)
 	CurrentTick() uint64
