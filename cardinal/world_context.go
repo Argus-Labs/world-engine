@@ -43,7 +43,7 @@ type Context interface {
 	GetMessageByType(mType reflect.Type) (types.Message, bool)
 	getTransactionReceipt(id types.TxHash) (any, []error, bool)
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
-	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
+	getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 	receiptHistorySize() uint64
 	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	IsWorldReady() bool
@@ -142,7 +142,7 @@ func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) 
 	return ctx.world.GetSignerForPersonaTag(personaTag, tick)
 }
 
-func (ctx *worldContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+func (ctx *worldContext) getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
 
