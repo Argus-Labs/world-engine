@@ -41,7 +41,7 @@ type Transaction = sign.Transaction
 //	@Failure      400      {string}  string                   "Invalid request parameter"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	provider servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -75,14 +75,14 @@ func PostTransaction(
 				signerAddress = createPersonaMsg.SignerAddress
 			}
 
-			if err = lookupSignerAndValidateSignature(provider, signerAddress, tx); err != nil {
+			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
 				return err
 			}
 		}
 
 		// Add the transaction to the engine
 		// TODO(scott): this should just deal with txpool instead of having to go through engine
-		tick, hash := provider.AddTransaction(msgType.ID(), msg, tx)
+		tick, hash := world.AddTransaction(msgType.ID(), msg, tx)
 
 		return ctx.JSON(&PostTransactionResponse{
 			TxHash: string(hash),

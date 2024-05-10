@@ -13,9 +13,9 @@ import (
 // @Produce      application/json
 // @Success      200  {object}  DebugStateResponse "List of all entities"
 // @Router       /debug/state [post]
-func GetDebugState(provider servertypes.ProviderWorld) func(*fiber.Ctx) error {
+func GetDebugState(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		result, eachClosureErr, searchEachErr := provider.GetDebugState()
+		result, eachClosureErr, searchEachErr := world.GetDebugState()
 		if eachClosureErr != nil {
 			return eachClosureErr
 		}
