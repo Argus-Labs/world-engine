@@ -295,7 +295,7 @@ func (mr *MockContextMockRecorder) SetMessageResult(id, a interface{}) *gomock.C
 // StoreManager mocks base method.
 func (m *MockContext) StoreManager() gamestate.Manager {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreManager")
+	ret := m.ctrl.Call(m, "storeManager")
 	ret0, _ := ret[0].(gamestate.Manager)
 	return ret0
 }
@@ -303,7 +303,7 @@ func (m *MockContext) StoreManager() gamestate.Manager {
 // StoreManager indicates an expected call of StoreManager.
 func (mr *MockContextMockRecorder) StoreManager() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreManager", reflect.TypeOf((*MockContext)(nil).StoreManager))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "storeManager", reflect.TypeOf((*MockContext)(nil).StoreManager))
 }
 
 // StoreReader mocks base method.
