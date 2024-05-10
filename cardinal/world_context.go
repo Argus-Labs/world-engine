@@ -15,10 +15,10 @@ import (
 )
 
 // interface guard
-var _ Context = (*worldContext)(nil)
+var _ WorldContext = (*worldContext)(nil)
 
 //go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
-type Context interface {
+type WorldContext interface {
 	// Timestamp returns the UNIX timestamp of the tick.
 	Timestamp() uint64
 	// CurrentTick returns the current tick.
@@ -60,7 +60,7 @@ type worldContext struct {
 	readOnly bool
 }
 
-func newWorldContextForTick(world *World, txPool *txpool.TxPool) Context {
+func newWorldContextForTick(world *World, txPool *txpool.TxPool) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   txPool,
@@ -69,7 +69,7 @@ func newWorldContextForTick(world *World, txPool *txpool.TxPool) Context {
 	}
 }
 
-func NewWorldContext(world *World) Context {
+func NewWorldContext(world *World) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
@@ -78,7 +78,7 @@ func NewWorldContext(world *World) Context {
 	}
 }
 
-func NewReadOnlyWorldContext(world *World) Context {
+func NewReadOnlyWorldContext(world *World) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,

@@ -111,7 +111,7 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 // authorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func authorizePersonaAddressSystem(wCtx Context) error {
+func authorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err := buildGlobalPersonaIndex(wCtx); err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func authorizePersonaAddressSystem(wCtx Context) error {
 
 // createPersonaSystem is a system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func createPersonaSystem(wCtx Context) error {
+func createPersonaSystem(wCtx WorldContext) error {
 	if err := buildGlobalPersonaIndex(wCtx); err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func createPersonaSystem(wCtx Context) error {
 // Persona Index
 // -----------------------------------------------------------------------------
 
-func buildGlobalPersonaIndex(wCtx Context) error {
+func buildGlobalPersonaIndex(wCtx WorldContext) error {
 	// Rebuild the index if we haven't built it yet OR if we're in test and the CurrentTick has been reset.
 	if globalPersonaTagToAddressIndex != nil && tickOfPersonaTagToAddressIndex < wCtx.CurrentTick() {
 		return nil

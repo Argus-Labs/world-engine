@@ -203,7 +203,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
 		s.world,
 		name,
-		func(_ cardinal.Context, _ *SomeRequest) (*SomeResponse, error) {
+		func(_ cardinal.WorldContext, _ *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
@@ -279,7 +279,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, moveMsgName)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
-	err = cardinal.RegisterSystems(s.world, func(context cardinal.Context) error {
+	err = cardinal.RegisterSystems(s.world, func(context cardinal.WorldContext) error {
 		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
 			func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 				posID, exists := personaToPosition[tx.Tx.PersonaTag]
@@ -313,7 +313,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
 		s.world,
 		"location",
-		func(wCtx cardinal.Context, req *QueryLocationRequest) (*QueryLocationResponse, error) {
+		func(wCtx cardinal.WorldContext, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)

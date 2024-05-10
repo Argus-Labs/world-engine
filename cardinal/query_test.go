@@ -28,7 +28,7 @@ type QueryHealthResponse struct {
 }
 
 func handleQueryHealth(
-	wCtx cardinal.Context,
+	wCtx cardinal.WorldContext,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
@@ -64,7 +64,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		testutils.NewTestFixture(t, nil).World,
 		"query_health",
 		func(
-			_ cardinal.Context,
+			_ cardinal.WorldContext,
 			_ *FooReq,
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
@@ -121,7 +121,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := cardinal.RegisterQuery[string, string](
 		testutils.NewTestFixture(t, nil).World,
 		"foo",
-		func(cardinal.Context, *string) (*string, error) {
+		func(cardinal.WorldContext, *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -147,7 +147,7 @@ func TestQueryEVM(t *testing.T) {
 		world,
 		"foo",
 		func(
-			_ cardinal.Context, _ *FooRequest,
+			_ cardinal.WorldContext, _ *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},

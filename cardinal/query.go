@@ -19,10 +19,10 @@ type query interface {
 	// Group returns the group of the query.
 	Group() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
-	handleQuery(Context, any) (any, error)
+	handleQuery(WorldContext, any) (any, error)
 	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
 	// and is expected to return a json encoded response struct.
-	handleQueryRaw(Context, []byte) ([]byte, error)
+	handleQueryRaw(WorldContext, []byte) ([]byte, error)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
@@ -42,7 +42,7 @@ type QueryOption[Request, Reply any] func(qt *queryType[Request, Reply])
 type queryType[Request any, Reply any] struct {
 	name       string
 	group      string
-	handler    func(wCtx Context, req *Request) (*Reply, error)
+	handler    func(wCtx WorldContext, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
 }
@@ -67,7 +67,7 @@ func WithCustomQueryGroup[Request, Reply any](group string) QueryOption[Request,
 
 func newQueryType[Request any, Reply any](
 	name string,
-	handler func(wCtx Context, req *Request) (*Reply, error),
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) (query, error) {
 	err := validateQuery[Request, Reply](name, handler)
@@ -114,7 +114,7 @@ func (r *queryType[req, rep]) Group() string {
 	return r.group
 }
 
-func (r *queryType[req, rep]) handleQuery(wCtx Context, a any) (any, error) {
+func (r *queryType[req, rep]) handleQuery(wCtx WorldContext, a any) (any, error) {
 	var request *req
 	if reflect.TypeOf(a).Kind() == reflect.Pointer {
 		ptrRequest, ok := a.(*req)
@@ -133,7 +133,7 @@ func (r *queryType[req, rep]) handleQuery(wCtx Context, a any) (any, error) {
 	return reply, err
 }
 
-func (r *queryType[req, rep]) handleQueryRaw(wCtx Context, bz []byte) ([]byte, error) {
+func (r *queryType[req, rep]) handleQueryRaw(wCtx WorldContext, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
@@ -231,7 +231,7 @@ func (r *queryType[Request, Reply]) GetRequestFieldInformation() map[string]any 
 
 func validateQuery[Request any, Reply any](
 	name string,
-	handler func(wCtx Context, req *Request) (*Reply, error),
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 ) error {
 	if name == "" {
 		return eris.New("cannot create query without name")

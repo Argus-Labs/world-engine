@@ -13,7 +13,7 @@ var (
 	TreeEntityIDs        []types.EntityID
 )
 
-func InitTenThousandEntities(wCtx cardinal.Context) error {
+func InitTenThousandEntities(wCtx cardinal.WorldContext) error {
 	var err error
 	entityAmount := 10000
 	TenThousandEntityIDs, err = cardinal.CreateMany(wCtx, entityAmount, &comp.SingleNumber{Number: 1})
@@ -23,7 +23,7 @@ func InitTenThousandEntities(wCtx cardinal.Context) error {
 	return nil
 }
 
-func InitOneHundredEntities(wCtx cardinal.Context) error {
+func InitOneHundredEntities(wCtx cardinal.WorldContext) error {
 	var err error
 	entityAmount := 100
 	OneHundredEntityIDs, err = cardinal.CreateMany(wCtx, entityAmount, &comp.ArrayComp{Numbers: [10000]int{}})
@@ -33,7 +33,7 @@ func InitOneHundredEntities(wCtx cardinal.Context) error {
 	return nil
 }
 
-func InitTreeEntities(wCtx cardinal.Context) error {
+func InitTreeEntities(wCtx cardinal.WorldContext) error {
 	var err error
 	var entityAmount = 100
 	var treeDepth = 10
@@ -48,7 +48,7 @@ func InitTreeEntities(wCtx cardinal.Context) error {
 	return nil
 }
 
-func SystemBenchmark(wCtx cardinal.Context) error {
+func SystemBenchmark(wCtx cardinal.WorldContext) error {
 	for _, id := range TreeEntityIDs {
 		gotcomp, err := cardinal.GetComponent[comp.Tree](wCtx, id)
 		if err != nil {
