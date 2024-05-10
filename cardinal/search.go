@@ -100,12 +100,6 @@ type searchBuilder interface {
 	Entity(componentFilter filter.ComponentFilter) EntitySearch
 }
 
-//revive:disable-next-line
-
-// Imported
-// This section aggregates function from other packages such that they are easily accessible
-// via cardinal.<function_name>
-
 // NewSearch is used to create a search object.
 //
 // Usage:
