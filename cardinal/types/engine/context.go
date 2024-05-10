@@ -31,7 +31,7 @@ package engine
 //	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 //	isWorldReady() bool
 //	storeReader() gamestate.Reader
-//	StoreManager() gamestate.Manager
+//	storeManager() gamestate.Manager
 //	getTxPool() *txpool.TxPool
 //	isReadOnly() bool
 //}

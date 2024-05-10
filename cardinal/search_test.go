@@ -81,7 +81,7 @@ func TestSearchUsingAllMethods(t *testing.T) {
 	for i, id := range hpids {
 		c, err := worldCtx.GetComponentByName(HP{}.Name())
 		assert.NilError(t, err)
-		err = worldCtx.StoreManager().SetComponentForEntity(c, id, HP{amount: i})
+		err = cardinal.GetStoreManagerFromContext(worldCtx).SetComponentForEntity(c, id, HP{amount: i})
 		assert.NilError(t, err)
 	}
 	amt, err := cardinal.NewSearch().Entity(filter.Not(filter.Or(

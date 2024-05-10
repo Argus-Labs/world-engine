@@ -48,7 +48,7 @@ type Context interface {
 	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	isWorldReady() bool
 	storeReader() gamestate.Reader
-	StoreManager() gamestate.Manager
+	storeManager() gamestate.Manager
 	getTxPool() *txpool.TxPool
 	isReadOnly() bool
 }
@@ -166,12 +166,12 @@ func (ctx *worldContext) isReadOnly() bool {
 	return ctx.readOnly
 }
 
-func (ctx *worldContext) StoreManager() gamestate.Manager {
+func (ctx *worldContext) storeManager() gamestate.Manager {
 	return ctx.world.entityStore
 }
 
 func (ctx *worldContext) storeReader() gamestate.Reader {
-	sm := ctx.StoreManager()
+	sm := ctx.storeManager()
 	if ctx.isReadOnly() {
 		return sm.ToReadOnly()
 	}

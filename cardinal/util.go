@@ -5,6 +5,7 @@ import (
 
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -73,4 +74,8 @@ func GetTransactionReceiptsForTick(wCtx Context, tick uint64) ([]receipt.Receipt
 		return nil, eris.New("error in test type assertion.")
 	}
 	return ctx.world.GetTransactionReceiptsForTick(tick)
+}
+
+func GetStoreManagerFromContext(wCtx Context) gamestate.Manager {
+	return wCtx.storeManager()
 }

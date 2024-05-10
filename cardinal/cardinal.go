@@ -187,7 +187,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 	}
 
 	// Create the entities
-	entityIDs, err = wCtx.StoreManager().CreateManyEntities(num, acc...)
+	entityIDs, err = wCtx.storeManager().CreateManyEntities(num, acc...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func CreateMany(wCtx Context, num int, components ...types.Component) (entityIDs
 				return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 			}
 
-			err = wCtx.StoreManager().SetComponentForEntity(c, id, comp)
+			err = wCtx.storeManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
 				return nil, err
 			}
@@ -228,7 +228,7 @@ func SetComponent[T types.Component](wCtx Context, id types.EntityID, component 
 	}
 
 	// Store the component
-	err = wCtx.StoreManager().SetComponentForEntity(c, id, component)
+	err = wCtx.storeManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func AddComponentTo[T types.Component](wCtx Context, id types.EntityID) (err err
 	}
 
 	// Add the component to entity
-	err = wCtx.StoreManager().AddComponentToEntity(c, id)
+	err = wCtx.storeManager().AddComponentToEntity(c, id)
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func RemoveComponentFrom[T types.Component](wCtx Context, id types.EntityID) (er
 	}
 
 	// Remove the component from entity
-	err = wCtx.StoreManager().RemoveComponentFromEntity(c, id)
+	err = wCtx.storeManager().RemoveComponentFromEntity(c, id)
 	if err != nil {
 		return err
 	}
@@ -358,7 +358,7 @@ func Remove(wCtx Context, id types.EntityID) (err error) {
 		return ErrEntityMutationOnReadOnly
 	}
 
-	err = wCtx.StoreManager().RemoveEntity(id)
+	err = wCtx.storeManager().RemoveEntity(id)
 	if err != nil {
 		return err
 	}
