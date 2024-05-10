@@ -29,7 +29,7 @@ package engine
 //	getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 //	receiptHistorySize() uint64
 //	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
-//	IsWorldReady() bool
+//	isWorldReady() bool
 //	storeReader() gamestate.Reader
 //	StoreManager() gamestate.Manager
 //	getTxPool() *txpool.TxPool

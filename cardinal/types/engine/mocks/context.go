@@ -215,7 +215,7 @@ func (mr *MockContextMockRecorder) IsReadOnly() *gomock.Call {
 // IsWorldReady mocks base method.
 func (m *MockContext) IsWorldReady() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsWorldReady")
+	ret := m.ctrl.Call(m, "isWorldReady")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
@@ -223,7 +223,7 @@ func (m *MockContext) IsWorldReady() bool {
 // IsWorldReady indicates an expected call of IsWorldReady.
 func (mr *MockContextMockRecorder) IsWorldReady() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsWorldReady", reflect.TypeOf((*MockContext)(nil).IsWorldReady))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isWorldReady", reflect.TypeOf((*MockContext)(nil).IsWorldReady))
 }
 
 // Logger mocks base method.
