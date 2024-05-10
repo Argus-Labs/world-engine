@@ -14,6 +14,9 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+// interface guard
+var _ Context = (*worldContext)(nil)
+
 //go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
 type Context interface {
 	// Timestamp returns the UNIX timestamp of the tick.
@@ -49,9 +52,6 @@ type Context interface {
 	GetTxPool() *txpool.TxPool
 	IsReadOnly() bool
 }
-
-// interface guard
-var _ Context = (*worldContext)(nil)
 
 type worldContext struct {
 	world    *World

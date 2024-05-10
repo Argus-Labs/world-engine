@@ -25,10 +25,6 @@ func PostQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 		if err != nil {
 			return fiber.NewError(fiber.StatusNotFound, "query not found")
 		}
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: "+err.Error())
-		}
-
 		return ctx.Send(resBz)
 	}
 }

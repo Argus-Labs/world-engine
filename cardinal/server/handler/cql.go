@@ -29,7 +29,7 @@ type CQLQueryResponse struct {
 //	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /cql [post]
 func PostCQL(
-	provider servertypes.ProviderWorld) func(*fiber.Ctx) error { //nolint:gocognit // to refactor later
+	provider servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		req := new(CQLQueryRequest)
 		if err := ctx.BodyParser(req); err != nil {

@@ -11,10 +11,11 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 
-	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
+
+	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
 
 const (

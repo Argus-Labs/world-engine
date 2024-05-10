@@ -21,7 +21,7 @@ func RegisterLocationQuery(world *cardinal.World) error {
 	return cardinal.RegisterQuery[LocationRequest, LocationReply](
 		world,
 		"location",
-		func(ctx cardinal.WorldContext, req *LocationRequest) (*LocationReply, error) {
+		func(ctx cardinal.Context, req *LocationRequest) (*LocationReply, error) {
 			playerEntityID, ok := sys.PlayerEntityID[req.ID]
 			if !ok {
 				ctx.Logger().Info().Msg("listing existing players...")
