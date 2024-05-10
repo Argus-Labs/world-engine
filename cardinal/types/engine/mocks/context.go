@@ -309,7 +309,7 @@ func (mr *MockContextMockRecorder) StoreManager() *gomock.Call {
 // StoreReader mocks base method.
 func (m *MockContext) StoreReader() gamestate.Reader {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreReader")
+	ret := m.ctrl.Call(m, "storeReader")
 	ret0, _ := ret[0].(gamestate.Reader)
 	return ret0
 }
@@ -317,7 +317,7 @@ func (m *MockContext) StoreReader() gamestate.Reader {
 // StoreReader indicates an expected call of StoreReader.
 func (mr *MockContextMockRecorder) StoreReader() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreReader", reflect.TypeOf((*MockContext)(nil).StoreReader))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "storeReader", reflect.TypeOf((*MockContext)(nil).StoreReader))
 }
 
 // Timestamp mocks base method.

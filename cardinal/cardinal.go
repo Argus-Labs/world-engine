@@ -255,7 +255,7 @@ func GetComponent[T types.Component](wCtx Context, id types.EntityID) (comp *T, 
 	}
 
 	// Get current component value
-	compValue, err := wCtx.StoreReader().GetComponentForEntity(c, id)
+	compValue, err := wCtx.storeReader().GetComponentForEntity(c, id)
 	if err != nil {
 		return nil, err
 	}
