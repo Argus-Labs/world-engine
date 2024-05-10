@@ -156,7 +156,7 @@ func (mr *MockContextMockRecorder) GetSignerForPersonaTag(personaTag, tick inter
 // GetTransactionReceipt mocks base method.
 func (m *MockContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransactionReceipt", id)
+	ret := m.ctrl.Call(m, "getTransactionReceipt", id)
 	ret0, _ := ret[0].(any)
 	ret1, _ := ret[1].([]error)
 	ret2, _ := ret[2].(bool)
@@ -166,7 +166,7 @@ func (m *MockContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool
 // GetTransactionReceipt indicates an expected call of GetTransactionReceipt.
 func (mr *MockContextMockRecorder) GetTransactionReceipt(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionReceipt", reflect.TypeOf((*MockContext)(nil).GetTransactionReceipt), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getTransactionReceipt", reflect.TypeOf((*MockContext)(nil).GetTransactionReceipt), id)
 }
 
 // GetTransactionReceiptsForTick mocks base method.

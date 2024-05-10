@@ -114,7 +114,7 @@ func (t *MessageType[In, Out]) SetResult(wCtx Context, hash types.TxHash, result
 func (t *MessageType[In, Out]) GetReceipt(wCtx Context, hash types.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
-	iface, errs, ok := wCtx.GetTransactionReceipt(hash)
+	iface, errs, ok := wCtx.getTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
 	}
