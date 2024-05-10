@@ -11,11 +11,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-var _ Query = &queryType[struct{}, struct{}]{}
+var _ query = &queryType[struct{}, struct{}]{}
 
-type QueryHandler = func(name string, group string, bz []byte) ([]byte, error)
-
-type Query interface {
+type query interface {
 	// Name returns the name of the query.
 	Name() string
 	// Group returns the group of the query.
@@ -71,7 +69,7 @@ func newQueryType[Request any, Reply any](
 	name string,
 	handler func(wCtx Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
-) (Query, error) {
+) (query, error) {
 	err := validateQuery[Request, Reply](name, handler)
 	if err != nil {
 		return nil, err
