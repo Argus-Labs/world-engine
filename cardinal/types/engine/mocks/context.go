@@ -187,7 +187,7 @@ func (mr *MockContextMockRecorder) GetTransactionReceiptsForTick(tick interface{
 // GetTxPool mocks base method.
 func (m *MockContext) GetTxPool() *txpool.TxPool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTxPool")
+	ret := m.ctrl.Call(m, "getTxPool")
 	ret0, _ := ret[0].(*txpool.TxPool)
 	return ret0
 }
@@ -195,7 +195,7 @@ func (m *MockContext) GetTxPool() *txpool.TxPool {
 // GetTxPool indicates an expected call of GetTxPool.
 func (mr *MockContextMockRecorder) GetTxPool() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTxPool", reflect.TypeOf((*MockContext)(nil).GetTxPool))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getTxPool", reflect.TypeOf((*MockContext)(nil).GetTxPool))
 }
 
 // IsReadOnly mocks base method.
