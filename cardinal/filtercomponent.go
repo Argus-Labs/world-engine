@@ -21,7 +21,7 @@ func ComponentFilter[T types.Component](f func(comp T) bool) FilterFn {
 			return false, err
 		}
 		// Get current component value
-		compValue, err := wCtx.StoreReader().GetComponentForEntity(c, id)
+		compValue, err := wCtx.storeReader().GetComponentForEntity(c, id)
 		if err != nil {
 			return false, err
 		}

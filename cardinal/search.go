@@ -140,7 +140,7 @@ func (s *Search) Each(eCtx Context, callback CallbackFn) (err error) {
 	defer func() { defer panicOnFatalError(eCtx, err) }()
 
 	result := s.evaluateSearch(eCtx)
-	iter := iterators.NewEntityIterator(0, eCtx.StoreReader(), result)
+	iter := iterators.NewEntityIterator(0, eCtx.storeReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -190,7 +190,7 @@ func (s *Search) Count(eCtx Context) (ret int, err error) {
 	defer func() { defer panicOnFatalError(eCtx, err) }()
 
 	result := s.evaluateSearch(eCtx)
-	iter := iterators.NewEntityIterator(0, eCtx.StoreReader(), result)
+	iter := iterators.NewEntityIterator(0, eCtx.storeReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -219,7 +219,7 @@ func (s *Search) First(eCtx Context) (id types.EntityID, err error) {
 	defer func() { defer panicOnFatalError(eCtx, err) }()
 
 	result := s.evaluateSearch(eCtx)
-	iter := iterators.NewEntityIterator(0, eCtx.StoreReader(), result)
+	iter := iterators.NewEntityIterator(0, eCtx.storeReader(), result)
 	if !iter.HasNext() {
 		return iterators.BadID, eris.Wrap(err, "")
 	}
@@ -256,10 +256,10 @@ func (s *Search) MustFirst(eCtx Context) types.EntityID {
 
 func (s *Search) evaluateSearch(eCtx Context) []types.ArchetypeID {
 	cache := s.archMatches
-	for it := eCtx.StoreReader().SearchFrom(s.filter, cache.seen); it.HasNext(); {
+	for it := eCtx.storeReader().SearchFrom(s.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = eCtx.StoreReader().ArchetypeCount()
+	cache.seen = eCtx.storeReader().ArchetypeCount()
 	return cache.archetypes
 }
 

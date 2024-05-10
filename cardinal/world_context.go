@@ -47,7 +47,7 @@ type Context interface {
 	ReceiptHistorySize() uint64
 	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	IsWorldReady() bool
-	StoreReader() gamestate.Reader
+	storeReader() gamestate.Reader
 	StoreManager() gamestate.Manager
 	getTxPool() *txpool.TxPool
 	isReadOnly() bool
@@ -170,7 +170,7 @@ func (ctx *worldContext) StoreManager() gamestate.Manager {
 	return ctx.world.entityStore
 }
 
-func (ctx *worldContext) StoreReader() gamestate.Reader {
+func (ctx *worldContext) storeReader() gamestate.Reader {
 	sm := ctx.StoreManager()
 	if ctx.isReadOnly() {
 		return sm.ToReadOnly()
