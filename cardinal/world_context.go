@@ -42,8 +42,8 @@ type Context interface {
 	GetComponentByName(name string) (types.ComponentMetadata, error)
 	GetMessageByType(mType reflect.Type) (types.Message, bool)
 	getTransactionReceipt(id types.TxHash) (any, []error, bool)
-	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
-	getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
+	getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
+	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 	receiptHistorySize() uint64
 	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	IsWorldReady() bool
@@ -138,11 +138,11 @@ func (ctx *worldContext) EmitStringEvent(e string) error {
 	return ctx.world.tickResults.AddStringEvent(e)
 }
 
-func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
+func (ctx *worldContext) getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	return ctx.world.GetSignerForPersonaTag(personaTag, tick)
 }
 
-func (ctx *worldContext) getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+func (ctx *worldContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
 
