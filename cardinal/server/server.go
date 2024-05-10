@@ -162,5 +162,5 @@ func (s *Server) setupRoutes(
 	s.app.Post("/cql", handler.PostCQL(world))
 
 	// Route: /debug/state
-	s.app.Post("/debug/state", handler.GetDebugState(world))
+	s.app.Post("/debug/state", handler.GetState(world))
 }
