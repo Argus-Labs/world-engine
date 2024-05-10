@@ -172,7 +172,7 @@ func (mr *MockContextMockRecorder) GetTransactionReceipt(id interface{}) *gomock
 // GetTransactionReceiptsForTick mocks base method.
 func (m *MockContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransactionReceiptsForTick", tick)
+	ret := m.ctrl.Call(m, "getTransactionReceiptsForTick", tick)
 	ret0, _ := ret[0].([]receipt.Receipt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -181,7 +181,7 @@ func (m *MockContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Rece
 // GetTransactionReceiptsForTick indicates an expected call of GetTransactionReceiptsForTick.
 func (mr *MockContextMockRecorder) GetTransactionReceiptsForTick(tick interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionReceiptsForTick", reflect.TypeOf((*MockContext)(nil).GetTransactionReceiptsForTick), tick)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getTransactionReceiptsForTick", reflect.TypeOf((*MockContext)(nil).GetTransactionReceiptsForTick), tick)
 }
 
 // GetTxPool mocks base method.
