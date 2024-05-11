@@ -26,11 +26,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
-	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
@@ -377,21 +375,6 @@ func (w *World) startServer() {
 			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
 		}
 	}()
-}
-
-func (w *World) BuildQueryFields() []engine.FieldDetail {
-	// Collecting the structure of all queries
-	queries := w.GetRegisteredQueries()
-	queriesFields := make([]engine.FieldDetail, 0, len(queries))
-	for _, query := range queries {
-		// Extracting the fields of the query
-		queriesFields = append(queriesFields, engine.FieldDetail{
-			Name:   query.Name(),
-			Fields: query.GetRequestFieldInformation(),
-			URL:    utils.GetQueryURL(query.Group(), query.Name()),
-		})
-	}
-	return queriesFields
 }
 
 func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
