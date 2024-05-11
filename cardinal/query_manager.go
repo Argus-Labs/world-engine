@@ -2,12 +2,16 @@ package cardinal
 
 import (
 	"github.com/rotisserie/eris"
+
+	"pkg.world.dev/world-engine/cardinal/server/utils"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type QueryManager interface {
 	RegisterQuery(name string, query query) error
 	GetRegisteredQueries() []query
 	GetQueryByName(name string) (query, error)
+	BuildQueryFields() []engine.FieldDetail
 }
 
 type queryManager struct {
@@ -65,4 +69,19 @@ func (m *queryManager) isQueryNameUnique(name string) error {
 		return eris.Errorf("query %q is already registered", name)
 	}
 	return nil
+}
+
+func (m *queryManager) BuildQueryFields() []engine.FieldDetail {
+	// Collecting the structure of all queries
+	queries := m.GetRegisteredQueries()
+	queriesFields := make([]engine.FieldDetail, 0, len(queries))
+	for _, q := range queries {
+		// Extracting the fields of the q
+		queriesFields = append(queriesFields, engine.FieldDetail{
+			Name:   q.Name(),
+			Fields: q.GetRequestFieldInformation(),
+			URL:    utils.GetQueryURL(q.Group(), q.Name()),
+		})
+	}
+	return queriesFields
 }
