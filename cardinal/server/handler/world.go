@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-type GetWorldResponse = types.GetWorldResponse
+type GetWorldResponse = servertypes.GetWorldResponse
 
 // GetWorld godoc
 //
