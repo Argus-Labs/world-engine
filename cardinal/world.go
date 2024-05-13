@@ -548,7 +548,7 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) GetDebugState() (types.DebugStateResponse, error, error) {
+func (w *World) GetDebugState() (types.DebugStateResponse, error) {
 	result := make(types.DebugStateResponse, 0)
 	s := w.Search(filter.All())
 	var eachClosureErr error
@@ -576,7 +576,13 @@ func (w *World) GetDebugState() (types.DebugStateResponse, error, error) {
 			return true
 		},
 	)
-	return result, eachClosureErr, searchEachErr
+	if eachClosureErr != nil {
+		return nil, eachClosureErr
+	}
+	if searchEachErr != nil {
+		return nil, searchEachErr
+	}
+	return result, nil
 }
 
 func (w *World) Namespace() string {
