@@ -49,7 +49,7 @@ func (m *queryManager) GetRegisteredQueries() []query {
 func (w *World) QueryHandler(name string, bz []byte) ([]byte, error) {
 	q, err := w.GetQueryByName(name)
 	if err != nil {
-		return nil, eris.Errorf("could not find query with name: %s", name)
+		return nil, eris.Wrap(engine.NewQueryNotFoundError(name), "")
 	}
 	wCtx := NewReadOnlyWorldContext(w)
 	return q.handleQueryRaw(wCtx, bz)
