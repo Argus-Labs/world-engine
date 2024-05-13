@@ -7,7 +7,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-type DebugStateResponse = types.DebugStateResponse
+type DebugStateResponse = types.EntityStateResponse
 
 // GetState godoc
 //

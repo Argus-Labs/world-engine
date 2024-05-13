@@ -548,8 +548,8 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) GetDebugState() (types.DebugStateResponse, error) {
-	result := make(types.DebugStateResponse, 0)
+func (w *World) GetDebugState() (types.EntityStateResponse, error) {
+	result := make(types.EntityStateResponse, 0)
 	s := w.Search(filter.All())
 	var eachClosureErr error
 	wCtx := NewReadOnlyWorldContext(w)

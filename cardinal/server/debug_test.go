@@ -24,7 +24,7 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 	s.Require().NoError(err)
 	s.Require().Equal(res.StatusCode, 200)
 
-	var results types.DebugStateResponse
+	var results types.EntityStateResponse
 	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
 	numOfZeroLocation := 0
@@ -53,7 +53,7 @@ func (s *ServerTestSuite) TestDebugStateQuery_NoState() {
 	res := s.fixture.Post("debug/state", types.DebugStateRequest{})
 	s.Require().Equal(res.StatusCode, 200)
 
-	var results types.DebugStateResponse
+	var results types.EntityStateResponse
 	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
 	s.Require().Equal(len(results), 0)
