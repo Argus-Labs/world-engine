@@ -5,7 +5,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type QueryManager interface {
@@ -50,7 +49,7 @@ func (m *queryManager) GetRegisteredQueries() []query {
 func (w *World) QueryHandler(name string, bz []byte) ([]byte, error) {
 	q, err := w.GetQueryByName(name)
 	if err != nil {
-		return nil, eris.Wrap(engine.NewQueryNotFoundError(name), "")
+		return nil, eris.Wrap(types.NewQueryNotFoundError(name), "")
 	}
 	wCtx := NewReadOnlyWorldContext(w)
 	return q.handleQueryRaw(wCtx, bz)

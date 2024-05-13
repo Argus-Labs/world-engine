@@ -21,6 +21,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -95,7 +96,7 @@ func (s *ServerTestSuite) TestGetWorld() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	res := s.fixture.Get("/world")
-	var result types.GetWorldResponse
+	var result servertypes.GetWorldResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
 	comps := s.world.GetRegisteredComponents()
