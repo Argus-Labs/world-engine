@@ -9,4 +9,4 @@ type DebugStateElement struct {
 	Components map[string]json.RawMessage `json:"components" swaggertype:"object"`
 }
 
-type DebugStateResponse []DebugStateElement
+type EntityStateResponse []DebugStateElement
