@@ -14,7 +14,7 @@ type ProviderWorld interface {
 	Namespace() string
 	GetComponentByName(name string) (types.ComponentMetadata, error)
 	StoreReader() gamestate.Reader
-	QueryHandler(name string, bz []byte) ([]byte, error)
+	HandleQuery(name string, bz []byte) ([]byte, error)
 	CurrentTick() uint64
 	ReceiptHistorySize() uint64
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)

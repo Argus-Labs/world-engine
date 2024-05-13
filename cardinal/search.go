@@ -22,12 +22,12 @@ type EntitySearch interface {
 }
 
 type Searchable interface {
-	evaluateSearch(eCtx WorldContext) []types.ArchetypeID
-	Each(eCtx WorldContext, callback CallbackFn) error
-	First(eCtx WorldContext) (types.EntityID, error)
-	MustFirst(eCtx WorldContext) types.EntityID
-	Count(eCtx WorldContext) (int, error)
-	Collect(eCtx WorldContext) ([]types.EntityID, error)
+	evaluateSearch(wCtx WorldContext) []types.ArchetypeID
+	Each(wCtx WorldContext, callback CallbackFn) error
+	First(wCtx WorldContext) (types.EntityID, error)
+	MustFirst(wCtx WorldContext) types.EntityID
+	Count(wCtx WorldContext) (int, error)
+	Collect(wCtx WorldContext) ([]types.EntityID, error)
 }
 
 type CallbackFn func(types.EntityID) bool
@@ -147,11 +147,11 @@ func (s *Search) Where(componentFilter FilterFn) EntitySearch {
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (s *Search) Each(eCtx WorldContext, callback CallbackFn) (err error) {
-	defer func() { defer panicOnFatalError(eCtx, err) }()
+func (s *Search) Each(wCtx WorldContext, callback CallbackFn) (err error) {
+	defer func() { defer panicOnFatalError(wCtx, err) }()
 
-	result := s.evaluateSearch(eCtx)
-	iter := iterators.NewEntityIterator(0, eCtx.storeReader(), result)
+	result := s.evaluateSearch(wCtx)
+	iter := iterators.NewEntityIterator(0, wCtx.storeReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -160,7 +160,7 @@ func (s *Search) Each(eCtx WorldContext, callback CallbackFn) (err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter(eCtx, id)
+				filterValue, err = s.componentPropertyFilter(wCtx, id)
 				if err != nil {
 					continue
 				}
@@ -183,9 +183,9 @@ func fastSortIDs(ids []types.EntityID) {
 	slices.Sort(ids)
 }
 
-func (s *Search) Collect(eCtx WorldContext) ([]types.EntityID, error) {
+func (s *Search) Collect(wCtx WorldContext) ([]types.EntityID, error) {
 	acc := make([]types.EntityID, 0)
-	err := s.Each(eCtx, func(id types.EntityID) bool {
+	err := s.Each(wCtx, func(id types.EntityID) bool {
 		acc = append(acc, id)
 		return true
 	})
@@ -197,11 +197,11 @@ func (s *Search) Collect(eCtx WorldContext) ([]types.EntityID, error) {
 }
 
 // Count returns the number of entities that match the search.
-func (s *Search) Count(eCtx WorldContext) (ret int, err error) {
-	defer func() { defer panicOnFatalError(eCtx, err) }()
+func (s *Search) Count(wCtx WorldContext) (ret int, err error) {
+	defer func() { defer panicOnFatalError(wCtx, err) }()
 
-	result := s.evaluateSearch(eCtx)
-	iter := iterators.NewEntityIterator(0, eCtx.storeReader(), result)
+	result := s.evaluateSearch(wCtx)
+	iter := iterators.NewEntityIterator(0, wCtx.storeReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -210,7 +210,7 @@ func (s *Search) Count(eCtx WorldContext) (ret int, err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter(eCtx, id)
+				filterValue, err = s.componentPropertyFilter(wCtx, id)
 				if err != nil {
 					continue
 				}
@@ -226,11 +226,11 @@ func (s *Search) Count(eCtx WorldContext) (ret int, err error) {
 }
 
 // First returns the first entity that matches the search.
-func (s *Search) First(eCtx WorldContext) (id types.EntityID, err error) {
-	defer func() { defer panicOnFatalError(eCtx, err) }()
+func (s *Search) First(wCtx WorldContext) (id types.EntityID, err error) {
+	defer func() { defer panicOnFatalError(wCtx, err) }()
 
-	result := s.evaluateSearch(eCtx)
-	iter := iterators.NewEntityIterator(0, eCtx.storeReader(), result)
+	result := s.evaluateSearch(wCtx)
+	iter := iterators.NewEntityIterator(0, wCtx.storeReader(), result)
 	if !iter.HasNext() {
 		return iterators.BadID, eris.Wrap(err, "")
 	}
@@ -242,7 +242,7 @@ func (s *Search) First(eCtx WorldContext) (id types.EntityID, err error) {
 		for _, id := range entities {
 			var filterValue bool
 			if s.componentPropertyFilter != nil {
-				filterValue, err = s.componentPropertyFilter(eCtx, id)
+				filterValue, err = s.componentPropertyFilter(wCtx, id)
 				if err != nil {
 					continue
 				}
@@ -257,19 +257,19 @@ func (s *Search) First(eCtx WorldContext) (id types.EntityID, err error) {
 	return iterators.BadID, eris.Wrap(err, "")
 }
 
-func (s *Search) MustFirst(eCtx WorldContext) types.EntityID {
-	id, err := s.First(eCtx)
+func (s *Search) MustFirst(wCtx WorldContext) types.EntityID {
+	id, err := s.First(wCtx)
 	if err != nil {
 		panic("no entity matches the search")
 	}
 	return id
 }
 
-func (s *Search) evaluateSearch(eCtx WorldContext) []types.ArchetypeID {
+func (s *Search) evaluateSearch(wCtx WorldContext) []types.ArchetypeID {
 	cache := s.archMatches
-	for it := eCtx.storeReader().SearchFrom(s.filter, cache.seen); it.HasNext(); {
+	for it := wCtx.storeReader().SearchFrom(s.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = eCtx.storeReader().ArchetypeCount()
+	cache.seen = wCtx.storeReader().ArchetypeCount()
 	return cache.archetypes
 }
