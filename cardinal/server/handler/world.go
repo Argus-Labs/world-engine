@@ -8,10 +8,9 @@ import (
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-type GetWorldResponse = engine.GetWorldResponse
+type GetWorldResponse = types.GetWorldResponse
 
 // GetWorld godoc
 //
@@ -29,20 +28,20 @@ func GetWorld(
 	namespace string,
 ) func(*fiber.Ctx) error {
 	// Collecting name of all registered components
-	comps := make([]engine.FieldDetail, 0, len(components))
+	comps := make([]types.FieldDetail, 0, len(components))
 	for _, component := range components {
 		c, _ := component.Decode(component.GetSchema())
-		comps = append(comps, engine.FieldDetail{
+		comps = append(comps, types.FieldDetail{
 			Name:   component.Name(),
 			Fields: types.GetFieldInformation(reflect.TypeOf(c)),
 		})
 	}
 
 	// Collecting the structure of all messages
-	messagesFields := make([]engine.FieldDetail, 0, len(messages))
+	messagesFields := make([]types.FieldDetail, 0, len(messages))
 	for _, message := range messages {
 		// Extracting the fields of the message
-		messagesFields = append(messagesFields, engine.FieldDetail{
+		messagesFields = append(messagesFields, types.FieldDetail{
 			Name:   message.Name(),
 			Fields: message.GetInFieldInformation(),
 			URL:    utils.GetTxURL(message.Group(), message.Name()),
