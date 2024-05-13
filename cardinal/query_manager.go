@@ -46,7 +46,7 @@ func (m *queryManager) GetRegisteredQueries() []query {
 	return registeredQueries
 }
 
-func (w *World) QueryHandler(name string, bz []byte) ([]byte, error) {
+func (w *World) HandleQuery(name string, bz []byte) ([]byte, error) {
 	q, err := w.GetQueryByName(name)
 	if err != nil {
 		return nil, eris.Wrap(types.NewQueryNotFoundError(name), "")

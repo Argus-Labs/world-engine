@@ -201,9 +201,9 @@ func TestEVMTxConsume(t *testing.T) {
 	var returnVal FooOut
 	var returnErr error
 	err = cardinal.RegisterSystems(world,
-		func(eCtx cardinal.WorldContext) error {
+		func(wCtx cardinal.WorldContext) error {
 			return cardinal.EachMessage[FooIn, FooOut](
-				eCtx, func(cardinal.TxData[FooIn]) (FooOut, error) {
+				wCtx, func(cardinal.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
