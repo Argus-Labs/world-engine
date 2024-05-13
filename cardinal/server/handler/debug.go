@@ -19,15 +19,11 @@ type DebugStateResponse = types.DebugStateResponse
 func GetState(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		var result DebugStateResponse
-		var eachClosureErr error
-		var searchEachErr error
-		result, eachClosureErr, searchEachErr = world.GetDebugState()
-		if eachClosureErr != nil {
-			return eachClosureErr
+		result, err := world.GetDebugState()
+		if err != nil {
+			return err
 		}
-		if searchEachErr != nil {
-			return searchEachErr
-		}
+
 		return ctx.JSON(&result)
 	}
 }
