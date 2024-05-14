@@ -34,14 +34,10 @@ func PostCQL(
 		if err := ctx.BodyParser(req); err != nil {
 			return err
 		}
-		result, eachError, searchErr := world.EvaluateCQL(req.CQL)
-		if searchErr != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, searchErr.Error())
+		result, err := world.EvaluateCQL(req.CQL)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		if eachError != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, eachError.Error())
-		}
-
 		return ctx.JSON(CQLQueryResponse{Results: result})
 	}
 }
