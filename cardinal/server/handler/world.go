@@ -10,7 +10,14 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-type GetWorldResponse = servertypes.GetWorldResponse
+// GetWorldResponse is a type representing the json super structure that contains
+// all info about the world.
+type GetWorldResponse struct {
+	Namespace  string              `json:"namespace"`
+	Components []types.FieldDetail `json:"components"` // list of component names
+	Messages   []types.FieldDetail `json:"messages"`
+	Queries    []types.FieldDetail `json:"queries"`
+}
 
 // GetWorld godoc
 //
