@@ -15,7 +15,7 @@ type Reader interface {
 	GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error)
 	GetComponentForEntityInRawJSON(cType types.ComponentMetadata, id types.EntityID) (json.RawMessage, error)
 
-	// Many Data One Entity
+	// Many Components One Entity
 	GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error)
 
 	// One Archetype Many Data
