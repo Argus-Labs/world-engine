@@ -22,12 +22,3 @@ type ProviderWorld interface {
 	GetDebugState() (EntityStateResponse, error)
 	BuildQueryFields() []types.FieldDetail
 }
-
-// GetWorldResponse is a type representing the json super structure that contains
-// all info about the world.
-type GetWorldResponse struct {
-	Namespace  string              `json:"namespace"`
-	Components []types.FieldDetail `json:"components"` // list of component names
-	Messages   []types.FieldDetail `json:"messages"`
-	Queries    []types.FieldDetail `json:"queries"`
-}
