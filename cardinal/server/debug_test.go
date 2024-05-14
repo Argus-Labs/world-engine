@@ -20,7 +20,7 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 	// This will create 1 additional location for this particular persona tag
 	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
 
-	res := s.fixture.Post("debug/state", types.DebugStateRequest{})
+	res := s.fixture.Post("debug/state", types.EntityStateRequest{})
 	s.Require().NoError(err)
 	s.Require().Equal(res.StatusCode, 200)
 
@@ -50,7 +50,7 @@ func (s *ServerTestSuite) TestDebugStateQuery_NoState() {
 	s.setupWorld()
 	s.fixture.DoTick()
 
-	res := s.fixture.Post("debug/state", types.DebugStateRequest{})
+	res := s.fixture.Post("debug/state", types.EntityStateRequest{})
 	s.Require().Equal(res.StatusCode, 200)
 
 	var results types.EntityStateResponse
