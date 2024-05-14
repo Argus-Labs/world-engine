@@ -665,7 +665,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) EvaluateCQL(cqlString string) ([]types.CqlData, error, error) {
+func (w *World) EvaluateCQL(cqlString string) ([]types.EntityStateElement, error, error) {
 	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.getComponentByName
 	// to types.Component
 	getComponentByName := func(name string) (types.Component, error) {
@@ -681,7 +681,7 @@ func (w *World) EvaluateCQL(cqlString string) ([]types.CqlData, error, error) {
 	if err != nil {
 		return nil, nil, eris.Errorf("failed to parse cql string: %s", cqlString)
 	}
-	result := make([]types.CqlData, 0)
+	result := make([]types.EntityStateElement, 0)
 	var eachError error
 	wCtx := NewReadOnlyWorldContext(w)
 	searchErr := w.Search(cqlFilter).Each(wCtx,
@@ -691,7 +691,7 @@ func (w *World) EvaluateCQL(cqlString string) ([]types.CqlData, error, error) {
 				eachError = err
 				return false
 			}
-			resultElement := types.CqlData{
+			resultElement := types.EntityStateElement{
 				ID:   id,
 				Data: make([]json.RawMessage, 0),
 			}
