@@ -5,7 +5,7 @@ import (
 )
 
 // MatchComponentMetadata returns true if the given slice of components contains the given component.
-// Data are the same if they have the same Name.
+// Components are the same if they have the same Name.
 func MatchComponentMetadata(
 	components []types.ComponentMetadata,
 	cType types.ComponentMetadata,
