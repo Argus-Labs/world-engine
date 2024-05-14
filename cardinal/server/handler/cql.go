@@ -14,7 +14,7 @@ type CQLQueryRequest struct {
 }
 
 type CQLQueryResponse struct {
-	Results []types.CqlData `json:"results"`
+	Results []types.EntityStateElement `json:"results"`
 }
 
 // PostCQL godoc
