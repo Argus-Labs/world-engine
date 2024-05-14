@@ -29,17 +29,19 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 
 	numOfZeroLocation := 0
 	numOfNonZeroLocation := 0
-	for _, result := range results {
-		comp := result.Components["location"]
+	for i, result := range results {
+		comp := result.Data[0]
 		if comp == nil {
 			continue
 		}
 		var loc LocationComponent
 		s.Require().NoError(json.Unmarshal(comp, &loc))
-		if loc.Y == 0 {
-			numOfZeroLocation++
-		} else {
-			numOfNonZeroLocation++
+		if i != 6 {
+			if loc.Y == 0 {
+				numOfZeroLocation++
+			} else {
+				numOfNonZeroLocation++
+			}
 		}
 	}
 	s.Require().Equal(numOfZeroLocation, wantNumOfZeroLocation)

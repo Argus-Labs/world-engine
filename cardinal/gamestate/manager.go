@@ -15,10 +15,10 @@ type Reader interface {
 	GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error)
 	GetComponentForEntityInRawJSON(cType types.ComponentMetadata, id types.EntityID) (json.RawMessage, error)
 
-	// Many Components One Entity
+	// Many Data One Entity
 	GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error)
 
-	// One Archetype Many Components
+	// One Archetype Many Data
 	GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error)
 	GetArchIDForComponents(components []types.ComponentMetadata) (types.ArchetypeID, error)
 
@@ -34,7 +34,7 @@ type Writer interface {
 	// One Entity
 	RemoveEntity(id types.EntityID) error
 
-	// Many Components
+	// Many Data
 	CreateEntity(comps ...types.ComponentMetadata) (types.EntityID, error)
 	CreateManyEntities(num int, comps ...types.ComponentMetadata) ([]types.EntityID, error)
 

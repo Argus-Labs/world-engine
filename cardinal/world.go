@@ -561,8 +561,8 @@ func (w *World) GetDebugState() (types.EntityStateResponse, error) {
 				return false
 			}
 			resultElement := types.EntityStateElement{
-				ID:         id,
-				Components: make(map[string]json.RawMessage),
+				ID:   id,
+				Data: make([]json.RawMessage, 0),
 			}
 			for _, c := range components {
 				var data json.RawMessage
@@ -570,7 +570,7 @@ func (w *World) GetDebugState() (types.EntityStateResponse, error) {
 				if eachClosureErr != nil {
 					return false
 				}
-				resultElement.Components[c.Name()] = data
+				resultElement.Data = append(resultElement.Data, data)
 			}
 			result = append(result, resultElement)
 			return true
