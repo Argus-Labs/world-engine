@@ -2,8 +2,6 @@ package types
 
 import "fmt"
 
-type QueryHandler = func(name string, group string, bz []byte) ([]byte, error)
-
 type QueryNotFoundError struct {
 	name string
 }
