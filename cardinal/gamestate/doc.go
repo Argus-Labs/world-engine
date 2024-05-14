@@ -69,7 +69,7 @@ number.
 
 The in-memory data model roughly matches the model that is stored in redis, but there are some differences:
 
-Data are stored as generic interfaces and not as serialized JSON.
+Components are stored as generic interfaces and not as serialized JSON.
 
 # Potential Improvements
 
