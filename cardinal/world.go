@@ -560,7 +560,7 @@ func (w *World) GetDebugState() (types.EntityStateResponse, error) {
 			if eachClosureErr != nil {
 				return false
 			}
-			resultElement := types.DebugStateElement{
+			resultElement := types.EntityStateElement{
 				ID:         id,
 				Components: make(map[string]json.RawMessage),
 			}
