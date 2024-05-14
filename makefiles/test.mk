@@ -101,7 +101,7 @@ swaggo-install:
 
 swagger:
 	$(MAKE) swaggo-install
-	swag init -g cardinal/server/server.go -o cardinal/server/docs/
+	swag init -g cardinal/server/server.go -o cardinal/server/docs/ --parseDependency
 
 swagger-check:
 	$(MAKE) swaggo-install
