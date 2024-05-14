@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"fmt"
+
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/server/utils"
@@ -49,7 +51,7 @@ func (m *queryManager) GetRegisteredQueries() []query {
 func (w *World) HandleQuery(name string, bz []byte) ([]byte, error) {
 	q, err := w.GetQueryByName(name)
 	if err != nil {
-		return nil, eris.Wrap(types.NewQueryNotFoundError(name), "")
+		return nil, eris.Wrap(types.ErrQueryNotFound, fmt.Sprintf("could not find query %q", name))
 	}
 	wCtx := NewReadOnlyWorldContext(w)
 	return q.handleQueryRaw(wCtx, bz)
