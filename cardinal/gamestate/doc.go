@@ -69,7 +69,7 @@ number.
 
 The in-memory data model roughly matches the model that is stored in redis, but there are some differences:
 
-Components are stored as generic interfaces and not as serialized JSON.
+Data are stored as generic interfaces and not as serialized JSON.
 
 # Potential Improvements
 
@@ -77,7 +77,7 @@ In redis, the ECB:ACTIVE-ENTITY-IDS and ECB:ARCHETYPE-ID:ENTITY-ID keys contains
 mapping of one another. The amount of data in redis, and the data written can likely be reduced if we abandon one of
 these keys and rebuild the other mapping in memory.
 
-In memory, compValues are written to redis during a FinalizeTick cycle. Components that were not actually changed (e.g.
+In memory, compValues are written to redis during a FinalizeTick cycle. Data that were not actually changed (e.g.
 only read operations were performed) are still written to the DB.
 */
 package gamestate
