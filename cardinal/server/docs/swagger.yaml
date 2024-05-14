@@ -1,78 +1,66 @@
 basePath: /
 definitions:
-  engine.FieldDetail:
-    properties:
-      fields:
-        additionalProperties: {}
-        description: variable name and type
-        type: object
-      name:
-        description: name of the message or query
-        type: string
-      url:
-        type: string
-    type: object
-  handler.CQLQueryRequest:
+  cardinal_server_handler.CQLQueryRequest:
     properties:
       cql:
         type: string
     type: object
-  handler.CQLQueryResponse:
+  cardinal_server_handler.CQLQueryResponse:
     properties:
       results:
         items:
-          $ref: '#/definitions/types.CqlData'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement'
         type: array
     type: object
-  handler.GetHealthResponse:
+  cardinal_server_handler.GetHealthResponse:
     properties:
       isGameLoopRunning:
         type: boolean
       isServerRunning:
         type: boolean
     type: object
-  handler.GetWorldResponse:
+  cardinal_server_handler.GetWorldResponse:
     properties:
       components:
         description: list of component names
         items:
-          $ref: '#/definitions/engine.FieldDetail'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail'
         type: array
       messages:
         items:
-          $ref: '#/definitions/engine.FieldDetail'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail'
         type: array
       namespace:
         type: string
       queries:
         items:
-          $ref: '#/definitions/engine.FieldDetail'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail'
         type: array
     type: object
-  handler.ListTxReceiptsRequest:
+  cardinal_server_handler.ListTxReceiptsRequest:
     properties:
       startTick:
         type: integer
     type: object
-  handler.ListTxReceiptsResponse:
+  cardinal_server_handler.ListTxReceiptsResponse:
     properties:
       endTick:
         type: integer
       receipts:
         items:
-          $ref: '#/definitions/handler.ReceiptEntry'
+          $ref: '#/definitions/cardinal_server_handler.ReceiptEntry'
         type: array
       startTick:
         type: integer
     type: object
-  handler.PostTransactionResponse:
+  cardinal_server_handler.PostTransactionResponse:
     properties:
       tick:
         type: integer
       txHash:
         type: string
     type: object
-  handler.ReceiptEntry:
+  cardinal_server_handler.ReceiptEntry:
     properties:
       errors:
         items:
@@ -84,7 +72,7 @@ definitions:
       txHash:
         type: string
     type: object
-  handler.Transaction:
+  cardinal_server_handler.Transaction:
     properties:
       body:
         description: json string
@@ -101,19 +89,24 @@ definitions:
         description: hex encoded string
         type: string
     type: object
-  types.CqlData:
+  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
     properties:
       data:
         type: object
       id:
         type: integer
     type: object
-  types.DebugStateElement:
+  pkg_world_dev_world-engine_cardinal_types.FieldDetail:
     properties:
-      components:
+      fields:
+        additionalProperties: {}
+        description: variable name and type
         type: object
-      id:
-        type: integer
+      name:
+        description: name of the message or query
+        type: string
+      url:
+        type: string
     type: object
 info:
   contact: {}
@@ -132,14 +125,14 @@ paths:
         name: cql
         required: true
         schema:
-          $ref: '#/definitions/handler.CQLQueryRequest'
+          $ref: '#/definitions/cardinal_server_handler.CQLQueryRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Results of the executed CQL query
           schema:
-            $ref: '#/definitions/handler.CQLQueryResponse'
+            $ref: '#/definitions/cardinal_server_handler.CQLQueryResponse'
         "400":
           description: Invalid request parameters
           schema:
@@ -155,7 +148,7 @@ paths:
           description: List of all entities
           schema:
             items:
-              $ref: '#/definitions/types.DebugStateElement'
+              $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement'
             type: array
       summary: Retrieves a list of all entities in the game state
   /events:
@@ -178,7 +171,7 @@ paths:
         "200":
           description: Server and game loop status
           schema:
-            $ref: '#/definitions/handler.GetHealthResponse'
+            $ref: '#/definitions/cardinal_server_handler.GetHealthResponse'
       summary: Retrieves the status of the server and game loop
   /query/{queryGroup}/{queryName}:
     post:
@@ -225,14 +218,14 @@ paths:
         name: ListTxReceiptsRequest
         required: true
         schema:
-          $ref: '#/definitions/handler.ListTxReceiptsRequest'
+          $ref: '#/definitions/cardinal_server_handler.ListTxReceiptsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: List of receipts
           schema:
-            $ref: '#/definitions/handler.ListTxReceiptsResponse'
+            $ref: '#/definitions/cardinal_server_handler.ListTxReceiptsResponse'
         "400":
           description: Invalid request body
           schema:
@@ -259,14 +252,14 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/handler.Transaction'
+          $ref: '#/definitions/cardinal_server_handler.Transaction'
       produces:
       - application/json
       responses:
         "200":
           description: Transaction hash and tick
           schema:
-            $ref: '#/definitions/handler.PostTransactionResponse'
+            $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
         "400":
           description: Invalid request parameter
           schema:
@@ -288,14 +281,14 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/handler.Transaction'
+          $ref: '#/definitions/cardinal_server_handler.Transaction'
       produces:
       - application/json
       responses:
         "200":
           description: Transaction hash and tick
           schema:
-            $ref: '#/definitions/handler.PostTransactionResponse'
+            $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
         "400":
           description: Invalid request parameter
           schema:
@@ -312,14 +305,14 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/handler.Transaction'
+          $ref: '#/definitions/cardinal_server_handler.Transaction'
       produces:
       - application/json
       responses:
         "200":
           description: Transaction hash and tick
           schema:
-            $ref: '#/definitions/handler.PostTransactionResponse'
+            $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
         "400":
           description: Invalid request parameter
           schema:
@@ -336,7 +329,7 @@ paths:
         "200":
           description: Details of the game world
           schema:
-            $ref: '#/definitions/handler.GetWorldResponse'
+            $ref: '#/definitions/cardinal_server_handler.GetWorldResponse'
         "400":
           description: Invalid request parameters
           schema:
