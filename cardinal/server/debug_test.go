@@ -5,6 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 func (s *ServerTestSuite) TestDebugStateQuery() {
@@ -24,7 +25,7 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 	s.Require().NoError(err)
 	s.Require().Equal(res.StatusCode, 200)
 
-	var results servertypes.EntityStateResponse
+	var results []types.EntityStateElement
 	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
 	numOfZeroLocation := 0
@@ -55,7 +56,7 @@ func (s *ServerTestSuite) TestDebugStateQuery_NoState() {
 	res := s.fixture.Post("debug/state", servertypes.EntityStateRequest{})
 	s.Require().Equal(res.StatusCode, 200)
 
-	var results servertypes.EntityStateResponse
+	var results []types.EntityStateElement
 	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
 	s.Require().Equal(len(results), 0)
