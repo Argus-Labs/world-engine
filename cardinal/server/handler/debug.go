@@ -7,6 +7,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
+type DebugStateRequest struct{}
+
 type DebugStateResponse = []types.EntityStateElement
 
 // GetState godoc
