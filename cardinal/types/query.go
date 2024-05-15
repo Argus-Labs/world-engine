@@ -1,5 +1,5 @@
 package types
 
-import "fmt"
+import "errors"
 
-var ErrQueryNotFound = fmt.Errorf("query not found")
+var ErrQueryNotFound = errors.New("query not found")
