@@ -236,9 +236,10 @@ func TestQuerySigner(t *testing.T) {
 	query, err := world.GetQueryByName("signer")
 	assert.NilError(t, err)
 
-	res, err := cardinal.InternalHandleQuery(cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
-		PersonaTag: personaTag,
-	})
+	res, err := cardinal.InternalHandleQuery(
+		cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
+			PersonaTag: personaTag,
+		})
 	assert.NilError(t, err)
 
 	response, ok := res.(*cardinal.PersonaSignerQueryResponse)
@@ -254,9 +255,10 @@ func TestQuerySignerAvailable(t *testing.T) {
 
 	query, err := world.GetQueryByName("signer")
 	assert.NilError(t, err)
-	res, err := cardinal.InternalHandleQuery(cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
-		PersonaTag: "some-random-nonexistent-persona-tag",
-	})
+	res, err := cardinal.InternalHandleQuery(
+		cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
+			PersonaTag: "some-random-nonexistent-persona-tag",
+		})
 	assert.NilError(t, err)
 	response, ok := res.(*cardinal.PersonaSignerQueryResponse)
 	assert.True(t, ok)
