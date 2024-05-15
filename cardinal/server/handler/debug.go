@@ -4,9 +4,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-type DebugStateResponse = servertypes.EntityStateResponse
+type DebugStateResponse = []types.EntityStateElement
 
 // GetState godoc
 //
