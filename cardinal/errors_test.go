@@ -309,7 +309,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			assert.Check(t, err == nil)
 
 			readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
-			_, err = cardinal.HandleQuery(readOnlyWorldCtx, query, QueryRequest{})
+			_, err = cardinal.InternalHandleQuery(readOnlyWorldCtx, query, QueryRequest{})
 			// Each test case is meant to generate a "ErrComponentNotRegistered" error
 			assert.Check(t, errors.Is(err, component.ErrComponentNotRegistered),
 				"expected a component not registered error, got %v", err)
@@ -355,6 +355,6 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 		assert.Check(t, recover() == nil, "expected no panic in a query")
 	}()
 
-	_, err = cardinal.HandleQuery(readOnlyWorldCtx, query, QueryRequest{})
+	_, err = cardinal.InternalHandleQuery(readOnlyWorldCtx, query, QueryRequest{})
 	assert.ErrorContains(t, err, "connection refused", "expected a connection error")
 }
