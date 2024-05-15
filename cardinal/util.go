@@ -80,6 +80,8 @@ func GetStoreManagerFromContext(wCtx WorldContext) gamestate.Manager {
 	return wCtx.storeManager()
 }
 
-func HandleQuery(wCtx WorldContext, query query, a any) (any, error) {
+// InternalHandleQuery is only used for tests it should not be used outside of that context.
+// TODO: Tests should be edited and changed such that this is no longer done.
+func InternalHandleQuery(wCtx WorldContext, query query, a any) (any, error) {
 	return query.handleQuery(wCtx, a)
 }
