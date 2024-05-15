@@ -101,17 +101,17 @@ func TestQueryExample(t *testing.T) {
 	q, err := world.GetQueryByName("query_health")
 	assert.NilError(t, err)
 
-	resp, err := cardinal.HandleQuery(worldCtx, q, QueryHealthRequest{1_000_000})
+	resp, err := cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{1_000_000})
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = cardinal.HandleQuery(worldCtx, q, QueryHealthRequest{-100})
+	resp, err = cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{-100})
 	assert.NilError(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = cardinal.HandleQuery(worldCtx, q, QueryHealthRequest{90})
+	resp, err = cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{90})
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }
