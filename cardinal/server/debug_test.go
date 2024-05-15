@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"pkg.world.dev/world-engine/cardinal"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -21,7 +21,7 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 	// This will create 1 additional location for this particular persona tag
 	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
 
-	res := s.fixture.Post("debug/state", servertypes.EntityStateRequest{})
+	res := s.fixture.Post("debug/state", handler.DebugStateRequest{})
 	s.Require().NoError(err)
 	s.Require().Equal(res.StatusCode, 200)
 
@@ -53,7 +53,7 @@ func (s *ServerTestSuite) TestDebugStateQuery_NoState() {
 	s.setupWorld()
 	s.fixture.DoTick()
 
-	res := s.fixture.Post("debug/state", servertypes.EntityStateRequest{})
+	res := s.fixture.Post("debug/state", handler.DebugStateRequest{})
 	s.Require().Equal(res.StatusCode, 200)
 
 	var results []types.EntityStateElement
