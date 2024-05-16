@@ -50,11 +50,11 @@ func (m *queryManager) GetRegisteredQueries() []query {
 
 func (w *World) HandleQuery(group string, name string, bz []byte) ([]byte, error) {
 	q, err := w.GetQueryByName(name)
-	if q.Group() != group {
-		return nil, eris.Wrapf(err, "Query group: %s with name: %s not found", group, name)
-	}
 	if err != nil {
 		return nil, eris.Wrap(types.ErrQueryNotFound, fmt.Sprintf("could not find query %q", name))
+	}
+	if q.Group() != group {
+		return nil, eris.Errorf("Query group: %s with name: %s not found", group, name)
 	}
 	wCtx := NewReadOnlyWorldContext(w)
 	return q.handleQueryRaw(wCtx, bz)
