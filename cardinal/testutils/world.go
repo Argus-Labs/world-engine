@@ -92,7 +92,7 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.W
 }
 
 // StartWorld starts the game world and registers a cleanup function that will shut down
-// the cardinal World at the end of the test. Data/Systems/Queries, etc should
+// the cardinal World at the end of the test. Components/Systems/Queries, etc should
 // be registered before calling this function.
 func (t *TestFixture) StartWorld() {
 	t.startOnce.Do(func() {

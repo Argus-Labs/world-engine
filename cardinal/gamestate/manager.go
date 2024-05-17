@@ -18,7 +18,7 @@ type Reader interface {
 	// Many Components One Entity
 	GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error)
 
-	// One Archetype Many Data
+	// One Archetype Many Components
 	GetComponentTypesForArchID(archID types.ArchetypeID) ([]types.ComponentMetadata, error)
 	GetArchIDForComponents(components []types.ComponentMetadata) (types.ArchetypeID, error)
 
@@ -34,7 +34,7 @@ type Writer interface {
 	// One Entity
 	RemoveEntity(id types.EntityID) error
 
-	// Many Data
+	// Many Components
 	CreateEntity(comps ...types.ComponentMetadata) (types.EntityID, error)
 	CreateManyEntities(num int, comps ...types.ComponentMetadata) ([]types.EntityID, error)
 
