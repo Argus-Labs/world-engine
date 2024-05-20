@@ -71,13 +71,6 @@ func (m *queryManager) GetQuery(group string, name string) (query, error) {
 	return query, nil
 }
 
-func (m *queryManager) isQueryNameUnique(name string) error {
-	if _, ok := m.registeredQueriesByGroup[name]; ok {
-		return eris.Errorf("query %q is already registered", name)
-	}
-	return nil
-}
-
 func (m *queryManager) BuildQueryFields() []types.FieldDetail {
 	// Collecting the structure of all queries
 	queries := m.GetRegisteredQueries()
