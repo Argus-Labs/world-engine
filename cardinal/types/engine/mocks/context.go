@@ -42,19 +42,19 @@ func (m *MockContext) EXPECT() *MockContextMockRecorder {
 // AddMessageError mocks base method.
 func (m *MockContext) AddMessageError(id types.TxHash, err error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddMessageError", id, err)
+	m.ctrl.Call(m, "addMessageError", id, err)
 }
 
 // AddMessageError indicates an expected call of AddMessageError.
 func (mr *MockContextMockRecorder) AddMessageError(id, err interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessageError", reflect.TypeOf((*MockContext)(nil).AddMessageError), id, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addMessageError", reflect.TypeOf((*MockContext)(nil).AddMessageError), id, err)
 }
 
 // AddTransaction mocks base method.
 func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTransaction", id, v, sig)
+	ret := m.ctrl.Call(m, "addTransaction", id, v, sig)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(types.TxHash)
 	return ret0, ret1
@@ -63,7 +63,7 @@ func (m *MockContext) AddTransaction(id types.MessageID, v any, sig *sign.Transa
 // AddTransaction indicates an expected call of AddTransaction.
 func (mr *MockContextMockRecorder) AddTransaction(id, v, sig interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTransaction", reflect.TypeOf((*MockContext)(nil).AddTransaction), id, v, sig)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addTransaction", reflect.TypeOf((*MockContext)(nil).AddTransaction), id, v, sig)
 }
 
 // CurrentTick mocks base method.
@@ -111,7 +111,7 @@ func (mr *MockContextMockRecorder) EmitStringEvent(arg0 interface{}) *gomock.Cal
 // GetComponentByName mocks base method.
 func (m *MockContext) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetComponentByName", name)
+	ret := m.ctrl.Call(m, "getComponentByName", name)
 	ret0, _ := ret[0].(types.ComponentMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -120,13 +120,13 @@ func (m *MockContext) GetComponentByName(name string) (types.ComponentMetadata, 
 // GetComponentByName indicates an expected call of GetComponentByName.
 func (mr *MockContextMockRecorder) GetComponentByName(name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetComponentByName", reflect.TypeOf((*MockContext)(nil).GetComponentByName), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getComponentByName", reflect.TypeOf((*MockContext)(nil).GetComponentByName), name)
 }
 
 // GetMessageByType mocks base method.
 func (m *MockContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessageByType", mType)
+	ret := m.ctrl.Call(m, "getMessageByType", mType)
 	ret0, _ := ret[0].(types.Message)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
@@ -135,13 +135,13 @@ func (m *MockContext) GetMessageByType(mType reflect.Type) (types.Message, bool)
 // GetMessageByType indicates an expected call of GetMessageByType.
 func (mr *MockContextMockRecorder) GetMessageByType(mType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByType", reflect.TypeOf((*MockContext)(nil).GetMessageByType), mType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getMessageByType", reflect.TypeOf((*MockContext)(nil).GetMessageByType), mType)
 }
 
 // GetSignerForPersonaTag mocks base method.
 func (m *MockContext) GetSignerForPersonaTag(personaTag string, tick uint64) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignerForPersonaTag", personaTag, tick)
+	ret := m.ctrl.Call(m, "getSignerForPersonaTag", personaTag, tick)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -150,13 +150,13 @@ func (m *MockContext) GetSignerForPersonaTag(personaTag string, tick uint64) (st
 // GetSignerForPersonaTag indicates an expected call of GetSignerForPersonaTag.
 func (mr *MockContextMockRecorder) GetSignerForPersonaTag(personaTag, tick interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignerForPersonaTag", reflect.TypeOf((*MockContext)(nil).GetSignerForPersonaTag), personaTag, tick)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getSignerForPersonaTag", reflect.TypeOf((*MockContext)(nil).GetSignerForPersonaTag), personaTag, tick)
 }
 
 // GetTransactionReceipt mocks base method.
 func (m *MockContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransactionReceipt", id)
+	ret := m.ctrl.Call(m, "getTransactionReceipt", id)
 	ret0, _ := ret[0].(any)
 	ret1, _ := ret[1].([]error)
 	ret2, _ := ret[2].(bool)
@@ -166,13 +166,13 @@ func (m *MockContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool
 // GetTransactionReceipt indicates an expected call of GetTransactionReceipt.
 func (mr *MockContextMockRecorder) GetTransactionReceipt(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionReceipt", reflect.TypeOf((*MockContext)(nil).GetTransactionReceipt), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getTransactionReceipt", reflect.TypeOf((*MockContext)(nil).GetTransactionReceipt), id)
 }
 
 // GetTransactionReceiptsForTick mocks base method.
 func (m *MockContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransactionReceiptsForTick", tick)
+	ret := m.ctrl.Call(m, "getTransactionReceiptsForTick", tick)
 	ret0, _ := ret[0].([]receipt.Receipt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -181,13 +181,13 @@ func (m *MockContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Rece
 // GetTransactionReceiptsForTick indicates an expected call of GetTransactionReceiptsForTick.
 func (mr *MockContextMockRecorder) GetTransactionReceiptsForTick(tick interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionReceiptsForTick", reflect.TypeOf((*MockContext)(nil).GetTransactionReceiptsForTick), tick)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getTransactionReceiptsForTick", reflect.TypeOf((*MockContext)(nil).GetTransactionReceiptsForTick), tick)
 }
 
 // GetTxPool mocks base method.
 func (m *MockContext) GetTxPool() *txpool.TxPool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTxPool")
+	ret := m.ctrl.Call(m, "getTxPool")
 	ret0, _ := ret[0].(*txpool.TxPool)
 	return ret0
 }
@@ -195,13 +195,13 @@ func (m *MockContext) GetTxPool() *txpool.TxPool {
 // GetTxPool indicates an expected call of GetTxPool.
 func (mr *MockContextMockRecorder) GetTxPool() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTxPool", reflect.TypeOf((*MockContext)(nil).GetTxPool))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getTxPool", reflect.TypeOf((*MockContext)(nil).GetTxPool))
 }
 
 // IsReadOnly mocks base method.
 func (m *MockContext) IsReadOnly() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsReadOnly")
+	ret := m.ctrl.Call(m, "isReadOnly")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
@@ -209,13 +209,13 @@ func (m *MockContext) IsReadOnly() bool {
 // IsReadOnly indicates an expected call of IsReadOnly.
 func (mr *MockContextMockRecorder) IsReadOnly() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReadOnly", reflect.TypeOf((*MockContext)(nil).IsReadOnly))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isReadOnly", reflect.TypeOf((*MockContext)(nil).IsReadOnly))
 }
 
 // IsWorldReady mocks base method.
 func (m *MockContext) IsWorldReady() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsWorldReady")
+	ret := m.ctrl.Call(m, "isWorldReady")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
@@ -223,7 +223,7 @@ func (m *MockContext) IsWorldReady() bool {
 // IsWorldReady indicates an expected call of IsWorldReady.
 func (mr *MockContextMockRecorder) IsWorldReady() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsWorldReady", reflect.TypeOf((*MockContext)(nil).IsWorldReady))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isWorldReady", reflect.TypeOf((*MockContext)(nil).IsWorldReady))
 }
 
 // Logger mocks base method.
@@ -257,7 +257,7 @@ func (mr *MockContextMockRecorder) Namespace() *gomock.Call {
 // ReceiptHistorySize mocks base method.
 func (m *MockContext) ReceiptHistorySize() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReceiptHistorySize")
+	ret := m.ctrl.Call(m, "receiptHistorySize")
 	ret0, _ := ret[0].(uint64)
 	return ret0
 }
@@ -265,37 +265,37 @@ func (m *MockContext) ReceiptHistorySize() uint64 {
 // ReceiptHistorySize indicates an expected call of ReceiptHistorySize.
 func (mr *MockContextMockRecorder) ReceiptHistorySize() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReceiptHistorySize", reflect.TypeOf((*MockContext)(nil).ReceiptHistorySize))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "receiptHistorySize", reflect.TypeOf((*MockContext)(nil).ReceiptHistorySize))
 }
 
-// SetLogger mocks base method.
-func (m *MockContext) SetLogger(logger zerolog.Logger) {
+// setLogger mocks base method.
+func (m *MockContext) setLogger(logger zerolog.Logger) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetLogger", logger)
+	m.ctrl.Call(m, "setLogger", logger)
 }
 
 // SetLogger indicates an expected call of SetLogger.
 func (mr *MockContextMockRecorder) SetLogger(logger interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLogger", reflect.TypeOf((*MockContext)(nil).SetLogger), logger)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "setLogger", reflect.TypeOf((*MockContext)(nil).setLogger), logger)
 }
 
 // SetMessageResult mocks base method.
 func (m *MockContext) SetMessageResult(id types.TxHash, a any) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMessageResult", id, a)
+	m.ctrl.Call(m, "setMessageResult", id, a)
 }
 
 // SetMessageResult indicates an expected call of SetMessageResult.
 func (mr *MockContextMockRecorder) SetMessageResult(id, a interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMessageResult", reflect.TypeOf((*MockContext)(nil).SetMessageResult), id, a)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "setMessageResult", reflect.TypeOf((*MockContext)(nil).SetMessageResult), id, a)
 }
 
 // StoreManager mocks base method.
 func (m *MockContext) StoreManager() gamestate.Manager {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreManager")
+	ret := m.ctrl.Call(m, "storeManager")
 	ret0, _ := ret[0].(gamestate.Manager)
 	return ret0
 }
@@ -303,13 +303,13 @@ func (m *MockContext) StoreManager() gamestate.Manager {
 // StoreManager indicates an expected call of StoreManager.
 func (mr *MockContextMockRecorder) StoreManager() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreManager", reflect.TypeOf((*MockContext)(nil).StoreManager))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "storeManager", reflect.TypeOf((*MockContext)(nil).StoreManager))
 }
 
 // StoreReader mocks base method.
 func (m *MockContext) StoreReader() gamestate.Reader {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreReader")
+	ret := m.ctrl.Call(m, "storeReader")
 	ret0, _ := ret[0].(gamestate.Reader)
 	return ret0
 }
@@ -317,7 +317,7 @@ func (m *MockContext) StoreReader() gamestate.Reader {
 // StoreReader indicates an expected call of StoreReader.
 func (mr *MockContextMockRecorder) StoreReader() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreReader", reflect.TypeOf((*MockContext)(nil).StoreReader))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "storeReader", reflect.TypeOf((*MockContext)(nil).StoreReader))
 }
 
 // Timestamp mocks base method.

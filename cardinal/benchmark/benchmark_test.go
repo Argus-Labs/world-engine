@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type Health struct {
@@ -25,7 +24,7 @@ func (Health) Name() string {
 }
 
 // setupWorld Creates a new *cardinal.World and initializes the world to have numOfEntities already cardinal.Created. If
-// enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
+// enableHealthSystem is set, a system will be added to the world that increments every entity's "health" by 1 every
 // tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testutils.TestFixture {
 	tf := testutils.NewTestFixture(t, nil)
@@ -35,7 +34,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testu
 	if enableHealthSystem {
 		err := cardinal.RegisterSystems(
 			world,
-			func(wCtx engine.Context) error {
+			func(wCtx cardinal.WorldContext) error {
 				q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[Health]()))
 				err := q.Each(wCtx,
 					func(id types.EntityID) bool {

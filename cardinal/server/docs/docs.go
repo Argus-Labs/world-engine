@@ -32,7 +32,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.CQLQueryRequest"
+                            "$ref": "#/definitions/cardinal_server_handler.CQLQueryRequest"
                         }
                     }
                 ],
@@ -40,7 +40,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Results of the executed CQL query",
                         "schema": {
-                            "$ref": "#/definitions/handler.CQLQueryResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.CQLQueryResponse"
                         }
                     },
                     "400": {
@@ -65,7 +65,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handler.debugStateElement"
+                                "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement"
                             }
                         }
                     }
@@ -100,51 +100,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Server and game loop status",
                         "schema": {
-                            "$ref": "#/definitions/handler.GetHealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/query/game/{queryName}": {
-            "post": {
-                "description": "Executes a query",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Executes a query",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Name of a registered query",
-                        "name": "queryName",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Query to be executed",
-                        "name": "queryBody",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Results of the executed query",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/cardinal_server_handler.GetHealthResponse"
                         }
                     }
                 }
@@ -167,7 +123,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.ListTxReceiptsRequest"
+                            "$ref": "#/definitions/cardinal_server_handler.ListTxReceiptsRequest"
                         }
                     }
                 ],
@@ -175,7 +131,7 @@ const docTemplate = `{
                     "200": {
                         "description": "List of receipts",
                         "schema": {
-                            "$ref": "#/definitions/handler.ListTxReceiptsResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.ListTxReceiptsResponse"
                         }
                     },
                     "400": {
@@ -262,7 +218,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.Transaction"
+                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
                         }
                     }
                 ],
@@ -270,7 +226,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Transaction hash and tick",
                         "schema": {
-                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.PostTransactionResponse"
                         }
                     },
                     "400": {
@@ -299,7 +255,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.Transaction"
+                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
                         }
                     }
                 ],
@@ -307,7 +263,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Transaction hash and tick",
                         "schema": {
-                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.PostTransactionResponse"
                         }
                     },
                     "400": {
@@ -350,7 +306,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.Transaction"
+                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
                         }
                     }
                 ],
@@ -358,7 +314,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Transaction hash and tick",
                         "schema": {
-                            "$ref": "#/definitions/handler.PostTransactionResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.PostTransactionResponse"
                         }
                     },
                     "400": {
@@ -384,7 +340,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Details of the game world",
                         "schema": {
-                            "$ref": "#/definitions/handler.GetWorldResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.GetWorldResponse"
                         }
                     },
                     "400": {
@@ -398,7 +354,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handler.CQLQueryRequest": {
+        "cardinal_server_handler.CQLQueryRequest": {
             "type": "object",
             "properties": {
                 "cql": {
@@ -406,35 +362,18 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.CQLQueryResponse": {
+        "cardinal_server_handler.CQLQueryResponse": {
             "type": "object",
             "properties": {
                 "results": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.cqlData"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement"
                     }
                 }
             }
         },
-        "handler.FieldDetail": {
-            "type": "object",
-            "properties": {
-                "fields": {
-                    "description": "variable name and type",
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "name": {
-                    "description": "name of the message or query",
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.GetHealthResponse": {
+        "cardinal_server_handler.GetHealthResponse": {
             "type": "object",
             "properties": {
                 "isGameLoopRunning": {
@@ -445,20 +384,20 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.GetWorldResponse": {
+        "cardinal_server_handler.GetWorldResponse": {
             "type": "object",
             "properties": {
                 "components": {
                     "description": "list of component names",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.FieldDetail"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
                     }
                 },
                 "messages": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.FieldDetail"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
                     }
                 },
                 "namespace": {
@@ -467,12 +406,12 @@ const docTemplate = `{
                 "queries": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.FieldDetail"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
                     }
                 }
             }
         },
-        "handler.ListTxReceiptsRequest": {
+        "cardinal_server_handler.ListTxReceiptsRequest": {
             "type": "object",
             "properties": {
                 "startTick": {
@@ -480,7 +419,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.ListTxReceiptsResponse": {
+        "cardinal_server_handler.ListTxReceiptsResponse": {
             "type": "object",
             "properties": {
                 "endTick": {
@@ -489,7 +428,7 @@ const docTemplate = `{
                 "receipts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.ReceiptEntry"
+                        "$ref": "#/definitions/cardinal_server_handler.ReceiptEntry"
                     }
                 },
                 "startTick": {
@@ -497,7 +436,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.PostTransactionResponse": {
+        "cardinal_server_handler.PostTransactionResponse": {
             "type": "object",
             "properties": {
                 "tick": {
@@ -508,7 +447,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.ReceiptEntry": {
+        "cardinal_server_handler.ReceiptEntry": {
             "type": "object",
             "properties": {
                 "errors": {
@@ -526,7 +465,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.Transaction": {
+        "cardinal_server_handler.Transaction": {
             "type": "object",
             "properties": {
                 "body": {
@@ -551,7 +490,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.cqlData": {
+        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
             "type": "object",
             "properties": {
                 "data": {
@@ -562,14 +501,20 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.debugStateElement": {
+        "pkg_world_dev_world-engine_cardinal_types.FieldDetail": {
             "type": "object",
             "properties": {
-                "components": {
-                    "type": "object"
+                "fields": {
+                    "description": "variable name and type",
+                    "type": "object",
+                    "additionalProperties": {}
                 },
-                "id": {
-                    "type": "integer"
+                "name": {
+                    "description": "name of the message or query",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         }

@@ -1,10 +1,9 @@
-package query
+package cardinal
 
 import (
 	"errors"
 
 	"pkg.world.dev/world-engine/cardinal/persona"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 const (
@@ -28,10 +27,10 @@ type PersonaSignerQueryResponse struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
-func PersonaSignerQuery(wCtx engine.Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
+func PersonaSignerQuery(wCtx WorldContext, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
 	var status string
 
-	addr, err := wCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	addr, err := wCtx.getSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if err != nil {
 		//nolint:gocritic // cant switch case this.
 		if errors.Is(err, persona.ErrPersonaTagHasNoSigner) {
