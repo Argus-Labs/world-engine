@@ -146,7 +146,7 @@ func RegisterQuery[Request any, Reply any](
 		return err
 	}
 
-	res := w.RegisterQuery(name, q)
+	res := w.RegisterQuery(q)
 	return res
 }
 

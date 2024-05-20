@@ -604,7 +604,7 @@ func (w *World) WaitForNextTick() (success bool) {
 }
 
 func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
-	qry, err := w.GetQueryByName(name)
+	qry, err := w.GetQuery(DefaultQueryGroup, name)
 	if err != nil {
 		return nil, err
 	}
