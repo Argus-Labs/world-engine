@@ -112,8 +112,8 @@ swagger-check:
 
 	@echo "--> Compare existing and latest Swagger specs"
 	# docker run --rm -v ./:/local-repo ghcr.io/argus-labs/devops-infra-swagger-diff:2.0.0 \
-		/local-repo/cardinal/server/docs/swagger.json /local-repo/.tmp/swagger/swagger.json && \
-		echo "swagger-diff: no changes detected"
+	#	/local-repo/cardinal/server/docs/swagger.json /local-repo/.tmp/swagger/swagger.json && \
+	#	echo "swagger-diff: no changes detected"
 
 	@echo "--> Cleanup"
 	rm -rf .tmp/swagger
