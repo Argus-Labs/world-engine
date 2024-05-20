@@ -10,11 +10,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -99,9 +97,9 @@ func TestCreatePersonaSystem_WhenCardinalIsRestarted_PersonaTagsAreStillRegister
 
 	// emitNumberOfPersonaTagsSystem is a system that finds all the registered persona tags and sends them
 	// across a channel.
-	emitNumberOfPersonaTagsSystem := func(wCtx engine.Context) error {
+	emitNumberOfPersonaTagsSystem := func(wCtx cardinal.WorldContext) error {
 		result := countPersonaTagsResult{personaTags: map[string]bool{}}
-		err := search.NewSearch().
+		err := cardinal.NewSearch().
 			Entity(filter.Exact(filter.Component[component.SignerComponent]())).
 			Each(wCtx, func(id types.EntityID) bool {
 				comp, err := cardinal.GetComponent[component.SignerComponent](wCtx, id)

@@ -9,10 +9,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-func HealthSystem(wCtx engine.Context) error {
+func HealthSystem(wCtx cardinal.WorldContext) error {
 	var errs []error
 	errs = append(errs, cardinal.NewSearch().Entity(filter.
 		Exact(filter.Component[Health]())).
@@ -67,11 +66,11 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	var firstSystemCalled bool
 	var secondSystemCalled bool
 
-	firstSystem := func(engine.Context) error {
+	firstSystem := func(cardinal.WorldContext) error {
 		firstSystemCalled = true
 		return nil
 	}
-	secondSystem := func(engine.Context) error {
+	secondSystem := func(cardinal.WorldContext) error {
 		secondSystemCalled = true
 		return nil
 	}
@@ -90,10 +89,10 @@ func TestInitSystemRunsOnce(t *testing.T) {
 	w := tf.World
 	count := 0
 	count2 := 0
-	err := cardinal.RegisterInitSystems(w, func(_ engine.Context) error {
+	err := cardinal.RegisterInitSystems(w, func(_ cardinal.WorldContext) error {
 		count++
 		return nil
-	}, func(_ engine.Context) error {
+	}, func(_ cardinal.WorldContext) error {
 		count2 += 2
 		return nil
 	})

@@ -10,11 +10,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/persona/query"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 var (
@@ -69,9 +66,9 @@ func (p *personaPlugin) Register(world *World) error {
 }
 
 func (p *personaPlugin) RegisterQueries(world *World) error {
-	err := RegisterQuery[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse](world, "signer",
-		query.PersonaSignerQuery,
-		WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
+	err := RegisterQuery[PersonaSignerQueryRequest, PersonaSignerQueryResponse](world, "signer",
+		PersonaSignerQuery,
+		WithCustomQueryGroup[PersonaSignerQueryRequest, PersonaSignerQueryResponse]("persona"))
 	if err != nil {
 		return err
 	}
@@ -114,7 +111,7 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 // authorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func authorizePersonaAddressSystem(wCtx engine.Context) error {
+func authorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err := buildGlobalPersonaIndex(wCtx); err != nil {
 		return err
 	}
@@ -167,7 +164,7 @@ func authorizePersonaAddressSystem(wCtx engine.Context) error {
 
 // createPersonaSystem is a system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func createPersonaSystem(wCtx engine.Context) error {
+func createPersonaSystem(wCtx WorldContext) error {
 	if err := buildGlobalPersonaIndex(wCtx); err != nil {
 		return err
 	}
@@ -220,7 +217,7 @@ func createPersonaSystem(wCtx engine.Context) error {
 // Persona Index
 // -----------------------------------------------------------------------------
 
-func buildGlobalPersonaIndex(wCtx engine.Context) error {
+func buildGlobalPersonaIndex(wCtx WorldContext) error {
 	// Rebuild the index if we haven't built it yet OR if we're in test and the CurrentTick has been reset.
 	if globalPersonaTagToAddressIndex != nil && tickOfPersonaTagToAddressIndex < wCtx.CurrentTick() {
 		return nil
@@ -228,7 +225,7 @@ func buildGlobalPersonaIndex(wCtx engine.Context) error {
 	tickOfPersonaTagToAddressIndex = wCtx.CurrentTick()
 	globalPersonaTagToAddressIndex = map[string]personaIndexEntry{}
 	var errs []error
-	s := search.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
+	s := NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 	err := s.Each(wCtx,
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)

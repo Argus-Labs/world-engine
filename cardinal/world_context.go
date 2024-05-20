@@ -9,14 +9,49 @@ import (
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
 
 // interface guard
-var _ engine.Context = (*worldContext)(nil)
+var _ WorldContext = (*worldContext)(nil)
+
+//go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
+type WorldContext interface {
+	// Timestamp returns the UNIX timestamp of the tick.
+	Timestamp() uint64
+	// CurrentTick returns the current tick.
+	CurrentTick() uint64
+	// Logger returns the logger that can be used to log messages from within system or query.
+	Logger() *zerolog.Logger
+	// EmitEvent emits an event that will be broadcast to all websocket subscribers.
+	EmitEvent(map[string]any) error
+	// EmitStringEvent emits a string event that will be broadcast to all websocket subscribers.
+	// This method is provided for backwards compatability. EmitEvent should be used for most cases.
+	EmitStringEvent(string) error
+	// Namespace returns the namespace of the world.
+	Namespace() string
+
+	// For internal use.
+
+	// SetLogger is used to inject a new logger configuration to an engine context that is already created.
+	setLogger(logger zerolog.Logger)
+	addMessageError(id types.TxHash, err error)
+	setMessageResult(id types.TxHash, a any)
+	getComponentByName(name string) (types.ComponentMetadata, error)
+	getMessageByType(mType reflect.Type) (types.Message, bool)
+	getTransactionReceipt(id types.TxHash) (any, []error, bool)
+	getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
+	getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
+	receiptHistorySize() uint64
+	addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
+	isWorldReady() bool
+	storeReader() gamestate.Reader
+	storeManager() gamestate.Manager
+	getTxPool() *txpool.TxPool
+	isReadOnly() bool
+}
 
 type worldContext struct {
 	world    *World
@@ -25,7 +60,7 @@ type worldContext struct {
 	readOnly bool
 }
 
-func newWorldContextForTick(world *World, txPool *txpool.TxPool) engine.Context {
+func newWorldContextForTick(world *World, txPool *txpool.TxPool) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   txPool,
@@ -34,7 +69,7 @@ func newWorldContextForTick(world *World, txPool *txpool.TxPool) engine.Context 
 	}
 }
 
-func NewWorldContext(world *World) engine.Context {
+func NewWorldContext(world *World) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
@@ -43,7 +78,7 @@ func NewWorldContext(world *World) engine.Context {
 	}
 }
 
-func NewReadOnlyWorldContext(world *World) engine.Context {
+func NewReadOnlyWorldContext(world *World) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   nil,
@@ -65,29 +100,29 @@ func (ctx *worldContext) Logger() *zerolog.Logger {
 	return ctx.logger
 }
 
-func (ctx *worldContext) GetMessageByType(mType reflect.Type) (types.Message, bool) {
+func (ctx *worldContext) getMessageByType(mType reflect.Type) (types.Message, bool) {
 	return ctx.world.GetMessageByType(mType)
 }
 
-func (ctx *worldContext) SetLogger(logger zerolog.Logger) {
+func (ctx *worldContext) setLogger(logger zerolog.Logger) {
 	ctx.logger = &logger
 }
 
-func (ctx *worldContext) GetComponentByName(name string) (types.ComponentMetadata, error) {
+func (ctx *worldContext) getComponentByName(name string) (types.ComponentMetadata, error) {
 	return ctx.world.GetComponentByName(name)
 }
 
-func (ctx *worldContext) AddMessageError(id types.TxHash, err error) {
+func (ctx *worldContext) addMessageError(id types.TxHash, err error) {
 	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
 	ctx.world.receiptHistory.AddError(id, err)
 }
 
-func (ctx *worldContext) SetMessageResult(id types.TxHash, a any) {
+func (ctx *worldContext) setMessageResult(id types.TxHash, a any) {
 	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
 	ctx.world.receiptHistory.SetResult(id, a)
 }
 
-func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
+func (ctx *worldContext) getTransactionReceipt(id types.TxHash) (any, []error, bool) {
 	rec, ok := ctx.world.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false
@@ -103,15 +138,15 @@ func (ctx *worldContext) EmitStringEvent(e string) error {
 	return ctx.world.tickResults.AddStringEvent(e)
 }
 
-func (ctx *worldContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
+func (ctx *worldContext) getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	return ctx.world.GetSignerForPersonaTag(personaTag, tick)
 }
 
-func (ctx *worldContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+func (ctx *worldContext) getTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
 
-func (ctx *worldContext) ReceiptHistorySize() uint64 {
+func (ctx *worldContext) receiptHistorySize() uint64 {
 	return ctx.world.receiptHistory.Size()
 }
 
@@ -119,31 +154,31 @@ func (ctx *worldContext) Namespace() string {
 	return ctx.world.Namespace()
 }
 
-func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
+func (ctx *worldContext) addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
 	return ctx.world.AddTransaction(id, v, sig)
 }
 
-func (ctx *worldContext) GetTxPool() *txpool.TxPool {
+func (ctx *worldContext) getTxPool() *txpool.TxPool {
 	return ctx.txPool
 }
 
-func (ctx *worldContext) IsReadOnly() bool {
+func (ctx *worldContext) isReadOnly() bool {
 	return ctx.readOnly
 }
 
-func (ctx *worldContext) StoreManager() gamestate.Manager {
+func (ctx *worldContext) storeManager() gamestate.Manager {
 	return ctx.world.entityStore
 }
 
-func (ctx *worldContext) StoreReader() gamestate.Reader {
-	sm := ctx.StoreManager()
-	if ctx.IsReadOnly() {
+func (ctx *worldContext) storeReader() gamestate.Reader {
+	sm := ctx.storeManager()
+	if ctx.isReadOnly() {
 		return sm.ToReadOnly()
 	}
 	return sm
 }
 
-func (ctx *worldContext) IsWorldReady() bool {
+func (ctx *worldContext) isWorldReady() bool {
 	stage := ctx.world.worldStage.Current()
 	return stage == worldstage.Ready ||
 		stage == worldstage.Running ||
