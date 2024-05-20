@@ -47,7 +47,6 @@ func GetWorld(
 	// Collecting the structure of all messages
 	messagesFields := make([]types.FieldDetail, 0, len(messages))
 	for _, message := range messages {
-		// Extracting the fields of the message
 		messagesFields = append(messagesFields, types.FieldDetail{
 			Name:   message.Name(),
 			Fields: message.GetInFieldInformation(),
