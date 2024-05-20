@@ -1,4 +1,4 @@
-package message
+package cardinal
 
 import (
 	"errors"
@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -31,10 +30,10 @@ type TxData[In any] struct {
 	Tx   *sign.Transaction
 }
 
-type MessageOption[In, Out any] func(mt *MessageType[In, Out]) //nolint:revive // this is fine for now
+type MessageOption[In, Out any] func(mt *MessageType[In, Out])
 
 // MessageType manages a user defined state transition message struct.
-type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
+type MessageType[In, Out any] struct {
 	id         types.MessageID
 	isIDSet    bool
 	name       string
@@ -104,18 +103,18 @@ func (t *MessageType[In, Out]) SetID(id types.MessageID) error {
 	return nil
 }
 
-func (t *MessageType[In, Out]) AddError(wCtx engine.Context, hash types.TxHash, err error) {
-	wCtx.AddMessageError(hash, err)
+func (t *MessageType[In, Out]) AddError(wCtx WorldContext, hash types.TxHash, err error) {
+	wCtx.addMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(wCtx engine.Context, hash types.TxHash, result Out) {
-	wCtx.SetMessageResult(hash, result)
+func (t *MessageType[In, Out]) SetResult(wCtx WorldContext, hash types.TxHash, result Out) {
+	wCtx.setMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(wCtx engine.Context, hash types.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash types.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
-	iface, errs, ok := wCtx.GetTransactionReceipt(hash)
+	iface, errs, ok := wCtx.getTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
 	}
@@ -130,7 +129,7 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx engine.Context, hash types.TxHash
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Out, error)) {
+func (t *MessageType[In, Out]) Each(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
@@ -148,8 +147,8 @@ func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Ou
 }
 
 // In extracts all the TxData in the tx pool that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(wCtx engine.Context) []TxData[In] {
-	tq := wCtx.GetTxPool()
+func (t *MessageType[In, Out]) In(wCtx WorldContext) []TxData[In] {
+	tq := wCtx.getTxPool()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {

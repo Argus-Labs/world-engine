@@ -1,4 +1,4 @@
-package message
+package cardinal
 
 import (
 	"testing"

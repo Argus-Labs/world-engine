@@ -15,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type SendEnergyTx struct {
@@ -33,7 +32,7 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-func testSystem(wCtx engine.Context) error {
+func testSystem(wCtx cardinal.WorldContext) error {
 	wCtx.Logger().Log().Msg("test")
 	q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComp]()))
 	err := q.Each(wCtx,
@@ -54,7 +53,7 @@ func testSystem(wCtx engine.Context) error {
 	return nil
 }
 
-func testSystemWarningTrigger(wCtx engine.Context) error {
+func testSystemWarningTrigger(wCtx cardinal.WorldContext) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(wCtx)
 }
@@ -92,8 +91,8 @@ func TestWorldLogger(t *testing.T) {
 					"total_systems":2,
 					"systems":
 						[
-							"cardinal.CreatePersonaSystem",
-							"cardinal.AuthorizePersonaAddressSystem"
+							"cardinal.createPersonaSystem",
+							"cardinal.authorizePersonaAddressSystem"
 						]
 				}
 `

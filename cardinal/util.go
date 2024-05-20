@@ -1,10 +1,14 @@
 package cardinal
 
 import (
+	"reflect"
+
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var NonFatalError = []error{
@@ -33,8 +37,8 @@ func separateOptions(opts []WorldOption) (
 }
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).
-func panicOnFatalError(wCtx engine.Context, err error) {
-	if err != nil && !wCtx.IsReadOnly() && isFatalError(err) {
+func panicOnFatalError(wCtx WorldContext, err error) {
+	if err != nil && !wCtx.isReadOnly() && isFatalError(err) {
 		wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 		panic(err)
 	}
@@ -47,4 +51,37 @@ func isFatalError(err error) bool {
 		}
 	}
 	return true
+}
+
+func GetMessage[In any, Out any](wCtx WorldContext) (*MessageType[In, Out], error) {
+	var msg MessageType[In, Out]
+	msgType := reflect.TypeOf(msg)
+	tempRes, ok := wCtx.getMessageByType(msgType)
+	if !ok {
+		return nil, eris.Errorf("Could not find %q, Message may not be registered.", msg.Name())
+	}
+	var _ types.Message = &msg
+	res, ok := tempRes.(*MessageType[In, Out])
+	if !ok {
+		return &msg, eris.New("wrong type")
+	}
+	return res, nil
+}
+
+func GetTransactionReceiptsForTick(wCtx WorldContext, tick uint64) ([]receipt.Receipt, error) {
+	ctx, ok := wCtx.(*worldContext)
+	if !ok {
+		return nil, eris.New("error in test type assertion.")
+	}
+	return ctx.world.GetTransactionReceiptsForTick(tick)
+}
+
+func GetStoreManagerFromContext(wCtx WorldContext) gamestate.Manager {
+	return wCtx.storeManager()
+}
+
+// InternalHandleQuery is only used for tests it should not be used outside of that context.
+// TODO: Tests should be edited and changed such that this is no longer done.
+func InternalHandleQuery(wCtx WorldContext, query query, a any) (any, error) {
+	return query.handleQuery(wCtx, a)
 }
