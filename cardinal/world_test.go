@@ -18,10 +18,8 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -49,7 +47,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	errorTxt := "BIG ERROR OH NO"
 	err = RegisterSystems(
 		world,
-		func(engine.Context) error {
+		func(WorldContext) error {
 			panic(errorTxt)
 		},
 	)
@@ -121,7 +119,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		errorToggleComponent := errors.New("problem with toggle component")
 		err = RegisterSystems(
 			world,
-			func(wCtx engine.Context) error {
+			func(wCtx WorldContext) error {
 				// Get the one and only entity ID
 				q := NewSearch().Entity(filter.Contains(filter.Component[ScalarComponentStatic]()))
 				id, err := q.First(wCtx)
@@ -214,7 +212,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		err = RegisterSystems(
 			world,
-			func(wCtx engine.Context) error {
+			func(wCtx WorldContext) error {
 				q := NewSearch().Entity(filter.Contains(filter.Component[PowerComp]()))
 				id := q.MustFirst(wCtx)
 				entityPower, err := GetComponent[PowerComp](wCtx, id)
@@ -319,7 +317,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// In this test, our "buggy" system fails once Power reaches 3
 	err = RegisterSystems(
 		world,
-		func(wCtx engine.Context) error {
+		func(wCtx WorldContext) error {
 			searchObject := NewSearch().Entity(filter.Exact(filter.Component[onePowerComponent]()))
 			id := searchObject.MustFirst(wCtx)
 			p, err := GetComponent[onePowerComponent](wCtx, id)
@@ -348,7 +346,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	world.tickTheEngine(ctx, nil)
 	// Power is set to 2
 	world.tickTheEngine(ctx, nil)
-	// Power is set to 3, then the System fails
+	// Power is set to 3, then the system fails
 	err = doTickCapturePanic(ctx, world)
 	assert.ErrorContains(t, err, errorSystem.Error())
 
@@ -363,7 +361,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// this is our fixed system that can handle Power levels of 3 and higher
 	err = RegisterSystems(
 		world2,
-		func(wCtx engine.Context) error {
+		func(wCtx WorldContext) error {
 			p, err := GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
@@ -413,35 +411,35 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 	testCases := []struct {
 		name string
 		// the failFn will be called at a time when the ECB is empty of cached data and redis is down.
-		failFn func(wCtx engine.Context, goodID types.EntityID)
+		failFn func(wCtx WorldContext, goodID types.EntityID)
 	}{
 		{
 			name: "AddComponentTo",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+			failFn: func(wCtx WorldContext, goodID types.EntityID) {
 				_ = AddComponentTo[Qux](wCtx, goodID)
 			},
 		},
 		{
 			name: "RemoveComponentFrom",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+			failFn: func(wCtx WorldContext, goodID types.EntityID) {
 				_ = RemoveComponentFrom[Bar](wCtx, goodID)
 			},
 		},
 		{
 			name: "GetComponent",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+			failFn: func(wCtx WorldContext, goodID types.EntityID) {
 				_, _ = GetComponent[Foo](wCtx, goodID)
 			},
 		},
 		{
 			name: "SetComponent",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+			failFn: func(wCtx WorldContext, goodID types.EntityID) {
 				_ = SetComponent[Foo](wCtx, goodID, &Foo{})
 			},
 		},
 		{
 			name: "UpdateComponent",
-			failFn: func(wCtx engine.Context, goodID types.EntityID) {
+			failFn: func(wCtx WorldContext, goodID types.EntityID) {
 				_ = UpdateComponent[Foo](wCtx, goodID, func(f *Foo) *Foo {
 					return f
 				})
@@ -466,7 +464,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 			// This system will be called 2 times. The first time, a single entity is Created. The second time,
 			// the previously Created entity is fetched, and then miniRedis is closed. Subsequent attempts to access
 			// data should panic.
-			assert.NilError(t, RegisterSystems(world, func(wCtx engine.Context) error {
+			assert.NilError(t, RegisterSystems(world, func(wCtx WorldContext) error {
 				// Set up the entity in the first tick
 				if wCtx.CurrentTick() == 0 {
 					_, err := Create(wCtx, Foo{}, Bar{})
@@ -474,7 +472,8 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := NewSearch().Entity(filter.Exact(filter.Component[Foo](), filter.Component[Bar]())).First(wCtx)
+				id, err := NewSearch().Entity(filter.Exact(filter.Component[Foo](),
+					filter.Component[Bar]())).First(wCtx)
 				assert.Check(t, err == nil)
 				assert.Check(t, id != iterators.BadID)
 
@@ -537,15 +536,15 @@ func doTickCapturePanic(ctx context.Context, world *World) (err error) {
 	return nil
 }
 
-func getMessage[In any, Out any](wCtx engine.Context) (*message.MessageType[In, Out], error) {
-	var msg message.MessageType[In, Out]
+func getMessage[In any, Out any](wCtx WorldContext) (*MessageType[In, Out], error) {
+	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
+	tempRes, ok := wCtx.getMessageByType(msgType)
 	if !ok {
 		return &msg, eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
 	var _ types.Message = &msg
-	res, ok := tempRes.(*message.MessageType[In, Out])
+	res, ok := tempRes.(*MessageType[In, Out])
 	if !ok {
 		return &msg, eris.New("wrong type")
 	}

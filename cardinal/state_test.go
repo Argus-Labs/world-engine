@@ -8,11 +8,9 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -233,7 +231,7 @@ func TestCanReloadState(t *testing.T) {
 
 	err := cardinal.RegisterSystems(
 		world1,
-		func(wCtx engine.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			q := cardinal.NewSearch().Entity(filter.Contains(filter.Component[oneAlphaNumComp]()))
 			assert.NilError(
 				t, q.Each(wCtx,
@@ -310,9 +308,9 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		assert.NilError(t, cardinal.RegisterMessage[Msg, Result](world, msgName))
 		err := cardinal.RegisterSystems(
 			world,
-			func(wCtx engine.Context) error {
-				someTx, err := testutils.GetMessage[Msg, Result](wCtx)
-				return cardinal.EachMessage[Msg, Result](wCtx, func(tx message.TxData[Msg]) (Result, error) {
+			func(wCtx cardinal.WorldContext) error {
+				someTx, err := cardinal.GetMessage[Msg, Result](wCtx)
+				return cardinal.EachMessage[Msg, Result](wCtx, func(tx cardinal.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})
 					return Result{}, err
 				})

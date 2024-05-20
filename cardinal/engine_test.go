@@ -10,11 +10,9 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -134,16 +132,16 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	world := tf.World
 	msgName := "foo"
 	assert.NilError(t,
-		cardinal.RegisterMessage[FooIn, FooOut](world, msgName, message.WithMsgEVMSupport[FooIn, FooOut]()))
+		cardinal.RegisterMessage[FooIn, FooOut](world, msgName, cardinal.WithMsgEVMSupport[FooIn, FooOut]()))
 	fooTx, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	var returnVal FooOut
 	var returnErr error
 	err := cardinal.RegisterSystems(
 		world,
-		func(wCtx engine.Context) error {
+		func(wCtx cardinal.WorldContext) error {
 			return cardinal.EachMessage[FooIn, FooOut](
-				wCtx, func(message.TxData[FooIn]) (FooOut, error) {
+				wCtx, func(cardinal.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -197,15 +195,15 @@ func TestEVMTxConsume(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
 	msgName := "foo"
-	err := cardinal.RegisterMessage[FooIn, FooOut](world, msgName, message.WithMsgEVMSupport[FooIn, FooOut]())
+	err := cardinal.RegisterMessage[FooIn, FooOut](world, msgName, cardinal.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, err)
 
 	var returnVal FooOut
 	var returnErr error
 	err = cardinal.RegisterSystems(world,
-		func(eCtx cardinal.WorldContext) error {
+		func(wCtx cardinal.WorldContext) error {
 			return cardinal.EachMessage[FooIn, FooOut](
-				eCtx, func(message.TxData[FooIn]) (FooOut, error) {
+				wCtx, func(cardinal.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -252,15 +250,15 @@ func TestEVMTxConsume(t *testing.T) {
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys1 := func(engine.Context) error {
+	sys1 := func(cardinal.WorldContext) error {
 		count++
 		return nil
 	}
-	sys2 := func(engine.Context) error {
+	sys2 := func(cardinal.WorldContext) error {
 		count++
 		return nil
 	}
-	sys3 := func(engine.Context) error {
+	sys3 := func(cardinal.WorldContext) error {
 		count++
 		return nil
 	}
@@ -284,13 +282,13 @@ func TestSystemExecutionOrder(t *testing.T) {
 	order := make([]int, 0, 3)
 	err := cardinal.RegisterSystems(
 		world,
-		func(engine.Context) error {
+		func(cardinal.WorldContext) error {
 			order = append(order, 1)
 			return nil
-		}, func(engine.Context) error {
+		}, func(cardinal.WorldContext) error {
 			order = append(order, 2)
 			return nil
-		}, func(engine.Context) error {
+		}, func(cardinal.WorldContext) error {
 			order = append(order, 3)
 			return nil
 		},
@@ -371,7 +369,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	type fooMsgRes struct{}
 
 	msgName := "foo"
-	err := cardinal.RegisterMessage[fooMsg, fooMsgRes](world, msgName, message.WithMsgEVMSupport[fooMsg, fooMsgRes]())
+	err := cardinal.RegisterMessage[fooMsg, fooMsgRes](world, msgName, cardinal.WithMsgEVMSupport[fooMsg, fooMsgRes]())
 	assert.NilError(t, err)
 
 	evmTxHash := "0x12345"
@@ -449,7 +447,7 @@ func TestRecoverFromChain(t *testing.T) {
 
 	fooMessages := 0
 	err := cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
-		return cardinal.EachMessage[fooMsg, fooMsgRes](engineContext, func(message.TxData[fooMsg]) (fooMsgRes, error) {
+		return cardinal.EachMessage[fooMsg, fooMsgRes](engineContext, func(cardinal.TxData[fooMsg]) (fooMsgRes, error) {
 			fooMessages++
 			return fooMsgRes{}, nil
 		})

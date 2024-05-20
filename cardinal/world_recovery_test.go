@@ -7,7 +7,6 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	iteratormocks "pkg.world.dev/world-engine/cardinal/router/iterator/mocks"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
@@ -49,7 +48,7 @@ func TestWorldRecovery(t *testing.T) {
 				fooResponse](
 				world,
 				msgName,
-				message.WithMsgEVMSupport[fooMessage, fooResponse]())
+				cardinal.WithMsgEVMSupport[fooMessage, fooResponse]())
 			g.Assert(err).IsNil()
 			var ok bool
 			fooTx, ok = world.GetMessageByFullName("game." + msgName)
