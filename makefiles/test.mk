@@ -107,11 +107,13 @@ swagger-check:
 	$(MAKE) swaggo-install
 
 	@echo "--> Generate latest Swagger specs"
-	mkdir -p .tmp/swagger
-	swag init -g cardinal/server/server.go -o .tmp/swagger --parseInternal
+	cd cardinal && \
+		mkdir -p .tmp/swagger && \
+		swag init -g server/server.go -o .tmp/swagger --parseInternal --parseDependency
 
 	@echo "--> Compare existing and latest Swagger specs"
-	docker run --rm -v ./:/local-repo ghcr.io/argus-labs/devops-infra-swagger-diff:2.0.0 \
+	cd cardinal && \
+		docker run --rm -v ./:/local-repo ghcr.io/argus-labs/devops-infra-swagger-diff:2.0.0 \
 		/local-repo/cardinal/server/docs/swagger.json /local-repo/.tmp/swagger/swagger.json && \
 		echo "swagger-diff: no changes detected"
 
