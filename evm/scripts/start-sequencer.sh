@@ -21,8 +21,8 @@ CHAIN_MIN_GAS_PRICE="0.0001world"
 
 # Faucet configs
 FAUCET_ENABLED=${FAUCET_ENABLED:-"true"}
-FAUCET_ADDRESS=${FAUCET_ADDRESS:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x, default: account 0 of CHAIN_KEY_MNEMONIC
-FAUCET_AMOUNT=${FAUCET_AMOUNT:-"0x3fffffffffffffff0000000000000001"}
+FAUCET_ADDRESS=${FAUCET_ADDRESS:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x (Default: account 0 of CHAIN_KEY_MNEMONIC)
+FAUCET_AMOUNT=${FAUCET_AMOUNT:-"0x56BC75E2D63100000"} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
 
 # DA related configs
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet"}"
@@ -90,18 +90,18 @@ if [[ ! -d "$HOME/.world" ]]; then
 fi
 
 # Set DA layer block height
-DA_BLOCK_HEIGHT="null"
-while [ "$DA_BLOCK_HEIGHT" == "null" ]; do
-    DA_BLOCK_HEIGHT=$(curl $DA_BASE_URL:26657/block --silent | jq -r '.result.block.header.height')
-    # Usually you have to wait a little bit until Celestia node runs and we are able to connect to it
-    if [ "$DA_BLOCK_HEIGHT" == "null" ]; then
-        echo "DA_BLOCK_HEIGHT is null, retrying until Celestia node connects..."
-        sleep 1
-    fi
-done
+DA_BLOCK_HEIGHT="1"
+#while [ "$DA_BLOCK_HEIGHT" == "null" ]; do
+#    DA_BLOCK_HEIGHT=$(curl $DA_BASE_URL:26657/block --silent | jq -r '.result.block.header.height')
+#    # Usually you have to wait a little bit until Celestia node runs and we are able to connect to it
+#    if [ "$DA_BLOCK_HEIGHT" == "null" ]; then
+#        echo "DA_BLOCK_HEIGHT is null, retrying until Celestia node connects..."
+#        sleep 1
+#    fi
+#done
 
 echo "--> Starting sequencer with DA_BLOCK_HEIGHT: $DA_BLOCK_HEIGHT"
 
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
-echo "world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=$CHAIN_MIN_GAS_PRICE --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME" 
+echo "--> world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=$CHAIN_MIN_GAS_PRICE --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME --rollkit.da_address $DA_BASE_URL:26658" 
 world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=$CHAIN_MIN_GAS_PRICE --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME --rollkit.da_address $DA_BASE_URL:26658
