@@ -14,7 +14,6 @@ fi
 LOG_LEVEL=${LOG_LEVEL:-"info"}
 
 # Cosmos SDK configs
-CHAIN_TOKEN_DENOM="world"
 CHAIN_ID=${CHAIN_ID:-"world-420"}
 CHAIN_KEY_MNEMONIC=${CHAIN_KEY_MNEMONIC:-"enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll"}
 CHAIN_KEY_BACKEND=${CHAIN_KEY_BACKEND:-"test"}
@@ -32,18 +31,18 @@ DA_NAMESPACE_ID="${DA_NAMESPACE_ID:-"0000000000000000000000000000000000000000000
 echo "--> Using DA_NAMESPACE_ID: $DA_NAMESPACE_ID"
 
 # Path configs
-GENESIS=$HOME/.world-evm/config/genesis.json
-TMP_GENESIS=$HOME/.world-evm/config/genesis.json.bak
+GENESIS=$HOME/.world/config/genesis.json
+TMP_GENESIS=$HOME/.world/config/genesis.json.bak
 
-# Setup local node if an existing one doesn't exist at $HOME/.world-evm
-if [[ ! -d "$HOME/.world-evm" ]]; then
+# Setup local node if an existing one doesn't exist at $HOME/.world
+if [[ ! -d "$HOME/.world" ]]; then
   # Initialize node
   MONIKER="world-sequencer"
-  world-evm init $MONIKER --chain-id $CHAIN_ID --default-denom $CHAIN_TOKEN_DENOM
+  world-evm init $MONIKER --chain-id $CHAIN_ID
     
   # Set client config
+  world-evm config set client chain-id $CHAIN_ID
   world-evm config set client keyring-backend $CHAIN_KEY_BACKEND
-  world-evm config set client chain-id "$CHAIN_ID"
 
 
   # -------------------------
@@ -73,23 +72,22 @@ if [[ ! -d "$HOME/.world-evm" ]]; then
   world-evm genesis collect-gentxs
   
   # Create sequencer in genesis data
-  ADDRESS=$(jq -r '.address' $HOME/.world-evm/config/priv_validator_key.json)
-  PUB_KEY=$(jq -r '.pub_key' $HOME/.world-evm/config/priv_validator_key.json)
+  ADDRESS=$(jq -r '.address' $HOME/.world/config/priv_validator_key.json)
+  PUB_KEY=$(jq -r '.pub_key' $HOME/.world/config/priv_validator_key.json)
   jq --argjson pubKey "$PUB_KEY" '.consensus["validators"]=[{"address": "'$ADDRESS'", "pub_key": $pubKey, "power": "1000000000000000", "name": "Rollkit Sequencer"}]' "$GENESIS" >"$TMP_GENESIS" && mv "$TMP_GENESIS" "$GENESIS"
   
   # Update the faucet balance in the genesis file
   if [[ $FAUCET_ENABLED == "true" ]]; then
-      sed -i'.bak' "s#20f33ce90a13a4b5e7697e3544c3083b8f8a51d4#$FAUCET_ADDRESS#g" $HOME/.world-evm/config/genesis.json
-      sed -i'.bak' "s#0x1b1ae4d6e2ef500000#$FAUCET_AMOUNT#g" $HOME/.world-evm/config/genesis.json
+      sed -i'.bak' "s#20f33ce90a13a4b5e7697e3544c3083b8f8a51d4#$FAUCET_ADDRESS#g" $HOME/.world/config/genesis.json
+      sed -i'.bak' "s#0x1b1ae4d6e2ef500000#$FAUCET_AMOUNT#g" $HOME/.world/config/genesis.json
   fi
   
   # Run this to ensure everything worked and that the genesis file is setup correctly
   world-evm genesis validate-genesis
   
   # Copy app.toml to the home directory
-  cp app.toml $HOME/.world-evm/config/app.toml
-  
-  sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26667"#g' $HOME/.world-evm/config/config.toml
+  cp app.toml $HOME/.world/config/app.toml
+  cp config.toml $HOME/.world/config/config.toml
 fi
 
 # Set DA layer block height

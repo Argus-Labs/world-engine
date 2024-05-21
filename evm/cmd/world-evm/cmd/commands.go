@@ -227,7 +227,7 @@ func appExport(
 }
 
 var tempDir = func() string {
-	dir, err := os.MkdirTemp("", ".polard")
+	dir, err := os.MkdirTemp("", ".world")
 	if err != nil {
 		dir = app.DefaultNodeHome
 	}

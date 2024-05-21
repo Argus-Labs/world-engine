@@ -26,7 +26,6 @@ import (
 	"cosmossdk.io/log"
 	"github.com/berachain/polaris/cosmos/config"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
-
 	"pkg.world.dev/world-engine/evm/app"
 	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
 )

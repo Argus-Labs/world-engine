@@ -1,14 +1,8 @@
 package keeper
 
 import (
-	"log"
-	"strings"
-
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-
-	"pkg.world.dev/world-engine/evm/sequencer"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 )
 
@@ -20,10 +14,6 @@ type Keeper struct {
 
 func NewKeeper(storeKey *storetypes.KVStoreKey, auth string) *Keeper {
 	if auth == "" {
-		auth = authtypes.NewModuleAddress(sequencer.Name).String()
-		if strings.HasPrefix(auth, "cosmos") {
-			log.Fatal("address had 'cosmos' bech32 prefix, should be 'world'")
-		}
 	}
 	return &Keeper{
 		storeKey:  storeKey,

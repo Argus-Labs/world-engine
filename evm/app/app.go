@@ -134,8 +134,10 @@ func NewApp(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	app := &App{}
+	polarConfig := evmconfig.DefaultPolarisConfig()
+
 	var (
+		app        = &App{}
 		appBuilder *runtime.AppBuilder
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
@@ -147,7 +149,7 @@ func NewApp(
 			depinject.Supply(
 				appOpts,
 				logger,
-				PolarisConfigFn(evmconfig.MustReadConfigFromAppOpts(appOpts)),
+				PolarisConfigFn(polarConfig),
 				PrecompilesToInject(app),
 				QueryContextFn(app),
 			),
@@ -178,15 +180,12 @@ func NewApp(
 		panic(err)
 	}
 
-	polarisConfig := evmconfig.MustReadConfigFromAppOpts(appOpts)
-	if polarisConfig.OptimisticExecution {
-		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
-	}
-
 	// Build the app using the app builder.
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+	app.setPlugins(logger)
+
 	app.Polaris = polarruntime.New(app,
-		polarisConfig, app.Logger(), app.EVMKeeper.Host, nil,
+		polarConfig, app.Logger(), app.EVMKeeper.Host, nil,
 	)
 
 	// Build cosmos ante handler for non-evm transactions.
@@ -208,7 +207,11 @@ func NewApp(
 
 	// Setup Polaris Runtime.
 	if err := app.Polaris.Build(
-		app, cosmHandler, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook,
+		app,
+		cosmHandler,
+		app.EVMKeeper,
+		miner.DefaultAllowedMsgs,
+		app.Router.PostBlockHook,
 	); err != nil {
 		panic(err)
 	}
@@ -221,11 +224,16 @@ func NewApp(
 	/****  Module Options ****/
 	app.ModuleManager.RegisterInvariants(app.CrisisKeeper)
 
+	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
+	app.RegisterUpgradeHandlers()
+
 	// Register eth_secp256k1 keys
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
 	// World Engine custom preBlocker
 	app.SetPreBlocker(app.preBlocker)
+
+	// Load the app
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}

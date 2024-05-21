@@ -34,6 +34,7 @@ import (
 	ethcryptocodec "github.com/berachain/polaris/cosmos/crypto/codec"
 	polarkeyring "github.com/berachain/polaris/cosmos/crypto/keyring"
 	signinglib "github.com/berachain/polaris/cosmos/lib/signing"
+	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -52,10 +53,6 @@ import (
 // NewRootCmd creates a new root command for simd. It is called once in the main function.
 func NewRootCmd() *cobra.Command {
 	var (
-		interfaceRegistry  codectypes.InterfaceRegistry
-		appCodec           codec.Codec
-		txConfig           client.TxConfig
-		legacyAmino        *codec.LegacyAmino
 		autoCliOpts        autocli.AppOptions
 		moduleBasicManager module.BasicManager
 		clientCtx          client.Context
@@ -77,10 +74,6 @@ func NewRootCmd() *cobra.Command {
 				ProvideKeyring,
 			),
 		),
-		&interfaceRegistry,
-		&appCodec,
-		&txConfig,
-		&legacyAmino,
 		&autoCliOpts,
 		&moduleBasicManager,
 		&clientCtx,
@@ -92,8 +85,9 @@ func NewRootCmd() *cobra.Command {
 	ethcryptocodec.RegisterInterfaces(clientCtx.InterfaceRegistry)
 
 	rootCmd := &cobra.Command{
-		Use:   "world-evm",
-		Short: "world engine EVM base shard",
+		Use:           "world-evm",
+		Short:         "world engine EVM base shard",
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
@@ -117,7 +111,7 @@ func NewRootCmd() *cobra.Command {
 			customAppTemplate, customAppConfig := initAppConfig()
 
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig,
-				polarconfig.RecommendedCometBFTConfig())
+				cmtcfg.DefaultConfig())
 		},
 	}
 
