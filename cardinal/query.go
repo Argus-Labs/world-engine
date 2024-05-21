@@ -13,6 +13,8 @@ import (
 
 var _ query = &queryType[struct{}, struct{}]{}
 
+var DefaultQueryGroup = "game"
+
 type query interface {
 	// Name returns the name of the query.
 	Name() string
@@ -76,7 +78,7 @@ func newQueryType[Request any, Reply any](
 	}
 	r := &queryType[Request, Reply]{
 		name:    name,
-		group:   "game",
+		group:   DefaultQueryGroup,
 		handler: handler,
 	}
 	for _, opt := range opts {
