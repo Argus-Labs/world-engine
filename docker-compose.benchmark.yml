@@ -37,7 +37,7 @@ services:
     environment:
       - CARDINAL_ADDR=game_benchmark:4040
       - ENABLE_DEBUG=TRUE
-      - CARDINAL_NAMESPACE=TESTGAME
+      - CARDINAL_NAMESPACE=testgame
       - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
       - DB_PASSWORD=${DB_PASSWORD:-development}
     entrypoint:
