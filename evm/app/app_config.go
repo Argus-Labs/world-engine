@@ -54,11 +54,8 @@ import (
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	"github.com/cosmos/cosmos-sdk/x/gov"
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -113,16 +110,16 @@ var (
 // MakeAppConfig makes the application config with the given bech32 prefix for accounts.
 //
 //nolint:funlen
-func MakeAppConfig(bech32prefix string) depinject.Config {
-	if bech32prefix == "" {
-		bech32prefix = "world"
+func MakeAppConfig(bech32Prefix string) depinject.Config {
+	if len(bech32Prefix) == 0 {
+		bech32Prefix = "world"
 	}
 	return depinject.Configs(appconfig.Compose(&appv1alpha1.Config{
 		Modules: []*appv1alpha1.ModuleConfig{
 			{
 				Name: runtime.ModuleName,
 				Config: appconfig.WrapAny(&runtimev1alpha1.Module{
-					AppName: "WorldEngine",
+					AppName: "WorldEVM",
 					// During begin block slashing happens after distr.BeginBlocker so that
 					// there is nothing left over in the validator fee pool, so as to keep the
 					// CanWithdrawInvariant invariant.
@@ -186,7 +183,7 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			{
 				Name: authtypes.ModuleName,
 				Config: appconfig.WrapAny(&authmodulev1.Module{
-					Bech32Prefix:             bech32prefix,
+					Bech32Prefix:             bech32Prefix,
 					ModuleAccountPermissions: moduleAccPerms,
 					// By default modules authority is the governance module. This is configurable with the following:
 					// Authority: "group", // A custom module authority can be set using a module name
@@ -269,11 +266,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			// supply custom module basics
 			map[string]module.AppModuleBasic{
 				genutiltypes.ModuleName: genutil.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
-				govtypes.ModuleName: gov.NewAppModuleBasic(
-					[]govclient.ProposalHandler{
-						paramsclient.ProposalHandler,
-					},
-				),
 			},
 		))
 }

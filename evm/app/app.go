@@ -70,19 +70,30 @@ import (
 	shardkeeper "pkg.world.dev/world-engine/evm/x/shard/keeper"
 )
 
+//nolint:gochecknoinits // from sdk.
+func init() {
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	DefaultNodeHome = filepath.Join(userHomeDir, ".world")
+}
+
+// DefaultNodeHome default home directories for the application daemon.
+var DefaultNodeHome string
+
 var (
-	// DefaultNodeHome default home directories for the application daemon.
-	DefaultNodeHome string
-	_               runtime.AppI            = (*App)(nil)
-	_               servertypes.Application = (*App)(nil)
+	_ runtime.AppI            = (*App)(nil)
+	_ servertypes.Application = (*App)(nil)
 )
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
 // capabilities aren't needed for testing.
 type App struct {
-	*polarruntime.Polaris
 	*runtime.App
+	*polarruntime.Polaris
 	legacyAmino       *codec.LegacyAmino
 	appCodec          codec.Codec
 	txConfig          client.TxConfig
@@ -101,7 +112,7 @@ type App struct {
 	EvidenceKeeper        evidencekeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 
-	// polaris keepers
+	// polaris required keepers
 	EVMKeeper *evmkeeper.Keeper
 
 	// world engine keepers
@@ -111,16 +122,6 @@ type App struct {
 	// plugins
 	Router         router.Router
 	ShardSequencer *sequencer.Sequencer
-}
-
-//nolint:gochecknoinits // from sdk.
-func init() {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
-	DefaultNodeHome = filepath.Join(userHomeDir, ".world-evm")
 }
 
 // NewApp returns a reference to an initialized App.
@@ -178,13 +179,15 @@ func NewApp(
 	}
 
 	polarisConfig := evmconfig.MustReadConfigFromAppOpts(appOpts)
+	if polarisConfig.OptimisticExecution {
+		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+	}
 
 	// Build the app using the app builder.
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 	app.Polaris = polarruntime.New(app,
 		polarisConfig, app.Logger(), app.EVMKeeper.Host, nil,
 	)
-	app.setPlugins(logger)
 
 	// Build cosmos ante handler for non-evm transactions.
 	cosmHandler, err := authante.NewAnteHandler(
@@ -288,42 +291,12 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 // Name returns the name of the App.
 func (app *App) Name() string { return app.BaseApp.Name() }
 
-// LegacyAmino returns App's amino codec.
+// LegacyAmino returns SimApp's amino codec.
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
 func (app *App) LegacyAmino() *codec.LegacyAmino {
 	return app.legacyAmino
-}
-
-// AppCodec returns App's app codec.
-//
-// NOTE: This is solely to be used for testing purposes as it may be desirable
-// for modules to register their own custom testing types.
-func (app *App) AppCodec() codec.Codec {
-	return app.appCodec
-}
-
-// InterfaceRegistry returns App's InterfaceRegistry.
-func (app *App) InterfaceRegistry() codectypes.InterfaceRegistry {
-	return app.interfaceRegistry
-}
-
-// TxConfig returns App's TxConfig.
-func (app *App) TxConfig() client.TxConfig {
-	return app.txConfig
-}
-
-// GetKey returns the KVStoreKey for the provided store key.
-//
-// NOTE: This is solely to be used for testing purposes.
-func (app *App) GetKey(storeKey string) *storetypes.KVStoreKey {
-	sk := app.UnsafeFindStoreKey(storeKey)
-	kvStoreKey, ok := sk.(*storetypes.KVStoreKey)
-	if !ok {
-		return nil
-	}
-	return kvStoreKey
 }
 
 func (app *App) kvStoreKeys() map[string]*storetypes.KVStoreKey {
@@ -355,21 +328,6 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 
 	if err := app.Polaris.SetupServices(apiSvr.ClientCtx); err != nil {
 		panic(err)
-	}
-}
-
-// PolarisConfigFn returns a function that provides the initialization of the standard
-// set of precompiles.
-func PolarisConfigFn(cfg *evmconfig.Config) func() *evmconfig.Config {
-	return func() *evmconfig.Config {
-		return cfg
-	}
-}
-
-// QueryContextFn returns a context for query requests.
-func QueryContextFn(app *App) func() func(height int64, prove bool) (sdk.Context, error) {
-	return func() func(height int64, prove bool) (sdk.Context, error) {
-		return app.BaseApp.CreateQueryContext
 	}
 }
 

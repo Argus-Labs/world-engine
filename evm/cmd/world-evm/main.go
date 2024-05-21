@@ -24,17 +24,17 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
+	"github.com/berachain/polaris/cosmos/config"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 
-	simapp "pkg.world.dev/world-engine/evm/app"
+	"pkg.world.dev/world-engine/evm/app"
 	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
-	"pkg.world.dev/world-engine/evm/types"
 )
 
 func main() {
-	types.SetupCosmosConfig("world")
+	config.SetupCosmosConfig()
 	rootCmd := cmd.NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
+	if err := svrcmd.Execute(rootCmd, "", app.DefaultNodeHome); err != nil {
 		log.NewLogger(rootCmd.OutOrStderr()).Error("failure when running app", "err", err)
 		os.Exit(1)
 	}
