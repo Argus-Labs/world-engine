@@ -1,14 +1,10 @@
 package cardinal
 
 import (
-	"reflect"
-
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var NonFatalError = []error{
@@ -53,31 +49,12 @@ func isFatalError(err error) bool {
 	return true
 }
 
-func GetMessage[In any, Out any](wCtx WorldContext) (*MessageType[In, Out], error) {
-	var msg MessageType[In, Out]
-	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.getMessageByType(msgType)
-	if !ok {
-		return nil, eris.Errorf("Could not find %q, Message may not be registered.", msg.Name())
-	}
-	var _ types.Message = &msg
-	res, ok := tempRes.(*MessageType[In, Out])
-	if !ok {
-		return &msg, eris.New("wrong type")
-	}
-	return res, nil
-}
-
 func GetTransactionReceiptsForTick(wCtx WorldContext, tick uint64) ([]receipt.Receipt, error) {
 	ctx, ok := wCtx.(*worldContext)
 	if !ok {
 		return nil, eris.New("error in test type assertion.")
 	}
 	return ctx.world.GetTransactionReceiptsForTick(tick)
-}
-
-func GetStoreManagerFromContext(wCtx WorldContext) gamestate.Manager {
-	return wCtx.storeManager()
 }
 
 // InternalHandleQuery is only used for tests it should not be used outside of that context.

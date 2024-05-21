@@ -233,7 +233,7 @@ func TestQuerySigner(t *testing.T) {
 	signerAddr := "123_456"
 	tf.CreatePersona(personaTag, signerAddr)
 
-	query, err := world.GetQueryByName("signer")
+	query, err := world.GetQuery("persona", "signer")
 	assert.NilError(t, err)
 
 	res, err := cardinal.InternalHandleQuery(
@@ -253,7 +253,7 @@ func TestQuerySignerAvailable(t *testing.T) {
 	world := tf.World
 	tf.DoTick()
 
-	query, err := world.GetQueryByName("signer")
+	query, err := world.GetQuery("persona", "signer")
 	assert.NilError(t, err)
 	res, err := cardinal.InternalHandleQuery(
 		cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
@@ -271,7 +271,7 @@ func TestQuerySignerUnknown(t *testing.T) {
 	engine := tf.World
 	tf.DoTick()
 
-	query, err := engine.GetQueryByName("signer")
+	query, err := engine.GetQuery("persona", "signer")
 	assert.NilError(t, err)
 	res, err := cardinal.InternalHandleQuery(cardinal.NewReadOnlyWorldContext(engine), query,
 		&cardinal.PersonaSignerQueryRequest{
