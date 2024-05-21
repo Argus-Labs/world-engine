@@ -305,7 +305,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			// Do an initial tick so that the single entity can be cardinal.Created.
 			tick()
 
-			query, err := world.GetQueryByName(queryName)
+			query, err := world.GetQuery(cardinal.DefaultQueryGroup, queryName)
 			assert.Check(t, err == nil)
 
 			readOnlyWorldCtx := cardinal.NewReadOnlyWorldContext(world)
@@ -343,7 +343,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	// Tick so the entity can be cardinal.Created
 	tick()
 
-	query, err := world.GetQueryByName(queryName)
+	query, err := world.GetQuery(cardinal.DefaultQueryGroup, queryName)
 	assert.NilError(t, err)
 
 	// Uhoh, redis is now broken.
