@@ -38,7 +38,7 @@ TMP_GENESIS=$HOME/.world/config/genesis.json.bak
 if [[ ! -d "$HOME/.world" ]]; then
   # Initialize node
   MONIKER="world-sequencer"
-  world-evm init $MONIKER --chain-id $CHAIN_ID
+  world-evm init $MONIKER --chain-id $CHAIN_ID --default-denom "world"
     
   # Set client config
   world-evm config set client chain-id $CHAIN_ID
@@ -87,7 +87,6 @@ if [[ ! -d "$HOME/.world" ]]; then
   
   # Copy app.toml to the home directory
   cp app.toml $HOME/.world/config/app.toml
-  cp config.toml $HOME/.world/config/config.toml
 fi
 
 # Set DA layer block height
@@ -105,4 +104,4 @@ echo "--> Starting sequencer with DA_BLOCK_HEIGHT: $DA_BLOCK_HEIGHT"
 
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
 echo "world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=$CHAIN_MIN_GAS_PRICE --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME" 
-world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=$CHAIN_MIN_GAS_PRICE --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME
+world-evm start --pruning=nothing --log_level $LOG_LEVEL --api.enabled-unsafe-cors --api.enable --api.swagger --minimum-gas-prices=$CHAIN_MIN_GAS_PRICE --rollkit.aggregator true --rollkit.da_auth_token=$DA_AUTH_TOKEN --rollkit.da_namespace $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.da_block_time $DA_BLOCK_TIME --rollkit.da_address $DA_BASE_URL:26658
