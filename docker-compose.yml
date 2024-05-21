@@ -27,7 +27,7 @@ services:
       - world-engine
 
   nakama:
-    container_name: relay_nakama
+    container_name: relay_nakama # Do not change this without changing the e2e-nakama makescript or e2e test will fail
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
