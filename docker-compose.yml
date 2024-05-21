@@ -27,7 +27,7 @@ services:
       - world-engine
 
   nakama:
-    container_name: nakama
+    container_name: relay_nakama
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
@@ -106,7 +106,7 @@ services:
       - "9090"
 
   game:
-    container_name: cardinal
+    container_name: test_game
     environment:
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE:-testgame}
       - CARDINAL_ROLLUP_ENABLED=${CARDINAL_ROLLUP_ENABLED:-false}

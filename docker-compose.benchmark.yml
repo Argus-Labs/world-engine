@@ -26,7 +26,7 @@ services:
       - world-engine
 
   nakama:
-    container_name: nakama
+    container_name: relay_nakama
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
