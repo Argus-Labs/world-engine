@@ -14,7 +14,7 @@ In contrast to the typical Ethereum account/address, Persona has the following s
 
 ## Persona In Systems
 
-Within a System, you can loop over transactions of a particular type. These transactions called **TxData** contain the following methods:
+Within a system, you can loop over transactions of a particular type. These transactions called **TxData** contain the following methods:
 
 - `Msg` returns the custom message data that you set up when you initially called NewMessageType.
 
@@ -22,7 +22,7 @@ Within a System, you can loop over transactions of a particular type. These tran
 
 - `Hash` returns the hash of the transaction.
 
-In this sample code, an "attack" message type is created, as well as a System that simply logs the Persona Tag of each incoming Attack message.
+In this sample code, an "attack" message type is created, as well as a system that simply logs the Persona Tag of each incoming Attack message.
 
 ```go
 package system

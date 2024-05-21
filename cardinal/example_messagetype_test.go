@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type MovePlayerMsg struct {
@@ -31,9 +29,9 @@ func ExampleMessageType() {
 		panic(err)
 	}
 
-	err = cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+	err = cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		return cardinal.EachMessage[MovePlayerMsg, MovePlayerResult](wCtx,
-			func(txData message.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+			func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 				// handle the transaction
 				// ...
 

@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type SendEnergyTx struct {
@@ -42,31 +41,31 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	event := map[string]any{"message": "test"}
-	sys1 := func(wCtx engine.Context) error {
+	sys1 := func(wCtx cardinal.WorldContext) error {
 		err := wCtx.EmitEvent(event)
 		assert.Check(t, err == nil, "emit event encountered error is system 1: %v", err)
 		counter1.Add(1)
 		return nil
 	}
-	sys2 := func(wCtx engine.Context) error {
+	sys2 := func(wCtx cardinal.WorldContext) error {
 		err := wCtx.EmitEvent(event)
 		assert.Check(t, err == nil, "emit event encountered error is system 2: %v", err)
 		counter1.Add(1)
 		return nil
 	}
-	sys3 := func(wCtx engine.Context) error {
+	sys3 := func(wCtx cardinal.WorldContext) error {
 		err := wCtx.EmitEvent(event)
 		assert.Check(t, err == nil, "emit event encountered error is system 3: %v", err)
 		counter1.Add(1)
 		return nil
 	}
-	sys4 := func(wCtx engine.Context) error {
+	sys4 := func(wCtx cardinal.WorldContext) error {
 		err := wCtx.EmitEvent(event)
 		assert.Check(t, err == nil, "emit event encountered error is system 4: %v", err)
 		counter1.Add(1)
 		return nil
 	}
-	sys5 := func(wCtx engine.Context) error {
+	sys5 := func(wCtx cardinal.WorldContext) error {
 		err := wCtx.EmitEvent(event)
 		assert.Check(t, err == nil, "emit event encountered error is system 5: %v", err)
 		counter1.Add(1)

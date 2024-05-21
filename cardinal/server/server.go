@@ -14,7 +14,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
@@ -36,8 +35,10 @@ type Server struct {
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(
-	provider servertypes.Provider, wCtx engine.Context, components []types.ComponentMetadata,
-	messages []types.Message, queries []engine.Query, opts ...Option,
+	world servertypes.ProviderWorld,
+	components []types.ComponentMetadata,
+	messages []types.Message,
+	opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
 		Network: "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
@@ -59,7 +60,7 @@ func New(
 	app.Use(cors.New())
 
 	// Register routes
-	s.setupRoutes(provider, wCtx, messages, queries, components)
+	s.setupRoutes(world, messages, components)
 
 	return s, nil
 }
@@ -116,27 +117,13 @@ func (s *Server) Shutdown() error {
 // @consumes		application/json
 // @produces		application/json
 func (s *Server) setupRoutes(
-	provider servertypes.Provider, wCtx engine.Context, messages []types.Message,
-	queries []engine.Query, components []types.ComponentMetadata,
+	world servertypes.ProviderWorld,
+	messages []types.Message,
+	components []types.ComponentMetadata,
 ) {
-	// TODO(scott): we should refactor this such that we only dependency inject these maps
-	//  instead of having to dependency inject the entire engine.
-	// /query/:group/:queryType
-	// maps group -> queryType -> query
-	queryIndex := make(map[string]map[string]engine.Query)
-
 	// /tx/:group/:txType
 	// maps group -> txType -> tx
 	msgIndex := make(map[string]map[string]types.Message)
-
-	// Create query index
-	for _, query := range queries {
-		// Initialize inner map if it doesn't exist
-		if _, ok := queryIndex[query.Group()]; !ok {
-			queryIndex[query.Group()] = make(map[string]engine.Query)
-		}
-		queryIndex[query.Group()][query.Name()] = query
-	}
 
 	// Create tx index
 	for _, msg := range messages {
@@ -157,23 +144,23 @@ func (s *Server) setupRoutes(
 	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	s.app.Get("/world", handler.GetWorld(components, messages, queries, wCtx.Namespace()))
+	s.app.Get("/world", handler.GetWorld(world, components, messages, world.Namespace()))
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())
 
 	// Route: /query/...
 	query := s.app.Group("/query")
-	query.Post("/receipts/list", handler.GetReceipts(wCtx))
-	query.Post("/:group/:name", handler.PostQuery(queryIndex, wCtx))
+	query.Post("/receipts/list", handler.GetReceipts(world))
+	query.Post("/:group/:name", handler.PostQuery(world))
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(provider, msgIndex, s.config.isSignatureVerificationDisabled))
+	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.config.isSignatureVerificationDisabled))
 
 	// Route: /cql
-	s.app.Post("/cql", handler.PostCQL(provider))
+	s.app.Post("/cql", handler.PostCQL(world))
 
 	// Route: /debug/state
-	s.app.Post("/debug/state", handler.GetDebugState(provider))
+	s.app.Post("/debug/state", handler.GetState(world))
 }

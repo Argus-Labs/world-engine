@@ -7,7 +7,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
@@ -21,7 +20,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	}
 	var errs []error
 	wCtx := NewReadOnlyWorldContext(w)
-	s := search.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
+	s := NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 	err = s.Each(wCtx,
 		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)
@@ -45,7 +44,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 func (w *World) GetSignerComponentForPersona(personaTag string) (*component.SignerComponent, error) {
 	var sc *component.SignerComponent
 	wCtx := NewReadOnlyWorldContext(w)
-	q := search.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
+	q := NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 	var getComponentErr error
 	searchIterationErr := eris.Wrap(
 		q.Each(wCtx,

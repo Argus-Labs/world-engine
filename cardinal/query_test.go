@@ -1,4 +1,4 @@
-package query_test
+package cardinal_test
 
 import (
 	"errors"
@@ -6,11 +6,9 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/query"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type Health struct {
@@ -30,7 +28,7 @@ type QueryHealthResponse struct {
 }
 
 func handleQueryHealth(
-	wCtx engine.Context,
+	wCtx cardinal.WorldContext,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
@@ -66,12 +64,12 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		testutils.NewTestFixture(t, nil).World,
 		"query_health",
 		func(
-			_ engine.Context,
+			_ cardinal.WorldContext,
 			_ *FooReq,
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
 		},
-		query.WithQueryEVMSupport[FooReq, FooReply](),
+		cardinal.WithQueryEVMSupport[FooReq, FooReply](),
 	)
 }
 
@@ -103,17 +101,17 @@ func TestQueryExample(t *testing.T) {
 	q, err := world.GetQueryByName("query_health")
 	assert.NilError(t, err)
 
-	resp, err := q.HandleQuery(worldCtx, QueryHealthRequest{1_000_000})
+	resp, err := cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{1_000_000})
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = q.HandleQuery(worldCtx, QueryHealthRequest{-100})
+	resp, err = cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{-100})
 	assert.NilError(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = q.HandleQuery(worldCtx, QueryHealthRequest{90})
+	resp, err = cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{90})
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }
@@ -123,7 +121,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := cardinal.RegisterQuery[string, string](
 		testutils.NewTestFixture(t, nil).World,
 		"foo",
-		func(engine.Context, *string) (*string, error) {
+		func(cardinal.WorldContext, *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -149,11 +147,11 @@ func TestQueryEVM(t *testing.T) {
 		world,
 		"foo",
 		func(
-			_ engine.Context, _ *FooRequest,
+			_ cardinal.WorldContext, _ *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
-		query.WithQueryEVMSupport[FooRequest, FooReply](),
+		cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
 	)
 
 	assert.NilError(t, err)
