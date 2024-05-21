@@ -70,16 +70,6 @@ import (
 	shardkeeper "pkg.world.dev/world-engine/evm/x/shard/keeper"
 )
 
-//nolint:gochecknoinits // from sdk.
-func init() {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
-	DefaultNodeHome = filepath.Join(userHomeDir, ".world")
-}
-
 // DefaultNodeHome default home directories for the application daemon.
 var DefaultNodeHome string
 
@@ -124,7 +114,19 @@ type App struct {
 	ShardSequencer *sequencer.Sequencer
 }
 
+//nolint:gochecknoinits // from sdk.
+func init() {
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	DefaultNodeHome = filepath.Join(userHomeDir, ".world")
+}
+
 // NewApp returns a reference to an initialized App.
+//
+//nolint:funlen // its fine
 func NewApp(
 	logger log.Logger,
 	db dbm.DB,

@@ -25,15 +25,15 @@ import (
 	"os"
 	"testing"
 
-	"pkg.world.dev/world-engine/evm/app"
-	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
-
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"pkg.world.dev/world-engine/evm/app"
+	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
+
+	. "github.com/onsi/ginkgo/v2" //nolint:revive // its cleaner
+	. "github.com/onsi/gomega"    //nolint:revive // its cleaner
 )
 
 func TestCmd(t *testing.T) {
