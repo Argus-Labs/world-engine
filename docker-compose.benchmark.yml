@@ -68,9 +68,12 @@ services:
     environment:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/evm/README.md
       ## Get AUTH_TOKEN from celestia_devnet container: `$(docker exec $(docker ps -q) celestia bridge auth admin --node.store /home/celestia/bridge`
+      - DA_BASE_URL=${DA_BASE_URL:-http://celestia_devnet}
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
-      - FAUCET_ADDR=${FAUCET_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
-      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
+      - FAUCET_ENABLED=${FAUCET_ENABLED:-"true"}
+      - FAUCET_ADDRESS=${FAUCET_ADDRESS:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x (Default: account 0 of CHAIN_KEY_MNEMONIC)
+      - FAUCET_AMOUNT=${FAUCET_AMOUNT:-"0x56BC75E2D63100000"} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
+      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01} # Secure auth token for game shard
     build:
       context: evm
       dockerfile: Dockerfile
