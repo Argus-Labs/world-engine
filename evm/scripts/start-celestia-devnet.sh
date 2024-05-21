@@ -19,6 +19,7 @@ while [ -z "$DA_AUTH_TOKEN" ]; do
     # Check if DA_AUTH_TOKEN is set
     if [ -n "$DA_AUTH_TOKEN" ]; then
         echo "DA_AUTH_TOKEN set: $DA_AUTH_TOKEN"
+        sleep 5 # avoid race condition, let devnet finish starting
     else
         echo "DA_AUTH_TOKEN is not set yet. Retrying..."
         sleep 2  # Adjust the sleep duration as needed
