@@ -1,7 +1,5 @@
 package handler
 
-import "C"
-
 import (
 	"github.com/gofiber/fiber/v2"
 
@@ -28,7 +26,8 @@ type CQLQueryResponse struct {
 //	@Failure      400  {string}  string            "Invalid request parameters"
 //	@Router       /cql [post]
 func PostCQL(
-	world servertypes.ProviderWorld) func(*fiber.Ctx) error {
+	world servertypes.ProviderWorld,
+) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		req := new(CQLQueryRequest)
 		if err := ctx.BodyParser(req); err != nil {
