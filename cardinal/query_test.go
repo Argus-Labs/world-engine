@@ -98,7 +98,7 @@ func TestQueryExample(t *testing.T) {
 	}
 
 	// No entities should have health over a million.
-	q, err := world.GetQueryByName("query_health")
+	q, err := world.GetQuery(cardinal.DefaultQueryGroup, "query_health")
 	assert.NilError(t, err)
 
 	resp, err := cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{1_000_000})
@@ -159,7 +159,7 @@ func TestQueryEVM(t *testing.T) {
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
-	fooQuery, err := world.GetQueryByName("foo")
+	fooQuery, err := world.GetQuery(cardinal.DefaultQueryGroup, "foo")
 	assert.NilError(t, err)
 	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
 	assert.NilError(t, err)
