@@ -10,7 +10,8 @@ on:
       - 'relay/nakama/v*.*.*'
 
 env:
-  GITHUB_REGISTRY_URL: ghcr.io
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   evm-release:
@@ -39,27 +40,23 @@ jobs:
           registry: ${{ env.GITHUB_REGISTRY_URL }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Parsing Tag Version
-        id: parsed_tag
-        run: |
-          ## Parse tag name (ex: "refs/tags/v0.0.0 --> v0.0.0)
-          ## Or use 'sha_short' when github.ref are main branch (non-tag)
-
-          PARSED_TAG=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [ "$PARSED_TAG" == "main" ] && PARSED_TAG=$(git rev-parse --short HEAD)
-
-          echo "tag=$PARSED_TAG" >> $GITHUB_OUTPUT
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
       - name: Build and push
         uses: docker/build-push-action@v5
-        env:
-          IMAGE_NAME: world-engine-nakama
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/world-engine-evm:latest
-            ${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/world-engine-evm:${{ env.PARSED_TAG }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   nakama-release:
     name: Nakama Image Release
@@ -87,24 +84,20 @@ jobs:
           registry: ${{ env.GITHUB_REGISTRY_URL }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Parsing Tag Version
-        id: parsed_tag
-        run: |
-          ## Parse tag name (ex: "refs/tags/v0.0.0 --> v0.0.0)
-          ## Or use 'sha_short' when github.ref are main branch (non-tag)
-
-          PARSED_TAG=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [ "$PARSED_TAG" == "main" ] && PARSED_TAG=$(git rev-parse --short HEAD)
-
-          echo "tag=$PARSED_TAG" >> $GITHUB_OUTPUT
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
       - name: Build and push
         uses: docker/build-push-action@v5
-        env:
-          IMAGE_NAME: world-engine-nakama
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/world-engine-nakama:latest
-            ${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/world-engine-nakama:${{ env.PARSED_TAG }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
