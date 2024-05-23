@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME_PREFIX: ${{ github.repository }}
 
 jobs:
   evm-release:
@@ -37,14 +37,14 @@ jobs:
       - name: Docker - Auth to Github Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.GITHUB_REGISTRY_URL }}
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-evm
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -81,14 +81,14 @@ jobs:
       - name: Docker - Auth to Github Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.GITHUB_REGISTRY_URL }}
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-nakama
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
