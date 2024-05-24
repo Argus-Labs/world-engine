@@ -9,6 +9,10 @@ on:
       - 'evm/v*.*.*'
       - 'relay/nakama/v*.*.*'
 
+defaults:
+  run:
+    shell: bash
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME_PREFIX: ${{ github.repository }}
@@ -44,7 +48,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-evm
           tags: |
-            ${{ env.TAG_SEMVER }}
+            type=semver,pattern={{version}},value=${{ env.TAG_SEMVER }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG_SEMVER }}
             type=sha  
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -85,7 +90,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-nakama
           tags: |
-            ${{ env.TAG_SEMVER }}
+            type=semver,pattern={{version}},value=${{ env.TAG_SEMVER }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG_SEMVER }}
             type=sha      
       - name: Build and push (linux/amd64)
         uses: docker/build-push-action@v5
