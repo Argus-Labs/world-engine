@@ -44,8 +44,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-evm
           tags: |
-            type=semver,pattern={{version}},value=${{ env.TAG_SEMVER }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG_SEMVER }}
+            ${{ env.TAG_SEMVER }}
             type=sha  
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -86,8 +85,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-nakama
           tags: |
-            type=semver,pattern={{version}},value=${{ env.TAG_SEMVER }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG_SEMVER }}
+            ${{ env.TAG_SEMVER }}
             type=sha      
       - name: Build and push (linux/amd64)
         uses: docker/build-push-action@v5
