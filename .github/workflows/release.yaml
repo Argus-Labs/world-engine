@@ -37,15 +37,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract semver from tag
-        run: export TAG_SEMVER=`echo ${$GITHUB_REF_NAME#evm/}`
+        run: export TAG_SEMVER=`echo ${$GITHUB_REF_NAME#evm-}`
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-evm
           tags: |
-            type=semver,pattern={{version}},value=$TAG_SEMVER
-            type=semver,pattern={{major}}.{{minor}},value=$TAG_SEMVER
+            type=semver,pattern={{version}},value=${{ env.TAG_SEMVER }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG_SEMVER }}
             type=sha  
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -79,7 +79,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract semver from tag
-        run: export TAG_SEMVER=`echo ${$GITHUB_REF_NAME#relay/nakama/}`
+        run: export TAG_SEMVER=`echo ${$GITHUB_REF_NAME#relay-nakama-}`
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
