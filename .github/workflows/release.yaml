@@ -37,7 +37,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract semver from tag
-        run: export TAG_SEMVER=`echo ${$GITHUB_REF_NAME#refs/tags/evm/}`
+        run: export TAG_SEMVER=`echo ${$GITHUB_REF#refs/tags/evm/}`
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -79,7 +79,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract semver from tag
-        run: export TAG_SEMVER=`echo ${$GITHUB_REF_NAME#refs/tags/relay/nakama/}`
+        run: export TAG_SEMVER=`echo ${$GITHUB_REF#refs/tags/relay/nakama/}`
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
