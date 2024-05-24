@@ -97,21 +97,12 @@ jobs:
             type=semver,pattern={{version}},value=${{ steps.semver.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.semver.outputs.tag }}
             type=sha
-      - name: Build and push (linux/amd64)
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: ./relay/nakama
           target: nakama
           platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-      - name: Build and push (linux/arm64)
-        uses: docker/build-push-action@v5
-        with:
-          context: ./relay/nakama
-          target: nakama-arm
-          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
