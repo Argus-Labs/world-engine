@@ -24,12 +24,12 @@ RUN go mod download
 COPY . .
 RUN go build --trimpath --buildmode=plugin -o ./plugin.so
 
-FROM registry.heroiclabs.com/heroiclabs/nakama:3.20.1 AS nakama
+FROM heroiclabs/nakama:3.20.1 AS nakama
 
 COPY --from=builder /nakama/plugin.so /nakama/data/modules/
 COPY local.yml /nakama/data/
 
-FROM registry.heroiclabs.com/heroiclabs/nakama:3.20.1-arm AS nakama-arm
+FROM heroiclabs/nakama:3.20.1-arm AS nakama-arm
 
 COPY --from=builder-arm /nakama/plugin.so /nakama/data/modules/
 COPY local.yml /nakama/data/
