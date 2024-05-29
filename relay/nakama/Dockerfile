@@ -1,18 +1,17 @@
-FROM heroiclabs/nakama-pluginbuilder:3.20.1 AS go-builder
+FROM heroiclabs/nakama-pluginbuilder:3.20.1 AS builder
 
 ENV GO111MODULE on
 ENV CGO_ENABLED 1
 
-WORKDIR /backend
+WORKDIR /nakama
 
-COPY go.mod .
-COPY go.sum .
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
-RUN go mod vendor
+RUN go build --trimpath --buildmode=plugin -o ./plugin.so
 
-RUN go build --trimpath --mod=vendor --buildmode=plugin -o ./backend.so
+FROM heroiclabs/nakama:3.20.1 AS nakama
 
-FROM registry.heroiclabs.com/heroiclabs/nakama:3.20.1
-
-COPY --from=go-builder /backend/backend.so /nakama/data/modules/
+COPY --from=builder /nakama/plugin.so /nakama/data/modules/
 COPY local.yml /nakama/data/

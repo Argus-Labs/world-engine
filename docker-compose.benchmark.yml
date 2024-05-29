@@ -28,7 +28,9 @@ services:
   nakama:
     container_name: relay_nakama
     platform: linux/amd64
-    build: ./relay/nakama
+    build:
+      context: ./relay/nakama
+      target: nakama #
     depends_on:
       cockroachdb:
         condition: service_healthy

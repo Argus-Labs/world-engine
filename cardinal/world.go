@@ -36,7 +36,7 @@ import (
 
 const (
 	DefaultHistoricalTicksToStore = 10
-	RedisDialTimeOut              = 15
+	RedisDialTimeOut              = 150
 )
 
 var _ router.Provider = &World{}           //nolint:exhaustruct

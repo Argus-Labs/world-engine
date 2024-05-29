@@ -9,19 +9,19 @@ on:
       - 'evm/v*.*.*'
       - 'relay/nakama/v*.*.*'
 
+defaults:
+  run:
+    shell: bash
+
 env:
-  GOOGLE_REGISTRY_URL: us-docker.pkg.dev
-  GITHUB_REGISTRY_URL: ghcr.io
+  REGISTRY: ghcr.io
+  IMAGE_NAME_PREFIX: ${{ github.repository }}
 
 jobs:
   evm-release:
-    name: EVM Image Release
+    name: EVM
     if: startsWith(github.ref, 'refs/tags/evm/v')
-    runs-on: namespace-profile-default
-    defaults:
-      run:
-        shell: bash
-        working-directory: evm
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
     # Add "id-token" with the intended permissions.
     permissions:
       contents: read
@@ -30,66 +30,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: GCP auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
-      - name: GCP - Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID_PACKAGES }}
-      - name: Docker - Auth to artifact registry
-        run: |
-          gcloud auth configure-docker ${{ env.GOOGLE_REGISTRY_URL }}
+      - name: Install and configure Namespace CLI
+        uses: namespacelabs/nscloud-setup@v0
+      - name: Configure Namespace powered Buildx
+        uses: namespacelabs/nscloud-setup-buildx-action@v0
       - name: Docker - Auth to Github Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.GITHUB_REGISTRY_URL }}
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Docker - Build
+      - name: Extract semver from tag
+        id: semver
         run: |
-          docker build -t evm-local-build:latest .
-      - name: Docker - Publish Image Google Artifact Registry
-        run: |
-          ## Construct image_id
-          IMAGE_ID_EVM=${{ env.GOOGLE_REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/evm
-          IMAGE_ID_EVM=$(echo $IMAGE_ID_EVM | tr '[A-Z]' '[a-z]')
+          echo "tag=$(echo ${GITHUB_REF#refs/tags/evm/})" >> $GITHUB_OUTPUT
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-evm
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.semver.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.semver.outputs.tag }}
+            type=sha
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./evm
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-          ## Get version from tag name (ex: evm/v0.0.0 --> registry/evm:v0.0.0)
-          ## Or use 'latest' when on main branch
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [ "$VERSION" == "main" ] && VERSION=latest
-          echo "Image to push: $IMAGE_ID_EVM:$VERSION"
-
-          docker tag evm-local-build:latest $IMAGE_ID_EVM:$VERSION
-          docker push $IMAGE_ID_EVM:$VERSION
-      - name: Docker - Publish Image to Github Container Registry
-        run: |
-          ## Construct image_id
-          IMAGE_ID_EVM=${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/world-engine-evm
-          IMAGE_ID_EVM=$(echo $IMAGE_ID_EVM | tr '[A-Z]' '[a-z]')
-
-          ## Get version from tag name (ex: evm/v0.0.0 --> registry/world-engine-evm:v0.0.0)
-          ## Or use 'latest' when on main branch
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [ "$VERSION" == "main" ] && VERSION=latest
-          echo "Image to push: $IMAGE_ID_EVM:$VERSION"
-
-          docker tag evm-local-build:latest $IMAGE_ID_EVM:$VERSION
-          docker push $IMAGE_ID_EVM:$VERSION
   nakama-release:
-    name: Nakama Image Release
+    name: Nakama
     if: startsWith(github.ref, 'refs/tags/relay/nakama/v')
-    runs-on: namespace-profile-default
-    defaults:
-      run:
-        shell: bash
-        working-directory: relay/nakama
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
     # Add "id-token" with the intended permissions.
     permissions:
       contents: read
@@ -98,55 +74,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: GCP auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
-      - name: GCP - Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.GCP_PROJECT_ID_PACKAGES }}
-      - name: Docker - Auth to Google Artifact Registry
-        run: |
-          gcloud auth configure-docker ${{ env.GOOGLE_REGISTRY_URL }}
+      - name: Install and configure Namespace CLI
+        uses: namespacelabs/nscloud-setup@v0
+      - name: Configure Namespace powered Buildx
+        uses: namespacelabs/nscloud-setup-buildx-action@v0
       - name: Docker - Auth to Github Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.GITHUB_REGISTRY_URL }}
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Docker - Build
+      - name: Extract semver from tag
+        id: semver
         run: |
-          docker build -t nakama-local-build:latest .
-      - name: Docker - Publish Image to Google Artifact Registry
-        run: |
-          ## Construct image_id
-          IMAGE_ID_NAKAMA=${{ env.GOOGLE_REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/relay/nakama
-          IMAGE_ID_NAKAMA=$(echo $IMAGE_ID_NAKAMA | tr '[A-Z]' '[a-z]')
+          echo "tag=$(echo ${GITHUB_REF#refs/tags/relay/nakama/})" >> $GITHUB_OUTPUT
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-nakama
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.semver.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.semver.outputs.tag }}
+            type=sha
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./relay/nakama
+          target: nakama
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-          ## Get version from tag name (ex: relay/nakama/v0.0.0 --> registry/relay/nakama:v0.0.0)
-          ## Or use 'latest' when on main branch
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [ "$VERSION" == "main" ] && VERSION=latest
-          echo "Image to push: $IMAGE_ID_NAKAMA:$VERSION"
-
-          docker tag nakama-local-build:latest $IMAGE_ID_NAKAMA:$VERSION
-          docker push $IMAGE_ID_NAKAMA:$VERSION
-      - name: Docker - Publish Image to Github Container Registry
-        run: |
-          ## Construct image_id
-          IMAGE_ID_NAKAMA=${{ env.GITHUB_REGISTRY_URL }}/${{ github.repository_owner }}/world-engine-nakama
-          IMAGE_ID_NAKAMA=$(echo $IMAGE_ID_NAKAMA | tr '[A-Z]' '[a-z]')
-
-          ## Get version from tag name (ex: relay/nakama/v0.0.0 --> registry/world-engine-nakama:v0.0.0)
-          ## Or use 'latest' when on main branch
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [ "$VERSION" == "main" ] && VERSION=latest
-          echo "Image to push: $IMAGE_ID_NAKAMA:$VERSION"
-
-          docker tag nakama-local-build:latest $IMAGE_ID_NAKAMA:$VERSION
-          docker push $IMAGE_ID_NAKAMA:$VERSION
