@@ -27,23 +27,22 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
-	"github.com/onsi/ginkgo/v2"
-	"github.com/onsi/gomega"
 
-	simapp "pkg.world.dev/world-engine/evm/app"
+	"pkg.world.dev/world-engine/evm/app"
 	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
+
+	. "github.com/onsi/ginkgo/v2" //nolint:revive // its cleaner
+	. "github.com/onsi/gomega"    //nolint:revive // its cleaner
 )
 
 func TestCmd(t *testing.T) {
-	sdk.GetConfig().SetBech32PrefixForAccount("world", "world")
-	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "chain/cmd/world/cmd:integration")
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "e2e/testapp/polard/cmd")
 }
 
-var _ = ginkgo.Describe("Init command", func() {
-	ginkgo.It("should initialize the app with given options", func() {
+var _ = Describe("Init command", func() {
+	It("should initialize the app with given options", func() {
 		stdout := os.Stdout
 		defer func() { os.Stdout = stdout }()
 		os.Stdout = os.NewFile(0, os.DevNull)
@@ -51,16 +50,16 @@ var _ = ginkgo.Describe("Init command", func() {
 		rootCmd.SetArgs([]string{
 			"init",        // Test the init cmd
 			"simapp-test", // Moniker
-			fmt.Sprintf("--%s=%s", cli.FlagOverwrite, "true"), // Overwrite genesis.json, in case it already exists
+			fmt.Sprintf("--%s=%s", cli.FlagOverwrite, "true"), // Overwrite genesis.json
 		})
 
-		err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome)
-		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		err := svrcmd.Execute(rootCmd, "", app.DefaultNodeHome)
+		Expect(err).ToNot(HaveOccurred())
 	})
 })
 
-var _ = ginkgo.Describe("Home flag registration", func() {
-	ginkgo.It("should set home directory correctly", func() {
+var _ = Describe("Home flag registration", func() {
+	It("should set home directory correctly", func() {
 		// Redirect standard out to null
 		stdout := os.Stdout
 		defer func() { os.Stdout = stdout }()
@@ -74,11 +73,11 @@ var _ = ginkgo.Describe("Home flag registration", func() {
 			homeDir,
 		})
 
-		err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome)
-		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		err := svrcmd.Execute(rootCmd, "", app.DefaultNodeHome)
+		Expect(err).ToNot(HaveOccurred())
 
 		result, err := rootCmd.Flags().GetString(flags.FlagHome)
-		gomega.Expect(err).ToNot(gomega.HaveOccurred())
-		gomega.Expect(result).To(gomega.Equal(homeDir))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(homeDir))
 	})
 })

@@ -274,3 +274,6 @@ contracts/out/
 
 # Docs
 !docs/package.json
+
+# EVM
+transactions.rlp

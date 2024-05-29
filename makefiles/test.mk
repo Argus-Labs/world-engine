@@ -61,12 +61,15 @@ e2e-evm:
 		GOWORK=off go mod vendor && \
 		cd $(ROOT_DIR); \
 	)
+	  
+	@echo "--> Purging running Docker containers, if any"
+	@docker compose rm --force --stop
 
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
 	docker compose up chain --build -d
 	$(call check_url,localhost:1317,501)
 
-	CARDINAL_MODE=production REDIS_PASSWORD=foo docker compose up game nakama -d
+	CARDINAL_ROLLUP_ENABLED=true REDIS_PASSWORD=foo docker compose up game nakama -d
 	$(call check_url,localhost:4040/health,200)
 
 	@go test -v ./e2e/tests/evm/evm_test.go

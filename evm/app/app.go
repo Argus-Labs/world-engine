@@ -21,16 +21,24 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
+	evmv1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "github.com/berachain/polaris/cosmos/config"
+	ethcryptocodec "github.com/berachain/polaris/cosmos/crypto/codec"
+	signinglib "github.com/berachain/polaris/cosmos/lib/signing"
+	polarruntime "github.com/berachain/polaris/cosmos/runtime"
+	"github.com/berachain/polaris/cosmos/runtime/ante"
+	"github.com/berachain/polaris/cosmos/runtime/miner"
+	evmkeeper "github.com/berachain/polaris/cosmos/x/evm/keeper"
 	"github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -44,6 +52,7 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
@@ -54,14 +63,6 @@ import (
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/rotisserie/eris"
-	zerolog "github.com/rs/zerolog/log"
-	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
-	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
-	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
-	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
-	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
-	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
-	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
 
 	"pkg.world.dev/world-engine/evm/router"
 	"pkg.world.dev/world-engine/evm/sequencer"
@@ -69,19 +70,20 @@ import (
 	shardkeeper "pkg.world.dev/world-engine/evm/x/shard/keeper"
 )
 
+// DefaultNodeHome default home directories for the application daemon.
+var DefaultNodeHome string
+
 var (
-	// DefaultNodeHome default home directories for the application daemon.
-	DefaultNodeHome string
-	_               runtime.AppI            = (*App)(nil)
-	_               servertypes.Application = (*App)(nil)
+	_ runtime.AppI            = (*App)(nil)
+	_ servertypes.Application = (*App)(nil)
 )
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
 // capabilities aren't needed for testing.
 type App struct {
-	*polarruntime.Polaris
 	*runtime.App
+	*polarruntime.Polaris
 	legacyAmino       *codec.LegacyAmino
 	appCodec          codec.Codec
 	txConfig          client.TxConfig
@@ -100,7 +102,7 @@ type App struct {
 	EvidenceKeeper        evidencekeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 
-	// polaris keepers
+	// polaris required keepers
 	EVMKeeper *evmkeeper.Keeper
 
 	// world engine keepers
@@ -119,10 +121,12 @@ func init() {
 		panic(err)
 	}
 
-	DefaultNodeHome = filepath.Join(userHomeDir, ".world-evm")
+	DefaultNodeHome = filepath.Join(userHomeDir, ".world")
 }
 
 // NewApp returns a reference to an initialized App.
+//
+//nolint:funlen // its fine
 func NewApp(
 	logger log.Logger,
 	db dbm.DB,
@@ -132,8 +136,10 @@ func NewApp(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	app := &App{}
+	polarConfig := evmconfig.DefaultPolarisConfig()
+
 	var (
+		app        = &App{}
 		appBuilder *runtime.AppBuilder
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
@@ -145,7 +151,7 @@ func NewApp(
 			depinject.Supply(
 				appOpts,
 				logger,
-				PolarisConfigFn(evmconfig.MustReadConfigFromAppOpts(appOpts)),
+				PolarisConfigFn(polarConfig),
 				PrecompilesToInject(app),
 				QueryContextFn(app),
 			),
@@ -170,8 +176,8 @@ func NewApp(
 		&app.EvidenceKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.EVMKeeper,
-		&app.NamespaceKeeper,
-		&app.ShardKeeper,
+		&app.NamespaceKeeper, // Added for World Engine
+		&app.ShardKeeper,     // Added for World Engine
 	); err != nil {
 		panic(err)
 	}
@@ -180,14 +186,38 @@ func NewApp(
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 	app.setPlugins(logger)
 
-	app.Polaris = polarruntime.New(
-		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
+	app.Polaris = polarruntime.New(app,
+		polarConfig, app.Logger(), app.EVMKeeper.Host, nil,
 	)
 
-	// Setup Polaris Runtime.
-	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook); err != nil {
+	// Build cosmos ante handler for non-evm transactions.
+	cosmHandler, err := authante.NewAnteHandler(
+		authante.HandlerOptions{
+			AccountKeeper:   app.AccountKeeper,
+			BankKeeper:      app.BankKeeper,
+			FeegrantKeeper:  nil,
+			SigGasConsumer:  ante.EthSecp256k1SigVerificationGasConsumer,
+			SignModeHandler: app.txConfig.SignModeHandler(),
+			TxFeeChecker: func(_ sdk.Context, _ sdk.Tx) (sdk.Coins, int64, error) {
+				return nil, 0, nil
+			},
+		},
+	)
+	if err != nil {
 		panic(err)
 	}
+
+	// Setup Polaris Runtime.
+	if err := app.Polaris.Build(
+		app,
+		cosmHandler,
+		app.EVMKeeper,
+		miner.DefaultAllowedMsgs,
+		app.Router.PostBlockHook,
+	); err != nil {
+		panic(err)
+	}
+
 	// register streaming services
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
@@ -196,15 +226,20 @@ func NewApp(
 	/****  Module Options ****/
 	app.ModuleManager.RegisterInvariants(app.CrisisKeeper)
 
+	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
+	app.RegisterUpgradeHandlers()
+
+	// Register eth_secp256k1 keys
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
+	// World Engine custom preBlocker
 	app.SetPreBlocker(app.preBlocker)
+
+	// Load the app
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
-	// sleeping here as this seems to lessen the chance of the race condition polaris has?? seems to work okay.
-	time.Sleep(10 * time.Second) //nolint:gomnd // this is temporary
 	// Load the last state of the polaris evm.
 	if err := app.Polaris.LoadLastState(
 		app.CommitMultiStore(), uint64(app.LastBlockHeight()),
@@ -215,76 +250,63 @@ func NewApp(
 	return app
 }
 
+// preBlocker is an ABCI preBlocker hook called at the beginning of each block.
+// We use this hook to execute the messages received from the World Engine shard router.
 func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
-	txs, inits := app.ShardSequencer.FlushMessages()
+	shardTxDataMsgs, shardRegisterMsgs := app.ShardSequencer.FlushMessages()
 
-	// first register all the game shard requests
-	for _, initMsg := range inits {
-		zerolog.Debug().Msgf("registering %q to %q", initMsg.Namespace.ShardName, initMsg.Namespace.ShardAddress)
-		handler := app.MsgServiceRouter().Handler(initMsg)
-		_, err := handler(ctx, initMsg)
+	// Handle shard registration messages
+	for _, shardRegisterMsg := range shardRegisterMsgs {
+		app.Logger().Info(
+			fmt.Sprintf("Registering new shard with namespace %q to %q",
+				shardRegisterMsg.Namespace.ShardName,
+				shardRegisterMsg.Namespace.ShardAddress,
+			),
+		)
+		handler := app.MsgServiceRouter().Handler(shardRegisterMsg)
+		_, err := handler(ctx, shardRegisterMsg)
 		if err != nil {
-			return nil, eris.Wrapf(err, "failed to register namespace %q", initMsg.Namespace.ShardName)
+			app.Logger().Error(
+				fmt.Sprintf(
+					"failed to register new shard with namespace %q: %q",
+					shardRegisterMsg.Namespace.ShardName, err,
+				),
+			)
+			return nil, eris.Wrapf(
+				err, "failed to register new shard with namespace %q", shardRegisterMsg.Namespace.ShardName,
+			)
 		}
 	}
 
-	// then sequence the game shard txs
-	numTxs := len(txs)
+	// Handle game shard transaction sequencing
+	numShardTxDataMsgs := len(shardTxDataMsgs)
 	resPreBlock := &sdk.ResponsePreBlock{}
-	if numTxs > 0 {
-		zerolog.Debug().Msg("sequencing messages")
-		handler := app.MsgServiceRouter().Handler(txs[0])
-		for _, tx := range txs {
+	// Only run if there are any messages to process
+	if numShardTxDataMsgs > 0 {
+		app.Logger().Info("Received game shard transaction data from router")
+		handler := app.MsgServiceRouter().Handler(shardTxDataMsgs[0])
+		for _, tx := range shardTxDataMsgs {
 			_, err := handler(ctx, tx)
 			if err != nil {
-				zerolog.Error().Err(err).Msgf("error sequencing game shard tx")
-				return resPreBlock, err
+				app.Logger().Error(fmt.Sprintf("failed to process game shard tx data submission: %q", err))
+				return resPreBlock, eris.Wrapf(err, "failed to process game shard tx data submission")
 			}
 		}
-		app.Logger().Debug("successfully sequenced %d game shard txs", numTxs)
+		app.Logger().Info(fmt.Sprintf("Successfully processed %d game shard tx submissions", numShardTxDataMsgs))
 	}
+
 	return resPreBlock, nil
 }
 
 // Name returns the name of the App.
 func (app *App) Name() string { return app.BaseApp.Name() }
 
-// LegacyAmino returns App's amino codec.
+// LegacyAmino returns SimApp's amino codec.
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
 func (app *App) LegacyAmino() *codec.LegacyAmino {
 	return app.legacyAmino
-}
-
-// AppCodec returns App's app codec.
-//
-// NOTE: This is solely to be used for testing purposes as it may be desirable
-// for modules to register their own custom testing types.
-func (app *App) AppCodec() codec.Codec {
-	return app.appCodec
-}
-
-// InterfaceRegistry returns App's InterfaceRegistry.
-func (app *App) InterfaceRegistry() codectypes.InterfaceRegistry {
-	return app.interfaceRegistry
-}
-
-// TxConfig returns App's TxConfig.
-func (app *App) TxConfig() client.TxConfig {
-	return app.txConfig
-}
-
-// GetKey returns the KVStoreKey for the provided store key.
-//
-// NOTE: This is solely to be used for testing purposes.
-func (app *App) GetKey(storeKey string) *storetypes.KVStoreKey {
-	sk := app.UnsafeFindStoreKey(storeKey)
-	kvStoreKey, ok := sk.(*storetypes.KVStoreKey)
-	if !ok {
-		return nil
-	}
-	return kvStoreKey
 }
 
 func (app *App) kvStoreKeys() map[string]*storetypes.KVStoreKey {
@@ -316,21 +338,6 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 
 	if err := app.Polaris.SetupServices(apiSvr.ClientCtx); err != nil {
 		panic(err)
-	}
-}
-
-// PolarisConfigFn returns a function that provides the initialization of the standard
-// set of precompiles.
-func PolarisConfigFn(cfg *evmconfig.Config) func() *evmconfig.Config {
-	return func() *evmconfig.Config {
-		return cfg
-	}
-}
-
-// QueryContextFn returns a context for query requests.
-func QueryContextFn(app *App) func() func(height int64, prove bool) (sdk.Context, error) {
-	return func() func(height int64, prove bool) (sdk.Context, error) {
-		return app.BaseApp.CreateQueryContext
 	}
 }
 

@@ -42,6 +42,8 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	evmmodulev1alpha1 "github.com/berachain/polaris/cosmos/api/polaris/evm/module/v1alpha1"
+	evmtypes "github.com/berachain/polaris/cosmos/x/evm/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -52,16 +54,11 @@ import (
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	"github.com/cosmos/cosmos-sdk/x/gov"
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
-	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
 	namespacemodule "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
 	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
@@ -70,6 +67,7 @@ import (
 
 	_ "cosmossdk.io/x/evidence"                       // import for side effects
 	_ "cosmossdk.io/x/upgrade"                        // import for side effects
+	_ "github.com/berachain/polaris/cosmos/x/evm"     // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side effects
@@ -80,7 +78,6 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/params"         // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side effects
-	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side effects
 	_ "pkg.world.dev/world-engine/evm/x/namespace"    // import for side effects
 )
 
@@ -113,16 +110,16 @@ var (
 // MakeAppConfig makes the application config with the given bech32 prefix for accounts.
 //
 //nolint:funlen
-func MakeAppConfig(bech32prefix string) depinject.Config {
-	if bech32prefix == "" {
-		bech32prefix = "world"
+func MakeAppConfig(bech32Prefix string) depinject.Config {
+	if len(bech32Prefix) == 0 {
+		bech32Prefix = "cosmos"
 	}
 	return depinject.Configs(appconfig.Compose(&appv1alpha1.Config{
 		Modules: []*appv1alpha1.ModuleConfig{
 			{
 				Name: runtime.ModuleName,
 				Config: appconfig.WrapAny(&runtimev1alpha1.Module{
-					AppName: "WorldEngine",
+					AppName: "WorldEVM",
 					// During begin block slashing happens after distr.BeginBlocker so that
 					// there is nothing left over in the validator fee pool, so as to keep the
 					// CanWithdrawInvariant invariant.
@@ -186,7 +183,7 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			{
 				Name: authtypes.ModuleName,
 				Config: appconfig.WrapAny(&authmodulev1.Module{
-					Bech32Prefix:             bech32prefix,
+					Bech32Prefix:             bech32Prefix,
 					ModuleAccountPermissions: moduleAccPerms,
 					// By default modules authority is the governance module. This is configurable with the following:
 					// Authority: "group", // A custom module authority can be set using a module name
@@ -269,11 +266,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			// supply custom module basics
 			map[string]module.AppModuleBasic{
 				genutiltypes.ModuleName: genutil.NewAppModuleBasic(genutiltypes.DefaultMessageValidator),
-				govtypes.ModuleName: gov.NewAppModuleBasic(
-					[]govclient.ProposalHandler{
-						paramsclient.ProposalHandler,
-					},
-				),
 			},
 		))
 }

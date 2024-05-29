@@ -242,7 +242,7 @@ rpc-tx-fee-cap = "1"
 
 # Chain config
 [polaris.polar.chain]
-chain-id = "2020"
+chain-id = "420"
 
 # Homestead switch block
 homestead-block = "0"
