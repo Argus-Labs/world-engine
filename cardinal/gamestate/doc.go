@@ -1,5 +1,5 @@
 /*
-Package ecb allows for buffering of state changes to the ECS dbStorage layer, and either committing those changes
+Package gamestate allows for buffering of state changes to the ECS dbStorage layer, and either committing those changes
 in an atomic Redis transaction, or discarding the changes. In either case, the underlying Redis DB is never in an
 intermediate state.
 
