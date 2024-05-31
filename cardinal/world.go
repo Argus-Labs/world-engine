@@ -46,7 +46,7 @@ type World struct {
 	SystemManager
 	MessageManager
 	QueryManager
-	component.ComponentManager
+	component.Manager
 
 	namespace     Namespace
 	rollupEnabled bool
@@ -123,13 +123,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		serverOptions: serverOptions,
 
 		// Core modules
-		worldStage:       worldstage.NewManager(),
-		MessageManager:   newMessageManager(),
-		SystemManager:    newSystemManager(),
-		ComponentManager: component.NewManager(&redisMetaStore),
-		QueryManager:     newQueryManager(),
-		router:           nil, // Will be set if run mode is production or its injected via options
-		txPool:           txpool.New(),
+		worldStage:     worldstage.NewManager(),
+		MessageManager: newMessageManager(),
+		SystemManager:  newSystemManager(),
+		Manager:        component.NewManager(&redisMetaStore),
+		QueryManager:   newQueryManager(),
+		router:         nil, // Will be set if run mode is production or its injected via options
+		txPool:         txpool.New(),
 
 		// Receipt
 		receiptHistory: receipt.NewHistory(tick.Load(), DefaultHistoricalTicksToStore),
@@ -289,7 +289,7 @@ func (w *World) StartGame() error {
 
 	// TODO(scott): entityStore.RegisterComponents is ambiguous with cardinal.RegisterComponent.
 	//  We should probably rename this to LoadComponents or osmething.
-	if err := w.entityStore.RegisterComponents(w.ComponentManager.GetComponents()); err != nil {
+	if err := w.entityStore.RegisterComponents(w.Manager.GetComponents()); err != nil {
 		closeErr := w.entityStore.Close()
 		if closeErr != nil {
 			return eris.Wrap(err, closeErr.Error())
@@ -336,7 +336,7 @@ func (w *World) StartGame() error {
 	}
 
 	// Warn when no components, messages, queries, or systems are registered
-	if len(w.ComponentManager.GetComponents()) == 0 {
+	if len(w.Manager.GetComponents()) == 0 {
 		log.Warn().Msg("No components registered")
 	}
 	if len(w.GetRegisteredMessages()) == 0 {
@@ -630,7 +630,7 @@ func (w *World) StoreReader() gamestate.Reader {
 }
 
 func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
-	return w.ComponentManager.GetComponents()
+	return w.Manager.GetComponents()
 }
 
 func (w *World) GetReadOnlyCtx() WorldContext {
@@ -643,7 +643,7 @@ func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
 }
 
 func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
-	return w.ComponentManager.GetComponentByName(name)
+	return w.Manager.GetComponentByName(name)
 }
 
 func (w *World) populateAndBroadcastTickResults() {

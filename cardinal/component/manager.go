@@ -17,14 +17,14 @@ type manager struct {
 	schemaStorage        SchemaStorage
 }
 
-type ComponentManager interface {
+type Manager interface {
 	RegisterComponent(compMetadata types.ComponentMetadata) error
 	GetComponents() []types.ComponentMetadata
 	GetComponentByName(name string) (types.ComponentMetadata, error)
 }
 
 // NewManager creates a new component manager.
-func NewManager(schemaStorage SchemaStorage) *manager {
+func NewManager(schemaStorage SchemaStorage) Manager {
 	return &manager{
 		registeredComponents: make(map[string]types.ComponentMetadata),
 		nextComponentID:      1,
