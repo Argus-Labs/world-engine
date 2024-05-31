@@ -11,7 +11,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestOptionFunctionSignatures(_ *testing.T) {
@@ -24,7 +23,7 @@ func TestOptionFunctionSignatures(_ *testing.T) {
 }
 
 func TestWithPrettyLog_LogIsNotJSONFormatted(t *testing.T) {
-	testutils.NewTestFixture(t, nil, cardinal.WithPrettyLog())
+	cardinal.NewTestFixture(t, nil, cardinal.WithPrettyLog())
 
 	// Create a pipe to capture the output
 	r, w, _ := os.Pipe()

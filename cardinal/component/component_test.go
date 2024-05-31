@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -38,7 +37,7 @@ type Age struct {
 func (Age) Name() string { return "age" }
 
 func TestComponentExample(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
@@ -159,7 +158,7 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	cardinal.MustRegisterComponent[ComponentDataA](world)
 	cardinal.MustRegisterComponent[ComponentDataB](world)
@@ -265,7 +264,7 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	cardinal.MustRegisterComponent[foundComp](world)
 	cardinal.MustRegisterComponent[notFoundComp](world)
@@ -289,7 +288,7 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent](world))
 
@@ -315,7 +314,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 }
 
 func TestRegisterComponent_ErrorOnDuplicateComponentName(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent](world))
 	assert.ErrorContains(t, cardinal.RegisterComponent[ValueComponent](world), "is already registered")
@@ -340,19 +339,19 @@ func (NewComponent) Name() string {
 
 func TestRegisterComponent_ErrorOnSchemaMismatch(t *testing.T) {
 	// Create first world, this should work normally
-	tf1 := testutils.NewTestFixture(t, nil)
+	tf1 := cardinal.NewTestFixture(t, nil)
 	world := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[OldComponent](world))
 
 	// Create second world, this should fail because the schema of the new component does not match the old component
-	tf2 := testutils.NewTestFixture(t, tf1.Redis)
+	tf2 := cardinal.NewTestFixture(t, tf1.Redis)
 	world = tf2.World
 	assert.ErrorContains(t, cardinal.RegisterComponent[NewComponent](world),
 		"component schema does not match target schema")
 }
 
 func TestGetRegisteredComponents(t *testing.T) {
-	tf1 := testutils.NewTestFixture(t, nil)
+	tf1 := cardinal.NewTestFixture(t, nil)
 	world := tf1.World
 
 	// Register some components
@@ -372,7 +371,7 @@ func TestGetRegisteredComponents(t *testing.T) {
 }
 
 func TestGetMessageByName(t *testing.T) {
-	tf1 := testutils.NewTestFixture(t, nil)
+	tf1 := cardinal.NewTestFixture(t, nil)
 	world := tf1.World
 
 	// Register some components

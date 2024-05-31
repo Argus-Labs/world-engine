@@ -56,9 +56,3 @@ func GetTransactionReceiptsForTick(wCtx WorldContext, tick uint64) ([]receipt.Re
 	}
 	return ctx.world.GetTransactionReceiptsForTick(tick)
 }
-
-// InternalHandleQuery is only used for tests it should not be used outside of that context.
-// TODO: Tests should be edited and changed such that this is no longer done.
-func InternalHandleQuery(wCtx WorldContext, query query, a any) (any, error) {
-	return query.handleQuery(wCtx, a)
-}

@@ -1,4 +1,4 @@
-package testutils
+package cardinal
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"github.com/rotisserie/eris"
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
@@ -30,7 +29,7 @@ type TestFixture struct {
 
 	// Base url is something like "localhost:5050". You must attach http:// or ws:// as well as a resource path
 	BaseURL string
-	World   *cardinal.World
+	World   *World
 	Redis   *miniredis.Miniredis
 
 	StartTickCh chan time.Time
@@ -40,7 +39,7 @@ type TestFixture struct {
 }
 
 // NewTestFixture creates a test fixture with user defined port for Cardinal integration tests.
-func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.WorldOption) *TestFixture {
+func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOption) *TestFixture {
 	if redis == nil {
 		redis = miniredis.RunT(t)
 	}
@@ -57,14 +56,14 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...cardinal.W
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 
-	defaultOpts := []cardinal.WorldOption{
-		cardinal.WithTickChannel(startTickCh),
-		cardinal.WithTickDoneChannel(doneTickCh),
-		cardinal.WithPort(cardinalPort),
+	defaultOpts := []WorldOption{
+		WithTickChannel(startTickCh),
+		WithTickDoneChannel(doneTickCh),
+		WithPort(cardinalPort),
 	}
 
 	// Default options go first so that any user supplied options overwrite the defaults.
-	world, err := cardinal.NewWorld(append(defaultOpts, opts...)...)
+	world, err := NewWorld(append(defaultOpts, opts...)...)
 	assert.NilError(t, err)
 
 	return &TestFixture{

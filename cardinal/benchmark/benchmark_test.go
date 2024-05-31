@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -26,8 +25,8 @@ func (Health) Name() string {
 // setupWorld Creates a new *cardinal.World and initializes the world to have numOfEntities already cardinal.Created. If
 // enableHealthSystem is set, a system will be added to the world that increments every entity's "health" by 1 every
 // tick.
-func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *testutils.TestFixture {
-	tf := testutils.NewTestFixture(t, nil)
+func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardinal.TestFixture {
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 

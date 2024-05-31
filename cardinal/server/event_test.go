@@ -11,7 +11,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type SendEnergyTx struct {
@@ -35,7 +34,7 @@ func (Beta) Name() string { return "beta" }
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	tf := cardinal.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	world, addr := tf.World, tf.BaseURL
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "send-energy"))
 	counter1 := atomic.Int32{}

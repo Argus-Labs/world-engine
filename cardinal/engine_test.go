@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -50,7 +49,7 @@ func (f *FakeIterator) Each(fn func(batch []*iterator.TxBatch, tick, timestamp u
 }
 
 func TestCanWaitForNextTick(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	startTickCh := tf.StartTickCh
 	doneTickCh := tf.DoneTickCh
@@ -80,7 +79,7 @@ func TestCanWaitForNextTick(t *testing.T) {
 }
 
 func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	startTickCh := tf.StartTickCh
 	doneTickCh := tf.DoneTickCh
@@ -128,7 +127,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	msgName := "foo"
 	assert.NilError(t,
@@ -192,7 +191,7 @@ func TestEVMTxConsume(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	msgName := "foo"
 	err := cardinal.RegisterMessage[FooIn, FooOut](world, msgName, cardinal.WithMsgEVMSupport[FooIn, FooOut]())
@@ -263,7 +262,7 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	err := cardinal.RegisterSystems(world, sys1, sys2, sys3)
 	assert.NilError(t, err)
@@ -277,7 +276,7 @@ func TestAddSystems(t *testing.T) {
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	order := make([]int, 0, 3)
 	err := cardinal.RegisterSystems(
@@ -306,13 +305,13 @@ func TestSystemExecutionOrder(t *testing.T) {
 func TestSetNamespace(t *testing.T) {
 	namespace := "test"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.Equal(t, world.Namespace(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	wCtx := cardinal.NewWorldContext(world)
 
@@ -359,7 +358,7 @@ func TestWithoutRegistration(t *testing.T) {
 func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
+	tf := cardinal.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
 	world := tf.World
 
 	type fooMsg struct {
@@ -437,7 +436,7 @@ func TestRecoverFromChain(t *testing.T) {
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
+	tf := cardinal.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
 	world := tf.World
 
 	type fooMsg struct{ I int }
