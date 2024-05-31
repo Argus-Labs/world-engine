@@ -675,7 +675,7 @@ func TestTransactionExample(t *testing.T) {
 		}
 	}
 	// Make sure transaction errors are recorded in the receipt
-	receipts, err := cardinal.GetTransactionReceiptsForTick(testWorldCtx, testWorldCtx.CurrentTick()-1)
+	receipts, err := tf.World.GetTransactionReceiptsForTick(testWorldCtx.CurrentTick() - 1)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(receipts))
 	assert.Equal(t, 1, len(receipts[0].Errs))
