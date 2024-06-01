@@ -182,7 +182,7 @@ services:
     image: datadog/agent:7
     pid: host
     environment:
-      - DD_API_KEY=${DD_API_KEY}
+      - DD_API_KEY=${DD_API_KEY:-}
       - DD_SITE=us3.datadoghq.com
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

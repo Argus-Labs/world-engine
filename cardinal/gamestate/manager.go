@@ -50,7 +50,7 @@ type Writer interface {
 
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
-	StartNextTick(txs []types.Message, pool *txpool.TxPool) error
+	StartNextTick(ctx context.Context, txs []types.Message, pool *txpool.TxPool) error
 	FinalizeTick(ctx context.Context) error
 	Recover(txs []types.Message) (*txpool.TxPool, error)
 }

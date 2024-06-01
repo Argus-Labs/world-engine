@@ -180,8 +180,8 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 	}
 
 	for _, operation := range operations {
-		ctx, pipeSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx,
-			ddtracer.Measured()), //nolint:spancheck // false positive
+		ctx, pipeSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
+			ddtracer.Measured()),
 			"tick.span.finalize.pipe_make."+operation.name)
 		if err := operation.method(ctx, pipe); err != nil {
 			span.SetStatus(codes.Error, eris.ToString(err, true))

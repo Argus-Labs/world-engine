@@ -199,10 +199,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 
 	startTime := time.Now()
 
-	log.Info().
-		Int("tick", int(w.CurrentTick())).
-		Msg("Tick started")
-
 	// The world can only perform a tick if:
 	// - We're in a recovery tick
 	// - The world is currently running
@@ -221,9 +217,9 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	defer w.handleTickPanic()
 
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
-	txPool := w.txPool.CopyTransactions()
+	txPool := w.txPool.CopyTransactions(ctx)
 
-	if err := w.entityStore.StartNextTick(w.GetRegisteredMessages(), txPool); err != nil {
+	if err := w.entityStore.StartNextTick(ctx, w.GetRegisteredMessages(), txPool); err != nil {
 		span.SetStatus(codes.Error, eris.ToString(err, true))
 		span.RecordError(err)
 		return err
@@ -474,9 +470,11 @@ func (w *World) Shutdown() error {
 	log.Info().Msg("Successfully closed storage connection")
 	log.Info().Msg("Shutting down telemetry")
 
-	err = w.telemetry.Shutdown()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to shut down telemetry")
+	if w.telemetry != nil {
+		err = w.telemetry.Shutdown()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to shut down telemetry")
+		}
 	}
 
 	return nil

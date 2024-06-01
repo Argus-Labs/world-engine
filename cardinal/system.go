@@ -13,8 +13,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
 	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
-	"pkg.world.dev/world-engine/cardinal/statsd"
 )
 
 const (
@@ -43,7 +41,7 @@ type SystemManager interface {
 	// These methods are intentionally made private to avoid other
 	// packages from trying to modify the system manager in the middle of a tick.
 	registerSystems(isInit bool, systems ...System) error
-	runSystems(wCtx WorldContext) error
+	runSystems(ctx context.Context, wCtx WorldContext) error
 }
 
 type systemManager struct {
@@ -113,9 +111,10 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) erro
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *systemManager) runSystems(wCtx WorldContext) error {
+func (m *systemManager) runSystems(ctx context.Context, wCtx WorldContext) error {
 	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "system.run")
 	defer span.End()
+
 	var systemsToRun []systemType
 	if wCtx.CurrentTick() == 0 {
 		systemsToRun = slices.Concat(m.registeredInitSystems, m.registeredSystems)
@@ -131,8 +130,9 @@ func (m *systemManager) runSystems(wCtx WorldContext) error {
 		wCtx.setLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
 
 		// Executes the system function that the user registered
-		_, systemFnSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()),
-			"system.run."+sys.Name) //nolint:spancheck // false positive
+		_, systemFnSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
+			ddtracer.Measured()),
+			"system.run."+sys.Name)
 		if err := sys.Fn(wCtx); err != nil {
 			m.currentSystem = ""
 			span.SetStatus(codes.Error, eris.ToString(err, true))
