@@ -9,9 +9,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
 
@@ -24,27 +22,6 @@ var (
 	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
 )
 
-// Imported
-// This section aggregates function from other packages such that they are easily accessible
-// via cardinal.<function_name>
-
-// NewSearch is used to create a search object.
-//
-// Usage:
-//
-// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
-var NewSearch = search.NewSearch
-
-// NewLegacySearch allows users to create a Search object with a filter already provided
-// as a property.
-//
-// Example Usage:
-//
-// cardinal.NewLegacySearch().Entity(filter.Exact(Alpha{}, Beta{})).Count()
-var NewLegacySearch = search.NewLegacySearch
-
-type Search = search.Search
-
 // FilterFunction wrap your component filter function of func(comp T) bool inside FilterFunction to use
 // in search.
 //
@@ -55,8 +32,8 @@ type Search = search.Search
 //  	return true
 // }))
 
-func FilterFunction[T types.Component](f func(comp T) bool) func(ctx engine.Context, id types.EntityID) (bool, error) {
-	return search.ComponentFilter[T](f)
+func FilterFunction[T types.Component](f func(comp T) bool) func(ctx WorldContext, id types.EntityID) (bool, error) {
+	return ComponentFilter[T](f)
 }
 
 func RegisterSystems(w *World, sys ...System) error {
@@ -110,10 +87,10 @@ func MustRegisterComponent[T types.Component](w *World) {
 	}
 }
 
-func EachMessage[In any, Out any](wCtx engine.Context, fn func(TxData[In]) (Out, error)) error {
+func EachMessage[In any, Out any](wCtx WorldContext, fn func(TxData[In]) (Out, error)) error {
 	var msg MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
+	tempRes, ok := wCtx.getMessageByType(msgType)
 	if !ok {
 		return eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
 	}
@@ -153,7 +130,7 @@ func RegisterMessage[In any, Out any](world *World, name string, opts ...Message
 func RegisterQuery[Request any, Reply any](
 	w *World,
 	name string,
-	handler func(wCtx engine.Context, req *Request) (*Reply, error),
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) (err error) {
 	if w.worldStage.Current() != worldstage.Init {
@@ -164,17 +141,18 @@ func RegisterQuery[Request any, Reply any](
 		)
 	}
 
-	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	q, err := newQueryType[Request, Reply](name, handler, opts...)
 	if err != nil {
 		return err
 	}
 
-	return w.RegisterQuery(name, q)
+	res := w.RegisterQuery(q)
+	return res
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(wCtx engine.Context, components ...types.Component) (_ types.EntityID, err error) {
+func Create(wCtx WorldContext, components ...types.Component) (_ types.EntityID, err error) {
 	// We don't handle panics here because we let CreateMany handle it for us
 	entityIDs, err := CreateMany(wCtx, 1, components...)
 	if err != nil {
@@ -185,22 +163,22 @@ func Create(wCtx engine.Context, components ...types.Component) (_ types.EntityI
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx engine.Context, num int, components ...types.Component) (entityIDs []types.EntityID, err error) {
+func CreateMany(wCtx WorldContext, num int, components ...types.Component) (entityIDs []types.EntityID, err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return nil, ErrEntityMutationOnReadOnly
 	}
 
-	if !wCtx.IsWorldReady() {
+	if !wCtx.isWorldReady() {
 		return nil, ErrEntitiesCreatedBeforeReady
 	}
 
 	// Get all component metadata for the given components
 	acc := make([]types.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
-		c, err := wCtx.GetComponentByName(comp.Name())
+		c, err := wCtx.getComponentByName(comp.Name())
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 		}
@@ -208,7 +186,7 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 	}
 
 	// Create the entities
-	entityIDs, err = wCtx.StoreManager().CreateManyEntities(num, acc...)
+	entityIDs, err = wCtx.storeManager().CreateManyEntities(num, acc...)
 	if err != nil {
 		return nil, err
 	}
@@ -217,12 +195,12 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 	for _, id := range entityIDs {
 		for _, comp := range components {
 			var c types.ComponentMetadata
-			c, err = wCtx.GetComponentByName(comp.Name())
+			c, err = wCtx.getComponentByName(comp.Name())
 			if err != nil {
 				return nil, eris.Wrap(err, "failed to create entity because component is not registered")
 			}
 
-			err = wCtx.StoreManager().SetComponentForEntity(c, id, comp)
+			err = wCtx.storeManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
 				return nil, err
 			}
@@ -233,23 +211,23 @@ func CreateMany(wCtx engine.Context, num int, components ...types.Component) (en
 }
 
 // SetComponent sets component data to the entity.
-func SetComponent[T types.Component](wCtx engine.Context, id types.EntityID, component *T) (err error) {
+func SetComponent[T types.Component](wCtx WorldContext, id types.EntityID, component *T) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return err
 	}
 
 	// Store the component
-	err = wCtx.StoreManager().SetComponentForEntity(c, id, component)
+	err = wCtx.storeManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		return err
 	}
@@ -265,18 +243,18 @@ func SetComponent[T types.Component](wCtx engine.Context, id types.EntityID, com
 }
 
 // GetComponent returns component data from the entity.
-func GetComponent[T types.Component](wCtx engine.Context, id types.EntityID) (comp *T, err error) {
+func GetComponent[T types.Component](wCtx WorldContext, id types.EntityID) (comp *T, err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return nil, err
 	}
 
 	// Get current component value
-	compValue, err := wCtx.StoreReader().GetComponentForEntity(c, id)
+	compValue, err := wCtx.storeReader().GetComponentForEntity(c, id)
 	if err != nil {
 		return nil, err
 	}
@@ -295,11 +273,11 @@ func GetComponent[T types.Component](wCtx engine.Context, id types.EntityID) (co
 	return comp, nil
 }
 
-func UpdateComponent[T types.Component](wCtx engine.Context, id types.EntityID, fn func(*T) *T) (err error) {
+func UpdateComponent[T types.Component](wCtx WorldContext, id types.EntityID, fn func(*T) *T) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return err
 	}
 
@@ -321,23 +299,23 @@ func UpdateComponent[T types.Component](wCtx engine.Context, id types.EntityID, 
 	return nil
 }
 
-func AddComponentTo[T types.Component](wCtx engine.Context, id types.EntityID) (err error) {
+func AddComponentTo[T types.Component](wCtx WorldContext, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return err
 	}
 
 	// Add the component to entity
-	err = wCtx.StoreManager().AddComponentToEntity(c, id)
+	err = wCtx.storeManager().AddComponentToEntity(c, id)
 	if err != nil {
 		return err
 	}
@@ -346,23 +324,23 @@ func AddComponentTo[T types.Component](wCtx engine.Context, id types.EntityID) (
 }
 
 // RemoveComponentFrom removes a component from an entity.
-func RemoveComponentFrom[T types.Component](wCtx engine.Context, id types.EntityID) (err error) {
+func RemoveComponentFrom[T types.Component](wCtx WorldContext, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get the component metadata
 	var t T
-	c, err := wCtx.GetComponentByName(t.Name())
+	c, err := wCtx.getComponentByName(t.Name())
 	if err != nil {
 		return err
 	}
 
 	// Remove the component from entity
-	err = wCtx.StoreManager().RemoveComponentFromEntity(c, id)
+	err = wCtx.storeManager().RemoveComponentFromEntity(c, id)
 	if err != nil {
 		return err
 	}
@@ -371,15 +349,15 @@ func RemoveComponentFrom[T types.Component](wCtx engine.Context, id types.Entity
 }
 
 // Remove removes the given Entity from the world.
-func Remove(wCtx engine.Context, id types.EntityID) (err error) {
+func Remove(wCtx WorldContext, id types.EntityID) (err error) {
 	defer func() { panicOnFatalError(wCtx, err) }()
 
 	// Error if the context is read only
-	if wCtx.IsReadOnly() {
+	if wCtx.isReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
-	err = wCtx.StoreManager().RemoveEntity(id)
+	err = wCtx.storeManager().RemoveEntity(id)
 	if err != nil {
 		return err
 	}

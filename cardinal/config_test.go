@@ -64,7 +64,7 @@ func TestWorldConfig_Validate_Namespace(t *testing.T) {
 		{
 			name: "If namespace contains anything other than alphanumeric and -, error",
 			cfg: defaultConfigWithOverrides(WorldConfig{
-				RedisAddress: "&1235%^^",
+				CardinalNamespace: "&1235%^^",
 			}),
 			wantErr: true,
 		},
@@ -94,38 +94,6 @@ func TestWorldConfig_Validate_LogLevel(t *testing.T) {
 		cfg := defaultConfigWithOverrides(WorldConfig{CardinalLogLevel: "foo"})
 		assert.IsError(t, cfg.Validate())
 	})
-}
-
-func TestWorldConfig_Validate_Redis(t *testing.T) {
-	testCases := []struct {
-		name    string
-		cfg     WorldConfig
-		wantErr bool
-	}{
-		{
-			name:    "If redis address is valid, no errors",
-			cfg:     defaultConfigWithOverrides(WorldConfig{RedisAddress: "localhost:6379"}),
-			wantErr: false,
-		},
-		{
-			name: "If redis address has invalid format, error",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				RedisAddress: "localhost",
-			}),
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
-			if tc.wantErr {
-				assert.IsError(t, err)
-			} else {
-				assert.NilError(t, err)
-			}
-		})
-	}
 }
 
 func TestWorldConfig_Validate_RollupMode(t *testing.T) {

@@ -23,8 +23,8 @@ package types
 import (
 	"sync"
 
+	"github.com/berachain/polaris/eth/accounts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"pkg.berachain.dev/polaris/eth/accounts"
 )
 
 var (

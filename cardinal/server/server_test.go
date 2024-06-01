@@ -24,7 +24,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -109,17 +108,17 @@ func (s *ServerTestSuite) TestGetWorld() {
 
 	// check that the component, message, query name are in the list
 	for _, comp := range comps {
-		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field handler.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field types.FieldDetail) bool {
 			return comp.Name() == field.Name
 		}))
 	}
 	for _, msg := range msgs {
-		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field handler.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field types.FieldDetail) bool {
 			return msg.Name() == field.Name
 		}))
 	}
 	for _, query := range queries {
-		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field handler.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field types.FieldDetail) bool {
 			return query.Name() == field.Name
 		}))
 	}
@@ -203,7 +202,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
 		s.world,
 		name,
-		func(_ engine.Context, _ *SomeRequest) (*SomeResponse, error) {
+		func(_ cardinal.WorldContext, _ *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
@@ -279,7 +278,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, moveMsgName)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
-	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
+	err = cardinal.RegisterSystems(s.world, func(context cardinal.WorldContext) error {
 		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
 			func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 				posID, exists := personaToPosition[tx.Tx.PersonaTag]
@@ -313,7 +312,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
 		s.world,
 		"location",
-		func(wCtx engine.Context, req *QueryLocationRequest) (*QueryLocationResponse, error) {
+		func(wCtx cardinal.WorldContext, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)

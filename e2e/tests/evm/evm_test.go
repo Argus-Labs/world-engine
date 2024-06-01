@@ -66,7 +66,7 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	txs, err := chain.Shard.Transactions(context.Background(), &types.QueryTransactionsRequest{
-		Namespace: "TESTGAME",
+		Namespace: "testgame",
 		Page:      nil,
 	})
 	assert.NilError(t, err)
@@ -74,7 +74,7 @@ func TestTransactionStoredOnChain(t *testing.T) {
 
 	rift := clients.NewRiftClient(t)
 	txRes, err := rift.Rift.QueryTransactions(context.Background(), &shardv2.QueryTransactionsRequest{
-		Namespace: "TESTGAME",
+		Namespace: "testgame",
 		Page:      nil,
 	})
 	assert.NilError(t, err)

@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/server/types"
 )
 
 type ListTxReceiptsRequest struct {
@@ -38,15 +38,15 @@ type ReceiptEntry struct {
 //	@Success      200                    {object}  ListTxReceiptsResponse "List of receipts"
 //	@Failure      400                    {string}  string                 "Invalid request body"
 //	@Router       /query/receipts/list [post]
-func GetReceipts(wCtx engine.Context) func(*fiber.Ctx) error {
+func GetReceipts(world types.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		req := new(ListTxReceiptsRequest)
 		if err := ctx.BodyParser(req); err != nil {
 			return err
 		}
 		reply := ListTxReceiptsResponse{}
-		reply.EndTick = wCtx.CurrentTick()
-		size := wCtx.ReceiptHistorySize()
+		reply.EndTick = world.CurrentTick()
+		size := world.ReceiptHistorySize()
 		if size > reply.EndTick {
 			reply.StartTick = 0
 		} else {
@@ -62,7 +62,7 @@ func GetReceipts(wCtx engine.Context) func(*fiber.Ctx) error {
 		}
 
 		for t := reply.StartTick; t < reply.EndTick; t++ {
-			currReceipts, err := wCtx.GetTransactionReceiptsForTick(t)
+			currReceipts, err := world.GetTransactionReceiptsForTick(t)
 			if err != nil || len(currReceipts) == 0 {
 				continue
 			}

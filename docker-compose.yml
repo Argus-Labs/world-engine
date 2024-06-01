@@ -27,9 +27,11 @@ services:
       - world-engine
 
   nakama:
-    container_name: relay_nakama
+    container_name: relay_nakama # Do not change this without changing the e2e-nakama makescript or e2e test will fail
     platform: linux/amd64
-    build: ./relay/nakama
+    build:
+      context: ./relay/nakama
+      target: nakama # Build the amd64 version of the image
     depends_on:
       cockroachdb:
         condition: service_healthy
@@ -38,7 +40,7 @@ services:
     environment:
       - CARDINAL_ADDR=game:4040
       - ENABLE_DEBUG=TRUE
-      - CARDINAL_NAMESPACE=TESTGAME
+      - CARDINAL_NAMESPACE=testgame
       - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
       - DB_PASSWORD=${DB_PASSWORD:-development}
     entrypoint:
@@ -68,12 +70,13 @@ services:
     container_name: evm_base_shard
     environment:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/evm/README.md
-      ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
+      ## Get AUTH_TOKEN from celestia_devnet container: `$(docker exec $(docker ps -q) celestia bridge auth admin --node.store /home/celestia/bridge`
+      - DA_BASE_URL=${DA_BASE_URL:-http://celestia_devnet}
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
-      - NAMESPACE_AUTHORITY_ADDR=${NAMESPACE_AUTHORITY_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
-      - FAUCET_ADDR=${FAUCET_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
-      - GAME_SHARD_ADDR=${GAME_SHARD_ADDR:-game:9020}
-      - BASE_SHARD_ROUTER_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
+      - FAUCET_ENABLED=${FAUCET_ENABLED:-"true"}
+      - FAUCET_ADDRESS=${FAUCET_ADDRESS:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x (Default: account 0 of CHAIN_KEY_MNEMONIC)
+      - FAUCET_AMOUNT=${FAUCET_AMOUNT:-"0x56BC75E2D63100000"} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
+      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01} # Secure auth token for game shard
     build:
       context: evm
       dockerfile: Dockerfile
@@ -96,7 +99,7 @@ services:
 
   celestia-devnet:
     container_name: celestia_devnet
-    image: ghcr.io/rollkit/local-celestia-devnet:v0.12.1
+    image: ghcr.io/rollkit/local-celestia-devnet:latest
     networks:
       - world-engine
     restart: on-failure
@@ -109,13 +112,14 @@ services:
   game:
     container_name: test_game
     environment:
-      - REDIS_ADDRESS=redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - CARDINAL_NAMESPACE=TESTGAME
+      - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE:-testgame}
+      - CARDINAL_ROLLUP_ENABLED=${CARDINAL_ROLLUP_ENABLED:-false}
       - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL:-info}
-      - CARDINAL_MODE=${CARDINAL_MODE:-development}
-      - BASE_SHARD_SEQUENCER_ADDRESS=chain:9601
-      - BASE_SHARD_ROUTER_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
+      - CARDINAL_LOG_PRETTY=${CARDINAL_LOG_PRETTY:-true}
+      - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - BASE_SHARD_SEQUENCER_ADDRESS=${BASE_SHARD_SEQUENCER_ADDRESS:-chain:9601}
+      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
       - TELEMETRY_TRACE_ENABLED=${TELEMETRY_TRACE_ENABLED:-false}
       - TELEMETRY_PROFILER_ENABLED=${TELEMETRY_PROFILER_ENABLED:-false}
       - DD_AGENT_HOST=datadog

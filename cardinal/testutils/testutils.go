@@ -11,7 +11,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -61,10 +60,10 @@ func UniqueSignature() *sign.Transaction {
 	return UniqueSignatureWithName("some_persona_tag")
 }
 
-func GetMessage[In any, Out any](wCtx engine.Context) (*cardinal.MessageType[In, Out], error) {
+func GetMessage[In any, Out any](w *cardinal.World) (*cardinal.MessageType[In, Out], error) {
 	var msg cardinal.MessageType[In, Out]
 	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.GetMessageByType(msgType)
+	tempRes, ok := w.GetMessageByType(msgType)
 	if !ok {
 		return nil, eris.Errorf("Could not find %q, Message may not be registered.", msg.Name())
 	}

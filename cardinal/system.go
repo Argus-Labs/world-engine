@@ -14,7 +14,7 @@ import (
 	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
 	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/statsd"
 )
 
 const (
@@ -24,7 +24,7 @@ const (
 var _ SystemManager = &systemManager{}
 
 // System is a user-defined function that is executed at every tick.
-type System func(ctx engine.Context) error
+type System func(ctx WorldContext) error
 
 // systemType is an internal entry used to track registered systems.
 type systemType struct {
@@ -43,7 +43,7 @@ type SystemManager interface {
 	// These methods are intentionally made private to avoid other
 	// packages from trying to modify the system manager in the middle of a tick.
 	registerSystems(isInit bool, systems ...System) error
-	runSystems(ctx context.Context, wCtx engine.Context) error
+	runSystems(wCtx WorldContext) error
 }
 
 type systemManager struct {
@@ -113,10 +113,9 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) erro
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *systemManager) runSystems(ctx context.Context, wCtx engine.Context) error {
+func (m *systemManager) runSystems(wCtx WorldContext) error {
 	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "system.run")
 	defer span.End()
-
 	var systemsToRun []systemType
 	if wCtx.CurrentTick() == 0 {
 		systemsToRun = slices.Concat(m.registeredInitSystems, m.registeredSystems)
@@ -129,7 +128,7 @@ func (m *systemManager) runSystems(ctx context.Context, wCtx engine.Context) err
 		m.currentSystem = sys.Name
 
 		// Inject the system name into the logger
-		wCtx.SetLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
+		wCtx.setLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
 
 		// Executes the system function that the user registered
 		_, systemFnSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()),

@@ -105,11 +105,6 @@ func (w *WorldConfig) Validate() error {
 		return eris.New("CARDINAL_LOG_LEVEL must be one of the following: " + strings.Join(validLogLevels, ", "))
 	}
 
-	// Validate Redis address
-	if _, _, err := net.SplitHostPort(w.RedisAddress); err != nil {
-		return eris.New("REDIS_ADDRESS must follow the format <host>:<port>")
-	}
-
 	// Validate base shard configs (only required when rollup mode is enabled)
 	if w.CardinalRollupEnabled {
 		if _, _, err := net.SplitHostPort(w.BaseShardSequencerAddress); err != nil {

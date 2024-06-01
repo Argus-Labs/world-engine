@@ -36,8 +36,10 @@ import (
 
 // ExportAppStateAndValidators exports the state of the application for a genesis
 // file.
-func (app *App) ExportAppStateAndValidators(forZeroHeight bool,
-	jailAllowedAddrs, modulesToExport []string) (servertypes.ExportedApp, error) {
+func (app *App) ExportAppStateAndValidators(
+	forZeroHeight bool,
+	jailAllowedAddrs, modulesToExport []string,
+) (servertypes.ExportedApp, error) {
 	// as if they could withdraw from the start of the next block
 	ctx := app.NewContext(true).WithBlockHeader(cmtproto.Header{Height: app.LastBlockHeight()})
 
@@ -220,7 +222,7 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 	// Iterate through validators by power descending, reset bond heights, and
 	// update bond intra-tx counters.
-	store := ctx.KVStore(app.GetKey(stakingtypes.StoreKey))
+	store := ctx.MultiStore().GetKVStore(app.UnsafeFindStoreKey(stakingtypes.StoreKey))
 	iter := storetypes.KVStoreReversePrefixIterator(store, stakingtypes.ValidatorsKey)
 	counter := int16(0)
 
@@ -236,14 +238,13 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 			validator.Jailed = true
 		}
 
-		err = app.StakingKeeper.SetValidator(ctx, validator)
-		if err != nil {
+		if err = app.StakingKeeper.SetValidator(ctx, validator); err != nil {
 			panic(err)
 		}
 		counter++
 	}
 
-	if err = iter.Close(); err != nil {
+	if err := iter.Close(); err != nil {
 		app.Logger().Error("error while closing the key-value store reverse prefix iterator: ", err)
 		return
 	}

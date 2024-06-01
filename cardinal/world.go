@@ -25,14 +25,13 @@ import (
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/telemetry"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
@@ -40,11 +39,11 @@ import (
 
 const (
 	DefaultHistoricalTicksToStore = 10
-	RedisDialTimeOut              = 15
+	RedisDialTimeOut              = 150
 )
 
-var _ router.Provider = &World{}      //nolint:exhaustruct
-var _ servertypes.Provider = &World{} //nolint:exhaustruct
+var _ router.Provider = &World{}           //nolint:exhaustruct
+var _ servertypes.ProviderWorld = &World{} //nolint:exhaustruct
 
 type World struct {
 	SystemManager
@@ -126,7 +125,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	tick := new(atomic.Uint64)
-
 	world := &World{
 		namespace:     Namespace(cfg.CardinalNamespace),
 		rollupEnabled: cfg.CardinalRollupEnabled,
@@ -340,9 +338,7 @@ func (w *World) StartGame() error {
 	// Create server
 	// We can't do this is in NewWorld() because the server needs to know the registered messages
 	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(w,
-		NewReadOnlyWorldContext(w), w.GetRegisteredComponents(), w.GetRegisteredMessages(),
-		w.GetRegisteredQueries(), w.serverOptions...)
+	w.server, err = server.New(w, w.GetRegisteredComponents(), w.GetRegisteredMessages(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
@@ -537,7 +533,7 @@ func (w *World) drainChannelsWaitingForNextTick() {
 }
 
 // AddTransaction adds a transaction to the transaction pool. This should not be used directly.
-// Instead, use a MessageType.AddTransaction to ensure type consistency. Returns the tick this transaction will be
+// Instead, use a MessageType.addTransaction to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (
 	tick uint64, txHash types.TxHash,
@@ -566,6 +562,43 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
+func (w *World) GetDebugState() ([]types.EntityStateElement, error) {
+	result := make([]types.EntityStateElement, 0)
+	s := w.Search(filter.All())
+	var eachClosureErr error
+	wCtx := NewReadOnlyWorldContext(w)
+	searchEachErr := s.Each(wCtx,
+		func(id types.EntityID) bool {
+			var components []types.ComponentMetadata
+			components, eachClosureErr = w.StoreReader().GetComponentTypesForEntity(id)
+			if eachClosureErr != nil {
+				return false
+			}
+			resultElement := types.EntityStateElement{
+				ID:   id,
+				Data: make([]json.RawMessage, 0),
+			}
+			for _, c := range components {
+				var data json.RawMessage
+				data, eachClosureErr = w.StoreReader().GetComponentForEntityInRawJSON(c, id)
+				if eachClosureErr != nil {
+					return false
+				}
+				resultElement.Data = append(resultElement.Data, data)
+			}
+			result = append(result, resultElement)
+			return true
+		},
+	)
+	if eachClosureErr != nil {
+		return nil, eachClosureErr
+	}
+	if searchEachErr != nil {
+		return nil, searchEachErr
+	}
+	return result, nil
+}
+
 func (w *World) Namespace() string {
 	return string(w.namespace)
 }
@@ -585,7 +618,7 @@ func (w *World) WaitForNextTick() (success bool) {
 }
 
 func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
-	qry, err := w.GetQueryByName(name)
+	qry, err := w.GetQuery(DefaultQueryGroup, name)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +627,7 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	reply, err := qry.HandleQuery(NewReadOnlyWorldContext(w), req)
+	reply, err := qry.handleQuery(NewReadOnlyWorldContext(w), req)
 	if err != nil {
 		return nil, err
 	}
@@ -602,8 +635,8 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	return qry.EncodeEVMReply(reply)
 }
 
-func (w *World) Search(filter filter.ComponentFilter) search.EntitySearch {
-	return search.NewLegacySearch(filter)
+func (w *World) Search(filter filter.ComponentFilter) EntitySearch {
+	return NewLegacySearch(filter)
 }
 
 func (w *World) StoreReader() gamestate.Reader {
@@ -614,7 +647,7 @@ func (w *World) GetRegisteredComponents() []types.ComponentMetadata {
 	return w.componentManager.GetComponents()
 }
 
-func (w *World) GetReadOnlyCtx() engine.Context {
+func (w *World) GetReadOnlyCtx() WorldContext {
 	return NewReadOnlyWorldContext(w)
 }
 
@@ -646,4 +679,59 @@ func (w *World) populateAndBroadcastTickResults(ctx context.Context) {
 		span.RecordError(err)
 		log.Err(err).Msgf("failed to broadcast tick results")
 	}
+}
+
+func (w *World) ReceiptHistorySize() uint64 {
+	return w.receiptHistory.Size()
+}
+
+func (w *World) EvaluateCQL(cqlString string) ([]types.EntityStateElement, error) {
+	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.getComponentByName
+	// to types.Component
+	getComponentByName := func(name string) (types.Component, error) {
+		comp, err := w.GetComponentByName(name)
+		if err != nil {
+			return nil, err
+		}
+		return comp, nil
+	}
+
+	// Parse the CQL string into a filter
+	cqlFilter, err := cql.Parse(cqlString, getComponentByName)
+	if err != nil {
+		return nil, eris.Errorf("failed to parse cql string: %s", cqlString)
+	}
+	result := make([]types.EntityStateElement, 0)
+	var eachError error
+	wCtx := NewReadOnlyWorldContext(w)
+	searchErr := w.Search(cqlFilter).Each(wCtx,
+		func(id types.EntityID) bool {
+			components, err := w.StoreReader().GetComponentTypesForEntity(id)
+			if err != nil {
+				eachError = err
+				return false
+			}
+			resultElement := types.EntityStateElement{
+				ID:   id,
+				Data: make([]json.RawMessage, 0),
+			}
+
+			for _, c := range components {
+				data, err := w.StoreReader().GetComponentForEntityInRawJSON(c, id)
+				if err != nil {
+					eachError = err
+					return false
+				}
+				resultElement.Data = append(resultElement.Data, data)
+			}
+			result = append(result, resultElement)
+			return true
+		},
+	)
+	if eachError != nil {
+		return nil, eachError
+	} else if searchErr != nil {
+		return nil, searchErr
+	}
+	return result, nil
 }

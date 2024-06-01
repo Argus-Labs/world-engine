@@ -5,7 +5,7 @@ import {IRouter} from "./router.sol";
 
 contract Game {
     IRouter internal router;
-    string internal Namespace = "TESTGAME";
+    string internal Namespace = "testgame";
 
     struct Join {
         bool Ok;

@@ -3,8 +3,8 @@ package cardinal
 import (
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 var NonFatalError = []error{
@@ -33,8 +33,8 @@ func separateOptions(opts []WorldOption) (
 }
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).
-func panicOnFatalError(wCtx engine.Context, err error) {
-	if err != nil && !wCtx.IsReadOnly() && isFatalError(err) {
+func panicOnFatalError(wCtx WorldContext, err error) {
+	if err != nil && !wCtx.isReadOnly() && isFatalError(err) {
 		wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 		panic(err)
 	}
@@ -47,4 +47,18 @@ func isFatalError(err error) bool {
 		}
 	}
 	return true
+}
+
+func GetTransactionReceiptsForTick(wCtx WorldContext, tick uint64) ([]receipt.Receipt, error) {
+	ctx, ok := wCtx.(*worldContext)
+	if !ok {
+		return nil, eris.New("error in test type assertion.")
+	}
+	return ctx.world.GetTransactionReceiptsForTick(tick)
+}
+
+// InternalHandleQuery is only used for tests it should not be used outside of that context.
+// TODO: Tests should be edited and changed such that this is no longer done.
+func InternalHandleQuery(wCtx WorldContext, query query, a any) (any, error) {
+	return query.handleQuery(wCtx, a)
 }

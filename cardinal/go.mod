@@ -6,7 +6,7 @@ require (
 	github.com/JeremyLoy/config v1.5.0
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
-	github.com/ethereum/go-ethereum v1.13.4
+	github.com/ethereum/go-ethereum v1.13.10
 	github.com/fasthttp/websocket v1.5.8
 	github.com/franela/goblin v0.0.0-20211003143422-0a4f594942bf
 	github.com/goccy/go-json v0.10.2
@@ -20,9 +20,9 @@ require (
 	github.com/invopop/jsonschema v0.7.0
 	github.com/redis/go-redis/v9 v9.1.0
 	github.com/rotisserie/eris v0.5.4
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.32.0
 	github.com/stretchr/testify v1.9.0
-	github.com/swaggo/swag v1.16.2
+	github.com/swaggo/swag v1.16.3
 	github.com/wI2L/jsondiff v0.5.0
 	go.opentelemetry.io/otel v1.26.0
 	go.opentelemetry.io/otel/trace v1.26.0

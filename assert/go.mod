@@ -4,13 +4,13 @@ go 1.22.1
 
 require (
 	github.com/rotisserie/eris v0.5.4
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	gotest.tools/v3 v3.5.1
 )
 
 require (
 	github.com/kr/pretty v0.3.1 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
 

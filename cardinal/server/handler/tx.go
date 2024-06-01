@@ -41,7 +41,7 @@ type Transaction = sign.Transaction
 //	@Failure      400      {string}  string                   "Invalid request parameter"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -75,14 +75,14 @@ func PostTransaction(
 				signerAddress = createPersonaMsg.SignerAddress
 			}
 
-			if err = lookupSignerAndValidateSignature(provider, signerAddress, tx); err != nil {
+			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
 				return err
 			}
 		}
 
 		// Add the transaction to the engine
 		// TODO(scott): this should just deal with txpool instead of having to go through engine
-		tick, hash := provider.AddTransaction(msgType.ID(), msg, tx)
+		tick, hash := world.AddTransaction(msgType.ID(), msg, tx)
 
 		return ctx.JSON(&PostTransactionResponse{
 			TxHash: string(hash),
@@ -104,9 +104,9 @@ func PostTransaction(
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(provider, msgs, disableSigVerification)
+	return PostTransaction(world, msgs, disableSigVerification)
 }
 
 // NOTE: duplication for cleaner swagger docs
@@ -121,26 +121,26 @@ func PostGameTransaction(
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	provider servertypes.Provider, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(provider, msgs, disableSigVerification)
+	return PostTransaction(world, msgs, disableSigVerification)
 }
 
-func lookupSignerAndValidateSignature(provider servertypes.Provider, signerAddress string, tx *Transaction) error {
+func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
 	var err error
 	if signerAddress == "" {
-		signerAddress, err = provider.GetSignerForPersonaTag(tx.PersonaTag, 0)
+		signerAddress, err = world.GetSignerForPersonaTag(tx.PersonaTag, 0)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
 		}
 	}
-	if err = validateSignature(tx, signerAddress, provider.Namespace(),
+	if err = validateSignature(tx, signerAddress, world.Namespace(),
 		tx.IsSystemTransaction()); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 	}
 	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
 	//  to mark the nonce as used once it's included in the tick, not the server.
-	if err = provider.UseNonce(signerAddress, tx.Nonce); err != nil {
+	if err = world.UseNonce(signerAddress, tx.Nonce); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
 	}
 	return nil
