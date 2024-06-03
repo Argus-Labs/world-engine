@@ -6,7 +6,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type ScalarComponentAlpha struct {
@@ -26,7 +25,7 @@ func (ScalarComponentBeta) Name() string {
 }
 
 func TestTickHappyPath(t *testing.T) {
-	tf1 := testutils.NewTestFixture(t, nil)
+	tf1 := cardinal.NewTestFixture(t, nil)
 	world1 := tf1.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world1))
 	tf1.StartWorld()
@@ -37,7 +36,7 @@ func TestTickHappyPath(t *testing.T) {
 
 	assert.Equal(t, uint64(10), world1.CurrentTick())
 
-	tf2 := testutils.NewTestFixture(t, tf1.Redis)
+	tf2 := cardinal.NewTestFixture(t, tf1.Redis)
 	world2 := tf2.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world2))
 	tf2.StartWorld()
@@ -45,7 +44,7 @@ func TestTickHappyPath(t *testing.T) {
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ScalarComponentAlpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[ScalarComponentBeta](world))

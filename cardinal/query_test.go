@@ -1,13 +1,11 @@
-package cardinal_test
+package cardinal
 
 import (
 	"errors"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -28,14 +26,14 @@ type QueryHealthResponse struct {
 }
 
 func handleQueryHealth(
-	wCtx cardinal.WorldContext,
+	wCtx WorldContext,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := cardinal.NewSearch().Entity(filter.Exact(filter.Component[Health]())).Each(wCtx, func(id types.EntityID) bool {
+	err := NewSearch().Entity(filter.Exact(filter.Component[Health]())).Each(wCtx, func(id types.EntityID) bool {
 		var err error
 		var health *Health
-		health, err = cardinal.GetComponent[Health](wCtx, id)
+		health, err = GetComponent[Health](wCtx, id)
 		if err != nil {
 			return true
 		}
@@ -60,68 +58,68 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 	type FooReply struct {
 		Y uint64
 	}
-	_ = cardinal.RegisterQuery[FooReq, FooReply](
-		testutils.NewTestFixture(t, nil).World,
+	_ = RegisterQuery[FooReq, FooReply](
+		NewTestFixture(t, nil).World,
 		"query_health",
 		func(
-			_ cardinal.WorldContext,
+			_ WorldContext,
 			_ *FooReq,
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
 		},
-		cardinal.WithQueryEVMSupport[FooReq, FooReply](),
+		WithQueryEVMSupport[FooReq, FooReply](),
 	)
 }
 
 func TestQueryExample(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, cardinal.RegisterComponent[Health](world))
+	assert.NilError(t, RegisterComponent[Health](world))
 	assert.NilError(
 		t,
-		cardinal.RegisterQuery[QueryHealthRequest, QueryHealthResponse](
+		RegisterQuery[QueryHealthRequest, QueryHealthResponse](
 			world,
 			"query_health",
 			handleQueryHealth,
 		),
 	)
 	tf.StartWorld()
-	worldCtx := cardinal.NewWorldContext(world)
-	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
+	worldCtx := NewWorldContext(world)
+	ids, err := CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 	// Give each new entity health based on the ever-increasing index
 	for i, id := range ids {
-		assert.NilError(t, cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
+		assert.NilError(t, UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
 			h.Value = i
 			return h
 		}))
 	}
 
 	// No entities should have health over a million.
-	q, err := world.GetQuery(cardinal.DefaultQueryGroup, "query_health")
+	q, err := world.GetQuery(DefaultQueryGroup, "query_health")
 	assert.NilError(t, err)
 
-	resp, err := cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{1_000_000})
+	resp, err := q.handleQuery(worldCtx, QueryHealthRequest{1_000_000})
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{-100})
+	resp, err = q.handleQuery(worldCtx, QueryHealthRequest{-100})
 	assert.NilError(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = cardinal.InternalHandleQuery(worldCtx, q, QueryHealthRequest{90})
+	resp, err = q.handleQuery(worldCtx, QueryHealthRequest{90})
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }
 
 func TestQueryTypeNotStructs(t *testing.T) {
 	str := "blah"
-	err := cardinal.RegisterQuery[string, string](
-		testutils.NewTestFixture(t, nil).World,
+	err := RegisterQuery[string, string](
+		NewTestFixture(t, nil).World,
 		"foo",
-		func(cardinal.WorldContext, *string) (*string, error) {
+		func(WorldContext, *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -142,24 +140,24 @@ func TestQueryEVM(t *testing.T) {
 		Age:  22,
 	}
 
-	world := testutils.NewTestFixture(t, nil).World
-	err := cardinal.RegisterQuery[FooRequest, FooReply](
+	world := NewTestFixture(t, nil).World
+	err := RegisterQuery[FooRequest, FooReply](
 		world,
 		"foo",
 		func(
-			_ cardinal.WorldContext, _ *FooRequest,
+			_ WorldContext, _ *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
-		cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
+		WithQueryEVMSupport[FooRequest, FooReply](),
 	)
 
 	assert.NilError(t, err)
-	err = cardinal.RegisterMessage[struct{}, struct{}](world, "blah")
+	err = RegisterMessage[struct{}, struct{}](world, "blah")
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
-	fooQuery, err := world.GetQuery(cardinal.DefaultQueryGroup, "foo")
+	fooQuery, err := world.GetQuery(DefaultQueryGroup, "foo")
 	assert.NilError(t, err)
 	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
 	assert.NilError(t, err)
@@ -187,8 +185,8 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		{
 			name: "error on no name",
 			CreateQuery: func() error {
-				return cardinal.RegisterQuery[foo, foo](
-					testutils.NewTestFixture(t, nil).World,
+				return RegisterQuery[foo, foo](
+					NewTestFixture(t, nil).World,
 					"",
 					nil)
 			},
@@ -197,8 +195,8 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		{
 			name: "error on no handler",
 			CreateQuery: func() error {
-				return cardinal.RegisterQuery[foo, foo](
-					testutils.NewTestFixture(t, nil).World,
+				return RegisterQuery[foo, foo](
+					NewTestFixture(t, nil).World,
 					"foo",
 					nil)
 			},

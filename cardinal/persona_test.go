@@ -1,4 +1,4 @@
-package persona_test
+package cardinal
 
 import (
 	"fmt"
@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -44,7 +42,7 @@ func TestPersonaTagIsValid(t *testing.T) {
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 
@@ -79,7 +77,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 
@@ -106,7 +104,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 	personaTag := "jeff"
@@ -128,7 +126,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 	tf.CreatePersona("INVALID PERSONA TAG WITH SPACES", "123_456")
@@ -143,7 +141,7 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 
 func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 	tf.CreatePersona("WowTag", "123_456")
@@ -157,7 +155,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 
@@ -195,7 +193,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
 
@@ -227,7 +225,7 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 }
 
 func TestQuerySigner(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	personaTag := "CoolMage"
 	signerAddr := "123_456"
@@ -236,64 +234,60 @@ func TestQuerySigner(t *testing.T) {
 	query, err := world.GetQuery("persona", "signer")
 	assert.NilError(t, err)
 
-	res, err := cardinal.InternalHandleQuery(
-		cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
-			PersonaTag: personaTag,
-		})
+	res, err := query.handleQuery(NewReadOnlyWorldContext(world), &PersonaSignerQueryRequest{
+		PersonaTag: personaTag})
 	assert.NilError(t, err)
 
-	response, ok := res.(*cardinal.PersonaSignerQueryResponse)
+	response, ok := res.(*PersonaSignerQueryResponse)
 	assert.True(t, ok)
 	assert.Equal(t, response.SignerAddress, signerAddr)
-	assert.Equal(t, response.Status, cardinal.PersonaStatusAssigned)
+	assert.Equal(t, response.Status, PersonaStatusAssigned)
 }
 
 func TestQuerySignerAvailable(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.DoTick()
 
 	query, err := world.GetQuery("persona", "signer")
 	assert.NilError(t, err)
-	res, err := cardinal.InternalHandleQuery(
-		cardinal.NewReadOnlyWorldContext(world), query, &cardinal.PersonaSignerQueryRequest{
-			PersonaTag: "some-random-nonexistent-persona-tag",
-		})
+	res, err := query.handleQuery(NewReadOnlyWorldContext(world), &PersonaSignerQueryRequest{
+		PersonaTag: "some-random-nonexistent-persona-tag",
+	})
 	assert.NilError(t, err)
-	response, ok := res.(*cardinal.PersonaSignerQueryResponse)
+	response, ok := res.(*PersonaSignerQueryResponse)
 	assert.True(t, ok)
 
-	assert.Equal(t, response.Status, cardinal.PersonaStatusAvailable)
+	assert.Equal(t, response.Status, PersonaStatusAvailable)
 }
 
 func TestQuerySignerUnknown(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := NewTestFixture(t, nil)
 	engine := tf.World
 	tf.DoTick()
 
 	query, err := engine.GetQuery("persona", "signer")
 	assert.NilError(t, err)
-	res, err := cardinal.InternalHandleQuery(cardinal.NewReadOnlyWorldContext(engine), query,
-		&cardinal.PersonaSignerQueryRequest{
-			PersonaTag: "doesnt_matter",
-			Tick:       engine.CurrentTick(),
-		})
+	res, err := query.handleQuery(NewReadOnlyWorldContext(engine), &PersonaSignerQueryRequest{
+		PersonaTag: "doesnt_matter",
+		Tick:       engine.CurrentTick(),
+	})
 	assert.NilError(t, err)
 
-	response, ok := res.(*cardinal.PersonaSignerQueryResponse)
+	response, ok := res.(*PersonaSignerQueryResponse)
 	assert.True(t, ok)
-	assert.Equal(t, response.Status, cardinal.PersonaStatusUnknown)
+	assert.Equal(t, response.Status, PersonaStatusUnknown)
 }
 
-func getSigners(t *testing.T, world *cardinal.World) []*component.SignerComponent {
-	wCtx := cardinal.NewWorldContext(world)
+func getSigners(t *testing.T, world *World) []*component.SignerComponent {
+	wCtx := NewWorldContext(world)
 	var signers = make([]*component.SignerComponent, 0)
 
-	q := cardinal.NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
+	q := NewSearch().Entity(filter.Exact(filter.Component[component.SignerComponent]()))
 
 	err := q.Each(wCtx,
 		func(id types.EntityID) bool {
-			sc, err := cardinal.GetComponent[component.SignerComponent](wCtx, id)
+			sc, err := GetComponent[component.SignerComponent](wCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)
 			return true

@@ -47,9 +47,3 @@ func isFatalError(err error) bool {
 	}
 	return true
 }
-
-// InternalHandleQuery is only used for tests it should not be used outside of that context.
-// TODO: Tests should be edited and changed such that this is no longer done.
-func InternalHandleQuery(wCtx WorldContext, query query, a any) (any, error) {
-	return query.handleQuery(wCtx, a)
-}

@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -27,7 +26,7 @@ func HealthSystem(wCtx cardinal.WorldContext) error {
 }
 
 func TestSystemExample(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world, doTick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	err := cardinal.RegisterSystems(world, HealthSystem)
@@ -61,7 +60,7 @@ func TestSystemExample(t *testing.T) {
 }
 
 func TestCanRegisterMultipleSystem(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world, doTick := tf.World, tf.DoTick
 	var firstSystemCalled bool
 	var secondSystemCalled bool
@@ -85,7 +84,7 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 }
 
 func TestInitSystemRunsOnce(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	w := tf.World
 	count := 0
 	count2 := 0

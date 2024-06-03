@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -68,7 +67,7 @@ func TestWorldLogger(t *testing.T) {
 	bufLogger := zerolog.New(&buf)
 	t.Setenv("CARDINAL_LOG_LEVEL", "debug")
 
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomLogger(bufLogger))
+	tf := cardinal.NewTestFixture(t, nil, cardinal.WithCustomLogger(bufLogger))
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterMessage[SendEnergyTx, SendEnergyTxResult](world, "alpha"))

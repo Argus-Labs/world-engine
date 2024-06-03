@@ -22,7 +22,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -48,7 +47,7 @@ type QueryLocationResponse struct {
 type ServerTestSuite struct {
 	suite.Suite
 
-	fixture *testutils.TestFixture
+	fixture *cardinal.TestFixture
 	world   *cardinal.World
 
 	privateKey *ecdsa.PrivateKey
@@ -271,7 +270,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 
 // setupWorld sets up a world with a simple movement system, message, and query.
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
-	s.fixture = testutils.NewTestFixture(s.T(), nil, opts...)
+	s.fixture = cardinal.NewTestFixture(s.T(), nil, opts...)
 	s.world = s.fixture.World
 	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
