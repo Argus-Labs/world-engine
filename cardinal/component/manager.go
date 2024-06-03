@@ -17,14 +17,15 @@ type manager struct {
 	schemaStorage        SchemaStorage
 }
 
-type Manager interface {
+//nolint:revive // reason: we want this name for World which will take on the name of the manager as a prop
+type ComponentManager interface {
 	RegisterComponent(compMetadata types.ComponentMetadata) error
 	GetComponents() []types.ComponentMetadata
 	GetComponentByName(name string) (types.ComponentMetadata, error)
 }
 
 // NewManager creates a new component manager.
-func NewManager(schemaStorage SchemaStorage) Manager {
+func NewManager(schemaStorage SchemaStorage) ComponentManager {
 	return &manager{
 		registeredComponents: make(map[string]types.ComponentMetadata),
 		nextComponentID:      1,
