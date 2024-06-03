@@ -3,13 +3,16 @@ package cardinal
 import (
 	"net"
 	"os"
+	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
-	"github.com/JeremyLoy/config"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"pkg.world.dev/world-engine/rift/credentials"
 )
@@ -19,6 +22,10 @@ const (
 	DefaultCardinalLogLevel          = "info"
 	DefaultRedisAddress              = "localhost:6379"
 	DefaultBaseShardSequencerAddress = "localhost:9601"
+
+	// Toml config file related
+	configFilePathEnvVariable = "CARDINAL_CONFIG"
+	defaultConfigFileName     = "world.toml"
 )
 
 var (
@@ -39,52 +46,66 @@ var (
 		RedisPassword:             "",
 		BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
 		BaseShardRouterKey:        "",
-		TelemetryEnabled:          false,
-		TelemetryStatsdAddress:    "",
-		TelemetryTraceAddress:     "",
+		TelemetryTraceEnabled:     false,
+		TelemetryProfilerEnabled:  false,
 	}
 )
 
 type WorldConfig struct {
 	// CardinalNamespace The shard namespace for Cardinal. This needs to be unique to prevent signature replay attacks.
-	CardinalNamespace string `config:"CARDINAL_NAMESPACE"`
+	CardinalNamespace string `mapstructure:"CARDINAL_NAMESPACE"`
 
 	// CardinalRollupEnabled When true, Cardinal will sequence and recover to/from base shard.
-	CardinalRollupEnabled bool `config:"CARDINAL_ROLLUP_ENABLED"`
+	CardinalRollupEnabled bool `mapstructure:"CARDINAL_ROLLUP_ENABLED"`
 
 	// CardinalLogLevel Determines the log level for Cardinal.
-	CardinalLogLevel string `config:"CARDINAL_LOG_LEVEL"`
+	CardinalLogLevel string `mapstructure:"CARDINAL_LOG_LEVEL"`
 
 	// CardinalLogPretty Pretty logging, disable by default due to performance impact.
-	CardinalLogPretty bool `config:"CARDINAL_LOG_PRETTY"`
+	CardinalLogPretty bool `mapstructure:"CARDINAL_LOG_PRETTY"`
 
 	// RedisAddress The address of the redis server, supports unix sockets.
-	RedisAddress string `config:"REDIS_ADDRESS"`
+	RedisAddress string `mapstructure:"REDIS_ADDRESS"`
 
 	// RedisPassword The password for the redis server. Make sure to use a password in production.
-	RedisPassword string `config:"REDIS_PASSWORD"`
+	RedisPassword string `mapstructure:"REDIS_PASSWORD"`
 
 	// BaseShardSequencerAddress This is the address that Cardinal will use to sequence and recover to/from base shard.
-	BaseShardSequencerAddress string `config:"BASE_SHARD_SEQUENCER_ADDRESS"`
+	BaseShardSequencerAddress string `mapstructure:"BASE_SHARD_SEQUENCER_ADDRESS"`
 
 	// BaseShardRouterKey is a token used to secure communications between the game shard and the base shard.
-	BaseShardRouterKey string `config:"BASE_SHARD_ROUTER_KEY"`
+	BaseShardRouterKey string `mapstructure:"BASE_SHARD_ROUTER_KEY"`
 
-	// TelemetryEnabled When true, Cardinal will send telemetry to a telemetry agent.
-	TelemetryEnabled bool `config:"TELEMETRY_ENABLED"`
+	// TelemetryTraceEnabled When true, Cardinal will collect OpenTelemetry traces
+	TelemetryTraceEnabled bool `mapstructure:"TELEMETRY_TRACE_ENABLED"`
 
-	// TelemetryStatsdAddress The address of a statsd metric agent that will collect stats from Cardinal.
-	TelemetryStatsdAddress string `config:"TELEMETRY_STATSD_ADDRESS"`
-
-	// TelemetryTraceAddress The address of an agent that supports the collection of traces (e.g. a DataDog agent).
-	TelemetryTraceAddress string `config:"TELEMETRY_TRACE_ADDRESS"`
+	// TelemetryProfilerEnabled When true, Cardinal will run Datadog continuous profiling
+	TelemetryProfilerEnabled bool `mapstructure:"TELEMETRY_PROFILER_ENABLED"`
 }
 
 func loadWorldConfig() (*WorldConfig, error) {
+	// Set default config
 	cfg := defaultConfig
 
-	if err := config.FromEnv().To(&cfg); err != nil {
-		return nil, eris.Wrap(err, "Failed to load config")
+	// Setup Viper for world toml config file
+	setupViper()
+
+	// Read the config file
+	if err := viper.ReadInConfig(); err == nil {
+		// Unmarshal the [cardinal] section from config file into the WorldConfig struct
+		if err := viper.Sub("cardinal").Unmarshal(&cfg); err != nil {
+			log.Warn().Err(err).Msg("Failed to unmarshal config file. Using default config values...")
+		}
+	} else {
+		log.Warn().Err(err).Msg("Failed to read config file. Using default config values...")
+	}
+
+	// Override config values with environment variables
+	// This is done after reading the config file to allow for environment variable overrides
+	if err := viper.Unmarshal(&cfg); err == nil {
+		log.Debug().Msg("Overridden config values with environment variables if available...")
+	} else {
+		log.Warn().Err(err).Msg("Failed to override config values with environment variables, Using default config values...")
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -100,7 +121,7 @@ func loadWorldConfig() (*WorldConfig, error) {
 
 // Validate validates the config values.
 // If CARDINAL_ROLLUP=true, the BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_ROUTER_KEY are required.
-func (w *WorldConfig) Validate() error { //nolint:gocognit
+func (w *WorldConfig) Validate() error {
 	// Validate Cardinal configs
 	if err := Namespace(w.CardinalNamespace).Validate(); err != nil {
 		return eris.Wrap(err, "CARDINAL_NAMESPACE is not a valid namespace")
@@ -122,21 +143,6 @@ func (w *WorldConfig) Validate() error { //nolint:gocognit
 		}
 	}
 
-	// Validate telemetry configs
-	if w.TelemetryEnabled { //nolint:nestif // better consistency and readability
-		if w.TelemetryStatsdAddress != "" {
-			if _, _, err := net.SplitHostPort(w.TelemetryStatsdAddress); err != nil {
-				return eris.New("TELEMETRY_STATSD_ADDRESS must follow the format <host>:<port>")
-			}
-		}
-
-		if w.TelemetryTraceAddress != "" {
-			if _, _, err := net.SplitHostPort(w.TelemetryTraceAddress); err != nil {
-				return eris.New("TELEMETRY_TRACE_ADDRESS must follow the format <host>:<port>")
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -154,4 +160,68 @@ func (w *WorldConfig) setLogger() error {
 	}
 
 	return nil
+}
+
+func setupViper() {
+	if pflag.Lookup(configFilePathEnvVariable) == nil {
+		pflag.String(configFilePathEnvVariable, "", "Path to the TOML config file")
+	}
+
+	pflag.Parse()
+
+	// Bind the command-line flags to Viper
+	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
+		log.Debug().Err(err).Msg("Failed to bind command-line flags to Viper")
+		// Continue even if the binding fails
+	}
+
+	// Bind env for CARDINAL_CONFIG
+	if err := viper.BindEnv(configFilePathEnvVariable); err != nil {
+		log.Warn().Err(err).Str("env", configFilePathEnvVariable).Msg("Failed to bind env variable")
+	}
+
+	// Set default toml config file name and type
+	viper.SetConfigName("world") // name of config file (without extension)
+	viper.SetConfigType("toml")  // REQUIRED if the config file does not have the extension in the name
+
+	// Find the toml config file from the flag and env variable
+	// viper precedence: flag > env > default
+	configFilePath := viper.GetString(configFilePathEnvVariable)
+	if configFilePath != "" { //nolint:nestif // better consistency and readability
+		// Use Specified config file
+		fileName := filepath.Base(configFilePath)
+
+		viper.SetConfigName(strings.TrimSuffix(fileName, filepath.Ext(fileName)))
+		viper.SetConfigType(strings.TrimPrefix(filepath.Ext(fileName), "."))
+
+		viper.AddConfigPath(filepath.Dir(configFilePath))
+	} else {
+		// Search for toml file in the current directory and parent directory
+		viper.AddConfigPath(".") // look for config in the working directory
+
+		// If the config file is not found in the current directory, search in the parent directory
+		if _, err := os.Stat(defaultConfigFileName); err != nil {
+			parentDir, err := os.Getwd()
+			if err != nil {
+				log.Warn().Err(err).Msg("Failed to get current directory for TOML file search")
+			} else {
+				parentDir = filepath.Dir(parentDir) // get parent directory
+				viper.AddConfigPath(parentDir)
+			}
+		}
+	}
+
+	// Bind env from struct tags
+	val := reflect.ValueOf(&defaultConfig).Elem()
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+		tag := field.Tag.Get("mapstructure")
+		if tag != "" {
+			if err := viper.BindEnv(tag); err != nil {
+				log.Warn().Err(err).Str("field", field.Name).Msg("Failed to bind env variable")
+			}
+		}
+	}
 }

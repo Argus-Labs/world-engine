@@ -161,15 +161,9 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	tf.DoTick()
 	logStrings = strings.Split(buf.String(), "\n")[:3]
-	// test tick start
-	require.JSONEq(
-		t, `
-			{
-				"level":"info",
-				"tick":0,
-				"message":"Tick started"
-			}`, logStrings[0],
-	)
+
+	t.Log(buf.String())
+
 	// test if updating component worked
 	require.JSONEq(
 		t, `
@@ -180,7 +174,7 @@ func TestWorldLogger(t *testing.T) {
 				"component_id":2,
 				"message":"entity updated",
 				"system":"log_test.testSystemWarningTrigger"
-			}`, logStrings[2],
+			}`, logStrings[1],
 	)
 
 	// testing log output for the creation of two entities.

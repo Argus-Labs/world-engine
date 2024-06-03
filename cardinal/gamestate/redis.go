@@ -5,7 +5,11 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -16,6 +20,14 @@ var _ PrimitiveStorage[string] = &RedisStorage{}
 
 type RedisStorage struct {
 	currentClient redis.Cmdable
+	tracer        trace.Tracer
+}
+
+func NewRedisPrimitiveStorage(client redis.Cmdable) RedisStorage {
+	return RedisStorage{
+		currentClient: client,
+		tracer:        otel.Tracer("redis"),
+	}
 }
 
 func (r *RedisStorage) GetFloat64(ctx context.Context, key string) (float64, error) {
@@ -115,31 +127,45 @@ func (r *RedisStorage) StartTransaction(_ context.Context) (Transaction[string],
 }
 
 func (r *RedisStorage) EndTransaction(ctx context.Context) error {
+	ctx, span := r.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "redis.transaction.end")
+	defer span.End()
+
 	pipeline, ok := r.currentClient.(redis.Pipeliner)
 	if !ok {
-		return eris.New("current redis dbStorage is not a pipeline/transaction")
+		err := eris.New("current redis dbStorage is not a pipeline/transaction")
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return err
 	}
+
 	_, err := pipeline.Exec(ctx)
-	return eris.Wrap(err, "")
-}
-
-func NewRedisPrimitiveStorage(client redis.Cmdable) RedisStorage {
-	return RedisStorage{
-		currentClient: client,
+	if err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return err
 	}
+
+	return nil
 }
 
-// pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic
+// makePipeOfRedisCommands return a pipeliner with all pending state changes to redis ready to be committed in an atomic
 // transaction. If an error is returned, no redis changes will have been made.
 func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (PrimitiveStorage[string], error) {
+	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "ecb.tick.finalize.pipe_make")
+	defer span.End()
+
 	pipe, err := m.dbStorage.StartTransaction(ctx)
 	if err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		return nil, err
 	}
 
 	if m.typeToComponent == nil {
-		// component.ComponentID -> ComponentMetadata mappings are required to serialized data for the DB
-		return nil, eris.New("must call RegisterComponents before flushing to DB")
+		err := eris.New("must call RegisterComponents before flushing to DB")
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return nil, err
 	}
 
 	operations := []struct {
@@ -154,14 +180,19 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 	}
 
 	for _, operation := range operations {
-		var pipeSpan tracer.Span
-		pipeSpan, ctx = tracer.StartSpanFromContext(ctx, "tick.span."+operation.name)
+		ctx, pipeSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
+			ddtracer.Measured()),
+			"tick.span.finalize.pipe_make."+operation.name)
 		if err := operation.method(ctx, pipe); err != nil {
-			pipeSpan.Finish(tracer.WithError(err))
-			return nil, eris.Wrapf(err, "failed to run step %q", operation.name)
+			span.SetStatus(codes.Error, eris.ToString(err, true))
+			span.RecordError(err)
+			pipeSpan.SetStatus(codes.Error, eris.ToString(err, true))
+			pipeSpan.RecordError(err)
+			return nil, eris.Wrapf(err, "failed to run step %q", operation.name) //nolint:spancheck // false positive
 		}
-		pipeSpan.Finish()
+		pipeSpan.End()
 	}
+
 	return pipe, nil
 }
 

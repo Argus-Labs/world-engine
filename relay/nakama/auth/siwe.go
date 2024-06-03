@@ -73,7 +73,7 @@ func handleSIWE(
 	// The user has provided a signature and a message. Attempt to authenticate the user.
 	if err := siwe.ValidateSignature(ctx, nk, signerAddress, message, signature); err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(
-			logger, siwe.ErrMissingMessage, codes.Unauthenticated, "authentication failed")
+			logger, err, codes.Unauthenticated, "authentication failed")
 		return nil, err
 	}
 	// The user has successfully been authenticated

@@ -1,15 +1,18 @@
 package cardinal
 
 import (
+	"context"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"slices"
-	"time"
 
 	"github.com/rotisserie/eris"
-
-	"pkg.world.dev/world-engine/cardinal/statsd"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 const (
@@ -38,7 +41,7 @@ type SystemManager interface {
 	// These methods are intentionally made private to avoid other
 	// packages from trying to modify the system manager in the middle of a tick.
 	registerSystems(isInit bool, systems ...System) error
-	runSystems(wCtx WorldContext) error
+	runSystems(ctx context.Context, wCtx WorldContext) error
 }
 
 type systemManager struct {
@@ -49,6 +52,8 @@ type systemManager struct {
 
 	// currentSystem is the name of the system that is currently running.
 	currentSystem string
+
+	tracer trace.Tracer
 }
 
 func newSystemManager() SystemManager {
@@ -56,6 +61,7 @@ func newSystemManager() SystemManager {
 		registeredSystems:     make([]systemType, 0),
 		registeredInitSystems: make([]systemType, 0),
 		currentSystem:         noActiveSystemName,
+		tracer:                otel.Tracer("system"),
 	}
 	return sm
 }
@@ -105,7 +111,10 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) erro
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *systemManager) runSystems(wCtx WorldContext) error {
+func (m *systemManager) runSystems(ctx context.Context, wCtx WorldContext) error {
+	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "system.run")
+	defer span.End()
+
 	var systemsToRun []systemType
 	if wCtx.CurrentTick() == 0 {
 		systemsToRun = slices.Concat(m.registeredInitSystems, m.registeredSystems)
@@ -113,7 +122,6 @@ func (m *systemManager) runSystems(wCtx WorldContext) error {
 		systemsToRun = m.registeredSystems
 	}
 
-	allSystemStartTime := time.Now()
 	for _, sys := range systemsToRun {
 		// Explicit memory aliasing
 		m.currentSystem = sys.Name
@@ -122,22 +130,22 @@ func (m *systemManager) runSystems(wCtx WorldContext) error {
 		wCtx.setLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
 
 		// Executes the system function that the user registered
-		systemStartTime := time.Now()
-		err := sys.Fn(wCtx)
-		if err != nil {
+		_, systemFnSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
+			ddtracer.Measured()),
+			"system.run."+sys.Name)
+		if err := sys.Fn(wCtx); err != nil {
 			m.currentSystem = ""
-			return eris.Wrapf(err, "System %s generated an error", sys.Name)
+			span.SetStatus(codes.Error, eris.ToString(err, true))
+			span.RecordError(err)
+			systemFnSpan.SetStatus(codes.Error, eris.ToString(err, true))
+			systemFnSpan.RecordError(err)
+			return eris.Wrapf(err, "System %s generated an error", sys.Name) //nolint:spancheck // false positive
 		}
-
-		// Emit the total time it took to run `systemName`
-		statsd.EmitTickStat(systemStartTime, sys.Name)
+		systemFnSpan.End()
 	}
 
 	// Indicate that no system is currently running
 	m.currentSystem = noActiveSystemName
-
-	// Emit the total time it took to run all systems
-	statsd.EmitTickStat(allSystemStartTime, "all_systems")
 
 	return nil
 }

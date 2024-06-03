@@ -2,14 +2,14 @@ package gamestate
 
 import (
 	"context"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel/codes"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/sign"
@@ -51,48 +51,72 @@ func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
-func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, pool *txpool.TxPool) error {
-	ctx := context.Background()
+func (m *EntityCommandBuffer) StartNextTick(ctx context.Context, txs []types.Message, pool *txpool.TxPool) error {
+	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "ecb.tick.start")
+	defer span.End()
+
 	pipe, err := m.dbStorage.StartTransaction(ctx)
 	if err != nil {
-		return err
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to start transaction")
 	}
-	if err := addPendingTransactionToPipe(ctx, pipe, txs, pool); err != nil {
-		return err
+
+	if err := m.addPendingTransactionToPipe(ctx, pipe, txs, pool); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to add pending transaction to pipe")
 	}
 
 	if err := pipe.Incr(ctx, storageStartTickKey()); err != nil {
-		return eris.Wrap(err, "")
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to increment start tick key")
 	}
-	return eris.Wrap(pipe.EndTransaction(ctx), "")
+
+	if err := pipe.EndTransaction(ctx); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to end transaction")
+	}
+
+	return nil
 }
 
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
 // to the DB.
 func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
-	var span tracer.Span
-	span, ctx = tracer.StartSpanFromContext(ctx, "tick.span.finalize")
-	defer func() {
-		span.Finish()
-	}()
-	makePipeStartTime := time.Now()
+	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "ecb.tick.finalize")
+	defer span.End()
+
 	pipe, err := m.makePipeOfRedisCommands(ctx)
 	if err != nil {
-		return err
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to make redis commands pipe")
 	}
-	if err = pipe.Incr(ctx, storageEndTickKey()); err != nil {
-		return eris.Wrap(err, "")
+
+	if err := pipe.Incr(ctx, storageEndTickKey()); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to increment end tick key")
 	}
-	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
-	flushStartTime := time.Now()
-	err = pipe.EndTransaction(ctx)
-	statsd.EmitTickStat(flushStartTime, "pipe_exec")
-	if err != nil {
-		return eris.Wrap(err, "")
+
+	if err := pipe.EndTransaction(ctx); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to end transaction")
 	}
 
 	m.pendingArchIDs = nil
-	return m.DiscardPending()
+
+	if err := m.DiscardPending(); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to discard pending transaction")
+	}
+
+	return nil
 }
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
@@ -126,18 +150,25 @@ func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxPool, erro
 	return txPool, nil
 }
 
-func addPendingTransactionToPipe(
+func (m *EntityCommandBuffer) addPendingTransactionToPipe(
 	ctx context.Context, pipe PrimitiveStorage[string], txs []types.Message,
 	pool *txpool.TxPool,
 ) error {
+	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()),
+		"ecb.tick.start.add-pending-transaction")
+	defer span.End()
+
 	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := pool.ForID(tx.ID())
 		for _, txData := range currList {
 			buf, err := tx.Encode(txData.Msg)
 			if err != nil {
+				span.SetStatus(codes.Error, eris.ToString(err, true))
+				span.RecordError(err)
 				return err
 			}
+
 			currItem := pendingTransaction{
 				TypeID: tx.ID(),
 				TxHash: txData.TxHash,
@@ -147,10 +178,19 @@ func addPendingTransactionToPipe(
 			pending = append(pending, currItem)
 		}
 	}
+
 	buf, err := codec.Encode(pending)
 	if err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		return err
 	}
-	key := storagePendingTransactionKey()
-	return eris.Wrap(pipe.Set(ctx, key, buf), "")
+
+	if err := pipe.Set(ctx, storagePendingTransactionKey(), buf); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to set pending transaction")
+	}
+
+	return nil
 }
