@@ -9,6 +9,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -44,6 +46,9 @@ type EntityCommandBuffer struct {
 
 	archIDToComps  VolatileStorage[types.ArchetypeID, []types.ComponentMetadata]
 	pendingArchIDs []types.ArchetypeID
+
+	// OpenTelemetry tracer
+	tracer trace.Tracer
 }
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
@@ -62,6 +67,8 @@ func NewEntityCommandBuffer(storage PrimitiveStorage[string]) (*EntityCommandBuf
 
 		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
+
+		tracer: otel.Tracer("ecb"),
 	}
 
 	return m, nil

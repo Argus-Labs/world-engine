@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,7 +14,11 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
@@ -26,8 +29,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
-	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/telemetry"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
@@ -59,8 +62,7 @@ type World struct {
 	serverOptions []server.Option
 
 	// Core modules
-	worldStage *worldstage.Manager
-
+	worldStage       *worldstage.Manager
 	componentManager *component.Manager
 	router           router.Router
 	txPool           *txpool.TxPool
@@ -68,6 +70,10 @@ type World struct {
 	// Receipt
 	receiptHistory *receipt.History
 	evmTxReceipts  map[string]EVMTxReceipt
+
+	// Telemetry
+	telemetry *telemetry.Manager
+	tracer    trace.Tracer // Tracer for World
 
 	// Tick
 	tick            *atomic.Uint64
@@ -94,6 +100,15 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	} else {
 		log.Warn().Msg("Cardinal is running in development mode without rollup sequencing. " +
 			"If you intended to run this for production use, set CARDINAL_ROLLUP=true")
+	}
+
+	// Initialize telemetry
+	var tm *telemetry.Manager
+	if cfg.TelemetryTraceEnabled || cfg.TelemetryProfilerEnabled {
+		tm, err = telemetry.New(cfg.TelemetryTraceEnabled, cfg.TelemetryProfilerEnabled)
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create telemetry manager")
+		}
 	}
 
 	redisMetaStore := redis.NewRedisStorage(redis.Options{
@@ -135,6 +150,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		receiptHistory: receipt.NewHistory(tick.Load(), DefaultHistoricalTicksToStore),
 		evmTxReceipts:  make(map[string]EVMTxReceipt),
 
+		// Telemetry
+		telemetry: tm,
+		tracer:    otel.Tracer("world"),
+
 		// Tick
 		tick:                         tick,
 		timestamp:                    new(atomic.Uint64),
@@ -162,24 +181,9 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		opt(world)
 	}
 
+	// Register internal plugins
 	world.RegisterPlugin(newPersonaPlugin())
 
-	var metricTags []string
-	metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
-
-	if cfg.TelemetryEnabled {
-		// If both telemetry statsd and trace address are set, then we will enable telemetry
-		if cfg.TelemetryStatsdAddress != "" && cfg.TelemetryTraceAddress != "" {
-			if err = statsd.Init(cfg.TelemetryStatsdAddress, cfg.TelemetryTraceAddress, metricTags); err != nil {
-				return nil, eris.Wrap(err, "failed to init statsd telemetry")
-			}
-		} else {
-			log.Logger.Warn().Msg(
-				"TELEMETRY_ENABLED=true but TELEMETRY_STATSD_ADDRESS and TELEMETRY_TRACE_ADDRESS are not set. " +
-					"Telemetry data will not be submitted to the agent.",
-			)
-		}
-	}
 	return world, nil
 }
 
@@ -190,9 +194,9 @@ func (w *World) CurrentTick() uint64 {
 // doTick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each system in turn with the snapshot of transactions.
 func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
-	// Record tick start time for statsd.
-	// Not to be confused with `timestamp` that represents the time context for the tick
-	// that is injected into system via WorldContext.Timestamp() and recorded into the DA.
+	ctx, span := w.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "world.tick")
+	defer span.End()
+
 	startTime := time.Now()
 
 	// The world can only perform a tick if:
@@ -202,25 +206,22 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	if w.worldStage.Current() != worldstage.Recovering &&
 		w.worldStage.Current() != worldstage.Running &&
 		w.worldStage.Current() != worldstage.ShuttingDown {
-		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
+		err := eris.Errorf("world is not in a valid state to tick %s", w.worldStage.Current())
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return err
 	}
 
 	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the
 	// current system that is running.
 	defer w.handleTickPanic()
 
-	var span tracer.Span
-	span, ctx = tracer.StartSpanFromContext(ctx, "cardinal.span.tick")
-	defer func() {
-		span.Finish()
-	}()
-
-	log.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
-
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
-	txPool := w.txPool.CopyTransactions()
+	txPool := w.txPool.CopyTransactions(ctx)
 
-	if err := w.entityStore.StartNextTick(w.GetRegisteredMessages(), txPool); err != nil {
+	if err := w.entityStore.StartNextTick(ctx, w.GetRegisteredMessages(), txPool); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		return err
 	}
 
@@ -232,15 +233,17 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 
 	// Run all registered systems.
 	// This will run the registered init systems if the current tick is 0
-	if err := w.SystemManager.runSystems(wCtx); err != nil {
+	if err := w.SystemManager.runSystems(ctx, wCtx); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		return err
 	}
 
-	finalizeTickStartTime := time.Now()
 	if err := w.entityStore.FinalizeTick(ctx); err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		return err
 	}
-	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txPool.GetEVMTxs())
 
@@ -251,7 +254,9 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	if w.router != nil && w.worldStage.Current() != worldstage.Recovering {
 		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
-			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
+			span.SetStatus(codes.Error, eris.ToString(err, true))
+			span.RecordError(err)
+			return eris.Wrap(err, "failed to submit transactions to base shard")
 		}
 	}
 
@@ -260,17 +265,16 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	w.receiptHistory.NextTick() // todo(scott): use channels
 
 	// Populate world.TickResults for the current tick and emit it as an Event
-	flushEventStart := time.Now()
-	w.populateAndBroadcastTickResults()
-	statsd.EmitTickStat(flushEventStart, "flush_events")
+	w.populateAndBroadcastTickResults(ctx)
 
-	// Clear the TickResults for this tick in preparation for the next Tick
+	// Clear the TickResults for this tick in preparation for the next tick
 	w.tickResults.Clear()
 
-	statsd.EmitTickStat(startTime, "full_tick")
-	if err := statsd.Client().Count("num_of_txs", int64(txPool.GetAmountOfTxs()), nil, 1); err != nil {
-		log.Warn().Msgf("failed to emit count stat:%v", err)
-	}
+	log.Info().
+		Int("tick", int(w.CurrentTick()-1)).
+		Str("duration", time.Since(startTime).String()).
+		Int("tx_count", txPool.GetAmountOfTxs()).
+		Msg("Tick completed")
 
 	return nil
 }
@@ -433,7 +437,7 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) Shutdown() error {
-	log.Info().Msg("Shutting down game loop.")
+	log.Info().Msg("Shutting down game loop")
 	ok := w.worldStage.CompareAndSwap(worldstage.Running, worldstage.ShuttingDown)
 	if !ok {
 		select {
@@ -456,14 +460,22 @@ func (w *World) Shutdown() error {
 		}
 	}
 
-	log.Info().Msg("Successfully shut down game loop.")
-	log.Info().Msg("Closing storage connection.")
+	log.Info().Msg("Successfully shut down game loop")
+	log.Info().Msg("Closing storage connection")
 	err := w.redisStorage.Close()
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to close storage connection.")
+		log.Error().Err(err).Msg("Failed to close storage connection")
 		return err
 	}
-	log.Info().Msg("Successfully closed storage connection.")
+	log.Info().Msg("Successfully closed storage connection")
+	log.Info().Msg("Shutting down telemetry")
+
+	if w.telemetry != nil {
+		err = w.telemetry.Shutdown()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to shut down telemetry")
+		}
+	}
 
 	return nil
 }
@@ -646,7 +658,11 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 	return w.componentManager.GetComponentByName(name)
 }
 
-func (w *World) populateAndBroadcastTickResults() {
+func (w *World) populateAndBroadcastTickResults(ctx context.Context) {
+	_, span := w.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()),
+		"world.tick.broadcast_tick_results")
+	defer span.End()
+
 	receipts, err := w.receiptHistory.GetReceiptsForTick(w.CurrentTick() - 1)
 	if err != nil {
 		log.Error().Err(err).Msgf("failed get receipts for tick %d", w.CurrentTick())
@@ -657,6 +673,8 @@ func (w *World) populateAndBroadcastTickResults() {
 	// Broadcast the tick results to all clients
 	err = w.server.BroadcastEvent(w.tickResults)
 	if err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		log.Err(err).Msgf("failed to broadcast tick results")
 	}
 }

@@ -1,14 +1,21 @@
 package cardinal
 
 import (
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"github.com/naoina/toml"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"pkg.world.dev/world-engine/assert"
 )
 
 func TestWorldConfig_loadWorldConfig(t *testing.T) {
+	defer CleanupViper(t)
+
 	// Test that loading config prorammatically works
 	cfg, err := loadWorldConfig()
 	assert.NilError(t, err)
@@ -16,6 +23,8 @@ func TestWorldConfig_loadWorldConfig(t *testing.T) {
 }
 
 func TestWorldConfig_LoadFromEnv(t *testing.T) {
+	defer CleanupViper(t)
+
 	// This target config intentionally does not use the default config values
 	// to make sure that all custom config is properly loaded from env vars.
 	wantCfg := WorldConfig{
@@ -27,9 +36,6 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		RedisPassword:             "bar",
 		BaseShardSequencerAddress: "localhost:8080",
 		BaseShardRouterKey:        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
-		TelemetryEnabled:          true,
-		TelemetryStatsdAddress:    "localhost:8125",
-		TelemetryTraceAddress:     "localhost:8126",
 	}
 
 	// Set env vars to target config values
@@ -41,9 +47,6 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
 	t.Setenv("BASE_SHARD_ROUTER_KEY", wantCfg.BaseShardRouterKey)
-	t.Setenv("TELEMETRY_ENABLED", strconv.FormatBool(wantCfg.TelemetryEnabled))
-	t.Setenv("TELEMETRY_STATSD_ADDRESS", wantCfg.TelemetryStatsdAddress)
-	t.Setenv("TELEMETRY_TRACE_ADDRESS", wantCfg.TelemetryTraceAddress)
 
 	gotCfg, err := loadWorldConfig()
 	assert.NilError(t, err)
@@ -145,71 +148,6 @@ func TestWorldConfig_Validate_RollupMode(t *testing.T) {
 	}
 }
 
-func TestWorldConfig_Validate_Telemetry(t *testing.T) {
-	testCases := []struct {
-		name    string
-		cfg     WorldConfig
-		wantErr bool
-	}{
-		{
-			name: "If telemetry not enabled, don't validate the addresses",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       false,
-				TelemetryStatsdAddress: "foo",
-				TelemetryTraceAddress:  "bar",
-			}),
-			wantErr: false,
-		},
-		{
-			name: "If telemetry is enabled and all addresses are set and valid, no errors",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "localhost:8125",
-				TelemetryTraceAddress:  "localhost:8126",
-			}),
-			wantErr: false,
-		},
-		{
-			name: "If telemetry is enabled but address is empty, no errors (just log a warning)",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "",
-				TelemetryTraceAddress:  "",
-			}),
-			wantErr: false,
-		},
-		{
-			name: "If telemetry is enabled, bad statsd address causes validation error",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "foo",
-				TelemetryTraceAddress:  "localhost:8126",
-			}),
-			wantErr: true,
-		},
-		{
-			name: "If telemetry is enabled, bad trace address causes validation error",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "localhost:8125",
-				TelemetryTraceAddress:  "bar",
-			}),
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
-			if tc.wantErr {
-				assert.IsError(t, err)
-			} else {
-				assert.NilError(t, err)
-			}
-		})
-	}
-}
-
 func defaultConfigWithOverrides(overrideCfg WorldConfig) WorldConfig {
 	// Iterate over all the fields in the default config and override the ones that are set in the overrideCfg
 	// with the values from the overrideCfg.
@@ -233,4 +171,105 @@ func defaultConfigWithOverrides(overrideCfg WorldConfig) WorldConfig {
 	}
 
 	return cfg
+}
+
+func TestWorldConfig_loadWorldConfigUsingTomlEnv(t *testing.T) {
+	defer CleanupViper(t)
+
+	tomlFilePath := "../e2e/testgames/world.toml"
+	t.Setenv(configFilePathEnvVariable, tomlFilePath)
+
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, "my-world-e2e", cfg.CardinalNamespace)
+}
+
+func TestWorldConfig_loadWorldConfigUsingTomlFlag(t *testing.T) {
+	// Save the original values of os.Args and pflag.CommandLine
+	originalArgs := os.Args
+	originalFlagSet := pflag.CommandLine
+
+	// Ensure they are restored after the test completes
+	defer func() {
+		os.Args = originalArgs
+		pflag.CommandLine = originalFlagSet
+		CleanupViper(t)
+	}()
+
+	// Set up command-line arguments
+	os.Args = []string{"cmd", "--CARDINAL_CONFIG=../e2e/testgames/world.toml"}
+	pflag.CommandLine = pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
+
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, "my-world-e2e", cfg.CardinalNamespace)
+}
+
+func makeConfigAtPath(t *testing.T, path, namespace string) {
+	file, err := os.Create(path)
+	assert.NilError(t, err)
+	defer file.Close()
+	makeConfigAtFile(t, file, namespace)
+}
+
+func makeConfigAtFile(t *testing.T, file *os.File, namespace string) {
+	data := map[string]any{
+		"cardinal": map[string]any{
+			"CARDINAL_NAMESPACE": namespace,
+		},
+	}
+	assert.NilError(t, toml.NewEncoder(file).Encode(data))
+}
+
+func TestWorldConfig_loadWorldConfigUsingFromCurDir(t *testing.T) {
+	defer CleanupViper(t)
+
+	makeConfigAtPath(t, "world.toml", "my-world-current-dir")
+	t.Cleanup(func() {
+		os.Remove("world.toml")
+	})
+
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, "my-world-current-dir", cfg.CardinalNamespace)
+}
+
+func TestWorldConfig_loadWorldConfigUsingFromParDir(t *testing.T) {
+	defer CleanupViper(t)
+
+	makeConfigAtPath(t, "../world.toml", "my-world-parrent-dir")
+	t.Cleanup(func() {
+		os.Remove("../world.toml")
+	})
+
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, "my-world-parrent-dir", cfg.CardinalNamespace)
+}
+
+func TestWorldConfig_loadWorldConfigUsingOverrideByenv(t *testing.T) {
+	defer CleanupViper(t)
+
+	makeConfigAtPath(t, "../world.toml", "my-world-parrent-dir")
+	t.Cleanup(func() {
+		os.Remove("../world.toml")
+	})
+	t.Setenv("CARDINAL_NAMESPACE", "my-world-env")
+
+	cfg, err := loadWorldConfig()
+	assert.NilError(t, err)
+	assert.Equal(t, "my-world-env", cfg.CardinalNamespace)
+}
+
+// CleanupViper resets Viper configuration
+func CleanupViper(t *testing.T) {
+	viper.Reset()
+
+	// Optionally, you can also clear environment variables if needed
+	for _, key := range viper.AllKeys() {
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("failed to unset env var %s: %v", key, err)
+		}
+	}
 }

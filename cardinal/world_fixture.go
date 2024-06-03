@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rotisserie/eris"
+	"github.com/spf13/viper"
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
@@ -77,6 +79,16 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOptio
 		startOnce:   &sync.Once{},
 		// Only register this method with t.Cleanup if the game server is actually started
 		doCleanup: func() {
+			viper.Reset()
+
+			// Optionally, you can also clear environment variables if needed
+			for _, key := range viper.AllKeys() {
+				err := os.Unsetenv(key)
+				if err != nil {
+					t.Errorf("failed to unset env var %s: %v", key, err)
+				}
+			}
+
 			// First, make sure completed ticks will never be blocked
 			go func() {
 				for range doneTickCh { //nolint:revive // This pattern drains the channel until closed

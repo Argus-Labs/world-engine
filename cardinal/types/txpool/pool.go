@@ -1,7 +1,13 @@
 package txpool
 
 import (
+	"context"
 	"sync"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
@@ -22,12 +28,14 @@ type TxPool struct {
 	m         TxMap
 	txsInPool int
 	mux       *sync.Mutex
+	tracer    trace.Tracer
 }
 
 func New() *TxPool {
 	return &TxPool{
-		m:   TxMap{},
-		mux: &sync.Mutex{},
+		m:      TxMap{},
+		mux:    &sync.Mutex{},
+		tracer: otel.Tracer("txpool"),
 	}
 }
 
@@ -81,11 +89,16 @@ func (t *TxPool) Transactions() TxMap {
 }
 
 // CopyTransactions returns a copy of the TxPool, and resets the state to 0 values.
-func (t *TxPool) CopyTransactions() *TxPool {
+func (t *TxPool) CopyTransactions(ctx context.Context) *TxPool {
+	_, span := t.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "txpool.copy-transactions")
+	defer span.End()
+
 	t.mux.Lock()
 	defer t.mux.Unlock()
+
 	cpy := *t
 	t.reset()
+
 	return &cpy
 }
 
