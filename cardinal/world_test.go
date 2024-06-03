@@ -40,6 +40,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 		WithPort(getOpenPort(t)),
 		WithCustomLogger(bufLogger),
 	)
+	defer CleanupViper(t)
 
 	assert.NilError(t, err)
 
@@ -182,6 +183,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		}
 
 		assert.NilError(t, world.Shutdown())
+		CleanupViper(t)
 	}
 
 	miniRedis.Close()
@@ -281,6 +283,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		}
 
 		assert.NilError(t, world.Shutdown())
+		CleanupViper(t)
 	}
 	rs.Close()
 }
@@ -309,6 +312,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	world, err := NewWorld(WithPort(getOpenPort(t)))
 	assert.NilError(t, err)
+	defer CleanupViper(t)
 
 	assert.NilError(t, RegisterComponent[onePowerComponent](world))
 
@@ -456,6 +460,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 
 			world, err := NewWorld(WithPort(getOpenPort(t)))
 			assert.NilError(t, err)
+			defer CleanupViper(t)
 
 			assert.NilError(t, RegisterComponent[Foo](world))
 			assert.NilError(t, RegisterComponent[Bar](world))
