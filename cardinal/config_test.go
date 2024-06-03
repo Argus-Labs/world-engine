@@ -36,9 +36,6 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		RedisPassword:             "bar",
 		BaseShardSequencerAddress: "localhost:8080",
 		BaseShardRouterKey:        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
-		TelemetryEnabled:          true,
-		TelemetryStatsdAddress:    "localhost:8125",
-		TelemetryTraceAddress:     "localhost:8126",
 	}
 
 	// Set env vars to target config values
@@ -50,9 +47,6 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
 	t.Setenv("BASE_SHARD_ROUTER_KEY", wantCfg.BaseShardRouterKey)
-	t.Setenv("TELEMETRY_ENABLED", strconv.FormatBool(wantCfg.TelemetryEnabled))
-	t.Setenv("TELEMETRY_STATSD_ADDRESS", wantCfg.TelemetryStatsdAddress)
-	t.Setenv("TELEMETRY_TRACE_ADDRESS", wantCfg.TelemetryTraceAddress)
 
 	gotCfg, err := loadWorldConfig()
 	assert.NilError(t, err)
@@ -139,71 +133,6 @@ func TestWorldConfig_Validate_RollupMode(t *testing.T) {
 				BaseShardRouterKey:        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
 			}),
 			wantErr: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
-			if tc.wantErr {
-				assert.IsError(t, err)
-			} else {
-				assert.NilError(t, err)
-			}
-		})
-	}
-}
-
-func TestWorldConfig_Validate_Telemetry(t *testing.T) {
-	testCases := []struct {
-		name    string
-		cfg     WorldConfig
-		wantErr bool
-	}{
-		{
-			name: "If telemetry not enabled, don't validate the addresses",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       false,
-				TelemetryStatsdAddress: "foo",
-				TelemetryTraceAddress:  "bar",
-			}),
-			wantErr: false,
-		},
-		{
-			name: "If telemetry is enabled and all addresses are set and valid, no errors",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "localhost:8125",
-				TelemetryTraceAddress:  "localhost:8126",
-			}),
-			wantErr: false,
-		},
-		{
-			name: "If telemetry is enabled but address is empty, no errors (just log a warning)",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "",
-				TelemetryTraceAddress:  "",
-			}),
-			wantErr: false,
-		},
-		{
-			name: "If telemetry is enabled, bad statsd address causes validation error",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "foo",
-				TelemetryTraceAddress:  "localhost:8126",
-			}),
-			wantErr: true,
-		},
-		{
-			name: "If telemetry is enabled, bad trace address causes validation error",
-			cfg: defaultConfigWithOverrides(WorldConfig{
-				TelemetryEnabled:       true,
-				TelemetryStatsdAddress: "localhost:8125",
-				TelemetryTraceAddress:  "bar",
-			}),
-			wantErr: true,
 		},
 	}
 
