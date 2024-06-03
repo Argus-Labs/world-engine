@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	iteratormocks "pkg.world.dev/world-engine/cardinal/router/iterator/mocks"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -25,7 +24,7 @@ type fooResponse struct {
 }
 
 func TestWorldRecovery(t *testing.T) {
-	var tf *testutils.TestFixture
+	var tf *cardinal.TestFixture
 	var controller *gomock.Controller
 	var router *mocks.MockRouter
 	var world *cardinal.World
@@ -36,7 +35,7 @@ func TestWorldRecovery(t *testing.T) {
 
 	controller = gomock.NewController(t)
 	router = mocks.NewMockRouter(controller)
-	tf = testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(router))
+	tf = cardinal.NewTestFixture(t, nil, cardinal.WithCustomRouter(router))
 
 	world = tf.World
 	msgName := "foo"

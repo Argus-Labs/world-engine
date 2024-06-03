@@ -8,7 +8,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -100,7 +99,7 @@ func UpdateEnergySystem(wCtx cardinal.WorldContext) error {
 }
 
 func TestECS(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
@@ -145,7 +144,7 @@ func TestECS(t *testing.T) {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	// These components are a mix of concrete types and pointer types to make sure they both work
@@ -190,7 +189,7 @@ func (Owner) Name() string {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	wantOwner := Owner{"Jeff"}
@@ -224,7 +223,7 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Tuple](world))
@@ -301,7 +300,7 @@ func (CountComponent) Name() string {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[CountComponent](world))
@@ -360,7 +359,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
 	tf.StartWorld()
@@ -372,7 +371,7 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ReactorEnergy](world))
 	assert.NilError(t, cardinal.RegisterComponent[WeaponEnergy](world))
@@ -385,7 +384,7 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
@@ -436,7 +435,7 @@ func (Gamma) Name() string {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
@@ -512,7 +511,7 @@ func (e EnergyComponentBeta) Name() string {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponentAlpha](world))
@@ -538,7 +537,7 @@ func (C) Name() string { return "c" }
 func (D) Name() string { return "d" }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[A](world))
 	assert.NilError(t, cardinal.RegisterComponent[B](world))
@@ -601,7 +600,7 @@ func (HealthComponent) Name() string {
 }
 
 func TestUpdateWithPointerType(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[HealthComponent](world))
 	tf.StartWorld()
@@ -635,7 +634,7 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent1](world))
 	tf.StartWorld()
@@ -674,7 +673,7 @@ func (OtherComponent) Name() string {
 }
 
 func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, cardinal.RegisterComponent[OtherComponent](world))
@@ -699,7 +698,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 }
 
 func TestEntityCreationAndSetting(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, cardinal.RegisterComponent[OtherComponent](world))
