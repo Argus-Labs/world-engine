@@ -122,12 +122,15 @@ func (m *systemManager) runSystems(ctx context.Context, wCtx WorldContext) error
 		systemsToRun = m.registeredSystems
 	}
 
+	// Store the original logger so that it can be reset to its original value
+	logger := wCtx.Logger()
+
 	for _, sys := range systemsToRun {
 		// Explicit memory aliasing
 		m.currentSystem = sys.Name
 
 		// Inject the system name into the logger
-		wCtx.setLogger(wCtx.Logger().With().Str("system", sys.Name).Logger())
+		wCtx.setLogger(logger.With().Str("system", sys.Name).Logger())
 
 		// Executes the system function that the user registered
 		_, systemFnSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
@@ -143,6 +146,9 @@ func (m *systemManager) runSystems(ctx context.Context, wCtx WorldContext) error
 		}
 		systemFnSpan.End()
 	}
+
+	// Reset the logger to the original logger
+	wCtx.setLogger(*logger)
 
 	// Indicate that no system is currently running
 	m.currentSystem = noActiveSystemName
