@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/server/handler/cql"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -28,7 +27,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestGetEverythingFilter(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
@@ -60,7 +59,7 @@ func TestGetEverythingFilter(t *testing.T) {
 }
 
 func TestCanFilterByArchetype(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
@@ -97,7 +96,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 }
 
 func TestExactVsContains(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
@@ -241,7 +240,7 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
@@ -304,7 +303,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 0; i < b.N; i++ {
-		tf := testutils.NewTestFixture(b, nil)
+		tf := cardinal.NewTestFixture(b, nil)
 		world := tf.World
 		assert.NilError(b, cardinal.RegisterComponent[Alpha](world))
 		tf.StartWorld()
@@ -332,7 +331,7 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	tf := testutils.NewTestFixture(b, nil)
+	tf := cardinal.NewTestFixture(b, nil)
 	world := tf.World
 	assert.NilError(b, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(b, cardinal.RegisterComponent[Beta](world))

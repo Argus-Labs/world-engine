@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -182,7 +181,7 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	ctx := context.Background()
 
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager))
+	tf := cardinal.NewTestFixture(t, nil, cardinal.WithStoreManager(manager))
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterComponent[Power](world))

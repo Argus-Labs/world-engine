@@ -46,8 +46,14 @@ type Bar struct{}
 
 func (Bar) Name() string { return "bar" }
 
+type Health struct {
+	Value int
+}
+
+func (Health) Name() string { return "health" }
+
 func TestForEachTransaction(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	type SomeMsgRequest struct {
 		GenerateError bool
@@ -126,7 +132,7 @@ type ModifyScoreMsg struct {
 type EmptyMsgResult struct{}
 
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[CounterComponent](world))
@@ -161,7 +167,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ScoreComponent](world))
 
@@ -233,7 +239,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 // TestAddToPoolDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
 // pool during a game tick, and the call does not block.
 func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	msgName := "modify_Score"
@@ -298,7 +304,7 @@ func TestAddToPoolDuringTickDoesNotTimeout(t *testing.T) {
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
 // are added to some pool that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	msgName := "modify_score"
 	assert.NilError(t, cardinal.RegisterMessage[*ModifyScoreMsg, *EmptyMsgResult](world, msgName))
@@ -383,14 +389,14 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterMessage[ModifyScoreMsg, EmptyMsgResult](world, "modify_score"))
 	assert.IsError(t, cardinal.RegisterMessage[ModifyScoreMsg, EmptyMsgResult](world, "modify_score"))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterMessage[ModifyScoreMsg, EmptyMsgResult](world, "modify_score"))
 	assert.Check(t, nil != cardinal.RegisterMessage[ModifyScoreMsg, EmptyMsgResult](world, "modify_score"))
@@ -403,7 +409,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	type OtherMsg struct {
 		Alpha, Beta string
 	}
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	err := cardinal.RegisterMessage[SomeMsg, EmptyMsgResult](world, "name_match")
 	assert.NilError(t, err)
@@ -418,7 +424,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	type MoveMsgResult struct {
 		EndX, EndY int
 	}
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 
 	// Each transaction now needs an input and an output
@@ -486,7 +492,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	msgName := "number"
 	assert.NilError(t, cardinal.RegisterMessage[MsgIn, MsgOut](world, msgName))
@@ -546,7 +552,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	msgName := "number"
 	assert.NilError(t, cardinal.RegisterMessage[MsgIn, MsgOut](world, msgName))
@@ -611,7 +617,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 }
 
 func TestTransactionExample(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world, doTick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	msgName := "add_health"
@@ -675,7 +681,7 @@ func TestTransactionExample(t *testing.T) {
 		}
 	}
 	// Make sure transaction errors are recorded in the receipt
-	receipts, err := cardinal.GetTransactionReceiptsForTick(testWorldCtx, testWorldCtx.CurrentTick()-1)
+	receipts, err := tf.World.GetTransactionReceiptsForTick(testWorldCtx.CurrentTick() - 1)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(receipts))
 	assert.Equal(t, 1, len(receipts[0].Errs))
@@ -684,7 +690,7 @@ func TestTransactionExample(t *testing.T) {
 func TestCreatePersona(t *testing.T) {
 	namespace := "custom-namespace"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	addr := tf.BaseURL
 	tf.DoTick()
 
@@ -715,20 +721,20 @@ func TestCreatePersona(t *testing.T) {
 }
 
 func TestNewWorld(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	assert.Equal(t, tf.World.Namespace(), cardinal.DefaultCardinalNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	assert.Equal(t, tf.World.Namespace(), "custom-namespace")
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
@@ -755,7 +761,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
 		ts = context.Timestamp()
@@ -773,7 +779,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world, addr := tf.World, tf.BaseURL
 	httpBaseURL := "http://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
@@ -829,7 +835,7 @@ func TestShutdownViaSignal(t *testing.T) {
 func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
-	tf := testutils.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
+	tf := cardinal.NewTestFixture(t, nil, cardinal.WithCustomRouter(rtr))
 
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)

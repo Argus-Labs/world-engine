@@ -11,13 +11,12 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
 
 func TestGetSignerComponentForPersona(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	msgType, exists := world.GetMessageByFullName("persona.create-persona")
 	assert.True(t, exists)
@@ -42,7 +41,7 @@ func TestGetSignerComponentForPersona(t *testing.T) {
 }
 
 func TestCreatePersonaSystem_WithNoPersonaTagCreateTxs_TickShouldBeFast(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 
 	const trials = 100
 	startTime := time.Now()
@@ -84,7 +83,7 @@ func TestCreatePersonaSystem_WithNoPersonaTagCreateTxs_TickShouldBeFast(t *testi
 }
 
 func TestCreatePersonaSystem_WhenCardinalIsRestarted_PersonaTagsAreStillRegistered(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 
 	type countPersonaTagsResult struct {
 		personaTags map[string]bool
@@ -132,7 +131,7 @@ func TestCreatePersonaSystem_WhenCardinalIsRestarted_PersonaTagsAreStillRegister
 	// There should now be 10 persona tags registered.
 
 	// Simulate a cardinal restart by creating a new test fixture with the same redis DB.
-	tf = testutils.NewTestFixture(t, tf.Redis)
+	tf = cardinal.NewTestFixture(t, tf.Redis)
 	assert.NilError(t, cardinal.RegisterSystems(tf.World, emitNumberOfPersonaTagsSystem))
 
 	// Make sure there are still 10 persona tags registered.

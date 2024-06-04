@@ -6,7 +6,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -59,7 +58,7 @@ func (GammaTest) Name() string {
 }
 
 func TestSearchUsingAllMethods(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -126,7 +125,7 @@ func areIDsSorted(ids []types.EntityID) bool {
 }
 
 func TestSetOperationsOnSearch(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -181,7 +180,7 @@ func TestSetOperationsOnSearch(t *testing.T) {
 }
 
 func TestSearch_Integration(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -303,7 +302,7 @@ func TestSearch_Integration(t *testing.T) {
 }
 
 func TestSearch_Exact_ReturnsExactComponentMatch(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -336,7 +335,7 @@ func TestSearch_Exact_ReturnsExactComponentMatch(t *testing.T) {
 }
 
 func TestSearch_Contains_ReturnsEntityThatContainsComponents(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -369,7 +368,7 @@ func TestSearch_Contains_ReturnsEntityThatContainsComponents(t *testing.T) {
 }
 
 func TestSearch_ComponentNotRegistered_ReturnsZeroEntityWithNoError(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -402,7 +401,7 @@ func TestSearch_ComponentNotRegistered_ReturnsZeroEntityWithNoError(t *testing.T
 }
 
 func TestUnregisteredComponentOnSetOperators(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
@@ -457,7 +456,7 @@ func TestUnregisteredComponentOnSetOperators(t *testing.T) {
 }
 
 func TestWhereClauseOnSearch(t *testing.T) {
-	tf := testutils.NewTestFixture(t, nil)
+	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[AlphaTest](world))
 	assert.NilError(t, cardinal.RegisterComponent[BetaTest](world))
