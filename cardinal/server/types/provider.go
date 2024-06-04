@@ -19,6 +19,6 @@ type ProviderWorld interface {
 	ReceiptHistorySize() uint64
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 	EvaluateCQL(cql string) ([]types.EntityStateElement, error)
-	GetDebugState() ([]types.EntityStateElement, error)
+	GetDebugState() ([]types.DebugStateElement, error)
 	BuildQueryFields() []types.FieldDetail
 }

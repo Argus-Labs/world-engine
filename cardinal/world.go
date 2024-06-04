@@ -560,8 +560,8 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) GetDebugState() ([]types.EntityStateElement, error) {
-	result := make([]types.EntityStateElement, 0)
+func (w *World) GetDebugState() ([]types.DebugStateElement, error) {
+	result := make([]types.DebugStateElement, 0)
 	s := w.Search(filter.All())
 	var eachClosureErr error
 	wCtx := NewReadOnlyWorldContext(w)
@@ -572,9 +572,9 @@ func (w *World) GetDebugState() ([]types.EntityStateElement, error) {
 			if eachClosureErr != nil {
 				return false
 			}
-			resultElement := types.EntityStateElement{
-				ID:   id,
-				Data: make([]json.RawMessage, 0),
+			resultElement := types.DebugStateElement{
+				ID:         id,
+				Components: make(map[string]json.RawMessage),
 			}
 			for _, c := range components {
 				var data json.RawMessage
@@ -582,7 +582,7 @@ func (w *World) GetDebugState() ([]types.EntityStateElement, error) {
 				if eachClosureErr != nil {
 					return false
 				}
-				resultElement.Data = append(resultElement.Data, data)
+				resultElement.Components[c.Name()] = data
 			}
 			result = append(result, resultElement)
 			return true

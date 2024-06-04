@@ -25,25 +25,25 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 	s.Require().NoError(err)
 	s.Require().Equal(res.StatusCode, 200)
 
-	var results []types.EntityStateElement
+	var results []types.DebugStateElement
 	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
 	numOfZeroLocation := 0
 	numOfNonZeroLocation := 0
-	for i, result := range results {
-		comp := result.Data[0]
+	for _, result := range results {
+		comp := result.Components["location"]
 		if comp == nil {
 			continue
 		}
 		var loc LocationComponent
 		s.Require().NoError(json.Unmarshal(comp, &loc))
-		if i != 6 {
-			if loc.Y == 0 {
-				numOfZeroLocation++
-			} else {
-				numOfNonZeroLocation++
-			}
+
+		if loc.Y == 0 {
+			numOfZeroLocation++
+		} else {
+			numOfNonZeroLocation++
 		}
+
 	}
 	s.Require().Equal(numOfZeroLocation, wantNumOfZeroLocation)
 	s.Require().Equal(numOfNonZeroLocation, 1)
@@ -56,7 +56,7 @@ func (s *ServerTestSuite) TestDebugStateQuery_NoState() {
 	res := s.fixture.Post("debug/state", handler.DebugStateRequest{})
 	s.Require().Equal(res.StatusCode, 200)
 
-	var results []types.EntityStateElement
+	var results []types.DebugStateElement
 	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
 	s.Require().Equal(len(results), 0)
