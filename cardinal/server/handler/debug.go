@@ -9,7 +9,7 @@ import (
 
 type DebugStateRequest struct{}
 
-type DebugStateResponse = []types.EntityStateElement
+type DebugStateResponse = []types.DebugStateElement
 
 // GetState godoc
 //

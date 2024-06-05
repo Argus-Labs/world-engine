@@ -65,7 +65,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement"
+                                "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.DebugStateElement"
                             }
                         }
                     }
@@ -494,6 +494,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
+            "type": "object",
+            "properties": {
+                "components": {
                     "type": "object"
                 },
                 "id": {

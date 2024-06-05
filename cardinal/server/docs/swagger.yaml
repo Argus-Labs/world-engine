@@ -96,6 +96,13 @@ definitions:
       id:
         type: integer
     type: object
+  pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
+    properties:
+      components:
+        type: object
+      id:
+        type: integer
+    type: object
   pkg_world_dev_world-engine_cardinal_types.FieldDetail:
     properties:
       fields:
@@ -148,7 +155,7 @@ paths:
           description: List of all entities
           schema:
             items:
-              $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement'
+              $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.DebugStateElement'
             type: array
       summary: Retrieves a list of all entities in the game state
   /events:
