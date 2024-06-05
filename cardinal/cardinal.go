@@ -72,7 +72,7 @@ func RegisterComponent[T types.Component](w *World) error {
 		return err
 	}
 
-	err = w.componentManager.RegisterComponent(compMetadata)
+	err = w.RegisterComponent(compMetadata)
 	if err != nil {
 		return err
 	}

@@ -11,15 +11,22 @@ import (
 
 var ErrComponentNotRegistered = eris.New("component not registered")
 
-type Manager struct {
+type manager struct {
 	registeredComponents map[string]types.ComponentMetadata
 	nextComponentID      types.ComponentID
 	schemaStorage        SchemaStorage
 }
 
+//nolint:revive // reason: we want this name for World which will take on the name of the manager as a prop
+type ComponentManager interface {
+	RegisterComponent(compMetadata types.ComponentMetadata) error
+	GetComponents() []types.ComponentMetadata
+	GetComponentByName(name string) (types.ComponentMetadata, error)
+}
+
 // NewManager creates a new component manager.
-func NewManager(schemaStorage SchemaStorage) *Manager {
-	return &Manager{
+func NewManager(schemaStorage SchemaStorage) ComponentManager {
+	return &manager{
 		registeredComponents: make(map[string]types.ComponentMetadata),
 		nextComponentID:      1,
 		schemaStorage:        schemaStorage,
@@ -29,7 +36,7 @@ func NewManager(schemaStorage SchemaStorage) *Manager {
 // RegisterComponent registers component with the component manager.
 // There can only be one component with a given name, which is declared by the user by implementing the Name() method.
 // If there is a duplicate component name, an error will be returned and the component will not be registered.
-func (m *Manager) RegisterComponent(compMetadata types.ComponentMetadata) error {
+func (m *manager) RegisterComponent(compMetadata types.ComponentMetadata) error {
 	// Check that the component is not already registered
 	if err := m.isComponentNameUnique(compMetadata); err != nil {
 		return err
@@ -77,7 +84,7 @@ func (m *Manager) RegisterComponent(compMetadata types.ComponentMetadata) error 
 
 // GetComponents returns a list of all registered components.
 // Note: The order of the components in the list is not deterministic.
-func (m *Manager) GetComponents() []types.ComponentMetadata {
+func (m *manager) GetComponents() []types.ComponentMetadata {
 	registeredComponents := make([]types.ComponentMetadata, 0, len(m.registeredComponents))
 	for _, comp := range m.registeredComponents {
 		registeredComponents = append(registeredComponents, comp)
@@ -86,7 +93,7 @@ func (m *Manager) GetComponents() []types.ComponentMetadata {
 }
 
 // GetComponentByName returns the component metadata for the given component name.
-func (m *Manager) GetComponentByName(name string) (types.ComponentMetadata, error) {
+func (m *manager) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	c, ok := m.registeredComponents[name]
 	if !ok {
 		return nil, eris.Wrap(ErrComponentNotRegistered, fmt.Sprintf("component %q is not registered", name))
@@ -95,7 +102,7 @@ func (m *Manager) GetComponentByName(name string) (types.ComponentMetadata, erro
 }
 
 // isComponentNameUnique checks if the component name already exist in component map.
-func (m *Manager) isComponentNameUnique(compMetadata types.ComponentMetadata) error {
+func (m *manager) isComponentNameUnique(compMetadata types.ComponentMetadata) error {
 	_, ok := m.registeredComponents[compMetadata.Name()]
 	if ok {
 		return eris.Errorf("message %q is already registered", compMetadata.Name())
