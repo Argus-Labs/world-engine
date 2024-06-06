@@ -211,10 +211,10 @@ await socket.ConnectAsync(Session, appearOnline, connectionTimeout);
 socket.ReceivedNotification += notification =>
 {
     if (notification.Subject == "receipt") {
-        var cardinalReceipt = JosnUtility.FromJson<CardinalReceipt>(n.Content)
+        var cardinalReceipt = JsonUtility.FromJson<CardinalReceipt>(notification.Content);
         // The exact structure of cardinalReceipt.Result will be game specific
     } else if (notification.Subject == "event") {
-        var cardinalEvent = JosnUtility.FromJson<CardinalEvent>(n.Content)
+        var cardinalEvent = JsonUtility.FromJson<CardinalEvent>(notification.Content);
         // The exact content and structure of cardinalEvent.Message will be game specific
     }
 };
