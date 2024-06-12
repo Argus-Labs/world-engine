@@ -45,6 +45,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.2 // indirect
 	github.com/gofiber/swagger v0.1.14 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/pprof v0.0.0-20230817174616-7a8ec2ada47b // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -114,6 +115,7 @@ require (
 	gopkg.in/DataDog/dd-trace-go.v1 v1.63.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gotest.tools/v3 v3.5.1 // indirect
 	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a // indirect
 	pkg.world.dev/world-engine/sign v1.0.1-beta // indirect
 )
