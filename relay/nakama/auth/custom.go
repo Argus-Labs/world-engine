@@ -34,7 +34,28 @@ func handleCustomAuthentication(
 	authType := in.GetAccount().GetVars()["type"]
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
-		return handleSIWE(ctx, logger, nk, in)
+		return authWithSIWE(ctx, logger, nk, in)
+	}
+	return nil, ErrBadCustomAuthType
+}
+
+func InitCustomLink(initializer runtime.Initializer) error {
+	if err := initializer.RegisterBeforeLinkCustom(handleCustomLink); err != nil {
+		return eris.Wrap(err, "failed to init custom link")
+	}
+	return nil
+}
+
+func handleCustomLink(
+	ctx context.Context,
+	logger runtime.Logger,
+	_ *sql.DB,
+	nk runtime.NakamaModule,
+	in *api.AccountCustom) (*api.AccountCustom, error) {
+	authType := in.GetVars()["type"]
+	// In the future, other authentication methods can be added here (e.g. Twitter)
+	if authType == signInWithEthereumType {
+		return linkWithSIWE(ctx, logger, nk, in)
 	}
 	return nil, ErrBadCustomAuthType
 }

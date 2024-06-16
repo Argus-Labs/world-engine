@@ -117,6 +117,10 @@ func InitModule(
 	if err := auth.InitCustomAuthentication(initializer); err != nil {
 		return eris.Wrap(err, "failed to init ethereum authentication")
 	}
+
+	if err := auth.InitCustomLink(initializer); err != nil {
+		return eris.Wrap(err, "failed to init ethereum link")
+	}
 	return nil
 }
 

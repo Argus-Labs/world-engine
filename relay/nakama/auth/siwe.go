@@ -34,22 +34,16 @@ func validateSIWE(signer, message, signature string) (isValidationRequest bool, 
 	return isValidationRequest, nil
 }
 
-func handleSIWE(
+func processSIWE(
 	ctx context.Context,
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
-	in *api.AuthenticateCustomRequest,
-) (
-	*api.AuthenticateCustomRequest, error,
-) {
-	signerAddress := in.GetAccount().GetId()
-	signature := in.GetAccount().GetVars()["signature"]
-	message := in.GetAccount().GetVars()["message"]
-
+	signerAddress, signature, message string,
+) error {
 	isValidationRequest, err := validateSIWE(signerAddress, message, signature)
 	if err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "invalid vars")
-		return nil, err
+		return err
 	}
 
 	if !isValidationRequest {
@@ -57,25 +51,64 @@ func handleSIWE(
 		resp, err := siwe.GenerateNewSIWEMessage(signerAddress)
 		if err != nil {
 			_, err = utils.LogError(logger, err, codes.FailedPrecondition)
-			return nil, err
+			return err
 		}
 
 		bz, err := json.Marshal(resp)
 		if err != nil {
 			_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
-			return nil, err
+			return err
 		}
 		// An error is being returned here, but the error contains the text of the
 		// SIWE Message that needs to be signed.
-		return nil, runtime.NewError(string(bz), int(codes.Unauthenticated))
+		return runtime.NewError(string(bz), int(codes.Unauthenticated))
 	}
 
 	// The user has provided a signature and a message. Attempt to authenticate the user.
 	if err := siwe.ValidateSignature(ctx, nk, signerAddress, message, signature); err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(
 			logger, err, codes.Unauthenticated, "authentication failed")
+		return err
+	}
+
+	// The user has successfully been authenticated
+	return nil
+}
+
+func authWithSIWE(
+	ctx context.Context,
+	logger runtime.Logger,
+	nk runtime.NakamaModule,
+	in *api.AuthenticateCustomRequest,
+) (*api.AuthenticateCustomRequest, error) {
+	signerAddress := in.GetAccount().GetId()
+	signature := in.GetAccount().GetVars()["signature"]
+	message := in.GetAccount().GetVars()["message"]
+
+	err := processSIWE(ctx, logger, nk, signerAddress, signature, message)
+	if err != nil {
 		return nil, err
 	}
+
 	// The user has successfully been authenticated
-	return in, nil
+	return in, err
+}
+
+func linkWithSIWE(
+	ctx context.Context,
+	logger runtime.Logger,
+	nk runtime.NakamaModule,
+	in *api.AccountCustom,
+) (*api.AccountCustom, error) {
+	signerAddress := in.GetId()
+	signature := in.GetVars()["signature"]
+	message := in.GetVars()["message"]
+
+	err := processSIWE(ctx, logger, nk, signerAddress, signature, message)
+	if err != nil {
+		return nil, err
+	}
+
+	// The user has successfully been authenticated
+	return in, err
 }
