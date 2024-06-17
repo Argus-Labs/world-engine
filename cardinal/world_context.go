@@ -19,7 +19,9 @@ var _ WorldContext = (*worldContext)(nil)
 
 //go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
 type WorldContext interface {
-	// Timestamp returns the UNIX timestamp of the tick.
+	// Timestamp returns the UNIX timestamp of the tick in milliseconds.
+	// We are using millisecond because subsecond ticks are possible and we want to ensure we have that level
+	// of precision.
 	Timestamp() uint64
 	// CurrentTick returns the current tick.
 	CurrentTick() uint64

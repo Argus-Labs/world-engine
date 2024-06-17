@@ -377,7 +377,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	fooMessage, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	_, txHash := world.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
-	ts := uint64(time.Now().Unix())
 
 	rtr.
 		EXPECT().
@@ -395,7 +394,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 				},
 			},
 			world.CurrentTick(),
-			ts,
+			gomock.Any(),
 		).
 		Return(nil).
 		Times(1)
@@ -411,7 +410,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 			gomock.Any(),
 			txpool.TxMap{},
 			world.CurrentTick(),
-			ts,
+			gomock.Any(),
 		).
 		Return(nil).
 		Times(1)
