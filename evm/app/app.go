@@ -39,7 +39,7 @@ import (
 	"github.com/berachain/polaris/cosmos/runtime/ante"
 	"github.com/berachain/polaris/cosmos/runtime/miner"
 	evmkeeper "github.com/berachain/polaris/cosmos/x/evm/keeper"
-	"github.com/cometbft/cometbft/abci/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -51,6 +51,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
@@ -67,7 +68,9 @@ import (
 	"pkg.world.dev/world-engine/evm/router"
 	"pkg.world.dev/world-engine/evm/sequencer"
 	namespacekeeper "pkg.world.dev/world-engine/evm/x/namespace/keeper"
+	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	shardkeeper "pkg.world.dev/world-engine/evm/x/shard/keeper"
+	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
 // DefaultNodeHome default home directories for the application daemon.
@@ -112,6 +115,10 @@ type App struct {
 	// plugins
 	Router         router.Router
 	ShardSequencer *sequencer.Sequencer
+
+	// Flushed message cache
+	shardTxDataMsgs   []*shardtypes.SubmitShardTxRequest
+	shardRegisterMsgs []*namespacetypes.UpdateNamespaceRequest
 }
 
 //nolint:gochecknoinits // from sdk.
@@ -136,8 +143,6 @@ func NewApp(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	polarConfig := evmconfig.DefaultPolarisConfig()
-
 	var (
 		app        = &App{}
 		appBuilder *runtime.AppBuilder
@@ -151,7 +156,7 @@ func NewApp(
 			depinject.Supply(
 				appOpts,
 				logger,
-				PolarisConfigFn(polarConfig),
+				PolarisConfigFn(evmconfig.MustReadConfigFromAppOpts(appOpts)),
 				PrecompilesToInject(app),
 				QueryContextFn(app),
 			),
@@ -181,6 +186,8 @@ func NewApp(
 	); err != nil {
 		panic(err)
 	}
+
+	polarConfig := evmconfig.MustReadConfigFromAppOpts(appOpts)
 
 	// Build the app using the app builder.
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
@@ -214,6 +221,7 @@ func NewApp(
 		app.EVMKeeper,
 		miner.DefaultAllowedMsgs,
 		app.Router.PostBlockHook,
+		app.PrepareProposalHook,
 	); err != nil {
 		panic(err)
 	}
@@ -232,7 +240,8 @@ func NewApp(
 	// Register eth_secp256k1 keys
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
-	// World Engine custom preBlocker
+	// Set World Engine custom preBlocker.
+	// We need this here because app.Polaris.Build is going to be injecting the app's preBlocker.
 	app.SetPreBlocker(app.preBlocker)
 
 	// Load the app
@@ -252,12 +261,12 @@ func NewApp(
 
 // preBlocker is an ABCI preBlocker hook called at the beginning of each block.
 // We use this hook to execute the messages received from the World Engine shard router.
-func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
-	shardTxDataMsgs, shardRegisterMsgs := app.ShardSequencer.FlushMessages()
+func (app *App) preBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	app.Logger().With("module", "app").Info("Entering EVM Base Shard preblocker")
 
 	// Handle shard registration messages
-	for _, shardRegisterMsg := range shardRegisterMsgs {
-		app.Logger().Info(
+	for _, shardRegisterMsg := range app.shardRegisterMsgs {
+		app.Logger().With("module", "app").Info(
 			fmt.Sprintf("Registering new shard with namespace %q to %q",
 				shardRegisterMsg.Namespace.ShardName,
 				shardRegisterMsg.Namespace.ShardAddress,
@@ -265,13 +274,16 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 		)
 		handler := app.MsgServiceRouter().Handler(shardRegisterMsg)
 		_, err := handler(ctx, shardRegisterMsg)
-		if err != nil {
+		// If the error is just an expected unathorize error (i.e. from an invalid namespace, etc), dont return
+		// an error. Otherwise, it will cause FinalizeBlock to fail and the program will panic.
+		if err != nil && !eris.Is(err, sdkerrors.ErrUnauthorized) && !eris.Is(err, sdkerrors.ErrInvalidRequest) {
 			app.Logger().Error(
 				fmt.Sprintf(
 					"failed to register new shard with namespace %q: %q",
 					shardRegisterMsg.Namespace.ShardName, err,
 				),
 			)
+
 			return nil, eris.Wrapf(
 				err, "failed to register new shard with namespace %q", shardRegisterMsg.Namespace.ShardName,
 			)
@@ -279,23 +291,53 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 	}
 
 	// Handle game shard transaction sequencing
-	numShardTxDataMsgs := len(shardTxDataMsgs)
-	resPreBlock := &sdk.ResponsePreBlock{}
-	// Only run if there are any messages to process
-	if numShardTxDataMsgs > 0 {
-		app.Logger().Info("Received game shard transaction data from router")
-		handler := app.MsgServiceRouter().Handler(shardTxDataMsgs[0])
-		for _, tx := range shardTxDataMsgs {
-			_, err := handler(ctx, tx)
-			if err != nil {
-				app.Logger().Error(fmt.Sprintf("failed to process game shard tx data submission: %q", err))
-				return resPreBlock, eris.Wrapf(err, "failed to process game shard tx data submission")
-			}
+	for _, shardTxDataMsg := range app.shardTxDataMsgs {
+		app.Logger().With("module", "app").Info(
+			fmt.Sprintf("Submitting game shard tx data to %q: %q", shardTxDataMsg.Namespace, shardTxDataMsg),
+		)
+		handler := app.MsgServiceRouter().Handler(shardTxDataMsg)
+		_, err := handler(ctx, shardTxDataMsg)
+		if err != nil && !eris.Is(err, sdkerrors.ErrUnauthorized) && !eris.Is(err, sdkerrors.ErrInvalidRequest) {
+			app.Logger().Error(fmt.Sprintf("failed to process game shard tx data submission: %q", err))
+			return nil, eris.Wrapf(err, "failed to process game shard tx data submission")
 		}
-		app.Logger().Info(fmt.Sprintf("Successfully processed %d game shard tx submissions", numShardTxDataMsgs))
 	}
 
-	return resPreBlock, nil
+	app.Logger().With("module", "app").Info("Exiting EVM Base Shard preblocker")
+	return &sdk.ResponsePreBlock{ConsensusParamsChanged: true}, nil
+}
+
+// PrepareProposalHook injects the shard router side-channel messages into ResponsePrepareProposal
+// after Polaris' PrepareProposal logic is executed.
+func (app *App) PrepareProposalHook(
+	_ sdk.Context, _ *abci.RequestPrepareProposal, resp *abci.ResponsePrepareProposal,
+) (*abci.ResponsePrepareProposal, error) {
+	shardTxDataMsgs, shardRegisterMsgs := app.ShardSequencer.FlushMessages()
+
+	// Append the game shard transaction data sequencing messages
+	for _, shardTxDataMsg := range shardTxDataMsgs {
+		app.Logger().Info(shardTxDataMsg.String())
+		bz, err := shardTxDataMsg.Marshal()
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to marshal game shard sequencing messages")
+		}
+		resp.Txs = append(resp.Txs, bz)
+	}
+
+	// Append the game shard namespace registration messages
+	for _, shardRegisterMsg := range shardRegisterMsgs {
+		app.Logger().Info(shardRegisterMsg.String())
+		bz, err := shardRegisterMsg.Marshal()
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to marshal game shard namespace registration messages")
+		}
+		resp.Txs = append(resp.Txs, bz)
+	}
+
+	app.shardTxDataMsgs = shardTxDataMsgs
+	app.shardRegisterMsgs = shardRegisterMsgs
+
+	return &abci.ResponsePrepareProposal{Txs: resp.Txs}, nil
 }
 
 // Name returns the name of the App.

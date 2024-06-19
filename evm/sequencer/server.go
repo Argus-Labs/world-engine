@@ -103,7 +103,10 @@ func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsReque
 			if err != nil {
 				return nil, eris.Wrap(err, "failed to marshal transaction")
 			}
-			s.tq.AddTx(req.GetNamespace(), req.GetEpoch(), req.GetUnixTimestamp(), txID, bz)
+			err = s.tq.AddTx(req.GetNamespace(), req.GetEpoch(), req.GetUnixTimestamp(), txID, bz)
+			if err != nil {
+				return nil, eris.Wrap(err, "failed to add game shard tx submission to queue")
+			}
 		}
 	}
 	return &shard.SubmitTransactionsResponse{}, nil
@@ -114,7 +117,10 @@ func (s *Sequencer) RegisterGameShard(
 	_ context.Context,
 	req *shard.RegisterGameShardRequest,
 ) (*shard.RegisterGameShardResponse, error) {
-	s.tq.AddInitMsg(req.GetNamespace(), req.GetRouterAddress())
+	err := s.tq.AddInitMsg(req.GetNamespace(), req.GetRouterAddress())
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to add game shard registration message to queue")
+	}
 	return &shard.RegisterGameShardResponse{}, nil
 }
 

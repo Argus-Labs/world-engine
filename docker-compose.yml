@@ -1,4 +1,3 @@
-version: '3'
 services:
   cockroachdb:
     container_name: cockroachdb
@@ -47,21 +46,21 @@ services:
       - "/bin/sh"
       - "-ecx"
       - >
-        /nakama/nakama migrate up --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:$DB_PASSWORD@cockroachdb:26257/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
+        /nakama/nakama migrate up --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama &&
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
     expose:
       - "7349"
       - "7350"
       - "7351"
-    healthcheck:
-      test: [ "CMD", "/nakama/nakama", "healthcheck" ]
-      interval: 20s
-      timeout: 10s
-      retries: 5
     ports:
       - "7349:7349"
       - "7350:7350"
       - "7351:7351"
+    healthcheck:
+      test: [ "CMD", "/nakama/nakama", "healthcheck" ]
+      interval: 1s
+      timeout: 1s
+      retries: 20
     restart: unless-stopped
     networks:
       - world-engine
@@ -73,9 +72,9 @@ services:
       ## Get AUTH_TOKEN from celestia_devnet container: `$(docker exec $(docker ps -q) celestia bridge auth admin --node.store /home/celestia/bridge`
       - DA_BASE_URL=${DA_BASE_URL:-http://celestia_devnet}
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
-      - FAUCET_ENABLED=${FAUCET_ENABLED:-"true"}
-      - FAUCET_ADDRESS=${FAUCET_ADDRESS:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x (Default: account 0 of CHAIN_KEY_MNEMONIC)
-      - FAUCET_AMOUNT=${FAUCET_AMOUNT:-"0x56BC75E2D63100000"} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
+      - FAUCET_ENABLED=${FAUCET_ENABLED:-false}
+      - FAUCET_ADDRESS=${FAUCET_ADDRESS:-aa9288F88233Eb887d194fF2215Cf1776a6FEE41} # ETH address without leading 0x (Default: account 0 of CHAIN_KEY_MNEMONIC)
+      - FAUCET_AMOUNT=${FAUCET_AMOUNT:-0x56BC75E2D63100000} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
       - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01} # Secure auth token for game shard
     build:
       context: evm
@@ -103,6 +102,11 @@ services:
     networks:
       - world-engine
     restart: on-failure
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:26659/head" ]
+      interval: 1s
+      timeout: 1s
+      retries: 20
     ports:
       - "26657"
       - "26658:26658"
@@ -117,7 +121,7 @@ services:
       - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL:-info}
       - CARDINAL_LOG_PRETTY=${CARDINAL_LOG_PRETTY:-true}
       - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - BASE_SHARD_SEQUENCER_ADDRESS=${BASE_SHARD_SEQUENCER_ADDRESS:-chain:9601}
       - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
       - TELEMETRY_TRACE_ENABLED=${TELEMETRY_TRACE_ENABLED:-false}
@@ -144,7 +148,7 @@ services:
     image: redis:latest
     command: redis-server --save ""
     environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     expose:
       - "6379"
     ports:
@@ -156,8 +160,8 @@ services:
   test_nakama:
     container_name: test_nakama
     build:
-      context: ./e2e/tests
-      dockerfile: nakama/Dockerfile
+      context: ./
+      dockerfile: e2e/tests/nakama/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy

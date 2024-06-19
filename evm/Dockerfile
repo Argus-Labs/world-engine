@@ -34,7 +34,7 @@ RUN apt-get update -y &&\
 
 # Copy the World EVM binary, start script, and configuration files
 COPY --from=build /go/bin/world-evm /usr/local/bin/
-COPY scripts/start-sequencer.sh scripts/app.toml ./
+COPY scripts/start-sequencer.sh scripts/app.toml scripts/config.toml ./
 
 # Start the World EVM sequencer
 USER 0

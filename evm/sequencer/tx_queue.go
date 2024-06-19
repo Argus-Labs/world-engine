@@ -26,9 +26,22 @@ func NewTxQueue(moduleAddr string) *TxQueue {
 	}
 }
 
-func (tc *TxQueue) AddInitMsg(namespace, routerAddr string) {
+func (tc *TxQueue) AddInitMsg(namespace, routerAddr string) error {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
+
+	// Validate the request
+	req := &namespacetypes.UpdateNamespaceRequest{
+		Authority: tc.moduleAddr,
+		Namespace: &namespacetypes.Namespace{
+			ShardName:    namespace,
+			ShardAddress: routerAddr,
+		},
+	}
+	if err := req.ValidateBasic(); err != nil {
+		return err
+	}
+
 	tc.initQueue = append(tc.initQueue, &namespacetypes.UpdateNamespaceRequest{
 		Authority: tc.moduleAddr,
 		Namespace: &namespacetypes.Namespace{
@@ -36,10 +49,12 @@ func (tc *TxQueue) AddInitMsg(namespace, routerAddr string) {
 			ShardAddress: routerAddr,
 		},
 	})
+
+	return nil
 }
 
 // AddTx adds a transaction to the queue.
-func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, payload []byte) {
+func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, payload []byte) error {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 
@@ -49,13 +64,19 @@ func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, pa
 
 	// if we don't have a request for this epoch yet, instantiate one.
 	if tc.txQueue[namespace][epoch] == nil {
-		tc.txQueue[namespace][epoch] = &types.SubmitShardTxRequest{
+		// Validate the request
+		req := &types.SubmitShardTxRequest{
 			Sender:        tc.moduleAddr,
 			Namespace:     namespace,
 			Epoch:         epoch,
 			UnixTimestamp: unixTimestamp,
 			Txs:           make([]*types.Transaction, 0),
 		}
+		if err := req.ValidateBasic(); err != nil {
+			return err
+		}
+
+		tc.txQueue[namespace][epoch] = req
 	}
 
 	// append the transaction data for this epoch.
@@ -63,6 +84,8 @@ func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, pa
 		TxId:                 txID,
 		GameShardTransaction: payload,
 	})
+
+	return nil
 }
 
 // FlushTxQueue gets all currently queued transactions sorted by namespace and by transaction ID, and then clears the
@@ -70,6 +93,7 @@ func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, pa
 func (tc *TxQueue) FlushTxQueue() []*types.SubmitShardTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
+
 	var reqs []*types.SubmitShardTxRequest
 	namespaces := sortMapKeys(tc.txQueue)
 	for _, namespace := range namespaces {
@@ -79,19 +103,23 @@ func (tc *TxQueue) FlushTxQueue() []*types.SubmitShardTxRequest {
 			reqs = append(reqs, txq[epoch])
 		}
 	}
+
 	clear(tc.txQueue)
+
 	return reqs
 }
 
 func (tc *TxQueue) FlushInitQueue() []*namespacetypes.UpdateNamespaceRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
+
 	if len(tc.initQueue) == 0 {
 		return nil
 	}
-	reqs := make([]*namespacetypes.UpdateNamespaceRequest, len(tc.initQueue))
-	copy(reqs, tc.initQueue)
-	tc.initQueue = tc.initQueue[:0]
+
+	reqs := tc.initQueue
+	tc.initQueue = make([]*namespacetypes.UpdateNamespaceRequest, 0)
+
 	return reqs
 }
 

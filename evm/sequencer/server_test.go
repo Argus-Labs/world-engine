@@ -71,7 +71,7 @@ func TestGetBothSlices(t *testing.T) {
 	seq := New(keeper.NewKeeper(nil, "foo"), nil)
 	_, err := seq.RegisterGameShard(context.Background(), &shardv2.RegisterGameShardRequest{
 		Namespace:     "foo",
-		RouterAddress: "bar",
+		RouterAddress: "bar:4040",
 	})
 	assert.NilError(t, err)
 

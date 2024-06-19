@@ -320,7 +320,7 @@ is-dev-mode = false
 etherbase = "0x0000000000000000000000000000000000000000"
 
 # Extra data included in mined blocks
-extra-data = "0x"
+extra-data = "0x01"
 
 # Gas price for transactions included in blocks
 gas-price = "1000000000"
@@ -336,7 +336,6 @@ recommit = "2s"
 
 # Timeout for creating a new payload
 new-payload-timeout = "2s"
-
 
 # Gas price oracle settings for Polaris
 [polaris.polar.gpo]
