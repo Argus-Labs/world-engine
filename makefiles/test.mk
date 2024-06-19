@@ -5,24 +5,27 @@ DIRS_E2E_EVM = e2e/tests/evm e2e/testgames/game relay/nakama
 ROOT_DIR := $(shell pwd)
 
 e2e-nakama:
+	@echo "--> Purging running Docker containers, if any"
+	@docker compose rm --force --stop
+	
 	$(foreach dir, $(DIRS_E2E), \
 		cd $(dir) && \
 		go mod tidy && \
-		GOWORK=off go mod vendor && \
 		cd $(ROOT_DIR); \
 	)
 
 	@(set -o pipefail; \
-		docker compose up --build \
-			game \
-			nakama \
-			test_nakama \
-			--abort-on-container-exit \
-			--exit-code-from test_nakama 2>&1 | \
-		grep --color=force "test_nakama   | ")
-	@docker compose down --volumes -v
+		(. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
+		export CARDINAL_ROLLUP_ENABLED=true && \
+	    docker compose up --build chain -d && \
+	    sleep 2 && \
+		docker compose up --build chain game nakama test_nakama --abort-on-container-exit --exit-code-from test_nakama 2>&1) | grep --color=force "test_nakama  "; \
+		docker compose rm --force --stop)
 
 e2e-benchmark:
+	@echo "--> Purging running Docker containers, if any"
+	@docker compose rm --force --stop
+
 	$(foreach dir, $(DIRS_E2E_BENCHMARK), \
 		cd $(dir) && \
 		go mod tidy && \
@@ -31,7 +34,7 @@ e2e-benchmark:
 	)
 
 	@docker compose -f docker-compose.benchmark.yml up --build --exit-code-from game_benchmark --abort-on-container-exit --attach game_benchmark
-	@docker compose down --volumes -v
+	@docker compose rm --force --stop
 
 
 # check_url takes a URL (1), and an expected http status code (2), and will continuously ping the URL until it either
@@ -55,25 +58,22 @@ define check_url
 endef
 
 e2e-evm:
-	$(foreach dir, $(DIRS_E2E_EVM), \
-		cd $(dir) && \
-		go mod tidy && \
-		GOWORK=off go mod vendor && \
-		cd $(ROOT_DIR); \
-	)
-	  
 	@echo "--> Purging running Docker containers, if any"
 	@docker compose rm --force --stop
+	
+	$(foreach dir, $(DIRS_E2E), \
+		cd $(dir) && \
+		go mod tidy && \
+		cd $(ROOT_DIR); \
+	)
 
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
-	docker compose up chain --build -d
-	$(call check_url,localhost:1317,501)
+		docker compose up chain --build -d
 
-	CARDINAL_ROLLUP_ENABLED=true REDIS_PASSWORD=foo docker compose up game nakama -d
-	$(call check_url,localhost:4040/health,200)
+	@CARDINAL_ROLLUP_ENABLED=true docker compose up game nakama -d
 
 	@go test -v ./e2e/tests/evm/evm_test.go
-	@docker compose down --volumes -v
+	@docker compose rm --force --stop
 
 .PHONY: e2e-evm
 

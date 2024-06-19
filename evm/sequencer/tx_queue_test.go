@@ -8,15 +8,15 @@ import (
 
 // TestAddTx tests that txs can be added to the queue, and then flushed sorted by namespace & epoch.
 func TestAddTx(t *testing.T) {
-	txq := NewTxQueue("0xfoo")
+	txq := NewTxQueue("cosmos1n6j7gnld9yxfyh6tflxhjjmt404zruuaf73t08")
 
 	namespace := "foobar"
 	epoch := uint64(3)
 	epoch2 := uint64(5)
-	txq.AddTx(namespace, epoch, 10, 15, []byte("hi"))
-	txq.AddTx(namespace, epoch, 10, 3, []byte("hello"))
-	txq.AddTx(namespace, epoch2, 20, 2, []byte("bye"))
-	txq.AddTx("bogus", 40, 20, 2, []byte("HI"))
+	assert.NilError(t, txq.AddTx(namespace, epoch, 10, 15, []byte("hi")))
+	assert.NilError(t, txq.AddTx(namespace, epoch, 10, 3, []byte("hello")))
+	assert.NilError(t, txq.AddTx(namespace, epoch2, 20, 2, []byte("bye")))
+	assert.NilError(t, txq.AddTx("bogus", 40, 20, 2, []byte("HI")))
 	txs := txq.FlushTxQueue()
 	assert.Len(t, txs, 3) // should be 3 txs, as its partitioned by namespace and then by epoch
 
@@ -28,15 +28,15 @@ func TestAddTx(t *testing.T) {
 }
 
 func TestAddInitMsg(t *testing.T) {
-	txq := NewTxQueue("0xfoo")
+	txq := NewTxQueue("cosmos1n6j7gnld9yxfyh6tflxhjjmt404zruuaf73t08")
 	namespace := "foo"
-	addr := "hi:123"
+	addr := "hi:4040"
 
 	namespace2 := "hi"
-	addr2 := "foo:123"
+	addr2 := "foo:4040"
 
-	txq.AddInitMsg(namespace, addr)
-	txq.AddInitMsg(namespace2, addr2)
+	assert.NilError(t, txq.AddInitMsg(namespace, addr))
+	assert.NilError(t, txq.AddInitMsg(namespace2, addr2))
 
 	inits := txq.FlushInitQueue()
 	assert.Len(t, inits, 2)
@@ -46,6 +46,6 @@ func TestAddInitMsg(t *testing.T) {
 	assert.Equal(t, inits[1].Namespace.ShardName, namespace2)
 	assert.Equal(t, inits[1].Namespace.ShardAddress, addr2)
 
-	txq.AddInitMsg("foo", "bar")
+	assert.NilError(t, txq.AddInitMsg("foo", "bar:4040"))
 	assert.Len(t, txq.FlushInitQueue(), 1)
 }

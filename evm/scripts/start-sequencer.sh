@@ -20,7 +20,7 @@ CHAIN_KEY_BACKEND=${CHAIN_KEY_BACKEND:-"test"}
 CHAIN_MIN_GAS_PRICE="0.0001world"
 
 # Faucet configs
-FAUCET_ENABLED=${FAUCET_ENABLED:-"true"}
+FAUCET_ENABLED=${FAUCET_ENABLED:-"false"}
 FAUCET_ADDRESS=${FAUCET_ADDRESS:-"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"} # ETH address without leading 0x (Default: account 0 of CHAIN_KEY_MNEMONIC)
 FAUCET_AMOUNT=${FAUCET_AMOUNT:-"0x56BC75E2D63100000"} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
 
@@ -35,7 +35,7 @@ GENESIS=$HOME/.world/config/genesis.json
 TMP_GENESIS=$HOME/.world/config/genesis.json.bak
 
 # Setup local node if an existing one doesn't exist at $HOME/.world
-if [[ ! -d "$HOME/.world" ]]; then
+if [[ ! -d "$HOME/.world" ]]; then  
   # Initialize node
   MONIKER="world-sequencer"
   world-evm init $MONIKER --chain-id $CHAIN_ID --default-denom "world"
@@ -78,6 +78,7 @@ if [[ ! -d "$HOME/.world" ]]; then
   
   # Update the faucet balance in the genesis file
   if [[ $FAUCET_ENABLED == "true" ]]; then
+      echo "Faucet enabled. Updating genesis file with faucet balance."
       sed -i'.bak' "s#20f33ce90a13a4b5e7697e3544c3083b8f8a51d4#$FAUCET_ADDRESS#g" $HOME/.world/config/genesis.json
       sed -i'.bak' "s#0x1b1ae4d6e2ef500000#$FAUCET_AMOUNT#g" $HOME/.world/config/genesis.json
   fi
@@ -87,18 +88,11 @@ if [[ ! -d "$HOME/.world" ]]; then
   
   # Copy app.toml to the home directory
   cp app.toml $HOME/.world/config/app.toml
+  cp config.toml $HOME/.world/config/config.toml
 fi
 
 # Set DA layer block height
 DA_BLOCK_HEIGHT="1"
-#while [ "$DA_BLOCK_HEIGHT" == "null" ]; do
-#    DA_BLOCK_HEIGHT=$(curl $DA_BASE_URL:26657/block --silent | jq -r '.result.block.header.height')
-#    # Usually you have to wait a little bit until Celestia node runs and we are able to connect to it
-#    if [ "$DA_BLOCK_HEIGHT" == "null" ]; then
-#        echo "DA_BLOCK_HEIGHT is null, retrying until Celestia node connects..."
-#        sleep 1
-#    fi
-#done
 
 echo "--> Starting sequencer with DA_BLOCK_HEIGHT: $DA_BLOCK_HEIGHT"
 
