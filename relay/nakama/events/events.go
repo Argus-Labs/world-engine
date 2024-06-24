@@ -55,7 +55,7 @@ func (eh *EventHub) connectWithRetry(logger runtime.Logger) error {
 			return ErrEventHubIsShuttingDown
 		} else if err != nil {
 			// sleep a little try again...
-			logger.Info("No host found: %v", err)
+			logger.Error("Failed to establish websocket connection: %v", err)
 			time.Sleep(2 * time.Second) //nolint:gomnd // its ok.
 			continue
 		}
