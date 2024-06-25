@@ -144,7 +144,7 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 	}
 	for _, tc := range testCases {
 		a.T().Setenv(allowlist.EnabledEnvVar, tc)
-		initializer := mocks.NewInitializer(a.T())
+		initializer := mocks.NewMockInitializer(a.T())
 		initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 			Return(nil)
 
@@ -158,13 +158,13 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 
 func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
 	a.T().Setenv(allowlist.EnabledEnvVar, "true")
-	initializer := mocks.NewInitializer(a.T())
+	initializer := mocks.NewMockInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 		Return(errors.New("failed to register"))
 
 	assert.IsError(a.T(), initAllowlist(nil, initializer))
 
-	initializer = mocks.NewInitializer(a.T())
+	initializer = mocks.NewMockInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 		Return(nil)
 

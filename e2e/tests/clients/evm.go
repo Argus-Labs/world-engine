@@ -25,7 +25,7 @@ type RiftClient struct {
 }
 
 func NewEVMClient(t *testing.T) *EVM {
-	cc, err := grpc.Dial("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.NewClient("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
 	return &EVM{
 		Shard:     shardtypes.NewQueryClient(cc),
@@ -42,7 +42,7 @@ func NewRiftClient(t *testing.T, optionalRouterKey ...string) *RiftClient {
 	} else {
 		routerKey = optionalRouterKey[0]
 	}
-	cc, err := grpc.Dial(
+	cc, err := grpc.NewClient(
 		"localhost:9601",
 		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

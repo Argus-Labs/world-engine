@@ -52,8 +52,8 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOptio
 	cardinalPort := ports[0]
 	evmPort := ports[1]
 
-	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
-	t.Setenv("CARDINAL_EVM_PORT", evmPort)
+	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", "localhost:"+evmPort)
+	t.Setenv("CARDINAL_LOG_PRETTY", "true")
 	t.Setenv("REDIS_ADDRESS", redis.Addr())
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)

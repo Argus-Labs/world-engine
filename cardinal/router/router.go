@@ -65,7 +65,7 @@ type router struct {
 func New(namespace, sequencerAddr, routerKey string, world Provider) (Router, error) {
 	rtr := &router{namespace: namespace, port: defaultPort, provider: world, routerKey: routerKey}
 
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		sequencerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),

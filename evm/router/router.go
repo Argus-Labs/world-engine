@@ -239,7 +239,7 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 		return nil, err
 	}
 	addr := res.Address
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(r.routerKey)),

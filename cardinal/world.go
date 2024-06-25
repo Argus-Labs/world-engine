@@ -264,11 +264,10 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	w.tick.Add(1)
 	w.receiptHistory.NextTick() // todo(scott): use channels
 
-	// Populate world.TickResults for the current tick and emit it as an Event
-	w.populateAndBroadcastTickResults(ctx)
-
-	// Clear the TickResults for this tick in preparation for the next tick
-	w.tickResults.Clear()
+	if w.worldStage.Current() != worldstage.Recovering {
+		// Populate world.TickResults for the current tick and emit it as an Event
+		w.broadcastTickResults(ctx)
+	}
 
 	log.Info().
 		Int("tick", int(w.CurrentTick()-1)).
@@ -292,7 +291,7 @@ func (w *World) StartGame() error {
 	}
 
 	// TODO(scott): entityStore.RegisterComponents is ambiguous with cardinal.RegisterComponent.
-	//  We should probably rename this to LoadComponents or osmething.
+	//  We should probably rename this to LoadComponents or something.
 	if err := w.entityStore.RegisterComponents(w.GetComponents()); err != nil {
 		closeErr := w.entityStore.Close()
 		if closeErr != nil {
@@ -318,7 +317,7 @@ func (w *World) StartGame() error {
 		return err
 	}
 
-	// If Cardinal is in rollup mode and router is set, recover any old state of Caridnal from base shard.
+	// If Cardinal is in rollup mode and router is set, recover any old state of Cardinal from base shard.
 	if w.rollupEnabled && w.router != nil {
 		if err := w.RecoverFromChain(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
@@ -654,25 +653,29 @@ func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
 	return msg, msg != nil
 }
 
-func (w *World) populateAndBroadcastTickResults(ctx context.Context) {
+func (w *World) broadcastTickResults(ctx context.Context) {
 	_, span := w.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()),
 		"world.tick.broadcast_tick_results")
 	defer span.End()
 
+	// TODO(scott): this "- 1" is hacky because the receipt history manager doesn't allow you to get receipts for the
+	//  current tick. We should fix this.
 	receipts, err := w.receiptHistory.GetReceiptsForTick(w.CurrentTick() - 1)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed get receipts for tick %d", w.CurrentTick())
+		log.Error().Err(err).Msgf("failed to get receipts for tick %d", w.CurrentTick()-1)
 	}
 	w.tickResults.SetReceipts(receipts)
 	w.tickResults.SetTick(w.CurrentTick() - 1)
 
 	// Broadcast the tick results to all clients
-	err = w.server.BroadcastEvent(w.tickResults)
-	if err != nil {
+	if err := w.server.BroadcastEvent(w.tickResults); err != nil {
 		span.SetStatus(codes.Error, eris.ToString(err, true))
 		span.RecordError(err)
 		log.Err(err).Msgf("failed to broadcast tick results")
 	}
+
+	// Clear the TickResults for this tick in preparation for the next tick
+	w.tickResults.Clear()
 }
 
 func (w *World) ReceiptHistorySize() uint64 {
