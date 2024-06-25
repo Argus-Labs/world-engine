@@ -3,7 +3,6 @@
 package receipt
 
 import (
-	"errors"
 	"sync/atomic"
 
 	"github.com/rotisserie/eris"
@@ -13,8 +12,8 @@ import (
 )
 
 var (
-	ErrTickHasNotBeenProcessed = errors.New("tick is still in progress")
-	ErrOldTickHasBeenDiscarded = errors.New("the requested tick has been discarded due to age")
+	ErrTickHasNotBeenProcessed = eris.New("tick is still in progress")
+	ErrOldTickHasBeenDiscarded = eris.New("the requested tick has been discarded due to age")
 )
 
 // History keeps track of transaction "receipts" (the result of a transaction and any associated errors) for some number
@@ -118,10 +117,10 @@ func (h *History) GetReceiptsForTick(tick uint64) ([]Receipt, error) {
 	// The requested tick is either in the future, or it is currently being processed. We don't yet know
 	// what the results of this tick will be.
 	if currTick <= tick {
-		return nil, eris.Wrap(ErrTickHasNotBeenProcessed, "")
+		return nil, ErrTickHasNotBeenProcessed
 	}
 	if currTick-tick >= h.ticksToStore {
-		return nil, eris.Wrap(ErrOldTickHasBeenDiscarded, "")
+		return nil, ErrOldTickHasBeenDiscarded
 	}
 	mod := tick % h.ticksToStore
 	recs := make([]Receipt, 0, len(h.history[mod]))

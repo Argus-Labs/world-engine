@@ -123,7 +123,7 @@ func MockMatchStoreRead(collection, key, userID string) any {
 
 // MockNoopLogger returns a mock logger that ignores all log messages.
 func MockNoopLogger(t *testing.T) runtime.Logger {
-	mockLog := mocks.NewLogger(t)
+	mockLog := mocks.NewMockLogger(t)
 	mockLog.On("Error", mock.Anything).Return().Maybe()
 	mockLog.On("Debug", mock.Anything).Return().Maybe()
 	mockLog.On("Info", mock.Anything).Return().Maybe()

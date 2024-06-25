@@ -2,6 +2,8 @@ package worldstage
 
 import (
 	"sync/atomic"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -38,6 +40,7 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) CompareAndSwap(oldStage, newStage Stage) (swapped bool) {
+	log.Info().Msgf("New world stage: %q from %q", newStage, oldStage)
 	ok := m.current.CompareAndSwap(oldStage, newStage)
 	if ok {
 		close(m.atStage[newStage])
@@ -50,6 +53,7 @@ func (m *Manager) Current() Stage {
 }
 
 func (m *Manager) Store(val Stage) {
+	log.Info().Msgf("New world stage: %q", val)
 	m.current.Store(val)
 	close(m.atStage[val])
 }

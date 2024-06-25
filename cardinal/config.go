@@ -91,21 +91,21 @@ func loadWorldConfig() (*WorldConfig, error) {
 	setupViper()
 
 	// Read the config file
-	if err := viper.ReadInConfig(); err == nil {
-		// Unmarshal the [cardinal] section from config file into the WorldConfig struct
-		if err := viper.Sub("cardinal").Unmarshal(&cfg); err != nil {
-			log.Warn().Err(err).Msg("Failed to unmarshal config file. Using default config values...")
-		}
+	// Unmarshal the [cardinal] section from config file into the WorldConfig struct
+	if err := viper.ReadInConfig(); err != nil {
+		log.Warn().Err(err).Msg("Failed to read config file")
 	} else {
-		log.Warn().Err(err).Msg("Failed to read config file. Using default config values...")
+		if err := viper.Sub("cardinal").Unmarshal(&cfg); err != nil {
+			log.Warn().Err(err).Msg("Failed to unmarshal config file")
+		}
 	}
 
 	// Override config values with environment variables
 	// This is done after reading the config file to allow for environment variable overrides
-	if err := viper.Unmarshal(&cfg); err == nil {
-		log.Debug().Msg("Overridden config values with environment variables if available...")
+	if err := viper.Unmarshal(&cfg); err != nil {
+		log.Warn().Err(err).Msg("Failed to load config from environment variables")
 	} else {
-		log.Warn().Err(err).Msg("Failed to override config values with environment variables, Using default config values...")
+		log.Debug().Msg("Loaded config from environment variables")
 	}
 
 	if err := cfg.Validate(); err != nil {

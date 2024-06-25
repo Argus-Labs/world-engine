@@ -22,7 +22,7 @@ const (
 // Test that the Notifications system works as expected with the Dispatcher and a Mock Server
 func TestNotifierIntegrationWithEventHub(t *testing.T) {
 	ch := make(chan TickResults, 1)
-	nk := mocks.NewNakamaModule(t)
+	nk := mocks.NewMockNakamaModule(t)
 	logger := &testutils.FakeLogger{}
 	mockServer := setupMockWebSocketServer(t, ch)
 	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
@@ -96,7 +96,7 @@ func TestNotifierIntegrationWithEventHub(t *testing.T) {
 func TestAddTxHashToPendingNotifications(t *testing.T) {
 	ch := make(chan TickResults)
 	logger := &testutils.FakeLogger{}
-	nk := mocks.NewNakamaModule(t)
+	nk := mocks.NewMockNakamaModule(t)
 	mockServer := setupMockWebSocketServer(t, ch)
 	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
 	if err != nil {
@@ -117,7 +117,7 @@ func TestAddTxHashToPendingNotifications(t *testing.T) {
 func TestHandleReceipt(t *testing.T) {
 	ch := make(chan TickResults)
 	logger := &testutils.FakeLogger{}
-	nk := mocks.NewNakamaModule(t)
+	nk := mocks.NewMockNakamaModule(t)
 	mockServer := setupMockWebSocketServer(t, ch)
 	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
 	if err != nil {
@@ -162,7 +162,7 @@ func TestHandleReceipt(t *testing.T) {
 func TestCleanupStaleTransactions(t *testing.T) {
 	ch := make(chan TickResults)
 	logger := &testutils.FakeLogger{}
-	nk := mocks.NewNakamaModule(t)
+	nk := mocks.NewMockNakamaModule(t)
 	mockServer := setupMockWebSocketServer(t, ch)
 	eh, err := NewEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
 	if err != nil {

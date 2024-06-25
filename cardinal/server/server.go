@@ -41,7 +41,8 @@ func New(
 	opts ...Option,
 ) (*Server, error) {
 	app := fiber.New(fiber.Config{
-		Network: "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
+		Network:               "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
+		DisableStartupMessage: true,
 	})
 
 	s := &Server{
@@ -73,11 +74,10 @@ func (s *Server) Serve() error {
 		return eris.Wrap(err, "error getting hostname")
 	}
 
-	// Start server
-	log.Info().Msgf("serving at %s:%s", hostname, s.config.port)
+	log.Info().Msgf("Starting HTTP server at %s:%s", hostname, s.config.port)
 	err = s.app.Listen(":" + s.config.port)
 	if err != nil {
-		return eris.Wrap(err, "error starting Fiber app")
+		return eris.Wrap(err, "error starting HTTP server")
 	}
 
 	return nil

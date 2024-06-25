@@ -91,7 +91,7 @@ func TestNamespaceSaved(t *testing.T) {
 	ns := res.Namespaces[0]
 	addr := ns.ShardAddress
 
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
 	client := routerv1.NewMsgClient(conn)
 	_, err = client.QueryShard(context.Background(), &routerv1.QueryShardRequest{Request: []byte("nah")})

@@ -6,5 +6,4 @@ packages:
   github.com/heroiclabs/nakama-common/runtime:
     config:
       dir: mocks
-      mockname: "{{.InterfaceName}}"
       recursive: False
