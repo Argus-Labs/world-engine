@@ -775,7 +775,6 @@ func TestRandomNumberGenerator(t *testing.T) {
 	}
 	mapOfNums := make(map[int64]bool)
 	for _, num := range numbers1 {
-		fmt.Println(num)
 		_, ok := mapOfNums[num]
 		assert.Assert(t, ok == false)
 		mapOfNums[num] = true
