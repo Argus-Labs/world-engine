@@ -34,7 +34,7 @@ func (w *World) recoverAndExecutePendingTxs() error {
 		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
 		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
 		//  from the game loop.
-		if err = w.doTick(context.Background(), uint64(time.Now().UnixMilli())); err != nil {
+		if err = w.doTick(context.Background(), uint64(time.Now().UnixNano())); err != nil {
 			return err
 		}
 	}
