@@ -765,6 +765,7 @@ func TestRandomNumberGenerator(t *testing.T) {
 	testAmount := 50
 	numbers1 := make([]int64, 0, testAmount)
 	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		time.Sleep(5 * time.Millisecond)
 		numbers1 = append(numbers1, context.Rand().Int63())
 		return nil
 	})
