@@ -418,7 +418,7 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
 	// but this is the highest terminal point.
 	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
-	err := w.doTick(ctx, uint64(time.Now().UnixMilli()))
+	err := w.doTick(ctx, uint64(time.Now().UnixNano()))
 	if err != nil {
 		bytes, errMarshal := json.Marshal(eris.ToJSON(err, true))
 		if errMarshal != nil {

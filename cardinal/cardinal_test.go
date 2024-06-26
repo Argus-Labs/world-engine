@@ -763,9 +763,9 @@ func TestRandomNumberGenerator(t *testing.T) {
 	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	testAmount := 50
-	numbers1 := make([]int, testAmount)
+	numbers1 := make([]int64, 0, testAmount)
 	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
-		numbers1 = append(numbers1, context.Rand().Int())
+		numbers1 = append(numbers1, context.Rand().Int63())
 		return nil
 	})
 	assert.NilError(t, err)
@@ -773,21 +773,12 @@ func TestRandomNumberGenerator(t *testing.T) {
 	for i := 0; i < testAmount; i++ {
 		tf.DoTick()
 	}
-
-	tf1 := cardinal.NewTestFixture(t, nil)
-	world1 := tf1.World
-	numbers2 := make([]int, testAmount)
-	err = cardinal.RegisterSystems(world1, func(context cardinal.WorldContext) error {
-		numbers2 = append(numbers2, context.Rand().Int())
-		return nil
-	})
-	assert.NilError(t, err)
-	tf1.StartWorld()
-	for i := 0; i < testAmount; i++ {
-		tf1.DoTick()
-	}
-	for i := 0; i < testAmount; i++ {
-		assert.Equal(t, numbers1[i], numbers2[i])
+	mapOfNums := make(map[int64]bool)
+	for _, num := range numbers1 {
+		fmt.Println(num)
+		_, ok := mapOfNums[num]
+		assert.Assert(t, ok == false)
+		mapOfNums[num] = true
 	}
 }
 

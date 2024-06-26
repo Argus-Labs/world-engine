@@ -66,13 +66,18 @@ type worldContext struct {
 	rand     *rand.Rand
 }
 
+func createRngFromWorld(world *World) *rand.Rand {
+	//nolint:gosec // we require manual in the rng which crypto/rand doesn't have, but math/rand does.
+	return rand.New(rand.NewSource(int64(world.timestamp.Load())))
+}
+
 func newWorldContextForTick(world *World, txPool *txpool.TxPool) WorldContext {
 	return &worldContext{
 		world:    world,
 		txPool:   txPool,
 		logger:   &log.Logger,
 		readOnly: false,
-		rand:     rand.New(rand.NewSource(int64(world.timestamp.Load()))),
+		rand:     createRngFromWorld(world),
 	}
 }
 
@@ -82,7 +87,7 @@ func NewWorldContext(world *World) WorldContext {
 		txPool:   nil,
 		logger:   &log.Logger,
 		readOnly: false,
-		rand:     rand.New(rand.NewSource(int64(world.timestamp.Load()))),
+		rand:     createRngFromWorld(world),
 	}
 }
 
@@ -92,7 +97,7 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 		txPool:   nil,
 		logger:   &log.Logger,
 		readOnly: true,
-		rand:     rand.New(rand.NewSource(int64(world.timestamp.Load()))),
+		rand:     createRngFromWorld(world),
 	}
 }
 
