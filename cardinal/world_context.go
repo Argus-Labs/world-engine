@@ -113,10 +113,6 @@ func (ctx *worldContext) Rand() *rand.Rand {
 	return ctx.rand
 }
 
-func (ctx *worldContext) setRandSeed(seed int64) {
-	ctx.rand = rand.New(rand.NewSource(seed))
-}
-
 func (ctx *worldContext) getMessageByType(mType reflect.Type) (types.Message, bool) {
 	return ctx.world.GetMessageByType(mType)
 }
