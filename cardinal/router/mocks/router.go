@@ -10,7 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	iterator "pkg.world.dev/world-engine/cardinal/router/iterator"
-	txpool "pkg.world.dev/world-engine/cardinal/types/txpool"
+	txpool "pkg.world.dev/world-engine/cardinal/txpool"
 )
 
 // MockRouter is a mock of Router interface.
