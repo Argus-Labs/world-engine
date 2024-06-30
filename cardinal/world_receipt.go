@@ -4,7 +4,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 )
 
 type EVMTxReceipt struct {
