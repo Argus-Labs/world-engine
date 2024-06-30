@@ -219,12 +219,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
 	txPool := w.txPool.CopyTransactions(ctx)
 
-	if err := w.entityStore.StartNextTick(ctx, w.GetRegisteredMessages(), txPool); err != nil {
-		span.SetStatus(codes.Error, eris.ToString(err, true))
-		span.RecordError(err)
-		return err
-	}
-
 	// Store the timestamp for this tick
 	w.timestamp.Store(timestamp)
 
@@ -311,11 +305,11 @@ func (w *World) StartGame() error {
 	}
 
 	w.worldStage.Store(worldstage.Recovering)
-	// Recover pending transactions from redis
-	err := w.recoverAndExecutePendingTxs()
+	tick, err := w.entityStore.GetLastFinalizedTick()
 	if err != nil {
-		return err
+		return eris.Wrap(err, "failed to get latest finalized tick")
 	}
+	w.tick.Store(tick)
 
 	// If Cardinal is in rollup mode and router is set, recover any old state of Cardinal from base shard.
 	if w.rollupEnabled && w.router != nil {

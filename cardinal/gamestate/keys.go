@@ -39,14 +39,6 @@ func storageArchIDsToCompTypesKey() string {
 	return "ECB:ARCHETYPE-ID-TO-COMPONENT-TYPES"
 }
 
-func storageStartTickKey() string {
-	return "ECB:START-TICK"
-}
-
-func storageEndTickKey() string {
-	return "ECB:END-TICK"
-}
-
-func storagePendingTransactionKey() string {
-	return "ECB:PENDING-TRANSACTIONS"
+func storageLastFinalizedTickKey() string {
+	return "ECB:LAST-FINALIZED-TICK"
 }
