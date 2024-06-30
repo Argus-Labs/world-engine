@@ -87,7 +87,7 @@ type World struct {
 
 // NewWorld creates a new World object using Redis as the storage layer
 func NewWorld(opts ...WorldOption) (*World, error) {
-	serverOptions, cardinalOptions := separateOptions(opts)
+	serverOptions, routerOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
 	cfg, err := loadWorldConfig()
@@ -170,6 +170,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			cfg.BaseShardSequencerAddress,
 			cfg.BaseShardRouterKey,
 			world,
+			routerOptions...,
 		)
 		if err != nil {
 			return nil, eris.Wrap(err, "Failed to initialize shard router")
@@ -246,7 +247,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// 1. The shard router is set
 	// 2. The world is not in the recovering stage (we don't want to resubmit past transactions)
 	if w.router != nil && w.worldStage.Current() != worldstage.Recovering {
-		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
+		err := w.router.SubmitTxBlob(txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			span.SetStatus(codes.Error, eris.ToString(err, true))
 			span.RecordError(err)

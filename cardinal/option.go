@@ -17,6 +17,7 @@ import (
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
 type WorldOption struct {
 	serverOption   server.Option
+	routerOption   router.Option
 	cardinalOption Option
 }
 
@@ -93,6 +94,13 @@ func WithMockRedis() WorldOption {
 	}
 
 	return WorldOption{}
+}
+
+// WithMockJobQueue runs the router with an in-memory job queue instead of a persistent one that writes to disk.
+func WithMockJobQueue() WorldOption {
+	return WorldOption{
+		routerOption: router.WithMockJobQueue(),
+	}
 }
 
 func WithCustomLogger(logger zerolog.Logger) WorldOption {
