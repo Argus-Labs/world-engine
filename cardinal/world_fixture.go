@@ -62,6 +62,7 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOptio
 		WithTickChannel(startTickCh),
 		WithTickDoneChannel(doneTickCh),
 		WithPort(cardinalPort),
+		WithMockJobQueue(),
 	}
 
 	// Default options go first so that any user supplied options overwrite the defaults.

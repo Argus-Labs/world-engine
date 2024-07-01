@@ -839,7 +839,7 @@ func TestCallsRegisterGameShardOnStartup(t *testing.T) {
 
 	rtr.EXPECT().Start().Times(1)
 	rtr.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
-	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+	rtr.EXPECT().SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 	tf.DoTick()
 }
 
