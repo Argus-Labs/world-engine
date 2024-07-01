@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"math/rand"
 	"reflect"
 
 	"github.com/rs/zerolog"
@@ -34,6 +35,8 @@ type WorldContext interface {
 	EmitStringEvent(string) error
 	// Namespace returns the namespace of the world.
 	Namespace() string
+	// Rand returns a random number generator that is seeded specifically for a current tick.
+	Rand() *rand.Rand
 
 	// For internal use.
 
@@ -60,6 +63,12 @@ type worldContext struct {
 	txPool   *txpool.TxPool
 	logger   *zerolog.Logger
 	readOnly bool
+	rand     *rand.Rand
+}
+
+func createRngFromWorld(world *World) *rand.Rand {
+	//nolint:gosec // we require manual in the rng which crypto/rand doesn't have, but math/rand does.
+	return rand.New(rand.NewSource(int64(world.timestamp.Load())))
 }
 
 func newWorldContextForTick(world *World, txPool *txpool.TxPool) WorldContext {
@@ -68,6 +77,7 @@ func newWorldContextForTick(world *World, txPool *txpool.TxPool) WorldContext {
 		txPool:   txPool,
 		logger:   &log.Logger,
 		readOnly: false,
+		rand:     createRngFromWorld(world),
 	}
 }
 
@@ -77,6 +87,7 @@ func NewWorldContext(world *World) WorldContext {
 		txPool:   nil,
 		logger:   &log.Logger,
 		readOnly: false,
+		rand:     createRngFromWorld(world),
 	}
 }
 
@@ -86,6 +97,7 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 		txPool:   nil,
 		logger:   &log.Logger,
 		readOnly: true,
+		rand:     createRngFromWorld(world),
 	}
 }
 
@@ -100,6 +112,10 @@ func (ctx *worldContext) CurrentTick() uint64 {
 
 func (ctx *worldContext) Logger() *zerolog.Logger {
 	return ctx.logger
+}
+
+func (ctx *worldContext) Rand() *rand.Rand {
+	return ctx.rand
 }
 
 func (ctx *worldContext) getMessageByType(mType reflect.Type) (types.Message, bool) {
