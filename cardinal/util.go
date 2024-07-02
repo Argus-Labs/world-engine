@@ -3,6 +3,7 @@ package cardinal
 import (
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/router"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -18,17 +19,21 @@ var NonFatalError = []error{
 // options are meant for different sub-systems.
 func separateOptions(opts []WorldOption) (
 	serverOptions []server.Option,
+	routerOptions []router.Option,
 	cardinalOptions []Option,
 ) {
 	for _, opt := range opts {
 		if opt.serverOption != nil {
 			serverOptions = append(serverOptions, opt.serverOption)
 		}
+		if opt.routerOption != nil {
+			routerOptions = append(routerOptions, opt.routerOption)
+		}
 		if opt.cardinalOption != nil {
 			cardinalOptions = append(cardinalOptions, opt.cardinalOption)
 		}
 	}
-	return serverOptions, cardinalOptions
+	return serverOptions, routerOptions, cardinalOptions
 }
 
 // panicOnFatalError is a helper function to panic on non-deterministic errors (i.e. Redis error).

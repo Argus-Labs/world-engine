@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
 )
 
 type Reader interface {
@@ -49,10 +48,8 @@ type Writer interface {
 }
 
 type TickStorage interface {
-	GetTickNumbers() (start, end uint64, err error)
-	StartNextTick(ctx context.Context, txs []types.Message, pool *txpool.TxPool) error
+	GetLastFinalizedTick() (tick uint64, err error)
 	FinalizeTick(ctx context.Context) error
-	Recover(txs []types.Message) (*txpool.TxPool, error)
 }
 
 // Manager represents all the methods required to track Component, Entity, and Archetype information

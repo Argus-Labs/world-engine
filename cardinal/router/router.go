@@ -4,13 +4,14 @@ import (
 	"context"
 	"net"
 
+	"github.com/argus-labs/go-jobqueue"
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -37,7 +38,6 @@ type Router interface {
 
 	// SubmitTxBlob submits transactions processed in a tick to the base shard.
 	SubmitTxBlob(
-		ctx context.Context,
 		processedTxs txpool.TxMap,
 		epoch,
 		unixTimestamp uint64,
@@ -52,18 +52,28 @@ type Router interface {
 }
 
 type router struct {
-	provider       Provider
-	ShardSequencer shard.TransactionHandlerClient
-	namespace      string
-	server         *evmServer
+	provider          Provider
+	ShardSequencer    shard.TransactionHandlerClient
+	namespace         string
+	server            *evmServer
+	sequencerJobQueue *jobqueue.JobQueue[*shard.SubmitTransactionsRequest]
+
 	// serverAddr is the address the evmServer listens on. This is set once `Start` is called.
 	serverAddr string
 	port       string
 	routerKey  string
 }
 
-func New(namespace, sequencerAddr, routerKey string, world Provider) (Router, error) {
-	rtr := &router{namespace: namespace, port: defaultPort, provider: world, routerKey: routerKey}
+func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Option) (Router, error) {
+	rtr := &router{
+		provider:  world,
+		namespace: namespace,
+		port:      defaultPort,
+		routerKey: routerKey,
+	}
+	for _, opt := range opts {
+		opt(rtr)
+	}
 
 	conn, err := grpc.NewClient(
 		sequencerAddr,
@@ -74,6 +84,22 @@ func New(namespace, sequencerAddr, routerKey string, world Provider) (Router, er
 		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
 	}
 	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
+
+	// The job queue will have been initialized if the router option for in-memory job queues is used.
+	// If it's not, we need to initialize it here.
+	if rtr.sequencerJobQueue == nil {
+		// TODO: add a world options to configure the jobqueue
+		rtr.sequencerJobQueue, err = jobqueue.New[*shard.SubmitTransactionsRequest](
+			"./.cardinal/badger",
+			"submit-tx",
+			20, //nolint:gomnd // Will do this later
+			handleSubmitTx(rtr.ShardSequencer),
+		)
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create job queue")
+		}
+	}
+
 	rtr.server = newEvmServer(world, routerKey)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
@@ -88,7 +114,6 @@ func (r *router) RegisterGameShard(ctx context.Context) error {
 }
 
 func (r *router) SubmitTxBlob(
-	ctx context.Context,
 	processedTxs txpool.TxMap,
 	epoch,
 	unixTimestamp uint64,
@@ -108,14 +133,20 @@ func (r *router) SubmitTxBlob(
 		}
 		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}
 	}
+
 	req := shard.SubmitTransactionsRequest{
 		Epoch:         epoch,
 		UnixTimestamp: unixTimestamp,
 		Namespace:     r.namespace,
 		Transactions:  messageIDtoTxs,
 	}
-	_, err := r.ShardSequencer.Submit(ctx, &req)
-	return eris.Wrap(err, "")
+
+	_, err := r.sequencerJobQueue.Enqueue(&req)
+	if err != nil {
+		return eris.Wrap(err, "failed to submit tx sequencing payload to job queue")
+	}
+
+	return nil
 }
 
 func (r *router) TransactionIterator() iterator.Iterator {
@@ -126,6 +157,7 @@ func (r *router) Shutdown() {
 	if r.server != nil {
 		r.server.grpcServer.GracefulStop()
 	}
+	_ = r.sequencerJobQueue.Stop()
 }
 
 func (r *router) Start() error {
@@ -141,4 +173,16 @@ func (r *router) Start() error {
 	}()
 	r.serverAddr = listener.Addr().String()
 	return nil
+}
+
+func handleSubmitTx(sequencer shard.TransactionHandlerClient) func(
+	jobqueue.JobContext, *shard.SubmitTransactionsRequest,
+) error {
+	return func(_ jobqueue.JobContext, req *shard.SubmitTransactionsRequest) error {
+		_, err := sequencer.Submit(context.Background(), req)
+		if err != nil {
+			return eris.Wrap(err, "failed to submit transactions to sequencer")
+		}
+		return nil
+	}
 }

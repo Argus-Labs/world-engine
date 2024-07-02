@@ -31,8 +31,8 @@ import (
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/telemetry"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/txpool"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -87,7 +87,7 @@ type World struct {
 
 // NewWorld creates a new World object using Redis as the storage layer
 func NewWorld(opts ...WorldOption) (*World, error) {
-	serverOptions, cardinalOptions := separateOptions(opts)
+	serverOptions, routerOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
 	cfg, err := loadWorldConfig()
@@ -170,6 +170,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 			cfg.BaseShardSequencerAddress,
 			cfg.BaseShardRouterKey,
 			world,
+			routerOptions...,
 		)
 		if err != nil {
 			return nil, eris.Wrap(err, "Failed to initialize shard router")
@@ -219,12 +220,6 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// Copy the transactions from the pool so that we can safely modify the pool while the tick is running.
 	txPool := w.txPool.CopyTransactions(ctx)
 
-	if err := w.entityStore.StartNextTick(ctx, w.GetRegisteredMessages(), txPool); err != nil {
-		span.SetStatus(codes.Error, eris.ToString(err, true))
-		span.RecordError(err)
-		return err
-	}
-
 	// Store the timestamp for this tick
 	w.timestamp.Store(timestamp)
 
@@ -252,7 +247,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// 1. The shard router is set
 	// 2. The world is not in the recovering stage (we don't want to resubmit past transactions)
 	if w.router != nil && w.worldStage.Current() != worldstage.Recovering {
-		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
+		err := w.router.SubmitTxBlob(txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			span.SetStatus(codes.Error, eris.ToString(err, true))
 			span.RecordError(err)
@@ -311,11 +306,11 @@ func (w *World) StartGame() error {
 	}
 
 	w.worldStage.Store(worldstage.Recovering)
-	// Recover pending transactions from redis
-	err := w.recoverAndExecutePendingTxs()
+	tick, err := w.entityStore.GetLastFinalizedTick()
 	if err != nil {
-		return err
+		return eris.Wrap(err, "failed to get latest finalized tick")
 	}
+	w.tick.Store(tick)
 
 	// If Cardinal is in rollup mode and router is set, recover any old state of Cardinal from base shard.
 	if w.rollupEnabled && w.router != nil {
