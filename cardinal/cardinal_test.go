@@ -759,6 +759,29 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }
 
+func TestRandomNumberGenerator(t *testing.T) {
+	tf := cardinal.NewTestFixture(t, nil)
+	world := tf.World
+	testAmount := 50
+	numbers1 := make([]int64, 0, testAmount)
+	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		time.Sleep(5 * time.Millisecond)
+		numbers1 = append(numbers1, context.Rand().Int63())
+		return nil
+	})
+	assert.NilError(t, err)
+	tf.StartWorld()
+	for i := 0; i < testAmount; i++ {
+		tf.DoTick()
+	}
+	mapOfNums := make(map[int64]bool)
+	for _, num := range numbers1 {
+		_, ok := mapOfNums[num]
+		assert.Assert(t, ok == false)
+		mapOfNums[num] = true
+	}
+}
+
 func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
 	tf := cardinal.NewTestFixture(t, nil)
