@@ -6,6 +6,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
@@ -63,7 +64,7 @@ func (tm *Manager) setupPropagator() {
 }
 
 func (tm *Manager) setupTrace() {
-	tm.tracerProvider = ddotel.NewTracerProvider()
+	tm.tracerProvider = ddotel.NewTracerProvider(tracer.WithRuntimeMetrics())
 	tm.tracerShutdownFunc = tm.tracerProvider.Shutdown
 	otel.SetTracerProvider(tm.tracerProvider)
 }
