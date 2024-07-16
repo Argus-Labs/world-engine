@@ -7,8 +7,13 @@ import (
 	"github.com/argus-labs/go-jobqueue"
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/txpool"
@@ -38,6 +43,7 @@ type Router interface {
 
 	// SubmitTxBlob submits transactions processed in a tick to the base shard.
 	SubmitTxBlob(
+		ctx context.Context,
 		processedTxs txpool.TxMap,
 		epoch,
 		unixTimestamp uint64,
@@ -62,14 +68,18 @@ type router struct {
 	serverAddr string
 	port       string
 	routerKey  string
+
+	tracer trace.Tracer
 }
 
 func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Option) (Router, error) {
+	tracer := otel.Tracer("router")
 	rtr := &router{
 		provider:  world,
 		namespace: namespace,
 		port:      defaultPort,
 		routerKey: routerKey,
+		tracer:    tracer,
 	}
 	for _, opt := range opts {
 		opt(rtr)
@@ -93,7 +103,7 @@ func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Opt
 			"./.cardinal/badger",
 			"submit-tx",
 			20, //nolint:gomnd // Will do this later
-			handleSubmitTx(rtr.ShardSequencer),
+			handleSubmitTx(rtr.ShardSequencer, tracer),
 		)
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create job queue")
@@ -114,10 +124,14 @@ func (r *router) RegisterGameShard(ctx context.Context) error {
 }
 
 func (r *router) SubmitTxBlob(
+	ctx context.Context,
 	processedTxs txpool.TxMap,
 	epoch,
 	unixTimestamp uint64,
 ) error {
+	_, span := r.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "router.submit-tx-blob")
+	defer span.End()
+
 	messageIDtoTxs := make(map[uint64]*shard.Transactions)
 	for msgID, txs := range processedTxs {
 		protoTxs := make([]*shard.Transaction, 0, len(txs))
@@ -143,6 +157,8 @@ func (r *router) SubmitTxBlob(
 
 	_, err := r.sequencerJobQueue.Enqueue(&req)
 	if err != nil {
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
 		return eris.Wrap(err, "failed to submit tx sequencing payload to job queue")
 	}
 
@@ -175,12 +191,18 @@ func (r *router) Start() error {
 	return nil
 }
 
-func handleSubmitTx(sequencer shard.TransactionHandlerClient) func(
+func handleSubmitTx(sequencer shard.TransactionHandlerClient, tracer trace.Tracer) func(
 	jobqueue.JobContext, *shard.SubmitTransactionsRequest,
 ) error {
 	return func(_ jobqueue.JobContext, req *shard.SubmitTransactionsRequest) error {
+		_, span := tracer.Start(ddotel.ContextWithStartOptions(context.Background(), ddtracer.Measured()),
+			"router.job-queue.submit-tx")
+		defer span.End()
+
 		_, err := sequencer.Submit(context.Background(), req)
 		if err != nil {
+			span.SetStatus(codes.Error, eris.ToString(err, true))
+			span.RecordError(err)
 			return eris.Wrap(err, "failed to submit transactions to sequencer")
 		}
 		return nil

@@ -15,7 +15,7 @@ func WithMockJobQueue() Option {
 			"",
 			"submit-tx",
 			20, //nolint:gomnd // Will do this later
-			handleSubmitTx(rtr.ShardSequencer),
+			handleSubmitTx(rtr.ShardSequencer, rtr.tracer),
 			jobqueue.WithInmemDB[*shard.SubmitTransactionsRequest](),
 		)
 		if err != nil {

@@ -77,17 +77,17 @@ func (mr *MockRouterMockRecorder) Start() *gomock.Call {
 }
 
 // SubmitTxBlob mocks base method.
-func (m *MockRouter) SubmitTxBlob(processedTxs txpool.TxMap, epoch, unixTimestamp uint64) error {
+func (m *MockRouter) SubmitTxBlob(ctx context.Context, processedTxs txpool.TxMap, epoch, unixTimestamp uint64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitTxBlob", processedTxs, epoch, unixTimestamp)
+	ret := m.ctrl.Call(m, "SubmitTxBlob", ctx, processedTxs, epoch, unixTimestamp)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SubmitTxBlob indicates an expected call of SubmitTxBlob.
-func (mr *MockRouterMockRecorder) SubmitTxBlob(processedTxs, epoch, unixTimestamp interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) SubmitTxBlob(ctx, processedTxs, epoch, unixTimestamp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitTxBlob", reflect.TypeOf((*MockRouter)(nil).SubmitTxBlob), processedTxs, epoch, unixTimestamp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitTxBlob", reflect.TypeOf((*MockRouter)(nil).SubmitTxBlob), ctx, processedTxs, epoch, unixTimestamp)
 }
 
 // TransactionIterator mocks base method.
