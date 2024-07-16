@@ -247,7 +247,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	// 1. The shard router is set
 	// 2. The world is not in the recovering stage (we don't want to resubmit past transactions)
 	if w.router != nil && w.worldStage.Current() != worldstage.Recovering {
-		err := w.router.SubmitTxBlob(txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
+		err := w.router.SubmitTxBlob(ctx, txPool.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			span.SetStatus(codes.Error, eris.ToString(err, true))
 			span.RecordError(err)
@@ -288,21 +288,25 @@ func (w *World) StartGame() error {
 	// TODO(scott): entityStore.RegisterComponents is ambiguous with cardinal.RegisterComponent.
 	//  We should probably rename this to LoadComponents or something.
 	if err := w.entityStore.RegisterComponents(w.GetComponents()); err != nil {
-		closeErr := w.entityStore.Close()
-		if closeErr != nil {
-			return eris.Wrap(err, closeErr.Error())
+		if closeErr := w.entityStore.Close(); closeErr != nil {
+			log.Warn().Err(closeErr).Msg("failed to close redis connection")
 		}
-		return err
+		return eris.Wrap(err, "failed to register components")
 	}
 
 	// Start router if it is set
 	if w.router != nil {
+		log.Info().Msg("Rollup mode enabled - starting router")
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
+		log.Info().Msg("Router started")
+
+		log.Info().Msg("Registering game shard with EVM base shard")
 		if err := w.router.RegisterGameShard(context.Background()); err != nil {
 			return eris.Wrap(err, "failed to register game shard to base shard")
 		}
+		log.Info().Msg("Game shard registered with EVM base shard")
 	}
 
 	w.worldStage.Store(worldstage.Recovering)

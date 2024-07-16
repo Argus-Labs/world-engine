@@ -81,7 +81,7 @@ func TestWorldRecovery(t *testing.T) {
 	router.EXPECT().Start().Times(1)
 	router.EXPECT().RegisterGameShard(gomock.Any()).Times(1)
 	router.EXPECT().
-		SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any()).
+		SubmitTxBlob(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).AnyTimes()
 
 	tf.StartWorld()
