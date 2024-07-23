@@ -17,7 +17,7 @@ type task struct {
 	task  func(ctx WorldContext) error
 }
 
-// New returns a new instance of SystemDelayer.
+// newSystemDelayer returns a new instance of SystemDelayer.
 func newSystemDelayer() *SystemDelayer {
 	return &SystemDelayer{
 		tasks: make([]*task, 0),
@@ -57,6 +57,7 @@ func (s *SystemDelayer) AmountOfTasks() int {
 	return len(s.tasks)
 }
 
+// ClearTasks removes all pending tasks.
 func (s *SystemDelayer) ClearTasks() {
 	s.tasks = []*task{}
 }
@@ -78,7 +79,7 @@ func (s *SystemDelayer) createNewTaskQueueFromIndexes(indexes ...int) {
 	s.tasks = newTasks
 }
 
-// DelayedTaskSystem updates the delay of tasks in the task queue.
+// delayedTaskSystem updates the delay of tasks in the task queue.
 // It decrements the delay of each task by one.
 // If the delay becomes zero, the task is executed using the provided WorldContext.
 // After updating the delays and executing the tasks, a new task queue is created
