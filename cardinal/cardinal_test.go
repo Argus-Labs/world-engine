@@ -782,6 +782,26 @@ func TestRandomNumberGenerator(t *testing.T) {
 	}
 }
 
+func TestDelayedTask(t *testing.T) {
+	tf := cardinal.NewTestFixture(t, nil)
+	world := tf.World
+	testValue := 0
+	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		return context.DelayTask(func(_ cardinal.WorldContext) error {
+			testValue++
+			return nil
+		}, 20)
+	})
+	assert.NilError(t, err)
+	tf.StartWorld()
+	for i := 0; i < 20; i++ {
+		tf.DoTick()
+	}
+	assert.Equal(t, testValue, 0)
+	tf.DoTick()
+	assert.Equal(t, testValue, 1)
+}
+
 func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
 	tf := cardinal.NewTestFixture(t, nil)

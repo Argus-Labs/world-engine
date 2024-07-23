@@ -49,6 +49,7 @@ type World struct {
 	SystemManager
 	MessageManager
 	QueryManager
+	SystemDelayManager
 	component.ComponentManager
 
 	namespace     Namespace
@@ -161,6 +162,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tickChannel:                  time.Tick(time.Second), //nolint:staticcheck // its ok.
 		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
+		SystemDelayManager:           newSystemDelayer(),
 	}
 
 	// Initialize shard router if running in rollup mode
@@ -184,6 +186,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Register internal plugins
 	world.RegisterPlugin(newPersonaPlugin())
+	world.RegisterPlugin(world.SystemDelayManager)
 
 	return world, nil
 }
