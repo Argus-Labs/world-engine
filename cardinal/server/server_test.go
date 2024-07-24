@@ -71,7 +71,7 @@ func (s *ServerTestSuite) SetupTest() {
 
 // TearDownTest runs after each test in the suite.
 func (s *ServerTestSuite) TearDownTest() {
-	s.Require().NoError(s.fixture.World.Shutdown())
+	s.fixture.World.Shutdown()
 }
 
 // TestCanClaimPersonaSendGameTxAndQueryGame tests that you can claim a persona, send a tx, and then query.

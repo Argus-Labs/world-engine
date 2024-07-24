@@ -95,8 +95,10 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOptio
 				for range doneTickCh { //nolint:revive // This pattern drains the channel until closed
 				}
 			}()
+
 			// Next, shut down the world
-			assert.NilError(t, world.Shutdown())
+			world.Shutdown()
+
 			// The world is shut down; No more ticks will be started
 			close(startTickCh)
 		},

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -17,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
 	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
@@ -53,6 +53,7 @@ type World struct {
 
 	namespace     Namespace
 	rollupEnabled bool
+	cancel        context.CancelFunc
 
 	// Storage
 	redisStorage *redis.Storage
@@ -128,6 +129,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	world := &World{
 		namespace:     Namespace(cfg.CardinalNamespace),
 		rollupEnabled: cfg.CardinalRollupEnabled,
+		cancel:        nil,
 
 		// Storage
 		redisStorage: &redisMetaStore,
@@ -279,7 +281,20 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 // RegisterQueries, and RegisterSystems may not be called. If StartGame doesn't encounter any errors, it will
 // block forever, running the server and ticking the game in the background.
 func (w *World) StartGame() error {
-	// Game stage: Init -> Starting
+	defer w.cleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	w.cancel = cancel
+
+	// Handles SIGINT and SIGTERM signals and starts the shutdown process.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		w.Shutdown()
+	}()
+
+	// World stage: Init -> Starting
 	ok := w.worldStage.CompareAndSwap(worldstage.Init, worldstage.Starting)
 	if !ok {
 		return errors.New("game has already been started")
@@ -288,25 +303,20 @@ func (w *World) StartGame() error {
 	// TODO(scott): entityStore.RegisterComponents is ambiguous with cardinal.RegisterComponent.
 	//  We should probably rename this to LoadComponents or something.
 	if err := w.entityStore.RegisterComponents(w.GetComponents()); err != nil {
-		if closeErr := w.entityStore.Close(); closeErr != nil {
-			log.Warn().Err(closeErr).Msg("failed to close redis connection")
-		}
 		return eris.Wrap(err, "failed to register components")
 	}
 
+	// Log world info
+	ecslog.World(&log.Logger, w, zerolog.InfoLevel)
+
 	// Start router if it is set
 	if w.router != nil {
-		log.Info().Msg("Rollup mode enabled - starting router")
 		if err := w.router.Start(); err != nil {
 			return eris.Wrap(err, "failed to start router service")
 		}
-		log.Info().Msg("Router started")
-
-		log.Info().Msg("Registering game shard with EVM base shard")
-		if err := w.router.RegisterGameShard(context.Background()); err != nil {
+		if err := w.router.RegisterGameShard(ctx); err != nil {
 			return eris.Wrap(err, "failed to register game shard to base shard")
 		}
-		log.Info().Msg("Game shard registered with EVM base shard")
 	}
 
 	w.worldStage.Store(worldstage.Recovering)
@@ -318,98 +328,69 @@ func (w *World) StartGame() error {
 
 	// If Cardinal is in rollup mode and router is set, recover any old state of Cardinal from base shard.
 	if w.rollupEnabled && w.router != nil {
-		if err := w.RecoverFromChain(context.Background()); err != nil {
+		if err := w.recoverFromChain(ctx); err != nil {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
-	w.worldStage.Store(worldstage.Ready)
 
 	// TODO(scott): i find this manual tracking and incrementing of the tick very footgunny. Why can't we just
 	//  use a reliable source of truth for the tick? It's not clear to me why we need to manually increment the
 	//  receiptHistory tick separately.
 	w.receiptHistory.SetTick(w.CurrentTick())
 
-	// Create server
-	// We can't do this is in NewWorld() because the server needs to know the registered messages
-	// and register queries first. We can probably refactor this though.
-	w.server, err = server.New(w, w.GetRegisteredComponents(), w.GetRegisteredMessages(), w.serverOptions...)
-	if err != nil {
-		return err
-	}
-
-	// Warn when no components, messages, queries, or systems are registered
-	if len(w.GetComponents()) == 0 {
-		log.Warn().Msg("No components registered")
-	}
-	if len(w.GetRegisteredMessages()) == 0 {
-		log.Warn().Msg("No messages registered")
-	}
-	if len(w.GetRegisteredQueries()) == 0 {
-		log.Warn().Msg("No queries registered")
-	}
-	if len(w.SystemManager.GetRegisteredSystems()) == 0 {
-		log.Warn().Msg("No systems registered")
-	}
-
-	// Log world info
-	ecslog.World(&log.Logger, w, zerolog.InfoLevel)
-
-	// Game stage: Ready -> Running
+	// World stage: Ready -> Running
 	w.worldStage.Store(worldstage.Running)
 
-	// Start the game loop
-	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-
-	// Start the server
-	w.startServer()
-
-	// handle shutdown via a signal
-	w.handleShutdown()
-	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
-	return err
-}
-
-func (w *World) startServer() {
-	go func() {
-		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
-			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
-		} else if err != nil {
-			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return w.startGameLoop(ctx, w.tickChannel, w.tickDoneChannel)
+	})
+	g.Go(func() error {
+		w.server, err = server.New(w, w.GetRegisteredComponents(), w.GetRegisteredMessages(), w.serverOptions...)
+		if err != nil {
+			return err
 		}
-	}()
+		return w.server.Serve(ctx)
+	})
+	if err := g.Wait(); err != nil {
+		return eris.Wrap(err, "error occured while running cardinal")
+	}
+
+	return nil
 }
 
-func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
+func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) error {
 	log.Info().Msg("Game loop started")
-	go func() {
-		var waitingChs []chan struct{}
-	loop:
-		for {
-			select {
-			case _, ok := <-tickStart:
-				if !ok {
-					panic("tickStart channel has been closed; tick rate is now unbounded.")
-				}
-				w.tickTheEngine(ctx, tickDone)
-				closeAllChannels(waitingChs)
-				waitingChs = waitingChs[:0]
-			case <-w.worldStage.NotifyOnStage(worldstage.ShuttingDown):
-				w.drainChannelsWaitingForNextTick()
-				closeAllChannels(waitingChs)
-				if w.txPool.GetAmountOfTxs() > 0 {
-					// immediately tick if pool is not empty to process all txs if queue is not empty.
-					w.tickTheEngine(ctx, tickDone)
-					if tickDone != nil {
-						close(tickDone)
-					}
-				}
-				break loop
-			case ch := <-w.addChannelWaitingForNextTick:
-				waitingChs = append(waitingChs, ch)
+	var waitingChs []chan struct{}
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info().Msg("Shutting down game loop")
+			w.drainChannelsWaitingForNextTick()
+			closeAllChannels(waitingChs)
+			if tickDone != nil {
+				close(tickDone)
 			}
+			// We need to use a labeled loop because the inner break will only break out of the select statement
+			break loop
+
+		case _, ok := <-tickStart:
+			if !ok {
+				return eris.New("tickStart channel has been closed; tick rate is now unbounded.")
+			}
+			w.tickTheEngine(ctx, tickDone)
+			closeAllChannels(waitingChs)
+			waitingChs = waitingChs[:0]
+
+		case ch := <-w.addChannelWaitingForNextTick:
+			waitingChs = append(waitingChs, ch)
 		}
-		w.worldStage.Store(worldstage.ShutDown)
-	}()
+	}
+
+	log.Info().Msg("Successfully shut down game loop")
+	return nil
 }
 
 func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
@@ -434,64 +415,34 @@ func (w *World) IsGameRunning() bool {
 	return w.worldStage.Current() == worldstage.Running
 }
 
-func (w *World) Shutdown() error {
-	log.Info().Msg("Shutting down game loop")
-	ok := w.worldStage.CompareAndSwap(worldstage.Running, worldstage.ShuttingDown)
-	if !ok {
-		select {
-		case <-w.worldStage.NotifyOnStage(worldstage.ShuttingDown):
-			// Some other goroutine has already started the shutdown process. Wait until the world is
-			// actually shut down.
-			<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
-			return nil
-		default:
-		}
-		return errors.New("shutdown attempted before the world was started")
+// Shutdown will trigger a graceful shutdown of the World.
+func (w *World) Shutdown() {
+	if w.worldStage.Current() == worldstage.ShutDown || w.worldStage.Current() == worldstage.ShuttingDown {
+		log.Warn().Msgf("Cardinal is already %s, ignoring shutdown request", w.worldStage.Current())
+		return
 	}
 
-	// Block until the world has stopped ticking
+	log.Info().Msg("Shutting down cardinal")
+	w.worldStage.Store(worldstage.ShuttingDown)
+
+	// Cancel the context used for server and game loop, therefore triggering their shutdown.
+	w.cancel()
 	<-w.worldStage.NotifyOnStage(worldstage.ShutDown)
 
-	if w.server != nil {
-		if err := w.server.Shutdown(); err != nil {
-			return err
-		}
-	}
+	log.Info().Msg("Successfully shut down cardinal")
+}
 
-	log.Info().Msg("Successfully shut down game loop")
-	log.Info().Msg("Closing storage connection")
-	err := w.redisStorage.Close()
-	if err != nil {
+// cleanup is called after StartGame terminates. It does the housekeeping required to cleanly shutdown World.
+func (w *World) cleanup() {
+	if err := w.redisStorage.Close(); err != nil {
 		log.Error().Err(err).Msg("Failed to close storage connection")
-		return err
 	}
-	log.Info().Msg("Successfully closed storage connection")
-	log.Info().Msg("Shutting down telemetry")
-
 	if w.telemetry != nil {
-		err = w.telemetry.Shutdown()
-		if err != nil {
+		if err := w.telemetry.Shutdown(); err != nil {
 			log.Error().Err(err).Msg("Failed to shut down telemetry")
 		}
 	}
-
-	return nil
-}
-
-func (w *World) handleShutdown() {
-	signalChannel := make(chan os.Signal, 1)
-	go func() {
-		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
-		for sig := range signalChannel {
-			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-				err := w.Shutdown()
-				if err != nil {
-					log.Err(err).Msgf("There was an error during shutdown.")
-				}
-				return
-			}
-		}
-	}()
+	w.worldStage.Store(worldstage.ShutDown)
 }
 
 func (w *World) handleTickPanic() {

@@ -1,8 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
-	"os"
+	"time"
 
 	"github.com/gofiber/contrib/socketio"
 	"github.com/gofiber/fiber/v2"
@@ -19,7 +20,8 @@ import (
 )
 
 const (
-	DefaultPort = "4040"
+	defaultPort     = "4040"
+	shutdownTimeout = 5 * time.Second
 )
 
 type config struct {
@@ -48,7 +50,7 @@ func New(
 	s := &Server{
 		app: app,
 		config: config{
-			port:                            DefaultPort,
+			port:                            defaultPort,
 			isSignatureVerificationDisabled: false,
 			isSwaggerDisabled:               false,
 		},
@@ -68,16 +70,25 @@ func New(
 
 // Serve serves the application, blocking the calling thread.
 // Call this in a new go routine to prevent blocking.
-func (s *Server) Serve() error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return eris.Wrap(err, "error getting hostname")
-	}
+func (s *Server) Serve(ctx context.Context) error {
+	serverErr := make(chan error, 1)
 
-	log.Info().Msgf("Starting HTTP server at %s:%s", hostname, s.config.port)
-	err = s.app.Listen(":" + s.config.port)
-	if err != nil {
-		return eris.Wrap(err, "error starting HTTP server")
+	// Starts the server in a new goroutine
+	go func() {
+		log.Info().Msgf("Starting HTTP server at port %s", s.config.port)
+		if err := s.app.Listen(":" + s.config.port); err != nil {
+			serverErr <- eris.Wrap(err, "error starting http server")
+		}
+	}()
+
+	// This function will block until the server is shutdown or the context is canceled.
+	select {
+	case err := <-serverErr:
+		return eris.Wrap(err, "server encountered an error")
+	case <-ctx.Done():
+		if err := s.shutdown(); err != nil {
+			return eris.Wrap(err, "error shutting down server")
+		}
 	}
 
 	return nil
@@ -93,7 +104,7 @@ func (s *Server) BroadcastEvent(event any) error {
 }
 
 // Shutdown gracefully shuts down the server and closes all active websocket connections.
-func (s *Server) Shutdown() error {
+func (s *Server) shutdown() error {
 	log.Info().Msg("Shutting down server")
 
 	// Close websocket connections
@@ -101,7 +112,7 @@ func (s *Server) Shutdown() error {
 	socketio.Fire(socketio.EventClose, nil)
 
 	// Gracefully shutdown Fiber server
-	if err := s.app.Shutdown(); err != nil {
+	if err := s.app.ShutdownWithTimeout(shutdownTimeout); err != nil {
 		return eris.Wrap(err, "error shutting down server")
 	}
 
