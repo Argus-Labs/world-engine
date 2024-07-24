@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/e2e/tests/clients"
+	"github.com/rotisserie/eris"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
 
+	cardinaltypes "pkg.world.dev/world-engine/cardinal/types"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -96,7 +98,7 @@ func TestNamespaceSaved(t *testing.T) {
 	client := routerv1.NewMsgClient(conn)
 	_, err = client.QueryShard(context.Background(), &routerv1.QueryShardRequest{Request: []byte("nah")})
 	// if we got any sort of contextual error message back, we know that Cardinal received this request.
-	assert.ErrorContains(t, err, `is not registered`)
+	eris.Is(err, cardinaltypes.ErrQueryNotFound)
 }
 
 func randomString() string {

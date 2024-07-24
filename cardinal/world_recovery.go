@@ -35,7 +35,7 @@ func (w *World) recoverFromChain(ctx context.Context) error {
 				log.Info().Msgf("Fast forwarding to tick %d from %d", tick, w.CurrentTick())
 			}
 			for w.CurrentTick() != tick {
-				if err := w.doTick(ctx, timestamp); err != nil {
+				if err := w.doTick(context.Background(), timestamp); err != nil {
 					return eris.Wrap(err, "failed to tick world")
 				}
 			}
@@ -46,7 +46,7 @@ func (w *World) recoverFromChain(ctx context.Context) error {
 			}
 
 			log.Info().Msgf("Executing tick %d in recovery mode", tick)
-			if err := w.doTick(ctx, timestamp); err != nil {
+			if err := w.doTick(context.Background(), timestamp); err != nil {
 				return eris.Wrap(err, "failed to tick world")
 			}
 			return nil

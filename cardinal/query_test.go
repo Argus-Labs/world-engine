@@ -96,7 +96,7 @@ func TestQueryExample(t *testing.T) {
 	}
 
 	// No entities should have health over a million.
-	q, err := world.GetQuery(DefaultQueryGroup, "query_health")
+	q, err := world.getQuery(DefaultQueryGroup, "query_health")
 	assert.NilError(t, err)
 
 	resp, err := q.handleQuery(worldCtx, QueryHealthRequest{1_000_000})
@@ -157,16 +157,16 @@ func TestQueryEVM(t *testing.T) {
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
-	fooQuery, err := world.GetQuery(DefaultQueryGroup, "foo")
+	fooQuery, err := world.getQuery(DefaultQueryGroup, "foo")
 	assert.NilError(t, err)
-	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
+	bz, err := fooQuery.encodeEVMRequest(FooRequest{ID: "foo"})
 	assert.NilError(t, err)
 
 	// query the resource.
-	bz, err = world.HandleEVMQuery("foo", bz)
+	bz, err = world.HandleQueryEVM(DefaultQueryGroup, "foo", bz)
 	assert.NilError(t, err)
 
-	reply, err := fooQuery.DecodeEVMReply(bz)
+	reply, err := fooQuery.decodeEVMReply(bz)
 	assert.NilError(t, err)
 
 	gotReply, ok := reply.(FooReply)

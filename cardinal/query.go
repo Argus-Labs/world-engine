@@ -20,23 +20,21 @@ type query interface {
 	Name() string
 	// Group returns the group of the query.
 	Group() string
-	// HandleQuery handles queries with concrete types, rather than encoded bytes.
-	handleQuery(WorldContext, any) (any, error)
-	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
-	// and is expected to return a json encoded response struct.
-	handleQueryRaw(WorldContext, []byte) ([]byte, error)
-	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
-	DecodeEVMRequest([]byte) (any, error)
-	// EncodeEVMReply encodes the reply as an abi encoded struct.
-	EncodeEVMReply(any) ([]byte, error)
-	// DecodeEVMReply decodes EVM reply bytes, into the concrete go reply type.
-	DecodeEVMReply([]byte) (any, error)
-	// EncodeAsABI encodes a go struct in abi format. This is mostly used for testing.
-	EncodeAsABI(any) ([]byte, error)
 	// IsEVMCompatible reports if the query is able to be sent from the EVM.
 	IsEVMCompatible() bool
 	// GetRequestFieldInformation returns a map of the fields of the query's request type and their types.
 	GetRequestFieldInformation() map[string]any
+
+	// handleQuery handles queries with concrete struct types, rather than encoded bytes.
+	handleQuery(WorldContext, any) (any, error)
+	// handleQueryJSON handles json-encoded query request and return a json-encoded response.
+	handleQueryJSON(WorldContext, []byte) ([]byte, error)
+	// handleQueryEVM handles ABI-encoded query request and return a ABI-encoded response.
+	handleQueryEVM(WorldContext, []byte) ([]byte, error)
+	// encodeEVMRequest encodes a go struct in ABI format. Used for testing.
+	encodeEVMRequest(any) ([]byte, error)
+	// decodeEVMReply decodes EVM reply bytes, into the concrete go reply type.
+	decodeEVMReply([]byte) (any, error)
 }
 
 type QueryOption[Request, Reply any] func(qt *queryType[Request, Reply])
@@ -92,42 +90,46 @@ func (r *queryType[Request, Reply]) IsEVMCompatible() bool {
 	return r.requestABI != nil && r.replyABI != nil
 }
 
+// generateABIBindings generates the ABI bindings used for encoding/decoding requests and replies.
 func (r *queryType[Request, Reply]) generateABIBindings() error {
 	var req Request
 	reqABI, err := abi.GenerateABIType(req)
 	if err != nil {
 		return eris.Wrap(err, "error generating request ABI binding")
 	}
+
 	var rep Reply
 	repABI, err := abi.GenerateABIType(rep)
 	if err != nil {
 		return eris.Wrap(err, "error generating reply ABI binding")
 	}
+
 	r.requestABI = reqABI
 	r.replyABI = repABI
+
 	return nil
 }
 
-func (r *queryType[req, rep]) Name() string {
+func (r *queryType[Request, Reply]) Name() string {
 	return r.name
 }
 
-func (r *queryType[req, rep]) Group() string {
+func (r *queryType[Request, Reply]) Group() string {
 	return r.group
 }
 
-func (r *queryType[req, rep]) handleQuery(wCtx WorldContext, a any) (any, error) {
-	var request *req
+func (r *queryType[Request, Reply]) handleQuery(wCtx WorldContext, a any) (any, error) {
+	var request *Request
 	if reflect.TypeOf(a).Kind() == reflect.Pointer {
-		ptrRequest, ok := a.(*req)
+		ptrRequest, ok := a.(*Request)
 		if !ok {
-			return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
+			return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(Request))
 		}
 		request = ptrRequest
 	} else {
-		valueReq, ok := a.(req)
+		valueReq, ok := a.(Request)
 		if !ok {
-			return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
+			return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(Request))
 		}
 		request = &valueReq
 	}
@@ -135,95 +137,120 @@ func (r *queryType[req, rep]) handleQuery(wCtx WorldContext, a any) (any, error)
 	return reply, err
 }
 
-func (r *queryType[req, rep]) handleQueryRaw(wCtx WorldContext, bz []byte) ([]byte, error) {
-	request := new(req)
+func (r *queryType[Request, Reply]) handleQueryJSON(wCtx WorldContext, bz []byte) ([]byte, error) {
+	request := new(Request)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
 		return nil, eris.Wrapf(err, "unable to unmarshal query request into type %T", *request)
 	}
+
 	res, err := r.handler(wCtx, request)
 	if err != nil {
 		return nil, err
 	}
+
 	bz, err = json.Marshal(res)
 	if err != nil {
 		return nil, eris.Wrapf(err, "unable to marshal response %T", res)
 	}
+
 	return bz, nil
 }
 
-func (r *queryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
-	if r.requestABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
+func (r *queryType[Request, Reply]) handleQueryEVM(wCtx WorldContext, bz []byte) ([]byte, error) {
+	if !r.IsEVMCompatible() {
+		return nil, eris.Errorf("query %s/%s is not EVM-compatible", r.Group(), r.Name())
 	}
+
+	req, err := r.decodeEVMRequest(bz)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := r.handler(wCtx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	bz, err = r.encodeEVMReply(res)
+	if err != nil {
+		return nil, err
+	}
+
+	return bz, nil
+}
+
+func (r *queryType[Request, Reply]) encodeEVMRequest(req any) ([]byte, error) {
+	if r.requestABI == nil {
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "failed to ABI encode request")
+	}
+
+	args := ethereumAbi.Arguments{{Type: *r.requestABI}}
+	bz, err := args.Pack(req)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to ABI encode request")
+	}
+
+	return bz, nil
+}
+
+func (r *queryType[Request, Reply]) decodeEVMRequest(bz []byte) (*Request, error) {
+	if r.requestABI == nil {
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "failed to ABI decode request")
+	}
+
 	args := ethereumAbi.Arguments{{Type: *r.requestABI}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrap(err, "failed to ABI decode request")
 	}
+
 	if len(unpacked) < 1 {
 		return nil, eris.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	request, err := abi.SerdeInto[req](unpacked[0])
+
+	request, err := abi.SerdeInto[Request](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
-	return request, nil
+	return &request, nil
 }
 
-func (r *queryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
+func (r *queryType[Request, Reply]) encodeEVMReply(a any) ([]byte, error) {
+	if r.replyABI == nil {
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "failed to ABI encode reply")
+	}
+
+	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
+	bz, err := args.Pack(a)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to ABI encode reply")
+	}
+
+	return bz, nil
+}
+
+func (r *queryType[Request, Reply]) decodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
 		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
 	}
+
 	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(unpacked) < 1 {
 		return nil, eris.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	reply, err := abi.SerdeInto[rep](unpacked[0])
+
+	reply, err := abi.SerdeInto[Reply](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
+
 	return reply, nil
-}
-
-func (r *queryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
-	if r.replyABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
-	}
-	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
-	bz, err := args.Pack(a)
-	return bz, eris.Wrap(err, "")
-}
-
-func (r *queryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
-	if r.requestABI == nil || r.replyABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
-	}
-
-	var args ethereumAbi.Arguments
-	var in any
-	//nolint:gocritic // its fine.
-	switch ty := input.(type) {
-	case Request:
-		in = ty
-		args = ethereumAbi.Arguments{{Type: *r.requestABI}}
-	case Reply:
-		in = ty
-		args = ethereumAbi.Arguments{{Type: *r.replyABI}}
-	default:
-		return nil, eris.Errorf("expected the input struct to be either %T or %T, but got %T",
-			new(Request), new(Reply), input)
-	}
-
-	bz, err := args.Pack(in)
-	if err != nil {
-		return nil, eris.Wrap(err, "")
-	}
-	return bz, nil
 }
 
 // GetRequestFieldInformation returns the field information for the request struct.

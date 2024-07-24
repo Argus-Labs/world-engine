@@ -13,7 +13,7 @@ import (
 type Provider interface {
 	GetMessageByFullName(string) (types.Message, bool)
 	GetMessageByID(id types.MessageID) (types.Message, bool)
-	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
+	HandleQueryEVM(group string, name string, abiRequest []byte) ([]byte, error)
 	GetSignerComponentForPersona(string) (*component.SignerComponent, error)
 	WaitForNextTick() bool
 
