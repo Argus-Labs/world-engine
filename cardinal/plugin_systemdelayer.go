@@ -17,16 +17,16 @@ type task struct {
 	task  func(ctx WorldContext) error
 }
 
+// SystemDelayer represents a type that manages a queue of tasks to be executed with a specified delay.
+type SystemDelayer struct {
+	tasks []*task
+}
+
 // newSystemDelayer returns a new instance of SystemDelayer.
 func newSystemDelayer() *SystemDelayer {
 	return &SystemDelayer{
 		tasks: make([]*task, 0),
 	}
-}
-
-// SystemDelayer represents a type that manages a queue of tasks to be executed with a specified delay.
-type SystemDelayer struct {
-	tasks []*task
 }
 
 // AddTask adds a new task to the task queue with the given system and delay.
