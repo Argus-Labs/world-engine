@@ -5,7 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -483,7 +483,8 @@ func TestWhereClauseOnSearch(t *testing.T) {
 	assert.NilError(t, err)
 
 	q1 := cardinal.NewSearch().Entity(filter.All()).Where(func(
-		wCtx cardinal.WorldContext, id types.EntityID) (bool, error) {
+		wCtx cardinal.WorldContext, id types.EntityID,
+	) (bool, error) {
 		_, err := cardinal.GetComponent[AlphaTest](wCtx, id)
 		if err != nil {
 			return false, err

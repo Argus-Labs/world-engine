@@ -8,7 +8,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 )
 
 // TestSystemsReturnNonFatalErrors ensures system will surface non-fatal read and write errors to the user.

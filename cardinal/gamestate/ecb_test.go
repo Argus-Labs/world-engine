@@ -12,9 +12,8 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/component"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -224,7 +223,7 @@ func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	_, err = manager.GetComponentForEntity(barComp, id)
-	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, gamestate.ErrComponentNotOnEntity)
 }
 
 func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
@@ -233,7 +232,7 @@ func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	err = manager.SetComponentForEntity(barComp, id, Bar{100})
-	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, gamestate.ErrComponentNotOnEntity)
 }
 
 func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testing.T) {
@@ -241,7 +240,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	err = manager.RemoveComponentFromEntity(barComp, id)
-	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, gamestate.ErrComponentNotOnEntity)
 }
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
@@ -288,7 +287,7 @@ func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = manager.AddComponentToEntity(fooComp, id)
-	assert.ErrorIs(t, err, iterators.ErrComponentAlreadyOnEntity)
+	assert.ErrorIs(t, err, gamestate.ErrComponentAlreadyOnEntity)
 }
 
 type Health struct {
