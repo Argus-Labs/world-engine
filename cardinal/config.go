@@ -93,7 +93,7 @@ func loadWorldConfig() (*WorldConfig, error) {
 	// Read the config file
 	// Unmarshal the [cardinal] section from config file into the WorldConfig struct
 	if err := viper.ReadInConfig(); err != nil {
-		log.Warn().Err(err).Msg("Failed to read config file")
+		log.Warn().Err(err).Msg("No config file found")
 	} else {
 		if err := viper.Sub("cardinal").Unmarshal(&cfg); err != nil {
 			log.Warn().Err(err).Msg("Failed to unmarshal config file")

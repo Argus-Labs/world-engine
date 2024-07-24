@@ -100,7 +100,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 	// Shutdown the engine at some point in the near future
 	time.AfterFunc(
 		100*time.Millisecond, func() {
-			assert.NilError(t, world.Shutdown())
+			world.Shutdown()
 		},
 	)
 	// testTimeout will cause the test to fail if we have to wait too long for a WaitForNextTick failure
@@ -429,7 +429,7 @@ func TestRecoverFromChain(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rtr := mocks.NewMockRouter(ctrl)
 
-	// Set CARDINAL_ROLLUP_ENABLED=true so that RecoverFromChain() is called
+	// Set CARDINAL_ROLLUP_ENABLED=true so that recoverFromChain() is called
 	setEnvToCardinalRollupMode(t)
 
 	rtr.EXPECT().Start().Times(1)

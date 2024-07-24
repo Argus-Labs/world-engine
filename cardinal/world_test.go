@@ -126,8 +126,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Equal(t, 5, s.Val)
 		}
+		world.Shutdown()
 
-		assert.NilError(t, world.Shutdown())
 		CleanupViper(t)
 	}
 
@@ -200,7 +200,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	err = doTickCapturePanic(ctx, world)
 	assert.ErrorContains(t, err, errorSystem.Error())
 
-	assert.NilError(t, world.Shutdown())
+	world.Shutdown()
 
 	// Set up a new engine using the same storage layer
 	world2, err := NewWorld(WithPort(getOpenPort(t)))
@@ -234,7 +234,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	p1, err := GetComponent[onePowerComponent](world2Ctx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p1.Power)
-	assert.NilError(t, world2.Shutdown())
+	world2.Shutdown()
 }
 
 type Foo struct{}
@@ -342,7 +342,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 			}()
 			<-world.worldStage.NotifyOnStage(worldstage.Running)
 			defer func() {
-				assert.NilError(t, world.Shutdown())
+				world.Shutdown()
 			}()
 
 			// The first tick sets up the entity

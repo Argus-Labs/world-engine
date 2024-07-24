@@ -3,6 +3,7 @@ package telemetry
 import (
 	"errors"
 
+	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
@@ -43,6 +44,8 @@ func New(enableTrace bool, enableProfiler bool) (*Manager, error) {
 // Shutdown calls cleanup functions registered in the telemetry manager.
 // Each registered cleanup will be invoked once and the errors from the calls are joined.
 func (tm *Manager) Shutdown() error {
+	log.Debug().Msg("Shutting down telemetry")
+
 	if tm.tracerShutdownFunc != nil {
 		err := tm.tracerShutdownFunc()
 		return err
@@ -52,6 +55,7 @@ func (tm *Manager) Shutdown() error {
 		tm.profilerShutdownFunc()
 	}
 
+	log.Debug().Msg("Successfully shutdown telemetry")
 	return nil
 }
 

@@ -9,7 +9,7 @@ import (
 const (
 	Init         Stage = "Init"         // The default stage of world
 	Starting     Stage = "Starting"     // World is moved to this stage after StartGame() is called
-	Recovering   Stage = "Recovering"   // World is moved to this stage when RecoverFromChain() is called
+	Recovering   Stage = "Recovering"   // World is moved to this stage when recoverFromChain() is called
 	Ready        Stage = "Ready"        // World is moved to this stage when it's ready to start ticking
 	Running      Stage = "Running"      // World is moved to this stage when Tick() is first called
 	ShuttingDown Stage = "ShuttingDown" // World is moved to this stage when it received a shutdown signal
@@ -32,19 +32,21 @@ func NewManager() *Manager {
 		current: &atomic.Value{},
 		atStage: map[Stage]chan struct{}{},
 	}
+	m.current.Store(Init)
+
 	for _, stage := range allStages {
 		m.atStage[stage] = make(chan struct{})
 	}
-	m.Store(Init)
+
 	return m
 }
 
 func (m *Manager) CompareAndSwap(oldStage, newStage Stage) (swapped bool) {
-	log.Info().Msgf("New world stage: %q from %q", newStage, oldStage)
 	ok := m.current.CompareAndSwap(oldStage, newStage)
 	if ok {
 		close(m.atStage[newStage])
 	}
+	log.Info().Msgf("New world stage: %q → %q", oldStage, newStage)
 	return ok
 }
 
@@ -52,10 +54,11 @@ func (m *Manager) Current() Stage {
 	return m.current.Load().(Stage)
 }
 
-func (m *Manager) Store(val Stage) {
-	log.Info().Msgf("New world stage: %q", val)
-	m.current.Store(val)
-	close(m.atStage[val])
+func (m *Manager) Store(newStage Stage) {
+	oldStage := m.current.Load()
+	m.current.Store(newStage)
+	close(m.atStage[newStage])
+	log.Info().Msgf("New world stage: %q → %q", oldStage, newStage)
 }
 
 // NotifyOnStage returns a channel that will be closed when the specified stage has been reached.
