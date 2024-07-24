@@ -13,9 +13,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -231,7 +230,7 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 		return err
 	}
 	if !filter.MatchComponentMetadata(comps, cType) {
-		return eris.Wrap(iterators.ErrComponentNotOnEntity, "")
+		return eris.Wrap(ErrComponentNotOnEntity, "")
 	}
 
 	key := compKey{cType.ID(), id}
@@ -252,7 +251,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 		return nil, err
 	}
 	if !filter.MatchComponentMetadata(comps, cType) {
-		return nil, eris.Wrap(iterators.ErrComponentNotOnEntity, "")
+		return nil, eris.Wrap(ErrComponentNotOnEntity, "")
 	}
 
 	// Fetch the value from storage
@@ -297,7 +296,7 @@ func (m *EntityCommandBuffer) AddComponentToEntity(cType types.ComponentMetadata
 		return err
 	}
 	if filter.MatchComponentMetadata(fromComps, cType) {
-		return eris.Wrap(iterators.ErrComponentAlreadyOnEntity, "")
+		return eris.Wrap(ErrComponentAlreadyOnEntity, "")
 	}
 	toComps := append(fromComps, cType) //nolint:gocritic // easier this way.
 	if err = sortComponentSet(toComps); err != nil {
@@ -332,10 +331,10 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 		newCompSet = append(newCompSet, comp)
 	}
 	if !found {
-		return eris.Wrap(iterators.ErrComponentNotOnEntity, "")
+		return eris.Wrap(ErrComponentNotOnEntity, "")
 	}
 	if len(newCompSet) == 0 {
-		return eris.Wrap(iterators.ErrEntityMustHaveAtLeastOneComponent, "")
+		return eris.Wrap(ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
 	err = m.compValues.Delete(key)
@@ -409,8 +408,8 @@ func (m *EntityCommandBuffer) GetEntitiesForArchID(archID types.ArchetypeID) ([]
 
 // SearchFrom returns an ArchetypeIterator based on a component filter. The iterator will iterate over all archetypes
 // that match the given filter.
-func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator {
-	itr := &iterators.ArchetypeIterator{}
+func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start int) *ArchetypeIterator {
+	itr := &ArchetypeIterator{}
 	for i := start; i < m.archIDToComps.Len(); i++ {
 		archID := types.ArchetypeID(i)
 		// TODO: error was swallowed here.
@@ -454,7 +453,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 	if err != nil {
 		// todo: Make redis.Nil a general error on storage
 		if errors.Is(err, redis.Nil) {
-			return 0, eris.Wrap(redis.Nil, iterators.ErrEntityDoesNotExist.Error())
+			return 0, eris.Wrap(redis.Nil, ErrEntityDoesNotExist.Error())
 		}
 		return 0, eris.Wrap(err, "")
 	}

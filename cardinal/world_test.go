@@ -11,8 +11,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
@@ -98,7 +97,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
 			_, err = GetComponent[ScalarComponentToggle](wCtx, id)
-			assert.ErrorIs(t, iterators.ErrComponentNotOnEntity, eris.Cause(err))
+			assert.ErrorIs(t, ErrComponentNotOnEntity, eris.Cause(err))
 
 			s, err := GetComponent[ScalarComponentStatic](wCtx, id)
 			assert.NilError(t, err)
@@ -111,7 +110,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			// At this second iteration, the errorToggleComponent bug has been fixed.
 			// It should recover at the last successful tick where toggle does not exist on the entity and val is 4
 			_, err = GetComponent[ScalarComponentToggle](wCtx, id)
-			assert.ErrorIs(t, iterators.ErrComponentNotOnEntity, eris.Cause(err))
+			assert.ErrorIs(t, ErrComponentNotOnEntity, eris.Cause(err))
 
 			s, err := GetComponent[ScalarComponentStatic](wCtx, id)
 			assert.NilError(t, err)
@@ -321,7 +320,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 				id, err := NewSearch().Entity(filter.Exact(filter.Component[Foo](),
 					filter.Component[Bar]())).First(wCtx)
 				assert.Check(t, err == nil)
-				assert.Check(t, id != iterators.BadID)
+				assert.Check(t, id != badEntityID)
 
 				// Shut down redis. The testCase's failure function will now be able to fail
 				miniRedis.Close()
