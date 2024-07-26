@@ -1,0 +1,27 @@
+speakeasyVersion: 1.346.1
+sources:
+    Cardinal-OAS:
+        sourceNamespace: cardinal-oas
+        sourceRevisionDigest: sha256:f35ce8bf8babc223660948c4a9528a279c57c14dfbffef85d622e0c20ec347d8
+        sourceBlobDigest: sha256:209f89bc0219f3deecca8adc6edba39319c81a150c7ea293445c8dfd88090abd
+        tags:
+            - latest
+targets:
+    cardinal:
+        source: Cardinal-OAS
+        sourceNamespace: cardinal-oas
+        sourceRevisionDigest: sha256:f35ce8bf8babc223660948c4a9528a279c57c14dfbffef85d622e0c20ec347d8
+        sourceBlobDigest: sha256:209f89bc0219f3deecca8adc6edba39319c81a150c7ea293445c8dfd88090abd
+        outLocation: /var/home/rmrt1n/Containers/dev/Projects/argus/world-engine/cardinal/sdk/typescript
+workflow:
+    workflowVersion: 1.0.0
+    sources:
+        Cardinal-OAS:
+            inputs:
+                - location: ../../../jjj/openapi.json
+            registry:
+                location: registry.speakeasyapi.dev/argus-labs/argus-labs/cardinal-oas
+    targets:
+        cardinal:
+            target: typescript
+            source: Cardinal-OAS

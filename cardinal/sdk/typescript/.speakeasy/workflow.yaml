@@ -1,0 +1,11 @@
+workflowVersion: 1.0.0
+sources:
+    Cardinal-OAS:
+        inputs:
+            - location: ../../../jjj/openapi.json
+        registry:
+            location: registry.speakeasyapi.dev/argus-labs/argus-labs/cardinal-oas
+targets:
+    cardinal:
+        target: typescript
+        source: Cardinal-OAS
