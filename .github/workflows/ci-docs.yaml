@@ -12,7 +12,7 @@ on:
 
 jobs:
   lint-docs:
-    name: Lint - Docs
+    name: Lint (Docs)
     runs-on: ubuntu-latest
     defaults:
       run:

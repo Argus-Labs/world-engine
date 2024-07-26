@@ -18,7 +18,7 @@ env:
 
 jobs:
   build-evm:
-    name: Docker Image - EVM
+    name: Docker Image (EVM)
     if: startsWith(github.ref, 'refs/tags/evm/v')
     runs-on: namespace-profile-linux-8vcpu-16gb-cached
     # Add "id-token" with the intended permissions.

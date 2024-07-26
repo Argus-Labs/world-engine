@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   lint-go:
-    name: Lint - Go
+    name: Lint (go)
     runs-on: namespace-profile-linux-4vcpu-8gb-cached
     env:
       GO_VERSION: 1.22.1
@@ -53,7 +53,7 @@ jobs:
           skip-cache: true
   
   unit-test-go:
-    name: Unit Test - Go
+    name: Unit Test (go)
     runs-on: namespace-profile-linux-4vcpu-8gb-cached
     steps:
       - name: Checkout
@@ -79,7 +79,7 @@ jobs:
           directory: "./"
 
   validate-swagger:
-    name: Validate - Swagger
+    name: Validate (Swagger)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -96,7 +96,7 @@ jobs:
         run: make swagger-check
   
   e2e-nakama:
-    name: E2E - Nakama
+    name: E2E (Nakama)
     runs-on:
       - nscloud-ubuntu-22.04-amd64-4x16-with-cache-with-features
       - nscloud-cache-tag-e2e
@@ -126,7 +126,7 @@ jobs:
           docker compose logs
   
   e2e-evm:
-    name: E2E - EVM
+    name: E2E (EVM)
     runs-on:
       - nscloud-ubuntu-22.04-amd64-4x16-with-cache-with-features
       - nscloud-cache-tag-e2e

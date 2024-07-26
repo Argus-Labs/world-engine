@@ -12,7 +12,7 @@ on:
 
 jobs:
   build-evm:
-    name: Build - EVM
+    name: Build (EVM)
     runs-on: namespace-profile-linux-8vcpu-16gb-cached
     steps:
       - name: Checkout

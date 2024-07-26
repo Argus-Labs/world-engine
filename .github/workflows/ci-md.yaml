@@ -15,7 +15,7 @@ on:
 
 jobs:
   lint-markdown:
-    name: Lint - Markdown
+    name: Lint (md)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
