@@ -1,8 +1,8 @@
-name: Lint
+name: Push
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
     paths:
       - "**.md"
       - "**.mdx"
@@ -14,8 +14,8 @@ on:
       - "**.mdx"
 
 jobs:
-  lint-md:
-    name: Markdown
+  lint-markdown:
+    name: Lint - Markdown
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
