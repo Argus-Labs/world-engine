@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	zerolog "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -160,12 +160,15 @@ func (e *evmServer) SendMessage(
 func (e *evmServer) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
 	*routerv1.QueryShardResponse, error,
 ) {
-	zerolog.Logger.Debug().Msgf("get request for %q", req.GetResource())
-	reply, err := e.provider.HandleEVMQuery(req.GetResource(), req.GetRequest())
+	log.Debug().Msgf("get request for %q", req.GetResource())
+
+	// TODO(scott): the group name should not be hardcoded
+	reply, err := e.provider.HandleQueryEVM("game", req.GetResource(), req.GetRequest())
 	if err != nil {
-		zerolog.Logger.Error().Err(err).Msg("failed to handle query")
+		log.Error().Err(err).Msg("failed to handle query")
 		return nil, err
 	}
-	zerolog.Logger.Debug().Msgf("sending back reply: %v", reply)
+
+	log.Debug().Msgf("sending back reply: %v", reply)
 	return &routerv1.QueryShardResponse{Response: reply}, nil
 }
