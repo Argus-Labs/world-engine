@@ -1,0 +1,579 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Cardinal",
+    "description" : "Backend server for World Engine",
+    "contact" : { },
+    "version" : "0.0.1"
+  },
+  "servers" : [ {
+    "url" : "/"
+  } ],
+  "paths" : {
+    "/cql" : {
+      "post" : {
+        "summary" : "Executes a CQL (Cardinal Query Language) query",
+        "description" : "Executes a CQL (Cardinal Query Language) query",
+        "requestBody" : {
+          "description" : "CQL query to be executed",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/cardinal_server_handler.CQLQueryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Results of the executed CQL query",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.CQLQueryResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request parameters",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name" : "cql"
+      }
+    },
+    "/debug/state" : {
+      "post" : {
+        "summary" : "Retrieves a list of all entities in the game state",
+        "description" : "Retrieves a list of all entities in the game state",
+        "responses" : {
+          "200" : {
+            "description" : "List of all entities",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.DebugStateElement"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events" : {
+      "get" : {
+        "summary" : "Establishes a new websocket connection to retrieve system events",
+        "description" : "Establishes a new websocket connection to retrieve system events",
+        "responses" : {
+          "101" : {
+            "description" : "Switch protocol to ws",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health" : {
+      "get" : {
+        "summary" : "Retrieves the status of the server and game loop",
+        "description" : "Retrieves the status of the server and game loop",
+        "responses" : {
+          "200" : {
+            "description" : "Server and game loop status",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.GetHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/query/receipts/list" : {
+      "post" : {
+        "summary" : "Retrieves all transaction receipts",
+        "description" : "Retrieves all transaction receipts",
+        "requestBody" : {
+          "description" : "Query body",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/cardinal_server_handler.ListTxReceiptsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "List of receipts",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.ListTxReceiptsResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request body",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name" : "ListTxReceiptsRequest"
+      }
+    },
+    "/query/{queryGroup}/{queryName}" : {
+      "post" : {
+        "summary" : "Executes a query",
+        "description" : "Executes a query",
+        "parameters" : [ {
+          "name" : "queryGroup",
+          "in" : "path",
+          "description" : "Query group",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "queryName",
+          "in" : "path",
+          "description" : "Name of a registered query",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "description" : "Query to be executed",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "object"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Results of the executed query",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request parameters",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name" : "queryBody"
+      }
+    },
+    "/tx/game/{txName}" : {
+      "post" : {
+        "summary" : "Submits a transaction",
+        "description" : "Submits a transaction",
+        "parameters" : [ {
+          "name" : "txName",
+          "in" : "path",
+          "description" : "Name of a registered message",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "description" : "Transaction details & message to be submitted",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/cardinal_server_handler.Transaction"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Transaction hash and tick",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.PostTransactionResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request parameter",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name" : "txBody"
+      }
+    },
+    "/tx/persona/create-persona" : {
+      "post" : {
+        "summary" : "Creates a persona",
+        "description" : "Creates a persona",
+        "requestBody" : {
+          "description" : "Transaction details & message to be submitted",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/cardinal_server_handler.Transaction"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Transaction hash and tick",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.PostTransactionResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request parameter",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name" : "txBody"
+      }
+    },
+    "/tx/{txGroup}/{txName}" : {
+      "post" : {
+        "summary" : "Submits a transaction",
+        "description" : "Submits a transaction",
+        "parameters" : [ {
+          "name" : "txGroup",
+          "in" : "path",
+          "description" : "Message group",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "txName",
+          "in" : "path",
+          "description" : "Name of a registered message",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "description" : "Transaction details & message to be submitted",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/cardinal_server_handler.Transaction"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Transaction hash and tick",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.PostTransactionResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request parameter",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name" : "txBody"
+      }
+    },
+    "/world" : {
+      "get" : {
+        "summary" : "Retrieves details of the game world",
+        "description" : "Contains the registered components, messages, queries, and namespace",
+        "responses" : {
+          "200" : {
+            "description" : "Details of the game world",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/cardinal_server_handler.GetWorldResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request parameters",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "cardinal_server_handler.CQLQueryRequest" : {
+        "type" : "object",
+        "properties" : {
+          "cql" : {
+            "type" : "string"
+          }
+        }
+      },
+      "cardinal_server_handler.CQLQueryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "results" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.EntityStateElement"
+            }
+          }
+        }
+      },
+      "cardinal_server_handler.GetHealthResponse" : {
+        "type" : "object",
+        "properties" : {
+          "isGameLoopRunning" : {
+            "type" : "boolean"
+          },
+          "isServerRunning" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "cardinal_server_handler.GetWorldResponse" : {
+        "type" : "object",
+        "properties" : {
+          "components" : {
+            "type" : "array",
+            "description" : "list of component names",
+            "items" : {
+              "$ref" : "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
+            }
+          },
+          "messages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
+            }
+          },
+          "namespace" : {
+            "type" : "string"
+          },
+          "queries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
+            }
+          }
+        }
+      },
+      "cardinal_server_handler.ListTxReceiptsRequest" : {
+        "type" : "object",
+        "properties" : {
+          "startTick" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "cardinal_server_handler.ListTxReceiptsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "endTick" : {
+            "type" : "integer"
+          },
+          "receipts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/cardinal_server_handler.ReceiptEntry"
+            }
+          },
+          "startTick" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "cardinal_server_handler.PostTransactionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "tick" : {
+            "type" : "integer"
+          },
+          "txHash" : {
+            "type" : "string"
+          }
+        }
+      },
+      "cardinal_server_handler.ReceiptEntry" : {
+        "type" : "object",
+        "properties" : {
+          "errors" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "result" : {
+            "type" : "object"
+          },
+          "tick" : {
+            "type" : "integer"
+          },
+          "txHash" : {
+            "type" : "string"
+          }
+        }
+      },
+      "cardinal_server_handler.Transaction" : {
+        "type" : "object",
+        "properties" : {
+          "body" : {
+            "type" : "object",
+            "properties" : { },
+            "description" : "json string"
+          },
+          "hash" : {
+            "type" : "string"
+          },
+          "namespace" : {
+            "type" : "string"
+          },
+          "nonce" : {
+            "type" : "integer"
+          },
+          "personaTag" : {
+            "type" : "string"
+          },
+          "signature" : {
+            "type" : "string",
+            "description" : "hex encoded string"
+          }
+        }
+      },
+      "pkg_world_dev_world-engine_cardinal_types.EntityStateElement" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "object",
+            "properties" : { }
+          },
+          "id" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "pkg_world_dev_world-engine_cardinal_types.DebugStateElement" : {
+        "type" : "object",
+        "properties" : {
+          "components" : {
+            "type" : "object",
+            "properties" : { }
+          },
+          "id" : {
+            "type" : "integer"
+          }
+        }
+      },
+      "pkg_world_dev_world-engine_cardinal_types.FieldDetail" : {
+        "type" : "object",
+        "properties" : {
+          "fields" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object"
+            },
+            "description" : "variable name and type"
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "name of the message or query"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  },
+  "x-original-swagger-version" : "2.0"
+}
