@@ -2,7 +2,7 @@ configVersion: 2.0.0
 generation:
   devContainers:
     enabled: true
-    schemaPath: jjj/openapi.json
+    schemaPath: cardinal/server/docs/openapi.json
   sdkClassName: Cardinal
   maintainOpenAPIOrder: true
   usageSnippets:

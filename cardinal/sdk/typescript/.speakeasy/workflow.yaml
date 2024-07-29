@@ -2,7 +2,7 @@ workflowVersion: 1.0.0
 sources:
     Cardinal-OAS:
         inputs:
-            - location: ../../../jjj/openapi.json
+            - location: ../../server/docs/openapi.json
         registry:
             location: registry.speakeasyapi.dev/argus-labs/argus-labs/cardinal-oas
 targets:
