@@ -96,6 +96,7 @@ unit-test-all:
 #################
 #   swagger	    #
 #################
+
 .PHONY: swaggo-install
 
 swaggo-install:
@@ -122,3 +123,26 @@ swagger-check:
 
 	@echo "--> Cleanup"
 	rm -rf .tmp/swagger
+
+#####################
+#  swagger codegen  #
+#####################
+
+.PHONY: swagger-codegen
+SWAGGER_DIR = cardinal/server/docs
+
+swagger-codegen-install:
+	@echo "--> Installing swagger-codegen"
+	wget https://repo1.maven.org/maven2/io/swagger/codegen/v3/swagger-codegen-cli/3.0.57/swagger-codegen-cli-3.0.57.jar -O swagger-codegen-cli.jar
+	echo '#!/usr/bin/java -jar' > swagger-codegen
+	cat swagger-codegen-cli.jar >> swagger-codegen
+	chmod +x swagger-codegen
+	mv swagger-codegen ~/.local/bin/
+	rm swagger-codegen-cli.jar
+
+swagger-codegen:
+	@echo "--> Generating OpenAPI v3.0 document from $(SWAGGER_DIR)"
+	swagger-codegen generate -l openapi -i "$(SWAGGER_DIR)/swagger.json" -o .tmp/swagger-codegen
+	mv .tmp/swagger-codegen/openapi.json $(SWAGGER_DIR)
+	@echo "--> Cleanup"
+	rm -rf .tmp/swagger-codegen
