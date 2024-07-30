@@ -35,5 +35,6 @@ jobs:
       - name: MDX Lint
         run: |
           npx eslint . --ext js,mdx \
-          --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules
-          --ignore-pattern 'cardinal/sdk/typescript/*'
+          --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules \
+          --ignore-pattern 'cardinal/sdk/typescript/*' \
+          --no-eslintrc
