@@ -113,19 +113,19 @@ func (mr *MockProviderMockRecorder) GetSignerComponentForPersona(arg0 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignerComponentForPersona", reflect.TypeOf((*MockProvider)(nil).GetSignerComponentForPersona), arg0)
 }
 
-// HandleEVMQuery mocks base method.
-func (m *MockProvider) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
+// HandleQueryEVM mocks base method.
+func (m *MockProvider) HandleQueryEVM(group, name string, abiRequest []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleEVMQuery", name, abiRequest)
+	ret := m.ctrl.Call(m, "HandleQueryEVM", group, name, abiRequest)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// HandleEVMQuery indicates an expected call of HandleEVMQuery.
-func (mr *MockProviderMockRecorder) HandleEVMQuery(name, abiRequest interface{}) *gomock.Call {
+// HandleQueryEVM indicates an expected call of HandleQueryEVM.
+func (mr *MockProviderMockRecorder) HandleQueryEVM(group, name, abiRequest interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleEVMQuery", reflect.TypeOf((*MockProvider)(nil).HandleEVMQuery), name, abiRequest)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleQueryEVM", reflect.TypeOf((*MockProvider)(nil).HandleQueryEVM), group, name, abiRequest)
 }
 
 // WaitForNextTick mocks base method.

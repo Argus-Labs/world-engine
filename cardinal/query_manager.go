@@ -1,27 +1,31 @@
 package cardinal
 
 import (
-	"fmt"
-
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
+var _ QueryManager = &queryManager{}
+
 type QueryManager interface {
 	RegisterQuery(queryInput query) error
 	GetRegisteredQueries() []query
-	GetQuery(group string, name string) (query, error)
+	HandleQuery(group string, name string, bz []byte) ([]byte, error)
+	HandleQueryEVM(group string, name string, abiRequest []byte) ([]byte, error)
+	getQuery(group string, name string) (query, error)
 	BuildQueryFields() []types.FieldDetail
 }
 
 type queryManager struct {
+	world                    *World
 	registeredQueriesByGroup map[string]map[string]query // group:name:query
 }
 
-func newQueryManager() QueryManager {
+func newQueryManager(world *World) QueryManager {
 	return &queryManager{
+		world:                    world,
 		registeredQueriesByGroup: make(map[string]map[string]query),
 	}
 }
@@ -29,7 +33,6 @@ func newQueryManager() QueryManager {
 // RegisterQuery registers a query with the query manager.
 // There can only be one query with a given name.
 func (m *queryManager) RegisterQuery(queryInput query) error {
-	// Register the query
 	_, ok := m.registeredQueriesByGroup[queryInput.Group()]
 	if !ok {
 		m.registeredQueriesByGroup[queryInput.Group()] = make(map[string]query)
@@ -50,23 +53,27 @@ func (m *queryManager) GetRegisteredQueries() []query {
 	return registeredQueries
 }
 
-func (w *World) HandleQuery(group string, name string, bz []byte) ([]byte, error) {
-	q, err := w.GetQuery(group, name)
+func (m *queryManager) HandleQuery(group string, name string, bz []byte) ([]byte, error) {
+	q, err := m.getQuery(group, name)
 	if err != nil {
-		return nil, eris.Wrap(types.ErrQueryNotFound, fmt.Sprintf("could not find query %q", name))
+		return nil, eris.Wrapf(err, "unable to find query %s/%s", group, name)
 	}
-	if q.Group() != group {
-		return nil, eris.Errorf("Query group: %s with name: %s not found", group, name)
-	}
-	wCtx := NewReadOnlyWorldContext(w)
-	return q.handleQueryRaw(wCtx, bz)
+	return q.handleQueryJSON(NewReadOnlyWorldContext(m.world), bz)
 }
 
-// GetQueryByName returns a query corresponding to its name.
-func (m *queryManager) GetQuery(group string, name string) (query, error) {
+func (m *queryManager) HandleQueryEVM(group string, name string, abiRequest []byte) ([]byte, error) {
+	q, err := m.getQuery(group, name)
+	if err != nil {
+		return nil, eris.Wrapf(err, "unable to find EVM-compatible query %s/%s", group, name)
+	}
+	return q.handleQueryEVM(NewReadOnlyWorldContext(m.world), abiRequest)
+}
+
+// getQuery returns a query corresponding to the identifier with the format <group>/<name>.
+func (m *queryManager) getQuery(group string, name string) (query, error) {
 	query, ok := m.registeredQueriesByGroup[group][name]
 	if !ok {
-		return nil, eris.Errorf("query %q is not registered under group %s", name, DefaultQueryGroup)
+		return nil, types.ErrQueryNotFound
 	}
 	return query, nil
 }

@@ -144,7 +144,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		MessageManager:   newMessageManager(),
 		SystemManager:    newSystemManager(),
 		ComponentManager: component.NewManager(&redisMetaStore),
-		QueryManager:     newQueryManager(),
+		QueryManager:     nil,
 		router:           nil, // Will be set if run mode is production or its injected via options
 		txPool:           txpool.New(),
 
@@ -164,6 +164,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
+	world.QueryManager = newQueryManager(world)
 
 	// Initialize shard router if running in rollup mode
 	if cfg.CardinalRollupEnabled {
@@ -380,7 +381,7 @@ loop:
 			if !ok {
 				return eris.New("tickStart channel has been closed; tick rate is now unbounded.")
 			}
-			w.tickTheEngine(ctx, tickDone)
+			w.tickTheEngine(context.Background(), tickDone)
 			closeAllChannels(waitingChs)
 			waitingChs = waitingChs[:0]
 
@@ -562,24 +563,6 @@ func (w *World) WaitForNextTick() (success bool) {
 	w.addChannelWaitingForNextTick <- ch
 	<-ch
 	return w.CurrentTick() > startTick
-}
-
-func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
-	qry, err := w.GetQuery(DefaultQueryGroup, name)
-	if err != nil {
-		return nil, err
-	}
-	req, err := qry.DecodeEVMRequest(abiRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	reply, err := qry.handleQuery(NewReadOnlyWorldContext(w), req)
-	if err != nil {
-		return nil, err
-	}
-
-	return qry.EncodeEVMReply(reply)
 }
 
 func (w *World) Search(filter filter.ComponentFilter) EntitySearch {

@@ -2,7 +2,10 @@ module github.com/argus-labs/world-engine/e2e/tests
 
 go 1.22.1
 
-replace pkg.world.dev/world-engine/evm => ../../evm
+replace (
+	pkg.world.dev/world-engine/cardinal => ../../cardinal
+	pkg.world.dev/world-engine/evm => ../../evm
+)
 
 // external, necessary replacements
 replace (
@@ -22,10 +25,12 @@ replace (
 require (
 	github.com/cosmos/cosmos-sdk v0.50.7-0.20240528102556-d180df817efc
 	github.com/ethereum/go-ethereum v1.13.10
+	github.com/rotisserie/eris v0.5.4
 	google.golang.org/grpc v1.63.2
 	gotest.tools/v3 v3.5.1
 	nhooyr.io/websocket v1.8.10
 	pkg.world.dev/world-engine/assert v1.0.0
+	pkg.world.dev/world-engine/cardinal v1.5.1
 	pkg.world.dev/world-engine/evm v0.0.0-00010101000000-000000000000
 	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a
 )
@@ -112,9 +117,11 @@ require (
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/huandu/skiplist v1.2.0 // indirect
+	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/invopop/jsonschema v0.7.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -140,9 +147,8 @@ require (
 	github.com/prometheus/procfs v0.13.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	github.com/rotisserie/eris v0.5.4 // indirect
 	github.com/rs/cors v1.11.0 // indirect
-	github.com/rs/zerolog v1.32.0 // indirect
+	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
@@ -157,6 +163,11 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
+	github.com/tidwall/gjson v1.17.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
+	github.com/wI2L/jsondiff v0.5.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.3.8 // indirect
@@ -165,7 +176,7 @@ require (
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/term v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
