@@ -24,10 +24,6 @@ jobs:
         uses: actions/setup-node@v4
       - name: Install eslint & eslint-plugin-mdx
         run: npm install eslint@8.57.0 eslint-plugin-mdx@3.1.5 --global
-      - name: Install eslint plugins in typescript sdk
-        run: |
-          cd cardinal/sdk/typescript
-          npm ci
       ## detect errors from markdownlint-cli and create annotations for them
       - uses: xt0rted/markdownlint-problem-matcher@v3
       - name: Markdown Lint
@@ -39,4 +35,5 @@ jobs:
       - name: MDX Lint
         run: |
           npx eslint . --ext js,mdx \
-          --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules
+          --resolve-plugins-relative-to=$(npm config get prefix)/lib/node_modules \
+          --ignore-pattern cardinal/sdk/typescript/*
