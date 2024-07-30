@@ -28,6 +28,7 @@ jobs:
         run: |
           cd cardinal/sdk/typescript
           npm install
+          rm -rf node_modules/eslint node_modules/typescript
           mv node_modules/* $(npm config get prefix)/lib/node_modules
       ## detect errors from markdownlint-cli and create annotations for them
       - uses: xt0rted/markdownlint-problem-matcher@v3
