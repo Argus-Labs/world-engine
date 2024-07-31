@@ -782,15 +782,50 @@ func TestRandomNumberGenerator(t *testing.T) {
 	}
 }
 
+func TestSetComponent(t *testing.T) {
+	tf := cardinal.NewTestFixture(t, nil)
+	world := tf.World
+	assert.NilError(t, cardinal.RegisterComponent[Health](world))
+	executed := false
+	assert.NilError(t, cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		if !executed {
+			id, err := cardinal.Create(context, Health{Value: 1})
+			if err != nil {
+				return err
+			}
+			comp, err := cardinal.GetComponent[Health](context, id)
+			if err != nil {
+				return err
+			}
+			assert.Equal(t, comp.Value, 1)
+		}
+		executed = true
+		return nil
+	}))
+	tf.StartWorld()
+	tf.DoTick()
+}
+
 func TestDelayedTask(t *testing.T) {
 	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	testValue := 0
-	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
-		return context.DelayTask(func(_ cardinal.WorldContext) error {
-			testValue++
-			return nil
-		}, 20)
+	taskName := "testTask"
+	err := cardinal.RegisterDelayedTask(world, taskName, func(_ cardinal.WorldContext) error {
+		testValue++
+		return nil
+	})
+	assert.NilError(t, err)
+	called := false
+	err = cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		var res error
+		if !called {
+			res = context.DelayTask(taskName, 20)
+		} else {
+			res = nil
+		}
+		called = true
+		return res
 	})
 	assert.NilError(t, err)
 	tf.StartWorld()

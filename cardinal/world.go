@@ -165,6 +165,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		SystemDelayManager:           newSystemDelayer(),
 	}
 
+	// Initialize System Delayer
+	err = world.SystemDelayManager.InitializeSystemDelayer(world)
+	if err != nil {
+		return nil, err
+	}
+
 	// Initialize shard router if running in rollup mode
 	if cfg.CardinalRollupEnabled {
 		world.router, err = router.New(
@@ -186,7 +192,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Register internal plugins
 	world.RegisterPlugin(newPersonaPlugin())
-	world.RegisterPlugin(world.SystemDelayManager)
 
 	return world, nil
 }
@@ -325,6 +330,7 @@ func (w *World) StartGame() error {
 			return eris.Wrap(err, "failed to recover from chain")
 		}
 	}
+
 	w.worldStage.Store(worldstage.Ready)
 
 	// TODO(scott): i find this manual tracking and incrementing of the tick very footgunny. Why can't we just

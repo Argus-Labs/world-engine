@@ -36,6 +36,10 @@ func FilterFunction[T types.Component](f func(comp T) bool) func(ctx WorldContex
 	return ComponentFilter[T](f)
 }
 
+func RegisterDelayedTask(w *World, taskName string, sys System) error {
+	return w.RegisterTask(taskName, sys)
+}
+
 func RegisterSystems(w *World, sys ...System) error {
 	if w.worldStage.Current() != worldstage.Init {
 		return eris.Errorf(

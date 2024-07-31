@@ -38,8 +38,8 @@ type WorldContext interface {
 	Namespace() string
 	// Rand returns a random number generator that is seeded specifically for a current tick.
 	Rand() *rand.Rand
-	// DelayTask executes a task `delay` ticks away from the current tick.
-	DelayTask(func(ctx WorldContext) error, int) error
+	// DelayTask executes a task `Delay` ticks away from the current tick.
+	DelayTask(string, int) error
 
 	// For internal use.
 
@@ -100,8 +100,8 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 	}
 }
 
-func (ctx *worldContext) DelayTask(f func(WorldContext) error, delay int) error {
-	return ctx.world.AddTask(f, delay)
+func (ctx *worldContext) DelayTask(taskName string, delay int) error {
+	return ctx.world.CallTask(ctx, taskName, delay)
 }
 
 // Timestamp returns the UNIX timestamp of the tick.
