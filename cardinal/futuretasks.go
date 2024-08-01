@@ -3,7 +3,7 @@ package cardinal
 import (
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
