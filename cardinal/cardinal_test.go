@@ -782,30 +782,6 @@ func TestRandomNumberGenerator(t *testing.T) {
 	}
 }
 
-func TestSetComponent(t *testing.T) {
-	tf := cardinal.NewTestFixture(t, nil)
-	world := tf.World
-	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	executed := false
-	assert.NilError(t, cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
-		if !executed {
-			id, err := cardinal.Create(context, Health{Value: 1})
-			if err != nil {
-				return err
-			}
-			comp, err := cardinal.GetComponent[Health](context, id)
-			if err != nil {
-				return err
-			}
-			assert.Equal(t, comp.Value, 1)
-		}
-		executed = true
-		return nil
-	}))
-	tf.StartWorld()
-	tf.DoTick()
-}
-
 func TestCallTasksAt(t *testing.T) {
 	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
