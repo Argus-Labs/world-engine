@@ -119,6 +119,19 @@ func (s *futureTaskStorage) delayTaskByTicks(wCtx WorldContext, taskName string,
 	return err
 }
 
+// callTaskAtTimestamp calls a task at the specified timestamp by creating a TaskAtTimestamp component and
+// adding it to the World context. First, the method checks if the specified timestamp is earlier than the
+// current time. If so, an error is returned. Then, it checks if a stored task with the specified task name
+// exists in the future task storage. If not, an error is returned. Finally, it creates a TaskAtTimestamp
+// object with the given timestamp and task name, and adds it to the World context using the Create method.
+//
+// Parameters:
+// - wCtx: a WorldContext representing the current state of the game world.
+// - taskName: the name of the task to be called.
+// - timestamp: the timestamp at which the task should be called.
+//
+// Returns:
+// - error: an error object if encountered during execution, nil otherwise.
 func (s *futureTaskStorage) callTaskAtTimestamp(wCtx WorldContext, taskName string, timestamp uint64) error {
 	if timestamp < wCtx.Timestamp() {
 		return eris.Errorf(
