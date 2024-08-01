@@ -40,6 +40,7 @@ type WorldContext interface {
 	Rand() *rand.Rand
 	// DelayTask executes a task `Delay` ticks away from the current tick.
 	DelayTask(string, int) error
+	CallTaskAt(string, uint64) error
 
 	// For internal use.
 
@@ -101,7 +102,11 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 }
 
 func (ctx *worldContext) DelayTask(taskName string, delay int) error {
-	return ctx.world.CallTask(ctx, taskName, delay)
+	return ctx.world.delayTaskByTicks(ctx, taskName, delay)
+}
+
+func (ctx *worldContext) CallTaskAt(taskName string, timestamp uint64) error {
+	return ctx.world.callTaskAtTimestamp(ctx, taskName, timestamp)
 }
 
 // Timestamp returns the UNIX timestamp of the tick.

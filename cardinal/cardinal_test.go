@@ -806,12 +806,55 @@ func TestSetComponent(t *testing.T) {
 	tf.DoTick()
 }
 
+func TestCallTasksAt(t *testing.T) {
+	tf := cardinal.NewTestFixture(t, nil)
+	world := tf.World
+	testValue := 0
+	taskName := "testTask"
+	err := cardinal.RegisterFutureTask(world, taskName, func(_ cardinal.WorldContext) error {
+		testValue++
+		return nil
+	})
+	assert.NilError(t, err)
+	called := false
+	var startTime uint64
+	var futureDelay uint64 = 1000
+	endTest := false
+	err = cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		var res error
+		if !called {
+			startTime = context.Timestamp()
+			res = context.CallTaskAt(taskName, startTime+futureDelay)
+		} else {
+			res = nil
+		}
+		called = true
+		return res
+	},
+		func(ctx cardinal.WorldContext) error {
+			if called {
+				if startTime+futureDelay > ctx.Timestamp() {
+					assert.Equal(t, testValue, 0)
+				} else {
+					assert.Equal(t, testValue, 1)
+					endTest = true
+				}
+			}
+			return nil
+		},
+	)
+	assert.NilError(t, err)
+	for !endTest {
+		tf.DoTick()
+	}
+}
+
 func TestDelayedTask(t *testing.T) {
 	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
 	testValue := 0
 	taskName := "testTask"
-	err := cardinal.RegisterDelayedTask(world, taskName, func(_ cardinal.WorldContext) error {
+	err := cardinal.RegisterFutureTask(world, taskName, func(_ cardinal.WorldContext) error {
 		testValue++
 		return nil
 	})

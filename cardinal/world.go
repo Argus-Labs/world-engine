@@ -49,7 +49,7 @@ type World struct {
 	SystemManager
 	MessageManager
 	QueryManager
-	SystemDelayManager
+	futureTaskManager
 	component.ComponentManager
 
 	namespace     Namespace
@@ -162,11 +162,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tickChannel:                  time.Tick(time.Second), //nolint:staticcheck // its ok.
 		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
-		SystemDelayManager:           newSystemDelayer(),
+		futureTaskManager:            newFutureTaskStorage(),
 	}
 
 	// Initialize System Delayer
-	err = world.SystemDelayManager.InitializeSystemDelayer(world)
+	err = world.futureTaskManager.initializeFutureTaskStorage(world)
 	if err != nil {
 		return nil, err
 	}
