@@ -1,18 +1,18 @@
 lockVersion: 2.0.0
-id: 3b647012-da78-4412-8169-30c9795d93c1
+id: fc6bc2ef-bea2-433a-a006-bbd7c75eb7e5
 management:
   docChecksum: d11e4c607c38b470780d0598f8624aec
   docVersion: 0.0.1
-  speakeasyVersion: 1.346.1
-  generationVersion: 2.379.5
+  speakeasyVersion: 1.351.0
+  generationVersion: 2.384.1
   releaseVersion: 0.0.1
-  configChecksum: 5bd5709978930790bfe8f97375f972ba
+  configChecksum: 48b480cf853884a3cf0893af8e50dbfa
 features:
   typescript:
     additionalDependencies: 0.1.0
-    core: 3.11.10
+    core: 3.11.11
     defaultEnabledRetries: 0.1.0
-    devContainers: 2.90.0
+    envVarSecurityUsage: 0.1.0
     globalSecurityCallbacks: 0.1.0
     globalServerURLs: 2.82.4
     responseFormat: 0.2.3
@@ -28,6 +28,7 @@ generatedFiles:
   - src/index.ts
   - src/lib/base64.ts
   - src/lib/config.ts
+  - src/lib/dlv.ts
   - src/lib/encodings.ts
   - src/lib/http.ts
   - src/lib/is-plain-object.ts
@@ -90,9 +91,6 @@ generatedFiles:
   - docs/sdks/cardinal/README.md
   - USAGE.md
   - .gitattributes
-  - .devcontainer/README.md
-  - .devcontainer/devcontainer.json
-  - .devcontainer/setup.sh
   - src/hooks/hooks.ts
   - src/hooks/types.ts
   - src/hooks/index.ts

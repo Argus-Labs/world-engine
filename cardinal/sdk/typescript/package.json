@@ -1,7 +1,7 @@
 {
   "name": "cardinal",
   "version": "0.0.1",
-  "author": "Speakeasy",
+  "author": "Argus Labs",
   "main": "./index.js",
   "sideEffects": false,
   "scripts": {
