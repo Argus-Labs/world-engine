@@ -40,6 +40,7 @@ type WorldContext interface {
 	Rand() *rand.Rand
 	// DelayTask executes a task `Delay` ticks away from the current tick.
 	DelayTask(string, int) error
+	// CallTaskAt schedules a task to be executed at a specified timestamp.
 	CallTaskAt(string, uint64) error
 
 	// For internal use.

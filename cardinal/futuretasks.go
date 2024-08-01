@@ -150,8 +150,9 @@ func (s *futureTaskStorage) callTaskAtTimestamp(wCtx WorldContext, taskName stri
 	return err
 }
 
-// amountOfDelayedTasksByTick returns the number of delayed tasks with the `DelayedTaskByTick` component in the provided WorldContext.
-// It uses a search query to count the number of entities with the `DelayedTaskByTick` component.
+// amountOfDelayedTasksByTick returns the number of delayed tasks with the `DelayedTaskByTick`
+// component in the provided WorldContext. It uses a search query to count the number of entities with the
+// `DelayedTaskByTick` component.
 //
 // Parameters:
 // - wCtx: a WorldContext representing the context in which to search for delayed tasks.
@@ -167,7 +168,7 @@ func (s *futureTaskStorage) amountOfDelayedTasksByTick(wCtx WorldContext) (int, 
 	return count, nil
 }
 
-// amountOfTasksAtTimestamp returns the number of tasks at the given timestamp by
+// amountOfTasksAtTimestamp returns the number of tasks assigned a timestamp by
 // performing a search using the NewSearch function. It filters entities that have
 // the TaskAtTimestamp component and counts the number of matching entities. If an
 // error occurs during the search, it is returned immediately. The function returns
@@ -175,7 +176,7 @@ func (s *futureTaskStorage) amountOfDelayedTasksByTick(wCtx WorldContext) (int, 
 // Parameters:
 // - wCtx: the WorldContext in which the search is performed.
 // Returns:
-// - int: the number of tasks at the given timestamp.
+// - int: the number of tasks assigned a timestamp.
 // - error: an error object if encountered during the search, nil otherwise.
 func (s *futureTaskStorage) amountOfTasksAtTimestamp(wCtx WorldContext) (int, error) {
 	count, err := NewSearch().Entity(filter.Exact(filter.Component[TaskAtTimestamp]())).Count(wCtx)
@@ -185,10 +186,11 @@ func (s *futureTaskStorage) amountOfTasksAtTimestamp(wCtx WorldContext) (int, er
 	return count, nil
 }
 
-// clearTasks removes all tasks stored in the futureTaskStorage that have the DelayedTaskByTick and TaskAtTimestamp components.
-// It first collects the entity IDs of all tasks with DelayedTaskByTick component, and then collects the entity IDs of all tasks with
-// TaskAtTimestamp component. It then iterates over the collected entity IDs and removes each task from the WorldContext by calling the Remove function.
-// If an error occurs during the removal process, it is returned immediately. After all tasks are removed, nil is returned.
+// clearTasks removes all tasks stored in the futureTaskStorage that have the DelayedTaskByTick and TaskAtTimestamp
+// components. It first collects the entity IDs of all tasks with DelayedTaskByTick component, and then collects the
+// entity IDs of all tasks with TaskAtTimestamp component. It then iterates over the collected entity IDs and removes
+// each task from the WorldContext by calling the Remove function. If an error occurs during the removal process, it
+// is returned immediately. After all tasks are removed, nil is returned.
 // Parameters:
 // - wCtx: a WorldContext object representing the context in which the tasks are stored.
 // Returns:
