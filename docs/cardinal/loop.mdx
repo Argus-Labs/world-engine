@@ -10,7 +10,7 @@ Cardinal employs a loop-driven runtime. This is in contrast to EVM smart contrac
 
 If you are coming from EVM smart contract development, you have already experienced an event-driven runtime.
 
-In event-driven runtimes like the EVM, state transitions only happens when an event occurs. For example, in EVM smart contracts, the runtime is only running when a transaction is sent to the smart contract.
+In event-driven runtimes like the EVM, state transitions only happen when an event occurs. For example, in EVM smart contracts, the runtime is only running when a transaction is sent to the smart contract.
 
 This implies that no state transition can happen without a transaction. This becomes problematic for developing games because games need to consistently update the game state at a fixed interval. For example, you might want to apply health regen to a player or apply gravity to a player's character every second.
 
@@ -20,7 +20,7 @@ The workaround for this is to run a "crank" that creates a transaction which cal
 
 - **Increases system complexity & decreases resiliency**: The crank introduces another moving part to your game system that can cause headaches when it goes down or when it's not working as expected.
 
-- **Cost**: The cost of running a crank is high as it requires a transactions to be sent to the smart contract at every fixed interval. This can be incredibly expensive if you are running a crank every second.
+- **Cost**: The cost of running a crank is high as it requires a transaction to be sent to the smart contract at every fixed interval. This can be incredibly expensive if you are running a crank every second.
 
 
 ### Loop-driven Runtime
@@ -36,7 +36,7 @@ Games are then organized around the loop that continuously executes systems and 
 
 By doing this, Cardinal's loop-driven runtime provides the following benefits:
 
-- **Support for broader game mechanics**: Event-driven runtimes limits the types of game mechanics that can be implemented. For example, it is not possible to reliably implement a gravity mechanic that updates the player's location every subsecond. With a loop-driven runtime, this can be trivially accomplished.
+- **Support for broader game mechanics**: Event-driven runtimes limit the types of game mechanics that can be implemented. For example, it is not possible to reliably implement a gravity mechanic that updates the player's location every subsecond. With a loop-driven runtime, this can be trivially accomplished.
 
 
 - **Consistent ordering of game actions**: In an event-driven runtime, each game action is executed in a different transaction. This means that the ordering of game actions is not guaranteed. For example, if a player is hit by a bullet and the player's HP is reduced to 0, the player might still be able to shoot a bullet before the player's HP is reduced to 0. This is because the player's HP is reduced in a different transaction than the player's shooting action. This is not an issue with loop-driven runtimes because all game actions are executed in an explicit sequential order.
