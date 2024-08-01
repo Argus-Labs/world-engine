@@ -8,7 +8,7 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 )
 
 // TestSystemsReturnNonFatalErrors ensures system will surface non-fatal read and write errors to the user.
@@ -303,7 +303,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			// Do an initial tick so that the single entity can be Created.
 			tick()
 
-			query, err := world.GetQuery(DefaultQueryGroup, queryName)
+			query, err := world.getQuery(DefaultQueryGroup, queryName)
 			assert.Check(t, err == nil)
 
 			readOnlyWorldCtx := NewReadOnlyWorldContext(world)
@@ -341,7 +341,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	// Tick so the entity can be Created
 	tick()
 
-	query, err := world.GetQuery(DefaultQueryGroup, queryName)
+	query, err := world.getQuery(DefaultQueryGroup, queryName)
 	assert.NilError(t, err)
 
 	// Uhoh, redis is now broken.

@@ -1,17 +1,18 @@
-name: Build
+name: CI
 
 on:
   pull_request:
     paths:
       - evm/**
   push:
+    paths:
+      - evm/**
     branches:
       - main
-    paths-ignore:
-      - "docs/**"
+
 jobs:
-  evm:
-    name: Build EVM
+  build-evm:
+    name: Build (EVM)
     runs-on: namespace-profile-linux-8vcpu-16gb-cached
     steps:
       - name: Checkout

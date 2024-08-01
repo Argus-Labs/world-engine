@@ -28,6 +28,7 @@ require (
 	github.com/wI2L/jsondiff v0.5.0
 	go.opentelemetry.io/otel v1.26.0
 	go.opentelemetry.io/otel/trace v1.26.0
+	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.63.1

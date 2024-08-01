@@ -6,7 +6,7 @@ import (
 
 	"github.com/argus-labs/go-jobqueue"
 	"github.com/rotisserie/eris"
-	zerolog "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -116,11 +116,18 @@ func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Opt
 }
 
 func (r *router) RegisterGameShard(ctx context.Context) error {
+	log.Info().Msg("Registering game shard with EVM base shard")
+
 	_, err := r.ShardSequencer.RegisterGameShard(ctx, &shard.RegisterGameShardRequest{
 		Namespace:     r.namespace,
 		RouterAddress: r.serverAddr,
 	})
-	return err
+	if err != nil {
+		return eris.Wrap(err, "failed to register game shard to base shard")
+	}
+
+	log.Info().Msg("Game shard registered with EVM base shard")
+	return nil
 }
 
 func (r *router) SubmitTxBlob(
@@ -177,6 +184,8 @@ func (r *router) Shutdown() {
 }
 
 func (r *router) Start() error {
+	log.Info().Msg("Rollup mode enabled - starting router")
+
 	listener, err := net.Listen("tcp", ":"+r.port)
 	if err != nil {
 		return eris.Wrapf(err, "error listening to port %s", r.port)
@@ -184,10 +193,12 @@ func (r *router) Start() error {
 	go func() {
 		err = eris.Wrap(r.server.grpcServer.Serve(listener), "error serving gRPC server")
 		if err != nil {
-			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
+			log.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}
 	}()
 	r.serverAddr = listener.Addr().String()
+
+	log.Info().Msg("Router started")
 	return nil
 }
 

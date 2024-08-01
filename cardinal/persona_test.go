@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -231,11 +231,12 @@ func TestQuerySigner(t *testing.T) {
 	signerAddr := "123_456"
 	tf.CreatePersona(personaTag, signerAddr)
 
-	query, err := world.GetQuery("persona", "signer")
+	query, err := world.getQuery("persona", "signer")
 	assert.NilError(t, err)
 
 	res, err := query.handleQuery(NewReadOnlyWorldContext(world), &PersonaSignerQueryRequest{
-		PersonaTag: personaTag})
+		PersonaTag: personaTag,
+	})
 	assert.NilError(t, err)
 
 	response, ok := res.(*PersonaSignerQueryResponse)
@@ -249,7 +250,7 @@ func TestQuerySignerAvailable(t *testing.T) {
 	world := tf.World
 	tf.DoTick()
 
-	query, err := world.GetQuery("persona", "signer")
+	query, err := world.getQuery("persona", "signer")
 	assert.NilError(t, err)
 	res, err := query.handleQuery(NewReadOnlyWorldContext(world), &PersonaSignerQueryRequest{
 		PersonaTag: "some-random-nonexistent-persona-tag",
@@ -266,7 +267,7 @@ func TestQuerySignerUnknown(t *testing.T) {
 	engine := tf.World
 	tf.DoTick()
 
-	query, err := engine.GetQuery("persona", "signer")
+	query, err := engine.getQuery("persona", "signer")
 	assert.NilError(t, err)
 	res, err := query.handleQuery(NewReadOnlyWorldContext(engine), &PersonaSignerQueryRequest{
 		PersonaTag: "doesnt_matter",

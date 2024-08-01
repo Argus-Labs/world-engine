@@ -12,7 +12,6 @@ import (
 	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -395,7 +394,7 @@ func getArchIDToCompTypesFromRedis(
 		for _, compTypeID := range compTypeIDs {
 			currComp, err := typeToComp.Get(compTypeID)
 			if err != nil {
-				return nil, false, eris.Wrap(iterators.ErrComponentMismatchWithSavedState, "")
+				return nil, false, eris.Wrap(ErrComponentMismatchWithSavedState, "")
 			}
 			currComps = append(currComps, currComp)
 		}

@@ -5,8 +5,8 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -276,7 +276,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	id, err := cardinal.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = cardinal.GetComponent[notFoundComp](wCtx, id)
-	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, gamestate.ErrComponentNotOnEntity)
 }
 
 type ValueComponent struct {

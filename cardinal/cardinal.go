@@ -8,7 +8,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
@@ -16,10 +16,10 @@ import (
 var (
 	ErrEntityMutationOnReadOnly          = errors.New("cannot modify state with read only context")
 	ErrEntitiesCreatedBeforeReady        = errors.New("entities should not be created before world is ready")
-	ErrEntityDoesNotExist                = iterators.ErrEntityDoesNotExist
-	ErrEntityMustHaveAtLeastOneComponent = iterators.ErrEntityMustHaveAtLeastOneComponent
-	ErrComponentNotOnEntity              = iterators.ErrComponentNotOnEntity
-	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
+	ErrEntityDoesNotExist                = gamestate.ErrEntityDoesNotExist
+	ErrEntityMustHaveAtLeastOneComponent = gamestate.ErrEntityMustHaveAtLeastOneComponent
+	ErrComponentNotOnEntity              = gamestate.ErrComponentNotOnEntity
+	ErrComponentAlreadyOnEntity          = gamestate.ErrComponentAlreadyOnEntity
 )
 
 // FilterFunction wrap your component filter function of func(comp T) bool inside FilterFunction to use

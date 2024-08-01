@@ -1,14 +1,16 @@
 package cardinal
 
 import (
+	"math"
 	"slices"
 
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/search/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
+
+const badEntityID types.EntityID = math.MaxUint64
 
 type cache struct {
 	archetypes []types.ArchetypeID
@@ -151,7 +153,7 @@ func (s *Search) Each(wCtx WorldContext, callback CallbackFn) (err error) {
 	defer func() { defer panicOnFatalError(wCtx, err) }()
 
 	result := s.evaluateSearch(wCtx)
-	iter := iterators.NewEntityIterator(0, wCtx.storeReader(), result)
+	iter := newSearchIterator(wCtx.storeReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -201,7 +203,7 @@ func (s *Search) Count(wCtx WorldContext) (ret int, err error) {
 	defer func() { defer panicOnFatalError(wCtx, err) }()
 
 	result := s.evaluateSearch(wCtx)
-	iter := iterators.NewEntityIterator(0, wCtx.storeReader(), result)
+	iter := newSearchIterator(wCtx.storeReader(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -230,9 +232,9 @@ func (s *Search) First(wCtx WorldContext) (id types.EntityID, err error) {
 	defer func() { defer panicOnFatalError(wCtx, err) }()
 
 	result := s.evaluateSearch(wCtx)
-	iter := iterators.NewEntityIterator(0, wCtx.storeReader(), result)
+	iter := newSearchIterator(wCtx.storeReader(), result)
 	if !iter.HasNext() {
-		return iterators.BadID, eris.Wrap(err, "")
+		return badEntityID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -254,7 +256,7 @@ func (s *Search) First(wCtx WorldContext) (id types.EntityID, err error) {
 			}
 		}
 	}
-	return iterators.BadID, eris.Wrap(err, "")
+	return badEntityID, eris.Wrap(err, "")
 }
 
 func (s *Search) MustFirst(wCtx WorldContext) types.EntityID {
