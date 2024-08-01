@@ -1,8 +1,5 @@
 configVersion: 2.0.0
 generation:
-  devContainers:
-    enabled: true
-    schemaPath: cardinal/server/docs/openapi.json
   sdkClassName: Cardinal
   maintainOpenAPIOrder: true
   usageSnippets:
@@ -21,7 +18,7 @@ typescript:
     devDependencies: {}
     peerDependencies: {}
   additionalPackageJSON: {}
-  author: Speakeasy
+  author: Argus Labs
   clientServerStatusCodesAsErrors: true
   enumFormat: union
   flattenGlobalSecurity: true
