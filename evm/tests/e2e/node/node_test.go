@@ -59,7 +59,7 @@ func (suite *TestSuite) TestNode() {
 			return innerErr
 		}
 		return nil
-	}, retry.Delay(3*time.Second), retry.Attempts(20)) // at most will take 1 minute
+	}, retry.Tick(3*time.Second), retry.Attempts(20)) // at most will take 1 minute
 
 	assert.NilError(suite.T(), err)
 	assert.Check(suite.T(), qres != nil)

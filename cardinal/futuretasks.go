@@ -22,9 +22,9 @@ type futureTaskStorage struct {
 	storedTasks map[string]System
 }
 
-// DelayedTaskByTick represents a task that can be delayed by a certain tick amount
-type DelayedTaskByTick struct {
-	Delay    int
+// TaskAtTick represents a task that can be delayed by a certain tick amount
+type TaskAtTick struct {
+	Tick     uint64
 	TaskName string
 }
 
@@ -38,8 +38,8 @@ func (t TaskAtTimestamp) Name() string {
 	return "TaskAtTimestamp"
 }
 
-func (t DelayedTaskByTick) Name() string {
-	return "DelayedTaskByTick"
+func (t TaskAtTick) Name() string {
+	return "TaskAtTick"
 }
 
 // newFutureTaskStorage returns a new instance of futureTaskStorage.
@@ -51,7 +51,7 @@ func newFutureTaskStorage() *futureTaskStorage {
 
 // initializeFutureTaskStorage initializes the future task storage by registering the relevant components
 // and systems to the provided World. This method is called during initialization of the storage.
-// The function first calls RegisterComponent[DelayedTaskByTick] on the World context.
+// The function first calls RegisterComponent[TaskAtTick] on the World context.
 // If an error occurs, it is returned immediately. Next, it calls RegisterComponent[TaskAtTimestamp].
 // If an error occurs, it is returned immediately. Finally, it calls RegisterSystems on the World context,
 // passing in the taskDelayByTicksSystem and taskAtTimestampSystem functions as the systems to register.
@@ -62,7 +62,7 @@ func newFutureTaskStorage() *futureTaskStorage {
 // Returns:
 // - error: an error object if encountered during registration, nil otherwise.
 func (s *futureTaskStorage) initializeFutureTaskStorage(w *World) error {
-	err := RegisterComponent[DelayedTaskByTick](w)
+	err := RegisterComponent[TaskAtTick](w)
 	if err != nil {
 		return err
 	}
@@ -91,8 +91,8 @@ func (s *futureTaskStorage) registerTask(name string, system System) error {
 // It decrements the delay by 1 and checks if the delay is less than 0.
 // If the delay is negative, it returns an error. Otherwise, it retrieves the
 // stored task with the given taskName from the futureTaskStorage and creates
-// a DelayedTaskByTick object with the updated delay and taskName.
-// The DelayedTaskByTick object is then created using the Create function with
+// a TaskAtTick object with the updated delay and taskName.
+// The TaskAtTick object is then created using the Create function with
 // the provided WorldContext.
 //
 // Parameters:
@@ -103,16 +103,18 @@ func (s *futureTaskStorage) registerTask(name string, system System) error {
 // Returns:
 // - error: an error object if encountered during the delay or task creation, nil otherwise.
 func (s *futureTaskStorage) delayTaskByTicks(wCtx WorldContext, taskName string, delay int) error {
-	delay--
-	if delay < 0 {
-		return eris.New("cannot Delay zero seconds.")
-	}
-	_, ok := s.storedTasks[taskName]
+	task, ok := s.storedTasks[taskName]
 	if !ok {
 		return eris.Errorf("task with name: %s not found", taskName)
 	}
-	currentTask := DelayedTaskByTick{
-		Delay:    delay,
+	if delay == 0 {
+		return task(wCtx)
+	} else if delay < 0 {
+		return eris.New("cannot Delay less than zero seconds.")
+	}
+
+	currentTask := TaskAtTick{
+		Tick:     uint64(delay) + wCtx.CurrentTick(),
 		TaskName: taskName,
 	}
 	_, err := Create(wCtx, currentTask)
@@ -150,18 +152,18 @@ func (s *futureTaskStorage) callTaskAtTimestamp(wCtx WorldContext, taskName stri
 	return err
 }
 
-// amountOfDelayedTasksByTick returns the number of delayed tasks with the `DelayedTaskByTick`
+// amountOfDelayedTasksByTick returns the number of delayed tasks with the `TaskAtTick`
 // component in the provided WorldContext. It uses a search query to count the number of entities with the
-// `DelayedTaskByTick` component.
+// `TaskAtTick` component.
 //
 // Parameters:
 // - wCtx: a WorldContext representing the context in which to search for delayed tasks.
 //
 // Returns:
-// - int: the number of delayed tasks with the `DelayedTaskByTick` component.
+// - int: the number of delayed tasks with the `TaskAtTick` component.
 // - error: an error object if encountered during the count, nil otherwise.
 func (s *futureTaskStorage) amountOfDelayedTasksByTick(wCtx WorldContext) (int, error) {
-	count, err := NewSearch().Entity(filter.Exact(filter.Component[DelayedTaskByTick]())).Count(wCtx)
+	count, err := NewSearch().Entity(filter.Exact(filter.Component[TaskAtTick]())).Count(wCtx)
 	if err != nil {
 		return 0, err
 	}
@@ -186,8 +188,8 @@ func (s *futureTaskStorage) amountOfTasksAtTimestamp(wCtx WorldContext) (int, er
 	return count, nil
 }
 
-// clearTasks removes all tasks stored in the futureTaskStorage that have the DelayedTaskByTick and TaskAtTimestamp
-// components. It first collects the entity IDs of all tasks with DelayedTaskByTick component, and then collects the
+// clearTasks removes all tasks stored in the futureTaskStorage that have the TaskAtTick and TaskAtTimestamp
+// components. It first collects the entity IDs of all tasks with TaskAtTick component, and then collects the
 // entity IDs of all tasks with TaskAtTimestamp component. It then iterates over the collected entity IDs and removes
 // each task from the WorldContext by calling the Remove function. If an error occurs during the removal process, it
 // is returned immediately. After all tasks are removed, nil is returned.
@@ -196,7 +198,7 @@ func (s *futureTaskStorage) amountOfTasksAtTimestamp(wCtx WorldContext) (int, er
 // Returns:
 // - error: an error object if encountered during task removal, nil otherwise.
 func (s *futureTaskStorage) clearTasks(wCtx WorldContext) error {
-	ids1, err := NewSearch().Entity(filter.Exact(filter.Component[DelayedTaskByTick]())).Collect(wCtx)
+	ids1, err := NewSearch().Entity(filter.Exact(filter.Component[TaskAtTick]())).Collect(wCtx)
 	if err != nil {
 		return err
 	}
@@ -269,15 +271,15 @@ func (s *futureTaskStorage) taskAtTimestampSystem(wCtx WorldContext) error {
 // It takes a WorldContext as a parameter and returns an error object if encountered during processing, nil otherwise.
 // The function starts by creating an empty slice to store the IDs of tasks to be removed.
 // It then initializes the internalErr variable to handle internal errors.
-// The function performs a search for entities with the DelayedTaskByTick component using the NewSearch function.
-// For each entity found, it retrieves the DelayedTaskByTick component and assigns it to the currentTask variable.
+// The function performs a search for entities with the TaskAtTick component using the NewSearch function.
+// For each entity found, it retrieves the TaskAtTick component and assigns it to the currentTask variable.
 // If there is an error retrieving the component, the function returns false and stops iterating.
-// If the currentTask.Delay is zero, it checks if the corresponding task procedure is registered in s.storedTasks.
+// If the currentTask.Tick is zero, it checks if the corresponding task procedure is registered in s.storedTasks.
 // If it is not registered, an error is returned indicating that the task does not exist.
 // Otherwise, the task procedure is executed and any internal error encountered is assigned to internalErr.
 // If there is an internal error, the function returns false and stops iterating.
 // The task is then appended to the tasksToRemove slice.
-// If the currentTask.Delay is non-zero, the counter is decremented and the updated component is set using SetComponent.
+// If the currentTask.Tick is non-zero, the counter is decremented and the updated component is set using SetComponent.
 // If there is an error setting the component, the function returns false and stops iterating.
 // After all entities have been processed, the function checks for any internal error or search error encountered.
 // If there is an internal error, it is returned.
@@ -294,14 +296,14 @@ func (s *futureTaskStorage) taskDelayByTicksSystem(wCtx WorldContext) error {
 	var internalErr error
 	err := NewSearch().Entity(
 		filter.Exact(
-			filter.Component[DelayedTaskByTick]())).Each(wCtx, func(id types.EntityID) bool {
-		var currentTask *DelayedTaskByTick
-		currentTask, internalErr = GetComponent[DelayedTaskByTick](wCtx, id)
+			filter.Component[TaskAtTick]())).Each(wCtx, func(id types.EntityID) bool {
+		var currentTask *TaskAtTick
+		currentTask, internalErr = GetComponent[TaskAtTick](wCtx, id)
 		if internalErr != nil {
 			return false
 		}
 
-		if currentTask.Delay == 0 {
+		if currentTask.Tick == wCtx.CurrentTick() {
 			proc, ok := s.storedTasks[currentTask.TaskName]
 			if !ok {
 				internalErr = eris.Errorf("no such task with name %s was registered", currentTask.TaskName)
@@ -316,13 +318,6 @@ func (s *futureTaskStorage) taskDelayByTicksSystem(wCtx WorldContext) error {
 
 			// queue task for removal if executed.
 			tasksToRemove = append(tasksToRemove, id)
-		} else {
-			// task not ready for execution, decrement counter.
-			currentTask.Delay--
-			internalErr = SetComponent[DelayedTaskByTick](wCtx, id, currentTask)
-			if internalErr != nil {
-				return false
-			}
 		}
 
 		return true

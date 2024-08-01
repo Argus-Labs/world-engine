@@ -38,7 +38,7 @@ type WorldContext interface {
 	Namespace() string
 	// Rand returns a random number generator that is seeded specifically for a current tick.
 	Rand() *rand.Rand
-	// DelayTask executes a task `Delay` ticks away from the current tick.
+	// DelayTask executes a task `Tick` ticks away from the current tick.
 	DelayTask(string, int) error
 	// CallTaskAt schedules a task to be executed at a specified timestamp.
 	CallTaskAt(string, uint64) error

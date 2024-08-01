@@ -830,6 +830,7 @@ func TestDelayedTask(t *testing.T) {
 	world := tf.World
 	testValue := 0
 	taskName := "testTask"
+	delay := 20
 	err := cardinal.RegisterFutureTask(world, taskName, func(_ cardinal.WorldContext) error {
 		testValue++
 		return nil
@@ -839,7 +840,7 @@ func TestDelayedTask(t *testing.T) {
 	err = cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
 		var res error
 		if !called {
-			res = context.DelayTask(taskName, 20)
+			res = context.DelayTask(taskName, delay)
 		} else {
 			res = nil
 		}
@@ -848,11 +849,10 @@ func TestDelayedTask(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	tf.StartWorld()
-	for i := 0; i < 20; i++ {
+	for i := 0; i < delay+1; i++ {
+		assert.Equal(t, testValue, 0)
 		tf.DoTick()
 	}
-	assert.Equal(t, testValue, 0)
-	tf.DoTick()
 	assert.Equal(t, testValue, 1)
 }
 
