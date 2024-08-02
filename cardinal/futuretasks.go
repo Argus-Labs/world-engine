@@ -251,13 +251,7 @@ func (s *futureTaskStorage) clearTasks(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	for _, id := range append(ids1, ids2...) {
-		err = Remove(wCtx, id)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return removeTasks(wCtx, append(ids1, ids2...)...)
 }
 
 // removeTasks simply removes the given entity ids in the parameter. It's a helper function intended to
