@@ -271,6 +271,7 @@ func removeTasks(wCtx WorldContext, tasksIDs ...types.EntityID) error {
 // The System function iterates over entities with the specified component type and executes the corresponding task.
 // If an error occurs during execution, the System function returns the error.
 // After execution, the System function removes the tasks that are queued for removal.
+// This is a helper function that eliminates duplicate code.
 //
 // Parameters:
 // - s: a futureTaskManager that manages the tasks to be executed.
