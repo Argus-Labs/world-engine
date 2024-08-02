@@ -7,18 +7,16 @@ Cardinal: Backend server for World Engine
 
 ### Available Operations
 
-* [postCql](#postcql) - Executes a CQL (Cardinal Query Language) query
-* [postDebugState](#postdebugstate) - Retrieves a list of all entities in the game state
-* [getEvents](#getevents) - Establishes a new websocket connection to retrieve system events
+* [queryCql](#querycql) - Executes a CQL (Cardinal Query Language) query
+* [getDebugState](#getdebugstate) - Retrieves a list of all entities in the game state
 * [getHealth](#gethealth) - Retrieves the status of the server and game loop
-* [postQueryReceiptsList](#postqueryreceiptslist) - Retrieves all transaction receipts
-* [postQueryQueryGroupQueryName](#postqueryquerygroupqueryname) - Executes a query
-* [postTxGameTxName](#posttxgametxname) - Submits a transaction
-* [postTxPersonaCreatePersona](#posttxpersonacreatepersona) - Creates a persona
-* [postTxTxGroupTxName](#posttxtxgrouptxname) - Submits a transaction
+* [query](#query) - Executes a query
+* [getReceipts](#getreceipts) - Retrieves all transaction receipts
+* [transact](#transact) - Submits a transaction
+* [createPersona](#createpersona) - Creates a persona
 * [getWorld](#getworld) - Retrieves details of the game world
 
-## postCql
+## queryCql
 
 Executes a CQL (Cardinal Query Language) query
 
@@ -30,7 +28,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.postCql({});
+  const result = await cardinal.queryCql({});
 
   // Handle the result
   console.log(result)
@@ -58,7 +56,7 @@ run();
 | --------------- | --------------- | --------------- |
 | errors.SDKError | 4xx-5xx         | */*             |
 
-## postDebugState
+## getDebugState
 
 Retrieves a list of all entities in the game state
 
@@ -70,7 +68,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.postDebugState();
+  const result = await cardinal.getDebugState();
 
   // Handle the result
   console.log(result)
@@ -91,45 +89,6 @@ run();
 ### Response
 
 **Promise\<[components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement[]](../../models/.md)\>**
-### Errors
-
-| Error Object    | Status Code     | Content Type    |
-| --------------- | --------------- | --------------- |
-| errors.SDKError | 4xx-5xx         | */*             |
-
-## getEvents
-
-Establishes a new websocket connection to retrieve system events
-
-### Example Usage
-
-```typescript
-import { Cardinal } from "cardinal";
-
-const cardinal = new Cardinal();
-
-async function run() {
-  const result = await cardinal.getEvents();
-
-  // Handle the result
-  console.log(result)
-}
-
-run();
-```
-
-### Parameters
-
-| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
-| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
-| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
-
-
-### Response
-
-**Promise\<[string](../../models/.md)\>**
 ### Errors
 
 | Error Object    | Status Code     | Content Type    |
@@ -175,7 +134,50 @@ run();
 | --------------- | --------------- | --------------- |
 | errors.SDKError | 4xx-5xx         | */*             |
 
-## postQueryReceiptsList
+## query
+
+Executes a query
+
+### Example Usage
+
+```typescript
+import { Cardinal } from "cardinal";
+
+const cardinal = new Cardinal();
+
+async function run() {
+  const result = await cardinal.query({
+    queryName: "<value>",
+    requestBody: {},
+  });
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
+### Parameters
+
+| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`                                                                                                                                                                      | [operations.PostQueryGameQueryNameRequest](../../models/operations/postquerygamequerynamerequest.md)                                                                           | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
+| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
+| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
+
+
+### Response
+
+**Promise\<[operations.PostQueryGameQueryNameResponseBody](../../models/operations/postquerygamequerynameresponsebody.md)\>**
+### Errors
+
+| Error Object    | Status Code     | Content Type    |
+| --------------- | --------------- | --------------- |
+| errors.SDKError | 4xx-5xx         | */*             |
+
+## getReceipts
 
 Retrieves all transaction receipts
 
@@ -187,7 +189,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.postQueryReceiptsList({});
+  const result = await cardinal.getReceipts({});
 
   // Handle the result
   console.log(result)
@@ -215,51 +217,7 @@ run();
 | --------------- | --------------- | --------------- |
 | errors.SDKError | 4xx-5xx         | */*             |
 
-## postQueryQueryGroupQueryName
-
-Executes a query
-
-### Example Usage
-
-```typescript
-import { Cardinal } from "cardinal";
-
-const cardinal = new Cardinal();
-
-async function run() {
-  const result = await cardinal.postQueryQueryGroupQueryName({
-    queryGroup: "<value>",
-    queryName: "<value>",
-    requestBody: {},
-  });
-
-  // Handle the result
-  console.log(result)
-}
-
-run();
-```
-
-### Parameters
-
-| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [operations.PostQueryQueryGroupQueryNameRequest](../../models/operations/postqueryquerygroupquerynamerequest.md)                                                               | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
-| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
-| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
-| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
-
-
-### Response
-
-**Promise\<[operations.PostQueryQueryGroupQueryNameResponseBody](../../models/operations/postqueryquerygroupquerynameresponsebody.md)\>**
-### Errors
-
-| Error Object    | Status Code     | Content Type    |
-| --------------- | --------------- | --------------- |
-| errors.SDKError | 4xx-5xx         | */*             |
-
-## postTxGameTxName
+## transact
 
 Submits a transaction
 
@@ -271,7 +229,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.postTxGameTxName({
+  const result = await cardinal.transact({
     txName: "<value>",
     cardinalServerHandlerTransaction: {},
   });
@@ -302,7 +260,7 @@ run();
 | --------------- | --------------- | --------------- |
 | errors.SDKError | 4xx-5xx         | */*             |
 
-## postTxPersonaCreatePersona
+## createPersona
 
 Creates a persona
 
@@ -314,7 +272,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.postTxPersonaCreatePersona({});
+  const result = await cardinal.createPersona({});
 
   // Handle the result
   console.log(result)
@@ -328,50 +286,6 @@ run();
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `request`                                                                                                                                                                      | [components.CardinalServerHandlerTransaction](../../models/components/cardinalserverhandlertransaction.md)                                                                     | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
-| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
-| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
-| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
-
-
-### Response
-
-**Promise\<[components.CardinalServerHandlerPostTransactionResponse](../../models/components/cardinalserverhandlerposttransactionresponse.md)\>**
-### Errors
-
-| Error Object    | Status Code     | Content Type    |
-| --------------- | --------------- | --------------- |
-| errors.SDKError | 4xx-5xx         | */*             |
-
-## postTxTxGroupTxName
-
-Submits a transaction
-
-### Example Usage
-
-```typescript
-import { Cardinal } from "cardinal";
-
-const cardinal = new Cardinal();
-
-async function run() {
-  const result = await cardinal.postTxTxGroupTxName({
-    txGroup: "<value>",
-    txName: "<value>",
-    cardinalServerHandlerTransaction: {},
-  });
-
-  // Handle the result
-  console.log(result)
-}
-
-run();
-```
-
-### Parameters
-
-| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [operations.PostTxTxGroupTxNameRequest](../../models/operations/posttxtxgrouptxnamerequest.md)                                                                                 | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
 | `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
 | `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
 | `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |

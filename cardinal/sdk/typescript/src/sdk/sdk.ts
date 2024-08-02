@@ -45,7 +45,7 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Executes a CQL (Cardinal Query Language) query
      */
-    async postCql(
+    async queryCql(
         request: components.CardinalServerHandlerCQLQueryRequest,
         options?: RequestOptions
     ): Promise<components.CardinalServerHandlerCQLQueryResponse> {
@@ -104,7 +104,7 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Retrieves a list of all entities in the game state
      */
-    async postDebugState(
+    async getDebugState(
         options?: RequestOptions
     ): Promise<Array<components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement>> {
         const path$ = this.templateURLComponent("/debug/state")();
@@ -149,51 +149,6 @@ export class Cardinal extends ClientSDK {
                     components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement$inboundSchema
                 )
             )
-            .fail(["4XX", "5XX"])
-            .match(response);
-
-        return result$;
-    }
-
-    /**
-     * Establishes a new websocket connection to retrieve system events
-     *
-     * @remarks
-     * Establishes a new websocket connection to retrieve system events
-     */
-    async getEvents(options?: RequestOptions): Promise<string | undefined> {
-        const path$ = this.templateURLComponent("/events")();
-
-        const query$ = "";
-
-        const headers$ = new Headers({
-            Accept: "application/json",
-        });
-
-        const context = { operationID: "get_/events", oAuth2Scopes: [], securitySource: null };
-
-        const request$ = this.createRequest$(
-            context,
-            {
-                method: "GET",
-                path: path$,
-                headers: headers$,
-                query: query$,
-                timeoutMs: options?.timeoutMs || this.options$.timeoutMs || -1,
-            },
-            options
-        );
-
-        const response = await this.do$(request$, {
-            context,
-            errorCodes: ["4XX", "5XX"],
-            retryConfig: options?.retries || this.options$.retryConfig,
-            retryCodes: options?.retryCodes || ["429", "500", "502", "503", "504"],
-        });
-
-        const [result$] = await this.matcher<string | undefined>()
-            .json(101, z.string().optional())
-            .void("2XX", z.string().optional())
             .fail(["4XX", "5XX"])
             .match(response);
 
@@ -247,12 +202,80 @@ export class Cardinal extends ClientSDK {
     }
 
     /**
+     * Executes a query
+     *
+     * @remarks
+     * Executes a query
+     */
+    async query(
+        request: operations.PostQueryGameQueryNameRequest,
+        options?: RequestOptions
+    ): Promise<operations.PostQueryGameQueryNameResponseBody> {
+        const input$ = request;
+
+        const payload$ = schemas$.parse(
+            input$,
+            (value$) => operations.PostQueryGameQueryNameRequest$outboundSchema.parse(value$),
+            "Input validation failed"
+        );
+        const body$ = encodeJSON$("body", payload$.RequestBody, { explode: true });
+
+        const pathParams$ = {
+            queryName: encodeSimple$("queryName", payload$.queryName, {
+                explode: false,
+                charEncoding: "percent",
+            }),
+        };
+        const path$ = this.templateURLComponent("/query/game/{queryName}")(pathParams$);
+
+        const query$ = "";
+
+        const headers$ = new Headers({
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        });
+
+        const context = {
+            operationID: "post_/query/game/{queryName}",
+            oAuth2Scopes: [],
+            securitySource: null,
+        };
+
+        const request$ = this.createRequest$(
+            context,
+            {
+                method: "POST",
+                path: path$,
+                headers: headers$,
+                query: query$,
+                body: body$,
+                timeoutMs: options?.timeoutMs || this.options$.timeoutMs || -1,
+            },
+            options
+        );
+
+        const response = await this.do$(request$, {
+            context,
+            errorCodes: ["400", "4XX", "5XX"],
+            retryConfig: options?.retries || this.options$.retryConfig,
+            retryCodes: options?.retryCodes || ["429", "500", "502", "503", "504"],
+        });
+
+        const [result$] = await this.matcher<operations.PostQueryGameQueryNameResponseBody>()
+            .json(200, operations.PostQueryGameQueryNameResponseBody$inboundSchema)
+            .fail([400, "4XX", "5XX"])
+            .match(response);
+
+        return result$;
+    }
+
+    /**
      * Retrieves all transaction receipts
      *
      * @remarks
      * Retrieves all transaction receipts
      */
-    async postQueryReceiptsList(
+    async getReceipts(
         request: components.CardinalServerHandlerListTxReceiptsRequest,
         options?: RequestOptions
     ): Promise<components.CardinalServerHandlerListTxReceiptsResponse> {
@@ -311,84 +334,12 @@ export class Cardinal extends ClientSDK {
     }
 
     /**
-     * Executes a query
-     *
-     * @remarks
-     * Executes a query
-     */
-    async postQueryQueryGroupQueryName(
-        request: operations.PostQueryQueryGroupQueryNameRequest,
-        options?: RequestOptions
-    ): Promise<operations.PostQueryQueryGroupQueryNameResponseBody> {
-        const input$ = request;
-
-        const payload$ = schemas$.parse(
-            input$,
-            (value$) => operations.PostQueryQueryGroupQueryNameRequest$outboundSchema.parse(value$),
-            "Input validation failed"
-        );
-        const body$ = encodeJSON$("body", payload$.RequestBody, { explode: true });
-
-        const pathParams$ = {
-            queryGroup: encodeSimple$("queryGroup", payload$.queryGroup, {
-                explode: false,
-                charEncoding: "percent",
-            }),
-            queryName: encodeSimple$("queryName", payload$.queryName, {
-                explode: false,
-                charEncoding: "percent",
-            }),
-        };
-        const path$ = this.templateURLComponent("/query/{queryGroup}/{queryName}")(pathParams$);
-
-        const query$ = "";
-
-        const headers$ = new Headers({
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        });
-
-        const context = {
-            operationID: "post_/query/{queryGroup}/{queryName}",
-            oAuth2Scopes: [],
-            securitySource: null,
-        };
-
-        const request$ = this.createRequest$(
-            context,
-            {
-                method: "POST",
-                path: path$,
-                headers: headers$,
-                query: query$,
-                body: body$,
-                timeoutMs: options?.timeoutMs || this.options$.timeoutMs || -1,
-            },
-            options
-        );
-
-        const response = await this.do$(request$, {
-            context,
-            errorCodes: ["400", "4XX", "5XX"],
-            retryConfig: options?.retries || this.options$.retryConfig,
-            retryCodes: options?.retryCodes || ["429", "500", "502", "503", "504"],
-        });
-
-        const [result$] = await this.matcher<operations.PostQueryQueryGroupQueryNameResponseBody>()
-            .json(200, operations.PostQueryQueryGroupQueryNameResponseBody$inboundSchema)
-            .fail([400, "4XX", "5XX"])
-            .match(response);
-
-        return result$;
-    }
-
-    /**
      * Submits a transaction
      *
      * @remarks
      * Submits a transaction
      */
-    async postTxGameTxName(
+    async transact(
         request: operations.PostTxGameTxNameRequest,
         options?: RequestOptions
     ): Promise<components.CardinalServerHandlerPostTransactionResponse> {
@@ -459,7 +410,7 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Creates a persona
      */
-    async postTxPersonaCreatePersona(
+    async createPersona(
         request: components.CardinalServerHandlerTransaction,
         options?: RequestOptions
     ): Promise<components.CardinalServerHandlerPostTransactionResponse> {
@@ -483,81 +434,6 @@ export class Cardinal extends ClientSDK {
 
         const context = {
             operationID: "post_/tx/persona/create-persona",
-            oAuth2Scopes: [],
-            securitySource: null,
-        };
-
-        const request$ = this.createRequest$(
-            context,
-            {
-                method: "POST",
-                path: path$,
-                headers: headers$,
-                query: query$,
-                body: body$,
-                timeoutMs: options?.timeoutMs || this.options$.timeoutMs || -1,
-            },
-            options
-        );
-
-        const response = await this.do$(request$, {
-            context,
-            errorCodes: ["400", "4XX", "5XX"],
-            retryConfig: options?.retries || this.options$.retryConfig,
-            retryCodes: options?.retryCodes || ["429", "500", "502", "503", "504"],
-        });
-
-        const [result$] =
-            await this.matcher<components.CardinalServerHandlerPostTransactionResponse>()
-                .json(200, components.CardinalServerHandlerPostTransactionResponse$inboundSchema)
-                .fail([400, "4XX", "5XX"])
-                .match(response);
-
-        return result$;
-    }
-
-    /**
-     * Submits a transaction
-     *
-     * @remarks
-     * Submits a transaction
-     */
-    async postTxTxGroupTxName(
-        request: operations.PostTxTxGroupTxNameRequest,
-        options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerPostTransactionResponse> {
-        const input$ = request;
-
-        const payload$ = schemas$.parse(
-            input$,
-            (value$) => operations.PostTxTxGroupTxNameRequest$outboundSchema.parse(value$),
-            "Input validation failed"
-        );
-        const body$ = encodeJSON$("body", payload$["cardinal_server_handler.Transaction"], {
-            explode: true,
-        });
-
-        const pathParams$ = {
-            txGroup: encodeSimple$("txGroup", payload$.txGroup, {
-                explode: false,
-                charEncoding: "percent",
-            }),
-            txName: encodeSimple$("txName", payload$.txName, {
-                explode: false,
-                charEncoding: "percent",
-            }),
-        };
-        const path$ = this.templateURLComponent("/tx/{txGroup}/{txName}")(pathParams$);
-
-        const query$ = "";
-
-        const headers$ = new Headers({
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        });
-
-        const context = {
-            operationID: "post_/tx/{txGroup}/{txName}",
             oAuth2Scopes: [],
             securitySource: null,
         };
