@@ -8,7 +8,7 @@ import (
 )
 
 type futureTaskManager interface {
-	initializeFutureTaskStorage(*World) error
+	Register(*World) error
 	registerTask(string, System) error
 	delayTaskByTicks(WorldContext, string, int) error
 	callTaskAtTimestamp(WorldContext, string, uint64) error
@@ -92,7 +92,7 @@ func newFutureTaskStorage() *futureTaskStorage {
 //
 // Returns:
 // - error: an error object if encountered during registration, nil otherwise.
-func (s *futureTaskStorage) initializeFutureTaskStorage(w *World) error {
+func (s *futureTaskStorage) Register(w *World) error {
 	err := RegisterComponent[TaskAtTick](w)
 	if err != nil {
 		return err

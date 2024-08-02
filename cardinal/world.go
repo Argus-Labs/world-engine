@@ -167,11 +167,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		futureTaskManager:            newFutureTaskStorage(),
 	}
 
-	// Initialize System Delayer
-	err = world.futureTaskManager.initializeFutureTaskStorage(world)
-	if err != nil {
-		return nil, err
-	}
 	world.QueryManager = newQueryManager(world)
 
 	// Initialize shard router if running in rollup mode
@@ -195,6 +190,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Register internal plugins
 	world.RegisterPlugin(newPersonaPlugin())
+	world.RegisterPlugin(world.futureTaskManager)
 
 	return world, nil
 }
