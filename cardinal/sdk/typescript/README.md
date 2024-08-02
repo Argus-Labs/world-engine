@@ -64,7 +64,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-    const result = await cardinal.postCql({});
+    const result = await cardinal.queryCql({});
 
     // Handle the result
     console.log(result);
@@ -80,15 +80,13 @@ run();
 
 ### [Cardinal SDK](docs/sdks/cardinal/README.md)
 
-* [postCql](docs/sdks/cardinal/README.md#postcql) - Executes a CQL (Cardinal Query Language) query
-* [postDebugState](docs/sdks/cardinal/README.md#postdebugstate) - Retrieves a list of all entities in the game state
-* [getEvents](docs/sdks/cardinal/README.md#getevents) - Establishes a new websocket connection to retrieve system events
+* [queryCql](docs/sdks/cardinal/README.md#querycql) - Executes a CQL (Cardinal Query Language) query
+* [getDebugState](docs/sdks/cardinal/README.md#getdebugstate) - Retrieves a list of all entities in the game state
 * [getHealth](docs/sdks/cardinal/README.md#gethealth) - Retrieves the status of the server and game loop
-* [postQueryReceiptsList](docs/sdks/cardinal/README.md#postqueryreceiptslist) - Retrieves all transaction receipts
-* [postQueryQueryGroupQueryName](docs/sdks/cardinal/README.md#postqueryquerygroupqueryname) - Executes a query
-* [postTxGameTxName](docs/sdks/cardinal/README.md#posttxgametxname) - Submits a transaction
-* [postTxPersonaCreatePersona](docs/sdks/cardinal/README.md#posttxpersonacreatepersona) - Creates a persona
-* [postTxTxGroupTxName](docs/sdks/cardinal/README.md#posttxtxgrouptxname) - Submits a transaction
+* [query](docs/sdks/cardinal/README.md#query) - Executes a query
+* [getReceipts](docs/sdks/cardinal/README.md#getreceipts) - Retrieves all transaction receipts
+* [transact](docs/sdks/cardinal/README.md#transact) - Submits a transaction
+* [createPersona](docs/sdks/cardinal/README.md#createpersona) - Creates a persona
 * [getWorld](docs/sdks/cardinal/README.md#getworld) - Retrieves details of the game world
 <!-- End Available Resources and Operations [operations] -->
 
@@ -104,7 +102,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-    const result = await cardinal.postCql(
+    const result = await cardinal.queryCql(
         {},
         {
             retries: {
@@ -146,7 +144,7 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.postCql({});
+    const result = await cardinal.queryCql({});
 
     // Handle the result
     console.log(result);
@@ -178,7 +176,7 @@ const cardinal = new Cardinal();
 async function run() {
     let result;
     try {
-        result = await cardinal.postCql({});
+        result = await cardinal.queryCql({});
     } catch (err) {
         switch (true) {
             case err instanceof SDKValidationError: {
@@ -222,7 +220,7 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.postCql({});
+    const result = await cardinal.queryCql({});
 
     // Handle the result
     console.log(result);
@@ -245,7 +243,7 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.postCql({});
+    const result = await cardinal.queryCql({});
 
     // Handle the result
     console.log(result);

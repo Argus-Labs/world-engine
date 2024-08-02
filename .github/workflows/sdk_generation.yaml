@@ -27,7 +27,6 @@ jobs:
       mode: pr
       set_version: ${{ github.event.inputs.set_version }}
       speakeasy_version: latest
-      working_directory: cardinal/sdk/typescript
     secrets:
       github_access_token: ${{ secrets.GITHUB_TOKEN }}
       speakeasy_api_key: ${{ secrets.SPEAKEASY_API_KEY }}

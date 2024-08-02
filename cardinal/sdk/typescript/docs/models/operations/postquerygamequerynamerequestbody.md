@@ -1,6 +1,6 @@
-# PostQueryQueryGroupQueryNameResponseBody
+# PostQueryGameQueryNameRequestBody
 
-Results of the executed query
+Query to be executed
 
 
 ## Fields

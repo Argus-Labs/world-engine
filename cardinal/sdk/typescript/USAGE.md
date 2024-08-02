@@ -5,7 +5,7 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-    const result = await cardinal.postCql({});
+    const result = await cardinal.queryCql({});
 
     // Handle the result
     console.log(result);

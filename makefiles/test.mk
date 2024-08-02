@@ -130,6 +130,7 @@ swagger-check:
 
 .PHONY: swagger-codegen
 SWAGGER_DIR = cardinal/server/docs
+GEN_DIR = .tmp/swagger-codegen
 
 swagger-codegen-install:
 	@echo "--> Installing swagger-codegen"
@@ -142,7 +143,8 @@ swagger-codegen-install:
 
 swagger-codegen:
 	@echo "--> Generating OpenAPI v3.0 document from $(SWAGGER_DIR)"
-	swagger-codegen generate -l openapi -i "$(SWAGGER_DIR)/swagger.json" -o .tmp/swagger-codegen
-	mv .tmp/swagger-codegen/openapi.json $(SWAGGER_DIR)
+	swagger-codegen generate -l openapi -i "$(SWAGGER_DIR)/swagger.json" -o $(GEN_DIR)
+	node ./scripts/customize-openapi.js "$(GEN_DIR)/openapi.json"
+	mv "$(GEN_DIR)/openapi.json" $(SWAGGER_DIR)
 	@echo "--> Cleanup"
-	rm -rf .tmp/swagger-codegen
+	rm -rf $(TMP_DIR)

@@ -1,17 +1,17 @@
-speakeasyVersion: 1.351.0
+speakeasyVersion: 1.352.0
 sources:
     cardinal:
         sourceNamespace: cardinal
-        sourceRevisionDigest: sha256:bacc6ce74a7a215de483bc5bb59e8b673b157ff8f8a7ccf7f14d45487a4826d1
-        sourceBlobDigest: sha256:1da8f0bf0677aa13c17ea695edf9d54154114521f0cd10320e6e5c0e8d99e338
+        sourceRevisionDigest: sha256:4cc32242239a8a1d711fafed51ea35a0ac5047e15877ab6fd2e7d3bf41a61716
+        sourceBlobDigest: sha256:0c2627da1d3124fd952e346bc3c92c28138b31c60eaac80735332a7a90ad9af3
         tags:
             - latest
 targets:
     cardinal-ts:
         source: cardinal
         sourceNamespace: cardinal
-        sourceRevisionDigest: sha256:bacc6ce74a7a215de483bc5bb59e8b673b157ff8f8a7ccf7f14d45487a4826d1
-        sourceBlobDigest: sha256:1da8f0bf0677aa13c17ea695edf9d54154114521f0cd10320e6e5c0e8d99e338
+        sourceRevisionDigest: sha256:4cc32242239a8a1d711fafed51ea35a0ac5047e15877ab6fd2e7d3bf41a61716
+        sourceBlobDigest: sha256:0c2627da1d3124fd952e346bc3c92c28138b31c60eaac80735332a7a90ad9af3
         outLocation: cardinal/sdk/typescript
 workflow:
     workflowVersion: 1.0.0

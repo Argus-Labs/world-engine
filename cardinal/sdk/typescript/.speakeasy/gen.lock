@@ -1,20 +1,22 @@
 lockVersion: 2.0.0
 id: fc6bc2ef-bea2-433a-a006-bbd7c75eb7e5
 management:
-  docChecksum: d11e4c607c38b470780d0598f8624aec
+  docChecksum: bca4de5ed616447f5a60b1d34a234055
   docVersion: 0.0.1
-  speakeasyVersion: 1.351.0
-  generationVersion: 2.384.1
-  releaseVersion: 0.0.1
-  configChecksum: 48b480cf853884a3cf0893af8e50dbfa
+  speakeasyVersion: 1.352.0
+  generationVersion: 2.384.4
+  releaseVersion: 0.2.2
+  configChecksum: e54b7a7f6ee784433e085cd30e3d2e69
 features:
   typescript:
     additionalDependencies: 0.1.0
-    core: 3.11.11
+    core: 3.11.12
     defaultEnabledRetries: 0.1.0
     envVarSecurityUsage: 0.1.0
     globalSecurityCallbacks: 0.1.0
     globalServerURLs: 2.82.4
+    ignores: 2.81.1
+    nameOverrides: 2.81.2
     responseFormat: 0.2.3
     retries: 2.83.0
     sdkHooks: 0.1.0
@@ -59,9 +61,8 @@ generatedFiles:
   - src/models/components/cardinalserverhandlertransaction.ts
   - src/models/components/cardinalserverhandlergetworldresponse.ts
   - src/models/components/pkgworlddevworldenginecardinaltypesfielddetail.ts
-  - src/models/operations/postqueryquerygroupqueryname.ts
+  - src/models/operations/postquerygamequeryname.ts
   - src/models/operations/posttxgametxname.ts
-  - src/models/operations/posttxtxgrouptxname.ts
   - src/models/errors/index.ts
   - src/models/components/index.ts
   - src/models/operations/index.ts
@@ -82,11 +83,10 @@ generatedFiles:
   - docs/models/components/cardinalserverhandlergetworldresponse.md
   - docs/models/components/fields.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesfielddetail.md
-  - docs/models/operations/postqueryquerygroupquerynamerequestbody.md
-  - docs/models/operations/postqueryquerygroupquerynamerequest.md
-  - docs/models/operations/postqueryquerygroupquerynameresponsebody.md
+  - docs/models/operations/postquerygamequerynamerequestbody.md
+  - docs/models/operations/postquerygamequerynamerequest.md
+  - docs/models/operations/postquerygamequerynameresponsebody.md
   - docs/models/operations/posttxgametxnamerequest.md
-  - docs/models/operations/posttxtxgrouptxnamerequest.md
   - docs/lib/utils/retryconfig.md
   - docs/sdks/cardinal/README.md
   - USAGE.md
