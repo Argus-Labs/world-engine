@@ -132,21 +132,21 @@ func (s *futureTaskStorage) registerTask(name string, system System) error {
 	return nil
 }
 
-// delayTaskByTicks delays a task execution by a specified number of ticks.
-// It decrements the delay by 1 and checks if the delay is less than 0.
-// If the delay is negative, it returns an error. Otherwise, it retrieves the
-// stored task with the given taskName from the futureTaskStorage and creates
-// a TaskAtTick object with the updated delay and taskName.
-// The TaskAtTick object is then created using the Create function with
-// the provided WorldContext.
-//
+// delayTaskByTicks delays the execution of a task by the specified number of ticks in the provided WorldContext.
+// If the task with the specified taskName is not found in the storedTasks map, it returns an error.
+// If the delay is 0, it immediately invokes the task with the provided WorldContext and returns any error returned
+// by the task.
+// If the delay is less than 0, it returns an error indicating that the delay cannot be less than zero seconds.
+// Otherwise, it creates a TaskAtTick object with the tick calculated by adding the delay to the current tick in
+// the WorldContext.
+// It then calls the Create function with the WorldContext and the created TaskAtTick object,
+// and returns any error returned by the Create function.
 // Parameters:
-// - wCtx: a WorldContext object representing the context in which the task is delayed.
-// - taskName: a string containing the name of the task to be delayed.
-// - delay: an integer representing the number of ticks to delay the task execution.
-//
+// - wCtx: the WorldContext in which the task is delayed and the TaskAtTick object is created.
+// - taskName: the name of the task to be delayed.
+// - delay: the number of ticks to delay the task execution.
 // Returns:
-// - error: an error object if encountered during the delay or task creation, nil otherwise.
+// - error: an error object if encountered during task delay or TaskAtTick creation, nil otherwise.
 func (s *futureTaskStorage) delayTaskByTicks(wCtx WorldContext, taskName string, delay int) error {
 	task, ok := s.storedTasks[taskName]
 	if !ok {
