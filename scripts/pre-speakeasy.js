@@ -20,6 +20,20 @@ data.paths['/events'].get['x-speakeasy-ignore'] = true
 data.paths['/query/{queryGroup}/{queryName}'].post['x-speakeasy-ignore'] = true
 data.paths['/tx/{txGroup}/{txName}'].post['x-speakeasy-ignore'] = true
 
+// sdk global params
+data['x-speakeasy-globals'] = {
+  parameters: [
+    {
+      name: 'privateKey',
+      in: 'query',
+      schema: {
+        type: 'string'
+      },
+      'x-speakeasy-globals-hidden': true
+    }
+  ]
+}
+
 try {
   fs.writeFileSync(openapiPath, JSON.stringify(data, null, 2))
   console.log('Updated openapi.json with speakeasy attributes')

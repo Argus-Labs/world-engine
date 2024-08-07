@@ -649,5 +649,17 @@
       }
     }
   },
-  "x-original-swagger-version": "2.0"
+  "x-original-swagger-version": "2.0",
+  "x-speakeasy-globals": {
+    "parameters": [
+      {
+        "name": "privateKey",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "x-speakeasy-globals-hidden": true
+      }
+    ]
+  }
 }
