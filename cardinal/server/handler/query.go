@@ -32,3 +32,19 @@ func PostQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 		return ctx.Send(resBz)
 	}
 }
+
+// NOTE: duplication for cleaner swagger docs
+// PostGameQuery godoc
+//
+//	@Summary      Executes a query
+//	@Description  Executes a query
+//	@Accept       application/json
+//	@Produce      application/json
+//	@Param        queryName   path      string  true  "Name of a registered query"
+//	@Param        queryBody   body      object  true  "Query to be executed"
+//	@Success      200         {object}  object  "Results of the executed query"
+//	@Failure      400         {string}  string  "Invalid request parameters"
+//	@Router       /query/game/{queryName} [post]
+func PostGameQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
+	return PostQuery(world)
+}

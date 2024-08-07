@@ -89,16 +89,16 @@ definitions:
         description: hex encoded string
         type: string
     type: object
-  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
+  pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
     properties:
-      data:
+      components:
         type: object
       id:
         type: integer
     type: object
-  pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
+  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
     properties:
-      components:
+      data:
         type: object
       id:
         type: integer
@@ -191,6 +191,35 @@ paths:
         name: queryGroup
         required: true
         type: string
+      - description: Name of a registered query
+        in: path
+        name: queryName
+        required: true
+        type: string
+      - description: Query to be executed
+        in: body
+        name: queryBody
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results of the executed query
+          schema:
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Executes a query
+  /query/game/{queryName}:
+    post:
+      consumes:
+      - application/json
+      description: Executes a query
+      parameters:
       - description: Name of a registered query
         in: path
         name: queryName

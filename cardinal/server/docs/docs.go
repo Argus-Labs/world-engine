@@ -106,6 +106,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/query/game/{queryName}": {
+            "post": {
+                "description": "Executes a query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Executes a query",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of a registered query",
+                        "name": "queryName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Query to be executed",
+                        "name": "queryBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results of the executed query",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/query/receipts/list": {
             "post": {
                 "description": "Retrieves all transaction receipts",
@@ -490,10 +534,10 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
+        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
             "type": "object",
             "properties": {
-                "data": {
+                "components": {
                     "type": "object"
                 },
                 "id": {
@@ -501,10 +545,10 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
+        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
             "type": "object",
             "properties": {
-                "components": {
+                "data": {
                     "type": "object"
                 },
                 "id": {

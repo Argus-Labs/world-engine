@@ -1,0 +1,13 @@
+workflowVersion: 1.0.0
+speakeasyVersion: latest
+sources:
+    cardinal:
+        inputs:
+            - location: cardinal/server/docs/openapi.json
+        registry:
+            location: registry.speakeasyapi.dev/argus-labs/argus-labs/cardinal
+targets:
+    cardinal-ts:
+        target: typescript
+        source: cardinal
+        output: cardinal/sdk/typescript
