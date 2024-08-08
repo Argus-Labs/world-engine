@@ -9,7 +9,7 @@ import (
 
 // Task is an interface that represents a task to be executed in a system.
 //
-// SystemExec executes the task in the specified WorldContext and returns an error if any occurred.
+// Handle executes the task in the specified WorldContext and returns an error if any occurred.
 // It also implements the types.Component interface, which provides the Name method to get the name of the task.
 type Task interface {
 	Handle(WorldContext) error
