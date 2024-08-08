@@ -68,11 +68,7 @@ func TestCallTasksAt(t *testing.T) {
 				return nil
 			}
 			id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).First(ctx)
-			if err != nil {
-				endTestIfThisTrue = true
-				// swallow error for test. If entity is not found it was executed and removed.
-				return nil
-			}
+			assert.NilError(t, err)
 			task, err := cardinal.GetComponent[*MyTask](ctx, id)
 			if err != nil {
 				return err
