@@ -49,7 +49,6 @@ type World struct {
 	SystemManager
 	MessageManager
 	QueryManager
-	futureTaskManager
 	component.ComponentManager
 
 	namespace     Namespace
@@ -164,7 +163,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tickChannel:                  time.Tick(time.Second), //nolint:staticcheck // its ok.
 		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
-		futureTaskManager:            newFutureTaskStorage(),
 	}
 
 	world.QueryManager = newQueryManager(world)
@@ -190,7 +188,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Register internal plugins
 	world.RegisterPlugin(newPersonaPlugin())
-	world.RegisterPlugin(world.futureTaskManager)
+	world.RegisterPlugin(newFutureTaskPlugin())
 
 	return world, nil
 }

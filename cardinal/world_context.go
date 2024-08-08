@@ -39,9 +39,9 @@ type WorldContext interface {
 	// Rand returns a random number generator that is seeded specifically for a current tick.
 	Rand() *rand.Rand
 	// DelayTask executes a task `Tick` ticks away from the current tick.
-	DelayTask(string, int) error
+	DelayTask(Task, uint64) error
 	// CallTaskAt schedules a task to be executed at a specified timestamp.
-	CallTaskAt(string, uint64) error
+	CallTaskAt(Task, uint64) error
 
 	// For internal use.
 
@@ -102,12 +102,30 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 	}
 }
 
-func (ctx *worldContext) DelayTask(taskName string, delay int) error {
-	return ctx.world.delayTaskByTicks(ctx, taskName, delay)
+// DelayTask schedules a task to be executed after a specified delay in ticks.
+// It takes a Task interface representing the task to be executed and a delay value
+// indicating the number of ticks to wait before executing the task.
+//
+// Note: The task should implement the Task interface, which requires the SystemExec
+// method to execute the task in the specified WorldContext. The Task interface also
+// extends the types.Component interface, which provides the Name method to get the
+// name of the task.
+//
+// Example usage:
+//
+//	err := ctx.DelayTask(task, delay)
+//	if err != nil {
+//	  // handle error
+//	}
+func (ctx *worldContext) DelayTask(task Task, delay uint64) error {
+	return delayTaskByTicks(ctx, task, delay)
 }
 
-func (ctx *worldContext) CallTaskAt(taskName string, timestamp uint64) error {
-	return ctx.world.callTaskAtTimestamp(ctx, taskName, timestamp)
+// CallTaskAt executes a task at a specified timestamp in the given WorldContext.
+// It calls the executeTaskAtTime function with the provided task and timestamp arguments.
+// If an error occurs during the execution of the task, it is returned.
+func (ctx *worldContext) CallTaskAt(task Task, timestamp uint64) error {
+	return executeTaskAtTime(ctx, task, timestamp)
 }
 
 // Timestamp returns the UNIX timestamp of the tick.
