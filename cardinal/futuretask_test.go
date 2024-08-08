@@ -9,7 +9,7 @@ import (
 )
 
 // MyTask is a struct representing a task. It has a `TestValue` field which is an integer.
-// It also implements the `Name` method which returns the name of the task, and the `SystemExec` method
+// It also implements the `Name` method which returns the name of the task, and the `Handle` method
 // which executes the task logic.
 type MyTask struct {
 	TestValue int
@@ -19,7 +19,7 @@ func (*MyTask) Name() string {
 	return "MyTask"
 }
 
-func (mt *MyTask) SystemExec(_ cardinal.WorldContext) error {
+func (mt *MyTask) Handle(_ cardinal.WorldContext) error {
 	mt.TestValue++
 	return nil
 }

@@ -106,7 +106,7 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 // It takes a Task interface representing the task to be executed and a delay value
 // indicating the number of ticks to wait before executing the task.
 //
-// Note: The task should implement the Task interface, which requires the SystemExec
+// Note: The task should implement the Task interface, which requires the Handle
 // method to execute the task in the specified WorldContext. The Task interface also
 // extends the types.Component interface, which provides the Name method to get the
 // name of the task.

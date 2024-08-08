@@ -12,7 +12,7 @@ import (
 // SystemExec executes the task in the specified WorldContext and returns an error if any occurred.
 // It also implements the types.Component interface, which provides the Name method to get the name of the task.
 type Task interface {
-	SystemExec(WorldContext) error
+	Handle(WorldContext) error
 	types.Component
 }
 
@@ -112,7 +112,7 @@ func executeTaskAtTime(wCtx WorldContext, task Task, timestamp uint64) error {
 // futureTaskSystemTick is a function that executes tick tasks in the specified WorldContext.
 // It iterates over all entities that have a TickTask component and checks if the current tick is
 // greater than or equal to the tick specified in the TickTask component. If it is, it retrieves the
-// task component and calls the SystemExec method on it. If there is an error during the execution of the task,
+// task component and calls the Handle method on it. If there is an error during the execution of the task,
 // it returns the error and stops iterating. After executing the task, it saves the task component
 // back to the entity. It returns any internal error that occurred during the iteration or execution
 // of the tasks.
@@ -130,7 +130,7 @@ func futureTaskSystemTick[T Task](wCtx WorldContext) error {
 				internalErr = err
 				return false
 			}
-			err = (*taskObj).SystemExec(wCtx)
+			err = (*taskObj).Handle(wCtx)
 			if err != nil {
 				internalErr = err
 				return false
@@ -153,7 +153,7 @@ func futureTaskSystemTick[T Task](wCtx WorldContext) error {
 // have been reached in the system. It retrieves all the entities that have a component of
 // type TimestampTask and compares their timestamps with the current system timestamp obtained
 // from the WorldContext. If the system timestamp is greater than or equal to the entity's timestamp,
-// the task of type T associated with the entity is executed using the SystemExec method. If the execution
+// the task of type T associated with the entity is executed using the Handle method. If the execution
 // is successful, the state of the task object may have changed, so it is saved back to the entity using
 // the SetComponent method. The function returns an error if any occurred during the execution.
 // The function takes a WorldContext as an argument, which provides the necessary context for
@@ -163,7 +163,7 @@ func futureTaskSystemTick[T Task](wCtx WorldContext) error {
 // using the Contains method of filter package to find entities that have the TimestampTask component.
 // In each iteration of the Each method, it retrieves the TimestampTask component and compares its
 // timestamp with the system timestamp. If the condition is true, it retrieves the task object of type T
-// associated with the entity using the GetComponent method. It then executes the task using the SystemExec
+// associated with the entity using the GetComponent method. It then executes the task using the Handle
 // method and checks for any error. If successful, it saves the task object back to the entity using
 // the SetComponent method. The function returns the error occurred during execution, if any.
 //
@@ -182,7 +182,7 @@ func futureTaskSystemTimestamp[T Task](wCtx WorldContext) error {
 				internalErr = err
 				return false
 			}
-			err = (*taskObj).SystemExec(wCtx)
+			err = (*taskObj).Handle(wCtx)
 			if err != nil {
 				internalErr = err
 				return false
