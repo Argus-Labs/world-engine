@@ -117,18 +117,24 @@ func TestDelayedTask(t *testing.T) {
 	}
 
 	// This system tests if the DelayTask logic executes successfully.
+	var counter uint64 = 0
 	testIfDelayTaskIsSuccessfulSystem := func(ctx cardinal.WorldContext) error {
 		if isInitializeTestSystemCalled {
-			id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).First(ctx)
-			if err != nil {
-				return err
+			if counter < delay {
+				id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).First(ctx)
+				assert.NilError(t, err)
+				task, err := cardinal.GetComponent[*MyTask](ctx, id)
+				if err != nil {
+					return err
+				}
+				testValue = (*task).TestValue
+			} else {
+				count, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).Count(ctx)
+				assert.NilError(t, err)
+				assert.Equal(t, count, 0)
 			}
-			task, err := cardinal.GetComponent[*MyTask](ctx, id)
-			if err != nil {
-				return err
-			}
-			testValue = (*task).TestValue
 		}
+		counter++
 		return nil
 	}
 
@@ -142,7 +148,6 @@ func TestDelayedTask(t *testing.T) {
 		assert.Equal(t, testValue, 0)
 		tf.DoTick()
 	}
-	assert.Equal(t, testValue, 1)
 }
 
 // TestNotRegisteringOfDelayedTask tests the behavior when a delayed task is not registered in the system.

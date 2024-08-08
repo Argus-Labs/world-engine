@@ -101,8 +101,8 @@ func delayTaskByTicks(wCtx WorldContext, task Task, delay uint64) error {
 }
 
 // executeTaskAtTime executes a task at a specified timestamp in the given WorldContext.
-// It creates a TimestampTask component with the provided timestamp and calls the Create function to create the task entity.
-// If an error occurs during the creation of the entity, it is returned.
+// It creates a TimestampTask component with the provided timestamp and calls the Create function to create
+// the task entity. If an error occurs during the creation of the entity, it is returned.
 func executeTaskAtTime(wCtx WorldContext, task Task, timestamp uint64) error {
 	timestampstore := TimestampTask{Timestamp: timestamp}
 	_, err := Create(wCtx, task, timestampstore)
@@ -118,7 +118,6 @@ func executeTaskAtTime(wCtx WorldContext, task Task, timestamp uint64) error {
 // of the tasks.
 func futureTaskSystemTick[T Task](wCtx WorldContext) error {
 	var internalErr error
-	tasksToRemove := make([]types.EntityID, 0)
 	err := NewSearch().Entity(filter.Contains(filter.Component[TickTask]())).Each(wCtx, func(id types.EntityID) bool {
 		tickstore, err := GetComponent[TickTask](wCtx, id)
 		if err != nil {
@@ -136,9 +135,11 @@ func futureTaskSystemTick[T Task](wCtx WorldContext) error {
 				internalErr = err
 				return false
 			}
-
-			// task only executes once.
-			tasksToRemove = append(tasksToRemove, id)
+			err = Remove(wCtx, id)
+			if err != nil {
+				internalErr = err
+				return false
+			}
 		}
 		return true
 	})
@@ -188,7 +189,11 @@ func futureTaskSystemTimestamp[T Task](wCtx WorldContext) error {
 			}
 
 			// task only executes once.
-			Remove(wCtx, id)
+			err = Remove(wCtx, id)
+			if err != nil {
+				internalErr = err
+				return false
+			}
 		}
 		return true
 	})
