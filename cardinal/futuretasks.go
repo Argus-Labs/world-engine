@@ -91,7 +91,7 @@ func RegisterTickTask[T Task](w *World) error {
 // The TickTask represents a component for scheduling tasks based on ticks.
 // The delay parameter is added to the current tick to determine the tick at which the task should be executed.
 // The WorldContext parameter represents the context of the world in which the task is executed.
-// The Task parameter represents the task to be executed.
+// The MyTask parameter represents the task to be executed.
 // It returns an error if any occurred during the task creation.
 
 func delayTaskByTicks(wCtx WorldContext, task Task, delay uint64) error {
