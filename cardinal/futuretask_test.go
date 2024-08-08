@@ -117,7 +117,7 @@ func TestDelayedTask(t *testing.T) {
 	}
 
 	// This system tests if the DelayTask logic executes successfully.
-	var counter uint64 = 0
+	var counter uint64
 	testIfDelayTaskIsSuccessfulSystem := func(ctx cardinal.WorldContext) error {
 		if isInitializeTestSystemCalled {
 			if counter < delay {
