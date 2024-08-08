@@ -8,18 +8,18 @@ import (
 	"pkg.world.dev/world-engine/cardinal/filter"
 )
 
-// MyTask is a struct representing a task. It has a `TestValue` field which is an integer.
+// Task is a struct representing a task. It has a `TestValue` field which is an integer.
 // It also implements the `Name` method which returns the name of the task, and the `SystemExec` method
 // which executes the task logic.
-type MyTask struct {
+type Task struct {
 	TestValue int
 }
 
-func (*MyTask) Name() string {
-	return "MyTask"
+func (*Task) Name() string {
+	return "Task"
 }
 
-func (mt *MyTask) SystemExec(_ cardinal.WorldContext) error {
+func (mt *Task) SystemExec(_ cardinal.WorldContext) error {
 	mt.TestValue++
 	return nil
 }
@@ -35,7 +35,7 @@ func TestCallTasksAt(t *testing.T) {
 	world := tf.World
 
 	// Register the relevant task for getting called at a timestamp
-	err := cardinal.RegisterTimestampTask[*MyTask](world)
+	err := cardinal.RegisterTimestampTask[*Task](world)
 	assert.NilError(t, err)
 
 	// variables for testing
@@ -49,7 +49,7 @@ func TestCallTasksAt(t *testing.T) {
 		var res error
 		if !wasInitializeTestSystemCall {
 			startTime = context.Timestamp()
-			res = context.CallTaskAt(&MyTask{TestValue: 0}, startTime+futureDelay)
+			res = context.CallTaskAt(&Task{TestValue: 0}, startTime+futureDelay)
 		} else {
 			res = nil
 		}
@@ -62,18 +62,18 @@ func TestCallTasksAt(t *testing.T) {
 		if wasInitializeTestSystemCall {
 			if ctx.Timestamp() >= startTime+futureDelay {
 				endTestIfThisTrue = true
-				count, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).Count(ctx)
+				count, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*Task]())).Count(ctx)
 				assert.NilError(t, err)
 				assert.Equal(t, count, 0)
 				return nil
 			}
-			id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).First(ctx)
+			id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*Task]())).First(ctx)
 			if err != nil {
 				endTestIfThisTrue = true
 				// swallow error for test. If entity is not found it was executed and removed.
 				return nil
 			}
-			task, err := cardinal.GetComponent[*MyTask](ctx, id)
+			task, err := cardinal.GetComponent[*Task](ctx, id)
 			if err != nil {
 				return err
 			}
@@ -100,7 +100,7 @@ func TestDelayedTask(t *testing.T) {
 	world := tf.World
 
 	// register task for tick delay
-	err := cardinal.RegisterTickTask[*MyTask](world)
+	err := cardinal.RegisterTickTask[*Task](world)
 	assert.NilError(t, err)
 
 	// variables
@@ -112,7 +112,7 @@ func TestDelayedTask(t *testing.T) {
 	initializeTestsSystem := func(context cardinal.WorldContext) error {
 		var res error
 		if !isInitializeTestSystemCalled {
-			res = context.DelayTask(&MyTask{TestValue: 0}, delay)
+			res = context.DelayTask(&Task{TestValue: 0}, delay)
 		} else {
 			res = nil
 		}
@@ -123,11 +123,11 @@ func TestDelayedTask(t *testing.T) {
 	// This system tests if the DelayTask logic executes successfully.
 	testIfDelayTaskIsSuccessfulSystem := func(ctx cardinal.WorldContext) error {
 		if isInitializeTestSystemCalled {
-			id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*MyTask]())).First(ctx)
+			id, err := cardinal.NewSearch().Entity(filter.Contains(filter.Component[*Task]())).First(ctx)
 			if err != nil {
 				return err
 			}
-			task, err := cardinal.GetComponent[*MyTask](ctx, id)
+			task, err := cardinal.GetComponent[*Task](ctx, id)
 			if err != nil {
 				return err
 			}
@@ -156,7 +156,7 @@ func TestNotRegisteringOfDelayedTask(t *testing.T) {
 	world := tf.World
 
 	// task deliberately not registered.
-	// err := cardinal.RegisterTimestampTask[*MyTask](world)
+	// err := cardinal.RegisterTimestampTask[*Task](world)
 	// assert.NilError(t, err)
 
 	// variables
@@ -171,7 +171,7 @@ func TestNotRegisteringOfDelayedTask(t *testing.T) {
 				t.Errorf("Expected a panic, but the function did not panic")
 			}
 		}()
-		_ = context.DelayTask(&MyTask{TestValue: 0}, delay)
+		_ = context.DelayTask(&Task{TestValue: 0}, delay)
 
 		return nil
 	}
@@ -201,7 +201,7 @@ func TestNotRegisteringOfTimestampTask(t *testing.T) {
 	world := tf.World
 
 	// task deliberately not registered.
-	// err := cardinal.RegisterTickTask[*MyTask](world)
+	// err := cardinal.RegisterTickTask[*Task](world)
 	// assert.NilError(t, err)
 
 	// variables
@@ -216,7 +216,7 @@ func TestNotRegisteringOfTimestampTask(t *testing.T) {
 				t.Errorf("Expected a panic, but the function did not panic")
 			}
 		}()
-		_ = context.CallTaskAt(&MyTask{TestValue: 0}, delay)
+		_ = context.CallTaskAt(&Task{TestValue: 0}, delay)
 
 		return nil
 	}
