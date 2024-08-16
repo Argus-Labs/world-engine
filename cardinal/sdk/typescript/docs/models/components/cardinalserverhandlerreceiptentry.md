@@ -1,5 +1,12 @@
 # CardinalServerHandlerReceiptEntry
 
+## Example Usage
+
+```typescript
+import { CardinalServerHandlerReceiptEntry } from "cardinal/models/components";
+
+let value: CardinalServerHandlerReceiptEntry = {};
+```
 
 ## Fields
 

@@ -4,3 +4,4 @@
 
 export * from "./postquerygamequeryname.js";
 export * from "./posttxgametxname.js";
+export * from "./posttxpersonacreatepersona.js";

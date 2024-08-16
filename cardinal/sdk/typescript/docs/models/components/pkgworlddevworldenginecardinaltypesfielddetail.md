@@ -1,5 +1,12 @@
 # PkgWorldDevWorldEngineCardinalTypesFieldDetail
 
+## Example Usage
+
+```typescript
+import { PkgWorldDevWorldEngineCardinalTypesFieldDetail } from "cardinal/models/components";
+
+let value: PkgWorldDevWorldEngineCardinalTypesFieldDetail = {};
+```
 
 ## Fields
 

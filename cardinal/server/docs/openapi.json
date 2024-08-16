@@ -288,6 +288,20 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "_privateKey",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "_namespace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -365,7 +379,23 @@
           }
         },
         "x-codegen-request-body-name": "txBody",
-        "x-speakeasy-name-override": "createPersona"
+        "x-speakeasy-name-override": "createPersona",
+        "parameters": [
+          {
+            "name": "_privateKey",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "_namespace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/tx/{txGroup}/{txName}": {
@@ -583,8 +613,8 @@
         "properties": {
           "body": {
             "type": "object",
-            "properties": {},
-            "description": "json string"
+            "description": "json string",
+            "additionalProperties": {}
           },
           "hash": {
             "type": "string"
@@ -653,7 +683,15 @@
   "x-speakeasy-globals": {
     "parameters": [
       {
-        "name": "privateKey",
+        "name": "_privateKey",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "x-speakeasy-globals-hidden": true
+      },
+      {
+        "name": "_namespace",
         "in": "query",
         "schema": {
           "type": "string"

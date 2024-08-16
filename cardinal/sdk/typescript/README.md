@@ -303,6 +303,89 @@ const sdk = new Cardinal({ httpClient });
 ```
 <!-- End Custom HTTP Client [http-client] -->
 
+<!-- Start Debugging [debug] -->
+## Debugging
+
+To log HTTP requests and responses, you can pass a logger that matches `console`'s interface as an SDK option.
+
+> [!WARNING]
+> Beware that debug logging will reveal secrets, like API tokens in headers, in log messages printed to a console or files. It's recommended to use this feature only during local development and not in production.
+
+```typescript
+import { Cardinal } from "cardinal";
+
+const sdk = new Cardinal({ debugLogger: console });
+```
+<!-- End Debugging [debug] -->
+
+<!-- Start Standalone functions [standalone-funcs] -->
+## Standalone functions
+
+All the methods listed above are available as standalone functions. These
+functions are ideal for use in applications running in the browser, serverless
+runtimes or other environments where application bundle size is a primary
+concern. When using a bundler to build your application, all unused
+functionality will be either excluded from the final bundle or tree-shaken away.
+
+To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
+
+<details>
+
+<summary>Available standalone functions</summary>
+
+- [createPersona](docs/sdks/cardinal/README.md#createpersona)
+- [getDebugState](docs/sdks/cardinal/README.md#getdebugstate)
+- [getHealth](docs/sdks/cardinal/README.md#gethealth)
+- [getReceipts](docs/sdks/cardinal/README.md#getreceipts)
+- [getWorld](docs/sdks/cardinal/README.md#getworld)
+- [queryCql](docs/sdks/cardinal/README.md#querycql)
+- [query](docs/sdks/cardinal/README.md#query)
+- [transact](docs/sdks/cardinal/README.md#transact)
+
+
+</details>
+<!-- End Standalone functions [standalone-funcs] -->
+
+<!-- Start Global Parameters [global-parameters] -->
+## Global Parameters
+
+Certain parameters are configured globally. These parameters may be set on the SDK client instance itself during initialization. When configured as an option during SDK initialization, These global values will be used as defaults on the operations that use them. When such operations are called, there is a place in each to override the global value, if needed.
+
+For example, you can set `_privateKey` to `"<value>"` at SDK initialization and then you do not have to pass the same value on calls to operations like `transact`. But if you want to do so you may, which will locally override the global setting. See the example code below for a demonstration.
+
+
+### Available Globals
+
+The following global parameters are available.
+
+| Name | Type | Required | Description |
+| ---- | ---- |:--------:| ----------- |
+| privateKey | string |  | The privateKey parameter. |
+| namespace | string |  | The namespace parameter. |
+
+
+### Example
+
+```typescript
+import { Cardinal } from "cardinal";
+
+const cardinal = new Cardinal();
+
+async function run() {
+    const result = await cardinal.transact({
+        txName: "<value>",
+        cardinalServerHandlerTransaction: {},
+    });
+
+    // Handle the result
+    console.log(result);
+}
+
+run();
+
+```
+<!-- End Global Parameters [global-parameters] -->
+
 <!-- Placeholder for Future Speakeasy SDK Sections -->
 
 # Development

@@ -56,5 +56,5 @@ swagger-codegen:
 
 speakeasy:
 	$(MAKE) swagger-codegen
-	speakeasy run
+	speakeasy run --force
 	./scripts/post-speakeasy.sh

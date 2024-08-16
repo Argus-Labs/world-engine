@@ -6,6 +6,11 @@ import { remap as remap$ } from "../../lib/primitives.js";
 import * as components from "../components/index.js";
 import * as z from "zod";
 
+export type PostTxGameTxNameGlobals = {
+    privateKey?: string | undefined;
+    namespace?: string | undefined;
+};
+
 export type PostTxGameTxNameRequest = {
     /**
      * Name of a registered message
@@ -16,6 +21,59 @@ export type PostTxGameTxNameRequest = {
      */
     cardinalServerHandlerTransaction: components.CardinalServerHandlerTransaction;
 };
+
+/** @internal */
+export const PostTxGameTxNameGlobals$inboundSchema: z.ZodType<
+    PostTxGameTxNameGlobals,
+    z.ZodTypeDef,
+    unknown
+> = z
+    .object({
+        _privateKey: z.string().optional(),
+        _namespace: z.string().optional(),
+    })
+    .transform((v) => {
+        return remap$(v, {
+            _privateKey: "privateKey",
+            _namespace: "namespace",
+        });
+    });
+
+/** @internal */
+export type PostTxGameTxNameGlobals$Outbound = {
+    _privateKey?: string | undefined;
+    _namespace?: string | undefined;
+};
+
+/** @internal */
+export const PostTxGameTxNameGlobals$outboundSchema: z.ZodType<
+    PostTxGameTxNameGlobals$Outbound,
+    z.ZodTypeDef,
+    PostTxGameTxNameGlobals
+> = z
+    .object({
+        privateKey: z.string().optional(),
+        namespace: z.string().optional(),
+    })
+    .transform((v) => {
+        return remap$(v, {
+            privateKey: "_privateKey",
+            namespace: "_namespace",
+        });
+    });
+
+/**
+ * @internal
+ * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
+ */
+export namespace PostTxGameTxNameGlobals$ {
+    /** @deprecated use `PostTxGameTxNameGlobals$inboundSchema` instead. */
+    export const inboundSchema = PostTxGameTxNameGlobals$inboundSchema;
+    /** @deprecated use `PostTxGameTxNameGlobals$outboundSchema` instead. */
+    export const outboundSchema = PostTxGameTxNameGlobals$outboundSchema;
+    /** @deprecated use `PostTxGameTxNameGlobals$Outbound` instead. */
+    export type Outbound = PostTxGameTxNameGlobals$Outbound;
+}
 
 /** @internal */
 export const PostTxGameTxNameRequest$inboundSchema: z.ZodType<

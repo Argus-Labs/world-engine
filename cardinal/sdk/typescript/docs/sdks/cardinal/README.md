@@ -37,6 +37,35 @@ async function run() {
 run();
 ```
 
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { queryCql } from "cardinal/funcs/queryCql.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await queryCql(cardinal, {});
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
 ### Parameters
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
@@ -77,6 +106,35 @@ async function run() {
 run();
 ```
 
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { getDebugState } from "cardinal/funcs/getDebugState.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await getDebugState(cardinal);
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
 ### Parameters
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
@@ -108,6 +166,35 @@ const cardinal = new Cardinal();
 
 async function run() {
   const result = await cardinal.getHealth();
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { getHealth } from "cardinal/funcs/getHealth.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await getHealth(cardinal);
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
 
   // Handle the result
   console.log(result)
@@ -158,6 +245,38 @@ async function run() {
 run();
 ```
 
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { query } from "cardinal/funcs/query.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await query(cardinal, {
+    queryName: "<value>",
+    requestBody: {},
+  });
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
 ### Parameters
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
@@ -190,6 +309,35 @@ const cardinal = new Cardinal();
 
 async function run() {
   const result = await cardinal.getReceipts({});
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { getReceipts } from "cardinal/funcs/getReceipts.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await getReceipts(cardinal, {});
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
 
   // Handle the result
   console.log(result)
@@ -241,6 +389,38 @@ async function run() {
 run();
 ```
 
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { transact } from "cardinal/funcs/transact.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await transact(cardinal, {
+    txName: "<value>",
+    cardinalServerHandlerTransaction: {},
+  });
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
 ### Parameters
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
@@ -281,6 +461,35 @@ async function run() {
 run();
 ```
 
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { createPersona } from "cardinal/funcs/createPersona.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await createPersona(cardinal, {});
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
 ### Parameters
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
@@ -313,6 +522,35 @@ const cardinal = new Cardinal();
 
 async function run() {
   const result = await cardinal.getWorld();
+
+  // Handle the result
+  console.log(result)
+}
+
+run();
+```
+
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { CardinalCore } from "cardinal/core.js";
+import { getWorld } from "cardinal/funcs/getWorld.js";
+
+// Use `CardinalCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const cardinal = new CardinalCore();
+
+async function run() {
+  const res = await getWorld(cardinal);
+
+  if (!res.ok) {
+    throw res.error;
+  }
+
+  const { value: result } = res;
 
   // Handle the result
   console.log(result)

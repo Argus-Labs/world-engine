@@ -1,5 +1,12 @@
 # CardinalServerHandlerListTxReceiptsResponse
 
+## Example Usage
+
+```typescript
+import { CardinalServerHandlerListTxReceiptsResponse } from "cardinal/models/components";
+
+let value: CardinalServerHandlerListTxReceiptsResponse = {};
+```
 
 ## Fields
 

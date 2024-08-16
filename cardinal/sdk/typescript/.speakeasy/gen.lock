@@ -1,32 +1,44 @@
 lockVersion: 2.0.0
-id: fc6bc2ef-bea2-433a-a006-bbd7c75eb7e5
+id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: bca4de5ed616447f5a60b1d34a234055
+  docChecksum: c21a5ab6f48f4d352f9d4e0c15774eb2
   docVersion: 0.0.1
-  speakeasyVersion: 1.352.0
-  generationVersion: 2.384.4
-  releaseVersion: 0.2.2
-  configChecksum: e54b7a7f6ee784433e085cd30e3d2e69
+  speakeasyVersion: 1.369.0
+  generationVersion: 2.399.0
+  releaseVersion: 0.8.57
+  configChecksum: fd1eda0d4a220de889417bb09be99563
 features:
   typescript:
     additionalDependencies: 0.1.0
-    core: 3.11.12
+    core: 3.13.2
     defaultEnabledRetries: 0.1.0
-    envVarSecurityUsage: 0.1.0
+    envVarSecurityUsage: 0.1.1
     globalSecurityCallbacks: 0.1.0
     globalServerURLs: 2.82.4
+    globals: 2.82.1
+    hiddenGlobals: 0.1.0
     ignores: 2.81.1
     nameOverrides: 2.81.2
     responseFormat: 0.2.3
     retries: 2.83.0
     sdkHooks: 0.1.0
 generatedFiles:
+  - src/funcs/queryCql.ts
+  - src/funcs/getDebugState.ts
+  - src/funcs/getHealth.ts
+  - src/funcs/query.ts
+  - src/funcs/getReceipts.ts
+  - src/funcs/transact.ts
+  - src/funcs/createPersona.ts
+  - src/funcs/getWorld.ts
   - src/sdk/sdk.ts
   - .eslintrc.cjs
   - .npmignore
+  - FUNCTIONS.md
   - RUNTIMES.md
   - jsr.json
   - package.json
+  - src/core.ts
   - src/index.ts
   - src/lib/base64.ts
   - src/lib/config.ts
@@ -34,6 +46,8 @@ generatedFiles:
   - src/lib/encodings.ts
   - src/lib/http.ts
   - src/lib/is-plain-object.ts
+  - src/lib/logger.ts
+  - src/lib/matchers.ts
   - src/lib/primitives.ts
   - src/lib/retries.ts
   - src/lib/schemas.ts
@@ -41,10 +55,13 @@ generatedFiles:
   - src/lib/security.ts
   - src/lib/url.ts
   - src/sdk/index.ts
+  - src/models/errors/httpclienterrors.ts
   - src/models/errors/sdkerror.ts
   - src/models/errors/sdkvalidationerror.ts
   - src/types/blobs.ts
+  - src/types/constdatetime.ts
   - src/types/enums.ts
+  - src/types/fp.ts
   - src/types/index.ts
   - src/types/operations.ts
   - src/types/rfcdate.ts
@@ -63,6 +80,7 @@ generatedFiles:
   - src/models/components/pkgworlddevworldenginecardinaltypesfielddetail.ts
   - src/models/operations/postquerygamequeryname.ts
   - src/models/operations/posttxgametxname.ts
+  - src/models/operations/posttxpersonacreatepersona.ts
   - src/models/errors/index.ts
   - src/models/components/index.ts
   - src/models/operations/index.ts
@@ -78,7 +96,6 @@ generatedFiles:
   - docs/models/components/cardinalserverhandlerreceiptentry.md
   - docs/models/components/cardinalserverhandlerlisttxreceiptsrequest.md
   - docs/models/components/cardinalserverhandlerposttransactionresponse.md
-  - docs/models/components/body.md
   - docs/models/components/cardinalserverhandlertransaction.md
   - docs/models/components/cardinalserverhandlergetworldresponse.md
   - docs/models/components/fields.md
@@ -86,7 +103,9 @@ generatedFiles:
   - docs/models/operations/postquerygamequerynamerequestbody.md
   - docs/models/operations/postquerygamequerynamerequest.md
   - docs/models/operations/postquerygamequerynameresponsebody.md
+  - docs/models/operations/posttxgametxnameglobals.md
   - docs/models/operations/posttxgametxnamerequest.md
+  - docs/models/operations/posttxpersonacreatepersonaglobals.md
   - docs/lib/utils/retryconfig.md
   - docs/sdks/cardinal/README.md
   - USAGE.md

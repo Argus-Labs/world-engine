@@ -8,3 +8,4 @@ export type { Paginator, PageIterator } from "./operations.js";
 export { createPageIterator } from "./operations.js";
 export { catchUnrecognizedEnum } from "./enums.js";
 export type { OpenEnum, ClosedEnum, Unrecognized } from "./enums.js";
+export type { Result } from "./fp.js";

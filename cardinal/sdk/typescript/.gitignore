@@ -4,8 +4,10 @@
 /node_modules
 /lib
 /sdk
+/funcs
 /hooks
 /index.*
+/core.*
 /cjs
 /esm
 /dist

@@ -4,16 +4,11 @@
 
 import * as z from "zod";
 
-/**
- * json string
- */
-export type Body = {};
-
 export type CardinalServerHandlerTransaction = {
     /**
      * json string
      */
-    body?: Body | undefined;
+    body?: { [k: string]: any } | undefined;
     hash?: string | undefined;
     namespace?: string | undefined;
     nonce?: number | undefined;
@@ -25,34 +20,12 @@ export type CardinalServerHandlerTransaction = {
 };
 
 /** @internal */
-export const Body$inboundSchema: z.ZodType<Body, z.ZodTypeDef, unknown> = z.object({});
-
-/** @internal */
-export type Body$Outbound = {};
-
-/** @internal */
-export const Body$outboundSchema: z.ZodType<Body$Outbound, z.ZodTypeDef, Body> = z.object({});
-
-/**
- * @internal
- * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
- */
-export namespace Body$ {
-    /** @deprecated use `Body$inboundSchema` instead. */
-    export const inboundSchema = Body$inboundSchema;
-    /** @deprecated use `Body$outboundSchema` instead. */
-    export const outboundSchema = Body$outboundSchema;
-    /** @deprecated use `Body$Outbound` instead. */
-    export type Outbound = Body$Outbound;
-}
-
-/** @internal */
 export const CardinalServerHandlerTransaction$inboundSchema: z.ZodType<
     CardinalServerHandlerTransaction,
     z.ZodTypeDef,
     unknown
 > = z.object({
-    body: z.lazy(() => Body$inboundSchema).optional(),
+    body: z.record(z.any()).optional(),
     hash: z.string().optional(),
     namespace: z.string().optional(),
     nonce: z.number().int().optional(),
@@ -62,7 +35,7 @@ export const CardinalServerHandlerTransaction$inboundSchema: z.ZodType<
 
 /** @internal */
 export type CardinalServerHandlerTransaction$Outbound = {
-    body?: Body$Outbound | undefined;
+    body?: { [k: string]: any } | undefined;
     hash?: string | undefined;
     namespace?: string | undefined;
     nonce?: number | undefined;
@@ -76,7 +49,7 @@ export const CardinalServerHandlerTransaction$outboundSchema: z.ZodType<
     z.ZodTypeDef,
     CardinalServerHandlerTransaction
 > = z.object({
-    body: z.lazy(() => Body$outboundSchema).optional(),
+    body: z.record(z.any()).optional(),
     hash: z.string().optional(),
     namespace: z.string().optional(),
     nonce: z.number().int().optional(),

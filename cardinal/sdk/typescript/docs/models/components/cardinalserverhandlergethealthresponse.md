@@ -1,5 +1,12 @@
 # CardinalServerHandlerGetHealthResponse
 
+## Example Usage
+
+```typescript
+import { CardinalServerHandlerGetHealthResponse } from "cardinal/models/components";
+
+let value: CardinalServerHandlerGetHealthResponse = {};
+```
 
 ## Fields
 

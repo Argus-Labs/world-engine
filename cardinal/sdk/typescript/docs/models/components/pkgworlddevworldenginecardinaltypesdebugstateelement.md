@@ -1,5 +1,12 @@
 # PkgWorldDevWorldEngineCardinalTypesDebugStateElement
 
+## Example Usage
+
+```typescript
+import { PkgWorldDevWorldEngineCardinalTypesDebugStateElement } from "cardinal/models/components";
+
+let value: PkgWorldDevWorldEngineCardinalTypesDebugStateElement = {};
+```
 
 ## Fields
 

@@ -20,19 +20,48 @@ data.paths['/events'].get['x-speakeasy-ignore'] = true
 data.paths['/query/{queryGroup}/{queryName}'].post['x-speakeasy-ignore'] = true
 data.paths['/tx/{txGroup}/{txName}'].post['x-speakeasy-ignore'] = true
 
+const privateKeyParam = {
+  name: '_privateKey',
+  in: 'query',
+  schema: {
+    type: 'string'
+  },
+}
+
+const namespaceParam = {
+  name: '_namespace',
+  in: 'query',
+  schema: {
+    type: 'string'
+  },
+}
+
 // sdk global params
 data['x-speakeasy-globals'] = {
   parameters: [
     {
-      name: 'privateKey',
-      in: 'query',
-      schema: {
-        type: 'string'
-      },
+      ...privateKeyParam,
+      'x-speakeasy-globals-hidden': true
+    },
+    {
+      ...namespaceParam,
       'x-speakeasy-globals-hidden': true
     }
   ]
 }
+
+// routes that require signing
+data.paths['/tx/game/{txName}'].post.parameters.push(privateKeyParam)
+data.paths['/tx/game/{txName}'].post.parameters.push(namespaceParam)
+
+// create-persona has no parameters so we need to set the initial empty array
+data.paths['/tx/persona/create-persona'].post.parameters = []
+data.paths['/tx/persona/create-persona'].post.parameters.push(privateKeyParam)
+data.paths['/tx/persona/create-persona'].post.parameters.push(namespaceParam)
+
+// use `additionalProperties` instead of `properties` for open maps in transaction request body
+delete data.components.schemas['cardinal_server_handler.Transaction'].properties.body.properties
+data.components.schemas['cardinal_server_handler.Transaction'].properties.body.additionalProperties = {}
 
 try {
   fs.writeFileSync(openapiPath, JSON.stringify(data, null, 2))

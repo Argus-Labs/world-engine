@@ -1,5 +1,12 @@
 # CardinalServerHandlerPostTransactionResponse
 
+## Example Usage
+
+```typescript
+import { CardinalServerHandlerPostTransactionResponse } from "cardinal/models/components";
+
+let value: CardinalServerHandlerPostTransactionResponse = {};
+```
 
 ## Fields
 

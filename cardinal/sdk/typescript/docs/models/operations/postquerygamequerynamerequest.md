@@ -1,5 +1,15 @@
 # PostQueryGameQueryNameRequest
 
+## Example Usage
+
+```typescript
+import { PostQueryGameQueryNameRequest } from "cardinal/models/operations";
+
+let value: PostQueryGameQueryNameRequest = {
+    queryName: "<value>",
+    requestBody: {},
+};
+```
 
 ## Fields
 

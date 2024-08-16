@@ -4,6 +4,7 @@
 
 import { output, ZodEffects, ZodError, ZodObject, ZodRawShape, ZodTypeAny } from "zod";
 import { SDKValidationError } from "../models/errors/sdkvalidationerror.js";
+import { ERR, OK, Result } from "../types/fp.js";
 
 /**
  * Utility function that executes some code which may throw a ZodError. It
@@ -18,6 +19,23 @@ export function parse<Inp, Out>(rawValue: Inp, fn: (value: Inp) => Out, errorMes
             throw new SDKValidationError(errorMessage, err, rawValue);
         }
         throw err;
+    }
+}
+
+/**
+ * Utility function that executes some code which may result in a ZodError. It
+ * intercepts this error and converts it to an SDKValidationError so as to not
+ * leak Zod implementation details to user code.
+ */
+export function safeParse<Inp, Out>(
+    rawValue: Inp,
+    fn: (value: Inp) => Out,
+    errorMessage: string
+): Result<Out, SDKValidationError> {
+    try {
+        return OK(fn(rawValue));
+    } catch (err) {
+        return ERR(new SDKValidationError(errorMessage, err, rawValue));
     }
 }
 

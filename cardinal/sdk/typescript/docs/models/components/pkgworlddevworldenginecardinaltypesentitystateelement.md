@@ -1,5 +1,12 @@
 # PkgWorldDevWorldEngineCardinalTypesEntityStateElement
 
+## Example Usage
+
+```typescript
+import { PkgWorldDevWorldEngineCardinalTypesEntityStateElement } from "cardinal/models/components";
+
+let value: PkgWorldDevWorldEngineCardinalTypesEntityStateElement = {};
+```
 
 ## Fields
 

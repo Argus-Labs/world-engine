@@ -1,5 +1,12 @@
 # CardinalServerHandlerCQLQueryRequest
 
+## Example Usage
+
+```typescript
+import { CardinalServerHandlerCQLQueryRequest } from "cardinal/models/components";
+
+let value: CardinalServerHandlerCQLQueryRequest = {};
+```
 
 ## Fields
 

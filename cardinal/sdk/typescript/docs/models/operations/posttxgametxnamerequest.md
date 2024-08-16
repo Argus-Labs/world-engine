@@ -1,5 +1,15 @@
 # PostTxGameTxNameRequest
 
+## Example Usage
+
+```typescript
+import { PostTxGameTxNameRequest } from "cardinal/models/operations";
+
+let value: PostTxGameTxNameRequest = {
+    txName: "<value>",
+    cardinalServerHandlerTransaction: {},
+};
+```
 
 ## Fields
 

@@ -1,5 +1,12 @@
 # CardinalServerHandlerGetWorldResponse
 
+## Example Usage
+
+```typescript
+import { CardinalServerHandlerGetWorldResponse } from "cardinal/models/components";
+
+let value: CardinalServerHandlerGetWorldResponse = {};
+```
 
 ## Fields
 
