@@ -3,6 +3,7 @@ package cardinal
 import (
 	"math/rand"
 	"reflect"
+	"time"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -22,30 +23,37 @@ var _ WorldContext = (*worldContext)(nil)
 //go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
 type WorldContext interface {
 	// Timestamp returns the UNIX timestamp of the tick in milliseconds.
-	// We are using millisecond because subsecond ticks are possible and we want to ensure we have that level
-	// of precision.
+	// Millisecond is used to provide precision when working with subsecond tick intervals.
 	Timestamp() uint64
+
 	// CurrentTick returns the current tick.
 	CurrentTick() uint64
+
 	// Logger returns the logger that can be used to log messages from within system or query.
 	Logger() *zerolog.Logger
+
 	// EmitEvent emits an event that will be broadcast to all websocket subscribers.
 	EmitEvent(map[string]any) error
+
 	// EmitStringEvent emits a string event that will be broadcast to all websocket subscribers.
 	// This method is provided for backwards compatability. EmitEvent should be used for most cases.
 	EmitStringEvent(string) error
+
 	// Namespace returns the namespace of the world.
 	Namespace() string
+
 	// Rand returns a random number generator that is seeded specifically for a current tick.
 	Rand() *rand.Rand
-	// DelayTask executes a task `Tick` ticks away from the current tick.
-	DelayTask(Task, uint64) error
-	// CallTaskAt schedules a task to be executed at a specified timestamp.
-	CallTaskAt(Task, uint64) error
 
-	// For internal use.
+	// ScheduleTickTask schedules a task to be executed after the specified tickDelay.
+	// The given Task must have been registered using RegisterTask.
+	ScheduleTickTask(uint64, Task) error
 
-	// SetLogger is used to inject a new logger configuration to an engine context that is already created.
+	// ScheduleTimeTask schedules a task to be executed after the specified duration (in wall clock time).
+	// The given Task must have been registered using RegisterTask.
+	ScheduleTimeTask(time.Duration, Task) error
+
+	// Private methods for internal use.
 	setLogger(logger zerolog.Logger)
 	addMessageError(id types.TxHash, err error)
 	setMessageResult(id types.TxHash, a any)
@@ -102,33 +110,32 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 	}
 }
 
-// DelayTask schedules a task to be executed after a specified delay in ticks.
-// It takes a Task interface representing the task to be executed and a delay value
-// indicating the number of ticks to wait before executing the task.
-//
-// Note: The task should implement the Task interface, which requires the Handle
-// method to execute the task in the specified WorldContext. The Task interface also
-// extends the types.Component interface, which provides the Name method to get the
-// name of the task.
-//
-// Example usage:
-//
-//	err := ctx.DelayTask(task, delay)
-//	if err != nil {
-//	  // handle error
-//	}
-func (ctx *worldContext) DelayTask(task Task, delay uint64) error {
-	return delayTaskByTicks(ctx, task, delay)
+// -----------------------------------------------------------------------------
+// Public methods
+// -----------------------------------------------------------------------------
+
+func (ctx *worldContext) ScheduleTickTask(tickDelay uint64, task Task) error {
+	triggerAtTick := ctx.CurrentTick() + tickDelay
+	return createTickTask(ctx, triggerAtTick, task)
 }
 
-// CallTaskAt executes a task at a specified timestamp in the given WorldContext.
-// It calls the executeTaskAtTime function with the provided task and timestamp arguments.
-// If an error occurs during the execution of the task, it is returned.
-func (ctx *worldContext) CallTaskAt(task Task, timestamp uint64) error {
-	return executeTaskAtTime(ctx, task, timestamp)
+func (ctx *worldContext) ScheduleTimeTask(duration time.Duration, task Task) error {
+	if duration.Milliseconds() < 0 {
+		return eris.New("duration value must be positive")
+	}
+
+	triggerAtTimestamp := ctx.Timestamp() + uint64(duration.Milliseconds())
+	return createTimestampTask(ctx, triggerAtTimestamp, task)
 }
 
-// Timestamp returns the UNIX timestamp of the tick.
+func (ctx *worldContext) EmitEvent(event map[string]any) error {
+	return ctx.world.tickResults.AddEvent(event)
+}
+
+func (ctx *worldContext) EmitStringEvent(e string) error {
+	return ctx.world.tickResults.AddStringEvent(e)
+}
+
 func (ctx *worldContext) Timestamp() uint64 {
 	return ctx.world.timestamp.Load()
 }
@@ -149,6 +156,14 @@ func (ctx *worldContext) Rand() *rand.Rand {
 	}
 	return ctx.rand
 }
+
+func (ctx *worldContext) Namespace() string {
+	return ctx.world.Namespace()
+}
+
+// -----------------------------------------------------------------------------
+// Private methods
+// -----------------------------------------------------------------------------
 
 func (ctx *worldContext) getMessageByType(mType reflect.Type) (types.Message, bool) {
 	return ctx.world.GetMessageByType(mType)
@@ -180,14 +195,6 @@ func (ctx *worldContext) getTransactionReceipt(id types.TxHash) (any, []error, b
 	return rec.Result, rec.Errs, true
 }
 
-func (ctx *worldContext) EmitEvent(event map[string]any) error {
-	return ctx.world.tickResults.AddEvent(event)
-}
-
-func (ctx *worldContext) EmitStringEvent(e string) error {
-	return ctx.world.tickResults.AddStringEvent(e)
-}
-
 func (ctx *worldContext) getSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	return ctx.world.GetSignerForPersonaTag(personaTag, tick)
 }
@@ -198,10 +205,6 @@ func (ctx *worldContext) getTransactionReceiptsForTick(tick uint64) ([]receipt.R
 
 func (ctx *worldContext) receiptHistorySize() uint64 {
 	return ctx.world.receiptHistory.Size()
-}
-
-func (ctx *worldContext) Namespace() string {
-	return ctx.world.Namespace()
 }
 
 func (ctx *worldContext) addTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {

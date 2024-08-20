@@ -41,6 +41,7 @@ type SystemManager interface {
 	// These methods are intentionally made private to avoid other
 	// packages from trying to modify the system manager in the middle of a tick.
 	registerSystems(isInit bool, systems ...System) error
+	registerSystem(isInit bool, systemName string, systemFunc System) error
 	runSystems(ctx context.Context, wCtx WorldContext) error
 }
 
@@ -72,7 +73,7 @@ func newSystemManager() SystemManager {
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
 func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) error {
 	// We create a list of systemType structs to register, and then register them in one go to ensure all or nothing.
-	systemToRegister := make([]systemType, 0, len(systemFuncs))
+	systemsToRegister := make([]systemType, 0, len(systemFuncs))
 
 	// Iterate throughs systemFuncs,
 	// 1) Ensure that there is no duplicate system
@@ -83,7 +84,7 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) erro
 
 		// Check for duplicate system names within the list of systems to be registered
 		if slices.ContainsFunc(
-			systemToRegister,
+			systemsToRegister,
 			func(s systemType) bool { return s.Name == systemName },
 		) {
 			return eris.Errorf("duplicate system %q in slice", systemName)
@@ -98,13 +99,37 @@ func (m *systemManager) registerSystems(isInit bool, systemFuncs ...System) erro
 			return eris.Errorf("System %q is already registered", systemName)
 		}
 
-		systemToRegister = append(systemToRegister, systemType{Name: systemName, Fn: systemFunc})
+		systemsToRegister = append(systemsToRegister, systemType{Name: systemName, Fn: systemFunc})
 	}
 
+	// We only register if the system if we know for sure all of them is not already registsred.
+	for _, sys := range systemsToRegister {
+		if err := m.registerSystem(isInit, sys.Name, sys.Fn); err != nil {
+			return eris.Wrap(err, "failed to register system")
+		}
+	}
+
+	return nil
+}
+
+// registerSystem is an internal function that allows us to register a system with a custom system name.
+func (m *systemManager) registerSystem(isInit bool, systemName string, systemFunc System) error {
+	// TODO: there is duplication in check in registerSystems and this function.
+	//  We should refactor this, but we are doing it this way to err on the side of safety.
+
+	// Checks if the system is already previously registered.
+	if slices.ContainsFunc(
+		slices.Concat(m.registeredSystems, m.registeredInitSystems),
+		func(s systemType) bool { return s.Name == systemName },
+	) {
+		return eris.Errorf("System %q is already registered", systemName)
+	}
+
+	systemToRegister := systemType{Name: systemName, Fn: systemFunc}
 	if isInit {
-		m.registeredInitSystems = append(m.registeredInitSystems, systemToRegister...)
+		m.registeredInitSystems = append(m.registeredInitSystems, systemToRegister)
 	} else {
-		m.registeredSystems = append(m.registeredSystems, systemToRegister...)
+		m.registeredSystems = append(m.registeredSystems, systemToRegister)
 	}
 
 	return nil
