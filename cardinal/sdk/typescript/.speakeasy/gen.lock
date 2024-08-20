@@ -1,12 +1,12 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: 81b26468f49eafc276cb96197b25c05f
+  docChecksum: bfbc077c2d29c10a4407fc98ddeac219
   docVersion: 0.0.1
   speakeasyVersion: 1.376.0
   generationVersion: 2.402.5
-  releaseVersion: 0.9.4
-  configChecksum: 04fc193ccb0f7460cfe5c367d2c687a8
+  releaseVersion: 0.9.5
+  configChecksum: c5d247a0da8abab6baab1d3823903287
 features:
   typescript:
     additionalDependencies: 0.1.0
@@ -87,7 +87,6 @@ generatedFiles:
   - docs/models/components/cardinalserverhandlercqlqueryresponse.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesentitystateelement.md
   - docs/models/components/cardinalserverhandlercqlqueryrequest.md
-  - docs/models/components/components.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesdebugstateelement.md
   - docs/models/components/cardinalserverhandlergethealthresponse.md
   - docs/models/components/cardinalserverhandlerlisttxreceiptsresponse.md

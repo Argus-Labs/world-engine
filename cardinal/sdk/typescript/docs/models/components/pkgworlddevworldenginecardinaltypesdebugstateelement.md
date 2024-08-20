@@ -10,7 +10,7 @@ let value: PkgWorldDevWorldEngineCardinalTypesDebugStateElement = {};
 
 ## Fields
 
-| Field                                                          | Type                                                           | Required                                                       | Description                                                    |
-| -------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------- |
-| `components`                                                   | [components.Components](../../models/components/components.md) | :heavy_minus_sign:                                             | N/A                                                            |
-| `id`                                                           | *number*                                                       | :heavy_minus_sign:                                             | N/A                                                            |
+| Field                 | Type                  | Required              | Description           |
+| --------------------- | --------------------- | --------------------- | --------------------- |
+| `components`          | Record<string, *any*> | :heavy_minus_sign:    | N/A                   |
+| `id`                  | *number*              | :heavy_minus_sign:    | N/A                   |

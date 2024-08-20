@@ -4,35 +4,10 @@
 
 import * as z from "zod";
 
-export type Components = {};
-
 export type PkgWorldDevWorldEngineCardinalTypesDebugStateElement = {
-    components?: Components | undefined;
+    components?: { [k: string]: any } | undefined;
     id?: number | undefined;
 };
-
-/** @internal */
-export const Components$inboundSchema: z.ZodType<Components, z.ZodTypeDef, unknown> = z.object({});
-
-/** @internal */
-export type Components$Outbound = {};
-
-/** @internal */
-export const Components$outboundSchema: z.ZodType<Components$Outbound, z.ZodTypeDef, Components> =
-    z.object({});
-
-/**
- * @internal
- * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
- */
-export namespace Components$ {
-    /** @deprecated use `Components$inboundSchema` instead. */
-    export const inboundSchema = Components$inboundSchema;
-    /** @deprecated use `Components$outboundSchema` instead. */
-    export const outboundSchema = Components$outboundSchema;
-    /** @deprecated use `Components$Outbound` instead. */
-    export type Outbound = Components$Outbound;
-}
 
 /** @internal */
 export const PkgWorldDevWorldEngineCardinalTypesDebugStateElement$inboundSchema: z.ZodType<
@@ -40,13 +15,13 @@ export const PkgWorldDevWorldEngineCardinalTypesDebugStateElement$inboundSchema:
     z.ZodTypeDef,
     unknown
 > = z.object({
-    components: z.lazy(() => Components$inboundSchema).optional(),
+    components: z.record(z.any()).optional(),
     id: z.number().int().optional(),
 });
 
 /** @internal */
 export type PkgWorldDevWorldEngineCardinalTypesDebugStateElement$Outbound = {
-    components?: Components$Outbound | undefined;
+    components?: { [k: string]: any } | undefined;
     id?: number | undefined;
 };
 
@@ -56,7 +31,7 @@ export const PkgWorldDevWorldEngineCardinalTypesDebugStateElement$outboundSchema
     z.ZodTypeDef,
     PkgWorldDevWorldEngineCardinalTypesDebugStateElement
 > = z.object({
-    components: z.lazy(() => Components$outboundSchema).optional(),
+    components: z.record(z.any()).optional(),
     id: z.number().int().optional(),
 });
 

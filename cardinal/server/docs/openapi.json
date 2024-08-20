@@ -641,7 +641,7 @@
         "properties": {
           "components": {
             "type": "object",
-            "properties": {}
+            "additionalProperties": {}
           },
           "id": {
             "type": "integer"
