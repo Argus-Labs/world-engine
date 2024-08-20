@@ -62,7 +62,7 @@ export class Cardinal extends ClientSDK {
     async query(
         request: operations.PostQueryGameQueryNameRequest,
         options?: RequestOptions
-    ): Promise<operations.PostQueryGameQueryNameResponseBody> {
+    ): Promise<{ [k: string]: any }> {
         return unwrapAsync(query(this, request, options));
     }
 

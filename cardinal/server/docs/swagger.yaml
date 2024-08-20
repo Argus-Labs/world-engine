@@ -99,7 +99,9 @@ definitions:
   pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
     properties:
       data:
-        type: object
+        items:
+          type: object
+        type: array
       id:
         type: integer
     type: object

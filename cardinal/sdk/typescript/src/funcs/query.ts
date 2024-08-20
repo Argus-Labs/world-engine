@@ -19,6 +19,7 @@ import { SDKError } from "../models/errors/sdkerror.js";
 import { SDKValidationError } from "../models/errors/sdkvalidationerror.js";
 import * as operations from "../models/operations/index.js";
 import { Result } from "../types/fp.js";
+import * as z from "zod";
 
 /**
  * Executes a query
@@ -32,7 +33,7 @@ export async function query(
     options?: RequestOptions
 ): Promise<
     Result<
-        operations.PostQueryGameQueryNameResponseBody,
+        { [k: string]: any },
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -103,7 +104,7 @@ export async function query(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        operations.PostQueryGameQueryNameResponseBody,
+        { [k: string]: any },
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -112,7 +113,7 @@ export async function query(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, operations.PostQueryGameQueryNameResponseBody$inboundSchema),
+        m$.json(200, z.record(z.any())),
         m$.fail([400, "4XX", "5XX"])
     )(response);
     if (!result$.ok) {

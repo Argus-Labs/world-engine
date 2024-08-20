@@ -549,7 +549,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {
-                    "type": "object"
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
                 },
                 "id": {
                     "type": "integer"

@@ -6,7 +6,7 @@ type EntityID uint64
 
 type EntityStateElement struct {
 	ID   EntityID          `json:"id"`
-	Data []json.RawMessage `json:"data" swaggertype:"object"`
+	Data []json.RawMessage `json:"data" swaggertype:"array,object"`
 }
 
 type DebugStateElement struct {

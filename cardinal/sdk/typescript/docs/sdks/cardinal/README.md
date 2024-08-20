@@ -235,7 +235,9 @@ const cardinal = new Cardinal();
 async function run() {
   const result = await cardinal.query({
     queryName: "<value>",
-    requestBody: {},
+    requestBody: {
+      "key": "<value>",
+    },
   });
 
   // Handle the result
@@ -261,7 +263,9 @@ const cardinal = new CardinalCore();
 async function run() {
   const res = await query(cardinal, {
     queryName: "<value>",
-    requestBody: {},
+    requestBody: {
+      "key": "<value>",
+    },
   });
 
   if (!res.ok) {
@@ -289,7 +293,7 @@ run();
 
 ### Response
 
-**Promise\<[operations.PostQueryGameQueryNameResponseBody](../../models/operations/postquerygamequerynameresponsebody.md)\>**
+**Promise\<[{ [k: string]: any }](../../models/.md)\>**
 ### Errors
 
 | Error Object    | Status Code     | Content Type    |

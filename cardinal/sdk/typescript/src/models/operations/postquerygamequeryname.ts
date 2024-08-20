@@ -5,11 +5,6 @@
 import { remap as remap$ } from "../../lib/primitives.js";
 import * as z from "zod";
 
-/**
- * Query to be executed
- */
-export type PostQueryGameQueryNameRequestBody = {};
-
 export type PostQueryGameQueryNameRequest = {
     /**
      * Name of a registered query
@@ -18,43 +13,8 @@ export type PostQueryGameQueryNameRequest = {
     /**
      * Query to be executed
      */
-    requestBody: PostQueryGameQueryNameRequestBody;
+    requestBody: { [k: string]: any };
 };
-
-/**
- * Results of the executed query
- */
-export type PostQueryGameQueryNameResponseBody = {};
-
-/** @internal */
-export const PostQueryGameQueryNameRequestBody$inboundSchema: z.ZodType<
-    PostQueryGameQueryNameRequestBody,
-    z.ZodTypeDef,
-    unknown
-> = z.object({});
-
-/** @internal */
-export type PostQueryGameQueryNameRequestBody$Outbound = {};
-
-/** @internal */
-export const PostQueryGameQueryNameRequestBody$outboundSchema: z.ZodType<
-    PostQueryGameQueryNameRequestBody$Outbound,
-    z.ZodTypeDef,
-    PostQueryGameQueryNameRequestBody
-> = z.object({});
-
-/**
- * @internal
- * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
- */
-export namespace PostQueryGameQueryNameRequestBody$ {
-    /** @deprecated use `PostQueryGameQueryNameRequestBody$inboundSchema` instead. */
-    export const inboundSchema = PostQueryGameQueryNameRequestBody$inboundSchema;
-    /** @deprecated use `PostQueryGameQueryNameRequestBody$outboundSchema` instead. */
-    export const outboundSchema = PostQueryGameQueryNameRequestBody$outboundSchema;
-    /** @deprecated use `PostQueryGameQueryNameRequestBody$Outbound` instead. */
-    export type Outbound = PostQueryGameQueryNameRequestBody$Outbound;
-}
 
 /** @internal */
 export const PostQueryGameQueryNameRequest$inboundSchema: z.ZodType<
@@ -64,7 +24,7 @@ export const PostQueryGameQueryNameRequest$inboundSchema: z.ZodType<
 > = z
     .object({
         queryName: z.string(),
-        RequestBody: z.lazy(() => PostQueryGameQueryNameRequestBody$inboundSchema),
+        RequestBody: z.record(z.any()),
     })
     .transform((v) => {
         return remap$(v, {
@@ -75,7 +35,7 @@ export const PostQueryGameQueryNameRequest$inboundSchema: z.ZodType<
 /** @internal */
 export type PostQueryGameQueryNameRequest$Outbound = {
     queryName: string;
-    RequestBody: PostQueryGameQueryNameRequestBody$Outbound;
+    RequestBody: { [k: string]: any };
 };
 
 /** @internal */
@@ -86,7 +46,7 @@ export const PostQueryGameQueryNameRequest$outboundSchema: z.ZodType<
 > = z
     .object({
         queryName: z.string(),
-        requestBody: z.lazy(() => PostQueryGameQueryNameRequestBody$outboundSchema),
+        requestBody: z.record(z.any()),
     })
     .transform((v) => {
         return remap$(v, {
@@ -105,34 +65,4 @@ export namespace PostQueryGameQueryNameRequest$ {
     export const outboundSchema = PostQueryGameQueryNameRequest$outboundSchema;
     /** @deprecated use `PostQueryGameQueryNameRequest$Outbound` instead. */
     export type Outbound = PostQueryGameQueryNameRequest$Outbound;
-}
-
-/** @internal */
-export const PostQueryGameQueryNameResponseBody$inboundSchema: z.ZodType<
-    PostQueryGameQueryNameResponseBody,
-    z.ZodTypeDef,
-    unknown
-> = z.object({});
-
-/** @internal */
-export type PostQueryGameQueryNameResponseBody$Outbound = {};
-
-/** @internal */
-export const PostQueryGameQueryNameResponseBody$outboundSchema: z.ZodType<
-    PostQueryGameQueryNameResponseBody$Outbound,
-    z.ZodTypeDef,
-    PostQueryGameQueryNameResponseBody
-> = z.object({});
-
-/**
- * @internal
- * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
- */
-export namespace PostQueryGameQueryNameResponseBody$ {
-    /** @deprecated use `PostQueryGameQueryNameResponseBody$inboundSchema` instead. */
-    export const inboundSchema = PostQueryGameQueryNameResponseBody$inboundSchema;
-    /** @deprecated use `PostQueryGameQueryNameResponseBody$outboundSchema` instead. */
-    export const outboundSchema = PostQueryGameQueryNameResponseBody$outboundSchema;
-    /** @deprecated use `PostQueryGameQueryNameResponseBody$Outbound` instead. */
-    export type Outbound = PostQueryGameQueryNameResponseBody$Outbound;
 }

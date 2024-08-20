@@ -1,16 +1,16 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: c21a5ab6f48f4d352f9d4e0c15774eb2
+  docChecksum: 81b26468f49eafc276cb96197b25c05f
   docVersion: 0.0.1
-  speakeasyVersion: 1.369.0
-  generationVersion: 2.399.0
-  releaseVersion: 0.8.57
-  configChecksum: fd1eda0d4a220de889417bb09be99563
+  speakeasyVersion: 1.376.0
+  generationVersion: 2.402.5
+  releaseVersion: 0.9.4
+  configChecksum: 04fc193ccb0f7460cfe5c367d2c687a8
 features:
   typescript:
     additionalDependencies: 0.1.0
-    core: 3.13.2
+    core: 3.14.1
     defaultEnabledRetries: 0.1.0
     envVarSecurityUsage: 0.1.1
     globalSecurityCallbacks: 0.1.0
@@ -85,7 +85,6 @@ generatedFiles:
   - src/models/components/index.ts
   - src/models/operations/index.ts
   - docs/models/components/cardinalserverhandlercqlqueryresponse.md
-  - docs/models/components/data.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesentitystateelement.md
   - docs/models/components/cardinalserverhandlercqlqueryrequest.md
   - docs/models/components/components.md
@@ -100,9 +99,7 @@ generatedFiles:
   - docs/models/components/cardinalserverhandlergetworldresponse.md
   - docs/models/components/fields.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesfielddetail.md
-  - docs/models/operations/postquerygamequerynamerequestbody.md
   - docs/models/operations/postquerygamequerynamerequest.md
-  - docs/models/operations/postquerygamequerynameresponsebody.md
   - docs/models/operations/posttxgametxnameglobals.md
   - docs/models/operations/posttxgametxnamerequest.md
   - docs/models/operations/posttxpersonacreatepersonaglobals.md

@@ -4,34 +4,10 @@
 
 import * as z from "zod";
 
-export type Data = {};
-
 export type PkgWorldDevWorldEngineCardinalTypesEntityStateElement = {
-    data?: Data | undefined;
+    data?: Array<{ [k: string]: any }> | undefined;
     id?: number | undefined;
 };
-
-/** @internal */
-export const Data$inboundSchema: z.ZodType<Data, z.ZodTypeDef, unknown> = z.object({});
-
-/** @internal */
-export type Data$Outbound = {};
-
-/** @internal */
-export const Data$outboundSchema: z.ZodType<Data$Outbound, z.ZodTypeDef, Data> = z.object({});
-
-/**
- * @internal
- * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
- */
-export namespace Data$ {
-    /** @deprecated use `Data$inboundSchema` instead. */
-    export const inboundSchema = Data$inboundSchema;
-    /** @deprecated use `Data$outboundSchema` instead. */
-    export const outboundSchema = Data$outboundSchema;
-    /** @deprecated use `Data$Outbound` instead. */
-    export type Outbound = Data$Outbound;
-}
 
 /** @internal */
 export const PkgWorldDevWorldEngineCardinalTypesEntityStateElement$inboundSchema: z.ZodType<
@@ -39,13 +15,13 @@ export const PkgWorldDevWorldEngineCardinalTypesEntityStateElement$inboundSchema
     z.ZodTypeDef,
     unknown
 > = z.object({
-    data: z.lazy(() => Data$inboundSchema).optional(),
+    data: z.array(z.record(z.any())).optional(),
     id: z.number().int().optional(),
 });
 
 /** @internal */
 export type PkgWorldDevWorldEngineCardinalTypesEntityStateElement$Outbound = {
-    data?: Data$Outbound | undefined;
+    data?: Array<{ [k: string]: any }> | undefined;
     id?: number | undefined;
 };
 
@@ -55,7 +31,7 @@ export const PkgWorldDevWorldEngineCardinalTypesEntityStateElement$outboundSchem
     z.ZodTypeDef,
     PkgWorldDevWorldEngineCardinalTypesEntityStateElement
 > = z.object({
-    data: z.lazy(() => Data$outboundSchema).optional(),
+    data: z.array(z.record(z.any())).optional(),
     id: z.number().int().optional(),
 });
 

@@ -2,7 +2,7 @@
 
 {
   "name": "cardinal",
-  "version": "0.8.57",
+  "version": "0.9.4",
   "exports": {
     ".": "./src/index.ts",    
     "./models/errors": "./src/models/errors/index.ts",    

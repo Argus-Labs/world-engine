@@ -135,7 +135,8 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": {}
               }
             }
           },
@@ -147,7 +148,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": {}
                 }
               }
             }
@@ -650,8 +652,11 @@
         "type": "object",
         "properties": {
           "data": {
-            "type": "object",
-            "properties": {}
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
           },
           "id": {
             "type": "integer"

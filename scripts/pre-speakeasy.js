@@ -1,11 +1,18 @@
 const fs = require('fs')
 
-const openapiPath = process.argv[2]
+/// ---------------------------------------------------------------------------
+/// Initial setup
+/// ---------------------------------------------------------------------------
 
+const openapiPath = process.argv[2]
 const file = fs.readFileSync(openapiPath)
 const data = JSON.parse(file)
 
-// Rename methods
+
+/// ---------------------------------------------------------------------------
+/// Rename SDK methods/functions
+/// ---------------------------------------------------------------------------
+
 data.paths['/cql'].post['x-speakeasy-name-override'] = 'queryCql'
 data.paths['/debug/state'].post['x-speakeasy-name-override'] = 'getDebugState'
 data.paths['/health'].get['x-speakeasy-name-override'] = 'getHealth'
@@ -15,11 +22,29 @@ data.paths['/tx/game/{txName}'].post['x-speakeasy-name-override'] = 'transact'
 data.paths['/tx/persona/create-persona'].post['x-speakeasy-name-override'] = 'createPersona'
 data.paths['/world'].get['x-speakeasy-name-override'] = 'getWorld'
 
-// hide methods
+
+/// ---------------------------------------------------------------------------
+/// Hide endpoints from SDK generation
+/// ---------------------------------------------------------------------------
+
+// Speakeasy doesn't do websockets
 data.paths['/events'].get['x-speakeasy-ignore'] = true
+// These are for use in cardinal internals
 data.paths['/query/{queryGroup}/{queryName}'].post['x-speakeasy-ignore'] = true
 data.paths['/tx/{txGroup}/{txName}'].post['x-speakeasy-ignore'] = true
 
+
+/// ---------------------------------------------------------------------------
+/// SDK global parameters
+///
+/// Speakeasy doesn't support additional SDK init options that can be used in hooks,
+/// so the workaround here is to set these as query parameters that can be set
+/// globally when initializing the SDK. The custom hooks can then get these
+/// options from the request url. A downside of this is that only primitive types
+/// are supported as global params.
+/// ---------------------------------------------------------------------------
+
+// Private key used to sign transactions (messages)
 const privateKeyParam = {
   name: '_privateKey',
   in: 'query',
@@ -27,7 +52,7 @@ const privateKeyParam = {
     type: 'string'
   },
 }
-
+// Cardinal namespace
 const namespaceParam = {
   name: '_namespace',
   in: 'query',
@@ -36,7 +61,7 @@ const namespaceParam = {
   },
 }
 
-// sdk global params
+// Use x-speakeasy-globals-hidden to hide the params from method/function signatures
 data['x-speakeasy-globals'] = {
   parameters: [
     {
@@ -50,7 +75,6 @@ data['x-speakeasy-globals'] = {
   ]
 }
 
-// routes that require signing
 data.paths['/tx/game/{txName}'].post.parameters.push(privateKeyParam)
 data.paths['/tx/game/{txName}'].post.parameters.push(namespaceParam)
 
@@ -59,9 +83,36 @@ data.paths['/tx/persona/create-persona'].post.parameters = []
 data.paths['/tx/persona/create-persona'].post.parameters.push(privateKeyParam)
 data.paths['/tx/persona/create-persona'].post.parameters.push(namespaceParam)
 
-// use `additionalProperties` instead of `properties` for open maps in transaction request body
+
+/// ---------------------------------------------------------------------------
+/// Fix object types in SDK generation
+///
+/// Swagger doesn't support `additionalProperties` for object types. This is needed
+/// for open maps, i.e. objects/hashmaps/dictionaries with dynamic keys. We must
+/// set this after the conversion to OpenAPI 3 by swagger-codegen. The reason for this
+/// is that without the `additionalProperties` key, Speakeasy will set the type of
+/// the schema to `type Typename = {}`, which when coerced by zod will always result
+/// in an empty object. With `additionalProperties`, the type generated will be
+/// `type Typename = { [k: string]: any }`, which is what we want.
+/// ---------------------------------------------------------------------------
+
+// POST /cql
+// cql response data is an array of open maps
+delete data.components.schemas['pkg_world_dev_world-engine_cardinal_types.EntityStateElement'].properties.data.items.properties
+data.components.schemas['pkg_world_dev_world-engine_cardinal_types.EntityStateElement'].properties.data.items.additionalProperties = {}
+
+// Transaction component used by /tx/persona/create-persona and /tx/game/{txName}
 delete data.components.schemas['cardinal_server_handler.Transaction'].properties.body.properties
 data.components.schemas['cardinal_server_handler.Transaction'].properties.body.additionalProperties = {}
+
+// Request and response of /query/game/{queryName}
+data.paths['/query/game/{queryName}'].post.requestBody.content['application/json'].schema.additionalProperties = {}
+data.paths['/query/game/{queryName}'].post.responses['200'].content['application/json'].schema.additionalProperties = {}
+
+
+/// ---------------------------------------------------------------------------
+/// Apply changes
+/// ---------------------------------------------------------------------------
 
 try {
   fs.writeFileSync(openapiPath, JSON.stringify(data, null, 2))
