@@ -1,12 +1,12 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: da89e2e77785777b1978d881d516a4df
+  docChecksum: c59efc63a3471b9ba779ad372e0eb81a
   docVersion: 0.0.1
   speakeasyVersion: 1.376.0
   generationVersion: 2.402.5
-  releaseVersion: 0.10.1
-  configChecksum: 5f5ca0feab724ac955bf571129932c8e
+  releaseVersion: 0.10.2
+  configChecksum: fbee4070a2380f36f8dfcbabfcf817ec
 features:
   typescript:
     additionalDependencies: 0.1.0
@@ -97,7 +97,6 @@ generatedFiles:
   - docs/models/components/cardinalserverhandlerposttransactionresponse.md
   - docs/models/components/cardinalserverhandlertransaction.md
   - docs/models/components/cardinalserverhandlergetworldresponse.md
-  - docs/models/components/fields.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesfielddetail.md
   - docs/models/operations/postquerygamequerynamerequest.md
   - docs/models/operations/posttxgametxnameglobals.md

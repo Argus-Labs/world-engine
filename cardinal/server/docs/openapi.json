@@ -670,9 +670,7 @@
         "properties": {
           "fields": {
             "type": "object",
-            "additionalProperties": {
-              "type": "object"
-            },
+            "additionalProperties": {},
             "description": "variable name and type"
           },
           "name": {

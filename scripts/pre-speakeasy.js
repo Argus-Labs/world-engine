@@ -112,6 +112,8 @@ data.paths['/query/game/{queryName}'].post.responses['200'].content['application
 delete data.components.schemas['cardinal_server_handler.Transaction'].properties.body.properties
 data.components.schemas['cardinal_server_handler.Transaction'].properties.body.additionalProperties = {}
 
+// GET /world
+data.components.schemas['pkg_world_dev_world-engine_cardinal_types.FieldDetail'].properties.fields.additionalProperties = {}
 
 /// ---------------------------------------------------------------------------
 /// Apply changes

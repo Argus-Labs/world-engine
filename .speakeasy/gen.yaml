@@ -12,7 +12,7 @@ generation:
   auth:
     oAuth2ClientCredentialsEnabled: true
 typescript:
-  version: 0.10.1
+  version: 0.10.2
   additionalDependencies:
     dependencies:
       viem: ^2.19.1

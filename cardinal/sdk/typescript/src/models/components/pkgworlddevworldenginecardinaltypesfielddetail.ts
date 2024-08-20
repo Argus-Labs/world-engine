@@ -4,13 +4,11 @@
 
 import * as z from "zod";
 
-export type Fields = {};
-
 export type PkgWorldDevWorldEngineCardinalTypesFieldDetail = {
     /**
      * variable name and type
      */
-    fields?: { [k: string]: Fields } | undefined;
+    fields?: { [k: string]: any } | undefined;
     /**
      * name of the message or query
      */
@@ -19,41 +17,19 @@ export type PkgWorldDevWorldEngineCardinalTypesFieldDetail = {
 };
 
 /** @internal */
-export const Fields$inboundSchema: z.ZodType<Fields, z.ZodTypeDef, unknown> = z.object({});
-
-/** @internal */
-export type Fields$Outbound = {};
-
-/** @internal */
-export const Fields$outboundSchema: z.ZodType<Fields$Outbound, z.ZodTypeDef, Fields> = z.object({});
-
-/**
- * @internal
- * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
- */
-export namespace Fields$ {
-    /** @deprecated use `Fields$inboundSchema` instead. */
-    export const inboundSchema = Fields$inboundSchema;
-    /** @deprecated use `Fields$outboundSchema` instead. */
-    export const outboundSchema = Fields$outboundSchema;
-    /** @deprecated use `Fields$Outbound` instead. */
-    export type Outbound = Fields$Outbound;
-}
-
-/** @internal */
 export const PkgWorldDevWorldEngineCardinalTypesFieldDetail$inboundSchema: z.ZodType<
     PkgWorldDevWorldEngineCardinalTypesFieldDetail,
     z.ZodTypeDef,
     unknown
 > = z.object({
-    fields: z.record(z.lazy(() => Fields$inboundSchema)).optional(),
+    fields: z.record(z.any()).optional(),
     name: z.string().optional(),
     url: z.string().optional(),
 });
 
 /** @internal */
 export type PkgWorldDevWorldEngineCardinalTypesFieldDetail$Outbound = {
-    fields?: { [k: string]: Fields$Outbound } | undefined;
+    fields?: { [k: string]: any } | undefined;
     name?: string | undefined;
     url?: string | undefined;
 };
@@ -64,7 +40,7 @@ export const PkgWorldDevWorldEngineCardinalTypesFieldDetail$outboundSchema: z.Zo
     z.ZodTypeDef,
     PkgWorldDevWorldEngineCardinalTypesFieldDetail
 > = z.object({
-    fields: z.record(z.lazy(() => Fields$outboundSchema)).optional(),
+    fields: z.record(z.any()).optional(),
     name: z.string().optional(),
     url: z.string().optional(),
 });
