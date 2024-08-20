@@ -22,8 +22,8 @@ var (
 
 // PostTransactionResponse is the HTTP response for a successful transaction submission
 type PostTransactionResponse struct {
-	TxHash string
-	Tick   uint64
+  TxHash string `json:"txHash"`
+  Tick   uint64 `json:"tick"`
 }
 
 type Transaction = sign.Transaction

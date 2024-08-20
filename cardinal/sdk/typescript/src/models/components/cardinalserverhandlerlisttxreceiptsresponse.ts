@@ -12,7 +12,7 @@ import * as z from "zod";
 
 export type CardinalServerHandlerListTxReceiptsResponse = {
     endTick?: number | undefined;
-    receipts?: Array<CardinalServerHandlerReceiptEntry> | undefined;
+    receipts?: Array<CardinalServerHandlerReceiptEntry> | null | undefined;
     startTick?: number | undefined;
 };
 
@@ -23,14 +23,14 @@ export const CardinalServerHandlerListTxReceiptsResponse$inboundSchema: z.ZodTyp
     unknown
 > = z.object({
     endTick: z.number().int().optional(),
-    receipts: z.array(CardinalServerHandlerReceiptEntry$inboundSchema).optional(),
+    receipts: z.nullable(z.array(CardinalServerHandlerReceiptEntry$inboundSchema)).optional(),
     startTick: z.number().int().optional(),
 });
 
 /** @internal */
 export type CardinalServerHandlerListTxReceiptsResponse$Outbound = {
     endTick?: number | undefined;
-    receipts?: Array<CardinalServerHandlerReceiptEntry$Outbound> | undefined;
+    receipts?: Array<CardinalServerHandlerReceiptEntry$Outbound> | null | undefined;
     startTick?: number | undefined;
 };
 
@@ -41,7 +41,7 @@ export const CardinalServerHandlerListTxReceiptsResponse$outboundSchema: z.ZodTy
     CardinalServerHandlerListTxReceiptsResponse
 > = z.object({
     endTick: z.number().int().optional(),
-    receipts: z.array(CardinalServerHandlerReceiptEntry$outboundSchema).optional(),
+    receipts: z.nullable(z.array(CardinalServerHandlerReceiptEntry$outboundSchema)).optional(),
     startTick: z.number().int().optional(),
 });
 

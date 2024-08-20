@@ -473,7 +473,8 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/cardinal_server_handler.ReceiptEntry"
-                    }
+                    },
+                    "x-nullable": true
                 },
                 "startTick": {
                     "type": "integer"
@@ -498,7 +499,8 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "x-nullable": true
                 },
                 "result": {},
                 "tick": {

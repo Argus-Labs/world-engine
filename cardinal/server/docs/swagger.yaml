@@ -50,6 +50,7 @@ definitions:
         items:
           $ref: '#/definitions/cardinal_server_handler.ReceiptEntry'
         type: array
+        x-nullable: true
       startTick:
         type: integer
     type: object
@@ -66,6 +67,7 @@ definitions:
         items:
           type: string
         type: array
+        x-nullable: true
       result: {}
       tick:
         type: integer

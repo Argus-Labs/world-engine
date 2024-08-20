@@ -7,7 +7,7 @@ import * as z from "zod";
 export type Result = {};
 
 export type CardinalServerHandlerReceiptEntry = {
-    errors?: Array<string> | undefined;
+    errors?: Array<string> | null | undefined;
     result?: Result | undefined;
     tick?: number | undefined;
     txHash?: string | undefined;
@@ -41,7 +41,7 @@ export const CardinalServerHandlerReceiptEntry$inboundSchema: z.ZodType<
     z.ZodTypeDef,
     unknown
 > = z.object({
-    errors: z.array(z.string()).optional(),
+    errors: z.nullable(z.array(z.string())).optional(),
     result: z.lazy(() => Result$inboundSchema).optional(),
     tick: z.number().int().optional(),
     txHash: z.string().optional(),
@@ -49,7 +49,7 @@ export const CardinalServerHandlerReceiptEntry$inboundSchema: z.ZodType<
 
 /** @internal */
 export type CardinalServerHandlerReceiptEntry$Outbound = {
-    errors?: Array<string> | undefined;
+    errors?: Array<string> | null | undefined;
     result?: Result$Outbound | undefined;
     tick?: number | undefined;
     txHash?: string | undefined;
@@ -61,7 +61,7 @@ export const CardinalServerHandlerReceiptEntry$outboundSchema: z.ZodType<
     z.ZodTypeDef,
     CardinalServerHandlerReceiptEntry
 > = z.object({
-    errors: z.array(z.string()).optional(),
+    errors: z.nullable(z.array(z.string())).optional(),
     result: z.lazy(() => Result$outboundSchema).optional(),
     tick: z.number().int().optional(),
     txHash: z.string().optional(),

@@ -104,13 +104,13 @@ data.components.schemas['pkg_world_dev_world-engine_cardinal_types.EntityStateEl
 delete data.components.schemas['pkg_world_dev_world-engine_cardinal_types.DebugStateElement'].properties.components.properties
 data.components.schemas['pkg_world_dev_world-engine_cardinal_types.DebugStateElement'].properties.components.additionalProperties = {}
 
-// Transaction component used by /tx/persona/create-persona and /tx/game/{txName}
-delete data.components.schemas['cardinal_server_handler.Transaction'].properties.body.properties
-data.components.schemas['cardinal_server_handler.Transaction'].properties.body.additionalProperties = {}
-
-// Request and response of /query/game/{queryName}
+// POST /query/game/{queryName}
 data.paths['/query/game/{queryName}'].post.requestBody.content['application/json'].schema.additionalProperties = {}
 data.paths['/query/game/{queryName}'].post.responses['200'].content['application/json'].schema.additionalProperties = {}
+
+// POST /tx/persona/create-persona, POST /tx/game/{txName}
+delete data.components.schemas['cardinal_server_handler.Transaction'].properties.body.properties
+data.components.schemas['cardinal_server_handler.Transaction'].properties.body.additionalProperties = {}
 
 
 /// ---------------------------------------------------------------------------

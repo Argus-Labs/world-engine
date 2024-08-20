@@ -1,12 +1,12 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: bfbc077c2d29c10a4407fc98ddeac219
+  docChecksum: da89e2e77785777b1978d881d516a4df
   docVersion: 0.0.1
   speakeasyVersion: 1.376.0
   generationVersion: 2.402.5
-  releaseVersion: 0.9.5
-  configChecksum: c5d247a0da8abab6baab1d3823903287
+  releaseVersion: 0.10.1
+  configChecksum: 5f5ca0feab724ac955bf571129932c8e
 features:
   typescript:
     additionalDependencies: 0.1.0
@@ -19,6 +19,7 @@ features:
     hiddenGlobals: 0.1.0
     ignores: 2.81.1
     nameOverrides: 2.81.2
+    nullables: 0.1.0
     responseFormat: 0.2.3
     retries: 2.83.0
     sdkHooks: 0.1.0

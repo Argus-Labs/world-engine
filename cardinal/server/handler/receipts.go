@@ -17,7 +17,7 @@ type ListTxReceiptsRequest struct {
 type ListTxReceiptsResponse struct {
 	StartTick uint64         `json:"startTick"`
 	EndTick   uint64         `json:"endTick"`
-	Receipts  []ReceiptEntry `json:"receipts"`
+  Receipts  []ReceiptEntry `json:"receipts" extensions:"x-nullable"`
 }
 
 // ReceiptEntry represents a single transaction receipt. It contains an ID, a result, and a list of errors.
@@ -25,7 +25,7 @@ type ReceiptEntry struct {
 	TxHash string   `json:"txHash"`
 	Tick   uint64   `json:"tick"`
 	Result any      `json:"result"`
-	Errors []string `json:"errors"`
+  Errors []string `json:"errors" extensions:"x-nullable"`
 }
 
 // GetReceipts godoc

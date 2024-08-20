@@ -570,6 +570,7 @@
           },
           "receipts": {
             "type": "array",
+            "nullable": true,
             "items": {
               "$ref": "#/components/schemas/cardinal_server_handler.ReceiptEntry"
             }
@@ -595,6 +596,7 @@
         "properties": {
           "errors": {
             "type": "array",
+            "nullable": true,
             "items": {
               "type": "string"
             }
