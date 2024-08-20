@@ -164,6 +164,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
+
 	world.QueryManager = newQueryManager(world)
 
 	// Initialize shard router if running in rollup mode
@@ -187,6 +188,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Register internal plugins
 	world.RegisterPlugin(newPersonaPlugin())
+	world.RegisterPlugin(newFutureTaskPlugin())
 
 	return world, nil
 }

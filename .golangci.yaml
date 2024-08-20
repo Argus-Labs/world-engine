@@ -196,38 +196,6 @@ linters-settings:
     # Default: false
     custom-order: true
 
-  decorder:
-    # Required order of `type`, `const`, `var` and `func` declarations inside a file.
-    # Default: types before constants before variables before functions.
-    dec-order:
-      - const
-      - var
-      - type
-      - func
-    # If true, underscore vars (vars with "_" as the name) will be ignored at all checks
-    # Default: false (underscore vars are not ignored)
-    # Set to true as this allows interface guard to be declared separately
-    ignore-underscore-vars: true
-    # If true, order of declarations is not checked at all.
-    # Default: true (disabled)
-    disable-dec-order-check: false
-    # If true, `init` func can be anywhere in file (does not have to be declared before all other functions).
-    # Default: true (disabled)
-    disable-init-func-first-check: true
-    # If true, multiple global `type`, `const` and `var` declarations are allowed.
-    # Default: true (disabled)
-    disable-dec-num-check: false
-    # If true, type declarations will be ignored for dec num check
-    # Default: false (type statements are not ignored)
-    disable-type-dec-num-check: true
-    # If true, const declarations will be ignored for dec num check
-    # Default: false (const statements are not ignored)
-    disable-const-dec-num-check: false
-    # If true, var declarations will be ignored for dec num check
-    # Default: false (var statements are not ignored)
-    disable-var-dec-num-check: true
-
-
 linters:
   disable-all: true
   enable:
@@ -306,7 +274,7 @@ linters:
     - whitespace # detects leading and trailing whitespace
     
     ## you may want to enable
-    - decorder # checks declaration order and count of types, constants, variables and functions
+    #    - decorder # checks declaration order and count of types, constants, variables and functions
     - exhaustruct # [highly recommend to enable] checks if all structure fields are initialized
     - gci # controls golang package import order and makes it always deterministic
     #- ginkgolinter # [if you use ginkgo/gomega] enforces standards of using ginkgo and gomega
@@ -356,7 +324,6 @@ issues:
         - noctx
         - wrapcheck
         - perfsprint
-        - decorder
     # TODO: remove after PR is released https://github.com/golangci/golangci-lint/pull/4386
     - text: "fmt.Sprintf can be replaced with string addition"
       linters: [ perfsprint ]
