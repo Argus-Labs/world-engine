@@ -1,12 +1,12 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: c59efc63a3471b9ba779ad372e0eb81a
+  docChecksum: 4cb218f32a588f045137c8af7e382710
   docVersion: 0.0.1
-  speakeasyVersion: 1.376.0
-  generationVersion: 2.402.5
-  releaseVersion: 0.10.2
-  configChecksum: fbee4070a2380f36f8dfcbabfcf817ec
+  speakeasyVersion: 1.377.1
+  generationVersion: 2.404.1
+  releaseVersion: 0.10.29
+  configChecksum: 9bd6d6b1f7f59373b5359089bcfbfcb1
 features:
   typescript:
     additionalDependencies: 0.1.0
@@ -76,7 +76,7 @@ generatedFiles:
   - src/models/components/cardinalserverhandlerreceiptentry.ts
   - src/models/components/cardinalserverhandlerlisttxreceiptsrequest.ts
   - src/models/components/cardinalserverhandlerposttransactionresponse.ts
-  - src/models/components/cardinalserverhandlertransaction.ts
+  - src/models/components/txbody.ts
   - src/models/components/cardinalserverhandlergetworldresponse.ts
   - src/models/components/pkgworlddevworldenginecardinaltypesfielddetail.ts
   - src/models/operations/postquerygamequeryname.ts
@@ -95,7 +95,7 @@ generatedFiles:
   - docs/models/components/cardinalserverhandlerreceiptentry.md
   - docs/models/components/cardinalserverhandlerlisttxreceiptsrequest.md
   - docs/models/components/cardinalserverhandlerposttransactionresponse.md
-  - docs/models/components/cardinalserverhandlertransaction.md
+  - docs/models/components/txbody.md
   - docs/models/components/cardinalserverhandlergetworldresponse.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesfielddetail.md
   - docs/models/operations/postquerygamequerynamerequest.md

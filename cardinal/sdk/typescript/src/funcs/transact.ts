@@ -58,9 +58,7 @@ export async function transact(
         return parsed$;
     }
     const payload$ = parsed$.value;
-    const body$ = encodeJSON$("body", payload$["cardinal_server_handler.Transaction"], {
-        explode: true,
-    });
+    const body$ = encodeJSON$("body", payload$.txBody, { explode: true });
 
     const pathParams$ = {
         txName: encodeSimple$("txName", payload$.txName, {

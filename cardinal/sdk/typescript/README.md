@@ -376,7 +376,7 @@ const cardinal = new Cardinal();
 async function run() {
     const result = await cardinal.transact({
         txName: "<value>",
-        cardinalServerHandlerTransaction: {},
+        txBody: {},
     });
 
     // Handle the result

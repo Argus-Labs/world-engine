@@ -1,56 +1,13 @@
-import { Awaitable, BeforeRequestContext, BeforeRequestHook } from './types';
+import { BeforeRequestContext, BeforeRequestHook } from './types';
 import { privateKeyToAccount } from 'viem/accounts'
 import { customSign } from './signer-helper'
 
-async function createPersonaRequest(request: Request) {
-  const body = await request.json()
+function modifyRequest(request: Request, body: {[k: string]: any}) {
   const url = new URL(request.url)
-  const privateKey = url.searchParams.get('_privateKey') as `0x{string}`
-  const namespace = url.searchParams.get('_namespace')
-
-  const account = privateKeyToAccount(privateKey)
-  // nonce isn't checked anymore so just use any arbitrary value
-  const msg = `${body!.personaTag}${namespace}0{"personaTag":"${body!.personaTag}","signerAddress":"${account.address}"}`
-  const signature = customSign(msg, privateKey)
-
   return new Request(url.origin + url.pathname, {
     method: request.method,
     headers: request.headers,
-    body: JSON.stringify({
-      ...body!,
-      signature,
-      body: {
-        personaTag: body!.personaTag,
-        signerAddress: account.address
-      }
-    }),
-    cache: request.cache,
-    credentials: request.credentials,
-    integrity: request.integrity,
-    keepalive: request.keepalive,
-    mode: request.mode,
-    referrer: request.referrer,
-    referrerPolicy: request.referrerPolicy,
-    signal: request.signal,
-  })
-}
-
-async function transactionRequest(request: Request) {
-  const body = await request.json()
-  const url = new URL(request.url)
-  const privateKey = url.searchParams.get('_privateKey') as `0x{string}`
-  const namespace = url.searchParams.get('_namespace')
-
-  const msg = `${body!.personaTag}${namespace}0${JSON.stringify(body!.body)}`
-  const signature = customSign(msg, privateKey)
-
-  return new Request(url.origin + url.pathname, {
-    method: request.method,
-    headers: request.headers,
-    body: JSON.stringify({
-      ...body!,
-      signature,
-    }),
+    body: JSON.stringify(body),
     cache: request.cache,
     credentials: request.credentials,
     integrity: request.integrity,
@@ -63,17 +20,49 @@ async function transactionRequest(request: Request) {
 }
 
 export class SignerHook implements BeforeRequestHook {
-  beforeRequest(_hookCtx: BeforeRequestContext, request: Request): Awaitable<Request> {
+  private namespace?: string;
+
+  async beforeRequest(_hookCtx: BeforeRequestContext, request: Request): Promise<Request> {
     const url = new URL(request.url)
 
+    if (!this.namespace) await this.setNamespace(url)
+
     if (url.pathname === '/tx/persona/create-persona') {
-      return createPersonaRequest(request)
+      const body = await request.json()
+      const privateKey = url.searchParams.get('_privateKey') as `0x{string}`
+      const account = privateKeyToAccount(privateKey)
+      const msg = `${body!.personaTag}${this.namespace}0{"personaTag":"${body!.personaTag}","signerAddress":"${account.address}"}`
+      const signature = customSign(msg, privateKey)
+      return modifyRequest(request, {
+        ...body,
+        signature,
+        body: {
+          personaTag: body!.personaTag,
+          signerAddress: account.address
+        }
+      })
     }
 
     if (url.pathname.startsWith('/tx/game/')) {
-      return transactionRequest(request)
+      const body = await request.json()
+      const msg = `${body!.personaTag}${this.namespace}0${JSON.stringify(body!.body)}`
+      const privateKey = url.searchParams.get('_privateKey') as `0x{string}`
+      const signature = customSign(msg, privateKey)
+      return modifyRequest(request, {
+        ...body,
+        signature,
+      })
     }
 
     return request;
+  }
+
+  // this is called in beforeRequest instead of sdkInit because it can't be called 
+  // synchronously in sdkInit, which could result in a race condition where the beforeRequest
+  // is called before the setNamespace in sdkInit finishes.
+  private async setNamespace(url: URL) {
+    const res = await fetch(`${url.origin}/world`)
+    const data = await res.json()
+    this.namespace = data.namespace
   }
 }

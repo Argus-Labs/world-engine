@@ -10,7 +10,7 @@ export * from "./cardinalserverhandlerlisttxreceiptsrequest.js";
 export * from "./cardinalserverhandlerlisttxreceiptsresponse.js";
 export * from "./cardinalserverhandlerposttransactionresponse.js";
 export * from "./cardinalserverhandlerreceiptentry.js";
-export * from "./cardinalserverhandlertransaction.js";
 export * from "./pkgworlddevworldenginecardinaltypesdebugstateelement.js";
 export * from "./pkgworlddevworldenginecardinaltypesentitystateelement.js";
 export * from "./pkgworlddevworldenginecardinaltypesfielddetail.js";
+export * from "./txbody.js";

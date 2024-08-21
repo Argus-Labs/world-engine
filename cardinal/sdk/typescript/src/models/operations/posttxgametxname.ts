@@ -19,7 +19,7 @@ export type PostTxGameTxNameRequest = {
     /**
      * Transaction details & message to be submitted
      */
-    cardinalServerHandlerTransaction: components.CardinalServerHandlerTransaction;
+    txBody: components.TxBody;
 };
 
 /** @internal */
@@ -80,22 +80,15 @@ export const PostTxGameTxNameRequest$inboundSchema: z.ZodType<
     PostTxGameTxNameRequest,
     z.ZodTypeDef,
     unknown
-> = z
-    .object({
-        txName: z.string(),
-        "cardinal_server_handler.Transaction":
-            components.CardinalServerHandlerTransaction$inboundSchema,
-    })
-    .transform((v) => {
-        return remap$(v, {
-            "cardinal_server_handler.Transaction": "cardinalServerHandlerTransaction",
-        });
-    });
+> = z.object({
+    txName: z.string(),
+    txBody: components.TxBody$inboundSchema,
+});
 
 /** @internal */
 export type PostTxGameTxNameRequest$Outbound = {
     txName: string;
-    "cardinal_server_handler.Transaction": components.CardinalServerHandlerTransaction$Outbound;
+    txBody: components.TxBody$Outbound;
 };
 
 /** @internal */
@@ -103,17 +96,10 @@ export const PostTxGameTxNameRequest$outboundSchema: z.ZodType<
     PostTxGameTxNameRequest$Outbound,
     z.ZodTypeDef,
     PostTxGameTxNameRequest
-> = z
-    .object({
-        txName: z.string(),
-        cardinalServerHandlerTransaction:
-            components.CardinalServerHandlerTransaction$outboundSchema,
-    })
-    .transform((v) => {
-        return remap$(v, {
-            cardinalServerHandlerTransaction: "cardinal_server_handler.Transaction",
-        });
-    });
+> = z.object({
+    txName: z.string(),
+    txBody: components.TxBody$outboundSchema,
+});
 
 /**
  * @internal

@@ -1,5 +1,5 @@
-import { SignerHook } from "./signer.js";
-import { Hooks } from "./types.js";
+import { SignerHook } from "./signer";
+import { Hooks } from "./types";
 
 /*
  * This file is only ever generated once on the first generation and then is free to be modified.

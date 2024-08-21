@@ -31,7 +31,7 @@ import { Result } from "../types/fp.js";
  */
 export async function createPersona(
     client$: CardinalCore,
-    request: components.CardinalServerHandlerTransaction,
+    request: components.TxBody,
     options?: RequestOptions
 ): Promise<
     Result<
@@ -49,7 +49,7 @@ export async function createPersona(
 
     const parsed$ = schemas$.safeParse(
         input$,
-        (value$) => components.CardinalServerHandlerTransaction$outboundSchema.parse(value$),
+        (value$) => components.TxBody$outboundSchema.parse(value$),
         "Input validation failed"
     );
     if (!parsed$.ok) {

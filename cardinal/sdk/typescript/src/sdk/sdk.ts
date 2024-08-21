@@ -99,7 +99,7 @@ export class Cardinal extends ClientSDK {
      * Creates a persona
      */
     async createPersona(
-        request: components.CardinalServerHandlerTransaction,
+        request: components.TxBody,
         options?: RequestOptions
     ): Promise<components.CardinalServerHandlerPostTransactionResponse> {
         return unwrapAsync(createPersona(this, request, options));

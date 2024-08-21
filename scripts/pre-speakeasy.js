@@ -115,6 +115,9 @@ data.components.schemas['cardinal_server_handler.Transaction'].properties.body.a
 // GET /world
 data.components.schemas['pkg_world_dev_world-engine_cardinal_types.FieldDetail'].properties.fields.additionalProperties = {}
 
+data.components.schemas['cardinal_server_handler.Transaction']['x-speakeasy-name-override'] = 'txBody'
+data.paths['/query/game/{queryName}'].post.requestBody['x-speakeasy-name-override'] = 'queryBody'
+
 /// ---------------------------------------------------------------------------
 /// Apply changes
 /// ---------------------------------------------------------------------------
