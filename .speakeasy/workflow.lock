@@ -2,7 +2,7 @@ speakeasyVersion: 1.377.1
 sources:
     cardinal:
         sourceNamespace: cardinal
-        sourceRevisionDigest: sha256:876d72a4091e462882897be39ca75fb327c40a5e5eea8e99493783bb6e149c6a
+        sourceRevisionDigest: sha256:1eade4dddacf015b72f837558d10e85bd4b431d80f3e7230b83681c16bd41594
         sourceBlobDigest: sha256:4f00c390a89d9776758ab5af82be8e33ea9fc6b6e0ea17e8d7c76aa7d3b76a22
         tags:
             - latest
@@ -10,7 +10,7 @@ targets:
     cardinal-ts:
         source: cardinal
         sourceNamespace: cardinal
-        sourceRevisionDigest: sha256:876d72a4091e462882897be39ca75fb327c40a5e5eea8e99493783bb6e149c6a
+        sourceRevisionDigest: sha256:1eade4dddacf015b72f837558d10e85bd4b431d80f3e7230b83681c16bd41594
         sourceBlobDigest: sha256:4f00c390a89d9776758ab5af82be8e33ea9fc6b6e0ea17e8d7c76aa7d3b76a22
         outLocation: cardinal/sdk/typescript
 workflow:

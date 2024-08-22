@@ -1,6 +1,6 @@
 import { BeforeRequestContext, BeforeRequestHook } from './types';
 import { privateKeyToAccount } from 'viem/accounts'
-import { customSign } from './signer-helper'
+import { createMsgToSign, customSign } from './sign'
 
 function modifyRequest(request: Request, body: {[k: string]: any}) {
   const url = new URL(request.url)
@@ -19,7 +19,7 @@ function modifyRequest(request: Request, body: {[k: string]: any}) {
   })
 }
 
-export class SignerHook implements BeforeRequestHook {
+export class CardinalHook implements BeforeRequestHook {
   private namespace?: string;
 
   async beforeRequest(_hookCtx: BeforeRequestContext, request: Request): Promise<Request> {
@@ -31,21 +31,22 @@ export class SignerHook implements BeforeRequestHook {
       const body = await request.json()
       const privateKey = url.searchParams.get('_privateKey') as `0x{string}`
       const account = privateKeyToAccount(privateKey)
-      const msg = `${body!.personaTag}${this.namespace}0{"personaTag":"${body!.personaTag}","signerAddress":"${account.address}"}`
+      const txBody = {
+        personaTag: body!.personaTag,
+        signerAddress: account.address
+      }
+      const msg = createMsgToSign(body!.personaTag, this.namespace!, txBody)
       const signature = customSign(msg, privateKey)
       return modifyRequest(request, {
         ...body,
         signature,
-        body: {
-          personaTag: body!.personaTag,
-          signerAddress: account.address
-        }
+        body: txBody
       })
     }
 
     if (url.pathname.startsWith('/tx/game/')) {
       const body = await request.json()
-      const msg = `${body!.personaTag}${this.namespace}0${JSON.stringify(body!.body)}`
+      const msg = createMsgToSign(body!.personaTag, this.namespace!, body!.body)
       const privateKey = url.searchParams.get('_privateKey') as `0x{string}`
       const signature = customSign(msg, privateKey)
       return modifyRequest(request, {

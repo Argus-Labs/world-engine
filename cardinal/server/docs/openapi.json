@@ -140,7 +140,8 @@
               }
             }
           },
-          "required": true
+          "required": true,
+          "x-speakeasy-name-override": "queryBody"
         },
         "responses": {
           "200": {
@@ -636,7 +637,8 @@
             "type": "string",
             "description": "hex encoded string"
           }
-        }
+        },
+        "x-speakeasy-name-override": "txBody"
       },
       "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
         "type": "object",

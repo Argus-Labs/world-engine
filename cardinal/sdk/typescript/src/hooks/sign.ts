@@ -1,6 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1'
 // import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { keccak256, toHex } from 'viem/utils'
+import * as crypto from 'crypto'
 
 // -------------------------------------------------------------------------- //
 // copied source from viem directly instead of importing from node_modules, as doing that
@@ -86,4 +87,9 @@ function sign({ hash, privateKey }: SignParameters): SignReturnType {
 export function customSign(msg: string, privateKey: `0x${string}`) {
   const signature = sign({ hash: keccak256(toHex(msg)), privateKey })
   return signatureToHex(signature).slice(2)
+}
+
+export function createMsgToSign(personaTag: string, namespace: string, body: {[k: string] : any}) {
+  const nonce = crypto.getRandomValues(new BigUint64Array(1))[0]
+  return `${personaTag}${namespace}${nonce}${JSON.stringify(body)}`
 }

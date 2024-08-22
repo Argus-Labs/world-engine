@@ -16,12 +16,12 @@ export type SDKOptions = {
     /**
      * Allows setting the privateKey parameter for all supported operations
      */
-    privateKey?: string | undefined;
+    privateKey: string;
 
     /**
      * Allows setting the namespace parameter for all supported operations
      */
-    namespace?: string | undefined;
+    namespace: string;
 
     httpClient?: HTTPClient;
     /**
@@ -31,7 +31,7 @@ export type SDKOptions = {
     /**
      * Allows overriding the default server URL used by the SDK
      */
-    serverURL?: string;
+    serverURL: string;
     /**
      * Allows overriding the default retry config used by the SDK
      */
@@ -60,7 +60,7 @@ export function serverURLFromOptions(options: SDKOptions): URL | null {
 export const SDK_METADATA = {
     language: "typescript",
     openapiDocVersion: "0.0.1",
-    sdkVersion: "0.10.29",
+    sdkVersion: "0.10.34",
     genVersion: "2.404.1",
-    userAgent: "speakeasy-sdk/typescript 0.10.29 2.404.1 0.0.1 cardinal",
+    userAgent: "speakeasy-sdk/typescript 0.10.34 2.404.1 0.0.1 cardinal",
 } as const;

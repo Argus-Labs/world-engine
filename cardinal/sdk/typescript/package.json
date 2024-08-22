@@ -1,6 +1,6 @@
 {
   "name": "cardinal",
-  "version": "0.10.29",
+  "version": "0.10.34",
   "author": "Argus Labs",
   "main": "./index.js",
   "sideEffects": false,
@@ -13,6 +13,7 @@
     "zod": ">= 3"
   },
   "devDependencies": {
+    "@types/node": "^20.12.4",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
     "eslint": "^8.57.0",

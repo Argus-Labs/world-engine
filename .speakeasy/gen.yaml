@@ -12,11 +12,12 @@ generation:
   auth:
     oAuth2ClientCredentialsEnabled: true
 typescript:
-  version: 0.10.29
+  version: 0.10.34
   additionalDependencies:
     dependencies:
       viem: ^2.19.1
-    devDependencies: {}
+    devDependencies:
+      '@types/node': ^20.12.4
     peerDependencies: {}
   additionalPackageJSON: {}
   author: Argus Labs
