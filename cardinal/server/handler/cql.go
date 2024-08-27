@@ -8,7 +8,7 @@ import (
 )
 
 type CQLQueryRequest struct {
-	CQL string
+  CQL string `example:"CONTAINS(Health)"`
 }
 
 type CQLQueryResponse struct {

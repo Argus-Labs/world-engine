@@ -28,11 +28,11 @@ import { Result } from "../types/fp.js";
  */
 export async function queryCql(
     client$: CardinalCore,
-    request: components.CardinalServerHandlerCQLQueryRequest,
+    request: components.CQLQueryRequest,
     options?: RequestOptions
 ): Promise<
     Result<
-        components.CardinalServerHandlerCQLQueryResponse,
+        components.CQLQueryResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -46,7 +46,7 @@ export async function queryCql(
 
     const parsed$ = schemas$.safeParse(
         input$,
-        (value$) => components.CardinalServerHandlerCQLQueryRequest$outboundSchema.parse(value$),
+        (value$) => components.CQLQueryRequest$outboundSchema.parse(value$),
         "Input validation failed"
     );
     if (!parsed$.ok) {
@@ -92,7 +92,7 @@ export async function queryCql(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        components.CardinalServerHandlerCQLQueryResponse,
+        components.CQLQueryResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -101,7 +101,7 @@ export async function queryCql(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, components.CardinalServerHandlerCQLQueryResponse$inboundSchema),
+        m$.json(200, components.CQLQueryResponse$inboundSchema),
         m$.fail([400, "4XX", "5XX"])
     )(response);
     if (!result$.ok) {

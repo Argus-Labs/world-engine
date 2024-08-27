@@ -115,8 +115,23 @@ data.components.schemas['cardinal_server_handler.Transaction'].properties.body.a
 // GET /world
 data.components.schemas['pkg_world_dev_world-engine_cardinal_types.FieldDetail'].properties.fields.additionalProperties = {}
 
+
+/// ---------------------------------------------------------------------------
+/// Rename types
+/// ---------------------------------------------------------------------------
+
+// Cardinal entity types
+data.components.schemas['pkg_world_dev_world-engine_cardinal_types.EntityStateElement']['x-speakeasy-name-override'] = 'EntityStateElement'
+
+// POST /cql
+data.components.schemas['cardinal_server_handler.CQLQueryRequest']['x-speakeasy-name-override'] = 'CQLQueryRequest'
+data.components.schemas['cardinal_server_handler.CQLQueryResponse']['x-speakeasy-name-override'] = 'CQLQueryResponse'
+
+// POST /tx/persona/create-persona, POST /tx/game/{txName}
 data.components.schemas['cardinal_server_handler.Transaction']['x-speakeasy-name-override'] = 'txBody'
-data.paths['/query/game/{queryName}'].post.requestBody['x-speakeasy-name-override'] = 'queryBody'
+
+// data.paths['/query/game/{queryName}'].post.requestBody['x-speakeasy-name-override'] = 'queryBody'
+
 
 /// ---------------------------------------------------------------------------
 /// Apply changes

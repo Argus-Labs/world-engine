@@ -28,7 +28,9 @@ import { SDKValidationError } from "cardinal/models/errors/sdkvalidationerror.js
 const cardinal = new CardinalCore();
 
 async function run() {
-  const res = await queryCql(cardinal, {});
+  const res = await queryCql(cardinal, {
+    cql: "CONTAINS(Health)",
+  });
 
   switch (true) {
     case res.ok:

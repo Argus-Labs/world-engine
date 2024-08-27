@@ -140,8 +140,7 @@
               }
             }
           },
-          "required": true,
-          "x-speakeasy-name-override": "queryBody"
+          "required": true
         },
         "responses": {
           "200": {
@@ -502,9 +501,11 @@
         "type": "object",
         "properties": {
           "cql": {
-            "type": "string"
+            "type": "string",
+            "example": "CONTAINS(Health)"
           }
-        }
+        },
+        "x-speakeasy-name-override": "CQLQueryRequest"
       },
       "cardinal_server_handler.CQLQueryResponse": {
         "type": "object",
@@ -515,7 +516,8 @@
               "$ref": "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.EntityStateElement"
             }
           }
-        }
+        },
+        "x-speakeasy-name-override": "CQLQueryResponse"
       },
       "cardinal_server_handler.GetHealthResponse": {
         "type": "object",
@@ -665,7 +667,8 @@
           "id": {
             "type": "integer"
           }
-        }
+        },
+        "x-speakeasy-name-override": "EntityStateElement"
       },
       "pkg_world_dev_world-engine_cardinal_types.FieldDetail": {
         "type": "object",

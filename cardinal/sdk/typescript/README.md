@@ -64,7 +64,9 @@ import { Cardinal } from "cardinal";
 const cardinal = new Cardinal();
 
 async function run() {
-    const result = await cardinal.queryCql({});
+    const result = await cardinal.queryCql({
+        cql: "CONTAINS(Health)",
+    });
 
     // Handle the result
     console.log(result);
@@ -103,7 +105,9 @@ const cardinal = new Cardinal();
 
 async function run() {
     const result = await cardinal.queryCql(
-        {},
+        {
+            cql: "CONTAINS(Health)",
+        },
         {
             retries: {
                 strategy: "backoff",
@@ -144,7 +148,9 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.queryCql({});
+    const result = await cardinal.queryCql({
+        cql: "CONTAINS(Health)",
+    });
 
     // Handle the result
     console.log(result);
@@ -176,7 +182,9 @@ const cardinal = new Cardinal();
 async function run() {
     let result;
     try {
-        result = await cardinal.queryCql({});
+        result = await cardinal.queryCql({
+            cql: "CONTAINS(Health)",
+        });
     } catch (err) {
         switch (true) {
             case err instanceof SDKValidationError: {
@@ -220,7 +228,9 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.queryCql({});
+    const result = await cardinal.queryCql({
+        cql: "CONTAINS(Health)",
+    });
 
     // Handle the result
     console.log(result);
@@ -243,7 +253,9 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.queryCql({});
+    const result = await cardinal.queryCql({
+        cql: "CONTAINS(Health)",
+    });
 
     // Handle the result
     console.log(result);

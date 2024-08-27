@@ -23,9 +23,9 @@ export class Cardinal extends ClientSDK {
      * Executes a CQL (Cardinal Query Language) query
      */
     async queryCql(
-        request: components.CardinalServerHandlerCQLQueryRequest,
+        request: components.CQLQueryRequest,
         options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerCQLQueryResponse> {
+    ): Promise<components.CQLQueryResponse> {
         return unwrapAsync(queryCql(this, request, options));
     }
 

@@ -1,12 +1,12 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: 4cb218f32a588f045137c8af7e382710
+  docChecksum: 7f358339244e72d9807a4c29a6ff4b9c
   docVersion: 0.0.1
-  speakeasyVersion: 1.377.1
-  generationVersion: 2.404.1
-  releaseVersion: 0.10.34
-  configChecksum: d23678d7037ae5f1daaf28486503d085
+  speakeasyVersion: 1.379.3
+  generationVersion: 2.404.3
+  releaseVersion: 0.12.2
+  configChecksum: 325c29a98ecc329a525b5cbcf2901de8
 features:
   typescript:
     additionalDependencies: 0.1.0
@@ -67,9 +67,9 @@ generatedFiles:
   - src/types/operations.ts
   - src/types/rfcdate.ts
   - tsconfig.json
-  - src/models/components/cardinalserverhandlercqlqueryresponse.ts
-  - src/models/components/pkgworlddevworldenginecardinaltypesentitystateelement.ts
-  - src/models/components/cardinalserverhandlercqlqueryrequest.ts
+  - src/models/components/cqlqueryresponse.ts
+  - src/models/components/entitystateelement.ts
+  - src/models/components/cqlqueryrequest.ts
   - src/models/components/pkgworlddevworldenginecardinaltypesdebugstateelement.ts
   - src/models/components/cardinalserverhandlergethealthresponse.ts
   - src/models/components/cardinalserverhandlerlisttxreceiptsresponse.ts
@@ -85,9 +85,9 @@ generatedFiles:
   - src/models/errors/index.ts
   - src/models/components/index.ts
   - src/models/operations/index.ts
-  - docs/models/components/cardinalserverhandlercqlqueryresponse.md
-  - docs/models/components/pkgworlddevworldenginecardinaltypesentitystateelement.md
-  - docs/models/components/cardinalserverhandlercqlqueryrequest.md
+  - docs/models/components/cqlqueryresponse.md
+  - docs/models/components/entitystateelement.md
+  - docs/models/components/cqlqueryrequest.md
   - docs/models/components/pkgworlddevworldenginecardinaltypesdebugstateelement.md
   - docs/models/components/cardinalserverhandlergethealthresponse.md
   - docs/models/components/cardinalserverhandlerlisttxreceiptsresponse.md

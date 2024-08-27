@@ -3,6 +3,7 @@ definitions:
   cardinal_server_handler.CQLQueryRequest:
     properties:
       cql:
+        example: CONTAINS(Health)
         type: string
     type: object
   cardinal_server_handler.CQLQueryResponse:

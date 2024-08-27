@@ -402,7 +402,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "cql": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "CONTAINS(Health)"
                 }
             }
         },
