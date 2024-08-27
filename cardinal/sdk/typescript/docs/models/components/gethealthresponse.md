@@ -1,11 +1,11 @@
-# CardinalServerHandlerGetHealthResponse
+# GetHealthResponse
 
 ## Example Usage
 
 ```typescript
-import { CardinalServerHandlerGetHealthResponse } from "cardinal/models/components";
+import { GetHealthResponse } from "cardinal/models/components";
 
-let value: CardinalServerHandlerGetHealthResponse = {};
+let value: GetHealthResponse = {};
 ```
 
 ## Fields

@@ -30,7 +30,7 @@ export async function getDebugState(
     options?: RequestOptions
 ): Promise<
     Result<
-        Array<components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement>,
+        Array<components.DebugStateElement>,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -75,7 +75,7 @@ export async function getDebugState(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        Array<components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement>,
+        Array<components.DebugStateElement>,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -84,10 +84,7 @@ export async function getDebugState(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(
-            200,
-            z.array(components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement$inboundSchema)
-        ),
+        m$.json(200, z.array(components.DebugStateElement$inboundSchema)),
         m$.fail(["4XX", "5XX"])
     )(response);
     if (!result$.ok) {

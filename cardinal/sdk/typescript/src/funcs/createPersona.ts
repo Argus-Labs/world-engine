@@ -35,7 +35,7 @@ export async function createPersona(
     options?: RequestOptions
 ): Promise<
     Result<
-        components.CardinalServerHandlerPostTransactionResponse,
+        components.TxResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -105,7 +105,7 @@ export async function createPersona(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        components.CardinalServerHandlerPostTransactionResponse,
+        components.TxResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -114,7 +114,7 @@ export async function createPersona(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, components.CardinalServerHandlerPostTransactionResponse$inboundSchema),
+        m$.json(200, components.TxResponse$inboundSchema),
         m$.fail([400, "4XX", "5XX"])
     )(response);
     if (!result$.ok) {

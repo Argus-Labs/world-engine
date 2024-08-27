@@ -1,11 +1,11 @@
-# CardinalServerHandlerReceiptEntry
+# ReceiptEntry
 
 ## Example Usage
 
 ```typescript
-import { CardinalServerHandlerReceiptEntry } from "cardinal/models/components";
+import { ReceiptEntry } from "cardinal/models/components";
 
-let value: CardinalServerHandlerReceiptEntry = {};
+let value: ReceiptEntry = {};
 ```
 
 ## Fields

@@ -28,11 +28,11 @@ import { Result } from "../types/fp.js";
  */
 export async function getReceipts(
     client$: CardinalCore,
-    request: components.CardinalServerHandlerListTxReceiptsRequest,
+    request: components.GetReceiptsRequest,
     options?: RequestOptions
 ): Promise<
     Result<
-        components.CardinalServerHandlerListTxReceiptsResponse,
+        components.GetReceiptsResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -46,8 +46,7 @@ export async function getReceipts(
 
     const parsed$ = schemas$.safeParse(
         input$,
-        (value$) =>
-            components.CardinalServerHandlerListTxReceiptsRequest$outboundSchema.parse(value$),
+        (value$) => components.GetReceiptsRequest$outboundSchema.parse(value$),
         "Input validation failed"
     );
     if (!parsed$.ok) {
@@ -97,7 +96,7 @@ export async function getReceipts(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        components.CardinalServerHandlerListTxReceiptsResponse,
+        components.GetReceiptsResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -106,7 +105,7 @@ export async function getReceipts(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, components.CardinalServerHandlerListTxReceiptsResponse$inboundSchema),
+        m$.json(200, components.GetReceiptsResponse$inboundSchema),
         m$.fail([400, "4XX", "5XX"])
     )(response);
     if (!result$.ok) {

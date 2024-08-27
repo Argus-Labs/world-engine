@@ -1,11 +1,11 @@
-# PkgWorldDevWorldEngineCardinalTypesFieldDetail
+# WorldFieldDetail
 
 ## Example Usage
 
 ```typescript
-import { PkgWorldDevWorldEngineCardinalTypesFieldDetail } from "cardinal/models/components";
+import { WorldFieldDetail } from "cardinal/models/components";
 
-let value: PkgWorldDevWorldEngineCardinalTypesFieldDetail = {};
+let value: WorldFieldDetail = {};
 ```
 
 ## Fields

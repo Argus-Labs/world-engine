@@ -120,17 +120,31 @@ data.components.schemas['pkg_world_dev_world-engine_cardinal_types.FieldDetail']
 /// Rename types
 /// ---------------------------------------------------------------------------
 
-// Cardinal entity types
-data.components.schemas['pkg_world_dev_world-engine_cardinal_types.EntityStateElement']['x-speakeasy-name-override'] = 'EntityStateElement'
-
 // POST /cql
 data.components.schemas['cardinal_server_handler.CQLQueryRequest']['x-speakeasy-name-override'] = 'CQLQueryRequest'
 data.components.schemas['cardinal_server_handler.CQLQueryResponse']['x-speakeasy-name-override'] = 'CQLQueryResponse'
+data.components.schemas['pkg_world_dev_world-engine_cardinal_types.EntityStateElement']['x-speakeasy-name-override'] = 'EntityStateElement'
 
-// POST /tx/persona/create-persona, POST /tx/game/{txName}
-data.components.schemas['cardinal_server_handler.Transaction']['x-speakeasy-name-override'] = 'txBody'
+// GET /debug/state
+data.components.schemas['pkg_world_dev_world-engine_cardinal_types.DebugStateElement']['x-speakeasy-name-override'] = 'DebugStateElement'
+
+// GET /health
+data.components.schemas['cardinal_server_handler.GetHealthResponse']['x-speakeasy-name-override'] = 'GetHealthResponse'
 
 // data.paths['/query/game/{queryName}'].post.requestBody['x-speakeasy-name-override'] = 'queryBody'
+
+// GET /query/list/receipts
+data.components.schemas['cardinal_server_handler.ListTxReceiptsRequest']['x-speakeasy-name-override'] = 'GetReceiptsRequest'
+data.components.schemas['cardinal_server_handler.ListTxReceiptsResponse']['x-speakeasy-name-override'] = 'GetReceiptsResponse'
+data.components.schemas['cardinal_server_handler.ReceiptEntry']['x-speakeasy-name-override'] = 'ReceiptEntry'
+
+// POST /tx/persona/create-persona, POST /tx/game/{txName}
+data.components.schemas['cardinal_server_handler.Transaction']['x-speakeasy-name-override'] = 'TxBody'
+data.components.schemas['cardinal_server_handler.PostTransactionResponse']['x-speakeasy-name-override'] = 'TxResponse'
+
+// GET /world
+data.components.schemas['cardinal_server_handler.GetWorldResponse']['x-speakeasy-name-override'] = 'GetWorldResponse'
+data.components.schemas['pkg_world_dev_world-engine_cardinal_types.FieldDetail']['x-speakeasy-name-override'] = 'WorldFieldDetail'
 
 
 /// ---------------------------------------------------------------------------

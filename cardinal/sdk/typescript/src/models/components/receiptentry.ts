@@ -6,7 +6,7 @@ import * as z from "zod";
 
 export type Result = {};
 
-export type CardinalServerHandlerReceiptEntry = {
+export type ReceiptEntry = {
     errors?: Array<string> | null | undefined;
     result?: Result | undefined;
     tick?: number | undefined;
@@ -36,11 +36,7 @@ export namespace Result$ {
 }
 
 /** @internal */
-export const CardinalServerHandlerReceiptEntry$inboundSchema: z.ZodType<
-    CardinalServerHandlerReceiptEntry,
-    z.ZodTypeDef,
-    unknown
-> = z.object({
+export const ReceiptEntry$inboundSchema: z.ZodType<ReceiptEntry, z.ZodTypeDef, unknown> = z.object({
     errors: z.nullable(z.array(z.string())).optional(),
     result: z.lazy(() => Result$inboundSchema).optional(),
     tick: z.number().int().optional(),
@@ -48,7 +44,7 @@ export const CardinalServerHandlerReceiptEntry$inboundSchema: z.ZodType<
 });
 
 /** @internal */
-export type CardinalServerHandlerReceiptEntry$Outbound = {
+export type ReceiptEntry$Outbound = {
     errors?: Array<string> | null | undefined;
     result?: Result$Outbound | undefined;
     tick?: number | undefined;
@@ -56,10 +52,10 @@ export type CardinalServerHandlerReceiptEntry$Outbound = {
 };
 
 /** @internal */
-export const CardinalServerHandlerReceiptEntry$outboundSchema: z.ZodType<
-    CardinalServerHandlerReceiptEntry$Outbound,
+export const ReceiptEntry$outboundSchema: z.ZodType<
+    ReceiptEntry$Outbound,
     z.ZodTypeDef,
-    CardinalServerHandlerReceiptEntry
+    ReceiptEntry
 > = z.object({
     errors: z.nullable(z.array(z.string())).optional(),
     result: z.lazy(() => Result$outboundSchema).optional(),
@@ -71,11 +67,11 @@ export const CardinalServerHandlerReceiptEntry$outboundSchema: z.ZodType<
  * @internal
  * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
  */
-export namespace CardinalServerHandlerReceiptEntry$ {
-    /** @deprecated use `CardinalServerHandlerReceiptEntry$inboundSchema` instead. */
-    export const inboundSchema = CardinalServerHandlerReceiptEntry$inboundSchema;
-    /** @deprecated use `CardinalServerHandlerReceiptEntry$outboundSchema` instead. */
-    export const outboundSchema = CardinalServerHandlerReceiptEntry$outboundSchema;
-    /** @deprecated use `CardinalServerHandlerReceiptEntry$Outbound` instead. */
-    export type Outbound = CardinalServerHandlerReceiptEntry$Outbound;
+export namespace ReceiptEntry$ {
+    /** @deprecated use `ReceiptEntry$inboundSchema` instead. */
+    export const inboundSchema = ReceiptEntry$inboundSchema;
+    /** @deprecated use `ReceiptEntry$outboundSchema` instead. */
+    export const outboundSchema = ReceiptEntry$outboundSchema;
+    /** @deprecated use `ReceiptEntry$Outbound` instead. */
+    export type Outbound = ReceiptEntry$Outbound;
 }

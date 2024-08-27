@@ -528,7 +528,8 @@
           "isServerRunning": {
             "type": "boolean"
           }
-        }
+        },
+        "x-speakeasy-name-override": "GetHealthResponse"
       },
       "cardinal_server_handler.GetWorldResponse": {
         "type": "object",
@@ -555,7 +556,8 @@
               "$ref": "#/components/schemas/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
             }
           }
-        }
+        },
+        "x-speakeasy-name-override": "GetWorldResponse"
       },
       "cardinal_server_handler.ListTxReceiptsRequest": {
         "type": "object",
@@ -563,7 +565,8 @@
           "startTick": {
             "type": "integer"
           }
-        }
+        },
+        "x-speakeasy-name-override": "GetReceiptsRequest"
       },
       "cardinal_server_handler.ListTxReceiptsResponse": {
         "type": "object",
@@ -581,7 +584,8 @@
           "startTick": {
             "type": "integer"
           }
-        }
+        },
+        "x-speakeasy-name-override": "GetReceiptsResponse"
       },
       "cardinal_server_handler.PostTransactionResponse": {
         "type": "object",
@@ -592,7 +596,8 @@
           "txHash": {
             "type": "string"
           }
-        }
+        },
+        "x-speakeasy-name-override": "TxResponse"
       },
       "cardinal_server_handler.ReceiptEntry": {
         "type": "object",
@@ -613,7 +618,8 @@
           "txHash": {
             "type": "string"
           }
-        }
+        },
+        "x-speakeasy-name-override": "ReceiptEntry"
       },
       "cardinal_server_handler.Transaction": {
         "type": "object",
@@ -640,7 +646,7 @@
             "description": "hex encoded string"
           }
         },
-        "x-speakeasy-name-override": "txBody"
+        "x-speakeasy-name-override": "TxBody"
       },
       "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
         "type": "object",
@@ -652,7 +658,8 @@
           "id": {
             "type": "integer"
           }
-        }
+        },
+        "x-speakeasy-name-override": "DebugStateElement"
       },
       "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
         "type": "object",
@@ -685,7 +692,8 @@
           "url": {
             "type": "string"
           }
-        }
+        },
+        "x-speakeasy-name-override": "WorldFieldDetail"
       }
     }
   },

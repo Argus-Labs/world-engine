@@ -1,11 +1,11 @@
-# CardinalServerHandlerListTxReceiptsRequest
+# GetReceiptsRequest
 
 ## Example Usage
 
 ```typescript
-import { CardinalServerHandlerListTxReceiptsRequest } from "cardinal/models/components";
+import { GetReceiptsRequest } from "cardinal/models/components";
 
-let value: CardinalServerHandlerListTxReceiptsRequest = {};
+let value: GetReceiptsRequest = {};
 ```
 
 ## Fields

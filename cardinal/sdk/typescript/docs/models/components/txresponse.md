@@ -1,11 +1,11 @@
-# CardinalServerHandlerPostTransactionResponse
+# TxResponse
 
 ## Example Usage
 
 ```typescript
-import { CardinalServerHandlerPostTransactionResponse } from "cardinal/models/components";
+import { TxResponse } from "cardinal/models/components";
 
-let value: CardinalServerHandlerPostTransactionResponse = {};
+let value: TxResponse = {};
 ```
 
 ## Fields

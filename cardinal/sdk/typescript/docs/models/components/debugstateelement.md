@@ -1,11 +1,11 @@
-# PkgWorldDevWorldEngineCardinalTypesDebugStateElement
+# DebugStateElement
 
 ## Example Usage
 
 ```typescript
-import { PkgWorldDevWorldEngineCardinalTypesDebugStateElement } from "cardinal/models/components";
+import { DebugStateElement } from "cardinal/models/components";
 
-let value: PkgWorldDevWorldEngineCardinalTypesDebugStateElement = {};
+let value: DebugStateElement = {};
 ```
 
 ## Fields

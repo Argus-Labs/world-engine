@@ -35,9 +35,7 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Retrieves a list of all entities in the game state
      */
-    async getDebugState(
-        options?: RequestOptions
-    ): Promise<Array<components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement>> {
+    async getDebugState(options?: RequestOptions): Promise<Array<components.DebugStateElement>> {
         return unwrapAsync(getDebugState(this, options));
     }
 
@@ -47,9 +45,7 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Retrieves the status of the server and game loop
      */
-    async getHealth(
-        options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerGetHealthResponse> {
+    async getHealth(options?: RequestOptions): Promise<components.GetHealthResponse> {
         return unwrapAsync(getHealth(this, options));
     }
 
@@ -73,9 +69,9 @@ export class Cardinal extends ClientSDK {
      * Retrieves all transaction receipts
      */
     async getReceipts(
-        request: components.CardinalServerHandlerListTxReceiptsRequest,
+        request: components.GetReceiptsRequest,
         options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerListTxReceiptsResponse> {
+    ): Promise<components.GetReceiptsResponse> {
         return unwrapAsync(getReceipts(this, request, options));
     }
 
@@ -88,7 +84,7 @@ export class Cardinal extends ClientSDK {
     async transact(
         request: operations.PostTxGameTxNameRequest,
         options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerPostTransactionResponse> {
+    ): Promise<components.TxResponse> {
         return unwrapAsync(transact(this, request, options));
     }
 
@@ -101,7 +97,7 @@ export class Cardinal extends ClientSDK {
     async createPersona(
         request: components.TxBody,
         options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerPostTransactionResponse> {
+    ): Promise<components.TxResponse> {
         return unwrapAsync(createPersona(this, request, options));
     }
 
@@ -111,9 +107,7 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Contains the registered components, messages, queries, and namespace
      */
-    async getWorld(
-        options?: RequestOptions
-    ): Promise<components.CardinalServerHandlerGetWorldResponse> {
+    async getWorld(options?: RequestOptions): Promise<components.GetWorldResponse> {
         return unwrapAsync(getWorld(this, options));
     }
 }

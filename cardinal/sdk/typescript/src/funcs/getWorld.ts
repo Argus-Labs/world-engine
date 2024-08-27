@@ -29,7 +29,7 @@ export async function getWorld(
     options?: RequestOptions
 ): Promise<
     Result<
-        components.CardinalServerHandlerGetWorldResponse,
+        components.GetWorldResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -74,7 +74,7 @@ export async function getWorld(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        components.CardinalServerHandlerGetWorldResponse,
+        components.GetWorldResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -83,7 +83,7 @@ export async function getWorld(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, components.CardinalServerHandlerGetWorldResponse$inboundSchema),
+        m$.json(200, components.GetWorldResponse$inboundSchema),
         m$.fail([400, "4XX", "5XX"])
     )(response);
     if (!result$.ok) {

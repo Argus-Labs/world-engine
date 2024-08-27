@@ -1,12 +1,12 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: 7f358339244e72d9807a4c29a6ff4b9c
+  docChecksum: 44f39a76047e47cec71133d08394b41c
   docVersion: 0.0.1
   speakeasyVersion: 1.379.3
   generationVersion: 2.404.3
-  releaseVersion: 0.12.2
-  configChecksum: 325c29a98ecc329a525b5cbcf2901de8
+  releaseVersion: 0.12.4
+  configChecksum: 742ec3e35d2e519dc8dc2adde0d9ce5a
 features:
   typescript:
     additionalDependencies: 0.1.0
@@ -70,15 +70,15 @@ generatedFiles:
   - src/models/components/cqlqueryresponse.ts
   - src/models/components/entitystateelement.ts
   - src/models/components/cqlqueryrequest.ts
-  - src/models/components/pkgworlddevworldenginecardinaltypesdebugstateelement.ts
-  - src/models/components/cardinalserverhandlergethealthresponse.ts
-  - src/models/components/cardinalserverhandlerlisttxreceiptsresponse.ts
-  - src/models/components/cardinalserverhandlerreceiptentry.ts
-  - src/models/components/cardinalserverhandlerlisttxreceiptsrequest.ts
-  - src/models/components/cardinalserverhandlerposttransactionresponse.ts
+  - src/models/components/debugstateelement.ts
+  - src/models/components/gethealthresponse.ts
+  - src/models/components/getreceiptsresponse.ts
+  - src/models/components/receiptentry.ts
+  - src/models/components/getreceiptsrequest.ts
+  - src/models/components/txresponse.ts
   - src/models/components/txbody.ts
-  - src/models/components/cardinalserverhandlergetworldresponse.ts
-  - src/models/components/pkgworlddevworldenginecardinaltypesfielddetail.ts
+  - src/models/components/getworldresponse.ts
+  - src/models/components/worldfielddetail.ts
   - src/models/operations/postquerygamequeryname.ts
   - src/models/operations/posttxgametxname.ts
   - src/models/operations/posttxpersonacreatepersona.ts
@@ -88,16 +88,16 @@ generatedFiles:
   - docs/models/components/cqlqueryresponse.md
   - docs/models/components/entitystateelement.md
   - docs/models/components/cqlqueryrequest.md
-  - docs/models/components/pkgworlddevworldenginecardinaltypesdebugstateelement.md
-  - docs/models/components/cardinalserverhandlergethealthresponse.md
-  - docs/models/components/cardinalserverhandlerlisttxreceiptsresponse.md
+  - docs/models/components/debugstateelement.md
+  - docs/models/components/gethealthresponse.md
+  - docs/models/components/getreceiptsresponse.md
   - docs/models/components/result.md
-  - docs/models/components/cardinalserverhandlerreceiptentry.md
-  - docs/models/components/cardinalserverhandlerlisttxreceiptsrequest.md
-  - docs/models/components/cardinalserverhandlerposttransactionresponse.md
+  - docs/models/components/receiptentry.md
+  - docs/models/components/getreceiptsrequest.md
+  - docs/models/components/txresponse.md
   - docs/models/components/txbody.md
-  - docs/models/components/cardinalserverhandlergetworldresponse.md
-  - docs/models/components/pkgworlddevworldenginecardinaltypesfielddetail.md
+  - docs/models/components/getworldresponse.md
+  - docs/models/components/worldfielddetail.md
   - docs/models/operations/postquerygamequerynamerequest.md
   - docs/models/operations/posttxgametxnameglobals.md
   - docs/models/operations/posttxgametxnamerequest.md

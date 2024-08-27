@@ -80,15 +80,21 @@ export const PostTxGameTxNameRequest$inboundSchema: z.ZodType<
     PostTxGameTxNameRequest,
     z.ZodTypeDef,
     unknown
-> = z.object({
-    txName: z.string(),
-    txBody: components.TxBody$inboundSchema,
-});
+> = z
+    .object({
+        txName: z.string(),
+        TxBody: components.TxBody$inboundSchema,
+    })
+    .transform((v) => {
+        return remap$(v, {
+            TxBody: "txBody",
+        });
+    });
 
 /** @internal */
 export type PostTxGameTxNameRequest$Outbound = {
     txName: string;
-    txBody: components.TxBody$Outbound;
+    TxBody: components.TxBody$Outbound;
 };
 
 /** @internal */
@@ -96,10 +102,16 @@ export const PostTxGameTxNameRequest$outboundSchema: z.ZodType<
     PostTxGameTxNameRequest$Outbound,
     z.ZodTypeDef,
     PostTxGameTxNameRequest
-> = z.object({
-    txName: z.string(),
-    txBody: components.TxBody$outboundSchema,
-});
+> = z
+    .object({
+        txName: z.string(),
+        txBody: components.TxBody$outboundSchema,
+    })
+    .transform((v) => {
+        return remap$(v, {
+            txBody: "TxBody",
+        });
+    });
 
 /**
  * @internal

@@ -37,7 +37,7 @@ export async function transact(
     options?: RequestOptions
 ): Promise<
     Result<
-        components.CardinalServerHandlerPostTransactionResponse,
+        components.TxResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -58,7 +58,7 @@ export async function transact(
         return parsed$;
     }
     const payload$ = parsed$.value;
-    const body$ = encodeJSON$("body", payload$.txBody, { explode: true });
+    const body$ = encodeJSON$("body", payload$.TxBody, { explode: true });
 
     const pathParams$ = {
         txName: encodeSimple$("txName", payload$.txName, {
@@ -114,7 +114,7 @@ export async function transact(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        components.CardinalServerHandlerPostTransactionResponse,
+        components.TxResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -123,7 +123,7 @@ export async function transact(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, components.CardinalServerHandlerPostTransactionResponse$inboundSchema),
+        m$.json(200, components.TxResponse$inboundSchema),
         m$.fail([400, "4XX", "5XX"])
     )(response);
     if (!result$.ok) {

@@ -29,7 +29,7 @@ export async function getHealth(
     options?: RequestOptions
 ): Promise<
     Result<
-        components.CardinalServerHandlerGetHealthResponse,
+        components.GetHealthResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -74,7 +74,7 @@ export async function getHealth(
     const response = doResult.value;
 
     const [result$] = await m$.match<
-        components.CardinalServerHandlerGetHealthResponse,
+        components.GetHealthResponse,
         | SDKError
         | SDKValidationError
         | UnexpectedClientError
@@ -83,7 +83,7 @@ export async function getHealth(
         | RequestTimeoutError
         | ConnectionError
     >(
-        m$.json(200, components.CardinalServerHandlerGetHealthResponse$inboundSchema),
+        m$.json(200, components.GetHealthResponse$inboundSchema),
         m$.fail(["4XX", "5XX"])
     )(response);
     if (!result$.ok) {

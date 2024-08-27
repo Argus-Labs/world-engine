@@ -147,7 +147,7 @@ run();
 
 ### Response
 
-**Promise\<[components.PkgWorldDevWorldEngineCardinalTypesDebugStateElement[]](../../models/.md)\>**
+**Promise\<[components.DebugStateElement[]](../../models/.md)\>**
 
 ### Errors
 
@@ -215,7 +215,7 @@ run();
 
 ### Response
 
-**Promise\<[components.CardinalServerHandlerGetHealthResponse](../../models/components/cardinalserverhandlergethealthresponse.md)\>**
+**Promise\<[components.GetHealthResponse](../../models/components/gethealthresponse.md)\>**
 
 ### Errors
 
@@ -356,14 +356,14 @@ run();
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [components.CardinalServerHandlerListTxReceiptsRequest](../../models/components/cardinalserverhandlerlisttxreceiptsrequest.md)                                                 | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `request`                                                                                                                                                                      | [components.GetReceiptsRequest](../../models/components/getreceiptsrequest.md)                                                                                                 | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
 | `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
 | `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
 | `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
 
 ### Response
 
-**Promise\<[components.CardinalServerHandlerListTxReceiptsResponse](../../models/components/cardinalserverhandlerlisttxreceiptsresponse.md)\>**
+**Promise\<[components.GetReceiptsResponse](../../models/components/getreceiptsresponse.md)\>**
 
 ### Errors
 
@@ -438,7 +438,7 @@ run();
 
 ### Response
 
-**Promise\<[components.CardinalServerHandlerPostTransactionResponse](../../models/components/cardinalserverhandlerposttransactionresponse.md)\>**
+**Promise\<[components.TxResponse](../../models/components/txresponse.md)\>**
 
 ### Errors
 
@@ -507,7 +507,7 @@ run();
 
 ### Response
 
-**Promise\<[components.CardinalServerHandlerPostTransactionResponse](../../models/components/cardinalserverhandlerposttransactionresponse.md)\>**
+**Promise\<[components.TxResponse](../../models/components/txresponse.md)\>**
 
 ### Errors
 
@@ -575,7 +575,7 @@ run();
 
 ### Response
 
-**Promise\<[components.CardinalServerHandlerGetWorldResponse](../../models/components/cardinalserverhandlergetworldresponse.md)\>**
+**Promise\<[components.GetWorldResponse](../../models/components/getworldresponse.md)\>**
 
 ### Errors
 
