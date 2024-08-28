@@ -15,6 +15,7 @@ type DebugStateResponse = []types.DebugStateElement
 //
 // @Summary      Retrieves a list of all entities in the game state
 // @Description  Retrieves a list of all entities in the game state
+// @Id           getDebugState
 // @Produce      application/json
 // @Success      200  {object}  DebugStateResponse "List of all entities"
 // @Router       /debug/state [post]

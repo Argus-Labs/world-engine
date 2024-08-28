@@ -25,6 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Executes a CQL (Cardinal Query Language) query",
+                "operationId": "queryCQL",
                 "parameters": [
                     {
                         "description": "CQL query to be executed",
@@ -59,6 +60,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves a list of all entities in the game state",
+                "operationId": "getDebugState",
                 "responses": {
                     "200": {
                         "description": "List of all entities",
@@ -96,11 +98,57 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves the status of the server and game loop",
+                "operationId": "getHealth",
                 "responses": {
                     "200": {
                         "description": "Server and game loop status",
                         "schema": {
                             "$ref": "#/definitions/cardinal_server_handler.GetHealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/game/{queryName}": {
+            "post": {
+                "description": "Executes a query",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Executes a query",
+                "operationId": "query",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of a registered query",
+                        "name": "queryName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Query to be executed",
+                        "name": "queryBody",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Results of the executed query\" example({\"HP\": 128})",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -116,6 +164,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves all transaction receipts",
+                "operationId": "getReceipts",
                 "parameters": [
                     {
                         "description": "Query body",
@@ -204,6 +253,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Submits a transaction",
+                "operationId": "transact",
                 "parameters": [
                     {
                         "type": "string",
@@ -248,6 +298,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Creates a persona",
+                "operationId": "createPersona",
                 "parameters": [
                     {
                         "description": "Transaction details \u0026 message to be submitted",
@@ -336,6 +387,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves details of the game world",
+                "operationId": "getWorld",
                 "responses": {
                     "200": {
                         "description": "Details of the game world",
@@ -358,7 +410,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "cql": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "CONTAINS(Health)"
                 }
             }
         },
@@ -415,7 +468,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "startTick": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 64
                 }
             }
         },
@@ -429,7 +483,8 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/cardinal_server_handler.ReceiptEntry"
-                    }
+                    },
+                    "x-nullable": true
                 },
                 "startTick": {
                     "type": "integer"
@@ -454,7 +509,8 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "x-nullable": true
                 },
                 "result": {},
                 "tick": {
@@ -490,10 +546,10 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
+        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
             "type": "object",
             "properties": {
-                "data": {
+                "components": {
                     "type": "object"
                 },
                 "id": {
@@ -501,11 +557,14 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
+        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
             "type": "object",
             "properties": {
-                "components": {
-                    "type": "object"
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
                 },
                 "id": {
                     "type": "integer"

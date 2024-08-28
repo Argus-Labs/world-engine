@@ -13,6 +13,7 @@ type GetHealthResponse struct {
 //
 //	@Summary      Retrieves the status of the server and game loop
 //	@Description  Retrieves the status of the server and game loop
+//	@Id           getHealth
 //	@Produce      application/json
 //	@Success      200  {object}  GetHealthResponse  "Server and game loop status"
 //	@Router       /health [get]

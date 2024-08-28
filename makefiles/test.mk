@@ -92,33 +92,3 @@ unit-test-all:
 	$(MAKE) unit-test evm
 	$(MAKE) unit-test sign
 	$(MAKE) unit-test relay/nakama
-
-#################
-#   swagger	    #
-#################
-.PHONY: swaggo-install
-
-swaggo-install:
-	echo "--> Installing swaggo/swag cli"
-	go install github.com/swaggo/swag/cmd/swag@latest
-
-swagger:
-	$(MAKE) swaggo-install
-	swag init -g cardinal/server/server.go -o cardinal/server/docs/ --parseDependency
-
-swagger-check:
-	$(MAKE) swaggo-install
-
-	@echo "--> Generate latest Swagger specs"
-	cd cardinal && \
-		mkdir -p .tmp/swagger && \
-		swag init -g server/server.go -o .tmp/swagger --parseInternal --parseDependency
-
-	@echo "--> Compare existing and latest Swagger specs"
-	cd cardinal && \
-		docker run --rm -v ./:/local-repo ghcr.io/argus-labs/devops-infra-swagger-diff:2.0.0 \
-		/local-repo/server/docs/swagger.json /local-repo/.tmp/swagger/swagger.json && \
-		echo "swagger-diff: no changes detected"
-
-	@echo "--> Cleanup"
-	rm -rf .tmp/swagger
