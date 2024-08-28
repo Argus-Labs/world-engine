@@ -6,7 +6,7 @@ Cardinal: Backend server for World Engine
 
 ### Available Operations
 
-* [queryCql](#querycql) - Executes a CQL (Cardinal Query Language) query
+* [queryCQL](#querycql) - Executes a CQL (Cardinal Query Language) query
 * [getDebugState](#getdebugstate) - Retrieves a list of all entities in the game state
 * [getHealth](#gethealth) - Retrieves the status of the server and game loop
 * [query](#query) - Executes a query
@@ -15,19 +15,19 @@ Cardinal: Backend server for World Engine
 * [createPersona](#createpersona) - Creates a persona
 * [getWorld](#getworld) - Retrieves details of the game world
 
-## queryCql
+## queryCQL
 
 Executes a CQL (Cardinal Query Language) query
 
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.queryCql({
+  const result = await cardinal.queryCQL({
     cql: "CONTAINS(Health)",
   });
 
@@ -43,15 +43,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { queryCql } from "cardinal/funcs/queryCql.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { queryCQL } from "@arguslabs/cardinal/funcs/queryCQL.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
 const cardinal = new CardinalCore();
 
 async function run() {
-  const res = await queryCql(cardinal, {
+  const res = await queryCQL(cardinal, {
     cql: "CONTAINS(Health)",
   });
 
@@ -95,7 +95,7 @@ Retrieves a list of all entities in the game state
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
@@ -114,8 +114,8 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { getDebugState } from "cardinal/funcs/getDebugState.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { getDebugState } from "@arguslabs/cardinal/funcs/getDebugState.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
@@ -163,7 +163,7 @@ Retrieves the status of the server and game loop
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
@@ -182,8 +182,8 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { getHealth } from "cardinal/funcs/getHealth.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { getHealth } from "@arguslabs/cardinal/funcs/getHealth.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
@@ -231,13 +231,13 @@ Executes a query
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
   const result = await cardinal.query({
-    queryName: "<value>",
+    queryName: "player-health",
     requestBody: {
       "key": "<value>",
     },
@@ -255,8 +255,8 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { query } from "cardinal/funcs/query.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { query } from "@arguslabs/cardinal/funcs/query.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
@@ -264,7 +264,7 @@ const cardinal = new CardinalCore();
 
 async function run() {
   const res = await query(cardinal, {
-    queryName: "<value>",
+    queryName: "player-health",
     requestBody: {
       "key": "<value>",
     },
@@ -287,7 +287,7 @@ run();
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [operations.PostQueryGameQueryNameRequest](../../models/operations/postquerygamequerynamerequest.md)                                                                           | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `request`                                                                                                                                                                      | [operations.QueryRequest](../../models/operations/queryrequest.md)                                                                                                             | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
 | `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
 | `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
 | `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
@@ -310,12 +310,14 @@ Retrieves all transaction receipts
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.getReceipts({});
+  const result = await cardinal.getReceipts({
+    startTick: 64,
+  });
 
   // Handle the result
   console.log(result)
@@ -329,15 +331,17 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { getReceipts } from "cardinal/funcs/getReceipts.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { getReceipts } from "@arguslabs/cardinal/funcs/getReceipts.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
 const cardinal = new CardinalCore();
 
 async function run() {
-  const res = await getReceipts(cardinal, {});
+  const res = await getReceipts(cardinal, {
+    startTick: 64,
+  });
 
   if (!res.ok) {
     throw res.error;
@@ -379,14 +383,16 @@ Submits a transaction
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
   const result = await cardinal.transact({
-    txName: "<value>",
-    txBody: {},
+    txName: "attack-player",
+    txBody: {
+      personaTag: "CoolMage",
+    },
   });
 
   // Handle the result
@@ -401,8 +407,8 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { transact } from "cardinal/funcs/transact.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { transact } from "@arguslabs/cardinal/funcs/transact.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
@@ -410,8 +416,10 @@ const cardinal = new CardinalCore();
 
 async function run() {
   const res = await transact(cardinal, {
-    txName: "<value>",
-    txBody: {},
+    txName: "attack-player",
+    txBody: {
+      personaTag: "CoolMage",
+    },
   });
 
   if (!res.ok) {
@@ -431,7 +439,7 @@ run();
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [operations.PostTxGameTxNameRequest](../../models/operations/posttxgametxnamerequest.md)                                                                                       | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `request`                                                                                                                                                                      | [operations.TransactRequest](../../models/operations/transactrequest.md)                                                                                                       | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
 | `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
 | `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
 | `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
@@ -454,12 +462,14 @@ Creates a persona
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
-  const result = await cardinal.createPersona({});
+  const result = await cardinal.createPersona({
+    personaTag: "CoolMage",
+  });
 
   // Handle the result
   console.log(result)
@@ -473,15 +483,17 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { createPersona } from "cardinal/funcs/createPersona.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { createPersona } from "@arguslabs/cardinal/funcs/createPersona.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
 const cardinal = new CardinalCore();
 
 async function run() {
-  const res = await createPersona(cardinal, {});
+  const res = await createPersona(cardinal, {
+    personaTag: "CoolMage",
+  });
 
   if (!res.ok) {
     throw res.error;
@@ -523,7 +535,7 @@ Contains the registered components, messages, queries, and namespace
 ### Example Usage
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
@@ -542,8 +554,8 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { getWorld } from "cardinal/funcs/getWorld.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { getWorld } from "@arguslabs/cardinal/funcs/getWorld.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.

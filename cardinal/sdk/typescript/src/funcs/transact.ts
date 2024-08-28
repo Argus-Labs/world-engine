@@ -33,7 +33,7 @@ import { Result } from "../types/fp.js";
  */
 export async function transact(
     client$: CardinalCore,
-    request: operations.PostTxGameTxNameRequest,
+    request: operations.TransactRequest,
     options?: RequestOptions
 ): Promise<
     Result<
@@ -51,7 +51,7 @@ export async function transact(
 
     const parsed$ = schemas$.safeParse(
         input$,
-        (value$) => operations.PostTxGameTxNameRequest$outboundSchema.parse(value$),
+        (value$) => operations.TransactRequest$outboundSchema.parse(value$),
         "Input validation failed"
     );
     if (!parsed$.ok) {
@@ -79,11 +79,7 @@ export async function transact(
         Accept: "application/json",
     });
 
-    const context = {
-        operationID: "post_/tx/game/{txName}",
-        oAuth2Scopes: [],
-        securitySource: null,
-    };
+    const context = { operationID: "transact", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

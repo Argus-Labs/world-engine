@@ -70,11 +70,7 @@ export async function createPersona(
         Accept: "application/json",
     });
 
-    const context = {
-        operationID: "post_/tx/persona/create-persona",
-        oAuth2Scopes: [],
-        securitySource: null,
-    };
+    const context = { operationID: "createPersona", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

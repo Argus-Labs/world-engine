@@ -22,8 +22,8 @@ var (
 
 // PostTransactionResponse is the HTTP response for a successful transaction submission
 type PostTransactionResponse struct {
-  TxHash string `json:"txHash"`
-  Tick   uint64 `json:"tick"`
+	TxHash string `json:"txHash"`
+	Tick   uint64 `json:"tick"`
 }
 
 type Transaction = sign.Transaction
@@ -96,6 +96,7 @@ func PostTransaction(
 //
 //	@Summary      Submits a transaction
 //	@Description  Submits a transaction
+//	@Id           transact
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        txName  path      string                   true  "Name of a registered message"
@@ -114,6 +115,7 @@ func PostGameTransaction(
 //
 //	@Summary      Creates a persona
 //	@Description  Creates a persona
+//	@Id           createPersona
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"

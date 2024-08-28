@@ -3,9 +3,11 @@
 ## Example Usage
 
 ```typescript
-import { TxBody } from "cardinal/models/components";
+import { TxBody } from "@arguslabs/cardinal/models/components";
 
-let value: TxBody = {};
+let value: TxBody = {
+    personaTag: "CoolMage",
+};
 ```
 
 ## Fields

@@ -5,7 +5,7 @@
 import { remap as remap$ } from "../../lib/primitives.js";
 import * as z from "zod";
 
-export type PostQueryGameQueryNameRequest = {
+export type QueryRequest = {
     /**
      * Name of a registered query
      */
@@ -17,11 +17,7 @@ export type PostQueryGameQueryNameRequest = {
 };
 
 /** @internal */
-export const PostQueryGameQueryNameRequest$inboundSchema: z.ZodType<
-    PostQueryGameQueryNameRequest,
-    z.ZodTypeDef,
-    unknown
-> = z
+export const QueryRequest$inboundSchema: z.ZodType<QueryRequest, z.ZodTypeDef, unknown> = z
     .object({
         queryName: z.string(),
         RequestBody: z.record(z.any()),
@@ -33,16 +29,16 @@ export const PostQueryGameQueryNameRequest$inboundSchema: z.ZodType<
     });
 
 /** @internal */
-export type PostQueryGameQueryNameRequest$Outbound = {
+export type QueryRequest$Outbound = {
     queryName: string;
     RequestBody: { [k: string]: any };
 };
 
 /** @internal */
-export const PostQueryGameQueryNameRequest$outboundSchema: z.ZodType<
-    PostQueryGameQueryNameRequest$Outbound,
+export const QueryRequest$outboundSchema: z.ZodType<
+    QueryRequest$Outbound,
     z.ZodTypeDef,
-    PostQueryGameQueryNameRequest
+    QueryRequest
 > = z
     .object({
         queryName: z.string(),
@@ -58,11 +54,11 @@ export const PostQueryGameQueryNameRequest$outboundSchema: z.ZodType<
  * @internal
  * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
  */
-export namespace PostQueryGameQueryNameRequest$ {
-    /** @deprecated use `PostQueryGameQueryNameRequest$inboundSchema` instead. */
-    export const inboundSchema = PostQueryGameQueryNameRequest$inboundSchema;
-    /** @deprecated use `PostQueryGameQueryNameRequest$outboundSchema` instead. */
-    export const outboundSchema = PostQueryGameQueryNameRequest$outboundSchema;
-    /** @deprecated use `PostQueryGameQueryNameRequest$Outbound` instead. */
-    export type Outbound = PostQueryGameQueryNameRequest$Outbound;
+export namespace QueryRequest$ {
+    /** @deprecated use `QueryRequest$inboundSchema` instead. */
+    export const inboundSchema = QueryRequest$inboundSchema;
+    /** @deprecated use `QueryRequest$outboundSchema` instead. */
+    export const outboundSchema = QueryRequest$outboundSchema;
+    /** @deprecated use `QueryRequest$Outbound` instead. */
+    export type Outbound = QueryRequest$Outbound;
 }

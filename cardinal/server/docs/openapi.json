@@ -16,6 +16,7 @@
       "post": {
         "summary": "Executes a CQL (Cardinal Query Language) query",
         "description": "Executes a CQL (Cardinal Query Language) query",
+        "operationId": "queryCQL",
         "requestBody": {
           "description": "CQL query to be executed",
           "content": {
@@ -49,14 +50,14 @@
             }
           }
         },
-        "x-codegen-request-body-name": "cql",
-        "x-speakeasy-name-override": "queryCql"
+        "x-codegen-request-body-name": "cql"
       }
     },
     "/debug/state": {
       "post": {
         "summary": "Retrieves a list of all entities in the game state",
         "description": "Retrieves a list of all entities in the game state",
+        "operationId": "getDebugState",
         "responses": {
           "200": {
             "description": "List of all entities",
@@ -71,8 +72,7 @@
               }
             }
           }
-        },
-        "x-speakeasy-name-override": "getDebugState"
+        }
       }
     },
     "/events": {
@@ -98,6 +98,7 @@
       "get": {
         "summary": "Retrieves the status of the server and game loop",
         "description": "Retrieves the status of the server and game loop",
+        "operationId": "getHealth",
         "responses": {
           "200": {
             "description": "Server and game loop status",
@@ -109,14 +110,14 @@
               }
             }
           }
-        },
-        "x-speakeasy-name-override": "getHealth"
+        }
       }
     },
     "/query/game/{queryName}": {
       "post": {
         "summary": "Executes a query",
         "description": "Executes a query",
+        "operationId": "query",
         "parameters": [
           {
             "name": "queryName",
@@ -127,7 +128,8 @@
             "explode": false,
             "schema": {
               "type": "string"
-            }
+            },
+            "example": "player-health"
           }
         ],
         "requestBody": {
@@ -144,7 +146,7 @@
         },
         "responses": {
           "200": {
-            "description": "Results of the executed query",
+            "description": "Results of the executed query\" example({\"HP\": 128})",
             "content": {
               "application/json": {
                 "schema": {
@@ -166,13 +168,17 @@
           }
         },
         "x-codegen-request-body-name": "queryBody",
-        "x-speakeasy-name-override": "query"
+        "x-speakeasy-usage-example": {
+          "title": "Execute a query",
+          "position": 2
+        }
       }
     },
     "/query/receipts/list": {
       "post": {
         "summary": "Retrieves all transaction receipts",
         "description": "Retrieves all transaction receipts",
+        "operationId": "getReceipts",
         "requestBody": {
           "description": "Query body",
           "content": {
@@ -206,8 +212,7 @@
             }
           }
         },
-        "x-codegen-request-body-name": "ListTxReceiptsRequest",
-        "x-speakeasy-name-override": "getReceipts"
+        "x-codegen-request-body-name": "ListTxReceiptsRequest"
       }
     },
     "/query/{queryGroup}/{queryName}": {
@@ -279,6 +284,7 @@
       "post": {
         "summary": "Submits a transaction",
         "description": "Submits a transaction",
+        "operationId": "transact",
         "parameters": [
           {
             "name": "txName",
@@ -289,7 +295,8 @@
             "explode": false,
             "schema": {
               "type": "string"
-            }
+            },
+            "example": "attack-player"
           },
           {
             "name": "_privateKey",
@@ -339,14 +346,14 @@
             }
           }
         },
-        "x-codegen-request-body-name": "txBody",
-        "x-speakeasy-name-override": "transact"
+        "x-codegen-request-body-name": "txBody"
       }
     },
     "/tx/persona/create-persona": {
       "post": {
         "summary": "Creates a persona",
         "description": "Creates a persona",
+        "operationId": "createPersona",
         "requestBody": {
           "description": "Transaction details & message to be submitted",
           "content": {
@@ -381,7 +388,6 @@
           }
         },
         "x-codegen-request-body-name": "txBody",
-        "x-speakeasy-name-override": "createPersona",
         "parameters": [
           {
             "name": "_privateKey",
@@ -397,7 +403,11 @@
               "type": "string"
             }
           }
-        ]
+        ],
+        "x-speakeasy-usage-example": {
+          "title": "Create a persona",
+          "position": 1
+        }
       }
     },
     "/tx/{txGroup}/{txName}": {
@@ -469,6 +479,7 @@
       "get": {
         "summary": "Retrieves details of the game world",
         "description": "Contains the registered components, messages, queries, and namespace",
+        "operationId": "getWorld",
         "responses": {
           "200": {
             "description": "Details of the game world",
@@ -490,8 +501,7 @@
               }
             }
           }
-        },
-        "x-speakeasy-name-override": "getWorld"
+        }
       }
     }
   },
@@ -563,7 +573,8 @@
         "type": "object",
         "properties": {
           "startTick": {
-            "type": "integer"
+            "type": "integer",
+            "example": 64
           }
         },
         "x-speakeasy-name-override": "GetReceiptsRequest"
@@ -646,7 +657,10 @@
             "description": "hex encoded string"
           }
         },
-        "x-speakeasy-name-override": "TxBody"
+        "x-speakeasy-name-override": "TxBody",
+        "example": {
+          "personaTag": "CoolMage"
+        }
       },
       "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
         "type": "object",

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { CQLQueryRequest } from "cardinal/models/components";
+import { CQLQueryRequest } from "@arguslabs/cardinal/models/components";
 
 let value: CQLQueryRequest = {
     cql: "CONTAINS(Health)",

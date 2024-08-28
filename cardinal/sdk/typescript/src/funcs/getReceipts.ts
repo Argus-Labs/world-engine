@@ -62,11 +62,7 @@ export async function getReceipts(
         Accept: "application/json",
     });
 
-    const context = {
-        operationID: "post_/query/receipts/list",
-        oAuth2Scopes: [],
-        securitySource: null,
-    };
+    const context = { operationID: "getReceipts", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

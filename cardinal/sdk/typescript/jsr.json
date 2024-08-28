@@ -1,8 +1,8 @@
 
 
 {
-  "name": "cardinal",
-  "version": "0.12.4",
+  "name": "@arguslabs/cardinal",
+  "version": "0.1.0",
   "exports": {
     ".": "./src/index.ts",    
     "./models/errors": "./src/models/errors/index.ts",    

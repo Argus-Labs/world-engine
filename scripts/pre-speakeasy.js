@@ -10,20 +10,6 @@ const data = JSON.parse(file)
 
 
 /// ---------------------------------------------------------------------------
-/// Rename SDK methods/functions
-/// ---------------------------------------------------------------------------
-
-data.paths['/cql'].post['x-speakeasy-name-override'] = 'queryCql'
-data.paths['/debug/state'].post['x-speakeasy-name-override'] = 'getDebugState'
-data.paths['/health'].get['x-speakeasy-name-override'] = 'getHealth'
-data.paths['/query/game/{queryName}'].post['x-speakeasy-name-override'] = 'query'
-data.paths['/query/receipts/list'].post['x-speakeasy-name-override'] = 'getReceipts'
-data.paths['/tx/game/{txName}'].post['x-speakeasy-name-override'] = 'transact'
-data.paths['/tx/persona/create-persona'].post['x-speakeasy-name-override'] = 'createPersona'
-data.paths['/world'].get['x-speakeasy-name-override'] = 'getWorld'
-
-
-/// ---------------------------------------------------------------------------
 /// Hide endpoints from SDK generation
 /// ---------------------------------------------------------------------------
 
@@ -145,6 +131,38 @@ data.components.schemas['cardinal_server_handler.PostTransactionResponse']['x-sp
 // GET /world
 data.components.schemas['cardinal_server_handler.GetWorldResponse']['x-speakeasy-name-override'] = 'GetWorldResponse'
 data.components.schemas['pkg_world_dev_world-engine_cardinal_types.FieldDetail']['x-speakeasy-name-override'] = 'WorldFieldDetail'
+
+
+/// ---------------------------------------------------------------------------
+/// Example parameter values
+///
+/// Swagger parameters don't support the `example` key, so we have to add it manually
+/// ---------------------------------------------------------------------------
+
+// POST /query/game/{queryName}
+data.paths['/query/game/{queryName}'].post.parameters = data.paths['/query/game/{queryName}'].post.parameters.map((p) =>
+  p.name === 'queryName' ? { ...p, example: 'player-health' } : p
+)
+
+// POST /tx/game/{txName}
+data.paths['/tx/game/{txName}'].post.parameters = data.paths['/tx/game/{txName}'].post.parameters.map((p) =>
+  p.name === 'txName' ? { ...p, example: 'attack-player' } : p
+)
+
+data.components.schemas['cardinal_server_handler.Transaction'].example = { personaTag: 'CoolMage' }
+
+/// ---------------------------------------------------------------------------
+/// Docs: Usage examples
+/// ---------------------------------------------------------------------------
+
+data.paths['/tx/persona/create-persona'].post['x-speakeasy-usage-example'] = {
+  title: 'Create a persona',
+  position: 1
+}
+data.paths['/query/game/{queryName}'].post['x-speakeasy-usage-example'] = {
+  title: 'Execute a query',
+  position: 2
+}
 
 
 /// ---------------------------------------------------------------------------

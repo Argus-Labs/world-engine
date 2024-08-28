@@ -1,11 +1,11 @@
-# PostTxPersonaCreatePersonaGlobals
+# TransactGlobals
 
 ## Example Usage
 
 ```typescript
-import { PostTxPersonaCreatePersonaGlobals } from "cardinal/models/operations";
+import { TransactGlobals } from "@arguslabs/cardinal/models/operations";
 
-let value: PostTxPersonaCreatePersonaGlobals = {};
+let value: TransactGlobals = {};
 ```
 
 ## Fields

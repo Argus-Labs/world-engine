@@ -19,17 +19,20 @@ specific category of applications.
 ## Example
 
 ```typescript
-import { CardinalCore } from "cardinal/core.js";
-import { queryCql } from "cardinal/funcs/queryCql.js";
-import { SDKValidationError } from "cardinal/models/errors/sdkvalidationerror.js";
+import { CardinalCore } from "@arguslabs/cardinal/core.js";
+import { query } from "@arguslabs/cardinal/funcs/query.js";
+import { SDKValidationError } from "@arguslabs/cardinal/models/errors/sdkvalidationerror.js";
 
 // Use `CardinalCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
 const cardinal = new CardinalCore();
 
 async function run() {
-  const res = await queryCql(cardinal, {
-    cql: "CONTAINS(Health)",
+  const res = await query(cardinal, {
+    queryName: "player-health",
+    requestBody: {
+      "key": "<value>",
+    },
   });
 
   switch (true) {

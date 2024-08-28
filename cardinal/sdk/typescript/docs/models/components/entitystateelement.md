@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { EntityStateElement } from "cardinal/models/components";
+import { EntityStateElement } from "@arguslabs/cardinal/models/components";
 
 let value: EntityStateElement = {};
 ```

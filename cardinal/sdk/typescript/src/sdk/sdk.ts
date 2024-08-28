@@ -8,7 +8,7 @@ import { getHealth } from "../funcs/getHealth.js";
 import { getReceipts } from "../funcs/getReceipts.js";
 import { getWorld } from "../funcs/getWorld.js";
 import { query } from "../funcs/query.js";
-import { queryCql } from "../funcs/queryCql.js";
+import { queryCQL } from "../funcs/queryCQL.js";
 import { transact } from "../funcs/transact.js";
 import { ClientSDK, RequestOptions } from "../lib/sdks.js";
 import * as components from "../models/components/index.js";
@@ -22,11 +22,11 @@ export class Cardinal extends ClientSDK {
      * @remarks
      * Executes a CQL (Cardinal Query Language) query
      */
-    async queryCql(
+    async queryCQL(
         request: components.CQLQueryRequest,
         options?: RequestOptions
     ): Promise<components.CQLQueryResponse> {
-        return unwrapAsync(queryCql(this, request, options));
+        return unwrapAsync(queryCQL(this, request, options));
     }
 
     /**
@@ -56,7 +56,7 @@ export class Cardinal extends ClientSDK {
      * Executes a query
      */
     async query(
-        request: operations.PostQueryGameQueryNameRequest,
+        request: operations.QueryRequest,
         options?: RequestOptions
     ): Promise<{ [k: string]: any }> {
         return unwrapAsync(query(this, request, options));
@@ -82,7 +82,7 @@ export class Cardinal extends ClientSDK {
      * Submits a transaction
      */
     async transact(
-        request: operations.PostTxGameTxNameRequest,
+        request: operations.TransactRequest,
         options?: RequestOptions
     ): Promise<components.TxResponse> {
         return unwrapAsync(transact(this, request, options));

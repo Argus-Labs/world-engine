@@ -5,14 +5,14 @@
 import { remap as remap$ } from "../../lib/primitives.js";
 import * as z from "zod";
 
-export type PostTxPersonaCreatePersonaGlobals = {
+export type CreatePersonaGlobals = {
     privateKey?: string | undefined;
     namespace?: string | undefined;
 };
 
 /** @internal */
-export const PostTxPersonaCreatePersonaGlobals$inboundSchema: z.ZodType<
-    PostTxPersonaCreatePersonaGlobals,
+export const CreatePersonaGlobals$inboundSchema: z.ZodType<
+    CreatePersonaGlobals,
     z.ZodTypeDef,
     unknown
 > = z
@@ -28,16 +28,16 @@ export const PostTxPersonaCreatePersonaGlobals$inboundSchema: z.ZodType<
     });
 
 /** @internal */
-export type PostTxPersonaCreatePersonaGlobals$Outbound = {
+export type CreatePersonaGlobals$Outbound = {
     _privateKey?: string | undefined;
     _namespace?: string | undefined;
 };
 
 /** @internal */
-export const PostTxPersonaCreatePersonaGlobals$outboundSchema: z.ZodType<
-    PostTxPersonaCreatePersonaGlobals$Outbound,
+export const CreatePersonaGlobals$outboundSchema: z.ZodType<
+    CreatePersonaGlobals$Outbound,
     z.ZodTypeDef,
-    PostTxPersonaCreatePersonaGlobals
+    CreatePersonaGlobals
 > = z
     .object({
         privateKey: z.string().optional(),
@@ -54,11 +54,11 @@ export const PostTxPersonaCreatePersonaGlobals$outboundSchema: z.ZodType<
  * @internal
  * @deprecated This namespace will be removed in future versions. Use schemas and types that are exported directly from this module.
  */
-export namespace PostTxPersonaCreatePersonaGlobals$ {
-    /** @deprecated use `PostTxPersonaCreatePersonaGlobals$inboundSchema` instead. */
-    export const inboundSchema = PostTxPersonaCreatePersonaGlobals$inboundSchema;
-    /** @deprecated use `PostTxPersonaCreatePersonaGlobals$outboundSchema` instead. */
-    export const outboundSchema = PostTxPersonaCreatePersonaGlobals$outboundSchema;
-    /** @deprecated use `PostTxPersonaCreatePersonaGlobals$Outbound` instead. */
-    export type Outbound = PostTxPersonaCreatePersonaGlobals$Outbound;
+export namespace CreatePersonaGlobals$ {
+    /** @deprecated use `CreatePersonaGlobals$inboundSchema` instead. */
+    export const inboundSchema = CreatePersonaGlobals$inboundSchema;
+    /** @deprecated use `CreatePersonaGlobals$outboundSchema` instead. */
+    export const outboundSchema = CreatePersonaGlobals$outboundSchema;
+    /** @deprecated use `CreatePersonaGlobals$Outbound` instead. */
+    export type Outbound = CreatePersonaGlobals$Outbound;
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type CQLQueryRequest struct {
-  CQL string `example:"CONTAINS(Health)"`
+	CQL string `example:"CONTAINS(Health)"`
 }
 
 type CQLQueryResponse struct {
@@ -19,6 +19,7 @@ type CQLQueryResponse struct {
 //
 //	@Summary      Executes a CQL (Cardinal Query Language) query
 //	@Description  Executes a CQL (Cardinal Query Language) query
+//	@Id           queryCQL
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        cql  body      CQLQueryRequest   true  "CQL query to be executed"

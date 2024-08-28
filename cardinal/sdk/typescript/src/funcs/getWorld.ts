@@ -45,7 +45,7 @@ export async function getWorld(
         Accept: "application/json",
     });
 
-    const context = { operationID: "get_/world", oAuth2Scopes: [], securitySource: null };
+    const context = { operationID: "getWorld", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

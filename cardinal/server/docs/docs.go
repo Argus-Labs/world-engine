@@ -25,6 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Executes a CQL (Cardinal Query Language) query",
+                "operationId": "queryCQL",
                 "parameters": [
                     {
                         "description": "CQL query to be executed",
@@ -59,6 +60,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves a list of all entities in the game state",
+                "operationId": "getDebugState",
                 "responses": {
                     "200": {
                         "description": "List of all entities",
@@ -96,6 +98,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves the status of the server and game loop",
+                "operationId": "getHealth",
                 "responses": {
                     "200": {
                         "description": "Server and game loop status",
@@ -116,6 +119,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Executes a query",
+                "operationId": "query",
                 "parameters": [
                     {
                         "type": "string",
@@ -136,7 +140,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Results of the executed query",
+                        "description": "Results of the executed query\" example({\"HP\": 128})",
                         "schema": {
                             "type": "object"
                         }
@@ -160,6 +164,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves all transaction receipts",
+                "operationId": "getReceipts",
                 "parameters": [
                     {
                         "description": "Query body",
@@ -248,6 +253,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Submits a transaction",
+                "operationId": "transact",
                 "parameters": [
                     {
                         "type": "string",
@@ -292,6 +298,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Creates a persona",
+                "operationId": "createPersona",
                 "parameters": [
                     {
                         "description": "Transaction details \u0026 message to be submitted",
@@ -380,6 +387,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "Retrieves details of the game world",
+                "operationId": "getWorld",
                 "responses": {
                     "200": {
                         "description": "Details of the game world",
@@ -460,7 +468,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "startTick": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 64
                 }
             }
         },

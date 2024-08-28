@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ReceiptEntry } from "cardinal/models/components";
+import { ReceiptEntry } from "@arguslabs/cardinal/models/components";
 
 let value: ReceiptEntry = {};
 ```

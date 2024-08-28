@@ -38,6 +38,7 @@ func PostQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 //
 //	@Summary      Executes a query
 //	@Description  Executes a query
+//	@Id           query
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        queryName   path      string  true  "Name of a registered query"

@@ -1,6 +1,6 @@
 {
-  "name": "cardinal",
-  "version": "0.12.4",
+  "name": "@arguslabs/cardinal",
+  "version": "0.1.0",
   "author": "Argus Labs",
   "main": "./index.js",
   "sideEffects": false,

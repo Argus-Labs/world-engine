@@ -46,7 +46,7 @@ export async function getDebugState(
         Accept: "application/json",
     });
 
-    const context = { operationID: "post_/debug/state", oAuth2Scopes: [], securitySource: null };
+    const context = { operationID: "getDebugState", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

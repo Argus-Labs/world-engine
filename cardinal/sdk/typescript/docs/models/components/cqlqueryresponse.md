@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { CQLQueryResponse } from "cardinal/models/components";
+import { CQLQueryResponse } from "@arguslabs/cardinal/models/components";
 
 let value: CQLQueryResponse = {};
 ```

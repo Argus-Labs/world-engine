@@ -11,3 +11,6 @@ targets:
         target: typescript
         source: cardinal
         output: cardinal/sdk/typescript
+        publish:
+            npm:
+                token: $npm_token

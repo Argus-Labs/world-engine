@@ -7,7 +7,7 @@ import (
 )
 
 type ListTxReceiptsRequest struct {
-	StartTick uint64 `json:"startTick" mapstructure:"startTick"`
+	StartTick uint64 `json:"startTick" mapstructure:"startTick" example:"64"`
 }
 
 // ListTxReceiptsResponse returns the transaction receipts for the given range of ticks. The interval is closed on
@@ -17,7 +17,7 @@ type ListTxReceiptsRequest struct {
 type ListTxReceiptsResponse struct {
 	StartTick uint64         `json:"startTick"`
 	EndTick   uint64         `json:"endTick"`
-  Receipts  []ReceiptEntry `json:"receipts" extensions:"x-nullable"`
+	Receipts  []ReceiptEntry `json:"receipts" extensions:"x-nullable"`
 }
 
 // ReceiptEntry represents a single transaction receipt. It contains an ID, a result, and a list of errors.
@@ -25,13 +25,14 @@ type ReceiptEntry struct {
 	TxHash string   `json:"txHash"`
 	Tick   uint64   `json:"tick"`
 	Result any      `json:"result"`
-  Errors []string `json:"errors" extensions:"x-nullable"`
+	Errors []string `json:"errors" extensions:"x-nullable"`
 }
 
 // GetReceipts godoc
 //
 //	@Summary      Retrieves all transaction receipts
 //	@Description  Retrieves all transaction receipts
+//	@Id           getReceipts
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        ListTxReceiptsRequest  body      ListTxReceiptsRequest  true  "Query body"

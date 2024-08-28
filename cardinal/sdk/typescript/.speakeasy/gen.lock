@@ -1,18 +1,20 @@
 lockVersion: 2.0.0
 id: 156883ba-7f38-4ec6-b684-ccf304078a11
 management:
-  docChecksum: 44f39a76047e47cec71133d08394b41c
+  docChecksum: 326cfdabf02c930114bcf40e20377cfe
   docVersion: 0.0.1
-  speakeasyVersion: 1.379.3
-  generationVersion: 2.404.3
-  releaseVersion: 0.12.4
-  configChecksum: 742ec3e35d2e519dc8dc2adde0d9ce5a
+  speakeasyVersion: 1.381.4
+  generationVersion: 2.404.9
+  releaseVersion: 0.1.0
+  configChecksum: e3e903dbe9befe404f49e9067043990e
+  published: true
 features:
   typescript:
     additionalDependencies: 0.1.0
     core: 3.14.1
     defaultEnabledRetries: 0.1.0
     envVarSecurityUsage: 0.1.1
+    examples: 2.81.4
     globalSecurityCallbacks: 0.1.0
     globalServerURLs: 2.82.4
     globals: 2.82.1
@@ -24,7 +26,7 @@ features:
     retries: 2.83.0
     sdkHooks: 0.1.0
 generatedFiles:
-  - src/funcs/queryCql.ts
+  - src/funcs/queryCQL.ts
   - src/funcs/getDebugState.ts
   - src/funcs/getHealth.ts
   - src/funcs/query.ts
@@ -79,9 +81,9 @@ generatedFiles:
   - src/models/components/txbody.ts
   - src/models/components/getworldresponse.ts
   - src/models/components/worldfielddetail.ts
-  - src/models/operations/postquerygamequeryname.ts
-  - src/models/operations/posttxgametxname.ts
-  - src/models/operations/posttxpersonacreatepersona.ts
+  - src/models/operations/query.ts
+  - src/models/operations/transact.ts
+  - src/models/operations/createpersona.ts
   - src/models/errors/index.ts
   - src/models/components/index.ts
   - src/models/operations/index.ts
@@ -98,10 +100,10 @@ generatedFiles:
   - docs/models/components/txbody.md
   - docs/models/components/getworldresponse.md
   - docs/models/components/worldfielddetail.md
-  - docs/models/operations/postquerygamequerynamerequest.md
-  - docs/models/operations/posttxgametxnameglobals.md
-  - docs/models/operations/posttxgametxnamerequest.md
-  - docs/models/operations/posttxpersonacreatepersonaglobals.md
+  - docs/models/operations/queryrequest.md
+  - docs/models/operations/transactglobals.md
+  - docs/models/operations/transactrequest.md
+  - docs/models/operations/createpersonaglobals.md
   - docs/lib/utils/retryconfig.md
   - docs/sdks/cardinal/README.md
   - USAGE.md

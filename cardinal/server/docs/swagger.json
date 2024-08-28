@@ -22,6 +22,7 @@
                     "application/json"
                 ],
                 "summary": "Executes a CQL (Cardinal Query Language) query",
+                "operationId": "queryCQL",
                 "parameters": [
                     {
                         "description": "CQL query to be executed",
@@ -56,6 +57,7 @@
                     "application/json"
                 ],
                 "summary": "Retrieves a list of all entities in the game state",
+                "operationId": "getDebugState",
                 "responses": {
                     "200": {
                         "description": "List of all entities",
@@ -93,6 +95,7 @@
                     "application/json"
                 ],
                 "summary": "Retrieves the status of the server and game loop",
+                "operationId": "getHealth",
                 "responses": {
                     "200": {
                         "description": "Server and game loop status",
@@ -113,6 +116,7 @@
                     "application/json"
                 ],
                 "summary": "Executes a query",
+                "operationId": "query",
                 "parameters": [
                     {
                         "type": "string",
@@ -133,7 +137,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Results of the executed query",
+                        "description": "Results of the executed query\" example({\"HP\": 128})",
                         "schema": {
                             "type": "object"
                         }
@@ -157,6 +161,7 @@
                     "application/json"
                 ],
                 "summary": "Retrieves all transaction receipts",
+                "operationId": "getReceipts",
                 "parameters": [
                     {
                         "description": "Query body",
@@ -245,6 +250,7 @@
                     "application/json"
                 ],
                 "summary": "Submits a transaction",
+                "operationId": "transact",
                 "parameters": [
                     {
                         "type": "string",
@@ -289,6 +295,7 @@
                     "application/json"
                 ],
                 "summary": "Creates a persona",
+                "operationId": "createPersona",
                 "parameters": [
                     {
                         "description": "Transaction details \u0026 message to be submitted",
@@ -377,6 +384,7 @@
                     "application/json"
                 ],
                 "summary": "Retrieves details of the game world",
+                "operationId": "getWorld",
                 "responses": {
                     "200": {
                         "description": "Details of the game world",
@@ -457,7 +465,8 @@
             "type": "object",
             "properties": {
                 "startTick": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 64
                 }
             }
         },

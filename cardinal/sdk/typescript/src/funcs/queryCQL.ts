@@ -26,7 +26,7 @@ import { Result } from "../types/fp.js";
  * @remarks
  * Executes a CQL (Cardinal Query Language) query
  */
-export async function queryCql(
+export async function queryCQL(
     client$: CardinalCore,
     request: components.CQLQueryRequest,
     options?: RequestOptions
@@ -62,7 +62,7 @@ export async function queryCql(
         Accept: "application/json",
     });
 
-    const context = { operationID: "post_/cql", oAuth2Scopes: [], securitySource: null };
+    const context = { operationID: "queryCQL", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

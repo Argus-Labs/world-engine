@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { DebugStateElement } from "cardinal/models/components";
+import { DebugStateElement } from "@arguslabs/cardinal/models/components";
 
 let value: DebugStateElement = {};
 ```

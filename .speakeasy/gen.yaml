@@ -12,7 +12,7 @@ generation:
   auth:
     oAuth2ClientCredentialsEnabled: true
 typescript:
-  version: 0.12.4
+  version: 0.1.0
   additionalDependencies:
     dependencies:
       viem: ^2.19.1
@@ -37,7 +37,7 @@ typescript:
   methodArguments: require-security-and-request
   moduleFormat: commonjs
   outputModelSuffix: output
-  packageName: cardinal
+  packageName: '@arguslabs/cardinal'
   responseFormat: flat
   templateVersion: v2
   useIndexModules: true

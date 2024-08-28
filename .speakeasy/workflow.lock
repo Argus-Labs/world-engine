@@ -1,17 +1,17 @@
-speakeasyVersion: 1.379.3
+speakeasyVersion: 1.381.4
 sources:
     cardinal:
         sourceNamespace: cardinal
-        sourceRevisionDigest: sha256:4e941053e1307d0ba02a1f38b3f48db57543fad5c6637d8de6d093b89272a544
-        sourceBlobDigest: sha256:a84346dfc1ff7013618c056a4225784957def250c47571bfaf81b39ef0382d55
+        sourceRevisionDigest: sha256:fafa7b7838777544c2cab7dfa39c7a18b2a7606cdb3733a07a9ead322a791834
+        sourceBlobDigest: sha256:19e5c3e6900b7b79428cf57341cbffb76169856f0bb92db15f4d37aca376fcfb
         tags:
             - latest
 targets:
     cardinal-ts:
         source: cardinal
         sourceNamespace: cardinal
-        sourceRevisionDigest: sha256:4e941053e1307d0ba02a1f38b3f48db57543fad5c6637d8de6d093b89272a544
-        sourceBlobDigest: sha256:a84346dfc1ff7013618c056a4225784957def250c47571bfaf81b39ef0382d55
+        sourceRevisionDigest: sha256:fafa7b7838777544c2cab7dfa39c7a18b2a7606cdb3733a07a9ead322a791834
+        sourceBlobDigest: sha256:19e5c3e6900b7b79428cf57341cbffb76169856f0bb92db15f4d37aca376fcfb
         outLocation: cardinal/sdk/typescript
 workflow:
     workflowVersion: 1.0.0
@@ -27,3 +27,6 @@ workflow:
             target: typescript
             source: cardinal
             output: cardinal/sdk/typescript
+            publish:
+                npm:
+                    token: $npm_token

@@ -7,40 +7,31 @@
     </a>
 </div>
 
-
-## 🏗 **Welcome to your new SDK!** 🏗
-
-It has been generated successfully based on your OpenAPI spec. However, it is not yet ready for production use. Here are some next steps:
-- [ ] 🛠 Make your SDK feel handcrafted by [customizing it](https://www.speakeasy.com/docs/customize-sdks)
-- [ ] ♻️ Refine your SDK quickly by iterating locally with the [Speakeasy CLI](https://github.com/speakeasy-api/speakeasy)
-- [ ] 🎁 Publish your SDK to package managers by [configuring automatic publishing](https://www.speakeasy.com/docs/advanced-setup/publish-sdks)
-- [ ] ✨ When ready to productionize, delete this section from the README
-
 <!-- Start SDK Installation [installation] -->
 ## SDK Installation
 
 ### NPM
 
 ```bash
-npm add <UNSET>
+npm add @arguslabs/cardinal
 ```
 
 ### PNPM
 
 ```bash
-pnpm add <UNSET>
+pnpm add @arguslabs/cardinal
 ```
 
 ### Bun
 
 ```bash
-bun add <UNSET>
+bun add @arguslabs/cardinal
 ```
 
 ### Yarn
 
 ```bash
-yarn add <UNSET> zod
+yarn add @arguslabs/cardinal zod
 
 # Note that Yarn does not install peer dependencies automatically. You will need
 # to install zod as shown above.
@@ -56,16 +47,39 @@ For supported JavaScript runtimes, please consult [RUNTIMES.md](RUNTIMES.md).
 <!-- Start SDK Example Usage [usage] -->
 ## SDK Example Usage
 
-### Example
+### Create a persona
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
-    const result = await cardinal.queryCql({
-        cql: "CONTAINS(Health)",
+    const result = await cardinal.createPersona({
+        personaTag: "CoolMage",
+    });
+
+    // Handle the result
+    console.log(result);
+}
+
+run();
+
+```
+
+### Execute a query
+
+```typescript
+import { Cardinal } from "@arguslabs/cardinal";
+
+const cardinal = new Cardinal();
+
+async function run() {
+    const result = await cardinal.query({
+        queryName: "player-health",
+        requestBody: {
+            key: "<value>",
+        },
     });
 
     // Handle the result
@@ -82,7 +96,7 @@ run();
 
 ### [Cardinal SDK](docs/sdks/cardinal/README.md)
 
-* [queryCql](docs/sdks/cardinal/README.md#querycql) - Executes a CQL (Cardinal Query Language) query
+* [queryCQL](docs/sdks/cardinal/README.md#querycql) - Executes a CQL (Cardinal Query Language) query
 * [getDebugState](docs/sdks/cardinal/README.md#getdebugstate) - Retrieves a list of all entities in the game state
 * [getHealth](docs/sdks/cardinal/README.md#gethealth) - Retrieves the status of the server and game loop
 * [query](docs/sdks/cardinal/README.md#query) - Executes a query
@@ -99,12 +113,12 @@ Some of the endpoints in this SDK support retries.  If you use the SDK without a
 
 To change the default retry strategy for a single API call, simply provide a retryConfig object to the call:
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal();
 
 async function run() {
-    const result = await cardinal.queryCql(
+    const result = await cardinal.queryCQL(
         {
             cql: "CONTAINS(Health)",
         },
@@ -132,7 +146,7 @@ run();
 
 If you'd like to override the default retry strategy for all operations that support retries, you can provide a retryConfig at SDK initialization:
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const cardinal = new Cardinal({
     retryConfig: {
@@ -148,7 +162,7 @@ const cardinal = new Cardinal({
 });
 
 async function run() {
-    const result = await cardinal.queryCql({
+    const result = await cardinal.queryCQL({
         cql: "CONTAINS(Health)",
     });
 
@@ -174,15 +188,15 @@ Validation errors can also occur when either method arguments or data returned f
 
 
 ```typescript
-import { Cardinal } from "cardinal";
-import { SDKValidationError } from "cardinal/models/errors";
+import { Cardinal } from "@arguslabs/cardinal";
+import { SDKValidationError } from "@arguslabs/cardinal/models/errors";
 
 const cardinal = new Cardinal();
 
 async function run() {
     let result;
     try {
-        result = await cardinal.queryCql({
+        result = await cardinal.queryCQL({
             cql: "CONTAINS(Health)",
         });
     } catch (err) {
@@ -209,62 +223,7 @@ run();
 ```
 <!-- End Error Handling [errors] -->
 
-<!-- Start Server Selection [server] -->
-## Server Selection
-
-### Select Server by Index
-
-You can override the default server globally by passing a server index to the `serverIdx` optional parameter when initializing the SDK client instance. The selected server will then be used as the default on the operations that use it. This table lists the indexes associated with the available servers:
-
-| # | Server | Variables |
-| - | ------ | --------- |
-| 0 | `https:///` | None |
-
-```typescript
-import { Cardinal } from "cardinal";
-
-const cardinal = new Cardinal({
-    serverIdx: 0,
-});
-
-async function run() {
-    const result = await cardinal.queryCql({
-        cql: "CONTAINS(Health)",
-    });
-
-    // Handle the result
-    console.log(result);
-}
-
-run();
-
-```
-
-
-### Override Server URL Per-Client
-
-The default server can also be overridden globally by passing a URL to the `serverURL` optional parameter when initializing the SDK client instance. For example:
-
-```typescript
-import { Cardinal } from "cardinal";
-
-const cardinal = new Cardinal({
-    serverURL: "https:///",
-});
-
-async function run() {
-    const result = await cardinal.queryCql({
-        cql: "CONTAINS(Health)",
-    });
-
-    // Handle the result
-    console.log(result);
-}
-
-run();
-
-```
-<!-- End Server Selection [server] -->
+<!-- No Server Selection [server] -->
 
 <!-- Start Custom HTTP Client [http-client] -->
 ## Custom HTTP Client
@@ -284,8 +243,8 @@ custom header and a timeout to requests and how to use the `"requestError"` hook
 to log errors:
 
 ```typescript
-import { Cardinal } from "cardinal";
-import { HTTPClient } from "cardinal/lib/http";
+import { Cardinal } from "@arguslabs/cardinal";
+import { HTTPClient } from "@arguslabs/cardinal/lib/http";
 
 const httpClient = new HTTPClient({
   // fetcher takes a function that has the same signature as native `fetch`.
@@ -326,7 +285,7 @@ You can pass a logger that matches `console`'s interface as an SDK option.
 > Beware that debug logging will reveal secrets, like API tokens in headers, in log messages printed to a console or files. It's recommended to use this feature only during local development and not in production.
 
 ```typescript
-import { Cardinal } from "cardinal";
+import { Cardinal } from "@arguslabs/cardinal";
 
 const sdk = new Cardinal({ debugLogger: console });
 ```
@@ -352,7 +311,7 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [getHealth](docs/sdks/cardinal/README.md#gethealth)
 - [getReceipts](docs/sdks/cardinal/README.md#getreceipts)
 - [getWorld](docs/sdks/cardinal/README.md#getworld)
-- [queryCql](docs/sdks/cardinal/README.md#querycql)
+- [queryCQL](docs/sdks/cardinal/README.md#querycql)
 - [query](docs/sdks/cardinal/README.md#query)
 - [transact](docs/sdks/cardinal/README.md#transact)
 
@@ -360,45 +319,7 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 </details>
 <!-- End Standalone functions [standalone-funcs] -->
 
-<!-- Start Global Parameters [global-parameters] -->
-## Global Parameters
-
-Certain parameters are configured globally. These parameters may be set on the SDK client instance itself during initialization. When configured as an option during SDK initialization, These global values will be used as defaults on the operations that use them. When such operations are called, there is a place in each to override the global value, if needed.
-
-For example, you can set `_privateKey` to `"<value>"` at SDK initialization and then you do not have to pass the same value on calls to operations like `transact`. But if you want to do so you may, which will locally override the global setting. See the example code below for a demonstration.
-
-
-### Available Globals
-
-The following global parameters are available.
-
-| Name | Type | Required | Description |
-| ---- | ---- |:--------:| ----------- |
-| privateKey | string |  | The privateKey parameter. |
-| namespace | string |  | The namespace parameter. |
-
-
-### Example
-
-```typescript
-import { Cardinal } from "cardinal";
-
-const cardinal = new Cardinal();
-
-async function run() {
-    const result = await cardinal.transact({
-        txName: "<value>",
-        txBody: {},
-    });
-
-    // Handle the result
-    console.log(result);
-}
-
-run();
-
-```
-<!-- End Global Parameters [global-parameters] -->
+<!-- No Global Parameters [global-parameters] -->
 
 <!-- Placeholder for Future Speakeasy SDK Sections -->
 
@@ -415,4 +336,4 @@ looking for the latest version.
 While we value open-source contributions to this SDK, this library is generated programmatically. Any manual changes added to internal files will be overwritten on the next generation. 
 We look forward to hearing your feedback. Feel free to open a PR or an issue with a proof of concept and we'll do our best to include it in a future release. 
 
-### SDK Created by [Speakeasy](https://www.speakeasy.com/?utm_source=<no value>&utm_campaign=typescript)
+### SDK Created by [Speakeasy](https://www.speakeasy.com/?utm_source=&utm_campaign=typescript)

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { GetWorldResponse } from "cardinal/models/components";
+import { GetWorldResponse } from "@arguslabs/cardinal/models/components";
 
 let value: GetWorldResponse = {};
 ```

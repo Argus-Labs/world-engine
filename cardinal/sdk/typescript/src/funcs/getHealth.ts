@@ -45,7 +45,7 @@ export async function getHealth(
         Accept: "application/json",
     });
 
-    const context = { operationID: "get_/health", oAuth2Scopes: [], securitySource: null };
+    const context = { operationID: "getHealth", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,

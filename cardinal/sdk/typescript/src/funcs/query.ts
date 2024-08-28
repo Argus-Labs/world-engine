@@ -29,7 +29,7 @@ import * as z from "zod";
  */
 export async function query(
     client$: CardinalCore,
-    request: operations.PostQueryGameQueryNameRequest,
+    request: operations.QueryRequest,
     options?: RequestOptions
 ): Promise<
     Result<
@@ -47,7 +47,7 @@ export async function query(
 
     const parsed$ = schemas$.safeParse(
         input$,
-        (value$) => operations.PostQueryGameQueryNameRequest$outboundSchema.parse(value$),
+        (value$) => operations.QueryRequest$outboundSchema.parse(value$),
         "Input validation failed"
     );
     if (!parsed$.ok) {
@@ -70,11 +70,7 @@ export async function query(
         Accept: "application/json",
     });
 
-    const context = {
-        operationID: "post_/query/game/{queryName}",
-        oAuth2Scopes: [],
-        securitySource: null,
-    };
+    const context = { operationID: "query", oAuth2Scopes: [], securitySource: null };
 
     const requestRes = client$.createRequest$(
         context,
