@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -41,6 +42,14 @@ func InitModule(
 	initializer runtime.Initializer,
 ) error {
 	utils.DebugEnabled = getDebugModeFromEnvironment()
+
+	otelShutdown, err := initOtelSDK(ctx)
+	if err != nil {
+		return eris.Wrap(err, "failed to init otel sdk")
+	}
+	defer func() {
+		err = errors.Join(err, otelShutdown(ctx))
+	}()
 
 	cardinalAddress, err := initCardinalAddress()
 	if err != nil {

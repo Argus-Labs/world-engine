@@ -12,6 +12,7 @@ import (
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/codes"
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
@@ -37,6 +38,8 @@ func handleClaimPersona(
 	globalNamespace string,
 	globalPersonaAssignment *sync.Map,
 ) nakamaRPCHandler {
+	tracer := otel.Tracer("nakama/claim-persona")
+
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -44,8 +47,12 @@ func handleClaimPersona(
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
+		ctx, span := tracer.Start(ctx, "handleClaimPersona")
+		defer span.End()
+
 		ptr := &persona.StorageObj{}
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
+			span.RecordError(err)
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				err,
@@ -69,6 +76,7 @@ func handleClaimPersona(
 			return utils.MarshalResult(logger, result)
 		}
 
+		span.RecordError(err)
 		switch {
 		case errors.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag storage object not found")
@@ -215,6 +223,8 @@ func handleCardinalRequest(
 	txSigner signer.Signer,
 	autoReClaimPersonaTags bool,
 ) nakamaRPCHandler {
+	tracer := otel.Tracer(currEndpoint)
+
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -223,6 +233,8 @@ func handleCardinalRequest(
 		payload string,
 	) (string, error) {
 		logger.Debug("Got request for %q", currEndpoint)
+		ctx, span := tracer.Start(ctx, "handleCardinalRequest")
+		defer span.End()
 		// This request may fail if the Cardinal DB has been wiped since Nakama registered this persona tag.
 		// This function will:
 		// 1) Make the initial request. If this succeeds, great. We're done.
@@ -235,6 +247,7 @@ func handleCardinalRequest(
 		// //////////////////////////////
 		resultPayload, err := createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
+			span.RecordError(err)
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
 		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
@@ -256,6 +269,7 @@ func handleCardinalRequest(
 		// The rest of this function will attempt to re-register the persona tag and then re-try the initial request.
 		txHash, err := persona.ReclaimPersona(ctx, nk, txSigner, cardinalAddress, namespace)
 		if err != nil {
+			span.RecordError(err)
 			logger.Error("failed to re-register the persona tag: %v", err)
 			return initialResult, initialErr
 		}
@@ -270,10 +284,12 @@ func handleCardinalRequest(
 		// /////////////////////////////////
 		resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
+			span.RecordError(err)
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
 		result, err = makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
 		if err != nil {
+			span.RecordError(err)
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 		}
 		return result, nil
