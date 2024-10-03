@@ -49,6 +49,9 @@ func InitModule(
 	}
 	defer func() {
 		err = errors.Join(err, otelShutdown(ctx))
+		if err != nil {
+			println("please show an error: ", err.Error())
+		}
 	}()
 
 	cardinalAddress, err := initCardinalAddress()

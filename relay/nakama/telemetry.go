@@ -57,7 +57,7 @@ func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 }
 
 func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
-	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint("defaultnamespace-otel-collector:4318"))
+	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint("defaultnamespace-otel-collector:4318"), otlptracehttp.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
 }
 
 func newMeterProvider(ctx context.Context) (*metric.MeterProvider, error) {
-	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint("defaultnamespace-otel-collector:4317"))
+	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint("defaultnamespace-otel-collector:4317"), otlpmetricgrpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}

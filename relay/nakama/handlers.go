@@ -223,8 +223,6 @@ func handleCardinalRequest(
 	txSigner signer.Signer,
 	autoReClaimPersonaTags bool,
 ) nakamaRPCHandler {
-	tracer := otel.Tracer(currEndpoint)
-
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -232,11 +230,21 @@ func handleCardinalRequest(
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
-		logger.Info("Got request for %q", currEndpoint)
+		otelShutdown, err := initOtelSDK(ctx)
+		if err != nil {
+			logger.Error("failed to init otel sdk")
+		}
+		tracer := otel.Tracer(currEndpoint)
 		ctx, span := tracer.Start(ctx, "handleCardinalRequest")
-		jsonPretty, _ := json.MarshalIndent(span, "", "  ")
-		logger.Info("span: %s", jsonPretty)
-		defer span.End()
+		defer func() {
+			span.End()
+			err = errors.Join(err, otelShutdown(ctx))
+			if err != nil {
+				println("HEYYYY please show an error: ", err.Error())
+			}
+		}()
+
+		logger.Info("Got request for %q", currEndpoint)
 		// This request may fail if the Cardinal DB has been wiped since Nakama registered this persona tag.
 		// This function will:
 		// 1) Make the initial request. If this succeeds, great. We're done.
