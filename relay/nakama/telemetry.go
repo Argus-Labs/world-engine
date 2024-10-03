@@ -7,7 +7,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
@@ -57,7 +57,7 @@ func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 }
 
 func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
-	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint("defaultnamespace-otel-collector:4317"))
+	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint("defaultnamespace-otel-collector:4318"))
 	if err != nil {
 		return nil, err
 	}

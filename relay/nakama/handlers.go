@@ -232,8 +232,10 @@ func handleCardinalRequest(
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
-		logger.Debug("Got request for %q", currEndpoint)
+		logger.Info("Got request for %q", currEndpoint)
 		ctx, span := tracer.Start(ctx, "handleCardinalRequest")
+		jsonPretty, _ := json.MarshalIndent(span, "", "  ")
+		logger.Info("span: %s", jsonPretty)
 		defer span.End()
 		// This request may fail if the Cardinal DB has been wiped since Nakama registered this persona tag.
 		// This function will:
