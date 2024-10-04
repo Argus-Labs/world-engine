@@ -1,0 +1,23 @@
+FROM heroiclabs/nakama-pluginbuilder:3.22.0 AS builder
+
+ENV GO111MODULE on
+ENV CGO_ENABLED 1
+
+WORKDIR /nakama
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build --trimpath --gcflags "all=-N -l" --buildmode=plugin -v -o ./plugin.so
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+FROM heroiclabs/nakama-dsym:3.22.0 AS nakama
+
+RUN apt-get -y update && apt-get -y install curl
+
+COPY --from=builder /go/bin/dlv /nakama
+COPY --from=builder /nakama/plugin.so /nakama/data/modules/
+COPY local.yml /nakama/data/
+
+ENTRYPOINT [ "/bin/bash" ]

@@ -30,6 +30,7 @@ services:
     platform: linux/amd64
     build:
       context: ./relay/nakama
+      dockerfile: ./Dockerfile-Debug
       target: nakama # Build the amd64 version of the image
     depends_on:
       cockroachdb:
@@ -42,28 +43,24 @@ services:
       - CARDINAL_NAMESPACE=testgame
       - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
       - DB_PASSWORD=${DB_PASSWORD:-development}
-    entrypoint:
-      - "/bin/sh"
-      - "-ecx"
-      - >
-        /nakama/nakama migrate up --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
+      - OUTGOING_QUEUE_SIZE=${OUTGOING_QUEUE_SIZE:-64}
     expose:
       - "7349"
       - "7350"
       - "7351"
+      - "40001"
     ports:
       - "7349:7349"
       - "7350:7350"
       - "7351:7351"
-    healthcheck:
-      test: [ "CMD", "/nakama/nakama", "healthcheck" ]
-      interval: 1s
-      timeout: 1s
-      retries: 20
+      - "40001:40001"
     restart: unless-stopped
     networks:
       - world-engine
+    security_opt:
+      - "seccomp:unconfined"
+    stdin_open: true
+    tty: true
 
   chain:
     container_name: evm_base_shard
