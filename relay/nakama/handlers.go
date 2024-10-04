@@ -38,8 +38,6 @@ func handleClaimPersona(
 	globalNamespace string,
 	globalPersonaAssignment *sync.Map,
 ) nakamaRPCHandler {
-	tracer := otel.Tracer("nakama/claim-persona")
-
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -47,7 +45,7 @@ func handleClaimPersona(
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
-		ctx, span := tracer.Start(ctx, "handleClaimPersona")
+		ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/claim-persona")
 		defer span.End()
 
 		ptr := &persona.StorageObj{}
@@ -100,11 +98,15 @@ func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPC
 		nk runtime.NakamaModule,
 		_ string,
 	) (string, error) {
+		ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/show-persona")
+		defer span.End()
+
 		result, err := persona.ShowPersona(ctx, nk, txSigner, cardinalAddress)
 		if err == nil {
 			return utils.MarshalResult(logger, result)
 		}
 
+		span.RecordError(err)
 		if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
 		}
@@ -115,8 +117,12 @@ func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPC
 func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "generate-beta-keys")
+	defer span.End()
+
 	var gk allowlist.GenKeysMsg
 	if err := json.Unmarshal([]byte(payload), &gk); err != nil {
+		span.RecordError(err)
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -130,6 +136,7 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		return utils.MarshalResult(logger, result)
 	}
 
+	span.RecordError(err)
 	switch {
 	case errors.Is(err, allowlist.ErrReadingAmountOfKeys):
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "key amount incorrectly formatted")
@@ -147,8 +154,12 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "claim-key")
+	defer span.End()
+
 	var ck allowlist.ClaimKeyMsg
 	if err := json.Unmarshal([]byte(payload), &ck); err != nil {
+		span.RecordError(err)
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -162,6 +173,7 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		return utils.MarshalResult(logger, result)
 	}
 
+	span.RecordError(err)
 	switch {
 	case errors.Is(err, allowlist.ErrAlreadyVerified):
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.AlreadyExists, "user has already been verified")
@@ -176,8 +188,12 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 func handleSaveGame(
 	ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
 ) (string, error) {
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/save")
+	defer span.End()
+
 	var msg SaveGameRequest
 	if err := json.Unmarshal([]byte(payload), &msg); err != nil {
+		span.RecordError(err)
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -191,6 +207,7 @@ func handleSaveGame(
 		return utils.MarshalResult(logger, result)
 	}
 
+	span.RecordError(err)
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
@@ -201,11 +218,15 @@ func handleGetSaveGame(
 	nk runtime.NakamaModule,
 	_ string,
 ) (string, error) {
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/get-save")
+	defer span.End()
+
 	result, err := readSave(ctx, nk)
 	if err == nil {
 		return utils.MarshalResult(logger, result)
 	}
 
+	span.RecordError(err)
 	if errors.Is(err, ErrNoSaveFound) {
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to read save data")
 	}
@@ -230,27 +251,15 @@ func handleCardinalRequest(
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
-		otelShutdown, err := initOtelSDK(ctx)
-		if err != nil {
-			logger.Error("failed to init otel sdk")
-		}
-		tracer := otel.Tracer(currEndpoint)
-		ctx, span := tracer.Start(ctx, "handleCardinalRequest")
-		defer func() {
-			span.End()
-			err = errors.Join(err, otelShutdown(ctx))
-			if err != nil {
-				println("HEYYYY please show an error: ", err.Error())
-			}
-		}()
-
-		logger.Info("Got request for %q", currEndpoint)
 		// This request may fail if the Cardinal DB has been wiped since Nakama registered this persona tag.
 		// This function will:
 		// 1) Make the initial request. If this succeeds, great. We're done.
 		// 2) Re-register the persona tag if appropriate (The feature may not be enabled or the error may not look like
 		//    a missing signer address failure).
 		// 3) Make the request again. If this fails again, there's nothing else we can do.
+		logger.Debug("Got request for %q", currEndpoint)
+		ctx, span := otel.Tracer("nakama.rpc").Start(ctx, currEndpoint)
+		defer span.End()
 
 		// //////////////////////////////
 		// Try to send the transaction //
@@ -265,12 +274,14 @@ func handleCardinalRequest(
 			// The request was successful. Return the result.
 			return result, nil
 		}
+		span.RecordError(err)
 		initialResult, initialErr := utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 
 		// ///////////////////////////
 		// Re-claim the persona tag //
 		// ///////////////////////////
 		if !autoReClaimPersonaTags || !isResultASignerError(err) {
+			span.RecordError(initialErr)
 			// We're not configured to re-register persona tags, or the returned error doesn't even look like
 			// a signer address error. Just return the error.
 			return initialResult, initialErr

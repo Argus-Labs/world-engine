@@ -3,16 +3,20 @@ package main
 import (
 	"context"
 	"errors"
-	"time"
+	"os"
+	"strconv"
 
+	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
-// src: https://opentelemetry.io/docs/languages/go/getting-started/
+const serviceName = "nakama"
+
 func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
 
@@ -37,47 +41,47 @@ func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
-	meterProvider, err := newMeterProvider(ctx)
-	if err != nil {
-		handleErr(err)
-		return
-	}
-	shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
-	otel.SetMeterProvider(meterProvider)
-
-	// loggerProvider, err := newLoggerProvider(ctx)
-	// if err != nil {
-	//   handleErr(err)
-	//   return
-	// }
-	// shutdownFuncs = append(shutdownFuncs, loggerProvider.shutdown)
-	// otel.SetLogger(loggerProvider)
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{}, // W3C Trace Context format; https://www.w3.org/TR/trace-context/
+		),
+	)
 
 	return
 }
 
 func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
-	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint("defaultnamespace-otel-collector:4318"), otlptracehttp.WithInsecure())
+	globalJaegerAddress := os.Getenv(EnvJaegerAddr)
+	globalJaegerSampleRate := os.Getenv(EnvJaegerSampleRate)
+
+	if globalJaegerAddress == "" {
+		return nil, eris.Errorf("must specify a jaeger server via %s", EnvJaegerAddr)
+	}
+
+	var sampleRate float64
+	parsedSampleRate, err := strconv.ParseFloat(globalJaegerSampleRate, 64)
+	if err != nil {
+		sampleRate = 0.6
+	} else {
+		sampleRate = parsedSampleRate
+	}
+
+	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(globalJaegerAddress), otlptracegrpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
+
+	resource := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(serviceName),
+		// attribute.String("custom-attribute", "attribute-value"),
+	)
+
 	provider := trace.NewTracerProvider(
 		trace.WithBatcher(exporter),
-		trace.WithSampler(trace.ParentBased(trace.TraceIDRatioBased(0.6))),
+		trace.WithResource(resource),
+		trace.WithSampler(trace.ParentBased(trace.TraceIDRatioBased(sampleRate))),
 	)
+
 	return provider, nil
 }
-
-func newMeterProvider(ctx context.Context) (*metric.MeterProvider, error) {
-	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint("defaultnamespace-otel-collector:4317"), otlpmetricgrpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	provider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(exporter, metric.WithInterval(30*time.Second))),
-	)
-	return provider, nil
-}
-
-// func newLoggerProvider(ctx context.Context) (*log.LoggerProvider, error) {
-// }
