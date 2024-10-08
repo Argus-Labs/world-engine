@@ -51,7 +51,7 @@ func InitModule(
 	if err != nil {
 		return eris.Wrap(err, "failed to init otel sdk")
 	}
-	logger.Info("Iniliatized OpenTelemetry SDK")
+	logger.Info("Initialized OpenTelemetry SDK")
 
 	cardinalAddress, err := initCardinalAddress()
 	if err != nil {

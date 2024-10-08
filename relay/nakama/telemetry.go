@@ -43,6 +43,7 @@ func initOtelSDK(ctx context.Context) (func(context.Context) error, error) {
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{}, // W3C Trace Context format; https://www.w3.org/TR/trace-context/
+			propagation.Baggage{},
 		),
 	)
 
@@ -67,13 +68,12 @@ func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
 
 	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(globalJaegerAddress), otlptracegrpc.WithInsecure())
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "failed to create otlp exporter")
 	}
 
 	resource := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(serviceName),
-		// attribute.String("custom-attribute", "attribute-value"),
 	)
 
 	provider := trace.NewTracerProvider(

@@ -156,7 +156,7 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	span.AddEvent("Generating beta keys")
 	result, err := allowlist.GenerateBetaKeys(ctx, nk, gk)
 	if err == nil {
-		span.SetStatus(otelcode.Ok, "successfully geenrated beta keys")
+		span.SetStatus(otelcode.Ok, "successfully generated beta keys")
 		return utils.MarshalResult(logger, result)
 	}
 
