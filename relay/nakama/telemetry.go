@@ -17,10 +17,9 @@ import (
 
 const serviceName = "nakama"
 
-func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
+func initOtelSDK(ctx context.Context) (func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
-
-	shutdown = func(ctx context.Context) error {
+	shutdown := func(ctx context.Context) error {
 		var err error
 		for _, fn := range shutdownFuncs {
 			err = errors.Join(err, fn(ctx))
@@ -29,6 +28,7 @@ func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 		return err
 	}
 
+	var err error
 	handleErr := func(inErr error) {
 		err = errors.Join(inErr, shutdown(ctx))
 	}
@@ -36,18 +36,17 @@ func initOtelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 	tracerProvider, err := newTracerProvider(ctx)
 	if err != nil {
 		handleErr(err)
-		return
+		return nil, err
 	}
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
-
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{}, // W3C Trace Context format; https://www.w3.org/TR/trace-context/
 		),
 	)
 
-	return
+	return shutdown, nil
 }
 
 func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {

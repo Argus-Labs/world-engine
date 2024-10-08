@@ -16,8 +16,9 @@ linters-settings:
     # Default: ["end"]
     checks:
       - end
-      - record-error
-      - set-status
+      # disabling these because of false positives caused by early returns without errors
+      # - record-error
+      # - set-status
     # A list of regexes for function signatures that silence `record-error` and `set-status` reports
     # if found in the call path to a returned error.
     # https://github.com/jjti/go-spancheck#ignore-check-signatures
