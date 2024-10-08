@@ -13,6 +13,9 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelcode "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
@@ -45,12 +48,17 @@ func handleClaimPersona(
 		nk runtime.NakamaModule,
 		payload string,
 	) (string, error) {
-		ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/claim-persona")
+		ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/claim-persona",
+			trace.WithAttributes(
+				attribute.String("payload", payload),
+			))
 		defer span.End()
 
 		ptr := &persona.StorageObj{}
+		span.AddEvent("Unmarshalling payload")
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
 			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to unmarshal payload")
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				err,
@@ -59,6 +67,7 @@ func handleClaimPersona(
 				err)
 		}
 
+		span.AddEvent("Claiming persona")
 		result, err := persona.ClaimPersona(
 			ctx,
 			nk,
@@ -71,14 +80,17 @@ func handleClaimPersona(
 			globalPersonaAssignment,
 		)
 		if err == nil {
+			span.SetStatus(otelcode.Ok, "successfully claimed persona")
 			return utils.MarshalResult(logger, result)
 		}
 
 		span.RecordError(err)
 		switch {
 		case errors.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
+			span.SetStatus(otelcode.Error, "Persona tag storage object not found")
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag storage object not found")
 		case errors.Is(err, persona.ErrPersonaTagEmpty):
+			span.SetStatus(otelcode.Error, "Missing personaTag field")
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				err,
@@ -86,6 +98,7 @@ func handleClaimPersona(
 				"claim persona tag request must have personaTag field",
 			)
 		}
+		span.SetStatus(otelcode.Error, "Unknown error")
 		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 }
@@ -101,15 +114,19 @@ func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPC
 		ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/show-persona")
 		defer span.End()
 
+		span.AddEvent("Getting persona from storage")
 		result, err := persona.ShowPersona(ctx, nk, txSigner, cardinalAddress)
 		if err == nil {
+			span.SetStatus(otelcode.Ok, "successfully showed persona")
 			return utils.MarshalResult(logger, result)
 		}
 
 		span.RecordError(err)
 		if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
+			span.SetStatus(otelcode.Error, "Persona tag not found")
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
 		}
+		span.SetStatus(otelcode.Error, "Unknown error")
 		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 }
@@ -117,12 +134,17 @@ func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPC
 func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
-	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "generate-beta-keys")
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "generate-beta-keys",
+		trace.WithAttributes(
+			attribute.String("payload", payload),
+		))
 	defer span.End()
 
 	var gk allowlist.GenKeysMsg
+	span.AddEvent("Unmarshalling payload")
 	if err := json.Unmarshal([]byte(payload), &gk); err != nil {
 		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to unmarshal payload")
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -131,16 +153,20 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 			err)
 	}
 
+	span.AddEvent("Generating beta keys")
 	result, err := allowlist.GenerateBetaKeys(ctx, nk, gk)
 	if err == nil {
+		span.SetStatus(otelcode.Ok, "successfully geenrated beta keys")
 		return utils.MarshalResult(logger, result)
 	}
 
 	span.RecordError(err)
 	switch {
 	case errors.Is(err, allowlist.ErrReadingAmountOfKeys):
+		span.SetStatus(otelcode.Error, "Key amount incorrectly formatted")
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "key amount incorrectly formatted")
 	case errors.Is(err, allowlist.ErrPermissionDenied):
+		span.SetStatus(otelcode.Error, "Non-admin user tried to generate beta keys")
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -148,18 +174,24 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 			"non-admin user tried to call generate-beta-keys",
 		)
 	}
+	span.SetStatus(otelcode.Error, "Unknown error")
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
-	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "claim-key")
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "claim-key",
+		trace.WithAttributes(
+			attribute.String("payload", payload),
+		))
 	defer span.End()
 
 	var ck allowlist.ClaimKeyMsg
+	span.AddEvent("Unmarshalling payload")
 	if err := json.Unmarshal([]byte(payload), &ck); err != nil {
 		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to unmarshal payload")
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -168,32 +200,43 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 			err)
 	}
 
+	span.AddEvent("Claiming beta key")
 	result, err := allowlist.ClaimKey(ctx, nk, ck)
 	if err == nil {
+		span.SetStatus(otelcode.Ok, "successfully claimed beta key")
 		return utils.MarshalResult(logger, result)
 	}
 
 	span.RecordError(err)
 	switch {
 	case errors.Is(err, allowlist.ErrAlreadyVerified):
+		span.SetStatus(otelcode.Error, "User is already verified")
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.AlreadyExists, "user has already been verified")
 	case errors.Is(err, allowlist.ErrInvalidBetaKey):
+		span.SetStatus(otelcode.Error, "Invalid beta key")
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "beta key is invalid")
 	case errors.Is(err, allowlist.ErrBetaKeyAlreadyUsed):
+		span.SetStatus(otelcode.Error, "Beta key has already been used")
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.PermissionDenied, "beta key has already been used")
 	}
+	span.SetStatus(otelcode.Error, "Unknown error")
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleSaveGame(
 	ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
 ) (string, error) {
-	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/save")
+	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/save",
+		trace.WithAttributes(
+			attribute.String("payload", payload),
+		))
 	defer span.End()
 
 	var msg SaveGameRequest
+	span.AddEvent("Unmarshalling payload")
 	if err := json.Unmarshal([]byte(payload), &msg); err != nil {
 		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to unmarshal payload")
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -202,12 +245,15 @@ func handleSaveGame(
 			err)
 	}
 
+	span.AddEvent("Writing save data")
 	result, err := writeSave(ctx, nk, msg)
 	if err == nil {
+		span.SetStatus(otelcode.Ok, "successfully saved game")
 		return utils.MarshalResult(logger, result)
 	}
 
 	span.RecordError(err)
+	span.SetStatus(otelcode.Error, "Unknown error")
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
@@ -221,16 +267,20 @@ func handleGetSaveGame(
 	ctx, span := otel.Tracer("nakama.rpc").Start(ctx, "nakama/get-save")
 	defer span.End()
 
+	span.AddEvent("Reading save data")
 	result, err := readSave(ctx, nk)
 	if err == nil {
+		span.SetStatus(otelcode.Ok, "successfully retrieved saved game")
 		return utils.MarshalResult(logger, result)
 	}
 
 	span.RecordError(err)
 	if errors.Is(err, ErrNoSaveFound) {
+		span.SetStatus(otelcode.Error, "Failed to read save data")
 		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to read save data")
 	}
 
+	span.SetStatus(otelcode.Error, "Unknown error")
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
@@ -264,33 +314,43 @@ func handleCardinalRequest(
 		// //////////////////////////////
 		// Try to send the transaction //
 		// //////////////////////////////
+		span.AddEvent("Creating first payload")
 		resultPayload, err := createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
 			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to create payload")
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
+
+		span.AddEvent("Sending first request to Cardinal")
 		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
 		if err == nil {
+			span.SetStatus(otelcode.Ok, "successfully called cardinal")
 			// The request was successful. Return the result.
 			return result, nil
 		}
+
 		span.RecordError(err)
 		initialResult, initialErr := utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 
 		// ///////////////////////////
 		// Re-claim the persona tag //
 		// ///////////////////////////
+		span.AddEvent("Determining if we should reclaim persona")
 		if !autoReClaimPersonaTags || !isResultASignerError(err) {
 			span.RecordError(initialErr)
+			span.SetStatus(otelcode.Error, "Failed to reclaim persona tag")
 			// We're not configured to re-register persona tags, or the returned error doesn't even look like
 			// a signer address error. Just return the error.
 			return initialResult, initialErr
 		}
 
 		// The rest of this function will attempt to re-register the persona tag and then re-try the initial request.
+		span.AddEvent("Reclaiming persona")
 		txHash, err := persona.ReclaimPersona(ctx, nk, txSigner, cardinalAddress, namespace)
 		if err != nil {
 			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to re-register persona tag")
 			logger.Error("failed to re-register the persona tag: %v", err)
 			return initialResult, initialErr
 		}
@@ -298,19 +358,25 @@ func handleCardinalRequest(
 		// The ReclaimPersona request was successful, now we need to wait for a Cardinal tick to be completed.
 		// This is a bad practice, but plumbing the events system here for an essentially dev-only behavior seems
 		// worse.
+		span.AddEvent("Waiting until persona tag has been processed")
 		blockUntilPersonaTagTxHasBeenProcessed(logger, eventHub, txHash)
 
 		// /////////////////////////////////
 		// Repeat the initial transaction //
 		// /////////////////////////////////
+		span.AddEvent("Creating second payload")
 		resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
 			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to create payload")
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
+
+		span.AddEvent("Sending second request to Cardinal")
 		result, err = makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
 		if err != nil {
 			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to retry call cardinal")
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 		}
 		return result, nil
