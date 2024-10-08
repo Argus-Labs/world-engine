@@ -66,6 +66,10 @@ func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
 		sampleRate = parsedSampleRate
 	}
 
+	if sampleRate < 0 || sampleRate > 1 {
+		return nil, eris.Errorf("trace sample rate must be between 0 and 1, got %f", sampleRate)
+	}
+
 	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(globalJaegerAddress), otlptracegrpc.WithInsecure())
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create otlp exporter")
