@@ -56,4 +56,3 @@ RUN cd e2e/testgames && go mod download
 RUN --mount=type=cache,target="/root/.cache/go-build" cd e2e/testgames/game && go build -gcflags="all=-N -l" -v -o /usr/bin/app
 
 CMD ["dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/usr/bin/app"]
-
