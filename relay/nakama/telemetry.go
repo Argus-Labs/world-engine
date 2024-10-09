@@ -29,11 +29,6 @@ func initOtelSDK(ctx context.Context, logger runtime.Logger) (func(context.Conte
 		return err
 	}
 
-	var err error
-	handleErr := func(inErr error) {
-		err = errors.Join(inErr, shutdown(ctx))
-	}
-
 	enableTrace := false
 	globalTraceEnabled, err := strconv.ParseBool(os.Getenv(EnvTraceEnabled))
 	if err == nil {
@@ -43,8 +38,7 @@ func initOtelSDK(ctx context.Context, logger runtime.Logger) (func(context.Conte
 	if enableTrace {
 		tracerProvider, err := newTracerProvider(ctx, logger)
 		if err != nil {
-			handleErr(err)
-			return nil, err
+			return nil, errors.Join(err, shutdown(ctx))
 		}
 		shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 		otel.SetTracerProvider(tracerProvider)
@@ -71,7 +65,7 @@ func newTracerProvider(ctx context.Context, logger runtime.Logger) (*trace.Trace
 	var sampleRate float64
 	parsedSampleRate, err := strconv.ParseFloat(globalJaegerSampleRate, 64)
 	if err != nil {
-		logger.Info("Invalid sample rate %s, defaulting to 0.6", parsedSampleRate)
+		logger.Info("Invalid sample rate %s, defaulting to 0.6", globalJaegerSampleRate)
 		sampleRate = 0.6
 	} else {
 		sampleRate = parsedSampleRate
