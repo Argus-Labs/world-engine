@@ -21,36 +21,118 @@
   </a>
 </div>
 
-## Overview
+## Info for World Engine Developers
 
-World Engine allows onchain games to scale to thousands of transactions per second with sub-100ms block time, while
-increasing development speed significantly. Sharding enables game developers to distribute their game load across
-various shards.
+If you are looking for info for developing games using the World Engine, try:
+- the [README.md](./README.md) 
+- the World Engine [quickstart guide](https://world.dev/quickstart)
+- or the online [documentation](https://world.dev). 
 
-## Getting Started
+## Dev Tools
 
-The simplest way to get started with World Engine is to follow the World
-Engine [quickstart guide](https://world.dev/quickstart)
-
-Note, this repo is for the core development of the World Engine only, and should not be used for developing World Engine
-powered games.
-
-## Documentation
-
-For an in-depth guide on how to use World Engine, visit our [documentation](https://world.dev).
+Internal development is done using Jet Brains GoLand
 
 ## Directory Structure
 
 <pre>
 ◢ ✦ ◣ World Engine ◢ ✦ ◣
+├── <a href="./.run">.run</a>: Configurations for Running and Debugging in GoLand IDE
 ├── <a href="./assert">assert</a>: Custom testing package that includes stack traces in errors.
 ├── <a href="./cardinal">cardinal</a>: The first World Engine game shard implementation.
+├── <a href="./e2e">e2e</a>: Test Games for End-to-End testing.
 ├── <a href="./evm">evm</a>: Rollkit and Polaris integrated Base Shard rollup.
 ├── <a href="./relay">relay</a>: Game Shard message relayer. Currently contains one implementation using Nakama.
 ├── <a href="./rift">rift</a>: Protobuf definitions and generated Go code for the World Engine's cross shard messaging protocol.
+├── <a href="./scripts">script</a>: Scripts used for development.
 ├── <a href="./sign">sign</a>: Library to facilitate message signing and verification.
 </pre>
 
-## World Engine Development
+## Running Tests from GoLand
 
-Check out the [README-devs.md](./README-devs.md).
+From the Configurations menu at the top right of the GoLand window, choose `World Engine Docker - Test Game` and run it. You will see:
+
+<pre>
+/usr/local/bin/docker compose -f ./world-engine/docker-compose.yml -p world-engine up --no-deps cockroachdb nakama redis game-debug
+[+] Running 6/5
+✔ Network world-engine_world-engine  Created                                                                                                                                                                    0.0s
+✔ Volume "world-engine_data"         Created                                                                                                                                                                    0.0s
+✔ Container cockroachdb              Created                                                                                                                                                                    0.0s
+✔ Container redis                    Created                                                                                                                                                                    0.0s
+✔ Container test_game                Created                                                                                                                                                                    0.0s
+✔ Container relay_nakama             Created                                                                                                                                                                    0.0s
+✔ Container test_nakama              Created                                                                                                                                                                    0.0s
+Attaching to cockroachdb, redis, relay_nakama, test_game, test_nakama
+</pre>
+
+After a short time, you will see `test_game` ticking, along with messages from `relay_nakama` and `test_nakama`:
+
+<pre>
+test_game  | 7:19PM INF Tick completed duration=1.02933ms tick=1385 tx_count=0
+</pre>
+
+If you check the logs from the `test_nakama` container ( cmd-8 for Services, then click on 
+Docker > Docker-compose-world-engine > test_nakama > test_nakama). You should see test result like this:
+
+<pre>
+=== RUN   TestEvents
+2024-10-09T19:27:34.724721412Z --- PASS: TestEvents (1.26s)
+2024-10-09T19:27:34.724799246Z === RUN   TestReceipts
+2024-10-09T19:27:36.722025883Z --- PASS: TestReceipts (2.00s)
+2024-10-09T19:27:36.722052799Z === RUN   TestTransactionAndCQLAndRead
+2024-10-09T19:27:38.719295228Z --- PASS: TestTransactionAndCQLAndRead (2.00s)
+2024-10-09T19:27:38.719301812Z === RUN   TestCanShowPersona
+2024-10-09T19:27:39.738128589Z --- PASS: TestCanShowPersona (1.02s)
+2024-10-09T19:27:39.738162881Z === RUN   TestDifferentUsersCannotClaimSamePersonaTag
+2024-10-09T19:27:39.795977744Z --- PASS: TestDifferentUsersCannotClaimSamePersonaTag (0.06s)
+2024-10-09T19:27:39.795986911Z === RUN   TestConcurrentlyClaimSamePersonaTag
+2024-10-09T19:27:39.898364637Z --- PASS: TestConcurrentlyClaimSamePersonaTag (0.10s)
+2024-10-09T19:27:39.898377304Z === RUN   TestCannotClaimAdditionalPersonATag
+2024-10-09T19:27:40.736493221Z --- PASS: TestCannotClaimAdditionalPersonATag (0.84s)
+2024-10-09T19:27:40.736809012Z === RUN   TestPersonaTagFieldCannotBeEmpty
+2024-10-09T19:27:40.752374922Z --- PASS: TestPersonaTagFieldCannotBeEmpty (0.02s)
+2024-10-09T19:27:40.752464213Z === RUN   TestPersonaTagsShouldBeCaseInsensitive
+2024-10-09T19:27:41.734335605Z --- PASS: TestPersonaTagsShouldBeCaseInsensitive (0.98s)
+2024-10-09T19:27:41.734346729Z === RUN   TestReceiptsCanContainErrors
+2024-10-09T19:27:43.719725487Z --- PASS: TestReceiptsCanContainErrors (1.98s)
+2024-10-09T19:27:43.719743778Z === RUN   TestInvalidPersonaTagsAreRejected
+2024-10-09T19:27:45.719720074Z --- PASS: TestInvalidPersonaTagsAreRejected (2.00s)
+2024-10-09T19:27:45.719746240Z === RUN   TestAuthenticateSIWE
+2024-10-09T19:27:45.772216412Z --- PASS: TestAuthenticateSIWE (0.05s)
+2024-10-09T19:27:45.772261787Z PASS
+2024-10-09T19:27:45.774864654Z ok  	github.com/argus-labs/world-engine/e2e/tests/nakama	12.328s</pre>
+
+## Running Tests in the Debugger from GoLand
+
+From the Configurations menu at the top right of the GoLand window, choose `World Engine Docker - Test Game Debug` and 
+run it (make sure to stop the `world-engine-game` and `world-engine-nakama` containers first if they were already
+running. You will see:
+
+<pre>
+/usr/local/bin/docker compose -f ./world-engine/docker-compose.yml -p world-engine up --no-deps cockroachdb nakama redis game-debug
+[+] Running 6/5
+✔ Network world-engine_world-engine  Created                                                                                                                                                                    0.0s
+✔ Volume "world-engine_data"         Created                                                                                                                                                                    0.0s
+✔ Container cockroachdb              Created                                                                                                                                                                    0.0s
+✔ Container redis                    Created                                                                                                                                                                    0.0s
+✔ Container test_game-debug          Created                                                                                                                                                                    0.0s
+✔ Container relay_nakama             Created                                                                                                                                                                    0.0s
+Attaching to cockroachdb, redis, relay_nakama, test_game-debug
+[...]
+test_game-debug  | API server listening at: [::]:40000
+test_game-debug  | 2024-10-09T19:36:11Z warning layer=rpc Listening for remote connections (connections are not authenticated nor encrypted)
+</pre>
+
+Those lines near the top of the logs about API server and listening for remote connections show the debugger is ready. 
+There will also be a lot of warnings about `relay_nakama` failing to establish websocket connection. Those are normal for now.
+
+Now use the Configurations menu again to choose `Cardinal Debug`. Before you hit the debug icon beside it, try setting
+a breakpoint in the `main()` function in `e2e/testgames/game/main.go`. Now hit the debug icon. You should hit that 
+breakpoint, and from there be able to use the debugger normally including stepping into World Engine code.
+
+Unfortunately you will NOT be able to debug the `relay` code, since that runs in the nakama container.
+
+If you hit continue from that breakpoint, you can restart the `test_nakama` container with 
+
+`> docker compose test_namaka up`
+
+and watch those tests run again. You should get the same output.
