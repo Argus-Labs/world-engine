@@ -28,6 +28,7 @@ const (
 	EnvCardinalNamespace      = "CARDINAL_NAMESPACE"
 	EnvKMSCredentialsFile     = "GCP_KMS_CREDENTIALS_FILE" // #nosec G101
 	EnvKMSKeyName             = "GCP_KMS_KEY_NAME"
+	EnvTraceEnabled           = "TRACE_ENABLED"
 	EnvJaegerAddr             = "JAEGER_ADDR"
 	EnvJaegerSampleRate       = "JAEGER_SAMPLE_RATE"
 	WorldEndpoint             = "world"
@@ -47,7 +48,7 @@ func InitModule(
 	// don't defer shutdown here, as it would shutdown otel immediately as it was initialized. we
 	// don't need to handle shutdown as nakama is supposed to be a long running process and is only
 	// stopped if the container itself is stopped (to be replaced by a new one).
-	_, err := initOtelSDK(ctx)
+	_, err := initOtelSDK(ctx, logger)
 	if err != nil {
 		return eris.Wrap(err, "failed to init otel sdk")
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -17,7 +18,7 @@ import (
 
 const serviceName = "nakama"
 
-func initOtelSDK(ctx context.Context) (func(context.Context) error, error) {
+func initOtelSDK(ctx context.Context, logger runtime.Logger) (func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
 	shutdown := func(ctx context.Context) error {
 		var err error
@@ -33,13 +34,22 @@ func initOtelSDK(ctx context.Context) (func(context.Context) error, error) {
 		err = errors.Join(inErr, shutdown(ctx))
 	}
 
-	tracerProvider, err := newTracerProvider(ctx)
+	enableTrace := false
+	globalTraceEnabled, err := strconv.ParseBool(os.Getenv(EnvTraceEnabled))
 	if err != nil {
-		handleErr(err)
-		return nil, err
+		enableTrace = globalTraceEnabled
 	}
-	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
-	otel.SetTracerProvider(tracerProvider)
+
+	if enableTrace {
+		tracerProvider, err := newTracerProvider(ctx, logger)
+		if err != nil {
+			handleErr(err)
+			return nil, err
+		}
+		shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
+		otel.SetTracerProvider(tracerProvider)
+	}
+
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{}, // W3C Trace Context format; https://www.w3.org/TR/trace-context/
@@ -50,7 +60,7 @@ func initOtelSDK(ctx context.Context) (func(context.Context) error, error) {
 	return shutdown, nil
 }
 
-func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
+func newTracerProvider(ctx context.Context, logger runtime.Logger) (*trace.TracerProvider, error) {
 	globalJaegerAddress := os.Getenv(EnvJaegerAddr)
 	globalJaegerSampleRate := os.Getenv(EnvJaegerSampleRate)
 
@@ -61,6 +71,7 @@ func newTracerProvider(ctx context.Context) (*trace.TracerProvider, error) {
 	var sampleRate float64
 	parsedSampleRate, err := strconv.ParseFloat(globalJaegerSampleRate, 64)
 	if err != nil {
+		logger.Info("Invalid sample rate %s, defaulting to 0.6", parsedSampleRate)
 		sampleRate = 0.6
 	} else {
 		sampleRate = parsedSampleRate
