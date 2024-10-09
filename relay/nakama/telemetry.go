@@ -36,7 +36,7 @@ func initOtelSDK(ctx context.Context, logger runtime.Logger) (func(context.Conte
 
 	enableTrace := false
 	globalTraceEnabled, err := strconv.ParseBool(os.Getenv(EnvTraceEnabled))
-	if err != nil {
+	if err == nil {
 		enableTrace = globalTraceEnabled
 	}
 
