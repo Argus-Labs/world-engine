@@ -380,7 +380,6 @@ func handleCardinalRequest(
 		// ///////////////////////////
 		span.AddEvent("Determining if we should reclaim persona")
 		if !autoReClaimPersonaTags || !isResultASignerError(err) {
-			span.RecordError(initialErr)
 			span.SetStatus(otelcode.Error, "Failed to reclaim persona tag")
 			// We're not configured to re-register persona tags, or the returned error doesn't even look like
 			// a signer address error. Just return the error.
