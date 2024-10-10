@@ -53,5 +53,5 @@ For an in-depth guide on how to use World Engine, visit our [documentation](http
 
 ## World Engine Development
 
-Check out [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed instructions on setting up the development environment, running tests, and
-debugging.
+Check out [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed instructions on setting up the development environment, 
+running tests, and debugging.
