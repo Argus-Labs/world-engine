@@ -42,7 +42,6 @@ type publicKeyInfo struct {
 
 type kmsSigner struct {
 	aSigner       AsymmetricSigner
-	nonceManager  NonceManager
 	keyName       string
 	signerAddress string
 }
@@ -56,13 +55,12 @@ type AsymmetricSigner interface {
 	GetPublicKey(context.Context, *kmspb.GetPublicKeyRequest, ...gax.CallOption) (*kmspb.PublicKey, error)
 }
 
-func NewKMSSigner(ctx context.Context, nonceManager NonceManager, asymmetricSigner AsymmetricSigner, keyName string) (
+func NewKMSSigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyName string) (
 	Signer, error,
 ) {
 	ks := &kmsSigner{
-		aSigner:      asymmetricSigner,
-		nonceManager: nonceManager,
-		keyName:      keyName,
+		aSigner: asymmetricSigner,
+		keyName: keyName,
 	}
 	if err := ks.populateSignerAddress(ctx); err != nil {
 		return nil, eris.Wrap(err, "failed to populate signer address")
@@ -75,10 +73,6 @@ func NewKMSSigner(ctx context.Context, nonceManager NonceManager, asymmetricSign
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
 	*sign.Transaction, error,
 ) {
-	nonce, err := k.nonceManager.IncNonce(ctx)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to get new nonce")
-	}
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal tx data")
@@ -87,7 +81,6 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	unsignedTx := &sign.Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Nonce:      nonce,
 		Body:       bz,
 	}
 	digest := calculateDigest(unsignedTx)
@@ -134,7 +127,7 @@ func calculateDigest(tx *sign.Transaction) common.Hash {
 	return crypto.Keccak256Hash(
 		[]byte(tx.PersonaTag),
 		[]byte(tx.Namespace),
-		[]byte(strconv.FormatUint(tx.Nonce, 10)),
+		[]byte(strconv.FormatInt(tx.Created, 10)),
 		tx.Body,
 	)
 }

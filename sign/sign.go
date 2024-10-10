@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,12 +32,13 @@ var (
 	ErrNoNamespaceField  = errors.New("transaction must contain namespace field")
 	ErrNoSignatureField  = errors.New("transaction must contain signature field")
 	ErrNoBodyField       = errors.New("transaction must contain body field")
+	ErrNoCreatedField    = errors.New("transaction must contain created field")
 )
 
 type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
-	Nonce      uint64          `json:"nonce"`
+	Created    int64           `json:"created"`   // unix timestamp
 	Signature  string          `json:"signature"` // hex encoded string
 	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
@@ -70,6 +72,9 @@ func (s *Transaction) checkRequiredFields() error {
 	if s.Signature == "" {
 		return eris.Wrap(ErrNoSignatureField, "")
 	}
+	if s.Created == 0 {
+		return eris.Wrap(ErrNoCreatedField, "")
+	}
 	if len(s.Body) == 0 {
 		return eris.Wrap(ErrNoBodyField, "")
 	}
@@ -83,7 +88,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		"personaTag": true,
 		"namespace":  true,
 		"signature":  true,
-		"nonce":      true,
+		"created":    true,
 		"body":       true,
 		"hash":       true,
 	}
@@ -147,8 +152,8 @@ func normalizeJSON(data any) ([]byte, error) {
 	return normalizedBz, nil
 }
 
-// sign uses the given private key to sign the personaTag, namespace, nonce, and data.
-func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*Transaction, error) {
+// sign uses the given private key to sign the personaTag, namespace, and data.
+func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transaction, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, ErrCannotSignEmptyBody
 	}
@@ -165,7 +170,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 	sp := &Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Nonce:      nonce,
+		Created:    time.Now().UnixMicro(),
 		Body:       bz,
 	}
 	sp.populateHash()
@@ -178,8 +183,8 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 }
 
 // NewSystemTransaction signs a given body, and nonce with the given private key using the SystemPersonaTag.
-func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, nonce uint64, data any) (*Transaction, error) {
-	return sign(pk, SystemPersonaTag, namespace, nonce, data)
+func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, data any) (*Transaction, error) {
+	return sign(pk, SystemPersonaTag, namespace, data)
 }
 
 // NewTransaction signs a given body, tag, and nonce with the given private key.
@@ -187,13 +192,12 @@ func NewTransaction(
 	pk *ecdsa.PrivateKey,
 	personaTag,
 	namespace string,
-	nonce uint64,
 	data any,
 ) (*Transaction, error) {
 	if len(personaTag) == 0 || personaTag == SystemPersonaTag {
 		return nil, ErrInvalidPersonaTag
 	}
-	return sign(pk, personaTag, namespace, nonce, data)
+	return sign(pk, personaTag, namespace, data)
 }
 
 func (s *Transaction) IsSystemTransaction() bool {
@@ -254,7 +258,7 @@ func (s *Transaction) populateHash() {
 	s.Hash = crypto.Keccak256Hash(
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),
-		[]byte(strconv.FormatUint(s.Nonce, 10)),
+		[]byte(strconv.FormatInt(s.Created, 10)),
 		s.Body,
 	)
 }
