@@ -24,9 +24,9 @@
 ## Info for World Engine Developers
 
 If you are looking for info for developing games using the World Engine, try:
-- the [README.md](./README.md) 
+- the [README.md](./README.md)
 - the World Engine [quickstart guide](https://world.dev/quickstart)
-- or the online [documentation](https://world.dev). 
+- or the online [documentation](https://world.dev).
 
 ## Dev Tools
 
@@ -70,7 +70,7 @@ After a short time, you will see `test_game` ticking, along with messages from `
 test_game  | 7:19PM INF Tick completed duration=1.02933ms tick=1385 tx_count=0
 </pre>
 
-If you check the logs from the `test_nakama` container ( cmd-8 for Services, then click on 
+If you check the logs from the `test_nakama` container ( cmd-8 for Services, then click on
 Docker > Docker-compose-world-engine > test_nakama > test_nakama). You should see test result like this:
 
 <pre>
@@ -99,12 +99,12 @@ Docker > Docker-compose-world-engine > test_nakama > test_nakama). You should se
 2024-10-09T19:27:45.719746240Z === RUN   TestAuthenticateSIWE
 2024-10-09T19:27:45.772216412Z --- PASS: TestAuthenticateSIWE (0.05s)
 2024-10-09T19:27:45.772261787Z PASS
-2024-10-09T19:27:45.774864654Z ok  	github.com/argus-labs/world-engine/e2e/tests/nakama	12.328s</pre>
+2024-10-09T19:27:45.774864654Z ok  github.com/argus-labs/world-engine/e2e/tests/nakama  12.328s</pre>
 
 ## Running Tests in the Debugger from GoLand
 
-From the Configurations menu at the top right of the GoLand window, choose `World Engine Docker - Test Game Debug` and 
-run it (make sure to stop the `world-engine-game` and `world-engine-nakama` containers first if they were already
+From the Configurations menu at the top right of the GoLand window, choose `World Engine Docker - Test Game Debug`
+and run it (make sure to stop the `world-engine-game` and `world-engine-nakama` containers first if they were already
 running. You will see:
 
 <pre>
@@ -122,17 +122,19 @@ test_game-debug  | API server listening at: [::]:40000
 test_game-debug  | 2024-10-09T19:36:11Z warning layer=rpc Listening for remote connections (connections are not authenticated nor encrypted)
 </pre>
 
-Those lines near the top of the logs about API server and listening for remote connections show the debugger is ready. 
+Those lines near the top of the logs about API server and listening for remote connections show the debugger is ready.
 There will also be a lot of warnings about `relay_nakama` failing to establish websocket connection. Those are normal for now.
 
 Now use the Configurations menu again to choose `Cardinal Debug`. Before you hit the debug icon beside it, try setting
-a breakpoint in the `main()` function in `e2e/testgames/game/main.go`. Now hit the debug icon. You should hit that 
+a breakpoint in the `main()` function in `e2e/testgames/game/main.go`. Now hit the debug icon. You should hit that
 breakpoint, and from there be able to use the debugger normally including stepping into World Engine code.
 
-Unfortunately you will NOT be able to debug the `relay` code, since that runs in the nakama container.
+Unfortunately, you will NOT be able to debug the `relay` code, because that runs in the nakama container.
 
-If you hit continue from that breakpoint, you can restart the `test_nakama` container with 
+If you hit continue from that breakpoint, you can restart the `test_nakama` container with
 
-`> docker compose test_namaka up`
+```shell
+docker compose test_nakama up
+```
 
 and watch those tests run again. You should get the same output.
