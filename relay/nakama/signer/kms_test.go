@@ -44,7 +44,6 @@ esyjsoEDFTFKevyeDa6u83cNzv0lXeeTza8GSafyemA+4LtnYXorQw==
 
 	precomputedPersonaTag = "some-persona-tag"
 	precomputedNamespace  = "some-namespace"
-	precomputedNonce      = 99
 	precomputedBody       = `{"A":1,"B":2,"C":3}`
 )
 
@@ -52,7 +51,6 @@ func newPrecomputedTx() *sign.Transaction {
 	return &sign.Transaction{
 		PersonaTag: precomputedPersonaTag,
 		Namespace:  precomputedNamespace,
-		Nonce:      precomputedNonce,
 		Body:       json.RawMessage(precomputedBody),
 	}
 }
@@ -62,7 +60,7 @@ func TestCanConvertPEMKeyToSignerAddress(t *testing.T) {
 		pemToReturn: precomputedPublicKeyPEM,
 	}
 
-	ks, err := NewKMSSigner(context.Background(), &fakeNonceManager{}, as, "some_key_name")
+	ks, err := NewKMSSigner(context.Background(), as, "some_key_name")
 	assert.NilError(t, err)
 	assert.Equal(t, ks.SignerAddress(), precomputedSignerAddress)
 }
@@ -70,7 +68,7 @@ func TestCanConvertPEMKeyToSignerAddress(t *testing.T) {
 func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	ctx := context.Background()
 	kmsClient := newFakeSigner()
-	txSigner, err := NewKMSSigner(ctx, &fakeNonceManager{precomputedNonce}, kmsClient, "some_key_path")
+	txSigner, err := NewKMSSigner(ctx, kmsClient, "some_key_path")
 	assert.NilError(t, err)
 	data := struct{ A, B, C int }{1, 2, 3}
 
@@ -80,7 +78,6 @@ func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	wantTx := newPrecomputedTx()
 	assert.Equal(t, tx.PersonaTag, wantTx.PersonaTag)
 	assert.Equal(t, tx.Namespace, wantTx.Namespace)
-	assert.Equal(t, tx.Nonce, wantTx.Nonce)
 	assert.Equal(t, string(tx.Body), string(wantTx.Body))
 
 	// Also make sure the resulting signature can be verified by the sign package.
@@ -102,7 +99,7 @@ func TestQueryRealKMSService(t *testing.T) {
 	const keyPath = "projects/<project>/locations/global/keyRings/<keyRing>/cryptoKeys/<name>/cryptoKeyVersions/<num>"
 	client, err := kms.NewKeyManagementClient(ctx, option.WithCredentialsFile(credsFile))
 	assert.NilError(t, err)
-	txSigner, err := NewKMSSigner(ctx, &fakeNonceManager{uint64(99)}, client, keyPath)
+	txSigner, err := NewKMSSigner(ctx, client, keyPath)
 	assert.NilError(t, err)
 	personaTag := "some-persona-tag"
 	namespace := "some-namespace"
@@ -112,23 +109,6 @@ func TestQueryRealKMSService(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.NilError(t, tx.Verify(txSigner.SignerAddress()))
-}
-
-type fakeNonceManager struct {
-	nonce uint64
-}
-
-var _ NonceManager = &fakeNonceManager{}
-
-func (f *fakeNonceManager) SetNonce(_ context.Context, nonce uint64) error {
-	f.nonce = nonce
-	return nil
-}
-
-func (f *fakeNonceManager) IncNonce(context.Context) (nonce uint64, err error) {
-	curr := f.nonce
-	f.nonce++
-	return curr, nil
 }
 
 type fakeAsymmetricSigner struct {
