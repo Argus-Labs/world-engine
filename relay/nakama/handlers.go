@@ -79,27 +79,34 @@ func handleClaimPersona(
 			globalNamespace,
 			globalPersonaAssignment,
 		)
-		if err == nil {
-			span.SetStatus(otelcode.Ok, "successfully claimed persona")
-			return utils.MarshalResult(logger, result)
+		if err != nil {
+			span.RecordError(err)
+			switch {
+			case errors.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
+				span.SetStatus(otelcode.Error, "Persona tag storage object not found")
+				return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag storage object not found")
+			case errors.Is(err, persona.ErrPersonaTagEmpty):
+				span.SetStatus(otelcode.Error, "Missing personaTag field")
+				return utils.LogErrorWithMessageAndCode(
+					logger,
+					err,
+					codes.InvalidArgument,
+					"claim persona tag request must have personaTag field",
+				)
+			}
+			span.SetStatus(otelcode.Error, "Unknown error")
+			return utils.LogError(logger, err, codes.FailedPrecondition)
 		}
 
-		span.RecordError(err)
-		switch {
-		case errors.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
-			span.SetStatus(otelcode.Error, "Persona tag storage object not found")
-			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag storage object not found")
-		case errors.Is(err, persona.ErrPersonaTagEmpty):
-			span.SetStatus(otelcode.Error, "Missing personaTag field")
-			return utils.LogErrorWithMessageAndCode(
-				logger,
-				err,
-				codes.InvalidArgument,
-				"claim persona tag request must have personaTag field",
-			)
+		marshalResult, err := utils.MarshalResult(logger, result)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to marshal result")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to marshal result")
 		}
-		span.SetStatus(otelcode.Error, "Unknown error")
-		return utils.LogError(logger, err, codes.FailedPrecondition)
+
+		span.SetStatus(otelcode.Ok, "successfully claimed persona")
+		return marshalResult, nil
 	}
 }
 
@@ -116,18 +123,25 @@ func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPC
 
 		span.AddEvent("Getting persona from storage")
 		result, err := persona.ShowPersona(ctx, nk, txSigner, cardinalAddress)
-		if err == nil {
-			span.SetStatus(otelcode.Ok, "successfully showed persona")
-			return utils.MarshalResult(logger, result)
+		if err != nil {
+			span.RecordError(err)
+			if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
+				span.SetStatus(otelcode.Error, "Persona tag not found")
+				return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
+			}
+			span.SetStatus(otelcode.Error, "Unknown error")
+			return utils.LogError(logger, err, codes.FailedPrecondition)
 		}
 
-		span.RecordError(err)
-		if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
-			span.SetStatus(otelcode.Error, "Persona tag not found")
-			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
+		marshalResult, err := utils.MarshalResult(logger, result)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(otelcode.Error, "Failed to marshal result")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to marshal result")
 		}
-		span.SetStatus(otelcode.Error, "Unknown error")
-		return utils.LogError(logger, err, codes.FailedPrecondition)
+
+		span.SetStatus(otelcode.Ok, "successfully showed persona")
+		return marshalResult, nil
 	}
 }
 
@@ -155,27 +169,34 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 
 	span.AddEvent("Generating beta keys")
 	result, err := allowlist.GenerateBetaKeys(ctx, nk, gk)
-	if err == nil {
-		span.SetStatus(otelcode.Ok, "successfully generated beta keys")
-		return utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		switch {
+		case errors.Is(err, allowlist.ErrReadingAmountOfKeys):
+			span.SetStatus(otelcode.Error, "Key amount incorrectly formatted")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "key amount incorrectly formatted")
+		case errors.Is(err, allowlist.ErrPermissionDenied):
+			span.SetStatus(otelcode.Error, "Non-admin user tried to generate beta keys")
+			return utils.LogErrorWithMessageAndCode(
+				logger,
+				err,
+				codes.PermissionDenied,
+				"non-admin user tried to call generate-beta-keys",
+			)
+		}
+		span.SetStatus(otelcode.Error, "Unknown error")
+		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 
-	span.RecordError(err)
-	switch {
-	case errors.Is(err, allowlist.ErrReadingAmountOfKeys):
-		span.SetStatus(otelcode.Error, "Key amount incorrectly formatted")
-		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "key amount incorrectly formatted")
-	case errors.Is(err, allowlist.ErrPermissionDenied):
-		span.SetStatus(otelcode.Error, "Non-admin user tried to generate beta keys")
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			err,
-			codes.PermissionDenied,
-			"non-admin user tried to call generate-beta-keys",
-		)
+	marshalResult, err := utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to marshal result")
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to marshal result")
 	}
-	span.SetStatus(otelcode.Error, "Unknown error")
-	return utils.LogError(logger, err, codes.FailedPrecondition)
+
+	span.SetStatus(otelcode.Ok, "successfully generated beta keys")
+	return marshalResult, nil
 }
 
 func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
@@ -202,25 +223,32 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 
 	span.AddEvent("Claiming beta key")
 	result, err := allowlist.ClaimKey(ctx, nk, ck)
-	if err == nil {
-		span.SetStatus(otelcode.Ok, "successfully claimed beta key")
-		return utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		switch {
+		case errors.Is(err, allowlist.ErrAlreadyVerified):
+			span.SetStatus(otelcode.Error, "User is already verified")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.AlreadyExists, "user has already been verified")
+		case errors.Is(err, allowlist.ErrInvalidBetaKey):
+			span.SetStatus(otelcode.Error, "Invalid beta key")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "beta key is invalid")
+		case errors.Is(err, allowlist.ErrBetaKeyAlreadyUsed):
+			span.SetStatus(otelcode.Error, "Beta key has already been used")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.PermissionDenied, "beta key has already been used")
+		}
+		span.SetStatus(otelcode.Error, "Unknown error")
+		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 
-	span.RecordError(err)
-	switch {
-	case errors.Is(err, allowlist.ErrAlreadyVerified):
-		span.SetStatus(otelcode.Error, "User is already verified")
-		return utils.LogErrorWithMessageAndCode(logger, err, codes.AlreadyExists, "user has already been verified")
-	case errors.Is(err, allowlist.ErrInvalidBetaKey):
-		span.SetStatus(otelcode.Error, "Invalid beta key")
-		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "beta key is invalid")
-	case errors.Is(err, allowlist.ErrBetaKeyAlreadyUsed):
-		span.SetStatus(otelcode.Error, "Beta key has already been used")
-		return utils.LogErrorWithMessageAndCode(logger, err, codes.PermissionDenied, "beta key has already been used")
+	marshalResult, err := utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to marshal result")
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to marshal result")
 	}
-	span.SetStatus(otelcode.Error, "Unknown error")
-	return utils.LogError(logger, err, codes.FailedPrecondition)
+
+	span.SetStatus(otelcode.Ok, "successfully claimed beta key")
+	return marshalResult, nil
 }
 
 func handleSaveGame(
@@ -247,14 +275,21 @@ func handleSaveGame(
 
 	span.AddEvent("Writing save data")
 	result, err := writeSave(ctx, nk, msg)
-	if err == nil {
-		span.SetStatus(otelcode.Ok, "successfully saved game")
-		return utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Unknown error")
+		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 
-	span.RecordError(err)
-	span.SetStatus(otelcode.Error, "Unknown error")
-	return utils.LogError(logger, err, codes.FailedPrecondition)
+	marshalResult, err := utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to marshal result")
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to marshal result")
+	}
+
+	span.SetStatus(otelcode.Ok, "successfully saved game")
+	return marshalResult, nil
 }
 
 func handleGetSaveGame(
@@ -269,19 +304,26 @@ func handleGetSaveGame(
 
 	span.AddEvent("Reading save data")
 	result, err := readSave(ctx, nk)
-	if err == nil {
-		span.SetStatus(otelcode.Ok, "successfully retrieved saved game")
-		return utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		if errors.Is(err, ErrNoSaveFound) {
+			span.SetStatus(otelcode.Error, "Failed to read save data")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to read save data")
+		}
+
+		span.SetStatus(otelcode.Error, "Unknown error")
+		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 
-	span.RecordError(err)
-	if errors.Is(err, ErrNoSaveFound) {
-		span.SetStatus(otelcode.Error, "Failed to read save data")
-		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to read save data")
+	marshalResult, err := utils.MarshalResult(logger, result)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to marshal result")
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to marshal result")
 	}
 
-	span.SetStatus(otelcode.Error, "Unknown error")
-	return utils.LogError(logger, err, codes.FailedPrecondition)
+	span.SetStatus(otelcode.Ok, "successfully retrieved saved game")
+	return marshalResult, nil
 }
 
 func handleCardinalRequest(
