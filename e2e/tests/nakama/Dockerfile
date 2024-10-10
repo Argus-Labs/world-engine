@@ -3,6 +3,7 @@ FROM golang:1.22
 WORKDIR /go/src/app
 
 COPY evm evm
+COPY cardinal cardinal
 
 # Copy the go module files and download the dependencies
 # We do this before copying the rest of the source code to avoid

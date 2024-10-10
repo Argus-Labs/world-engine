@@ -32,12 +32,10 @@ services:
       context: ./relay/nakama
       target: nakama # Build the amd64 version of the image
     depends_on:
-      cockroachdb:
-        condition: service_healthy
-      game:
-        condition: service_started
+      - "cockroachdb"
+      - "${CARDINAL_SERVICE:-game}"
     environment:
-      - CARDINAL_ADDR=game:4040
+      - CARDINAL_ADDR=${CARDINAL_SERVICE:-game}:4040
       - ENABLE_DEBUG=TRUE
       - CARDINAL_NAMESPACE=testgame
       - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
@@ -113,6 +111,45 @@ services:
       - "26659:26659"
       - "9090"
 
+  game-debug:
+    container_name: test_game-debug
+    environment:
+      - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE:-testgame}
+      - CARDINAL_ROLLUP_ENABLED=${CARDINAL_ROLLUP_ENABLED:-false}
+      - CARDINAL_LOG_LEVEL=${CARDINAL_LOG_LEVEL:-debug}
+      - CARDINAL_LOG_PRETTY=${CARDINAL_LOG_PRETTY:-true}
+      - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - BASE_SHARD_SEQUENCER_ADDRESS=${BASE_SHARD_SEQUENCER_ADDRESS:-chain:9601}
+      - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
+      - TELEMETRY_TRACE_ENABLED=${TELEMETRY_TRACE_ENABLED:-false}
+      - TELEMETRY_PROFILER_ENABLED=${TELEMETRY_PROFILER_ENABLED:-false}
+      - DD_AGENT_HOST=datadog
+      - DD_ENV=local
+      - DD_SERVICE=world-engine-cardinal-local
+    build:
+      context: ./
+      dockerfile: e2e/testgames/game/Dockerfile
+      target: runtime-debug
+    cap_add:
+      - SYS_PTRACE
+    restart: unless-stopped
+    expose:
+      - "4040"
+      - "40000"
+    ports:
+      - "4040:4040"
+      - "9020:9020"
+      - "40000:40000"
+    depends_on:
+      - redis
+    networks:
+      - world-engine
+    security_opt:
+      - "seccomp:unconfined"
+    stdin_open: true
+    tty: true
+
   game:
     container_name: test_game
     environment:
@@ -132,6 +169,7 @@ services:
     build:
       context: ./
       dockerfile: e2e/testgames/game/Dockerfile
+      target: runtime
     restart: unless-stopped
     expose:
       - "4040"
