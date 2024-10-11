@@ -124,7 +124,9 @@ test_game-debug  | 2024-10-09T19:36:11Z warning layer=rpc Listening for remote c
 </pre>
 
 Those lines near the top of the logs about API server and listening for remote connections show the debugger is ready.
-There will also be a lot of warnings about `relay_nakama` failing to establish websocket connection. Those are normal for now.
+There will also be a lot of warnings about `relay_nakama` failing to establish websocket connection. Those show attempts
+by Nakama to attach to Cardinal, but Cardinal is waiting for the remote debugging session to start, so they will continue
+until you complete the next step.
 
 Now use the Configurations menu again to choose `Cardinal Debug`. Before you hit the debug icon beside it, try setting
 a breakpoint in the `main()` function in `e2e/testgames/game/main.go`. Now hit the debug icon. You should hit that

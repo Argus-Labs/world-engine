@@ -40,19 +40,18 @@ ENV GOCACHE=/root/.cache/go-build
 
 WORKDIR /go/src/app
 
-# assert seems like it will be least likely to change
+# copy source directories in the order they are least likely to most likely to change, to improve cache utilization
 COPY assert assert
-
-# we assume here that testgames will rarely change
 COPY e2e/testgames e2e/testgames
-
-# assumes we are most often testing changes to cardinal code
 COPY cardinal cardinal
 
 # cardinal and assert are part of the go mods, so this must be done after they are copied
-RUN cd e2e/testgames && go mod download
+WORKDIR /go/src/app/e2e/testgames
+RUN go mod download
 
 # build the binary with debugging symbols
-RUN --mount=type=cache,target="/root/.cache/go-build" cd e2e/testgames/game && go build -gcflags="all=-N -l" -v -o /usr/bin/app
+WORKDIR /go/src/app/e2e/testgames/game
+RUN --mount=type=cache,target="/root/.cache/go-build" go build -gcflags="all=-N -l" -v -o /usr/bin/app
 
+# Run the binary under the Delve debugger, with it listening for remote debug connections
 CMD ["dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/usr/bin/app"]
