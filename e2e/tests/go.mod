@@ -4,6 +4,7 @@ go 1.22.1
 
 replace (
 	pkg.world.dev/world-engine/cardinal => ../../cardinal
+	pkg.world.dev/world-engine/rift => ../../rift
 	pkg.world.dev/world-engine/evm => ../../evm
 )
 

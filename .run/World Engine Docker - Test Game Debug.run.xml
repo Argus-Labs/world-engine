@@ -17,6 +17,7 @@
             <option value="nakama" />
             <option value="redis" />
             <option value="game-debug" />
+            <option value="test_nakama" />
           </list>
         </option>
         <option name="sourceFilePath" value="docker-compose.yml" />
