@@ -56,7 +56,7 @@ func UnmarshalTransaction(bz []byte) (*Transaction, error) {
 	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
-	s.populateHash()
+	s.PopulateHash()
 	return s, nil
 }
 
@@ -115,7 +115,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
-	s.populateHash()
+	s.PopulateHash()
 	return s, nil
 }
 
@@ -173,7 +173,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transa
 		Created:    time.Now().UnixMicro(),
 		Body:       bz,
 	}
-	sp.populateHash()
+	sp.PopulateHash()
 	buf, err := crypto.Sign(sp.Hash.Bytes(), pk)
 	if err != nil {
 		return nil, eris.Wrap(err, "error signing hash")
@@ -218,7 +218,7 @@ func isZeroHash(hash common.Hash) bool {
 // HashHex return a hex encoded hash of the signature.
 func (s *Transaction) HashHex() string {
 	if isZeroHash(s.Hash) {
-		s.populateHash()
+		s.PopulateHash()
 	}
 	return s.Hash.Hex()
 }
@@ -231,7 +231,7 @@ func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
 	if isZeroHash(s.Hash) {
-		s.populateHash()
+		s.PopulateHash()
 	}
 
 	sig := common.Hex2Bytes(s.Signature)
@@ -254,7 +254,7 @@ func (s *Transaction) Verify(hexAddress string) error {
 	return nil
 }
 
-func (s *Transaction) populateHash() {
+func (s *Transaction) PopulateHash() {
 	s.Hash = crypto.Keccak256Hash(
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),

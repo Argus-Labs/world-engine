@@ -54,6 +54,7 @@ func PostTransaction(
 		if err := ctx.BodyParser(tx); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
 		}
+		tx.PopulateHash()
 
 		// Validate the transaction
 		if err := validateTx(tx); err != nil {
