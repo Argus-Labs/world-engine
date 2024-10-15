@@ -8,4 +8,5 @@ use (
 	evm
 	relay/nakama
 	sign
+	rift
 )

@@ -138,11 +138,6 @@ func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAdd
 		tx.IsSystemTransaction()); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 	}
-	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
-	//  to mark the nonce as used once it's included in the tick, not the server.
-	if err = world.UseNonce(signerAddress, tx.Nonce); err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
-	}
 	return nil
 }
 
