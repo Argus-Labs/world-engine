@@ -3,6 +3,7 @@ definitions:
   cardinal_server_handler.CQLQueryRequest:
     properties:
       cql:
+        example: CONTAINS(Health)
         type: string
     type: object
   cardinal_server_handler.CQLQueryResponse:
@@ -40,6 +41,7 @@ definitions:
   cardinal_server_handler.ListTxReceiptsRequest:
     properties:
       startTick:
+        example: 64
         type: integer
     type: object
   cardinal_server_handler.ListTxReceiptsResponse:
@@ -50,6 +52,7 @@ definitions:
         items:
           $ref: '#/definitions/cardinal_server_handler.ReceiptEntry'
         type: array
+        x-nullable: true
       startTick:
         type: integer
     type: object
@@ -66,6 +69,7 @@ definitions:
         items:
           type: string
         type: array
+        x-nullable: true
       result: {}
       tick:
         type: integer
@@ -89,17 +93,19 @@ definitions:
         description: hex encoded string
         type: string
     type: object
-  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
-    properties:
-      data:
-        type: object
-      id:
-        type: integer
-    type: object
   pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
     properties:
       components:
         type: object
+      id:
+        type: integer
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
+    properties:
+      data:
+        items:
+          type: object
+        type: array
       id:
         type: integer
     type: object
@@ -126,6 +132,7 @@ paths:
       consumes:
       - application/json
       description: Executes a CQL (Cardinal Query Language) query
+      operationId: queryCQL
       parameters:
       - description: CQL query to be executed
         in: body
@@ -148,6 +155,7 @@ paths:
   /debug/state:
     post:
       description: Retrieves a list of all entities in the game state
+      operationId: getDebugState
       produces:
       - application/json
       responses:
@@ -172,6 +180,7 @@ paths:
   /health:
     get:
       description: Retrieves the status of the server and game loop
+      operationId: getHealth
       produces:
       - application/json
       responses:
@@ -214,11 +223,42 @@ paths:
           schema:
             type: string
       summary: Executes a query
+  /query/game/{queryName}:
+    post:
+      consumes:
+      - application/json
+      description: Executes a query
+      operationId: query
+      parameters:
+      - description: Name of a registered query
+        in: path
+        name: queryName
+        required: true
+        type: string
+      - description: Query to be executed
+        in: body
+        name: queryBody
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Results of the executed query" example({"HP": 128})'
+          schema:
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Executes a query
   /query/receipts/list:
     post:
       consumes:
       - application/json
       description: Retrieves all transaction receipts
+      operationId: getReceipts
       parameters:
       - description: Query body
         in: body
@@ -277,6 +317,7 @@ paths:
       consumes:
       - application/json
       description: Submits a transaction
+      operationId: transact
       parameters:
       - description: Name of a registered message
         in: path
@@ -306,6 +347,7 @@ paths:
       consumes:
       - application/json
       description: Creates a persona
+      operationId: createPersona
       parameters:
       - description: Transaction details & message to be submitted
         in: body
@@ -330,6 +372,7 @@ paths:
       consumes:
       - application/json
       description: Contains the registered components, messages, queries, and namespace
+      operationId: getWorld
       produces:
       - application/json
       responses:

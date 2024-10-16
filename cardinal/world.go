@@ -164,6 +164,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tickDoneChannel:              nil,                    // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
+	world.QueryManager = newQueryManager(world)
 
 	world.QueryManager = newQueryManager(world)
 

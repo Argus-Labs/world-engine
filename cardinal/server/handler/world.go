@@ -23,6 +23,7 @@ type GetWorldResponse struct {
 //
 //	@Summary      Retrieves details of the game world
 //	@Description  Contains the registered components, messages, queries, and namespace
+//	@Id           getWorld
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Success      200  {object}  GetWorldResponse  "Details of the game world"
