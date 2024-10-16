@@ -50,3 +50,7 @@ For an in-depth guide on how to use World Engine, visit our [documentation](http
 ├── <a href="./rift">rift</a>: Protobuf definitions and generated Go code for the World Engine's cross shard messaging protocol.
 ├── <a href="./sign">sign</a>: Library to facilitate message signing and verification.
 </pre>
+
+## World Engine Development
+
+Check out [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed instructions on setting up the development environment, running tests, and debugging.
