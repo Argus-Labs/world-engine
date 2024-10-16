@@ -9,6 +9,7 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/argus-labs/go-jobqueue v0.1.6
+	github.com/coocood/freecache v1.2.4
 	github.com/ethereum/go-ethereum v1.13.10
 	github.com/fasthttp/websocket v1.5.8
 	github.com/goccy/go-json v0.10.3
