@@ -38,7 +38,7 @@ var (
 type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
-	Created    int64           `json:"created"`   // unix timestamp
+	Created    int64           `json:"created"`   // unix microsecond timestamp
 	Signature  string          `json:"signature"` // hex encoded string
 	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
@@ -211,13 +211,13 @@ func (s *Transaction) Marshal() ([]byte, error) {
 	return res, err
 }
 
-func isZeroHash(hash common.Hash) bool {
+func IsZeroHash(hash common.Hash) bool {
 	return hash == common.Hash{}
 }
 
 // HashHex return a hex encoded hash of the signature.
 func (s *Transaction) HashHex() string {
-	if isZeroHash(s.Hash) {
+	if IsZeroHash(s.Hash) {
 		s.PopulateHash()
 	}
 	return s.Hash.Hex()
@@ -230,7 +230,7 @@ func (s *Transaction) HashHex() string {
 func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
-	if isZeroHash(s.Hash) {
+	if IsZeroHash(s.Hash) {
 		s.PopulateHash()
 	}
 
