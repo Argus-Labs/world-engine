@@ -30,6 +30,13 @@ type PostTransactionResponse struct {
 	Tick   uint64
 }
 
+type SignatureVerification struct {
+	IsDisabled               bool
+	MessageExpirationSeconds int
+	HashCacheSizeKB          int
+	Cache                    *freecache.Cache
+}
+
 type Transaction = sign.Transaction
 
 // PostTransaction godoc
@@ -47,7 +54,7 @@ type Transaction = sign.Transaction
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool, disableReplayProtection bool, messageExpirationSeconds int, cache *freecache.Cache,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -60,27 +67,27 @@ func PostTransaction(
 		if err := ctx.BodyParser(tx); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
 		}
-		unexpiredCreateAfter := time.Now().Add(-(time.Duration(messageExpirationSeconds) * time.Second)).UnixMicro()
-		// before we even create the hash or validate the signature, check to see if the message has expired
-		if !disableReplayProtection && tx.Created < unexpiredCreateAfter {
-			return fiber.NewError(fiber.StatusRequestTimeout, fmt.Sprintf("message more than %d seconds old", messageExpirationSeconds))
-		}
-
-		// if the hash was sent with the message, check that it isn't already in the cache
-		// this saves us the cost of calculating the hash if there's an early lookup
-		hashReceived := false
-		if !disableReplayProtection && !sign.IsZeroHash(tx.Hash) {
-			if _, err := cache.Get(tx.Hash.Bytes()); err == nil {
-				// if found in the cache, the message hash has already been used, so reject it
-				return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("already handled message %s", tx.Hash.String()))
+		if !verify.IsDisabled {
+			unexpiredCreateAfter := time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second))
+			txCreated := time.UnixMicro(tx.Created)
+			// before we even create the hash or validate the signature, check to see if the message has expired
+			if txCreated.Before(unexpiredCreateAfter) {
+				return fiber.NewError(fiber.StatusRequestTimeout, fmt.Sprintf("message more than %d seconds old", verify.MessageExpirationSeconds))
 			}
-			hashReceived = true
-		}
 
-		// generate the hash and check it
-		receivedHashValue := tx.Hash
-		tx.PopulateHash()
-		if !disableReplayProtection {
+			// if the hash was sent with the message, check that it isn't already in the cache
+			// this saves us the cost of calculating the hash if there's an early lookup
+			hashReceived := false
+			if !sign.IsZeroHash(tx.Hash) {
+				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
+					// if found in the cache, the message hash has already been used, so reject it
+					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("already handled message %s", tx.Hash.String()))
+				}
+				hashReceived = true
+			}
+			// generate the hash and check it
+			receivedHashValue := tx.Hash
+			tx.PopulateHash()
 			if hashReceived {
 				// we got a hash with the message, check that the generated one hasn't changed
 				if tx.Hash != receivedHashValue {
@@ -89,7 +96,7 @@ func PostTransaction(
 				// at this point we know the generated hash matches the received one, and is not in the cache, so this message is not a replay
 			} else {
 				// we didn't receive a hash, so check to see if our generated hash is in the cache
-				if _, err := cache.Get(tx.Hash.Bytes()); err == nil {
+				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
 					// if found in the cache, the message hash has already been used, so reject it
 					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("already handled message %s", tx.Hash.String()))
 				}
@@ -108,7 +115,7 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction")
 		}
 
-		if !disableSigVerification {
+		if !verify.IsDisabled {
 			var signerAddress string
 			// TODO(scott): don't hardcode this
 			if msgType.Name() == "create-persona" {
@@ -120,14 +127,12 @@ func PostTransaction(
 			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
 				return err
 			}
-		}
 
-		if !disableReplayProtection {
 			// the message was valid, so add its hash to the cache
 			// we don't do this until we have verified the signature to prevent an attack where someone sends
 			// large numbers of hashes with unsigned/invalid messages and thus blocks legit messages from
 			// being handled
-			err := cache.Set(tx.Hash.Bytes(), nil, messageExpirationSeconds+cacheRetentionExtraSeconds)
+			err := verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
 			if err != nil {
 				return err
 			}
@@ -159,9 +164,9 @@ func PostTransaction(
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool, disableReplayProtection bool, messageExpirationSeconds int, cache *freecache.Cache,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, disableSigVerification, disableReplayProtection, messageExpirationSeconds, cache)
+	return PostTransaction(world, msgs, verify)
 }
 
 // NOTE: duplication for cleaner swagger docs
@@ -178,9 +183,9 @@ func PostGameTransaction(
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool, disableReplayProtection bool, messageExpirationSeconds int, cache *freecache.Cache,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, disableSigVerification, disableReplayProtection, messageExpirationSeconds, cache)
+	return PostTransaction(world, msgs, verify)
 }
 
 func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
