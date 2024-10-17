@@ -132,7 +132,7 @@ func PostTransaction(
 			// we don't do this until we have verified the signature to prevent an attack where someone sends
 			// large numbers of hashes with unsigned/invalid messages and thus blocks legit messages from
 			// being handled
-			err := verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
+			err = verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
 			if err != nil {
 				return err
 			}
