@@ -286,7 +286,7 @@ type Transaction struct {
 
 	PersonaTag string `protobuf:"bytes,1,opt,name=PersonaTag,proto3" json:"PersonaTag,omitempty"`
 	Namespace  string `protobuf:"bytes,2,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
-	Nonce      uint64 `protobuf:"varint,3,opt,name=Nonce,proto3" json:"Nonce,omitempty"`
+	Created    int64  `protobuf:"varint,3,opt,name=Created,proto3" json:"Created,omitempty"`
 	Signature  string `protobuf:"bytes,4,opt,name=Signature,proto3" json:"Signature,omitempty"`
 	Body       []byte `protobuf:"bytes,5,opt,name=Body,proto3" json:"Body,omitempty"`
 }
@@ -337,9 +337,9 @@ func (x *Transaction) GetNamespace() string {
 	return ""
 }
 
-func (x *Transaction) GetNonce() uint64 {
+func (x *Transaction) GetCreated() int64 {
 	if x != nil {
-		return x.Nonce
+		return x.Created
 	}
 	return 0
 }

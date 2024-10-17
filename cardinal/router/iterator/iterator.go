@@ -127,7 +127,7 @@ func protoTxToSignTx(t *shard.Transaction) *sign.Transaction {
 	tx := &sign.Transaction{
 		PersonaTag: t.GetPersonaTag(),
 		Namespace:  t.GetNamespace(),
-		Nonce:      t.GetNonce(),
+		Created:    t.GetCreated(),
 		Signature:  t.GetSignature(),
 		Hash:       common.Hash{},
 		Body:       t.GetBody(),
