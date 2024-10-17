@@ -35,7 +35,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.26.0
 	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.35.1
 	gopkg.in/DataDog/dd-trace-go.v1 v1.63.1
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0
