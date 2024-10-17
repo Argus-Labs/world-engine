@@ -9,13 +9,6 @@ func WithPort(port string) Option {
 	}
 }
 
-// DisableSignatureVerification disables signature verification.
-func DisableSignatureVerification() Option {
-	return func(s *Server) {
-		s.config.isSignatureVerificationDisabled = true
-	}
-}
-
 // DisableSwagger allows to disable the swagger setup of the server.
 func DisableSwagger() Option {
 	return func(s *Server) {
@@ -23,13 +16,10 @@ func DisableSwagger() Option {
 	}
 }
 
-// DisableReplayProtection disables replay protection, so signed
-// messages can be reused without being signed again, and they never expire.
-// If replay protection is disabled, then WithMessageExpiration and
-// WithHashCacheSize options have no effect
-func DisableReplayProtection() Option {
+// DisableSignatureVerification disables signature verification.
+func DisableSignatureVerification() Option {
 	return func(s *Server) {
-		s.config.isReplayProtectionDisabled = true
+		s.verify.IsDisabled = true
 	}
 }
 
@@ -38,18 +28,20 @@ func DisableReplayProtection() Option {
 // not be processed. Default is 10 seconds.
 // For longer expiration times you may also need to set a larger hash cache
 // size using the WithHashCacheSize option
+// This setting is ignored if the DisableSignatureVerification option is used
 // NOTE: this means that the real time clock for the sender and receiver
 // must be synchronized
 func WithMessageExpiration(seconds int) Option {
 	return func(s *Server) {
-		s.config.messageExpirationSeconds = seconds
+		s.verify.MessageExpirationSeconds = seconds
 	}
 }
 
 // WithHashCacheSize how big the cache of hashes used for replay protection
 // is allowed to be. Default is 1MB.
+// This setting is ignored if the DisableSignatureVerification option is used
 func WithHashCacheSize(sizeKB int) Option {
 	return func(s *Server) {
-		s.config.hashCacheSizeKB = sizeKB
+		s.verify.HashCacheSizeKB = sizeKB
 	}
 }
