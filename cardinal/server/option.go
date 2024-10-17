@@ -9,7 +9,7 @@ func WithPort(port string) Option {
 	}
 }
 
-// DisableSwagger allows to disable the swagger setup of the server.
+// DisableSwagger disables the Swagger setup of the server.
 func DisableSwagger() Option {
 	return func(s *Server) {
 		s.config.isSwaggerDisabled = true
