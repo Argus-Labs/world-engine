@@ -218,7 +218,7 @@ func TestRejectInvalidSignatures(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidPersonaTag)
 	_, err = NewTransaction(key, "persona_tag", "", Payload{100})
 	assert.ErrorIs(t, err, ErrInvalidNamespace)
-	_, err = NewTransaction(key, "persona_tag", "", nil)
+	_, err = NewTransaction(key, "persona_tag", "namespace", nil)
 	assert.ErrorIs(t, err, ErrCannotSignEmptyBody)
 }
 
