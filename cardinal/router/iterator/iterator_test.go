@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -102,7 +103,7 @@ func TestIteratorHappyPath(t *testing.T) {
 	protoTx := &shard.Transaction{
 		PersonaTag: "ty",
 		Namespace:  namespace,
-		Nonce:      1,
+		Created:    time.Now().UnixMicro(),
 		Signature:  "fo",
 		Body:       msgBytes,
 	}
@@ -159,7 +160,7 @@ func TestIteratorStartRange(t *testing.T) {
 	querier := &mockQuerier{retErr: errors.New("whatever")}
 	it := iterator.New(nil, "", querier)
 
-	// we dont care about this error, we're just checking if `querier` gets called with the right key in the Page.
+	// we don't care about this error, we're just checking if `querier` gets called with the right key in the Page.
 	startRange := uint64(5)
 	_ = it.Each(nil, 5)
 
@@ -178,7 +179,7 @@ func TestIteratorStopRange(t *testing.T) {
 	protoTx := &shard.Transaction{
 		PersonaTag: "ty",
 		Namespace:  namespace,
-		Nonce:      1,
+		Created:    time.Now().UnixMicro(),
 		Signature:  "fo",
 		Body:       msgBytes,
 	}

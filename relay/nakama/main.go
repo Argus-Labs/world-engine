@@ -137,14 +137,12 @@ func InitModule(
 }
 
 func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (signer.Signer, error) {
-	nonceManager := signer.NewNakamaNonceManager(nk)
-
 	kmsCredsFile := os.Getenv(EnvKMSCredentialsFile)
 	kmsKeyName := os.Getenv(EnvKMSKeyName)
 	if kmsCredsFile == "" && kmsKeyName == "" {
 		// Neither the KMS creds file nor the key name is set. Assume the user wants to store the private key on
 		// Nakama's DB.
-		return signer.NewNakamaSigner(ctx, logger, nk, nonceManager)
+		return signer.NewNakamaSigner(ctx, logger, nk)
 	}
 	// At least one of the creds file or the key name is set. Assume the user wants to use KSM for signing transactions.
 	if kmsCredsFile == "" || kmsKeyName == "" {
@@ -157,7 +155,7 @@ func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaM
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to make KMS client")
 	}
-	return signer.NewKMSSigner(ctx, nonceManager, client, kmsKeyName)
+	return signer.NewKMSSigner(ctx, client, kmsKeyName)
 }
 
 func initEventHub(
