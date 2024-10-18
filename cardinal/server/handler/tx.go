@@ -15,7 +15,10 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-const cacheRetentionExtraSeconds = 10
+const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal expiration a hash is left in the cache.
+// we want to ensure it's long enough that any message that's not expired but
+// still has it's hash in the cache for replay protect. Setting it too long
+// would
 
 var (
 	ErrNoPersonaTag               = errors.New("persona tag is required")
