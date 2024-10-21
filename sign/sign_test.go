@@ -35,7 +35,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
-	assert.Assert(t, toBeVerified.Created >= wantJustAMomentAgo) // make sure we set a unix timestamp for when it was created
+	assert.Assert(t, toBeVerified.Created >= wantJustAMomentAgo) // make sure unix time stamp is reasonable
 	assert.Assert(t, toBeVerified.Created <= time.Now().UnixMicro())
 	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
 	// Make sure an empty hash is regenerated
