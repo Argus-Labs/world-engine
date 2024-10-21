@@ -52,7 +52,6 @@ type ServerTestSuite struct {
 
 	privateKey *ecdsa.PrivateKey
 	signerAddr string
-	nonce      uint64
 }
 
 var moveMsgName = "move"
@@ -181,7 +180,6 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	s.fixture.DoTick()
-	s.nonce++
 
 	// check the component was successfully updated, despite not using any signature data.
 	res = s.fixture.Post("query/game/location", QueryLocationRequest{Persona: persona})
@@ -251,7 +249,6 @@ func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload an
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	s.fixture.DoTick()
-	s.nonce++
 }
 
 // Creates a persona with the specified tag.
@@ -265,7 +262,6 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	s.fixture.DoTick()
-	s.nonce++
 }
 
 // setupWorld sets up a world with a simple movement system, message, and query.
