@@ -239,7 +239,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 	// This request should fail because signature verification is enabled, and we have not yet
 	// registered the given personaTag
 	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
-	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 }
 
 // Creates a transaction with the given message, and runs it in a tick.
