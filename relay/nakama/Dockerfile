@@ -14,7 +14,9 @@ RUN go build --trimpath --buildmode=plugin -o ./plugin.so
 
 FROM heroiclabs/nakama:3.22.0 AS nakama
 
-RUN apt-get -y update && apt-get -y install curl
+RUN apt-get -y update && \
+    apt-get -y install --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /nakama/plugin/plugin.so /nakama/data/modules/
 COPY relay/nakama/local.yml /nakama/data/

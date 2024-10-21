@@ -3,9 +3,9 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"github.com/coocood/freecache"
 	"time"
 
+	"github.com/coocood/freecache"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 
@@ -18,7 +18,7 @@ import (
 const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal expiration a hash is left in the cache.
 // we want to ensure it's long enough that any message that's not expired but
 // still has it's hash in the cache for replay protect. Setting it too long
-// would
+// would cause the cache to be bigger than necessary
 
 var (
 	ErrNoPersonaTag               = errors.New("persona tag is required")
@@ -71,10 +71,10 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
 		}
 		if !verify.IsDisabled {
-			unexpiredCreateAfter := time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second))
+			txEarliestValidCreateTime := time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second))
 			txCreated := time.UnixMicro(tx.Created)
 			// before we even create the hash or validate the signature, check to see if the message has expired
-			if txCreated.Before(unexpiredCreateAfter) {
+			if txCreated.Before(txEarliestValidCreateTime) {
 				return fiber.NewError(fiber.StatusRequestTimeout, fmt.Sprintf("message more than %d seconds old", verify.MessageExpirationSeconds))
 			}
 
@@ -85,6 +85,9 @@ func PostTransaction(
 				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
 					// if found in the cache, the message hash has already been used, so reject it
 					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("already handled message %s", tx.Hash.String()))
+				} else if !errors.Is(err, freecache.ErrNotFound) {
+					// ignore ErrNotFound, and for us that's what we wanted
+					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
 				}
 				hashReceived = true
 			}
@@ -120,15 +123,14 @@ func PostTransaction(
 
 		if !verify.IsDisabled {
 			var signerAddress string
-			// TODO(scott): don't hardcode this
-			if msgType.Name() == "create-persona" {
+			if msgType.Name() == personaMsg.CreatePersonaMessageName {
 				// don't need to check the cast bc we already validated this above
 				createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
 				signerAddress = createPersonaMsg.SignerAddress
 			}
 
 			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
-				return err
+				return fiber.NewError(fiber.StatusUnauthorized, fmt.Sprintf("Signature validation failed for message %s. %s", tx.Hash.String(), err.Error()))
 			}
 
 			// the message was valid, so add its hash to the cache
@@ -137,7 +139,8 @@ func PostTransaction(
 			// being handled
 			err = verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
 			if err != nil {
-				return err
+				// if we couldn't store the hash in the cache, don't process the transaction, since that would open us up to replay attacks
+				return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("unexpected error %s from cache store for %s", err.Error(), tx.Hash.String()))
 			}
 		}
 
@@ -182,8 +185,10 @@ func PostGameTransaction(
 //	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
+//	@Failure      401     {string}  string                   "Unauthorized - signature was invalid"
 //	@Failure      403     {string}  string                   "Forbidden"
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
+//	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
 	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
