@@ -37,13 +37,9 @@ type nakamaSigner struct {
 	signerAddress string
 }
 
-func (n *nakamaSigner) SignTx(
-	ctx context.Context,
-	personaTag string,
-	namespace string,
-	data any,
-) (tx *sign.Transaction, err error) {
-
+func (n *nakamaSigner) SignTx(_ context.Context, personaTag string, namespace string, data any) (
+	tx *sign.Transaction, err error,
+) {
 	if personaTag == "" {
 		tx, err = sign.NewSystemTransaction(n.privateKey, namespace, data)
 	} else {

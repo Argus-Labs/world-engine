@@ -1,7 +1,6 @@
 package signer
 
 import (
-	"cloud.google.com/go/kms/apiv1/kmspb"
 	"context"
 	"crypto/ecdsa"
 	"crypto/x509/pkix"
@@ -9,13 +8,15 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"hash/crc32"
+	"math/big"
+
+	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-	"hash/crc32"
-	"math/big"
 
 	"pkg.world.dev/world-engine/sign"
 )

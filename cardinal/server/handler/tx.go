@@ -72,12 +72,13 @@ func PostTransaction(
 		if err := ctx.BodyParser(tx); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
 		}
-		if !verify.IsDisabled {
+		if !verify.IsDisabled { //nolint: nestif // I'm okay with this - EdZ
 			txEarliestValidCreateTime := time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second))
 			txCreated := time.UnixMicro(tx.Created)
 			// before we even create the hash or validate the signature, check to see if the message has expired
 			if txCreated.Before(txEarliestValidCreateTime) {
-				return fiber.NewError(fiber.StatusRequestTimeout, fmt.Sprintf("message more than %d seconds old", verify.MessageExpirationSeconds))
+				return fiber.NewError(fiber.StatusRequestTimeout, fmt.Sprintf(
+					"message more than %d seconds old", verify.MessageExpirationSeconds))
 			}
 
 			// if the hash was sent with the message, check that it isn't already in the cache
@@ -86,10 +87,12 @@ func PostTransaction(
 			if !sign.IsZeroHash(tx.Hash) {
 				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
 					// if found in the cache, the message hash has already been used, so reject it
-					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("already handled message %s", tx.Hash.String()))
+					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
+						"already handled message %s", tx.Hash.String()))
 				} else if !errors.Is(err, freecache.ErrNotFound) {
 					// ignore ErrNotFound, and for us that's what we wanted
-					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
+					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf(
+						"unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
 				}
 				hashReceived = true
 			}
@@ -99,14 +102,17 @@ func PostTransaction(
 			if hashReceived {
 				// we got a hash with the message, check that the generated one hasn't changed
 				if tx.Hash != receivedHashValue {
-					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("sent hash does not match %s", tx.Hash.String()))
+					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
+						"sent hash does not match %s", tx.Hash.String()))
 				}
-				// at this point we know the generated hash matches the received one, and is not in the cache, so this message is not a replay
+				// at this point we know the generated hash matches the received one, and is not in the cache,
+				// so this message is not a replay
 			} else {
 				// we didn't receive a hash, so check to see if our generated hash is in the cache
 				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
 					// if found in the cache, the message hash has already been used, so reject it
-					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("already handled message %s", tx.Hash.String()))
+					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
+						"already handled message %s", tx.Hash.String()))
 				}
 				// at this point we know that the generated hash is not in the cache, so this message is not a replay
 			}
@@ -132,7 +138,8 @@ func PostTransaction(
 			}
 
 			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
-				return fiber.NewError(fiber.StatusUnauthorized, fmt.Sprintf("Signature validation failed for message %s. %s", tx.Hash.String(), err.Error()))
+				return fiber.NewError(fiber.StatusUnauthorized, fmt.Sprintf(
+					"Signature validation failed for message %s. %s", tx.Hash.String(), err.Error()))
 			}
 
 			// the message was valid, so add its hash to the cache
@@ -141,8 +148,10 @@ func PostTransaction(
 			// being handled
 			err = verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
 			if err != nil {
-				// if we couldn't store the hash in the cache, don't process the transaction, since that would open us up to replay attacks
-				return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("unexpected error %s from cache store for %s", err.Error(), tx.Hash.String()))
+				// if we couldn't store the hash in the cache, don't process the transaction, since that
+				// would open us up to replay attacks
+				return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf(
+					"unexpected error %s from cache store for %s", err.Error(), tx.Hash.String()))
 			}
 		}
 
