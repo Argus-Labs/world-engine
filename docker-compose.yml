@@ -76,8 +76,8 @@ services:
       - FAUCET_AMOUNT=${FAUCET_AMOUNT:-0x56BC75E2D63100000} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
       - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01} # Secure auth token for game shard
     build:
-      context: evm
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: evm/Dockerfile
     restart: unless-stopped
     expose:
       - "1317"
