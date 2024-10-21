@@ -1,6 +1,7 @@
 package signer
 
 import (
+	"cloud.google.com/go/kms/apiv1/kmspb"
 	"context"
 	"crypto/ecdsa"
 	"crypto/x509/pkix"
@@ -8,16 +9,13 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
-	"hash/crc32"
-	"math/big"
-	"strconv"
-
-	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	"hash/crc32"
+	"math/big"
 
 	"pkg.world.dev/world-engine/sign"
 )
@@ -83,17 +81,17 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 		Namespace:  namespace,
 		Body:       bz,
 	}
-	digest := calculateDigest(unsignedTx)
+	unsignedTx.PopulateHash()
 
 	// Set up the KMS request to sign the transaction
 	req := &kmspb.AsymmetricSignRequest{
 		Name: k.keyName,
 		Digest: &kmspb.Digest{
 			Digest: &kmspb.Digest_Sha256{
-				Sha256: digest.Bytes(),
+				Sha256: unsignedTx.Hash.Bytes(),
 			},
 		},
-		DigestCrc32C: wrapperspb.Int64(int64(crc32c(digest[:]))),
+		DigestCrc32C: wrapperspb.Int64(int64(crc32c(unsignedTx.Hash[:]))),
 	}
 
 	result, err := k.aSigner.AsymmetricSign(ctx, req)
@@ -108,7 +106,7 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	}
 
 	//	unsignedTx.Signature = string(result.Signature)
-	ethSig, err := k.kmsSigToEthereumSig(digest, result.GetSignature())
+	ethSig, err := k.kmsSigToEthereumSig(unsignedTx.Hash, result.GetSignature())
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -119,17 +117,6 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 func crc32c(data []byte) uint32 {
 	t := crc32.MakeTable(crc32.Castagnoli)
 	return crc32.Checksum(data, t)
-}
-
-// TODO: The "populateHash" func from the sign package should be exposed.
-func calculateDigest(tx *sign.Transaction) common.Hash {
-	// TODO: Check for any empty fields here.
-	return crypto.Keccak256Hash(
-		[]byte(tx.PersonaTag),
-		[]byte(tx.Namespace),
-		[]byte(strconv.FormatInt(tx.Created, 10)),
-		tx.Body,
-	)
 }
 
 func (k *kmsSigner) SignSystemTx(ctx context.Context, namespace string, data any) (*sign.Transaction, error) {

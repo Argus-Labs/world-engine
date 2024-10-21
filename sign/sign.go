@@ -152,7 +152,8 @@ func normalizeJSON(data any) ([]byte, error) {
 	return normalizedBz, nil
 }
 
-// sign uses the given private key to sign the personaTag, namespace, and data.
+// sign uses the given private key to sign the personaTag, namespace, creation timestamp, and data. The creation
+// timestamp is set automatically to the wall time by the sign function just before signing.
 func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transaction, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, ErrCannotSignEmptyBody
@@ -182,7 +183,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transa
 	return sp, nil
 }
 
-// NewSystemTransaction signs a given body, and nonce with the given private key using the SystemPersonaTag.
+// NewSystemTransaction signs a given body with the given private key using the SystemPersonaTag.
 func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, data any) (*Transaction, error) {
 	return sign(pk, SystemPersonaTag, namespace, data)
 }
