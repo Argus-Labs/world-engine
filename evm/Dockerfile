@@ -8,11 +8,15 @@ WORKDIR /go/src/app/
 # Copy the go module files and download the dependencies
 # We do this before copying the rest of the source code to avoid
 # having to re-download the dependencies every time we build the image
-COPY go.mod go.sum ./
+COPY evm evm
+COPY rift rift
+
+WORKDIR /go/src/app/evm
 RUN go mod download
 
 # Copy the rest of the source code and build the binary
-COPY . .
+#COPY scripts scripts
+
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
 RUN CGO_ENABLED=1 make install # Binary will be in /go/bin/world-evm
 
@@ -34,7 +38,7 @@ RUN apt-get update -y &&\
 
 # Copy the World EVM binary, start script, and configuration files
 COPY --from=build /go/bin/world-evm /usr/local/bin/
-COPY scripts/start-sequencer.sh scripts/app.toml scripts/config.toml ./
+COPY evm/scripts/start-sequencer.sh evm/scripts/app.toml evm/scripts/config.toml ./
 
 # Start the World EVM sequencer
 USER 0
