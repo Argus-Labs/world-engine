@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	nonce      uint64
 	privateKey *ecdsa.PrivateKey
 )
 
@@ -46,7 +45,6 @@ func UniqueSignatureWithName(name string) *sign.Transaction {
 			panic(err)
 		}
 	}
-	nonce++
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
 	// directly to the World tx pool. It's OK if the signature does not match the payload.
 	sig, err := sign.NewTransaction(privateKey, name, "namespace", `{"some":"data"}`)
