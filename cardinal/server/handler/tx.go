@@ -56,6 +56,8 @@ type Transaction = sign.Transaction
 //	@Failure      403      {string}  string                   "Forbidden"
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
+//
+//nolint:gocognit
 func PostTransaction(
 	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {

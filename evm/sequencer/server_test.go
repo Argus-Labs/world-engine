@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -27,7 +28,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 					{
 						PersonaTag: "Duncan_Idaho",
 						Namespace:  namespace,
-						Nonce:      40,
+						Created:    time.Date(2023, 1, 1, 0, 1, 0, 0, time.UTC).UnixMicro(),
 						Signature:  "signature",
 						Body:       []byte("some-message"),
 					},
@@ -38,7 +39,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 					{
 						PersonaTag: "Paul_Atreides",
 						Namespace:  namespace,
-						Nonce:      30,
+						Created:    time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMicro(),
 						Signature:  namespace,
 						Body:       []byte("some-message"),
 					},
@@ -84,7 +85,7 @@ func TestGetBothSlices(t *testing.T) {
 			Transactions: map[uint64]*shardv2.Transactions{
 				1: {
 					Txs: []*shardv2.Transaction{
-						{PersonaTag: "foo", Namespace: "foobar", Nonce: 3},
+						{PersonaTag: "foo", Namespace: "foobar", Created: time.Date(2023, 1, 1, 0, 0, 1, 0, time.UTC).UnixMicro()},
 					},
 				},
 			},

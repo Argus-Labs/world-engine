@@ -4,8 +4,8 @@ go 1.22.1
 
 replace (
 	pkg.world.dev/world-engine/cardinal => ../../cardinal
-	pkg.world.dev/world-engine/rift => ../../rift
 	pkg.world.dev/world-engine/evm => ../../evm
+	pkg.world.dev/world-engine/rift => ../../rift
 )
 
 // external, necessary replacements
@@ -31,9 +31,9 @@ require (
 	gotest.tools/v3 v3.5.1
 	nhooyr.io/websocket v1.8.10
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/cardinal v1.5.1
+	pkg.world.dev/world-engine/cardinal v1.7.0
 	pkg.world.dev/world-engine/evm v0.0.0-00010101000000-000000000000
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a
+	pkg.world.dev/world-engine/rift v1.2.0
 )
 
 require (
@@ -183,7 +183,7 @@ require (
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
-	google.golang.org/protobuf v1.34.1 // indirect
+	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	pgregory.net/rapid v1.1.0 // indirect

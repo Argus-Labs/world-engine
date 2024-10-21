@@ -39,8 +39,8 @@ require (
 	gopkg.in/DataDog/dd-trace-go.v1 v1.63.1
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a
-	pkg.world.dev/world-engine/sign v1.0.1-beta
+	pkg.world.dev/world-engine/rift v1.2.0
+	pkg.world.dev/world-engine/sign v1.1.0
 )
 
 require (
