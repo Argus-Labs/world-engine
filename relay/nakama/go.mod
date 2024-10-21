@@ -23,7 +23,7 @@ require (
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.1
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/sign v1.0.1-beta
+	pkg.world.dev/world-engine/sign v1.1.0
 )
 
 require (
