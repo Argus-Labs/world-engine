@@ -10,6 +10,7 @@ import (
 	"errors"
 	"hash/crc32"
 	"math/big"
+	"time"
 
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,6 +23,8 @@ import (
 )
 
 var _ Signer = &kmsSigner{}
+
+var _ TestOnlySigner = &kmsSigner{}
 
 var oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 
@@ -57,6 +60,14 @@ type AsymmetricSigner interface {
 func NewKMSSigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyName string) (
 	Signer, error,
 ) {
+	ks, err := NewKMSTestOnlySigner(ctx, asymmetricSigner, keyName)
+	return ks, err
+}
+
+// only use this for testing
+func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyName string) (
+	TestOnlySigner, error,
+) {
 	ks := &kmsSigner{
 		aSigner: asymmetricSigner,
 		keyName: keyName,
@@ -70,6 +81,14 @@ func NewKMSSigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyNam
 // SignTx creates a sign.Transaction object with a signature. This doc page was used as a reference:
 // https://cloud.google.com/kms/docs/create-validate-signatures#validate_ec_signature
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
+	*sign.Transaction, error) {
+	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, time.Now().UnixMicro())
+	return t, err
+}
+
+// only used for testing
+func (k *kmsSigner) SignTxWithTimestamp(
+	ctx context.Context, personaTag string, namespace string, data any, created int64) (
 	*sign.Transaction, error,
 ) {
 	bz, err := json.Marshal(data)
@@ -80,19 +99,22 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	unsignedTx := &sign.Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
+		Created:    created,
 		Body:       bz,
 	}
+
 	unsignedTx.PopulateHash()
+	digest := unsignedTx.Hash
 
 	// Set up the KMS request to sign the transaction
 	req := &kmspb.AsymmetricSignRequest{
 		Name: k.keyName,
 		Digest: &kmspb.Digest{
 			Digest: &kmspb.Digest_Sha256{
-				Sha256: unsignedTx.Hash.Bytes(),
+				Sha256: digest.Bytes(),
 			},
 		},
-		DigestCrc32C: wrapperspb.Int64(int64(crc32c(unsignedTx.Hash[:]))),
+		DigestCrc32C: wrapperspb.Int64(int64(crc32c(digest[:]))),
 	}
 
 	result, err := k.aSigner.AsymmetricSign(ctx, req)
