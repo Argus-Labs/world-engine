@@ -1,8 +1,6 @@
 module pkg.world.dev/world-engine/relay/nakama
 
-go 1.21.0
-
-toolchain go1.23.0
+go 1.22.1
 
 replace pkg.world.dev/world-engine/sign => ../../sign
 

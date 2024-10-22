@@ -17,7 +17,7 @@ import (
 
 const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal expiration a hash is left in the cache.
 // we want to ensure it's long enough that any message that's not expired but
-// still has it's hash in the cache for replay protect. Setting it too long
+// still has its hash in the cache for replay protection. Setting it too long
 // would cause the cache to be bigger than necessary
 
 var (
