@@ -72,6 +72,9 @@ e2e-evm:
 	sleep 2
 	@CARDINAL_ROLLUP_ENABLED=true docker compose up --build chain game nakama -d
 
+	sleep 5
+	@docker compose restart nakama
+
 	@echo "Waiting for services to be ready..."
 	$(call check_url,http://localhost:7350/healthcheck,200)
 	$(call check_url,http://localhost:8080/health,200)
