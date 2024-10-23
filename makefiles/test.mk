@@ -76,8 +76,8 @@ e2e-evm:
 	@docker compose restart nakama
 
 	@echo "Waiting for services to be ready..."
-	$(call check_url,http://localhost:7350/healthcheck,200)
-	$(call check_url,http://localhost:8080/health,200)
+	$(call check_url,http://game:8080/health,200)
+	$(call check_url,http://nakama:7350/healthcheck,200)
 
 	@go test -v ./e2e/tests/evm/evm_test.go
 	@docker compose rm --force --stop
