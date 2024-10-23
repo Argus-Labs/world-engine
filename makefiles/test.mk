@@ -74,7 +74,7 @@ e2e-evm:
 
 	sleep 5
 	@docker compose restart nakama
-	sleep 5
+	sleep 20
 
 	@go test -v ./e2e/tests/evm/evm_test.go
 	@docker compose rm --force --stop

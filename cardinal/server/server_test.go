@@ -242,6 +242,49 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 }
 
+func (s *ServerTestSuite) TestRejectExpiredTransaction() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	personaTag := s.CreateRandomPersona()
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
+	s.Require().True(ok)
+
+	// Create a transaction with an expired timestamp
+	payload := MoveMsgInput{Direction: "up"}
+	expiredTimestamp := time.Now().Add(-time.Duration(200 * time.Second)).UnixMicro()
+	tx, err := sign.NewTestOnlyTransactionWithTimestamp(
+		s.privateKey, personaTag, s.world.Namespace(), expiredTimestamp, payload)
+	s.Require().NoError(err)
+
+	// Attempt to submit the transaction
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	s.Require().Equal(fiber.StatusRequestTimeout, res.StatusCode, s.readBody(res.Body))
+}
+
+func (s *ServerTestSuite) TestRejectDuplicateTransactionHash() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	personaTag := s.CreateRandomPersona()
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
+	s.Require().True(ok)
+
+	// Create a transaction
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace(), MoveMsgInput{Direction: "up"})
+	s.Require().NoError(err)
+
+	// Submit the transaction for the first time
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
+
+	s.fixture.DoTick()
+
+	// Attempt to submit the same transaction again
+	res = s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	s.Require().Equal(fiber.StatusForbidden, res.StatusCode, s.readBody(res.Body))
+}
+
 // Creates a transaction with the given message, and runs it in a tick.
 func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace(), payload)

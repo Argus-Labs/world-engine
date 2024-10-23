@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"time"
 
 	"github.com/coocood/freecache"
@@ -220,6 +221,18 @@ func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAdd
 		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 	}
 	return nil
+}
+
+func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
+	if _, err := cache.Get(hash.Bytes()); err == nil {
+		// Hash is in the cache
+		return true, nil
+	} else if !errors.Is(err, freecache.ErrNotFound) {
+		// Unexpected error
+		return false, err
+	}
+	// Hash is not in the cache
+	return false, nil
 }
 
 // validateTx validates the transaction payload
