@@ -1,0 +1,128 @@
+---
+title: 'Cardinal'
+description: 'This section configures Cardinal, which handles shard routing, logging, and rollup modes.'
+---
+
+```
+[cardinal]
+BASE_SHARD_ROUTER_KEY = string
+BASE_SHARD_SEQUENCER_ADDRESS = string
+CARDINAL_LOG_LEVEL = string
+CARDINAL_LOG_PRETTY = boolean
+CARDINAL_NAMESPACE = string
+CARDINAL_ROLLUP_ENABLED = boolean
+REDIS_ADDRESS = string
+REDIS_PASSWORD = string
+TELEMETRY_PROFILER_ENABLED = boolean
+TELEMETRY_TRACE_ENABLED = boolean
+```
+
+### BASE_SHARD_ROUTER_KEY
+
+A secure authentication token used for routing game shards. It ensures proper routing within the Cardinal system.
+
+**Importance** : This value must be kept secure, as it is critical for shard operations.
+
+**Example**
+```
+BASE_SHARD_ROUTER_KEY = 'e99e9ed8d90e593ec8ef86d6e9cbeb0de5aabfa415d2fd369d6ee1974dc2bb7d'
+```
+
+### BASE_SHARD_SEQUENCER_ADDRESS
+
+The address of the sequencer service, which coordinates shard operations. If rollup mode is enabled, this address points to the sequencer handling transactions.
+
+**Importance** : Required if Cardinal’s rollup mode is enabled.
+
+**Example**
+```
+BASE_SHARD_SEQUENCER_ADDRESS = 'localhost:9601'
+```
+
+### CARDINAL_LOG_LEVEL
+
+Sets the verbosity level of logging in Cardinal. The available levels are debug, info, warn, error, fatal, panic, disabled, and trace.
+
+**Importance** : Determines the detail of logs generated, with info being the most commonly used level in production environments.
+
+**Example**
+```
+CARDINAL_LOG_LEVEL = 'info'
+```
+
+### CARDINAL_LOG_PRETTY
+
+When set to true, enables human-readable (pretty) logs for easier debugging. By default, it’s disabled to avoid a performance penalty.
+
+**Importance** : Use for development and debugging, but disable in production for better performance.
+
+**Example**
+```
+CARDINAL_LOG_PRETTY = true
+```
+
+### CARDINAL_NAMESPACE
+
+A unique identifier for the Cardinal shard namespace. This ensures that different shards don’t interfere with each other and prevents signature replay attacks.
+
+**Importance** : Must be unique per shard to maintain system security.
+
+**Example**
+```
+CARDINAL_NAMESPACE = 'defaultnamespace'
+```
+
+### CARDINAL_ROLLUP_ENABLED
+
+A unique identifier for the Cardinal shard namespace. This ensures that different shards don’t interfere with each other and prevents signature replay attacks.
+
+**Importance** : Must be unique per shard to maintain system security.
+
+**Example**
+```
+CARDINAL_ROLLUP_ENABLED = false
+```
+
+### REDIS_ADDRESS
+
+The address of the Redis server
+
+**Importance** : This parameter is unused if you are running cardinal using world cli v1.3.1
+
+**Example**
+```
+REDIS_ADDRESS = 'localhost:6379'
+```
+
+### REDIS_PASSWORD
+
+The password for the Redis server. Leave empty for no password.
+
+**Importance** : Make sure to set this in production to secure your Redis instance. This parameter is unused if you are running cardinal using world cli v1.3.1
+
+**Example**
+```
+REDIS_PASSWORD = ''
+```
+
+### TELEMETRY_PROFILER_ENABLED
+
+Enables OpenTelemetry profiling, which collects performance data to help identify bottlenecks and inefficiencies.
+
+**Importance** : Useful for performance monitoring and debugging in development environments.
+
+**Example**
+```
+TELEMETRY_PROFILER_ENABLED = false
+```
+
+### TELEMETRY_TRACE_ENABLED
+
+Enables Datadog trace profiling, allowing for continuous application monitoring and tracing.
+
+**Importance** : Enable this in environments where you need detailed profiling of system performance.
+
+**Example**
+```
+TELEMETRY_TRACE_ENABLED = false
+```
