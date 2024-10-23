@@ -94,7 +94,7 @@ func PostTransaction(
 				if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
 					log.Errorf("unexpect cache error %v. message %s ignored", err, tx.Hash.String())
 					return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
-				} else {
+				} else { //nolint:revive // found is not valid outside the if/else block
 					duplicateHash = found
 				}
 				hashReceived = true
@@ -116,7 +116,7 @@ func PostTransaction(
 				if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
 					log.Errorf("unexpect cache error %v. message %s ignored", err, tx.Hash.String())
 					return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
-				} else {
+				} else { //nolint:revive // found is not valid outside the if/else block
 					duplicateHash = found
 				}
 			}
@@ -227,7 +227,7 @@ func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
 	} else if errors.Is(err, freecache.ErrNotFound) {
 		// ignore ErrNotFound, just return false
 		return false, nil
-	} else {
+	} else { //nolint:revive // err is not valid outside the if/else block
 		// return all other errors
 		return false, err
 	}
