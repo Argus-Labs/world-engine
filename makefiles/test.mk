@@ -69,8 +69,8 @@ e2e-evm:
 
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
 		docker compose up chain --build -d
-
-	@CARDINAL_ROLLUP_ENABLED=true docker compose up game nakama -d
+	sleep 2
+	@CARDINAL_ROLLUP_ENABLED=true docker compose up --build chain game nakama -d
 
 	@echo "Waiting for services to be ready..."
 	$(call check_url,http://localhost:7350/healthcheck,200)
