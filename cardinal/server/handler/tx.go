@@ -86,12 +86,11 @@ func PostTransaction(
 			// this saves us the cost of calculating the hash if there's an early lookup
 			hashReceived := false
 			if !sign.IsZeroHash(tx.Hash) {
-				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
+				if found, err := isHashInCache(tx.Hash, verify.Cache); found {
 					// if found in the cache, the message hash has already been used, so reject it
 					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
 						"already handled message %s", tx.Hash.String()))
-				} else if !errors.Is(err, freecache.ErrNotFound) {
-					// ignore ErrNotFound, and for us that's what we wanted
+				} else {
 					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf(
 						"unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
 				}
@@ -110,10 +109,13 @@ func PostTransaction(
 				// so this message is not a replay
 			} else {
 				// we didn't receive a hash, so check to see if our generated hash is in the cache
-				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
+				if found, err := isHashInCache(tx.Hash, verify.Cache); found {
 					// if found in the cache, the message hash has already been used, so reject it
 					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
 						"already handled message %s", tx.Hash.String()))
+				} else {
+					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf(
+						"unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
 				}
 				// at this point we know that the generated hash is not in the cache, so this message is not a replay
 			}
