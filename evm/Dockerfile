@@ -17,19 +17,19 @@ RUN go mod download
 # Copy the rest of the source code and build the binary
 #COPY scripts scripts
 
-ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
+ENV PACKAGES="curl make git libc-dev bash gcc linux-headers eudev-dev python3"
 RUN CGO_ENABLED=1 make install # Binary will be in /go/bin/world-evm
 
 ################################
 # Runtime Image
 ################################
-FROM ubuntu:18.04 as runtime
+FROM ubuntu:18.04 AS runtime
 
 # Expose ports needed by the World EVM
 EXPOSE 26656 26657 1317 9090 8546 8545 9601
 
 # Install package dependencies for start script
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y &&\
  apt-get install -y --no-install-recommends curl jq bash && \
  apt-get autoremove -y && \

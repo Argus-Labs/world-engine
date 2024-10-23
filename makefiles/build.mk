@@ -9,7 +9,7 @@ contracts:
 	cd evm/precompile/contracts && go generate
 
 rollup-build:
-	@docker build evm
+	@docker build -f evm/Dockerfile .
 
 rollup-install:
 	cd evm && $(MAKE) install
