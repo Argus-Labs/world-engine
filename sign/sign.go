@@ -154,7 +154,7 @@ func normalizeJSON(data any) ([]byte, error) {
 
 // sign uses the given private key to sign the personaTag, namespace, creation timestamp, and data. The creation
 // timestamp is set automatically to the wall time by the sign function just before signing.
-func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any, created int64) (*Transaction, error) {
+func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transaction, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, ErrCannotSignEmptyBody
 	}
@@ -162,9 +162,6 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any, created 
 		return nil, ErrInvalidNamespace
 	}
 	bz, err := normalizeJSON(data)
-	if created == 0 {
-		created = time.Now().UTC().UnixMicro()
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +171,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any, created 
 	sp := &Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Created:    created,
+		Created:    time.Now().UnixMicro(),
 		Body:       bz,
 	}
 	sp.PopulateHash()
@@ -188,26 +185,24 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any, created 
 
 // NewSystemTransaction signs a given body with the given private key using the SystemPersonaTag.
 func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, data any) (*Transaction, error) {
-	return sign(pk, SystemPersonaTag, namespace, data, 0)
+	return sign(pk, SystemPersonaTag, namespace, data)
 }
 
 // NewTransaction signs a given body, tag, and nonce with the given private key.
 func NewTransaction(
 	pk *ecdsa.PrivateKey,
-	personaTag string,
+	personaTag,
 	namespace string,
 	data any,
 ) (*Transaction, error) {
 	if len(personaTag) == 0 || personaTag == SystemPersonaTag {
 		return nil, ErrInvalidPersonaTag
 	}
-	return sign(pk, personaTag, namespace, data, 0)
+	return sign(pk, personaTag, namespace, data)
 }
 
-func NewTestOnlyTransactionWithTimestamp(
-	pk *ecdsa.PrivateKey, personaTag string, namespace string, created int64, data any) (
-	*Transaction, error) {
-	return sign(pk, personaTag, namespace, data, created)
+func NewTestOnlyTransaction(pk *ecdsa.PrivateKey, personaTag, namespace string, created int64, data any) (*Transaction, error) {
+	return sign(pk, SystemPersonaTag, namespace, data)
 }
 
 func (s *Transaction) IsSystemTransaction() bool {

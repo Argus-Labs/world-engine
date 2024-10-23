@@ -48,6 +48,20 @@ func WithDisableSignatureVerification() WorldOption {
 	}
 }
 
+// WithMessageExpiration How long messages will live past their creation
+// time on the sender before they are considered to be expired and will
+// not be processed. Default is 10 seconds.
+// For longer expiration times you may also need to set a larger hash cache
+// size using the WithHashCacheSize option
+// This setting is ignored if the DisableSignatureVerification option is used
+// NOTE: this means that the real time clock for the sender and receiver
+// must be synchronized
+func WithMessageExpiration(seconds int) WorldOption {
+	return WorldOption{
+		serverOption: server.WithMessageExpiration(seconds),
+	}
+}
+
 // WithTickChannel sets the channel that will be used to decide when world.doTick is executed. If unset, a loop interval
 // of 1 second will be set. To set some other time, use: WithTickChannel(time.Tick(<some-duration>)). Tests can pass
 // in a channel controlled by the test for fine-grained control over when ticks are executed.

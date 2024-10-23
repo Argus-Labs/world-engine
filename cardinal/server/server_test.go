@@ -243,7 +243,7 @@ func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabl
 }
 
 func (s *ServerTestSuite) TestRejectExpiredTransaction() {
-	s.setupWorld()
+	s.setupWorld(cardinal.WithMessageExpiration(1)) // very short expiration
 	s.fixture.DoTick()
 
 	personaTag := s.CreateRandomPersona()
@@ -252,10 +252,12 @@ func (s *ServerTestSuite) TestRejectExpiredTransaction() {
 
 	// Create a transaction with an expired timestamp
 	payload := MoveMsgInput{Direction: "up"}
-	expiredTimestamp := time.Now().Add(-time.Duration(200 * time.Second)).UnixMicro()
-	tx, err := sign.NewTestOnlyTransactionWithTimestamp(
-		s.privateKey, personaTag, s.world.Namespace(), expiredTimestamp, payload)
+	tx, err := sign.NewTransaction(
+		s.privateKey, personaTag, s.world.Namespace(), payload)
 	s.Require().NoError(err)
+
+	// now wait until the transaction has expired before sending it
+	time.Sleep(2 * time.Second)
 
 	// Attempt to submit the transaction
 	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
