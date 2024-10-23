@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"time"
 
 	"github.com/coocood/freecache"
@@ -86,11 +85,12 @@ func PostTransaction(
 			// this saves us the cost of calculating the hash if there's an early lookup
 			hashReceived := false
 			if !sign.IsZeroHash(tx.Hash) {
-				if found, err := isHashInCache(tx.Hash, verify.Cache); found {
+				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
 					// if found in the cache, the message hash has already been used, so reject it
 					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
 						"already handled message %s", tx.Hash.String()))
-				} else {
+				} else if !errors.Is(err, freecache.ErrNotFound) {
+					// ignore ErrNotFound, and for us that's what we wanted
 					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf(
 						"unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
 				}
@@ -109,13 +109,10 @@ func PostTransaction(
 				// so this message is not a replay
 			} else {
 				// we didn't receive a hash, so check to see if our generated hash is in the cache
-				if found, err := isHashInCache(tx.Hash, verify.Cache); found {
+				if _, err := verify.Cache.Get(tx.Hash.Bytes()); err == nil {
 					// if found in the cache, the message hash has already been used, so reject it
 					return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf(
 						"already handled message %s", tx.Hash.String()))
-				} else {
-					return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf(
-						"unexpected error %s from cache fetch for %s", err.Error(), tx.Hash.String()))
 				}
 				// at this point we know that the generated hash is not in the cache, so this message is not a replay
 			}
@@ -223,18 +220,6 @@ func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAdd
 		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 	}
 	return nil
-}
-
-func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
-	if _, err := cache.Get(hash.Bytes()); err == nil {
-		// Hash is in the cache
-		return true, nil
-	} else if !errors.Is(err, freecache.ErrNotFound) {
-		// Unexpected error
-		return false, err
-	}
-	// Hash is not in the cache
-	return false, nil
 }
 
 // validateTx validates the transaction payload
