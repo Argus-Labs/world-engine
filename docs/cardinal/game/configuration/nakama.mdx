@@ -1,0 +1,56 @@
+---
+title: 'Nakama'
+description: 'This section configures Nakama, including allowlist, metrics, and tracing settings.'
+---
+
+```
+[nakama]
+ENABLE_ALLOWLIST = boolean
+OUTGOING_QUEUE_SIZE = integer
+NAKAMA_TRACE_ENABLED = boolean
+NAKAMA_METRICS_ENABLED = boolean
+```
+
+### ENABLE_ALLOWLIST
+
+Enables Nakama’s allowlist feature, which allows for beta keys. This is useful for restricted access to certain parts of the game during development or early access.
+
+**Importance** : Set this to true if you plan to use Nakama’s beta key system.
+
+**Example**
+```
+ENABLE_ALLOWLIST = 'false'
+```
+
+### OUTGOING_QUEUE_SIZE
+
+Specifies the maximum number of undelivered notifications Nakama will allow before shutting down a client connection.
+
+**Importance** : Helps control load by limiting the number of queued notifications.
+
+**Example**
+```
+OUTGOING_QUEUE_SIZE = 64
+```
+
+### NAKAMA_TRACE_ENABLED
+
+Enables tracing within Nakama, which integrates with external tracing tools such as Jaeger for visualizing system performance.
+
+**Importance** : Useful for performance monitoring and debugging.
+
+**Example**
+```
+NAKAMA_TRACE_ENABLED = true
+```
+
+### NAKAMA_METRICS_ENABLED
+
+Enables metrics collection within Nakama, integrating with Prometheus for system metrics tracking.
+
+**Importance** : Critical for monitoring system health and performance over time.
+
+**Example**
+```
+NAKAMA_METRICS_ENABLED = true
+```
