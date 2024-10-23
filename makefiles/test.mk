@@ -72,6 +72,9 @@ e2e-evm:
 
 	@CARDINAL_ROLLUP_ENABLED=true docker compose up game nakama -d
 
+	# this solves a problem of the tests running too quickly, before the rest of the system is completely ready
+	@sleep 10
+
 	@go test -v ./e2e/tests/evm/evm_test.go
 	@docker compose rm --force --stop
 
