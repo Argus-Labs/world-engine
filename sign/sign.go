@@ -201,10 +201,6 @@ func NewTransaction(
 	return sign(pk, personaTag, namespace, data)
 }
 
-func NewTestOnlyTransaction(pk *ecdsa.PrivateKey, personaTag, namespace string, created int64, data any) (*Transaction, error) {
-	return sign(pk, SystemPersonaTag, namespace, data)
-}
-
 func (s *Transaction) IsSystemTransaction() bool {
 	return s.PersonaTag == SystemPersonaTag
 }
