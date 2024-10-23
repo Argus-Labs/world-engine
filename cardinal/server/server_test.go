@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"math/rand"
 	"net/http"
@@ -262,6 +263,47 @@ func (s *ServerTestSuite) TestRejectExpiredTransaction() {
 	// Attempt to submit the transaction
 	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
 	s.Require().Equal(fiber.StatusRequestTimeout, res.StatusCode, s.readBody(res.Body))
+}
+
+func (s *ServerTestSuite) TestRejectBadHashTransaction() {
+	s.setupWorld(cardinal.WithMessageExpiration(1)) // very short expiration
+	s.fixture.DoTick()
+
+	personaTag := s.CreateRandomPersona()
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
+	s.Require().True(ok)
+
+	// Create a transaction with an expired timestamp
+	payload := MoveMsgInput{Direction: "up"}
+	tx, err := sign.NewTransaction(
+		s.privateKey, personaTag, s.world.Namespace(), payload)
+	tx.Hash = common.Hash{0x0b, 0xad}
+	s.Require().NoError(err)
+
+	// Attempt to submit the transaction
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	s.Require().Equal(fiber.StatusBadRequest, res.StatusCode, s.readBody(res.Body))
+}
+
+func (s *ServerTestSuite) TestRejectBadCreatedTransaction() {
+	s.setupWorld(cardinal.WithMessageExpiration(1)) // very short expiration
+	s.fixture.DoTick()
+
+	personaTag := s.CreateRandomPersona()
+	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
+	s.Require().True(ok)
+
+	// Create a transaction with an expired timestamp
+	payload := MoveMsgInput{Direction: "up"}
+	tx, err := sign.NewTransaction(
+		s.privateKey, personaTag, s.world.Namespace(), payload)
+	time.Sleep(100 * time.Millisecond)
+	tx.Created = time.Now().UnixMicro()
+	s.Require().NoError(err)
+
+	// Attempt to submit the transaction
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	s.Require().Equal(fiber.StatusBadRequest, res.StatusCode, s.readBody(res.Body))
 }
 
 func (s *ServerTestSuite) TestRejectDuplicateTransactionHash() {
