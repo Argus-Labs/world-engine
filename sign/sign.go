@@ -38,10 +38,18 @@ var (
 type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
-	Created    int64           `json:"created"`   // unix microsecond timestamp
+	Timestamp  int64           `json:"timestamp"` // unix microsecond timestamp
 	Signature  string          `json:"signature"` // hex encoded string
 	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
+}
+
+func TimestampNow() int64 {
+	return time.Now().UnixMicro()
+}
+
+func TimestampAt(t time.Time) int64 {
+	return t.UnixMicro()
 }
 
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {
@@ -72,7 +80,7 @@ func (s *Transaction) checkRequiredFields() error {
 	if s.Signature == "" {
 		return eris.Wrap(ErrNoSignatureField, "")
 	}
-	if s.Created == 0 {
+	if s.Timestamp == 0 {
 		return eris.Wrap(ErrNoCreatedField, "")
 	}
 	if len(s.Body) == 0 {
@@ -88,7 +96,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		"personaTag": true,
 		"namespace":  true,
 		"signature":  true,
-		"created":    true,
+		"timestamp":  true,
 		"body":       true,
 		"hash":       true,
 	}
@@ -171,7 +179,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transa
 	sp := &Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Created:    time.Now().UnixMicro(),
+		Timestamp:  TimestampNow(),
 		Body:       bz,
 	}
 	sp.PopulateHash()
@@ -259,7 +267,7 @@ func (s *Transaction) PopulateHash() {
 	s.Hash = crypto.Keccak256Hash(
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),
-		[]byte(strconv.FormatInt(s.Created, 10)),
+		[]byte(strconv.FormatInt(s.Timestamp, 10)),
 		s.Body,
 	)
 }

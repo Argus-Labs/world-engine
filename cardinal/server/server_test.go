@@ -285,7 +285,7 @@ func (s *ServerTestSuite) TestRejectBadHashTransaction() {
 	s.Require().Equal(fiber.StatusBadRequest, res.StatusCode, s.readBody(res.Body))
 }
 
-func (s *ServerTestSuite) TestRejectBadCreatedTransaction() {
+func (s *ServerTestSuite) TestRejectBadTransactionTimestamp() {
 	s.setupWorld(cardinal.WithMessageExpiration(1)) // very short expiration
 	s.fixture.DoTick()
 
@@ -297,8 +297,8 @@ func (s *ServerTestSuite) TestRejectBadCreatedTransaction() {
 	payload := MoveMsgInput{Direction: "up"}
 	tx, err := sign.NewTransaction(
 		s.privateKey, personaTag, s.world.Namespace(), payload)
-	time.Sleep(100 * time.Millisecond)
-	tx.Created = time.Now().UnixMicro()
+	time.Sleep(1 * time.Second)
+	tx.Timestamp = sign.TimestampNow()
 	s.Require().NoError(err)
 
 	// Attempt to submit the transaction

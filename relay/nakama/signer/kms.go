@@ -82,13 +82,13 @@ func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner
 // https://cloud.google.com/kms/docs/create-validate-signatures#validate_ec_signature
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
 	*sign.Transaction, error) {
-	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, time.Now().UnixMicro())
+	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, sign.TimestampNow())
 	return t, err
 }
 
 // only used for testing
 func (k *kmsSigner) SignTxWithTimestamp(
-	ctx context.Context, personaTag string, namespace string, data any, created int64) (
+	ctx context.Context, personaTag string, namespace string, data any, timestamp int64) (
 	*sign.Transaction, error,
 ) {
 	bz, err := json.Marshal(data)
@@ -99,7 +99,7 @@ func (k *kmsSigner) SignTxWithTimestamp(
 	unsignedTx := &sign.Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Created:    created,
+		Timestamp:  timestamp,
 		Body:       bz,
 	}
 

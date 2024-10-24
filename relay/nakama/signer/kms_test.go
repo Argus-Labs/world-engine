@@ -33,7 +33,7 @@ esyjsoEDFTFKevyeDa6u83cNzv0lXeeTza8GSafyemA+4LtnYXorQw==
 	// sign.Transaction{
 	// 	PersonaTag: "some-persona-tag",
 	// 	Namespace: "some-namespace",
-	//  Created: 99,
+	//  Timestamp: 99,
 	//  Body: `{"A":1,"B":2,"C":3}`
 	// }
 	precomputedSignatureHex = `` +
@@ -52,7 +52,7 @@ func newPrecomputedTx() *sign.Transaction {
 	return &sign.Transaction{
 		PersonaTag: precomputedPersonaTag,
 		Namespace:  precomputedNamespace,
-		Created:    precomputedCreatedTimestamp,
+		Timestamp:  precomputedCreatedTimestamp,
 		Body:       json.RawMessage(precomputedBody),
 	}
 }
