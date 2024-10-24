@@ -66,7 +66,7 @@ endef
 
 e2e-evm:
 	@echo "--> Purging running Docker containers, if any"
-	# @docker compose rm --force --stop
+	@docker compose rm --force --stop
 	
 	$(foreach dir, $(DIRS_E2E), \
 		cd $(dir) && \
@@ -85,7 +85,7 @@ e2e-evm:
 	$(call check_url,http://localhost:7350/healthcheck,200,3,nakama)
 
 	@go test -v ./e2e/tests/evm/evm_test.go
-	# @docker compose rm --force --stop
+	@docker compose rm --force --stop
 
 .PHONY: e2e-evm
 
