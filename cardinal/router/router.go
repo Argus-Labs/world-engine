@@ -147,7 +147,7 @@ func (r *router) SubmitTxBlob(
 			protoTxs = append(protoTxs, &shard.Transaction{
 				PersonaTag: tx.PersonaTag,
 				Namespace:  tx.Namespace,
-				Created:    tx.Created,
+				Timestamp:  tx.Timestamp,
 				Signature:  tx.Signature,
 				Body:       tx.Body,
 			})

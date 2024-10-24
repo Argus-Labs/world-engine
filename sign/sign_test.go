@@ -19,7 +19,8 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
-	wantJustAMomentAgo := time.Now().UnixMicro()
+	wantJustAMomentAgo := TimestampNow()
+	time.Sleep(1 * time.Second)
 
 	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantBody)
 	assert.NilError(t, err)
@@ -35,8 +36,8 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
-	assert.Assert(t, toBeVerified.Created >= wantJustAMomentAgo) // make sure unix time stamp is reasonable
-	assert.Assert(t, toBeVerified.Created <= time.Now().UnixMicro())
+	assert.Assert(t, toBeVerified.Timestamp >= wantJustAMomentAgo) // make sure unix time stamp is reasonable
+	assert.Assert(t, toBeVerified.Timestamp <= TimestampNow())
 	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
 	// Make sure an empty hash is regenerated
 	toBeVerified.Hash = common.Hash{}
@@ -232,7 +233,7 @@ func TestRejectSignatureWithExtraField(t *testing.T) {
 	data := map[string]any{
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
-		"created":    time.Now().UnixMicro(),
+		"timestamp":  TimestampNow(),
 		"signature":  "xyzzy",
 		"body":       "bar",
 	}
@@ -255,7 +256,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 	validData := map[string]any{
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
-		"created":    time.Now().UnixMicro(),
+		"timestamp":  TimestampNow(),
 		"signature":  "xyzzy",
 		"body":       "bar",
 	}
@@ -313,7 +314,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 	dataAsMap := map[string]any{
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
-		"created":    tx.Created,
+		"timestamp":  tx.Timestamp,
 		"signature":  tx.Signature,
 		"body":       body,
 	}

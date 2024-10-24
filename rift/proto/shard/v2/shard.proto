@@ -46,7 +46,7 @@ message Transactions {
 message Transaction {
   string PersonaTag = 1;
   string Namespace = 2;
-  int64 Created = 3;  // microsecond unix timestamp
+  int64 Timestamp = 3;  // unix utc timestamp
   string Signature = 4;
   bytes Body = 5;
 }
