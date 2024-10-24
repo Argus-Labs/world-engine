@@ -81,15 +81,6 @@ func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner
 // https://cloud.google.com/kms/docs/create-validate-signatures#validate_ec_signature
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
 	*sign.Transaction, error) {
-	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, sign.TimestampNow())
-	return t, err
-}
-
-// only call this directly for testing. Call SignTx instead
-func (k *kmsSigner) SignTxWithTimestamp(
-	ctx context.Context, personaTag string, namespace string, data any, timestamp int64) (
-	*sign.Transaction, error,
-) {
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal tx data")
@@ -102,7 +93,7 @@ func (k *kmsSigner) SignTxWithTimestamp(
 		Body:       bz,
 	}
 
-	unsignedTx.PopulateHash() // TODO: fix this abstraction leakage. See issue WORLD-1224
+	unsignedTx.populateHash()
 	digest := unsignedTx.Hash
 
 	// Set up the KMS request to sign the transaction

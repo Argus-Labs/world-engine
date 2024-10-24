@@ -222,10 +222,19 @@ func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisab
 	assert.True(t, ok)
 	// This persona tag does not have a signer address, but since signature verification is disabled it should
 	// encounter no errors
-	s.runTx(unclaimedPersona, moveMessage, MoveMsgInput{Direction: "up"})
+	payload := MoveMsgInput{Direction: "up"}
+	//s.runTx(unclaimedPersona, moveMessage, payload)
+
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace(), payload)
+	assert.NilError(t, err)
+
+	// This request should fail because signature verification is enabled, and we have not yet
+	// registered the given personaTag
+	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
-func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabled() {
+func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsEnabled() {
 	t := s.T()
 	// Signature verification is enabled
 	s.setupWorld()
@@ -265,7 +274,7 @@ func (s *ServerTestSuite) TestRejectExpiredTransaction() {
 	s.Require().Equal(fiber.StatusRequestTimeout, res.StatusCode, s.readBody(res.Body))
 }
 
-func (s *ServerTestSuite) TestRejectBadHashTransaction() {
+func (s *ServerTestSuite) TestReceivedTransactionHashIsIgnored() {
 	s.setupWorld(cardinal.WithMessageExpiration(1)) // very short expiration
 	s.fixture.DoTick()
 
@@ -282,7 +291,7 @@ func (s *ServerTestSuite) TestRejectBadHashTransaction() {
 
 	// Attempt to submit the transaction
 	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
-	s.Require().Equal(fiber.StatusBadRequest, res.StatusCode, s.readBody(res.Body))
+	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 }
 
 func (s *ServerTestSuite) TestRejectBadTransactionTimestamp() {
@@ -303,7 +312,7 @@ func (s *ServerTestSuite) TestRejectBadTransactionTimestamp() {
 
 	// Attempt to submit the transaction
 	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
-	s.Require().Equal(fiber.StatusBadRequest, res.StatusCode, s.readBody(res.Body))
+	s.Require().Equal(fiber.StatusUnauthorized, res.StatusCode, s.readBody(res.Body))
 }
 
 func (s *ServerTestSuite) TestRejectDuplicateTransactionHash() {

@@ -59,7 +59,7 @@ type Transaction = sign.Transaction
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 //
-//nolint:gocognit
+//xnolint:gocognit
 func PostTransaction(
 	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
@@ -70,13 +70,14 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusNotFound, "Not Found - bad msg type")
 		}
 
-		// Parse the request body into a sign.Transaction struct
-		tx := new(Transaction)
-		if err := ctx.BodyParser(tx); err != nil {
+		// Parse the request body into a sign.Transaction struct tx := new(Transaction)
+		// this also calculates the hash
+		tx, err := sign.UnmarshalTransaction(ctx.Body())
+		if err != nil {
 			log.Errorf("body parse failed: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - unparseable body")
 		}
-		if !verify.IsDisabled { //nolint: nestif // I'm okay with this - EdZ
+		if !verify.IsDisabled { //xnolint: nestif // I'm okay with this - EdZ
 			txEarliestValidTimestamp := sign.TimestampAt(
 				time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second)))
 			// before we even create the hash or validate the signature, check to see if the message has expired
@@ -85,49 +86,17 @@ func PostTransaction(
 					verify.MessageExpirationSeconds, tx.Timestamp, sign.TimestampNow())
 				return fiber.NewError(fiber.StatusRequestTimeout, "Request Timeout - signature too old")
 			}
-
-			// if the hash was sent with the message, check that it isn't already in the cache
-			// this saves us the cost of calculating the hash if there's an early lookup
-			hashReceived := false
-			duplicateHash := false
-			if !sign.IsZeroHash(tx.Hash) {
-				if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
-					log.Errorf("unexpect cache error %v. message %s ignored", err, tx.Hash.String())
-					return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
-				} else { //nolint:revive // found is not valid outside the if/else block
-					duplicateHash = found
-				}
-				hashReceived = true
-			}
-			// generate the hash and check it
-			receivedHashValue := tx.Hash
-			tx.PopulateHash() // TODO: replace this with a custom unmarshal. See issue WORLD-1224 -- Ed
-			if hashReceived {
-				// we got a hash with the message, check that the generated one hasn't changed
-				if tx.Hash != receivedHashValue {
-					log.Errorf("message included bogus hash %s that does not match actual value: %s",
-						receivedHashValue.String(), tx.Hash.String())
-					return fiber.NewError(fiber.StatusBadRequest, "Bad Request - invalid hash")
-				}
-				// at this point we know the generated hash matches the received one, and is not in the cache,
-				// so this message is not a replay
-			} else {
-				// we didn't receive a hash, so check to see if our generated hash is in the cache
-				if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
-					log.Errorf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())
-					return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
-				} else { //nolint:revive // found is not valid outside the if/else block
-					duplicateHash = found
-				}
-			}
-			if duplicateHash {
+			// check for duplicate message via hash cache
+			if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
+				log.Errorf("unexpect cache error %v. message %s ignored", err, tx.Hash.String())
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
+			} else if found {
 				// if found in the cache, the message hash has already been used, so reject it
 				log.Errorf("message %s already handled", tx.Hash.String())
 				return fiber.NewError(fiber.StatusForbidden, "Forbidden - duplicate message")
 			}
 			// at this point we know that the generated hash is not in the cache, so this message is not a replay
 		}
-		// if found in the cache, the message hash has already been used, so reject it
 
 		// Validate the transaction
 		if err := validateTx(tx); err != nil {
@@ -142,6 +111,7 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - failed to decode tx message")
 		}
 
+		// check the signature
 		if !verify.IsDisabled {
 			var signerAddress string
 			if msgType.Name() == personaMsg.CreatePersonaMessageName {
@@ -239,12 +209,12 @@ func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAdd
 	if signerAddress == "" {
 		signerAddress, err = world.GetSignerForPersonaTag(tx.PersonaTag, 0)
 		if err != nil {
-			return fmt.Errorf("could not get signer for persona: %w", err)
+			return fmt.Errorf("could not get signer for persona %s: %w", tx.PersonaTag, err)
 		}
 	}
 	if err = validateSignature(tx, signerAddress, world.Namespace(),
 		tx.IsSystemTransaction()); err != nil {
-		return fmt.Errorf("could not get signer for persona: %w", err)
+		return fmt.Errorf("could not validate signature for persona %s: %w", tx.PersonaTag, err)
 	}
 	return nil
 }
