@@ -10,7 +10,7 @@ import (
 	"errors"
 	"hash/crc32"
 	"math/big"
-	"strconv"
+	"time"
 
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,6 +23,8 @@ import (
 )
 
 var _ Signer = &kmsSigner{}
+
+var _ TestOnlySigner = &kmsSigner{}
 
 var oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 
@@ -42,7 +44,6 @@ type publicKeyInfo struct {
 
 type kmsSigner struct {
 	aSigner       AsymmetricSigner
-	nonceManager  NonceManager
 	keyName       string
 	signerAddress string
 }
@@ -56,13 +57,20 @@ type AsymmetricSigner interface {
 	GetPublicKey(context.Context, *kmspb.GetPublicKeyRequest, ...gax.CallOption) (*kmspb.PublicKey, error)
 }
 
-func NewKMSSigner(ctx context.Context, nonceManager NonceManager, asymmetricSigner AsymmetricSigner, keyName string) (
+func NewKMSSigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyName string) (
 	Signer, error,
 ) {
+	ks, err := NewKMSTestOnlySigner(ctx, asymmetricSigner, keyName)
+	return ks, err
+}
+
+// only use this for testing
+func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyName string) (
+	TestOnlySigner, error,
+) {
 	ks := &kmsSigner{
-		aSigner:      asymmetricSigner,
-		nonceManager: nonceManager,
-		keyName:      keyName,
+		aSigner: asymmetricSigner,
+		keyName: keyName,
 	}
 	if err := ks.populateSignerAddress(ctx); err != nil {
 		return nil, eris.Wrap(err, "failed to populate signer address")
@@ -73,12 +81,16 @@ func NewKMSSigner(ctx context.Context, nonceManager NonceManager, asymmetricSign
 // SignTx creates a sign.Transaction object with a signature. This doc page was used as a reference:
 // https://cloud.google.com/kms/docs/create-validate-signatures#validate_ec_signature
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
+	*sign.Transaction, error) {
+	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, sign.TimestampNow())
+	return t, err
+}
+
+// only used for testing
+func (k *kmsSigner) SignTxWithTimestamp(
+	ctx context.Context, personaTag string, namespace string, data any, timestamp int64) (
 	*sign.Transaction, error,
 ) {
-	nonce, err := k.nonceManager.IncNonce(ctx)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to get new nonce")
-	}
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal tx data")
@@ -87,10 +99,12 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	unsignedTx := &sign.Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Nonce:      nonce,
+		Timestamp:  timestamp,
 		Body:       bz,
 	}
-	digest := calculateDigest(unsignedTx)
+
+	unsignedTx.PopulateHash()
+	digest := unsignedTx.Hash
 
 	// Set up the KMS request to sign the transaction
 	req := &kmspb.AsymmetricSignRequest{
@@ -115,7 +129,7 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	}
 
 	//	unsignedTx.Signature = string(result.Signature)
-	ethSig, err := k.kmsSigToEthereumSig(digest, result.GetSignature())
+	ethSig, err := k.kmsSigToEthereumSig(unsignedTx.Hash, result.GetSignature())
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -126,17 +140,6 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 func crc32c(data []byte) uint32 {
 	t := crc32.MakeTable(crc32.Castagnoli)
 	return crc32.Checksum(data, t)
-}
-
-// TODO: The "populateHash" func from the sign package should be exposed.
-func calculateDigest(tx *sign.Transaction) common.Hash {
-	// TODO: Check for any empty fields here.
-	return crypto.Keccak256Hash(
-		[]byte(tx.PersonaTag),
-		[]byte(tx.Namespace),
-		[]byte(strconv.FormatUint(tx.Nonce, 10)),
-		tx.Body,
-	)
 }
 
 func (k *kmsSigner) SignSystemTx(ctx context.Context, namespace string, data any) (*sign.Transaction, error) {

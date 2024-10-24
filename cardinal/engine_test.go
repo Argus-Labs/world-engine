@@ -468,7 +468,7 @@ func TestRecoverFromChain(t *testing.T) {
 				},
 			},
 			Tick:      1,
-			Timestamp: uint64(time.Now().Unix()),
+			Timestamp: uint64(sign.TimestampNow()),
 		},
 		{
 			Batches: []*iterator.TxBatch{
@@ -484,7 +484,7 @@ func TestRecoverFromChain(t *testing.T) {
 				},
 			},
 			Tick:      15,
-			Timestamp: uint64(time.Now().Unix()),
+			Timestamp: uint64(sign.TimestampNow()),
 		},
 	}
 

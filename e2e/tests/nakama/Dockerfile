@@ -4,6 +4,8 @@ WORKDIR /go/src/app
 
 COPY evm evm
 COPY cardinal cardinal
+COPY rift rift
+COPY sign sign
 
 # Copy the go module files and download the dependencies
 # We do this before copying the rest of the source code to avoid

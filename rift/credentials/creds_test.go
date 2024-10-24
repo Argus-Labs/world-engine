@@ -3,14 +3,14 @@ package credentials
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-func TestCredentialsWorksWithGRPCOption(t *testing.T) {
+func TestCredentialsWorksWithGRPCOption(_ *testing.T) {
 	_ = grpc.WithPerRPCCredentials(NewTokenCredential("foobar"))
 }
 
@@ -123,7 +123,7 @@ func TestValidateKey(t *testing.T) {
 			if tc.expectError {
 				assert.Error(t, result)
 			} else {
-				assert.Nil(t, result)
+				assert.Nil(t, result) //nolint: testifylint // this is what we want
 			}
 		})
 	}
@@ -175,7 +175,7 @@ func TestTokenFromContext(t *testing.T) {
 			if tc.expectedError != "" {
 				assert.ErrorContains(t, err, tc.expectedError)
 			} else {
-				assert.NoError(t, err)
+				assert.NoError(t, err) //nolint: testifylint // this is what we want
 				assert.Equal(t, tc.expectedToken, gotToken)
 			}
 		})
