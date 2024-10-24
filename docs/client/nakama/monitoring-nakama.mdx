@@ -1,0 +1,52 @@
+---
+title: 'Monitoring Nakama'
+description: 'Enable monitoring for Nakama with Jaeger and Prometheus'
+---
+
+<Note>
+  The Jaeger and Prometheus integration is only available in World CLI starting
+  from version v1.3.1.
+</Note>
+
+## Enabling Monitoring
+
+You can enable this feature, run the following command:
+
+```bash
+world cardinal start --telemetry
+```
+
+By default this will start both the [Jaeger](https://www.jaegertracing.io/) and
+[Prometheus](https://prometheus.io/) containers.
+
+You can access the Jaeger Web UI at `http://localhost:16686`:
+
+![Screenshot of Jaeger UI](/images/jaeger-ui.png)
+
+And the Prometheus Web UI at `http://localhost:9090`:
+
+![Screenshot of Prometheus UI](/images/prometheus-ui.png)
+
+## Configuration
+
+You can configure some of the behavior of Jaeger and Prometheus by editing your
+`world.toml` file. Currently only these options are supported:
+
+### NAKAMA_TRACE_ENABLED
+
+Enable tracing with Jaeger. Defaults to `false`.
+
+### NAKAMA_TRACE_SAMPLE_RATE
+
+The trace sample rate. Defaults to `0.6`. Only float values between `0` and `1`
+are accepted.
+
+### NAKAMA_METRICS_ENABLED
+
+Enable metrics collection with Prometheus. Defaults to `false`.
+
+### NAKAMA_METRICS_INTERVAL
+
+How frequently should the metrics be updated, in seconds. Defaults to every `30`
+seconds.
+
