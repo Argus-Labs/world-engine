@@ -3,6 +3,7 @@ DIRS_E2E = e2e/tests/nakama e2e/testgames/game relay/nakama
 DIRS_E2E_BENCHMARK = e2e/tests/bench e2e/testgames/gamebenchmark relay/nakama
 DIRS_E2E_EVM = e2e/tests/evm e2e/testgames/game relay/nakama
 ROOT_DIR := $(shell pwd)
+CHECK_URL_RESULT := 0
 
 e2e-nakama:
 	@echo "--> Purging running Docker containers, if any"
@@ -42,24 +43,30 @@ e2e-benchmark:
 # to call this function in make: `$(call check_url,localhost:1317,501)`
 define check_url
 	@echo "Checking $(1) with curl..."
-	@timeout=60; \
-	start=$$(date +%s); \
-	while [ $$(( $$(date +%s) - start )) -lt $$timeout ]; do \
-		if curl -s -o /dev/null -w "%{http_code}" $(1) -m 1 | grep -q "$(2)"; then \
-			echo "Curl successful."; \
-			exit 0; \
-		else \
-			echo "Waiting for response..."; \
-			sleep 5; \
+	@timeout=180; attempts=0; \
+	while [ $$attempts -lt $(3) ]; do \
+		start=$$(date +%s); \
+		while [ $$(( $$(date +%s) - start )) -lt $$timeout ]; do \
+			if curl -s -o /dev/null -w "%{http_code}" $(1) -m 1 | grep -q "$(2)"; then \
+				echo "Curl successful."; \
+				exit 0; \
+			else \
+				echo "Waiting for response..."; \
+				sleep 5; \
+			fi; \
+		done; \
+		echo "Timeout reached. No response from $(1) after 2 minutes."; \
+		attempts=`expr $$attempts + 1`; \
+		if [ $$attempts -lt $(3) ]; then \
+			docker compose restart $(4); \
 		fi; \
 	done; \
-	echo "Timeout reached. No response from $(1)."; \
 	exit 1;
 endef
 
 e2e-evm:
 	@echo "--> Purging running Docker containers, if any"
-	@docker compose rm --force --stop
+	# @docker compose rm --force --stop
 	
 	$(foreach dir, $(DIRS_E2E), \
 		cd $(dir) && \
@@ -69,18 +76,16 @@ e2e-evm:
 
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
 		docker compose up chain --build -d
-	sleep 2
-	@CARDINAL_ROLLUP_ENABLED=true docker compose up --build chain game nakama -d
-
-	sleep 5
-	@docker compose restart nakama
-
-	@echo "Waiting for services to be ready..."
-	$(call check_url,http://localhost:8080/health,200)
-	$(call check_url,http://localhost:7350/healthcheck,200)
+	@CARDINAL_ROLLUP_ENABLED=true docker compose up --build game nakama -d
+	@echo "Waiting for game service to be ready..."
+	$(call check_url,http://localhost:4040/health,200,1,game)
+	@echo "Waiting for database service to be ready..."
+	$(call check_url,"http://localhost:8080/health?ready=1",200,1,cockroachdb)
+	@echo "Waiting for nakama service to be ready..."
+	$(call check_url,http://localhost:7350/healthcheck,200,3,nakama)
 
 	@go test -v ./e2e/tests/evm/evm_test.go
-	@docker compose rm --force --stop
+	# @docker compose rm --force --stop
 
 .PHONY: e2e-evm
 

@@ -59,7 +59,7 @@ services:
       test: [ "CMD", "/nakama/nakama", "healthcheck" ]
       interval: 1s
       timeout: 1s
-      retries: 20
+      retries: 30
     restart: unless-stopped
     networks:
       - world-engine
