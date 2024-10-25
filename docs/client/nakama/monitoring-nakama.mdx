@@ -29,21 +29,21 @@ And the Prometheus Web UI at `http://localhost:9090`:
 ## Configuration
 
 You can configure some of the behavior of Jaeger and Prometheus by editing your
-`world.toml` file. Currently only these options are supported:
+`world.toml` file. Currently, only these options are supported:
 
 **Example configuration**:
 
 ```toml
 [nakama]
-TRACE_ENABLED = false
-TRACE_SAMPLE_RATE = 0.6
-METRICS_ENABLED = false
-METRICS_INTERVAL = 30
+NAKAMA_TRACE_ENABLED = true
+NAKAMA_TRACE_SAMPLE_RATE = 0.6
+NAKAMA_METRICS_ENABLED = true
+NAKAMA_METRICS_INTERVAL = 30
 ```
 
 ### NAKAMA_TRACE_ENABLED
 
-Enable tracing with Jaeger. Defaults to `false`.
+Enable tracing with Jaeger. Defaults to `true`.
 
 ### NAKAMA_TRACE_SAMPLE_RATE
 
@@ -52,7 +52,7 @@ are accepted.
 
 ### NAKAMA_METRICS_ENABLED
 
-Enable metrics collection with Prometheus. Defaults to `false`.
+Enable metrics collection with Prometheus. Defaults to `true`.
 
 ### NAKAMA_METRICS_INTERVAL
 
