@@ -10,7 +10,6 @@ import (
 	"errors"
 	"hash/crc32"
 	"math/big"
-	"time"
 
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"

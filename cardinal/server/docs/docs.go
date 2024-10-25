@@ -478,7 +478,7 @@ const docTemplate = `{
                 "namespace": {
                     "type": "string"
                 },
-                "nonce": {
+                "timestamp": {
                     "type": "integer"
                 },
                 "personaTag": {
