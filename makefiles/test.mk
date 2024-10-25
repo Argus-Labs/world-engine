@@ -3,7 +3,6 @@ DIRS_E2E = e2e/tests/nakama e2e/testgames/game relay/nakama
 DIRS_E2E_BENCHMARK = e2e/tests/bench e2e/testgames/gamebenchmark relay/nakama
 DIRS_E2E_EVM = e2e/tests/evm e2e/testgames/game relay/nakama
 ROOT_DIR := $(shell pwd)
-CHECK_URL_RESULT := 0
 
 e2e-nakama:
 	@echo "--> Purging running Docker containers, if any"
@@ -55,9 +54,10 @@ define check_url
 				sleep 5; \
 			fi; \
 		done; \
-		echo "Timeout reached. No response from $(1) after 2 minutes."; \
+		echo "Timeout reached. No response from $(1) after $$timeout seconds."; \
 		attempts=`expr $$attempts + 1`; \
 		if [ $$attempts -lt $(3) ]; then \
+			echo "Restarting $(4) service for attempt $$attempt"; \
 			docker compose restart $(4); \
 		fi; \
 	done; \
