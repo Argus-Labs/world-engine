@@ -142,10 +142,9 @@ docker compose test_nakama up
 
 and watch those tests run again. You should get the same output.
 
-
 ## Submitting Changes
 
-Before you push changes, including creating or updating a pull request, please be sure you have done the following 
+Before you push changes, including creating or updating a pull request, please be sure you have done the following
 steps to be sure that your PR will pass the CI tests. These command are run from the `world-engine` directory.
 
 ```shell
