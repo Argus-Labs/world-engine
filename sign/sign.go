@@ -45,7 +45,7 @@ type Transaction struct {
 }
 
 func TimestampNow() int64 {
-	return time.Now().UnixMicro()
+	return time.Now().UnixMicro() // TODO: need to deal with message uniqueness beyond timestamp. See WORLD-1225
 }
 
 func TimestampAt(t time.Time) int64 {
