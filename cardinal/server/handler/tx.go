@@ -77,7 +77,8 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - unparseable body")
 		}
 		if !verify.IsDisabled { //nolint: nestif // I'm okay with this - EdZ
-			txEarliestValidTimestamp := sign.TimestampAt(time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second)))
+			txEarliestValidTimestamp := sign.TimestampAt(
+				time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second)))
 			// before we even create the hash or validate the signature, check to see if the message has expired
 			if tx.Timestamp < txEarliestValidTimestamp {
 				log.Errorf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
