@@ -61,7 +61,7 @@ func UnmarshalTransaction(bz []byte) (*Transaction, error) {
 		return nil, eris.Wrap(err, "error decoding Transaction")
 	}
 
-	if err := s.checkRequiredFields(true); err != nil {
+	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
 	s.populateHash()
@@ -74,13 +74,15 @@ func (s *Transaction) checkRequiredFields() error {
 	if s.PersonaTag == "" {
 		return eris.Wrap(ErrNoPersonaTagField, "")
 	}
-	// when unmarshalling, some tests fail if these are required
-	//if s.Namespace == "" {
-	//	return eris.Wrap(ErrNoNamespaceField, "")
-	//}
-	//if s.Signature == "" {
-	//	return eris.Wrap(ErrNoSignatureField, "")
-	//}
+	// when unmarshalling, some tests fail if this is required, seemingly because it's not used
+	// by the createPersona request
+	// if s.Namespace == "" {
+	// 	return eris.Wrap(ErrNoNamespaceField, "")
+	// }
+	//
+	if s.Signature == "" {
+		return eris.Wrap(ErrNoSignatureField, "")
+	}
 	if s.Timestamp == 0 {
 		return eris.Wrap(ErrNoTimestampField, "")
 	}
@@ -121,7 +123,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		return nil, eris.Wrap(err, "error decoding map structure")
 	}
 	s.Body = serializedBody
-	if err := s.checkRequiredFields(true); err != nil {
+	if err := s.checkRequiredFields(); err != nil {
 		return nil, err
 	}
 	s.populateHash()
@@ -226,6 +228,7 @@ func IsZeroHash(hash common.Hash) bool {
 }
 
 // HashHex return a hex encoded hash of the signature.
+// if the
 func (s *Transaction) HashHex() string {
 	if IsZeroHash(s.Hash) {
 		s.populateHash()
