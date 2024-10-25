@@ -475,7 +475,7 @@
                 "namespace": {
                     "type": "string"
                 },
-                "created": {
+                "timestamp": {
                     "type": "integer"
                 },
                 "personaTag": {
