@@ -224,13 +224,14 @@ func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
 	if _, err := cache.Get(hash.Bytes()); err == nil {
 		// found it
 		return true, nil
-	} else if errors.Is(err, freecache.ErrNotFound) {
+	}
+	if errors.Is(err, freecache.ErrNotFound) {
 		// ignore ErrNotFound, just return false
 		return false, nil
-	} else { //nolint:revive // err is not valid outside the if/else block
-		// return all other errors
-		return false, err
 	}
+	// return all other errors
+	return false, err
+}
 }
 
 func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
