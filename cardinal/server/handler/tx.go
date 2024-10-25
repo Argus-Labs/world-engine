@@ -101,7 +101,7 @@ func PostTransaction(
 			}
 			// generate the hash and check it
 			receivedHashValue := tx.Hash
-			tx.PopulateHash() // TODO: replace this with a custom unmarshal -- Ed
+			tx.PopulateHash() // TODO: replace this with a custom unmarshal. See issue WORLD-1224 -- Ed
 			if hashReceived {
 				// we got a hash with the message, check that the generated one hasn't changed
 				if tx.Hash != receivedHashValue {
@@ -114,7 +114,7 @@ func PostTransaction(
 			} else {
 				// we didn't receive a hash, so check to see if our generated hash is in the cache
 				if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
-					log.Errorf("unexpect cache error %v. message %s ignored", err, tx.Hash.String())
+					log.Errorf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())
 					return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
 				} else { //nolint:revive // found is not valid outside the if/else block
 					duplicateHash = found
@@ -163,7 +163,7 @@ func PostTransaction(
 			if err != nil {
 				// if we couldn't store the hash in the cache, don't process the transaction, since that
 				// would open us up to replay attacks
-				log.Errorf("unexpect cache store error %v. message %s ignored", err, tx.Hash.String())
+				log.Errorf("unexpected cache store error %v. message %s ignored", err, tx.Hash.String())
 				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache store")
 			}
 		}
@@ -221,7 +221,8 @@ func PostPersonaTransaction(
 }
 
 func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
-	if _, err := cache.Get(hash.Bytes()); err == nil {
+	_, err := cache.Get(hash.Bytes())
+	if err == nil {
 		// found it
 		return true, nil
 	}
@@ -231,7 +232,6 @@ func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
 	}
 	// return all other errors
 	return false, err
-}
 }
 
 func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {

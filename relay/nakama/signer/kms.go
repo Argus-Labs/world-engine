@@ -85,7 +85,7 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	return t, err
 }
 
-// only used for testing
+// only call this directly for testing. Call SignTx instead
 func (k *kmsSigner) SignTxWithTimestamp(
 	ctx context.Context, personaTag string, namespace string, data any, timestamp int64) (
 	*sign.Transaction, error,
@@ -102,7 +102,7 @@ func (k *kmsSigner) SignTxWithTimestamp(
 		Body:       bz,
 	}
 
-	unsignedTx.PopulateHash()
+	unsignedTx.PopulateHash() // TODO: fix this abstraction leakage. See issue WORLD-1224
 	digest := unsignedTx.Hash
 
 	// Set up the KMS request to sign the transaction

@@ -141,3 +141,19 @@ docker compose test_nakama up
 ```
 
 and watch those tests run again. You should get the same output.
+
+
+## Submitting Changes
+
+Before you push changes, including creating or updating a pull request, please be sure you have done the following 
+steps to be sure that your PR will pass the CI tests. These command are run from the `world-engine` directory.
+
+```shell
+make lint
+make unit-test-all
+make e2e-nakama
+make e2e-evm
+```
+
+If any of those fail, you can be sure your push will fail to pass the CI tests, and you should fix those issues before
+pushing to origin.
