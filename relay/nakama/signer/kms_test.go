@@ -41,7 +41,7 @@ esyjsoEDFTFKevyeDa6u83cNzv0lXeeTza8GSafyemA+4LtnYXorQw==
 		`9205af4ca238420104f951cfe1388b544de5` +
 		`af02206647c72359772e678b56a976812af7` +
 		`e075831f630064611ea76c8a6bb2768a76`
-	precomputedCreatedTimestamp = 99
+	precomputedTimestamp = 99
 
 	precomputedPersonaTag = "some-persona-tag"
 	precomputedNamespace  = "some-namespace"
@@ -52,7 +52,7 @@ func newPrecomputedTx() *sign.Transaction {
 	return &sign.Transaction{
 		PersonaTag: precomputedPersonaTag,
 		Namespace:  precomputedNamespace,
-		Timestamp:  precomputedCreatedTimestamp,
+		Timestamp:  precomputedTimestamp,
 		Body:       json.RawMessage(precomputedBody),
 	}
 }
@@ -70,7 +70,7 @@ func TestCanConvertPEMKeyToSignerAddress(t *testing.T) {
 func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	ctx := context.Background()
 	kmsClient := newFakeSigner()
-	// we have to use the TestOnlySigner since it will allow us to set a specific created timestamp
+	// we have to use the TestOnlySigner since it will allow us to set a specific timestamp
 	// whereas the normal signer will stamp it with time.Now() at the moment of signing
 	// Since the timestamp is part of the signature, we couldn't have a precomputed signature
 	// without a known timestamp
@@ -79,7 +79,7 @@ func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	data := struct{ A, B, C int }{1, 2, 3}
 
 	tx, err := txSigner.SignTxWithTimestamp(
-		ctx, precomputedPersonaTag, precomputedNamespace, data, precomputedCreatedTimestamp)
+		ctx, precomputedPersonaTag, precomputedNamespace, data, precomputedTimestamp)
 	assert.NilError(t, err)
 
 	wantTx := newPrecomputedTx()

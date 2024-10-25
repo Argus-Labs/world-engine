@@ -32,7 +32,7 @@ var (
 	ErrNoNamespaceField  = errors.New("transaction must contain namespace field")
 	ErrNoSignatureField  = errors.New("transaction must contain signature field")
 	ErrNoBodyField       = errors.New("transaction must contain body field")
-	ErrNoCreatedField    = errors.New("transaction must contain created field")
+	ErrNoTimestampField  = errors.New("transaction must contain timestamp field")
 )
 
 type Transaction struct {
@@ -81,7 +81,7 @@ func (s *Transaction) checkRequiredFields() error {
 		return eris.Wrap(ErrNoSignatureField, "")
 	}
 	if s.Timestamp == 0 {
-		return eris.Wrap(ErrNoCreatedField, "")
+		return eris.Wrap(ErrNoTimestampField, "")
 	}
 	if len(s.Body) == 0 {
 		return eris.Wrap(ErrNoBodyField, "")
@@ -160,8 +160,8 @@ func normalizeJSON(data any) ([]byte, error) {
 	return normalizedBz, nil
 }
 
-// sign uses the given private key to sign the personaTag, namespace, creation timestamp, and data. The creation
-// timestamp is set automatically to the wall time by the sign function just before signing.
+// sign uses the given private key to sign the personaTag, namespace, timestamp, and data. The timestamp is set
+// automatically to the wall time by the sign function just before signing.
 func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transaction, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, ErrCannotSignEmptyBody
