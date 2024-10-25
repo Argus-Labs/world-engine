@@ -81,6 +81,15 @@ func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner
 // https://cloud.google.com/kms/docs/create-validate-signatures#validate_ec_signature
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
 	*sign.Transaction, error) {
+	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, sign.TimestampNow())
+	return t, err
+}
+
+// only used for testing
+func (k *kmsSigner) SignTxWithTimestamp(
+	ctx context.Context, personaTag string, namespace string, data any, timestamp int64) (
+	*sign.Transaction, error,
+) {
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal tx data")
@@ -93,8 +102,12 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 		Body:       bz,
 	}
 
-	unsignedTx.populateHash()
+	hex := unsignedTx.HashHex()
 	digest := unsignedTx.Hash
+
+	if hex != digest.String() {
+		return nil, eris.Wrap(errors.New("failed to hash tx"), "failed to hash tx")
+	}
 
 	// Set up the KMS request to sign the transaction
 	req := &kmspb.AsymmetricSignRequest{

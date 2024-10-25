@@ -223,7 +223,7 @@ func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisab
 	// This persona tag does not have a signer address, but since signature verification is disabled it should
 	// encounter no errors
 	payload := MoveMsgInput{Direction: "up"}
-	//s.runTx(unclaimedPersona, moveMessage, payload)
+	// s.runTx(unclaimedPersona, moveMessage, payload)
 
 	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace(), payload)
 	assert.NilError(t, err)
