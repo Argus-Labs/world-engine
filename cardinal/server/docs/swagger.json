@@ -469,9 +469,6 @@
                     "description": "json string",
                     "type": "object"
                 },
-                "hash": {
-                    "type": "string"
-                },
                 "namespace": {
                     "type": "string"
                 },
