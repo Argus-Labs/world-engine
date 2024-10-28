@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"reflect"
 	"strconv"
 	"time"
@@ -39,17 +41,18 @@ type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
 	Timestamp  int64           `json:"timestamp"`                 // unix microsecond timestamp
+	Salt       uint16          `json:"salt,omitempty"`            // an optional field for additional hash uniqueness
 	Signature  string          `json:"signature"`                 // hex encoded string
 	Hash       common.Hash     `json:"-"`                         // don't marshal or unmarshal for json
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
 }
 
 func TimestampNow() int64 {
-	return time.Now().UnixMicro() // TODO: need to deal with message uniqueness beyond timestamp. See WORLD-1225
+	return time.Now().UnixMilli() // millisecond accuracy on timestamps, easily available on all platforms
 }
 
 func TimestampAt(t time.Time) int64 {
-	return t.UnixMicro()
+	return t.UnixMilli()
 }
 
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {
@@ -100,6 +103,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		"namespace":  true,
 		"signature":  true,
 		"timestamp":  true,
+		"salt":       true,
 		"body":       true,
 		"hash":       true,
 	}
@@ -183,6 +187,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transa
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Timestamp:  TimestampNow(),
+		Salt:       uint16(rand.Intn(math.MaxUint16)), //nolint: gosec // additional uniqueness for each hash and sign
 		Body:       bz,
 	}
 	sp.populateHash()
@@ -268,10 +273,22 @@ func (s *Transaction) Verify(hexAddress string) error {
 }
 
 func (s *Transaction) populateHash() {
-	s.Hash = crypto.Keccak256Hash(
-		[]byte(s.PersonaTag),
-		[]byte(s.Namespace),
-		[]byte(strconv.FormatInt(s.Timestamp, 10)),
-		s.Body,
-	)
+	if s.Salt != 0 {
+		s.Hash = crypto.Keccak256Hash(
+			[]byte(s.PersonaTag),
+			[]byte(s.Namespace),
+			[]byte(strconv.FormatInt(s.Timestamp, 10)),
+			[]byte(strconv.FormatInt(int64(s.Salt), 10)),
+			s.Body,
+		)
+	} else {
+		// salt not set, don't include it in the hash
+		// this is needed for kms test with precomputed signature
+		s.Hash = crypto.Keccak256Hash(
+			[]byte(s.PersonaTag),
+			[]byte(s.Namespace),
+			[]byte(strconv.FormatInt(s.Timestamp, 10)),
+			s.Body,
+		)
+	}
 }

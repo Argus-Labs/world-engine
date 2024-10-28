@@ -9,7 +9,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"hash/crc32"
+	"math"
 	"math/big"
+	"math/rand"
 
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/ethereum/go-ethereum/common"
@@ -81,13 +83,14 @@ func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner
 // https://cloud.google.com/kms/docs/create-validate-signatures#validate_ec_signature
 func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace string, data any) (
 	*sign.Transaction, error) {
-	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, sign.TimestampNow())
+	t, err := k.SignTxWithTimestamp(ctx, personaTag, namespace, data, sign.TimestampNow(),
+		uint16(rand.Intn(math.MaxUint16))) //nolint: gosec // additional uniqueness for each hash and sign
 	return t, err
 }
 
-// only used for testing
+// don't call this directly except for testing. Call SignTx instead
 func (k *kmsSigner) SignTxWithTimestamp(
-	ctx context.Context, personaTag string, namespace string, data any, timestamp int64) (
+	ctx context.Context, personaTag string, namespace string, data any, timestamp int64, salt uint16) (
 	*sign.Transaction, error,
 ) {
 	bz, err := json.Marshal(data)
@@ -99,6 +102,7 @@ func (k *kmsSigner) SignTxWithTimestamp(
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Timestamp:  timestamp,
+		Salt:       salt,
 		Body:       bz,
 	}
 

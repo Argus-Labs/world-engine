@@ -42,6 +42,7 @@ esyjsoEDFTFKevyeDa6u83cNzv0lXeeTza8GSafyemA+4LtnYXorQw==
 		`af02206647c72359772e678b56a976812af7` +
 		`e075831f630064611ea76c8a6bb2768a76`
 	precomputedTimestamp = 99
+	precomputedSalt      = 0
 
 	precomputedPersonaTag = "some-persona-tag"
 	precomputedNamespace  = "some-namespace"
@@ -79,7 +80,7 @@ func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	data := struct{ A, B, C int }{1, 2, 3}
 
 	tx, err := txSigner.SignTxWithTimestamp(
-		ctx, precomputedPersonaTag, precomputedNamespace, data, precomputedTimestamp)
+		ctx, precomputedPersonaTag, precomputedNamespace, data, precomputedTimestamp, precomputedSalt)
 	assert.NilError(t, err)
 
 	wantTx := newPrecomputedTx()

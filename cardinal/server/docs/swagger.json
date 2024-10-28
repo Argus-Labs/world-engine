@@ -476,6 +476,10 @@
                     "description": "Unix timestamp, in milliseconds, for TTL-based replay protection.",
                     "type": "integer"
                 },
+                "salt": {
+                    "description": "optional additional randomness for hash and signing",
+                    "type": "integer"
+                },
                 "personaTag": {
                     "type": "string"
                 },

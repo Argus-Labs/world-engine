@@ -315,6 +315,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
 		"timestamp":  tx.Timestamp,
+		"salt":       tx.Salt,
 		"signature":  tx.Signature,
 		"body":       body,
 	}
