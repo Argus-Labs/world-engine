@@ -473,6 +473,7 @@
                     "type": "string"
                 },
                 "timestamp": {
+                    "description": "Unix timestamp, in milliseconds, for TTL-based replay protection.",
                     "type": "integer"
                 },
                 "personaTag": {

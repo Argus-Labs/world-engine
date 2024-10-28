@@ -208,7 +208,7 @@ func extractTx(ctx *fiber.Ctx, verify SignatureVerification) (*sign.Transaction,
 		}
 		// check for duplicate message via hash cache
 		if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
-			log.Errorf("unexpect cache error %v. message %s ignored", err, tx.Hash.String())
+			log.Errorf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())
 			return nil, fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
 		} else if found {
 			// if found in the cache, the message hash has already been used, so reject it

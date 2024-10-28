@@ -227,8 +227,8 @@ func IsZeroHash(hash common.Hash) bool {
 	return hash == common.Hash{}
 }
 
-// HashHex return a hex encoded hash of the signature.
-// if the
+// HashHex return a hex encoded hash of the message and its data.
+// if the hash was not previously set, it will be generated
 func (s *Transaction) HashHex() string {
 	if IsZeroHash(s.Hash) {
 		s.populateHash()
