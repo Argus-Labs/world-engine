@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/gofiber/contrib/socketio"
@@ -13,8 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"pkg.world.dev/world-engine/cardinal/server/handler"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
-	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/world"
 
 	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
@@ -24,46 +24,29 @@ const (
 	shutdownTimeout = 5 * time.Second
 )
 
-type config struct {
-	port                            string
-	isSignatureVerificationDisabled bool
-	isSwaggerDisabled               bool
-}
-
 type Server struct {
-	app    *fiber.App
-	config config
+	app *fiber.App
+	w   *world.World
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(
-	world servertypes.ProviderWorld,
-	components []types.ComponentMetadata,
-	messages []types.Message,
-	opts ...Option,
-) (*Server, error) {
+func New(w *world.World) (*Server, error) {
+	if w == nil {
+		return nil, eris.New("server requires an non-nil world and tick manager")
+	}
+
 	app := fiber.New(fiber.Config{
 		Network:               "tcp", // Enable server listening on both ipv4 & ipv6 (default: ipv4 only)
 		DisableStartupMessage: true,
+		ErrorHandler:          ErrorHandler,
 	})
+	app.Use(cors.New())
 
 	s := &Server{
 		app: app,
-		config: config{
-			port:                            defaultPort,
-			isSignatureVerificationDisabled: false,
-			isSwaggerDisabled:               false,
-		},
+		w:   w,
 	}
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	// Enable CORS
-	app.Use(cors.New())
-
-	// Register routes
-	s.setupRoutes(world, messages, components)
+	s.setupRoutes()
 
 	return s, nil
 }
@@ -75,8 +58,13 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	// Starts the server in a new goroutine
 	go func() {
-		log.Info().Msgf("Starting HTTP server at port %s", s.config.port)
-		if err := s.app.Listen(":" + s.config.port); err != nil {
+		port := os.Getenv("CARDINAL_PORT")
+		if port == "" {
+			port = defaultPort
+		}
+
+		log.Info().Msgf("Starting HTTP server at port %s", port)
+		if err := s.app.Listen(":" + port); err != nil {
 			serverErr <- eris.Wrap(err, "error starting http server")
 		}
 	}()
@@ -120,58 +108,36 @@ func (s *Server) shutdown() error {
 	return nil
 }
 
-// @title			Cardinal
+// @title		Cardinal
 // @description	Backend server for World Engine
 // @version		0.0.1
 // @schemes		http ws
-// @BasePath		/
-// @consumes		application/json
-// @produces		application/json
-func (s *Server) setupRoutes(
-	world servertypes.ProviderWorld,
-	messages []types.Message,
-	components []types.ComponentMetadata,
-) {
-	// /tx/:group/:txType
-	// maps group -> txType -> tx
-	msgIndex := make(map[string]map[string]types.Message)
-
-	// Create tx index
-	for _, msg := range messages {
-		// Initialize inner map if it doesn't exist
-		if _, ok := msgIndex[msg.Group()]; !ok {
-			msgIndex[msg.Group()] = make(map[string]types.Message)
-		}
-		msgIndex[msg.Group()][msg.Name()] = msg
-	}
-
+// @BasePath	/
+// @consumes	application/json
+// @produces	application/json
+func (s *Server) setupRoutes() {
 	// Route: /swagger/
-	if !s.config.isSwaggerDisabled {
-		s.app.Get("/swagger/*", swagger.HandlerDefault)
-	}
+	s.app.Get("/swagger/*", swagger.HandlerDefault)
 
 	// Route: /events/
 	s.app.Use("/events", handler.WebSocketUpgrader)
 	s.app.Get("/events", handler.WebSocketEvents())
 
 	// Route: /world
-	s.app.Get("/world", handler.GetWorld(world, components, messages, world.Namespace()))
+	s.app.Get("/world", handler.GetWorld(s.w))
 
 	// Route: /...
 	s.app.Get("/health", handler.GetHealth())
 
 	// Route: /query/...
-	query := s.app.Group("/query")
-	query.Post("/receipts/list", handler.GetReceipts(world))
-	query.Post("/:group/:name", handler.PostQuery(world))
+	q := s.app.Group("/query")
+	q.Post("/receipts/list", handler.GetReceipts(s.w))
+	q.Post("/:group/:name", handler.PostQuery(s.w))
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.config.isSignatureVerificationDisabled))
-
-	// Route: /cql
-	s.app.Post("/cql", handler.PostCQL(world))
+	tx.Post("/:group/:name", handler.PostTransaction(s.w))
 
 	// Route: /debug/state
-	s.app.Post("/debug/state", handler.GetState(world))
+	s.app.Post("/debug/state", handler.GetState(s.w))
 }

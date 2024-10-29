@@ -21,8 +21,8 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 		Epoch:         10,
 		Namespace:     namespace,
 		UnixTimestamp: 400,
-		Transactions: map[uint64]*shardv2.Transactions{
-			44: {
+		Transactions: map[string]*shardv2.Transactions{
+			"44": {
 				Txs: []*shardv2.Transaction{
 					{
 						PersonaTag: "Duncan_Idaho",
@@ -33,7 +33,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 					},
 				},
 			},
-			30: {
+			"30": {
 				Txs: []*shardv2.Transaction{
 					{
 						PersonaTag: "Paul_Atreides",
@@ -59,11 +59,11 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	pbMsg := new(shardv2.Transaction)
 	err = proto.Unmarshal(messages.Txs[0].GameShardTransaction, pbMsg)
 	assert.NilError(t, err)
-	assert.Check(t, proto.Equal(pbMsg, req.GetTransactions()[30].GetTxs()[0]))
+	assert.Check(t, proto.Equal(pbMsg, req.GetTransactions()["30"].GetTxs()[0]))
 
 	err = proto.Unmarshal(messages.Txs[1].GameShardTransaction, pbMsg)
 	assert.NilError(t, err)
-	assert.Check(t, proto.Equal(pbMsg, req.GetTransactions()[44].GetTxs()[0]))
+	assert.Check(t, proto.Equal(pbMsg, req.GetTransactions()["44"].GetTxs()[0]))
 }
 
 func TestGetBothSlices(t *testing.T) {
@@ -81,8 +81,8 @@ func TestGetBothSlices(t *testing.T) {
 			Epoch:         1,
 			UnixTimestamp: 3,
 			Namespace:     "foo",
-			Transactions: map[uint64]*shardv2.Transactions{
-				1: {
+			Transactions: map[string]*shardv2.Transactions{
+				"1": {
 					Txs: []*shardv2.Transaction{
 						{PersonaTag: "foo", Namespace: "foobar", Nonce: 3},
 					},

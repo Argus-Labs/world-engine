@@ -55,8 +55,8 @@ func (s *TestSuite) TestSubmitTransactions() {
 	txBz, err := proto.Marshal(tx)
 	s.Require().NoError(err)
 	txs := []*types.Transaction{
-		{3, txBz},
-		{4, txBz},
+		{"3", txBz},
+		{"4", txBz},
 	}
 	_, err = s.keeper.SubmitShardTx(
 		s.ctx,
@@ -77,8 +77,8 @@ func (s *TestSuite) TestSubmitTransactions() {
 			Namespace: "foo",
 			Epoch:     epoch,
 			Txs: []*types.Transaction{
-				{3, txBz},
-				{4, txBz},
+				{"3", txBz},
+				{"4", txBz},
 			},
 		},
 	)
@@ -104,8 +104,8 @@ func (s *TestSuite) TestPagedQueryTransactions() {
 	txBz, err := proto.Marshal(tx)
 	s.Require().NoError(err)
 	txs := []*types.Transaction{
-		{1, txBz},
-		{4, txBz},
+		{"1", txBz},
+		{"4", txBz},
 	}
 	_, err = s.keeper.SubmitShardTx(
 		s.ctx,
@@ -164,9 +164,9 @@ func (s *TestSuite) TestExportGenesis() {
 		Namespace: "foo",
 		Epoch:     1,
 		Txs: []*types.Transaction{
-			{1, []byte("foo")},
-			{10, []byte("bar")},
-			{1, []byte("baz")},
+			{"1", []byte("foo")},
+			{"10", []byte("bar")},
+			{"1", []byte("baz")},
 		},
 	}
 
@@ -175,8 +175,8 @@ func (s *TestSuite) TestExportGenesis() {
 		Namespace: "bar",
 		Epoch:     3,
 		Txs: []*types.Transaction{
-			{15, []byte("qux")},
-			{2, []byte("quiz")},
+			{"15", []byte("qux")},
+			{"2", []byte("quiz")},
 		},
 	}
 
@@ -185,8 +185,8 @@ func (s *TestSuite) TestExportGenesis() {
 		Namespace: "foo",
 		Epoch:     2,
 		Txs: []*types.Transaction{
-			{4, []byte("qux")},
-			{9, []byte("quiz")},
+			{"4", []byte("qux")},
+			{"9", []byte("quiz")},
 		},
 	}
 

@@ -8,9 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	component "pkg.world.dev/world-engine/cardinal/persona/component"
-	types "pkg.world.dev/world-engine/cardinal/types"
-	sign "pkg.world.dev/world-engine/sign"
 )
 
 // MockProvider is a mock of Provider interface.
@@ -36,21 +33,6 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
 }
 
-// AddEVMTransaction mocks base method.
-func (m *MockProvider) AddEVMTransaction(id types.MessageID, msgValue any, tx *sign.Transaction, evmTxHash string) (uint64, types.TxHash) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddEVMTransaction", id, msgValue, tx, evmTxHash)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(types.TxHash)
-	return ret0, ret1
-}
-
-// AddEVMTransaction indicates an expected call of AddEVMTransaction.
-func (mr *MockProviderMockRecorder) AddEVMTransaction(id, msgValue, tx, evmTxHash interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEVMTransaction", reflect.TypeOf((*MockProvider)(nil).AddEVMTransaction), id, msgValue, tx, evmTxHash)
-}
-
 // ConsumeEVMMsgResult mocks base method.
 func (m *MockProvider) ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, bool) {
 	m.ctrl.T.Helper()
@@ -66,51 +48,6 @@ func (m *MockProvider) ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, s
 func (mr *MockProviderMockRecorder) ConsumeEVMMsgResult(evmTxHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeEVMMsgResult", reflect.TypeOf((*MockProvider)(nil).ConsumeEVMMsgResult), evmTxHash)
-}
-
-// GetMessageByFullName mocks base method.
-func (m *MockProvider) GetMessageByFullName(arg0 string) (types.Message, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessageByFullName", arg0)
-	ret0, _ := ret[0].(types.Message)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// GetMessageByFullName indicates an expected call of GetMessageByFullName.
-func (mr *MockProviderMockRecorder) GetMessageByFullName(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByFullName", reflect.TypeOf((*MockProvider)(nil).GetMessageByFullName), arg0)
-}
-
-// GetMessageByID mocks base method.
-func (m *MockProvider) GetMessageByID(id types.MessageID) (types.Message, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessageByID", id)
-	ret0, _ := ret[0].(types.Message)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// GetMessageByID indicates an expected call of GetMessageByID.
-func (mr *MockProviderMockRecorder) GetMessageByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByID", reflect.TypeOf((*MockProvider)(nil).GetMessageByID), id)
-}
-
-// GetSignerComponentForPersona mocks base method.
-func (m *MockProvider) GetSignerComponentForPersona(arg0 string) (*component.SignerComponent, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignerComponentForPersona", arg0)
-	ret0, _ := ret[0].(*component.SignerComponent)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSignerComponentForPersona indicates an expected call of GetSignerComponentForPersona.
-func (mr *MockProviderMockRecorder) GetSignerComponentForPersona(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignerComponentForPersona", reflect.TypeOf((*MockProvider)(nil).GetSignerComponentForPersona), arg0)
 }
 
 // HandleQueryEVM mocks base method.

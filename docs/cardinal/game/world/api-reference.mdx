@@ -284,7 +284,7 @@ func RegisterQuery[Request, Reply any](
     world *World,
     name string,
     handler func(engine.Context, req *Request) (*Reply, error),
-    opts ...QueryOption[Request, Reply]) error
+    opts ...Option[Request, Reply]) error
 ```
 
 ### Example
@@ -323,7 +323,7 @@ func main() {
 | world     | *World                                        | A pointer to a World instance.                         |
 | name      | string                                        | The name of the server endpoint to use this query      |
 | handler   | func(engine.Context, *Request) (Reply, error) | The handler to execute the logic of this query         |
-| opts      | ...QueryOption[Request, Reply]                | Variadic options to augment the behavior of this query |
+| opts      | ...Option[Request, Reply]                | Variadic options to augment the behavior of this query |
 
 
 ### Return Value

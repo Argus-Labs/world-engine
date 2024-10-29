@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
@@ -19,10 +20,11 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/world"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -30,6 +32,8 @@ import (
 type MoveMsgInput struct {
 	Direction string
 }
+
+func (MoveMsgInput) Name() string { return "move" }
 
 // Used for Registering message
 type MoveMessageOutput struct {
@@ -47,8 +51,7 @@ type QueryLocationResponse struct {
 type ServerTestSuite struct {
 	suite.Suite
 
-	fixture *cardinal.TestFixture
-	world   *cardinal.World
+	fixture *cardinal.TestCardinal
 
 	privateKey *ecdsa.PrivateKey
 	signerAddr string
@@ -69,20 +72,17 @@ func (s *ServerTestSuite) SetupTest() {
 	s.signerAddr = crypto.PubkeyToAddress(s.privateKey.PublicKey).Hex()
 }
 
-// TearDownTest runs after each test in the suite.
-func (s *ServerTestSuite) TearDownTest() {
-	s.fixture.World.Shutdown()
-}
-
 // TestCanClaimPersonaSendGameTxAndQueryGame tests that you can claim a persona, send a tx, and then query.
 func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.setupWorld()
 	s.fixture.DoTick()
+
 	personaTag := s.CreateRandomPersona()
-	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
-	s.Require().True(ok)
-	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
+
+	s.submitTx(moveMsgName, personaTag, MoveMsgInput{Direction: "up"})
+
 	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
+
 	var loc LocationComponent
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
@@ -94,34 +94,36 @@ func (s *ServerTestSuite) TestGetWorld() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	res := s.fixture.Get("/world")
+
 	var result handler.GetWorldResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	comps := s.world.GetRegisteredComponents()
-	msgs := s.world.GetRegisteredMessages()
-	queries := s.world.GetRegisteredQueries()
 
+	comps := s.fixture.World().State().RegisteredComponents()
+	msgs := s.fixture.World().RegisteredMessages()
+	queries := s.fixture.World().RegisteredQuries()
 	s.Require().Len(comps, len(result.Components))
 	s.Require().Len(msgs, len(result.Messages))
 	s.Require().Len(queries, len(result.Queries))
 
 	// check that the component, message, query name are in the list
 	for _, comp := range comps {
-		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field types.FieldDetail) bool {
-			return comp.Name() == field.Name
+		assert.True(s.T(), slices.ContainsFunc(result.Components, func(field types.ComponentInfo) bool {
+			return comp.Name == field.Name
 		}))
 	}
 	for _, msg := range msgs {
-		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field types.FieldDetail) bool {
-			return msg.Name() == field.Name
+		assert.True(s.T(), slices.ContainsFunc(result.Messages, func(field types.EndpointInfo) bool {
+			return msg.Name == field.Name
 		}))
 	}
 	for _, query := range queries {
-		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field types.FieldDetail) bool {
+		assert.True(s.T(), slices.ContainsFunc(result.Queries, func(field types.EndpointInfo) bool {
 			return query.Name() == field.Name
 		}))
 	}
-	assert.Equal(s.T(), s.world.Namespace(), result.Namespace)
+
+	assert.Equal(s.T(), s.fixture.World().Namespace(), result.Namespace)
 }
 
 // TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
@@ -169,25 +171,19 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	persona := s.CreateRandomPersona()
 	s.createPersona(persona)
 	msg := MoveMsgInput{Direction: "up"}
-	msgBz, err := json.Marshal(msg)
-	s.Require().NoError(err)
-	tx := &sign.Transaction{
-		PersonaTag: persona,
-		Body:       msgBz,
-	}
-	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
-	s.Require().True(ok)
-	url := "/tx/game/" + moveMessage.Name()
-	res := s.fixture.Post(url, tx)
-	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
+
+	s.submitTxWithoutSig(message.DefaultGroup, moveMsgName, persona, msg)
+
 	s.fixture.DoTick()
 	s.nonce++
 
 	// check the component was successfully updated, despite not using any signature data.
-	res = s.fixture.Post("query/game/location", QueryLocationRequest{Persona: persona})
+	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: persona})
+
 	var loc LocationComponent
-	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
+	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
+
 	s.Require().Equal(LocationComponent{0, 1}, loc)
 }
 
@@ -198,14 +194,14 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	name := "foo"
 	group := "bar"
 	called := false
-	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
-		s.world,
+	err := world.RegisterQuery[SomeRequest, SomeResponse](
+		s.fixture.World(),
 		name,
-		func(_ cardinal.WorldContext, _ *SomeRequest) (*SomeResponse, error) {
+		func(_ world.WorldContextReadOnly, _ *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		cardinal.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
+		world.WithGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()
@@ -215,80 +211,103 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 }
 
 func (s *ServerTestSuite) TestMissingSignerAddressIsOKWhenSigVerificationIsDisabled() {
-	t := s.T()
 	s.setupWorld(cardinal.WithDisableSignatureVerification())
 	s.fixture.DoTick()
 	unclaimedPersona := "some-persona"
-	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
-	assert.True(t, ok)
 	// This persona tag does not have a signer address, but since signature verification is disabled it should
 	// encounter no errors
-	s.runTx(unclaimedPersona, moveMessage, MoveMsgInput{Direction: "up"})
+	s.submitTx(moveMsgName, unclaimedPersona, MoveMsgInput{Direction: "up"})
 }
 
-func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsDisabled() {
+func (s *ServerTestSuite) TestSignerAddressIsRequiredWhenSigVerificationIsEnabled() {
 	t := s.T()
 	// Signature verification is enabled
 	s.setupWorld()
 	s.fixture.DoTick()
 	unclaimedPersona := "some-persona"
-	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
-	assert.True(t, ok)
 	payload := MoveMsgInput{Direction: "up"}
-	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.world.Namespace(), s.nonce, payload)
+	tx, err := sign.NewTransaction(s.privateKey, unclaimedPersona, s.fixture.World().Namespace(), s.nonce, payload)
 	assert.NilError(t, err)
 
 	// This request should fail because signature verification is enabled, and we have not yet
 	// registered the given personaTag
-	res := s.fixture.Post(utils.GetTxURL(moveMessage.Group(), moveMessage.Name()), tx)
+	res := s.fixture.Post(utils.GetTxURL(moveMsgName), tx)
 	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 }
 
 // Creates a transaction with the given message, and runs it in a tick.
-func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
-	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace(), s.nonce, payload)
+func (s *ServerTestSuite) submitTx(name string, personaTag string, payload any) common.Hash {
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.fixture.World().Namespace(), s.nonce, payload)
 	s.Require().NoError(err)
-	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
+
+	res := s.fixture.Post(utils.GetTxURL(name), tx)
+	resBody := s.readBody(res.Body)
+	s.Require().Equal(fiber.StatusOK, res.StatusCode, resBody)
+
+	var txResp handler.PostTransactionResponse
+	err = json.Unmarshal([]byte(resBody), &txResp)
+	s.Require().NoError(err)
+
+	s.fixture.DoTick()
+	s.nonce++
+
+	return txResp.TxHash
+}
+
+func (s *ServerTestSuite) submitTxWithoutSig(group string, name string, personaTag string, payload any) {
+	body, err := json.Marshal(payload)
+	s.Require().NoError(err)
+
+	tx := &sign.Transaction{
+		PersonaTag: personaTag,
+		Body:       body,
+	}
+
+	res := s.fixture.Post(utils.GetTxURL(name), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
+
 	s.fixture.DoTick()
 	s.nonce++
 }
 
 // Creates a persona with the specified tag.
 func (s *ServerTestSuite) createPersona(personaTag string) {
-	createPersonaTx := msg.CreatePersona{
-		PersonaTag:    personaTag,
-		SignerAddress: s.signerAddr,
+	createPersonaTx := world.CreatePersona{
+		PersonaTag: personaTag,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace(), s.nonce, createPersonaTx)
+
+	tx, err := sign.NewTransaction(s.privateKey, "foo", s.fixture.World().Namespace(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
-	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
+
+	res := s.fixture.Post(utils.GetTxURL("persona.create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	s.fixture.DoTick()
 	s.nonce++
 }
 
 // setupWorld sets up a world with a simple movement system, message, and query.
-func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
-	s.fixture = cardinal.NewTestFixture(s.T(), nil, opts...)
-	s.world = s.fixture.World
-	err := cardinal.RegisterComponent[LocationComponent](s.world)
+func (s *ServerTestSuite) setupWorld(opts ...cardinal.CardinalOption) {
+	s.fixture = cardinal.NewTestCardinal(s.T(), nil, opts...)
+
+	err := world.RegisterComponent[LocationComponent](s.fixture.World())
 	s.Require().NoError(err)
-	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, moveMsgName)
+
+	err = world.RegisterMessage[MoveMsgInput](s.fixture.World())
 	s.Require().NoError(err)
+
 	personaToPosition := make(map[string]types.EntityID)
-	err = cardinal.RegisterSystems(s.world, func(context cardinal.WorldContext) error {
-		return cardinal.EachMessage[MoveMsgInput, MoveMessageOutput](context,
-			func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+	err = world.RegisterSystems(s.fixture.World(), func(context world.WorldContext) error {
+		return world.EachMessage[MoveMsgInput](context,
+			func(tx world.Tx[MoveMsgInput]) (any, error) {
 				posID, exists := personaToPosition[tx.Tx.PersonaTag]
 				if !exists {
-					id, err := cardinal.Create(context, LocationComponent{})
+					id, err := world.Create(context, LocationComponent{})
 					s.Require().NoError(err)
 					personaToPosition[tx.Tx.PersonaTag] = id
 					posID = id
 				}
 				var resultLocation LocationComponent
-				err = cardinal.UpdateComponent[LocationComponent](context, posID,
+				err = world.UpdateComponent[LocationComponent](context, posID,
 					func(loc *LocationComponent) *LocationComponent {
 						switch tx.Msg.Direction {
 						case "up":
@@ -308,15 +327,16 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			})
 	})
 	assert.NilError(s.T(), err)
-	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
-		s.world,
+
+	err = world.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
+		s.fixture.World(),
 		"location",
-		func(wCtx cardinal.WorldContext, req *QueryLocationRequest) (*QueryLocationResponse, error) {
+		func(wCtx world.WorldContextReadOnly, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)
 			}
-			loc, err := cardinal.GetComponent[LocationComponent](wCtx, locID)
+			loc, err := world.GetComponent[LocationComponent](wCtx, locID)
 			s.Require().NoError(err)
 
 			return &QueryLocationResponse{*loc}, nil
@@ -342,9 +362,11 @@ func (s *ServerTestSuite) CreateRandomPersona() string {
 	for i := 0; i < length; i++ {
 		result[i] = byte(letterRunes[r.Intn(len(letterRunes))])
 	}
-	persona := string(result)
-	s.createPersona(persona)
-	return persona
+
+	personaTag := string(result)
+	s.createPersona(personaTag)
+
+	return personaTag
 }
 
 type LocationComponent struct {
@@ -355,51 +377,64 @@ func (LocationComponent) Name() string {
 	return "location"
 }
 
-func (s *ServerTestSuite) TestCQL() {
+func (s *ServerTestSuite) TestDebugStateQuery() {
 	s.setupWorld()
-	s.fixture.DoTick()
 
-	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	const wantNumOfZeroLocation = 5
+	err := world.RegisterInitSystems(s.fixture.World(), func(wCtx world.WorldContext) error {
+		_, err := world.CreateMany(wCtx, wantNumOfZeroLocation, LocationComponent{})
+		return err
+	})
 	assert.NilError(s.T(), err)
 
 	s.fixture.DoTick()
 
-	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "CONTAINS(location)"})
-	var result handler.CQLQueryResponse
-	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
-	s.Require().NoError(err)
-	s.Require().Len(result.Results, 10)
+	personaTag := s.CreateRandomPersona()
+
+	// This will create 1 additional location for this particular persona tag
+	s.submitTx(moveMsgName, personaTag, MoveMsgInput{Direction: "up"})
+
+	res := s.fixture.Post("debug/state", handler.DebugStateRequest{})
+	s.Require().Equal(res.StatusCode, 200)
+
+	var results []types.EntityData
+	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
+
+	numOfZeroLocation := 0
+	numOfNonZeroLocation := 0
+	for _, result := range results {
+		comp := result.Components["location"]
+		if comp == nil {
+			continue
+		}
+		var loc LocationComponent
+		s.Require().NoError(json.Unmarshal(comp, &loc))
+
+		if loc.Y == 0 {
+			numOfZeroLocation++
+		} else {
+			numOfNonZeroLocation++
+		}
+	}
+	s.Require().Equal(numOfZeroLocation, wantNumOfZeroLocation)
+	s.Require().Equal(numOfNonZeroLocation, 1)
 }
 
-func (s *ServerTestSuite) TestCQL_InvalidFormat() {
+func (s *ServerTestSuite) TestDebugStateQuery_NoState() {
 	s.setupWorld()
 	s.fixture.DoTick()
 
-	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
-	assert.NilError(s.T(), err)
+	res := s.fixture.Post("debug/state", handler.DebugStateRequest{})
+	s.Require().Equal(res.StatusCode, 200)
 
-	s.fixture.DoTick()
+	var results []types.EntityData
+	s.Require().NoError(json.NewDecoder(res.Body).Decode(&results))
 
-	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "MEOW(location)"})
-	var result handler.CQLQueryResponse
-	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
-	s.Require().Error(err)
+	s.Require().Equal(len(results), 0)
 }
 
-func (s *ServerTestSuite) TestCQL_NonExistentComponent() {
-	s.setupWorld()
-	s.fixture.DoTick()
+type fooIn struct{}
 
-	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
-	assert.NilError(s.T(), err)
+func (fooIn) Name() string { return "foo" }
 
-	s.fixture.DoTick()
-
-	res := s.fixture.Post("/cql", handler.CQLQueryRequest{CQL: "CONTAINS(meow)"})
-	var result handler.CQLQueryResponse
-	err = json.Unmarshal([]byte(s.readBody(res.Body)), &result)
-	s.Require().Error(err)
-}
+type fooOut struct{ Y int }

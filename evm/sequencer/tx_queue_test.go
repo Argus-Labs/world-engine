@@ -13,10 +13,10 @@ func TestAddTx(t *testing.T) {
 	namespace := "foobar"
 	epoch := uint64(3)
 	epoch2 := uint64(5)
-	assert.NilError(t, txq.AddTx(namespace, epoch, 10, 15, []byte("hi")))
-	assert.NilError(t, txq.AddTx(namespace, epoch, 10, 3, []byte("hello")))
-	assert.NilError(t, txq.AddTx(namespace, epoch2, 20, 2, []byte("bye")))
-	assert.NilError(t, txq.AddTx("bogus", 40, 20, 2, []byte("HI")))
+	assert.NilError(t, txq.AddTx(namespace, epoch, 10, "15", []byte("hi")))
+	assert.NilError(t, txq.AddTx(namespace, epoch, 10, "3", []byte("hello")))
+	assert.NilError(t, txq.AddTx(namespace, epoch2, 20, "2", []byte("bye")))
+	assert.NilError(t, txq.AddTx("bogus", 40, 20, "2", []byte("HI")))
 	txs := txq.FlushTxQueue()
 	assert.Len(t, txs, 3) // should be 3 txs, as its partitioned by namespace and then by epoch
 

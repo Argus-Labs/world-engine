@@ -1,14 +1,12 @@
 package gamestate
 
 import (
-	"errors"
-
 	"github.com/rotisserie/eris"
 )
 
 var _ VolatileStorage[string, any] = &MapStorage[string, any]{}
 
-var ErrNotFound = errors.New("key not found in map")
+var ErrNotFound = eris.New("key not found in map")
 
 type MapStorage[K comparable, V any] struct {
 	internalMap map[K]V

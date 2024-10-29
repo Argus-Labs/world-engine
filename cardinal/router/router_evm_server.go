@@ -2,15 +2,18 @@ package router
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"slices"
+	"encoding/json"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"pkg.world.dev/world-engine/cardinal/tick"
+	"pkg.world.dev/world-engine/cardinal/world"
 	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
@@ -31,14 +34,14 @@ var _ routerv1.MsgServer = (*evmServer)(nil)
 type evmServer struct {
 	routerv1.MsgServer
 
-	provider   Provider
+	world      *world.World
 	grpcServer *grpc.Server
 	routerKey  string
 }
 
-func newEvmServer(p Provider, routerKey string) *evmServer {
+func newEvmServer(w *world.World, routerKey string) *evmServer {
 	e := &evmServer{
-		provider:  p,
+		world:     w,
 		routerKey: routerKey,
 	}
 	e.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(e.serverCallInterceptor))
@@ -70,88 +73,85 @@ func (e *evmServer) serverCallInterceptor(
 }
 
 // SendMessage is the grpcServer impl that receives SendMessage requests from the base shard client.
-func (e *evmServer) SendMessage(
-	_ context.Context, req *routerv1.SendMessageRequest,
-) (*routerv1.SendMessageResponse, error) {
-	// first we check if we can extract the transaction associated with the id
-	msgType, exists := e.provider.GetMessageByFullName(req.GetMessageId())
-	if !exists || !msgType.IsEVMCompatible() {
-		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf(
-				"message with name %s either does not exist, or did not have EVM support "+
-					"enabled", req.GetMessageId(),
-			).
-				Error(),
-			EvmTxHash: req.GetEvmTxHash(),
-			Code:      CodeUnsupportedMessage,
-		}, nil
-	}
-
-	// decode the evm bytes into the transaction
-	msgValue, err := msgType.DecodeEVMBytes(req.GetMessage())
-	if err != nil {
-		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf("failed to decode bytes into ABI type: %w", err).
-				Error(),
-			EvmTxHash: req.GetEvmTxHash(),
-			Code:      CodeInvalidFormat,
-		}, nil
-	}
-
-	// get the signer component for the persona tag the request wants to use, and check if the evm address in the
-	// sender is present in the signer component's authorized address list.
-	signer, err := e.provider.GetSignerComponentForPersona(req.GetPersonaTag())
-	if err != nil {
-		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf("unable to find persona tag %q: %w", req.GetPersonaTag(), err).
-				Error(),
-			EvmTxHash: req.GetEvmTxHash(),
-			Code:      CodeUnauthorized,
-		}, nil
-	}
-	if !slices.Contains(signer.AuthorizedAddresses, req.GetSender()) {
-		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf("persona tag %q has not authorized address %q", req.GetPersonaTag(), req.GetSender()).
-				Error(),
-			EvmTxHash: req.GetEvmTxHash(),
-			Code:      CodeUnauthorized,
-		}, nil
-	}
-
+func (e *evmServer) SendMessage(_ context.Context, req *routerv1.SendMessageRequest) (
+	*routerv1.SendMessageResponse, error,
+) {
 	// since we are injecting the msgValue directly, all we need is the persona tag in the signed payload.
 	// the sig checking happens in the grpcServer's Handler, not in ecs.Engine.
-	sig := &sign.Transaction{PersonaTag: req.GetPersonaTag()}
-	e.provider.AddEVMTransaction(msgType.ID(), msgValue, sig, req.GetEvmTxHash())
+	tx := &sign.Transaction{
+		PersonaTag: req.GetPersonaTag(),
+		Body:       req.GetMessage(),
+	}
 
-	// wait for the next tick so the msgValue gets processed
-	success := e.provider.WaitForNextTick()
-	if !success {
-		return &routerv1.SendMessageResponse{
-			EvmTxHash: req.GetEvmTxHash(),
-			Code:      CodeServerUnresponsive,
-		}, nil
+	// txHash is not be confused with EvmTxHash. txHash is Cardinal's internal representation of TxHash, while EvmTxHash
+	// is the hash of the EVM transaction that triggered the request.
+	txHash, err := e.world.AddEVMTransaction(req.GetMessageId(), tx, req.GetSender(),
+		common.HexToHash(req.GetEvmTxHash()))
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to add evm transaction to tx pool")
+	}
+
+	// Attempt to get receipt until timeout
+	var recJSON []byte
+	timeout := time.After(5 * time.Second)
+
+loop:
+	for {
+		select {
+		case <-timeout:
+			return nil, eris.Wrap(err, "failed to get receipt")
+		default:
+			recJSON, err = e.world.GetReceiptBytes(*txHash)
+			if err == nil {
+				break loop // We need to use a labeled break to escape the select + for loop.
+			}
+		}
 	}
 
 	// check for the msgValue receipt.
-	result, errs, evmTxHash, exists := e.provider.ConsumeEVMMsgResult(req.GetEvmTxHash())
-	if !exists {
+	recJSON, err = e.world.GetReceiptBytes(*txHash)
+	if err != nil {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: req.GetEvmTxHash(),
 			Code:      CodeNoResult,
 		}, nil
 	}
 
-	// we got a receipt, so lets clean it up and return it.
-	var errStr string
-	code := CodeSuccess
-	if retErr := errors.Join(errs...); retErr != nil {
-		code = CodeTxFailed
-		errStr = retErr.Error()
+	var rec tick.Receipt
+	if err := json.Unmarshal(recJSON, &rec); err != nil {
+		return &routerv1.SendMessageResponse{
+			EvmTxHash: req.GetEvmTxHash(),
+			Code:      CodeTxFailed,
+		}, nil
 	}
+
+	code := CodeSuccess
+	var txErr string
+	if rec.Error != "" {
+		code = CodeTxFailed
+		txErr = rec.Error
+	}
+
+	msg, ok := e.world.GetMessage(req.GetMessageId())
+	if !ok {
+		return &routerv1.SendMessageResponse{
+			EvmTxHash: req.GetEvmTxHash(),
+			Code:      CodeUnsupportedMessage,
+		}, nil
+	}
+
+	result, err := msg.ABIEncode(rec.Result)
+	if err != nil {
+		return &routerv1.SendMessageResponse{
+			EvmTxHash: req.GetEvmTxHash(),
+			Code:      CodeInvalidFormat,
+		}, nil
+	}
+
 	return &routerv1.SendMessageResponse{
-		Errs:      errStr,
+		Errs:      txErr,
 		Result:    result,
-		EvmTxHash: evmTxHash,
+		EvmTxHash: req.GetEvmTxHash(),
 		Code:      code,
 	}, nil
 }
@@ -163,7 +163,7 @@ func (e *evmServer) QueryShard(_ context.Context, req *routerv1.QueryShardReques
 	log.Debug().Msgf("get request for %q", req.GetResource())
 
 	// TODO(scott): the group name should not be hardcoded
-	reply, err := e.provider.HandleQueryEVM("game", req.GetResource(), req.GetRequest())
+	reply, err := e.world.HandleQueryEVM("game", req.GetResource(), req.GetRequest())
 	if err != nil {
 		log.Error().Err(err).Msg("failed to handle query")
 		return nil, err

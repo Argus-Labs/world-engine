@@ -30,6 +30,16 @@ func NewRedisStorage(options Options, namespace string) Storage {
 	}
 }
 
+func NewRedisStorageWithClient(client *redis.Client, namespace string) Storage {
+	return Storage{
+		Namespace:     namespace,
+		Client:        client,
+		Log:           zerolog.New(os.Stdout),
+		NonceStorage:  NewNonceStorage(client),
+		SchemaStorage: NewSchemaStorage(client),
+	}
+}
+
 func (r *Storage) Close() error {
 	log.Debug().Msg("Closing storage connection")
 

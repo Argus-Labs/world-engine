@@ -18,7 +18,7 @@ func System(worldCtx cardinal.WorldContext) error {
     // ...
 	
 	// Create an entity with the Location and Health component.
-	entityID, err := cardinal.Create(worldCtx,
+	entityID, err := world.Create(worldCtx,
 		component.Location{},
 		component.Health{},
 	)
@@ -63,7 +63,7 @@ func System(worldCtx cardinal.WorldContext) error {
     // ...
 	
 	// Create 10 entities with the Location and Health component.
-	entityIDs, err := cardinal.CreateMany(worldCtx,
+	entityIDs, err := world.CreateMany(worldCtx,
 		10,
 		component.Location{},
 		component.Health{},
@@ -110,7 +110,7 @@ func System(worldCtx cardinal.WorldContext) error {
     // ...
 
 	// Create an entity with the Location and Health component.
-	entityID, err := cardinal.Create(worldCtx,
+	entityID, err := world.Create(worldCtx,
 		component.Location{},
 		component.Health{},
 	)

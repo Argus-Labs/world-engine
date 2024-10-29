@@ -1,11 +1,12 @@
 go 1.22.1
 
 use (
+	./cardinal
+	./rift
+	./sign
 	assert
-	cardinal
 	e2e/testgames
 	e2e/tests
 	evm
 	relay/nakama
-	sign
 )

@@ -10,7 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	iterator "pkg.world.dev/world-engine/cardinal/router/iterator"
-	txpool "pkg.world.dev/world-engine/cardinal/txpool"
+	tick "pkg.world.dev/world-engine/cardinal/tick"
 )
 
 // MockRouter is a mock of Router interface.
@@ -77,17 +77,17 @@ func (mr *MockRouterMockRecorder) Start() *gomock.Call {
 }
 
 // SubmitTxBlob mocks base method.
-func (m *MockRouter) SubmitTxBlob(ctx context.Context, processedTxs txpool.TxMap, epoch, unixTimestamp uint64) error {
+func (m *MockRouter) SubmitTxBlob(ctx context.Context, tick *tick.Tick) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubmitTxBlob", ctx, processedTxs, epoch, unixTimestamp)
+	ret := m.ctrl.Call(m, "SubmitTxBlob", ctx, tick)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SubmitTxBlob indicates an expected call of SubmitTxBlob.
-func (mr *MockRouterMockRecorder) SubmitTxBlob(ctx, processedTxs, epoch, unixTimestamp interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) SubmitTxBlob(ctx, tick interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitTxBlob", reflect.TypeOf((*MockRouter)(nil).SubmitTxBlob), ctx, processedTxs, epoch, unixTimestamp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitTxBlob", reflect.TypeOf((*MockRouter)(nil).SubmitTxBlob), ctx, tick)
 }
 
 // TransactionIterator mocks base method.

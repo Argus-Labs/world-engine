@@ -34,7 +34,7 @@ message SubmitTransactionsRequest {
   // transactions is a mapping of game shard transaction ID's to the transactions themselves.
   //  NOTE: if this message is being consumed via Golang, the transaction mapping MUST be converted to a
   // slice with the transaction ID's sorted. Maps in Golang are NOT deterministic.
-  map<uint64, Transactions> transactions = 4;
+  map<string, Transactions> transactions = 4;
 }
 
 message SubmitTransactionsResponse {}
@@ -86,7 +86,7 @@ message PageResponse {
 message TxData {
   // tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
   // to unmarshal the payload.Body into.
-  uint64 tx_id = 1;
+  string tx_id = 1;
 
   // game_shard_transaction is an encoded game shard transaction.
   bytes game_shard_transaction = 2;

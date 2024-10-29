@@ -8,7 +8,7 @@ option go_package = "pkg.world.dev/world-engine/chain/x/shard/types";
 message Transaction {
   // tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
   // to unmarshal the payload.Body into.
-  uint64 tx_id = 1;
+  string tx_id = 1;
 
   // game_shard_transaction is an encoded game shard transaction.
   bytes game_shard_transaction = 2;

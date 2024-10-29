@@ -11,42 +11,43 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/world"
 )
 
 func main() {
-	options := []cardinal.WorldOption{
-		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
-	}
-
-	world, err := cardinal.NewWorld(options...)
-	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
-	}
-	err = errors.Join(
-		cardinal.RegisterComponent[comp.Location](world),
-		cardinal.RegisterComponent[comp.Player](world),
-	)
-	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
-	}
-	err = errors.Join(
-		cardinal.RegisterMessage[msg.JoinInput, msg.JoinOutput](world, "join"),
-		cardinal.RegisterMessage[msg.MoveInput, msg.MoveOutput](world, "move"),
-		cardinal.RegisterMessage[msg.ErrorInput, msg.ErrorOutput](world, "error"),
-	)
-	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
-	}
-	err = query.RegisterLocationQuery(world)
-	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
-	}
-	err = cardinal.RegisterSystems(world, sys.Join, sys.Move, sys.Error)
+	c, w, err := cardinal.New()
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
 
-	err = world.StartGame()
+	err = errors.Join(
+		world.RegisterComponent[comp.Location](w),
+		world.RegisterComponent[comp.Player](w),
+	)
+	if err != nil {
+		log.Fatal(err, eris.ToString(err, true))
+	}
+
+	err = errors.Join(
+		world.RegisterMessage[msg.JoinInput](w),
+		world.RegisterMessage[msg.MoveInput](w),
+		world.RegisterMessage[msg.ErrorInput](w),
+	)
+	if err != nil {
+		log.Fatal(err, eris.ToString(err, true))
+	}
+
+	err = world.RegisterQuery[query.LocationReq, query.LocationResp](w, "location", query.Location)
+	if err != nil {
+		log.Fatal(err, eris.ToString(err, true))
+	}
+
+	err = world.RegisterSystems(w, sys.Join, sys.Move, sys.Error)
+	if err != nil {
+		log.Fatal(err, eris.ToString(err, true))
+	}
+
+	err = c.Start()
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}

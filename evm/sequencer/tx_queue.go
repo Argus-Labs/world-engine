@@ -54,7 +54,7 @@ func (tc *TxQueue) AddInitMsg(namespace, routerAddr string) error {
 }
 
 // AddTx adds a transaction to the queue.
-func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, payload []byte) error {
+func (tc *TxQueue) AddTx(namespace string, epoch uint64, unixTimestamp uint64, txID string, payload []byte) error {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 

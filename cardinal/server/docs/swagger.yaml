@@ -1,17 +1,5 @@
 basePath: /
 definitions:
-  cardinal_server_handler.CQLQueryRequest:
-    properties:
-      cql:
-        type: string
-    type: object
-  cardinal_server_handler.CQLQueryResponse:
-    properties:
-      results:
-        items:
-          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement'
-        type: array
-    type: object
   cardinal_server_handler.GetHealthResponse:
     properties:
       isGameLoopRunning:
@@ -19,60 +7,78 @@ definitions:
       isServerRunning:
         type: boolean
     type: object
-  cardinal_server_handler.GetWorldResponse:
+  cardinal_server_handler.GetReceiptsRequest:
+    properties:
+      txHashes:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+    type: object
+  cardinal_server_handler.GetReceiptsResponse:
+    properties:
+      receipts:
+        additionalProperties:
+          items:
+            type: integer
+          type: array
+        type: object
+    type: object
+  cardinal_server_handler.PostTransactionResponse:
+    properties:
+      txHash:
+        items:
+          type: integer
+        type: array
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.ComponentInfo:
+    properties:
+      fields:
+        additionalProperties: {}
+        description: property name and type
+        type: object
+      name:
+        description: name of the component
+        type: string
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.EndpointInfo:
+    properties:
+      fields:
+        additionalProperties: {}
+        description: property name and type
+        type: object
+      name:
+        description: name of the message or query
+        type: string
+      url:
+        type: string
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.EntityData:
     properties:
       components:
-        description: list of component names
+        type: object
+      id:
+        type: integer
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.WorldInfo:
+    properties:
+      components:
         items:
-          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.ComponentInfo'
         type: array
       messages:
         items:
-          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EndpointInfo'
         type: array
       namespace:
         type: string
       queries:
         items:
-          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail'
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EndpointInfo'
         type: array
     type: object
-  cardinal_server_handler.ListTxReceiptsRequest:
-    properties:
-      startTick:
-        type: integer
-    type: object
-  cardinal_server_handler.ListTxReceiptsResponse:
-    properties:
-      endTick:
-        type: integer
-      receipts:
-        items:
-          $ref: '#/definitions/cardinal_server_handler.ReceiptEntry'
-        type: array
-      startTick:
-        type: integer
-    type: object
-  cardinal_server_handler.PostTransactionResponse:
-    properties:
-      tick:
-        type: integer
-      txHash:
-        type: string
-    type: object
-  cardinal_server_handler.ReceiptEntry:
-    properties:
-      errors:
-        items:
-          type: string
-        type: array
-      result: {}
-      tick:
-        type: integer
-      txHash:
-        type: string
-    type: object
-  cardinal_server_handler.Transaction:
+  sign.Transaction:
     properties:
       body:
         description: json string
@@ -89,62 +95,12 @@ definitions:
         description: hex encoded string
         type: string
     type: object
-  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
-    properties:
-      data:
-        type: object
-      id:
-        type: integer
-    type: object
-  pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
-    properties:
-      components:
-        type: object
-      id:
-        type: integer
-    type: object
-  pkg_world_dev_world-engine_cardinal_types.FieldDetail:
-    properties:
-      fields:
-        additionalProperties: {}
-        description: variable name and type
-        type: object
-      name:
-        description: name of the message or query
-        type: string
-      url:
-        type: string
-    type: object
 info:
   contact: {}
   description: Backend server for World Engine
   title: Cardinal
   version: 0.0.1
 paths:
-  /cql:
-    post:
-      consumes:
-      - application/json
-      description: Executes a CQL (Cardinal Query Language) query
-      parameters:
-      - description: CQL query to be executed
-        in: body
-        name: cql
-        required: true
-        schema:
-          $ref: '#/definitions/cardinal_server_handler.CQLQueryRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Results of the executed CQL query
-          schema:
-            $ref: '#/definitions/cardinal_server_handler.CQLQueryResponse'
-        "400":
-          description: Invalid request parameters
-          schema:
-            type: string
-      summary: Executes a CQL (Cardinal Query Language) query
   /debug/state:
     post:
       description: Retrieves a list of all entities in the game state
@@ -155,7 +111,7 @@ paths:
           description: List of all entities
           schema:
             items:
-              $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.DebugStateElement'
+              $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityData'
             type: array
       summary: Retrieves a list of all entities in the game state
   /events:
@@ -222,23 +178,23 @@ paths:
       parameters:
       - description: Query body
         in: body
-        name: ListTxReceiptsRequest
+        name: GetReceiptsRequest
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.ListTxReceiptsRequest'
+          $ref: '#/definitions/cardinal_server_handler.GetReceiptsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: List of receipts
           schema:
-            $ref: '#/definitions/cardinal_server_handler.ListTxReceiptsResponse'
+            $ref: '#/definitions/cardinal_server_handler.GetReceiptsResponse'
         "400":
           description: Invalid request body
           schema:
             type: string
       summary: Retrieves all transaction receipts
-  /tx/{txGroup}/{txName}:
+  /tx/{group}/{name}:
     post:
       consumes:
       - application/json
@@ -246,20 +202,20 @@ paths:
       parameters:
       - description: Message group
         in: path
-        name: txGroup
+        name: group
         required: true
         type: string
       - description: Name of a registered message
         in: path
-        name: txName
+        name: name
         required: true
         type: string
       - description: Transaction details & message to be submitted
         in: body
-        name: txBody
+        name: body
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.Transaction'
+          $ref: '#/definitions/sign.Transaction'
       produces:
       - application/json
       responses:
@@ -288,7 +244,7 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.Transaction'
+          $ref: '#/definitions/sign.Transaction'
       produces:
       - application/json
       responses:
@@ -312,7 +268,7 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.Transaction'
+          $ref: '#/definitions/sign.Transaction'
       produces:
       - application/json
       responses:
@@ -336,7 +292,7 @@ paths:
         "200":
           description: Details of the game world
           schema:
-            $ref: '#/definitions/cardinal_server_handler.GetWorldResponse'
+            $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.WorldInfo'
         "400":
           description: Invalid request parameters
           schema:

@@ -90,8 +90,8 @@ func (x *fastReflection_Transaction) Interface() protoreflect.ProtoMessage {
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
 func (x *fastReflection_Transaction) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
-	if x.TxId != uint64(0) {
-		value := protoreflect.ValueOfUint64(x.TxId)
+	if x.TxId != "" {
+		value := protoreflect.ValueOfString(x.TxId)
 		if !f(fd_Transaction_tx_id, value) {
 			return
 		}
@@ -118,7 +118,7 @@ func (x *fastReflection_Transaction) Range(f func(protoreflect.FieldDescriptor, 
 func (x *fastReflection_Transaction) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
 	case "shard.v1.Transaction.tx_id":
-		return x.TxId != uint64(0)
+		return x.TxId != ""
 	case "shard.v1.Transaction.game_shard_transaction":
 		return len(x.GameShardTransaction) != 0
 	default:
@@ -138,7 +138,7 @@ func (x *fastReflection_Transaction) Has(fd protoreflect.FieldDescriptor) bool {
 func (x *fastReflection_Transaction) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
 	case "shard.v1.Transaction.tx_id":
-		x.TxId = uint64(0)
+		x.TxId = ""
 	case "shard.v1.Transaction.game_shard_transaction":
 		x.GameShardTransaction = nil
 	default:
@@ -159,7 +159,7 @@ func (x *fastReflection_Transaction) Get(descriptor protoreflect.FieldDescriptor
 	switch descriptor.FullName() {
 	case "shard.v1.Transaction.tx_id":
 		value := x.TxId
-		return protoreflect.ValueOfUint64(value)
+		return protoreflect.ValueOfString(value)
 	case "shard.v1.Transaction.game_shard_transaction":
 		value := x.GameShardTransaction
 		return protoreflect.ValueOfBytes(value)
@@ -184,7 +184,7 @@ func (x *fastReflection_Transaction) Get(descriptor protoreflect.FieldDescriptor
 func (x *fastReflection_Transaction) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
 	case "shard.v1.Transaction.tx_id":
-		x.TxId = value.Uint()
+		x.TxId = value.Interface().(string)
 	case "shard.v1.Transaction.game_shard_transaction":
 		x.GameShardTransaction = value.Bytes()
 	default:
@@ -225,7 +225,7 @@ func (x *fastReflection_Transaction) Mutable(fd protoreflect.FieldDescriptor) pr
 func (x *fastReflection_Transaction) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
 	case "shard.v1.Transaction.tx_id":
-		return protoreflect.ValueOfUint64(uint64(0))
+		return protoreflect.ValueOfString("")
 	case "shard.v1.Transaction.game_shard_transaction":
 		return protoreflect.ValueOfBytes(nil)
 	default:
@@ -297,8 +297,9 @@ func (x *fastReflection_Transaction) ProtoMethods() *protoiface.Methods {
 		var n int
 		var l int
 		_ = l
-		if x.TxId != 0 {
-			n += 1 + runtime.Sov(uint64(x.TxId))
+		l = len(x.TxId)
+		if l > 0 {
+			n += 1 + l + runtime.Sov(uint64(l))
 		}
 		l = len(x.GameShardTransaction)
 		if l > 0 {
@@ -340,10 +341,12 @@ func (x *fastReflection_Transaction) ProtoMethods() *protoiface.Methods {
 			i--
 			dAtA[i] = 0x12
 		}
-		if x.TxId != 0 {
-			i = runtime.EncodeVarint(dAtA, i, uint64(x.TxId))
+		if len(x.TxId) > 0 {
+			i -= len(x.TxId)
+			copy(dAtA[i:], x.TxId)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.TxId)))
 			i--
-			dAtA[i] = 0x8
+			dAtA[i] = 0xa
 		}
 		if input.Buf != nil {
 			input.Buf = append(input.Buf, dAtA...)
@@ -395,10 +398,10 @@ func (x *fastReflection_Transaction) ProtoMethods() *protoiface.Methods {
 			}
 			switch fieldNum {
 			case 1:
-				if wireType != 0 {
+				if wireType != 2 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field TxId", wireType)
 				}
-				x.TxId = 0
+				var stringLen uint64
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
@@ -408,11 +411,24 @@ func (x *fastReflection_Transaction) ProtoMethods() *protoiface.Methods {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					x.TxId |= uint64(b&0x7F) << shift
+					stringLen |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
 				}
+				intStringLen := int(stringLen)
+				if intStringLen < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				postIndex := iNdEx + intStringLen
+				if postIndex < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				if postIndex > l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				x.TxId = string(dAtA[iNdEx:postIndex])
+				iNdEx = postIndex
 			case 2:
 				if wireType != 2 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field GameShardTransaction", wireType)
@@ -1092,7 +1108,7 @@ type Transaction struct {
 
 	// tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
 	// to unmarshal the payload.Body into.
-	TxId uint64 `protobuf:"varint,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
+	TxId string `protobuf:"bytes,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
 	// game_shard_transaction is an encoded game shard transaction.
 	GameShardTransaction []byte `protobuf:"bytes,2,opt,name=game_shard_transaction,json=gameShardTransaction,proto3" json:"game_shard_transaction,omitempty"`
 }
@@ -1117,11 +1133,11 @@ func (*Transaction) Descriptor() ([]byte, []int) {
 	return file_shard_v1_types_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Transaction) GetTxId() uint64 {
+func (x *Transaction) GetTxId() string {
 	if x != nil {
 		return x.TxId
 	}
-	return 0
+	return ""
 }
 
 func (x *Transaction) GetGameShardTransaction() []byte {
@@ -1189,7 +1205,7 @@ var file_shard_v1_types_proto_rawDesc = []byte{
 	0x0a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74, 0x79, 0x70, 0x65, 0x73,
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31,
 	0x22, 0x58, 0x0a, 0x0b, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12,
-	0x13, 0x0a, 0x05, 0x74, 0x78, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04,
+	0x13, 0x0a, 0x05, 0x74, 0x78, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
 	0x74, 0x78, 0x49, 0x64, 0x12, 0x34, 0x0a, 0x16, 0x67, 0x61, 0x6d, 0x65, 0x5f, 0x73, 0x68, 0x61,
 	0x72, 0x64, 0x5f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x0c, 0x52, 0x14, 0x67, 0x61, 0x6d, 0x65, 0x53, 0x68, 0x61, 0x72, 0x64, 0x54,

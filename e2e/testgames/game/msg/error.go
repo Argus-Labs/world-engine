@@ -4,4 +4,6 @@ type ErrorInput struct {
 	ErrorMsg string
 }
 
-type ErrorOutput struct{}
+func (ErrorInput) Name() string {
+	return "error"
+}

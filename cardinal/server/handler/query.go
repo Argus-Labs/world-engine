@@ -4,8 +4,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/world"
 )
 
 // PostQuery godoc
@@ -20,10 +20,10 @@ import (
 //	@Success      200         {object}  object  "Results of the executed query"
 //	@Failure      400         {string}  string  "Invalid request parameters"
 //	@Router       /query/{queryGroup}/{queryName} [post]
-func PostQuery(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
+func PostQuery(w *world.World) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		ctx.Set("Content-Type", "application/json")
-		resBz, err := world.HandleQuery(ctx.Params("group"), ctx.Params("name"), ctx.Body())
+		resBz, err := w.HandleQuery(ctx.Params("group"), ctx.Params("name"), ctx.Body())
 		if eris.Is(err, types.ErrQueryNotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "query not found")
 		} else if err != nil {

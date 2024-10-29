@@ -10,17 +10,17 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
-	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 )
 
 var _ shard.TransactionHandlerClient = &mockQuerier{}
-var fooMsg = cardinal.NewMessageType[fooIn, fooOut]("foo")
+var fooMsg = message.NewMessageType[fooIn]()
 
 type fooIn struct{ X int }
-type fooOut struct{}
+
+func (fooIn) Name() string { return "foo" }
 
 type mockQuerier struct {
 	i       int
@@ -29,14 +29,15 @@ type mockQuerier struct {
 	request *shard.QueryTransactionsRequest
 }
 
-func (m *mockQuerier) RegisterGameShard(
-	_ context.Context, _ *shard.RegisterGameShardRequest, _ ...grpc.CallOption) (
-	*shard.RegisterGameShardResponse, error) {
+func (m *mockQuerier) RegisterGameShard(_ context.Context, _ *shard.RegisterGameShardRequest, _ ...grpc.CallOption) (
+	*shard.RegisterGameShardResponse, error,
+) {
 	panic("intentionally not implemented. this is a mock.")
 }
 
 func (m *mockQuerier) Submit(_ context.Context, _ *shard.SubmitTransactionsRequest, _ ...grpc.CallOption) (
-	*shard.SubmitTransactionsResponse, error) {
+	*shard.SubmitTransactionsResponse, error,
+) {
 	panic("intentionally not implemented. this is a mock.")
 }
 
@@ -55,46 +56,7 @@ func (m *mockQuerier) QueryTransactions(
 	return m.ret[m.i], nil
 }
 
-func TestIteratorReturnsErrorWhenQueryNotFound(t *testing.T) {
-	querier := &mockQuerier{
-		ret: []*shard.QueryTransactionsResponse{
-			{
-				Epochs: []*shard.Epoch{
-					{
-						Epoch:         1,
-						UnixTimestamp: 1,
-						Txs: []*shard.TxData{
-							{
-								TxId:                 1,
-								GameShardTransaction: nil,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	it := iterator.New(
-		func(types.MessageID) (types.Message, bool) {
-			return nil, false
-		},
-		"",
-		querier,
-	)
-	err := it.Each(nil)
-	assert.ErrorContains(t, err, "queried message with ID 1, but it does not exist in Cardinal")
-}
-
-func TestIteratorReturnsErrorIfQueryFails(t *testing.T) {
-	querier := &mockQuerier{retErr: errors.New("some error")}
-	it := iterator.New(nil, "foo", querier)
-	err := it.Each(nil)
-	assert.ErrorContains(t, err, "some error")
-}
-
 func TestIteratorHappyPath(t *testing.T) {
-	err := fooMsg.SetID(10)
-	assert.NilError(t, err)
 	namespace := "ns"
 	msgValue := fooIn{3}
 	msgBytes, err := fooMsg.Encode(msgValue)
@@ -117,7 +79,7 @@ func TestIteratorHappyPath(t *testing.T) {
 						UnixTimestamp: 15,
 						Txs: []*shard.TxData{
 							{
-								TxId:                 uint64(fooMsg.ID()),
+								TxId:                 fooMsg.Name(),
 								GameShardTransaction: txBz,
 							},
 						},
@@ -128,12 +90,6 @@ func TestIteratorHappyPath(t *testing.T) {
 		},
 	}
 	it := iterator.New(
-		func(id types.MessageID) (types.Message, bool) {
-			if id == fooMsg.ID() {
-				return fooMsg, true
-			}
-			return nil, false
-		},
 		namespace,
 		querier,
 	)
@@ -143,8 +99,7 @@ func TestIteratorHappyPath(t *testing.T) {
 		assert.Equal(t, timestamp, uint64(15))
 		tx := batch[0]
 
-		assert.Equal(t, tx.MsgValue, msgValue)
-		assert.Equal(t, tx.MsgID, fooMsg.ID())
+		assert.Equal(t, tx.MsgName, fooMsg.Name())
 		assert.Equal(t, tx.Tx.PersonaTag, protoTx.GetPersonaTag())
 		assert.True(t, len(tx.Tx.Hash.Bytes()) > 1)
 		assert.Equal(t, tx.Tx.Namespace, namespace)
@@ -157,7 +112,7 @@ func TestIteratorHappyPath(t *testing.T) {
 
 func TestIteratorStartRange(t *testing.T) {
 	querier := &mockQuerier{retErr: errors.New("whatever")}
-	it := iterator.New(nil, "", querier)
+	it := iterator.New("", querier)
 
 	// we dont care about this error, we're just checking if `querier` gets called with the right key in the Page.
 	startRange := uint64(5)
@@ -169,8 +124,6 @@ func TestIteratorStartRange(t *testing.T) {
 }
 
 func TestIteratorStopRange(t *testing.T) {
-	err := fooMsg.SetID(10)
-	assert.NilError(t, err)
 	namespace := "ns"
 	msgValue := fooIn{3}
 	msgBytes, err := fooMsg.Encode(msgValue)
@@ -193,7 +146,7 @@ func TestIteratorStopRange(t *testing.T) {
 						UnixTimestamp: 15,
 						Txs: []*shard.TxData{
 							{
-								TxId:                 uint64(fooMsg.ID()),
+								TxId:                 fooMsg.Name(),
 								GameShardTransaction: txBz,
 							},
 						},
@@ -207,12 +160,6 @@ func TestIteratorStopRange(t *testing.T) {
 		},
 	}
 	it := iterator.New(
-		func(id types.MessageID) (types.Message, bool) {
-			if id == fooMsg.ID() {
-				return fooMsg, true
-			}
-			return nil, false
-		},
 		namespace,
 		querier,
 	)
@@ -226,7 +173,7 @@ func TestIteratorStopRange(t *testing.T) {
 }
 
 func TestStartGreaterThanStopRange(t *testing.T) {
-	it := iterator.New(nil, "", nil)
+	it := iterator.New("", nil)
 	err := it.Each(nil, 154, 0)
 	assert.ErrorContains(t, err, "first number in range must be less than the second (start,stop)")
 }

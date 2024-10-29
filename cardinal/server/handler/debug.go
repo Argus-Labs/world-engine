@@ -3,13 +3,14 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/gamestate/search/filter"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/world"
 )
 
 type DebugStateRequest struct{}
 
-type DebugStateResponse = []types.DebugStateElement
+type DebugStateResponse = []types.EntityData
 
 // GetState godoc
 //
@@ -18,14 +19,32 @@ type DebugStateResponse = []types.DebugStateElement
 // @Produce      application/json
 // @Success      200  {object}  DebugStateResponse "List of all entities"
 // @Router       /debug/state [post]
-func GetState(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
+func GetState(w *world.World) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		var result DebugStateResponse
-		result, err := world.GetDebugState()
+		entities := make([]types.EntityData, 0)
+
+		var eachErr error
+		err := w.Search(filter.All()).Each(func(id types.EntityID) bool {
+			components, err := w.State().FinalizedState().GetAllComponentsForEntityInRawJSON(id)
+			if err != nil {
+				eachErr = err
+				return false
+			}
+
+			entities = append(entities, types.EntityData{
+				ID:         id,
+				Components: components,
+			})
+
+			return true
+		})
 		if err != nil {
-			return err
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		if eachErr != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, eachErr.Error())
 		}
 
-		return ctx.JSON(&result)
+		return ctx.JSON(entities)
 	}
 }

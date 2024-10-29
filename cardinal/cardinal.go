@@ -1,366 +1,381 @@
 package cardinal
 
 import (
-	"errors"
-	"reflect"
-	"strconv"
+	"context"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
+	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
+	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
-	"pkg.world.dev/world-engine/cardinal/component"
-	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/config"
+	"pkg.world.dev/world-engine/cardinal/plugin/task"
+	"pkg.world.dev/world-engine/cardinal/router"
+	"pkg.world.dev/world-engine/cardinal/router/iterator"
+	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/telemetry"
+	"pkg.world.dev/world-engine/cardinal/tick"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/worldstage"
+	"pkg.world.dev/world-engine/cardinal/world"
 )
 
-var (
-	ErrEntityMutationOnReadOnly          = errors.New("cannot modify state with read only context")
-	ErrEntitiesCreatedBeforeReady        = errors.New("entities should not be created before world is ready")
-	ErrEntityDoesNotExist                = gamestate.ErrEntityDoesNotExist
-	ErrEntityMustHaveAtLeastOneComponent = gamestate.ErrEntityMustHaveAtLeastOneComponent
-	ErrComponentNotOnEntity              = gamestate.ErrComponentNotOnEntity
-	ErrComponentAlreadyOnEntity          = gamestate.ErrComponentAlreadyOnEntity
+const (
+	RedisDialTimeOut = 150
 )
 
-// FilterFunction wrap your component filter function of func(comp T) bool inside FilterFunction to use
-// in search.
-//
-// Usage:
-//
-// cardinal.NewSearch().Entity(filter.Not(filter.
-// Contains(filter.Component[AlphaTest]()))).Where(cardinal.FilterFunction[GammaTest](func(_ GammaTest) bool {
-//  	return true
-// }))
+type Cardinal struct {
+	cancel      context.CancelFunc
+	tickChannel <-chan time.Time
+	isReplica   bool
+	config      config.Config
 
-func FilterFunction[T types.Component](f func(comp T) bool) func(ctx WorldContext, id types.EntityID) (bool, error) {
-	return ComponentFilter[T](f)
+	world  *world.World
+	server *server.Server
+	router router.Router
+
+	telemetry *telemetry.Manager
+	tracer    trace.Tracer // Tracer for Cardinal
+
+	subscribers []chan *tick.Tick
+	mu          *sync.RWMutex
+	closed      bool
+
+	startHook func() error
 }
 
-func RegisterSystems(w *World, sys ...System) error {
-	if w.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"world state is %s, expected %s to register systems",
-			w.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
-	return w.SystemManager.registerSystems(false, sys...)
-}
-
-func RegisterInitSystems(w *World, sys ...System) error {
-	if w.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"world state is %s, expected %s to register init systems",
-			w.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
-	return w.SystemManager.registerSystems(true, sys...)
-}
-
-func RegisterComponent[T types.Component](w *World) error {
-	if w.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"world state is %s, expected %s to register component",
-			w.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
-
-	compMetadata, err := component.NewComponentMetadata[T]()
+func New(opts ...CardinalOption) (*Cardinal, *world.World, error) {
+	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return nil, nil, eris.Wrap(err, "Failed to load config to start world")
 	}
+	cardinalOpts, routerOpts, worldOpts := separateOptions(opts)
 
-	err = w.RegisterComponent(compMetadata)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func MustRegisterComponent[T types.Component](w *World) {
-	err := RegisterComponent[T](w)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func EachMessage[In any, Out any](wCtx WorldContext, fn func(TxData[In]) (Out, error)) error {
-	var msg MessageType[In, Out]
-	msgType := reflect.TypeOf(msg)
-	tempRes, ok := wCtx.getMessageByType(msgType)
-	if !ok {
-		return eris.Errorf("Could not find %s, Message may not be registered.", msg.Name())
-	}
-	var _ types.Message = &msg
-	res, ok := tempRes.(*MessageType[In, Out])
-	if !ok {
-		return eris.New("wrong type")
-	}
-	res.Each(wCtx, fn)
-	return nil
-}
-
-// RegisterMessage registers a message to the world. Cardinal will automatically set up HTTP routes that map to each
-// registered message. Message URLs are take the form of "group.name". A default group, "game", is used
-// unless the WithCustomMessageGroup option is used. Example: game.throw-rock
-func RegisterMessage[In any, Out any](world *World, name string, opts ...MessageOption[In, Out]) error {
-	if world.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"world state is %s, expected %s to register messages",
-			world.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
-
-	// Create the message type
-	msgType := NewMessageType[In, Out](name, opts...)
-
-	// Register the message with the manager
-	err := world.RegisterMessage(msgType, reflect.TypeOf(*msgType))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func RegisterQuery[Request any, Reply any](
-	w *World,
-	name string,
-	handler func(wCtx WorldContext, req *Request) (*Reply, error),
-	opts ...QueryOption[Request, Reply],
-) (err error) {
-	if w.worldStage.Current() != worldstage.Init {
-		return eris.Errorf(
-			"world state is %s, expected %s to register query",
-			w.worldStage.Current(),
-			worldstage.Init,
-		)
-	}
-
-	q, err := newQueryType[Request, Reply](name, handler, opts...)
-	if err != nil {
-		return err
-	}
-
-	res := w.RegisterQuery(q)
-	return res
-}
-
-// Create creates a single entity in the world, and returns the id of the newly created entity.
-// At least 1 component must be provided.
-func Create(wCtx WorldContext, components ...types.Component) (_ types.EntityID, err error) {
-	// We don't handle panics here because we let CreateMany handle it for us
-	entityIDs, err := CreateMany(wCtx, 1, components...)
-	if err != nil {
-		return 0, err
-	}
-	return entityIDs[0], nil
-}
-
-// CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
-// entities. At least 1 component must be provided.
-func CreateMany(wCtx WorldContext, num int, components ...types.Component) (entityIDs []types.EntityID, err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
-
-	// Error if the context is read only
-	if wCtx.isReadOnly() {
-		return nil, ErrEntityMutationOnReadOnly
-	}
-
-	if !wCtx.isWorldReady() {
-		return nil, ErrEntitiesCreatedBeforeReady
-	}
-
-	// Get all component metadata for the given components
-	acc := make([]types.ComponentMetadata, 0, len(components))
-	for _, comp := range components {
-		c, err := wCtx.getComponentByName(comp.Name())
+	// Initialize telemetry
+	var tm *telemetry.Manager
+	if cfg.TelemetryTraceEnabled || cfg.TelemetryProfilerEnabled {
+		tm, err = telemetry.New(cfg.TelemetryTraceEnabled, cfg.TelemetryProfilerEnabled)
 		if err != nil {
-			return nil, eris.Wrap(err, "failed to create entity because component is not registered")
+			return nil, nil, eris.Wrap(err, "failed to create telemetry manager")
 		}
-		acc = append(acc, c)
 	}
 
-	// Create the entities
-	entityIDs, err = wCtx.storeManager().CreateManyEntities(num, acc...)
+	rs := redis.NewRedisStorage(redis.Options{
+		Addr:        cfg.RedisAddress,
+		Password:    cfg.RedisPassword,
+		DB:          0,                              // use default DB
+		DialTimeout: RedisDialTimeOut * time.Second, // Increase startup dial timeout
+	}, cfg.CardinalNamespace)
+
+	w, err := world.New(&rs, worldOpts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, eris.Wrap(err, "failed to create world")
 	}
 
-	// Store the components for the entities
-	for _, id := range entityIDs {
-		for _, comp := range components {
-			var c types.ComponentMetadata
-			c, err = wCtx.getComponentByName(comp.Name())
-			if err != nil {
-				return nil, eris.Wrap(err, "failed to create entity because component is not registered")
+	s, err := server.New(w)
+	if err != nil {
+		return nil, nil, eris.Wrap(err, "failed to create server")
+	}
+
+	// Initialize shard router if running in rollup mode
+	var rtr router.Router
+	if cfg.CardinalRollupEnabled {
+		rtr, err = router.New(w, routerOpts...)
+		if err != nil {
+			return nil, nil, eris.Wrap(err, "failed to initialize shard router")
+		}
+	}
+
+	c := &Cardinal{
+		world:     w,
+		server:    s,
+		router:    rtr,
+		telemetry: tm,
+		tracer:    otel.Tracer("cardinal"),
+		mu:        &sync.RWMutex{},
+		isReplica: false,
+		config:    *cfg,
+	}
+
+	// Apply options
+	for _, opt := range cardinalOpts {
+		opt(c)
+	}
+
+	// Register plugins
+	world.RegisterPlugin(w, task.NewPlugin())
+
+	return c, w, nil
+}
+
+func (c *Cardinal) Start() error {
+	var ctx context.Context
+	ctx, c.cancel = context.WithCancel(context.Background())
+
+	err := c.world.Init()
+	if err != nil {
+		return eris.Wrap(err, "failed to init world")
+	}
+
+	// Handles SIGINT and SIGTERM signals and starts the shutdown process.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		c.Stop()
+	}()
+
+	// It is possible to inject a custom tick channel that provides manual control over when ticks are executed
+	// by passing in the WithTickChannel option on the cardinal.New function.
+	// If the tick channel is not set, an auto-ticker will be used that ticks every second.
+	// TODO: this should be configurable via an environnment variable or config file.
+	if c.tickChannel == nil {
+		c.tickChannel = time.Tick(time.Second)
+	}
+
+	if c.config.CardinalRollupEnabled {
+		err = c.syncLoop(ctx)
+		if err != nil {
+			return eris.Wrap(err, "failed to sync loop")
+		}
+	}
+
+	go c.server.Serve(ctx)
+
+	if c.startHook != nil {
+		err := c.startHook()
+		if err != nil {
+			return eris.Wrap(err, "failed to run start hook")
+		}
+	}
+
+	if !c.isReplica {
+		err := c.tickLoop(ctx)
+		if err != nil {
+			return eris.Wrap(err, "failed to tick loop")
+		}
+	}
+
+	return nil
+}
+
+func (c *Cardinal) syncLoop(ctx context.Context) error {
+	syncChannel := make(chan tick.Proposal)
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		err := c.router.TransactionIterator().Each(func(batches []*iterator.TxBatch, tick, timestamp uint64) error {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				log.Info().Msgf("Found transactions for tick %d", tick)
+
+				var txMap types.TxMap
+				for _, tx := range batches {
+					msgType, ok := c.world.GetMessage(tx.MsgName)
+					if !ok {
+						return eris.New("failed to get message")
+					}
+
+					msg, err := msgType.Decode(tx.Tx.Body)
+					if err != nil {
+						return eris.Wrap(err, "failed to decode message")
+					}
+
+					txData := types.TxData{
+						Tx:              tx.Tx,
+						Msg:             msg,
+						EVMSourceTxHash: nil, // TODO: this seems suspect.
+					}
+					txMap[tx.MsgName] = append(txMap[tx.MsgName], txData)
+				}
+				proposal := c.world.PrepareSyncTick(int64(tick), int64(timestamp), txMap)
+				syncChannel <- proposal
 			}
+			return nil
+		})
+		if err != nil {
+			return eris.Wrap(err, "encountered an error while syncing from chain")
+		}
 
-			err = wCtx.storeManager().SetComponentForEntity(c, id, comp)
+		// Once we finish syncing, syncChannel should be closed.
+		// This signals to the syncLoop that it should exit.
+		// TODO: Handle continuous syncing where there are new transactions batches coming in.
+		close(syncChannel)
+
+		return nil
+	})
+
+	eg.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case proposal, ok := <-syncChannel:
+				// When we finish syncing, syncChannel will be closed.
+				// If that's the case, we should exit the loop.
+				if !ok {
+					return nil
+				}
+
+				// Currently, since we do not post batches for ticks without transactions, we would need to fast forward
+				// the tick if we encounter any gaps.
+				// We want to tick forward until the last finalized tick is exactly one tick behind the tick we are
+				// sychronizing to.
+				if c.world.LastFinalizedTick() < proposal.ID-1 {
+					// TODO: Non-deterministic behavior here. We need to know the historical timestamp to be able to
+					//  do deterministic fast forwarding of the tick.
+					ffProposal := c.world.PrepareSyncTick(c.world.LastFinalizedTick()+1,
+						proposal.Timestamp, make(types.TxMap))
+
+					err := c.nextTick(ctx, &ffProposal)
+					if err != nil {
+						return eris.Wrap(err, "failed to fast forward tick")
+					}
+
+					return nil
+				}
+
+				err := c.nextTick(ctx, &proposal)
+				if err != nil {
+					return eris.Wrap(err, "failed to apply tick")
+				}
+			}
+		}
+	})
+
+	return eg.Wait()
+}
+
+func (c *Cardinal) tickLoop(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-c.tickChannel:
+			proposal := c.world.PrepareTick(c.world.CopyTransactions(ctx))
+			err := c.nextTick(ctx, &proposal)
 			if err != nil {
-				return nil, err
+				return eris.Wrap(err, "failed to apply tick")
 			}
 		}
 	}
-
-	return entityIDs, nil
 }
 
-// SetComponent sets component data to the entity.
-func SetComponent[T types.Component](wCtx WorldContext, id types.EntityID, component *T) (err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
-
-	// Error if the context is read only
-	if wCtx.isReadOnly() {
-		return ErrEntityMutationOnReadOnly
+// isSyncMode will return true if the world is not fully synchronized with the EVM shard.
+// In a replica shard, this should always return true because we want to continuously listen for new transactions from
+// the leader shard.
+func (c *Cardinal) isSyncMode() bool {
+	if c.isReplica {
+		return true
 	}
+	// TODO: check whether we are the tip tick of the leader shard.
 
-	// Get the component metadata
-	var t T
-	c, err := wCtx.getComponentByName(t.Name())
-	if err != nil {
-		return err
-	}
-
-	// Store the component
-	err = wCtx.storeManager().SetComponentForEntity(c, id, component)
-	if err != nil {
-		return err
-	}
-
-	// Log
-	wCtx.Logger().Debug().
-		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
-		Str("component_name", c.Name()).
-		Int("component_id", int(c.ID())).
-		Msg("entity updated")
-
-	return nil
+	return false
 }
 
-// GetComponent returns component data from the entity.
-func GetComponent[T types.Component](wCtx WorldContext, id types.EntityID) (comp *T, err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
+func (c *Cardinal) nextTick(ctx context.Context, proposal *tick.Proposal) error {
+	ctx, span := c.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "world.tick")
+	defer span.End()
 
-	// Get the component metadata
-	var t T
-	c, err := wCtx.getComponentByName(t.Name())
+	startTime := time.Now()
+
+	t, err := c.world.ApplyTick(ctx, proposal)
 	if err != nil {
-		return nil, err
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to apply tick")
 	}
 
-	// Get current component value
-	compValue, err := wCtx.storeReader().GetComponentForEntity(c, id)
+	err = c.world.CommitTick(t)
 	if err != nil {
-		return nil, err
+		span.SetStatus(codes.Error, eris.ToString(err, true))
+		span.RecordError(err)
+		return eris.Wrap(err, "failed to commit tick")
 	}
 
-	// Type assert the component value to the component type
-	t, ok := compValue.(T)
-	if !ok {
-		comp, ok = compValue.(*T)
-		if !ok {
-			return nil, err
+	if !c.isSyncMode() && !c.isReplica && c.config.CardinalRollupEnabled {
+		// Broadcast tick
+		err = c.server.BroadcastEvent(t)
+		if err != nil {
+			span.SetStatus(codes.Error, eris.ToString(err, true))
+			span.RecordError(err)
+			return eris.Wrap(err, "failed to broadcast tick")
 		}
-	} else {
-		comp = &t
+
+		// Submit tick to router
+		err = c.router.SubmitTxBlob(ctx, t)
+		if err != nil {
+			span.SetStatus(codes.Error, eris.ToString(err, true))
+			span.RecordError(err)
+			return eris.Wrap(err, "failed to submit transactions to base shard")
+		}
 	}
 
-	return comp, nil
-}
+	c.publishTick(t)
 
-func UpdateComponent[T types.Component](wCtx WorldContext, id types.EntityID, fn func(*T) *T) (err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
-
-	// Error if the context is read only
-	if wCtx.isReadOnly() {
-		return err
-	}
-
-	// Get current component value
-	val, err := GetComponent[T](wCtx, id)
-	if err != nil {
-		return err
-	}
-
-	// Get the new component value
-	updatedVal := fn(val)
-
-	// Store the new component value
-	err = SetComponent[T](wCtx, id, updatedVal)
-	if err != nil {
-		return err
-	}
+	log.Info().
+		Int64("tick", t.ID).
+		Dur("duration", time.Since(startTime)).
+		Int("tx_count", len(t.Receipts)).
+		Msg("Tick completed")
 
 	return nil
 }
 
-func AddComponentTo[T types.Component](wCtx WorldContext, id types.EntityID) (err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
+func (c *Cardinal) Subscribe() <-chan *tick.Tick {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	// Error if the context is read only
-	if wCtx.isReadOnly() {
-		return ErrEntityMutationOnReadOnly
+	if c.closed {
+		return nil
 	}
 
-	// Get the component metadata
-	var t T
-	c, err := wCtx.getComponentByName(t.Name())
-	if err != nil {
-		return err
-	}
+	r := make(chan *tick.Tick)
 
-	// Add the component to entity
-	err = wCtx.storeManager().AddComponentToEntity(c, id)
-	if err != nil {
-		return err
-	}
+	c.subscribers = append(c.subscribers, r)
 
-	return nil
+	return r
 }
 
-// RemoveComponentFrom removes a component from an entity.
-func RemoveComponentFrom[T types.Component](wCtx WorldContext, id types.EntityID) (err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
+func (c *Cardinal) publishTick(t *tick.Tick) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	// Error if the context is read only
-	if wCtx.isReadOnly() {
-		return ErrEntityMutationOnReadOnly
+	if c.closed {
+		return
 	}
 
-	// Get the component metadata
-	var t T
-	c, err := wCtx.getComponentByName(t.Name())
-	if err != nil {
-		return err
+	for _, ch := range c.subscribers {
+		ch <- t
 	}
-
-	// Remove the component from entity
-	err = wCtx.storeManager().RemoveComponentFromEntity(c, id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
-// Remove removes the given Entity from the world.
-func Remove(wCtx WorldContext, id types.EntityID) (err error) {
-	defer func() { panicOnFatalError(wCtx, err) }()
+func (c *Cardinal) Stop() {
+	c.cancel()
 
-	// Error if the context is read only
-	if wCtx.isReadOnly() {
-		return ErrEntityMutationOnReadOnly
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return
 	}
 
-	err = wCtx.storeManager().RemoveEntity(id)
-	if err != nil {
-		return err
+	for _, ch := range c.subscribers {
+		close(ch)
 	}
+}
 
-	return nil
+func (c *Cardinal) World() *world.World {
+	return c.world
 }

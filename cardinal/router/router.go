@@ -15,8 +15,10 @@ import (
 	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
 	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
+	"pkg.world.dev/world-engine/cardinal/config"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
-	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/tick"
+	"pkg.world.dev/world-engine/cardinal/world"
 	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -42,12 +44,7 @@ type Router interface {
 	RegisterGameShard(context.Context) error
 
 	// SubmitTxBlob submits transactions processed in a tick to the base shard.
-	SubmitTxBlob(
-		ctx context.Context,
-		processedTxs txpool.TxMap,
-		epoch,
-		unixTimestamp uint64,
-	) error
+	SubmitTxBlob(ctx context.Context, tick *tick.Tick) error
 
 	TransactionIterator() iterator.Iterator
 
@@ -58,7 +55,7 @@ type Router interface {
 }
 
 type router struct {
-	provider          Provider
+	world             *world.World
 	ShardSequencer    shard.TransactionHandlerClient
 	namespace         string
 	server            *evmServer
@@ -72,13 +69,19 @@ type router struct {
 	tracer trace.Tracer
 }
 
-func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Option) (Router, error) {
+func New(world *world.World, opts ...Option) (Router, error) {
 	tracer := otel.Tracer("router")
+
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, eris.Wrap(err, "Failed to load config to start world")
+	}
+
 	rtr := &router{
-		provider:  world,
-		namespace: namespace,
+		world:     world,
+		namespace: cfg.CardinalNamespace,
 		port:      defaultPort,
-		routerKey: routerKey,
+		routerKey: cfg.BaseShardRouterKey,
 		tracer:    tracer,
 	}
 	for _, opt := range opts {
@@ -86,12 +89,12 @@ func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Opt
 	}
 
 	conn, err := grpc.NewClient(
-		sequencerAddr,
+		cfg.BaseShardSequencerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),
+		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(cfg.BaseShardRouterKey)),
 	)
 	if err != nil {
-		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
+		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", cfg.BaseShardSequencerAddress)
 	}
 	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
 
@@ -110,7 +113,7 @@ func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Opt
 		}
 	}
 
-	rtr.server = newEvmServer(world, routerKey)
+	rtr.server = newEvmServer(world, cfg.BaseShardRouterKey)
 	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
 }
@@ -130,36 +133,30 @@ func (r *router) RegisterGameShard(ctx context.Context) error {
 	return nil
 }
 
-func (r *router) SubmitTxBlob(
-	ctx context.Context,
-	processedTxs txpool.TxMap,
-	epoch,
-	unixTimestamp uint64,
-) error {
+func (r *router) SubmitTxBlob(ctx context.Context, tick *tick.Tick) error {
 	_, span := r.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "router.submit-tx-blob")
 	defer span.End()
 
-	messageIDtoTxs := make(map[uint64]*shard.Transactions)
-	for msgID, txs := range processedTxs {
+	transactions := make(map[string]*shard.Transactions)
+	for msgID, txs := range tick.Txs {
 		protoTxs := make([]*shard.Transaction, 0, len(txs))
-		for _, txData := range txs {
-			tx := txData.Tx
+		for _, tx := range txs {
 			protoTxs = append(protoTxs, &shard.Transaction{
-				PersonaTag: tx.PersonaTag,
-				Namespace:  tx.Namespace,
-				Nonce:      tx.Nonce,
-				Signature:  tx.Signature,
-				Body:       tx.Body,
+				PersonaTag: tx.Tx.PersonaTag,
+				Namespace:  tx.Tx.Namespace,
+				Nonce:      tx.Tx.Nonce,
+				Signature:  tx.Tx.Signature,
+				Body:       tx.Tx.Body,
 			})
 		}
-		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}
+		transactions[msgID] = &shard.Transactions{Txs: protoTxs}
 	}
 
 	req := shard.SubmitTransactionsRequest{
-		Epoch:         epoch,
-		UnixTimestamp: unixTimestamp,
+		Epoch:         uint64(tick.ID),
+		UnixTimestamp: uint64(tick.Timestamp),
 		Namespace:     r.namespace,
-		Transactions:  messageIDtoTxs,
+		Transactions:  transactions,
 	}
 
 	_, err := r.sequencerJobQueue.Enqueue(&req)
@@ -173,7 +170,7 @@ func (r *router) SubmitTxBlob(
 }
 
 func (r *router) TransactionIterator() iterator.Iterator {
-	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardSequencer)
+	return iterator.New(r.namespace, r.ShardSequencer)
 }
 
 func (r *router) Shutdown() {

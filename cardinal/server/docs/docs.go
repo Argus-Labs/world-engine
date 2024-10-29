@@ -15,43 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/cql": {
-            "post": {
-                "description": "Executes a CQL (Cardinal Query Language) query",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Executes a CQL (Cardinal Query Language) query",
-                "parameters": [
-                    {
-                        "description": "CQL query to be executed",
-                        "name": "cql",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.CQLQueryRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Results of the executed CQL query",
-                        "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.CQLQueryResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/debug/state": {
             "post": {
                 "description": "Retrieves a list of all entities in the game state",
@@ -65,7 +28,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.DebugStateElement"
+                                "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityData"
                             }
                         }
                     }
@@ -119,11 +82,11 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "Query body",
-                        "name": "ListTxReceiptsRequest",
+                        "name": "GetReceiptsRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.ListTxReceiptsRequest"
+                            "$ref": "#/definitions/cardinal_server_handler.GetReceiptsRequest"
                         }
                     }
                 ],
@@ -131,7 +94,7 @@ const docTemplate = `{
                     "200": {
                         "description": "List of receipts",
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.ListTxReceiptsResponse"
+                            "$ref": "#/definitions/cardinal_server_handler.GetReceiptsResponse"
                         }
                     },
                     "400": {
@@ -218,7 +181,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
+                            "$ref": "#/definitions/sign.Transaction"
                         }
                     }
                 ],
@@ -255,7 +218,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
+                            "$ref": "#/definitions/sign.Transaction"
                         }
                     }
                 ],
@@ -275,7 +238,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/tx/{txGroup}/{txName}": {
+        "/tx/{group}/{name}": {
             "post": {
                 "description": "Submits a transaction",
                 "consumes": [
@@ -289,24 +252,24 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Message group",
-                        "name": "txGroup",
+                        "name": "group",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Name of a registered message",
-                        "name": "txName",
+                        "name": "name",
                         "in": "path",
                         "required": true
                     },
                     {
                         "description": "Transaction details \u0026 message to be submitted",
-                        "name": "txBody",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
+                            "$ref": "#/definitions/sign.Transaction"
                         }
                     }
                 ],
@@ -340,7 +303,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Details of the game world",
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.GetWorldResponse"
+                            "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.WorldInfo"
                         }
                     },
                     "400": {
@@ -354,25 +317,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "cardinal_server_handler.CQLQueryRequest": {
-            "type": "object",
-            "properties": {
-                "cql": {
-                    "type": "string"
-                }
-            }
-        },
-        "cardinal_server_handler.CQLQueryResponse": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement"
-                    }
-                }
-            }
-        },
         "cardinal_server_handler.GetHealthResponse": {
             "type": "object",
             "properties": {
@@ -384,20 +328,100 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal_server_handler.GetWorldResponse": {
+        "cardinal_server_handler.GetReceiptsRequest": {
+            "type": "object",
+            "properties": {
+                "txHashes": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        },
+        "cardinal_server_handler.GetReceiptsResponse": {
+            "type": "object",
+            "properties": {
+                "receipts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        },
+        "cardinal_server_handler.PostTransactionResponse": {
+            "type": "object",
+            "properties": {
+                "txHash": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "pkg_world_dev_world-engine_cardinal_types.ComponentInfo": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "description": "property name and type",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "description": "name of the component",
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_world_dev_world-engine_cardinal_types.EndpointInfo": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "description": "property name and type",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "description": "name of the message or query",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_world_dev_world-engine_cardinal_types.EntityData": {
             "type": "object",
             "properties": {
                 "components": {
-                    "description": "list of component names",
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_world_dev_world-engine_cardinal_types.WorldInfo": {
+            "type": "object",
+            "properties": {
+                "components": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.ComponentInfo"
                     }
                 },
                 "messages": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EndpointInfo"
                     }
                 },
                 "namespace": {
@@ -406,66 +430,12 @@ const docTemplate = `{
                 "queries": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.FieldDetail"
+                        "$ref": "#/definitions/pkg_world_dev_world-engine_cardinal_types.EndpointInfo"
                     }
                 }
             }
         },
-        "cardinal_server_handler.ListTxReceiptsRequest": {
-            "type": "object",
-            "properties": {
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
-        "cardinal_server_handler.ListTxReceiptsResponse": {
-            "type": "object",
-            "properties": {
-                "endTick": {
-                    "type": "integer"
-                },
-                "receipts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cardinal_server_handler.ReceiptEntry"
-                    }
-                },
-                "startTick": {
-                    "type": "integer"
-                }
-            }
-        },
-        "cardinal_server_handler.PostTransactionResponse": {
-            "type": "object",
-            "properties": {
-                "tick": {
-                    "type": "integer"
-                },
-                "txHash": {
-                    "type": "string"
-                }
-            }
-        },
-        "cardinal_server_handler.ReceiptEntry": {
-            "type": "object",
-            "properties": {
-                "errors": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "result": {},
-                "tick": {
-                    "type": "integer"
-                },
-                "txHash": {
-                    "type": "string"
-                }
-            }
-        },
-        "cardinal_server_handler.Transaction": {
+        "sign.Transaction": {
             "type": "object",
             "properties": {
                 "body": {
@@ -486,45 +456,6 @@ const docTemplate = `{
                 },
                 "signature": {
                     "description": "hex encoded string",
-                    "type": "string"
-                }
-            }
-        },
-        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "object"
-                },
-                "id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
-            "type": "object",
-            "properties": {
-                "components": {
-                    "type": "object"
-                },
-                "id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "pkg_world_dev_world-engine_cardinal_types.FieldDetail": {
-            "type": "object",
-            "properties": {
-                "fields": {
-                    "description": "variable name and type",
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "name": {
-                    "description": "name of the message or query",
-                    "type": "string"
-                },
-                "url": {
                     "type": "string"
                 }
             }

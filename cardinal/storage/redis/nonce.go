@@ -2,7 +2,6 @@ package redis
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"sync"
 
@@ -32,7 +31,7 @@ const (
 	float64MantissaSize = 52
 )
 
-var ErrNonceHasAlreadyBeenUsed = errors.New("nonce has already been used")
+var ErrNonceHasAlreadyBeenUsed = eris.New("nonce has already been used")
 
 type NonceStorage struct {
 	Client *redis.Client

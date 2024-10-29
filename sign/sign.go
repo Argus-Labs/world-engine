@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -22,15 +21,16 @@ const SystemPersonaTag = "SystemPersonaTag"
 
 var (
 	// ErrSignatureValidationFailed is returned when a signature is not valid.
-	ErrSignatureValidationFailed = errors.New("signature validation failed")
-	ErrCannotSignEmptyBody       = errors.New("cannot sign empty body")
-	ErrInvalidPersonaTag         = errors.New("invalid persona tag")
-	ErrInvalidNamespace          = errors.New("invalid namespace")
+	ErrSignatureValidationFailed = eris.New("signature validation failed")
+	ErrCannotSignEmptyBody       = eris.New("cannot sign empty body")
+	ErrInvalidPersonaTag         = eris.New("invalid persona tag")
+	ErrInvalidNamespace          = eris.New("invalid namespace")
 
-	ErrNoPersonaTagField = errors.New("transaction must contain personaTag field")
-	ErrNoNamespaceField  = errors.New("transaction must contain namespace field")
-	ErrNoSignatureField  = errors.New("transaction must contain signature field")
-	ErrNoBodyField       = errors.New("transaction must contain body field")
+	ErrNoPersonaTagField = eris.New("transaction must contain personaTag field")
+	ErrNoNamespaceField  = eris.New("transaction must contain namespace field")
+	ErrNoSignatureField  = eris.New("transaction must contain signature field")
+	ErrNoBodyField       = eris.New("transaction must contain body field")
+	ErrTxNotSigned       = eris.New("transaction is not signed")
 )
 
 type Transaction struct {
@@ -203,8 +203,10 @@ func (s *Transaction) IsSystemTransaction() bool {
 // Marshal serializes this Transaction to bytes, which can then be passed in to Unmarshal.
 func (s *Transaction) Marshal() ([]byte, error) {
 	res, err := json.Marshal(s)
-	err = eris.Wrap(err, "")
-	return res, err
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func isZeroHash(hash common.Hash) bool {
@@ -212,17 +214,40 @@ func isZeroHash(hash common.Hash) bool {
 }
 
 // HashHex return a hex encoded hash of the signature.
-func (s *Transaction) HashHex() string {
+func (s *Transaction) HashHex() *common.Hash {
 	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
-	return s.Hash.Hex()
+	return &s.Hash
+}
+
+// Signer performs ecrecover on the signature and returns the signer address.
+func (s *Transaction) Signer() (common.Address, error) {
+	if s.Signature == "" {
+		return common.Address{}, ErrTxNotSigned
+	}
+
+	sigBz := common.Hex2Bytes(s.Signature)
+	if len(sigBz) < crypto.RecoveryIDOffset {
+		return common.Address{}, eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
+	}
+
+	// Transform yellow paper V from 27/28 to 0/1
+	if sigBz[crypto.RecoveryIDOffset] == 27 || sigBz[crypto.RecoveryIDOffset] == 28 {
+		sigBz[crypto.RecoveryIDOffset] -= 27
+	}
+
+	pubkey, err := crypto.SigToPub(s.Hash.Bytes(), sigBz)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return crypto.PubkeyToAddress(*pubkey), nil
 }
 
 // Verify verifies this Transaction has a valid signature. If nil is returned, the signature is valid.
 // Signature verification follows the pattern in crypto.TestSign:
 // https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
-// TODO: Review this signature verification, and compare it to geth's sig verification
 func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
@@ -230,23 +255,15 @@ func (s *Transaction) Verify(hexAddress string) error {
 		s.populateHash()
 	}
 
-	sig := common.Hex2Bytes(s.Signature)
-	if len(sig) < crypto.RecoveryIDOffset {
-		return eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
-	}
-	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
-		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
-	}
-
-	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
-	err = eris.Wrap(err, "")
+	signer, err := s.Signer()
 	if err != nil {
 		return err
 	}
-	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
-	if signerAddr != addr {
-		return eris.Wrap(ErrSignatureValidationFailed, "")
+
+	if signer != addr {
+		return ErrSignatureValidationFailed
 	}
+
 	return nil
 }
 

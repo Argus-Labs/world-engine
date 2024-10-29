@@ -116,7 +116,7 @@ Temporary Items
 !.vscode/extensions.json
 *.code-workspace
 
-# Local History for Visual Studio Code
+# Local Manager for Visual Studio Code
 .history/
 
 #############

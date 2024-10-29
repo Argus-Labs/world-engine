@@ -11,6 +11,7 @@ import (
 var ErrComponentSchemaMismatch = errors.New("component schema does not match target schema")
 
 type ComponentID int
+type ComponentName = string
 
 // Component is the interface that the user needs to implement to create a new component type.
 type Component interface {

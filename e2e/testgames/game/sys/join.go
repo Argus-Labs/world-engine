@@ -6,42 +6,37 @@ import (
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/world"
 )
 
 var PlayerEntityID = make(map[string]types.EntityID)
 
-func Join(ctx cardinal.WorldContext) error {
-	logger := ctx.Logger()
-	return cardinal.EachMessage[msg.JoinInput, msg.JoinOutput](
-		ctx, func(jtx cardinal.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
+func Join(wCtx world.WorldContext) error {
+	logger := wCtx.Logger()
+	return world.EachMessage[msg.JoinInput](
+		wCtx, func(jtx world.Tx[msg.JoinInput]) (any, error) {
 			logger.Info().Msgf("got join transaction from: %s", jtx.Tx.PersonaTag)
-			entityID, err := cardinal.Create(ctx, comp.Location{}, comp.Player{})
+			entityID, err := world.Create(wCtx, comp.Location{}, comp.Player{})
 			if err != nil {
-				return msg.JoinOutput{}, err
+				return nil, err
 			}
-			err = cardinal.UpdateComponent[comp.Player](
-				ctx, entityID, func(c *comp.Player) *comp.Player {
+			err = world.UpdateComponent[comp.Player](
+				wCtx, entityID, func(c *comp.Player) *comp.Player {
 					c.ID = jtx.Tx.PersonaTag
 					return c
 				},
 			)
 			if err != nil {
-				return msg.JoinOutput{}, err
+				return nil, err
 			}
 			PlayerEntityID[jtx.Tx.PersonaTag] = entityID
 			logger.Info().Msgf("player %s successfully joined", jtx.Tx.PersonaTag)
-			err = ctx.EmitEvent(map[string]any{"message": fmt.Sprintf("%d player created", entityID)})
-			if err != nil {
-				return msg.JoinOutput{}, err
-			}
-			err = ctx.EmitStringEvent("this is a string event")
-			if err != nil {
-				return msg.JoinOutput{}, err
-			}
 
-			return msg.JoinOutput{Success: true}, nil
+			wCtx.EmitEvent(map[string]any{"message": fmt.Sprintf("%d player created", entityID)})
+			wCtx.EmitStringEvent("this is a string event")
+
+			return nil, nil
 		},
 	)
 }

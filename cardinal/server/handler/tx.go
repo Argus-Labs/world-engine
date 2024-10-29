@@ -1,32 +1,18 @@
 package handler
 
 import (
-	"errors"
-	"fmt"
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
-	"github.com/rotisserie/eris"
 
-	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
-	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/world"
 	"pkg.world.dev/world-engine/sign"
-)
-
-var (
-	ErrNoPersonaTag               = errors.New("persona tag is required")
-	ErrWrongNamespace             = errors.New("incorrect namespace")
-	ErrSystemTransactionRequired  = errors.New("system transaction required")
-	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
 )
 
 // PostTransactionResponse is the HTTP response for a successful transaction submission
 type PostTransactionResponse struct {
-	TxHash string
-	Tick   uint64
+	TxHash common.Hash `json:"txHash"`
 }
-
-type Transaction = sign.Transaction
 
 // PostTransaction godoc
 //
@@ -34,137 +20,69 @@ type Transaction = sign.Transaction
 //	@Description  Submits a transaction
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        txGroup  path      string                   true  "Message group"
-//	@Param        txName   path      string                   true  "Name of a registered message"
-//	@Param        txBody   body      Transaction              true  "Transaction details & message to be submitted"
+//	@Param        group  path      string                   true  "Message group"
+//	@Param        name   path      string                   true  "Name of a registered message"
+//	@Param        body   body      sign.Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200      {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400      {string}  string                   "Invalid request parameter"
-//	@Router       /tx/{txGroup}/{txName} [post]
-func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
-) func(*fiber.Ctx) error {
+//	@Router       /tx/{group}/{name} [post]
+func PostTransaction(w *world.World) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
-		if !ok {
-			return fiber.NewError(fiber.StatusNotFound, "message type not found")
-		}
-
-		// Parse the request body into a sign.Transaction struct
-		tx := new(Transaction)
+		tx := new(sign.Transaction)
 		if err := ctx.BodyParser(tx); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
 		}
 
-		// Validate the transaction
-		if err := validateTx(tx); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid transaction payload: "+err.Error())
+		group := ctx.Params("group")
+		name := ctx.Params("name")
+
+		var msgName string
+		if group == message.DefaultGroup {
+			msgName = name
+		} else {
+			msgName = group + "." + name
 		}
 
-		// Decode the message from the transaction
-		msg, err := msgType.Decode(tx.Body)
+		txHash, err := w.AddTransaction(msgName, tx)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction")
+			return fiber.NewError(fiber.StatusBadRequest, "failed to submit transaction: "+err.Error())
 		}
 
-		if !disableSigVerification {
-			var signerAddress string
-			// TODO(scott): don't hardcode this
-			if msgType.Name() == "create-persona" {
-				// don't need to check the cast bc we already validated this above
-				createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
-				signerAddress = createPersonaMsg.SignerAddress
-			}
-
-			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
-				return err
-			}
-		}
-
-		// Add the transaction to the engine
-		// TODO(scott): this should just deal with txpool instead of having to go through engine
-		tick, hash := world.AddTransaction(msgType.ID(), msg, tx)
-
-		return ctx.JSON(&PostTransactionResponse{
-			TxHash: string(hash),
-			Tick:   tick,
+		return ctx.JSON(PostTransactionResponse{
+			TxHash: *txHash,
 		})
 	}
 }
 
-// NOTE: duplication for cleaner swagger docs
-// PostTransaction godoc
+// -----------------------------------------------------------------------------
+// For Swagger Docs
+// -----------------------------------------------------------------------------
+
+// PostGameTransaction godoc
 //
 //	@Summary      Submits a transaction
 //	@Description  Submits a transaction
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        txName  path      string                   true  "Name of a registered message"
-//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Param        txBody  body      sign.Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/game/{txName} [post]
-func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
-) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, disableSigVerification)
+func PostGameTransaction(w *world.World) func(*fiber.Ctx) error {
+	return PostTransaction(w)
 }
 
-// NOTE: duplication for cleaner swagger docs
-// PostTransaction godoc
+// PostPersonaTransaction godoc
 //
 //	@Summary      Creates a persona
 //	@Description  Creates a persona
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Param        txBody  body      sign.Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Router       /tx/persona/create-persona [post]
-func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
-) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, disableSigVerification)
-}
-
-func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
-	var err error
-	if signerAddress == "" {
-		signerAddress, err = world.GetSignerForPersonaTag(tx.PersonaTag, 0)
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
-		}
-	}
-	if err = validateSignature(tx, signerAddress, world.Namespace(),
-		tx.IsSystemTransaction()); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
-	}
-	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
-	//  to mark the nonce as used once it's included in the tick, not the server.
-	if err = world.UseNonce(signerAddress, tx.Nonce); err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
-	}
-	return nil
-}
-
-// validateTx validates the transaction payload
-func validateTx(tx *Transaction) error {
-	// TODO(scott): we should use the validator package here
-	if tx.PersonaTag == "" {
-		return ErrNoPersonaTag
-	}
-	return nil
-}
-
-// validateSignature validates that the signature of transaction is valid
-func validateSignature(tx *Transaction, signerAddr string, namespace string, systemTx bool) error {
-	if tx.Namespace != namespace {
-		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
-	}
-	if systemTx && !tx.IsSystemTransaction() {
-		return eris.Wrap(ErrSystemTransactionRequired, "")
-	}
-	if !systemTx && tx.IsSystemTransaction() {
-		return eris.Wrap(ErrSystemTransactionForbidden, "")
-	}
-	return eris.Wrap(tx.Verify(signerAddr), "")
+func PostPersonaTransaction(w *world.World) func(*fiber.Ctx) error {
+	return PostTransaction(w)
 }

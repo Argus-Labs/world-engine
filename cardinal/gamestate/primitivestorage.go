@@ -19,13 +19,9 @@ type PrimitiveStorage[K comparable] interface {
 	Incr(ctx context.Context, key K) error
 	Decr(ctx context.Context, key K) error
 	Delete(ctx context.Context, key K) error
-	StartTransaction(ctx context.Context) (Transaction[K], error)
+	StartTransaction(ctx context.Context) (PrimitiveStorage[K], error)
 	EndTransaction(ctx context.Context) error
 	Close(ctx context.Context) error
 	Clear(ctx context.Context) error
 	Keys(ctx context.Context) ([]K, error)
-}
-
-type Transaction[K comparable] interface {
-	PrimitiveStorage[K]
 }

@@ -7,8 +7,8 @@ import (
 )
 
 // storageComponentKey is the key that maps an entity ID and a specific component ID to the value of that component.
-func storageComponentKey(typeID types.ComponentID, id types.EntityID) string {
-	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%d", typeID, id)
+func storageComponentKey(compName types.ComponentName, id types.EntityID) string {
+	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%s:ENTITY-ID-%d", compName, id)
 }
 
 // storageNextEntityIDKey is the key that stores the next available entity ID that can be assigned to a newly created
