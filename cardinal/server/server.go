@@ -33,9 +33,9 @@ type config struct {
 }
 
 type Server struct {
-	app    *fiber.App
-	config config
-	verify handler.SignatureVerification
+	app       *fiber.App
+	config    config
+	validator SignatureValidation
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
@@ -56,7 +56,7 @@ func New(
 			port:              defaultPort,
 			isSwaggerDisabled: false,
 		},
-		verify: handler.SignatureVerification{
+		validator: SignatureValidation{
 			IsDisabled:               false,
 			MessageExpirationSeconds: defaultMessageExpiration,
 			HashCacheSizeKB:          defaultHashCacheSizeKB,
@@ -68,8 +68,8 @@ func New(
 	}
 
 	// Setup Cache for hashes to prevent replay attacks
-	if !s.verify.IsDisabled {
-		s.verify.Cache = freecache.NewCache(s.verify.HashCacheSizeKB)
+	if !s.validator.IsDisabled {
+		s.validator.Cache = freecache.NewCache(s.validator.HashCacheSizeKB)
 	}
 
 	// Enable CORS
@@ -180,7 +180,7 @@ func (s *Server) setupRoutes(
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.verify))
+	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.validator))
 
 	// Route: /cql
 	s.app.Post("/cql", handler.PostCQL(world))

@@ -11,6 +11,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
+// implementation of server.SignerAddressProvider interface
+func (w *World) GetSingerAddressForPersonaTag(personaTag string) (addr string, err error) {
+	return w.GetSignerForPersonaTag(personaTag, 0)
+}
+
 // GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
 // given tick. If the engine's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is
 // returned. If the given personaTag has no signer address, ErrPersonaTagHasNoSigner is returned.
