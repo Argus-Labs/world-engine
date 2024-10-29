@@ -103,7 +103,7 @@ func TestIteratorHappyPath(t *testing.T) {
 	protoTx := &shard.Transaction{
 		PersonaTag: "ty",
 		Namespace:  namespace,
-		Timestamp:  time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).Unix(),
+		Timestamp:  time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		Signature:  "fo",
 		Body:       msgBytes,
 	}
