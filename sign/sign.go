@@ -40,7 +40,7 @@ var (
 type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
-	Timestamp  int64           `json:"timestamp"`                 // unix microsecond timestamp
+	Timestamp  int64           `json:"timestamp"`                 // unix millisecond timestamp
 	Salt       uint16          `json:"salt,omitempty"`            // an optional field for additional hash uniqueness
 	Signature  string          `json:"signature"`                 // hex encoded string
 	Hash       common.Hash     `json:"-"`                         // don't marshal or unmarshal for json

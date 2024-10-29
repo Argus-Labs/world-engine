@@ -147,7 +147,7 @@ func TestIteratorHappyPath(t *testing.T) {
 		assert.Equal(t, tx.MsgValue, msgValue)
 		assert.Equal(t, tx.MsgID, fooMsg.ID())
 		assert.Equal(t, tx.Tx.PersonaTag, protoTx.GetPersonaTag())
-		assert.Equal(t, tx.Tx.Timestamp, time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).Unix())
+		assert.Equal(t, tx.Tx.Timestamp, time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
 		assert.True(t, len(tx.Tx.Hash.Bytes()) > 1)
 		assert.Equal(t, tx.Tx.Namespace, namespace)
 		assert.DeepEqual(t, []byte(tx.Tx.Body), msgBytes)
@@ -180,7 +180,7 @@ func TestIteratorStopRange(t *testing.T) {
 	protoTx := &shard.Transaction{
 		PersonaTag: "ty",
 		Namespace:  namespace,
-		Timestamp:  time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).Unix(),
+		Timestamp:  time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		Signature:  "fo",
 		Body:       msgBytes,
 	}
