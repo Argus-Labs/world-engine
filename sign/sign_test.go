@@ -102,6 +102,34 @@ func TestIsSignedSystemPayload(t *testing.T) {
 	assert.Check(t, sp.IsSystemTransaction())
 }
 
+func TestTimestamps(t *testing.T) {
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	body := `{"msg": "this is a request body"}`
+	personaTag := "my-tag"
+	namespace := "my-namespace"
+
+	ts := TimestampNow()
+	tx, err := NewTransaction(goodKey, personaTag, namespace, body)
+	assert.NilError(t, err)
+	assert.Equal(t, tx.Timestamp, ts)
+
+	time.Sleep(100 * time.Millisecond)
+	tm := time.Now()
+	ts2 := TimestampNow()
+	ts3 := TimestampAt(tm)
+	assert.Equal(t, ts2, ts3)
+	tm2 := Timestamp(ts2)
+	tm3 := Timestamp(ts3)
+	assert.Check(t, tm.Sub(tm2) < 1*time.Millisecond) // check millisecond accuracy of timestamp
+	assert.Equal(t, tm2, tm3)
+
+	tx2, err := NewTransaction(goodKey, personaTag, namespace, body)
+	assert.NilError(t, err)
+	assert.Equal(t, tx2.Timestamp, ts2)
+	assert.Check(t, ts != ts2)
+}
+
 func TestFailsIfFieldsMissing(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -227,6 +255,42 @@ func TestRejectInvalidJSON(t *testing.T) {
 	data := `{"personaTag":"jeff", "namespace": {{{`
 	_, err := UnmarshalTransaction([]byte(data))
 	assert.Check(t, err != nil)
+}
+
+func TestDontSignInvalidJSON(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	data := `{"personaTag":"jeff", "namespace": {{{`
+	_, err = NewTransaction(key, "coolmage", "world", data)
+	assert.ErrorContains(t, err, "is not valid json")
+
+	data = ``
+	_, err = NewTransaction(key, "coolmage", "world", data)
+	assert.ErrorContains(t, err, "cannot sign empty body")
+}
+
+func TestSignatureWithOrWithoutSaltField(t *testing.T) {
+	data := map[string]any{
+		"personaTag": "persona-tag",
+		"namespace":  "namespace",
+		"timestamp":  TimestampNow(),
+		"signature":  "xyzzy",
+		"body":       "bar",
+	}
+
+	bz, err := json.Marshal(data)
+	assert.NilError(t, err)
+	_, err = UnmarshalTransaction(bz)
+	assert.NilError(t, err)
+	data["salt"] = 10
+	bz, err = json.Marshal(data)
+	assert.NilError(t, err)
+	_, err = UnmarshalTransaction(bz)
+	assert.NilError(t, err)
+
+	_, err = MappedTransaction(data)
+	assert.NilError(t, err)
 }
 
 func TestRejectSignatureWithExtraField(t *testing.T) {

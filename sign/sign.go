@@ -55,6 +55,10 @@ func TimestampAt(t time.Time) int64 {
 	return t.UnixMilli()
 }
 
+func Timestamp(t int64) time.Time {
+	return time.UnixMilli(t)
+}
+
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {
 	s := new(Transaction)
 	dec := json.NewDecoder(bytes.NewBuffer(bz))
