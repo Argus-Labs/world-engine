@@ -17,7 +17,7 @@ type PostTransactionResponse struct {
 }
 
 type Transaction = sign.Transaction
-type SignatureValidation = server.SignatureValidation
+type SignatureValidation = server.SignatureValidator
 
 // PostTransaction godoc
 //
@@ -34,7 +34,7 @@ type SignatureValidation = server.SignatureValidation
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validate SignatureValidation,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidation,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -44,13 +44,13 @@ func PostTransaction(
 		}
 
 		// extract the transaction from the fiber context
-		tx, fiberErr := extractTx(ctx, validate)
+		tx, fiberErr := extractTx(ctx, validator)
 		if fiberErr != nil {
 			return fiberErr
 		}
 
 		// make sure the transaction hasn't expired
-		if validationErr := server.ValidateTransactionTTL(tx, validate); validationErr != nil {
+		if validationErr := validator.ValidateTransactionTTL(tx); validationErr != nil {
 			log.Errorf(validationErr.InternalMsg)                                  // log the private internal details
 			return fiber.NewError(validationErr.StatusCode, validationErr.Error()) // return public error result
 		}
@@ -63,7 +63,7 @@ func PostTransaction(
 		}
 
 		// Validate the transaction's signature
-		if validationErr := server.ValidateTransactionSignature(tx, world, msgType, msg, world.Namespace(), validate); validationErr != nil {
+		if validationErr := validator.ValidateTransactionSignature(tx, msgType, msg, world.Namespace()); validationErr != nil {
 			log.Errorf(validationErr.InternalMsg)                                  // log the private internal details
 			return fiber.NewError(validationErr.StatusCode, validationErr.Error()) // return public error result
 		}
@@ -94,9 +94,9 @@ func PostTransaction(
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validate SignatureValidation,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidation,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, validate)
+	return PostTransaction(world, msgs, validator)
 }
 
 // NOTE: duplication for cleaner swagger docs
@@ -115,12 +115,12 @@ func PostGameTransaction(
 //	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validate SignatureValidation,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidation,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, validate)
+	return PostTransaction(world, msgs, validator)
 }
 
-func extractTx(ctx *fiber.Ctx, validate SignatureValidation) (*sign.Transaction, *fiber.Error) {
+func extractTx(ctx *fiber.Ctx, validate *SignatureValidation) (*sign.Transaction, *fiber.Error) {
 	var tx *sign.Transaction
 	var err error
 	// Parse the request body into a sign.Transaction struct tx := new(Transaction)

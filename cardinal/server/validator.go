@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/coocood/freecache"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common" // for hash
 	"github.com/rotisserie/eris"
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -24,22 +24,21 @@ const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal ex
 // would cause the cache to be bigger than necessary
 
 var (
-	ErrNoPersonaTag               = errors.New("persona tag is required")
-	ErrWrongNamespace             = errors.New("incorrect namespace")
-	ErrSystemTransactionRequired  = errors.New("system transaction required")
-	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
-	ErrMessageExpired             = errors.New("signature too old")
-	ErrCacheReadFailed            = errors.New("cache read failed")
-	ErrCacheWriteFailed           = errors.New("cache store failed")
-	ErrDuplicateMessage           = errors.New("duplicate message")
-	ErrInvalidSignature           = errors.New("invalid signature")
+	ErrNoPersonaTag     = errors.New("persona tag is required")
+	ErrWrongNamespace   = errors.New("incorrect namespace")
+	ErrMessageExpired   = errors.New("signature too old")
+	ErrCacheReadFailed  = errors.New("cache read failed")
+	ErrCacheWriteFailed = errors.New("cache store failed")
+	ErrDuplicateMessage = errors.New("duplicate message")
+	ErrInvalidSignature = errors.New("invalid signature")
 )
 
-type SignatureValidation struct {
+type SignatureValidator struct {
 	IsDisabled               bool
 	MessageExpirationSeconds int
 	HashCacheSizeKB          int
-	Cache                    *freecache.Cache
+	cache                    *freecache.Cache
+	signerAddressProvider    SignerAddressProvider
 }
 
 type ValidationError struct {
@@ -52,20 +51,35 @@ func (e *ValidationError) Error() string {
 	return http.StatusText(e.StatusCode) + " - " + e.Err.Error()
 }
 
+func NewSignatureValidator(disabled bool, msgExpirationSec int, hashCacheSizeKB int, provider SignerAddressProvider,
+) *SignatureValidator {
+	validator := SignatureValidator{
+		IsDisabled:               disabled,
+		MessageExpirationSeconds: msgExpirationSec,
+		HashCacheSizeKB:          hashCacheSizeKB,
+		cache:                    nil,
+		signerAddressProvider:    provider,
+	}
+	if !disabled {
+		validator.cache = freecache.NewCache(validator.HashCacheSizeKB)
+	}
+	return &validator
+}
+
 type Transaction = sign.Transaction
 
-func ValidateTransactionTTL(tx *Transaction, validate SignatureValidation) *ValidationError {
-	if !validate.IsDisabled {
+func (validator *SignatureValidator) ValidateTransactionTTL(tx *Transaction) *ValidationError {
+	if !validator.IsDisabled {
 		txEarliestValidTimestamp := sign.TimestampAt(
-			time.Now().Add(-(time.Duration(validate.MessageExpirationSeconds) * time.Second)))
-		// before we even create the hash or validate the signature, check to see if the message has expired
+			time.Now().Add(-(time.Duration(validator.MessageExpirationSeconds) * time.Second)))
+		// before we even create the hash or validator the signature, check to see if the message has expired
 		if tx.Timestamp < txEarliestValidTimestamp {
 			return &ValidationError{http.StatusRequestTimeout, ErrMessageExpired,
 				fmt.Sprintf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
-					validate.MessageExpirationSeconds, tx.Timestamp, sign.TimestampNow())}
+					validator.MessageExpirationSeconds, tx.Timestamp, sign.TimestampNow())}
 		}
 		// check for duplicate message via hash cache
-		if found, err := isHashInCache(tx.Hash, validate.Cache); err != nil {
+		if found, err := validator.isHashInCache(tx.Hash); err != nil {
 			return &ValidationError{http.StatusInternalServerError, ErrCacheReadFailed,
 				fmt.Sprintf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())}
 		} else if found {
@@ -77,14 +91,14 @@ func ValidateTransactionTTL(tx *Transaction, validate SignatureValidation) *Vali
 	return nil
 }
 
-func ValidateTransactionSignature(tx *Transaction, sap SignerAddressProvider, msgType types.Message,
-	msg any, namespace string, validate SignatureValidation) *ValidationError {
+func (validator *SignatureValidator) ValidateTransactionSignature(tx *Transaction,
+	msgType types.Message, msg any, namespace string) *ValidationError {
 	// this is the only validation we do when signature validation is disabled
 	if tx.PersonaTag == "" {
 		return &ValidationError{http.StatusBadRequest, ErrNoPersonaTag,
 			fmt.Sprintf("Missing persona tag for message %s", tx.Hash.String())}
 	}
-	if validate.IsDisabled {
+	if validator.IsDisabled {
 		return nil
 	}
 
@@ -100,14 +114,14 @@ func ValidateTransactionSignature(tx *Transaction, sap SignerAddressProvider, ms
 
 	var err error
 	if signerAddress == "" {
-		signerAddress, err = sap.GetSignerAddressForPersonaTag(tx.PersonaTag)
+		signerAddress, err = validator.signerAddressProvider.GetSignerAddressForPersonaTag(tx.PersonaTag)
 		if err != nil {
 			return &ValidationError{http.StatusUnauthorized, ErrInvalidSignature,
 				fmt.Sprintf("could not get signer for persona %s: %w", tx.PersonaTag, err)}
 		}
 	}
 
-	if err = validateSignature(tx, signerAddress, namespace); err != nil {
+	if err = validator.validateSignature(tx, signerAddress, namespace); err != nil {
 		return &ValidationError{http.StatusUnauthorized, ErrInvalidSignature,
 			fmt.Sprintf("Signature validation failed for message %s: %v", tx.Hash.String(), err)}
 	}
@@ -116,7 +130,7 @@ func ValidateTransactionSignature(tx *Transaction, sap SignerAddressProvider, ms
 	// we don't do this until we have verified the signature to prevent an attack where someone sends
 	// large numbers of hashes with unsigned/invalid messages and thus blocks legit messages from
 	// being handled
-	err = validate.Cache.Set(tx.Hash.Bytes(), nil, validate.MessageExpirationSeconds+cacheRetentionExtraSeconds)
+	err = validator.cache.Set(tx.Hash.Bytes(), nil, validator.MessageExpirationSeconds+cacheRetentionExtraSeconds)
 	if err != nil {
 		// if we couldn't store the hash in the cache, don't process the transaction, since that
 		// would open us up to replay attacks
@@ -126,8 +140,8 @@ func ValidateTransactionSignature(tx *Transaction, sap SignerAddressProvider, ms
 	return nil
 }
 
-func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
-	_, err := cache.Get(hash.Bytes())
+func (validator *SignatureValidator) isHashInCache(hash common.Hash) (bool, error) {
+	_, err := validator.cache.Get(hash.Bytes())
 	if err == nil {
 		// found it
 		return true, nil
@@ -141,7 +155,7 @@ func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
 }
 
 // validateSignature validates that the signature of transaction is valid
-func validateSignature(tx *Transaction, signerAddr string, namespace string) error {
+func (validator *SignatureValidator) validateSignature(tx *Transaction, signerAddr string, namespace string) error {
 	if tx.Namespace != namespace {
 		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
 	}

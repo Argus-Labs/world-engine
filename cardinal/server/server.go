@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/coocood/freecache"
 	"github.com/gofiber/contrib/socketio"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -24,18 +23,21 @@ const (
 	defaultPort              = "4040"
 	shutdownTimeout          = 5 * time.Second
 	defaultMessageExpiration = 10   // seconds
-	defaultHashCacheSizeKB   = 1024 // default to 1MB hash Cache
+	defaultHashCacheSizeKB   = 1024 // default to 1MB hash cache
 )
 
 type config struct {
-	port              string
-	isSwaggerDisabled bool
+	port                          string
+	isSwaggerDisabled             bool
+	isSignatureValidationDisabled bool
+	messageExpirationSeconds      int
+	messageHashCacheSizeKB        int
 }
 
 type Server struct {
 	app       *fiber.App
 	config    config
-	validator SignatureValidation
+	validator *SignatureValidator
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
@@ -53,24 +55,24 @@ func New(
 	s := &Server{
 		app: app,
 		config: config{
-			port:              defaultPort,
-			isSwaggerDisabled: false,
-		},
-		validator: SignatureValidation{
-			IsDisabled:               false,
-			MessageExpirationSeconds: defaultMessageExpiration,
-			HashCacheSizeKB:          defaultHashCacheSizeKB,
-			Cache:                    nil,
+			port:                          defaultPort,
+			isSwaggerDisabled:             false,
+			isSignatureValidationDisabled: false,
+			messageExpirationSeconds:      defaultMessageExpiration,
+			messageHashCacheSizeKB:        defaultHashCacheSizeKB,
 		},
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
 
-	// Setup Cache for hashes to prevent replay attacks
-	if !s.validator.IsDisabled {
-		s.validator.Cache = freecache.NewCache(s.validator.HashCacheSizeKB)
-	}
+	// now that all the options are set, use them to create the Signature validator
+	s.validator = NewSignatureValidator(
+		s.config.isSignatureValidationDisabled,
+		s.config.messageExpirationSeconds,
+		s.config.messageHashCacheSizeKB,
+		world, // world is a provider of signature addresses
+	)
 
 	// Enable CORS
 	app.Use(cors.New())
