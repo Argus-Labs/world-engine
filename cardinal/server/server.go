@@ -14,6 +14,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/server/validator"
 	"pkg.world.dev/world-engine/cardinal/types"
 
 	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
@@ -37,7 +38,7 @@ type config struct {
 type Server struct {
 	app       *fiber.App
 	config    config
-	validator *SignatureValidator
+	validator *validator.SignatureValidator
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
@@ -67,10 +68,11 @@ func New(
 	}
 
 	// now that all the options are set, use them to create the Signature validator
-	s.validator = NewSignatureValidator(
+	s.validator = validator.NewSignatureValidator(
 		s.config.isSignatureValidationDisabled,
 		s.config.messageExpirationSeconds,
 		s.config.messageHashCacheSizeKB,
+		world.Namespace(),
 		world, // world is a provider of signature addresses
 	)
 

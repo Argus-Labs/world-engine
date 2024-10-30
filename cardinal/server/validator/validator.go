@@ -1,4 +1,4 @@
-package server
+package validator
 
 import (
 	"errors"
@@ -9,8 +9,7 @@ import (
 	"github.com/coocood/freecache"
 	"github.com/ethereum/go-ethereum/common" // for hash
 	"github.com/rotisserie/eris"
-	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types"
+
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -37,6 +36,7 @@ type SignatureValidator struct {
 	IsDisabled               bool
 	MessageExpirationSeconds int
 	HashCacheSizeKB          int
+	namespace                string
 	cache                    *freecache.Cache
 	signerAddressProvider    SignerAddressProvider
 }
@@ -51,12 +51,14 @@ func (e *ValidationError) Error() string {
 	return http.StatusText(e.StatusCode) + " - " + e.Err.Error()
 }
 
-func NewSignatureValidator(disabled bool, msgExpirationSec int, hashCacheSizeKB int, provider SignerAddressProvider,
+func NewSignatureValidator(disabled bool, msgExpirationSec int, hashCacheSizeKB int, namespace string,
+	provider SignerAddressProvider,
 ) *SignatureValidator {
 	validator := SignatureValidator{
 		IsDisabled:               disabled,
 		MessageExpirationSeconds: msgExpirationSec,
 		HashCacheSizeKB:          hashCacheSizeKB,
+		namespace:                namespace,
 		cache:                    nil,
 		signerAddressProvider:    provider,
 	}
@@ -92,7 +94,7 @@ func (validator *SignatureValidator) ValidateTransactionTTL(tx *Transaction) *Va
 }
 
 func (validator *SignatureValidator) ValidateTransactionSignature(tx *Transaction,
-	msgType types.Message, msg any, namespace string) *ValidationError {
+	signerAddress string) *ValidationError {
 	// this is the only validation we do when signature validation is disabled
 	if tx.PersonaTag == "" {
 		return &ValidationError{http.StatusBadRequest, ErrNoPersonaTag,
@@ -102,26 +104,18 @@ func (validator *SignatureValidator) ValidateTransactionSignature(tx *Transactio
 		return nil
 	}
 
-	// check the signature
-	// FIXME: this seems messy, with signature validation having a special case for a particular type of message
-	// especially since this is the only reason we need msg or msgType as parameters.
-	var signerAddress string
-	if msgType.Name() == personaMsg.CreatePersonaMessageName {
-		// don't need to check the cast bc we already validated this above
-		createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
-		signerAddress = createPersonaMsg.SignerAddress
-	}
-
+	// if they didn't give us a signer address, we will have to look it up with the provider
 	var err error
 	if signerAddress == "" {
 		signerAddress, err = validator.signerAddressProvider.GetSignerAddressForPersonaTag(tx.PersonaTag)
 		if err != nil {
 			return &ValidationError{http.StatusUnauthorized, ErrInvalidSignature,
-				fmt.Sprintf("could not get signer for persona %s: %w", tx.PersonaTag, err)}
+				fmt.Sprintf("could not get signer for persona %s: %v", tx.PersonaTag, err)}
 		}
 	}
 
-	if err = validator.validateSignature(tx, signerAddress, namespace); err != nil {
+	// check the signature against the address
+	if err = validator.validateSignature(tx, signerAddress); err != nil {
 		return &ValidationError{http.StatusUnauthorized, ErrInvalidSignature,
 			fmt.Sprintf("Signature validation failed for message %s: %v", tx.Hash.String(), err)}
 	}
@@ -155,9 +149,9 @@ func (validator *SignatureValidator) isHashInCache(hash common.Hash) (bool, erro
 }
 
 // validateSignature validates that the signature of transaction is valid
-func (validator *SignatureValidator) validateSignature(tx *Transaction, signerAddr string, namespace string) error {
-	if tx.Namespace != namespace {
-		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
+func (validator *SignatureValidator) validateSignature(tx *Transaction, signerAddr string) error {
+	if tx.Namespace != validator.namespace {
+		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", validator.namespace, tx.Namespace))
 	}
 	return eris.Wrap(tx.Verify(signerAddr), "")
 }

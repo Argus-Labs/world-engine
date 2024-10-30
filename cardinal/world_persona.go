@@ -11,8 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-// implementation of server.SignerAddressProvider interface
-func (w *World) GetSingerAddressForPersonaTag(personaTag string) (addr string, err error) {
+func (w *World) GetSignerAddressForPersonaTag(personaTag string) (addr string, err error) {
 	return w.GetSignerForPersonaTag(personaTag, 0)
 }
 

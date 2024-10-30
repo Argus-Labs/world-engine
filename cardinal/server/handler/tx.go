@@ -3,9 +3,10 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"pkg.world.dev/world-engine/cardinal/server"
-	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 
+	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
+	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/server/validator"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -17,7 +18,7 @@ type PostTransactionResponse struct {
 }
 
 type Transaction = sign.Transaction
-type SignatureValidation = server.SignatureValidator
+type SignatureValidator = validator.SignatureValidator
 
 // PostTransaction godoc
 //
@@ -34,7 +35,7 @@ type SignatureValidation = server.SignatureValidator
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidation,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -62,8 +63,16 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - failed to decode tx message")
 		}
 
+		// there's a special case for the CreatePersona message
+		var signerAddress string
+		if msgType.Name() == personaMsg.CreatePersonaMessageName {
+			// don't need to check the cast bc we already validated this above
+			createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
+			signerAddress = createPersonaMsg.SignerAddress
+		}
+
 		// Validate the transaction's signature
-		if validationErr := validator.ValidateTransactionSignature(tx, msgType, msg, world.Namespace()); validationErr != nil {
+		if validationErr := validator.ValidateTransactionSignature(tx, signerAddress); validationErr != nil {
 			log.Errorf(validationErr.InternalMsg)                                  // log the private internal details
 			return fiber.NewError(validationErr.StatusCode, validationErr.Error()) // return public error result
 		}
@@ -94,7 +103,7 @@ func PostTransaction(
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidation,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(world, msgs, validator)
 }
@@ -115,12 +124,12 @@ func PostGameTransaction(
 //	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidation,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(world, msgs, validator)
 }
 
-func extractTx(ctx *fiber.Ctx, validate *SignatureValidation) (*sign.Transaction, *fiber.Error) {
+func extractTx(ctx *fiber.Ctx, validate *SignatureValidator) (*sign.Transaction, *fiber.Error) {
 	var tx *sign.Transaction
 	var err error
 	// Parse the request body into a sign.Transaction struct tx := new(Transaction)

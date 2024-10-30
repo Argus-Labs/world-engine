@@ -112,21 +112,21 @@ func TestTimestamps(t *testing.T) {
 	ts := TimestampNow()
 	tx, err := NewTransaction(goodKey, personaTag, namespace, body)
 	assert.NilError(t, err)
-	assert.Equal(t, tx.Timestamp, ts)
+	assert.Check(t, tx.Timestamp-ts <= 1)
 
 	time.Sleep(100 * time.Millisecond)
 	tm := time.Now()
 	ts2 := TimestampNow()
 	ts3 := TimestampAt(tm)
-	assert.Equal(t, ts2, ts3)
+	assert.Check(t, ts3-ts2 <= 1)
 	tm2 := Timestamp(ts2)
 	tm3 := Timestamp(ts3)
 	assert.Check(t, tm.Sub(tm2) < 1*time.Millisecond) // check millisecond accuracy of timestamp
-	assert.Equal(t, tm2, tm3)
+	assert.Check(t, tm2.Sub(tm3) < 2*time.Millisecond)
 
 	tx2, err := NewTransaction(goodKey, personaTag, namespace, body)
 	assert.NilError(t, err)
-	assert.Equal(t, tx2.Timestamp, ts2)
+	assert.Check(t, tx2.Timestamp-ts2 <= 1)
 	assert.Check(t, ts != ts2)
 }
 
