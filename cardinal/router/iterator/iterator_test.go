@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -102,7 +103,7 @@ func TestIteratorHappyPath(t *testing.T) {
 	protoTx := &shard.Transaction{
 		PersonaTag: "ty",
 		Namespace:  namespace,
-		Nonce:      1,
+		Timestamp:  time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		Signature:  "fo",
 		Body:       msgBytes,
 	}
@@ -146,6 +147,7 @@ func TestIteratorHappyPath(t *testing.T) {
 		assert.Equal(t, tx.MsgValue, msgValue)
 		assert.Equal(t, tx.MsgID, fooMsg.ID())
 		assert.Equal(t, tx.Tx.PersonaTag, protoTx.GetPersonaTag())
+		assert.Equal(t, tx.Tx.Timestamp, time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
 		assert.True(t, len(tx.Tx.Hash.Bytes()) > 1)
 		assert.Equal(t, tx.Tx.Namespace, namespace)
 		assert.DeepEqual(t, []byte(tx.Tx.Body), msgBytes)
@@ -159,7 +161,7 @@ func TestIteratorStartRange(t *testing.T) {
 	querier := &mockQuerier{retErr: errors.New("whatever")}
 	it := iterator.New(nil, "", querier)
 
-	// we dont care about this error, we're just checking if `querier` gets called with the right key in the Page.
+	// we don't care about this error, we're just checking if `querier` gets called with the right key in the Page.
 	startRange := uint64(5)
 	_ = it.Each(nil, 5)
 
@@ -178,7 +180,7 @@ func TestIteratorStopRange(t *testing.T) {
 	protoTx := &shard.Transaction{
 		PersonaTag: "ty",
 		Namespace:  namespace,
-		Nonce:      1,
+		Timestamp:  time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		Signature:  "fo",
 		Body:       msgBytes,
 	}

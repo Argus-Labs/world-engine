@@ -1,0 +1,89 @@
+---
+title: 'EVM'
+description: 'This section configures the Ethereum Virtual Machine (EVM) settings, including chain IDs, mnemonics, and faucet configurations.'
+---
+
+```
+[evm]
+CHAIN_ID = "chain_id"
+CHAIN_KEY_MNEMONIC = "chain_key_mnemonic"
+DA_AUTH_TOKEN = "da_auth_token"
+DA_BASE_URL = "http://celestia-devnet"
+DA_NAMESPACE_ID = "defaultnamespace"
+FAUCET_ADDRESS = "faucet_address"
+FAUCET_AMOUNT = "0x56BC75E2D6310000"  # 100 ETH
+FAUCET_ENABLED = false
+```
+
+### CHAIN_ID
+
+A unique identifier representing the blockchain network. This is critical for identifying the correct chain to which the EVM is connected. 
+Must be set to the correct chain ID to ensure proper blockchain communication.
+
+**Example**
+```
+CHAIN_ID = 'world-420'
+```
+
+### CHAIN_KEY_MNEMONIC
+
+Mnemonic phrases, also known as seed phrases or recovery phrases, used for generating cryptographic keys for your blockchain wallet.
+
+**Example**
+```
+CHAIN_KEY_MNEMONIC = 'enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll'
+```
+
+### DA_AUTH_TOKEN
+
+An authentication token obtained from the Celestia client, which is used to interact with Celestia’s Data Availability layer.
+
+**Example**
+```
+DA_AUTH_TOKEN = 'ywi27664820'
+```
+
+### DA_BASE_URL
+
+The base URL for the Celestia client, which connects the EVM to Celestia’s Data Availability (DA) network.
+
+**Example**
+```
+DA_BASE_URL = 'http://celestia-devnet'
+```
+
+### DA_NAMESPACE_ID
+
+The namespace ID for the Celestia client. This is used to separate data within the DA layer.
+
+**Example**
+```
+DA_NAMESPACE_ID = '67480c4a88c4d12935d4'
+```
+
+### FAUCET_ADDRESS
+
+The Ethereum address (without the leading 0x) to which the faucet sends tokens. This address will receive tokens when the faucet is enabled.
+
+**Example**
+```
+FAUCET_ADDRESS = 'aa9288F88233Eb887d194fF2215Cf1776a6FEE41'
+```
+
+### FAUCET_AMOUNT
+
+The amount of ETH, expressed in wei (the smallest unit of ETH), to be distributed by the faucet. This value is encoded as a hexadecimal.
+
+**Example**
+```
+FAUCET_AMOUNT = '0x56BC75E2D6310000'  # 100 ETH
+```
+
+### FAUCET_ENABLED
+
+Enables or disables the faucet feature, which automatically distributes tokens to the specified address.
+
+**Example**
+```
+FAUCET_ENABLED = false
+```

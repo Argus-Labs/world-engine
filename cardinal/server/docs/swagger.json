@@ -469,13 +469,15 @@
                     "description": "json string",
                     "type": "object"
                 },
-                "hash": {
-                    "type": "string"
-                },
                 "namespace": {
                     "type": "string"
                 },
-                "nonce": {
+                "timestamp": {
+                    "description": "Unix timestamp, in milliseconds, for TTL-based replay protection.",
+                    "type": "integer"
+                },
+                "salt": {
+                    "description": "optional additional randomness for hash and signing",
                     "type": "integer"
                 },
                 "personaTag": {

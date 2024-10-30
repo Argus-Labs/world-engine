@@ -4,9 +4,13 @@ go 1.22.1
 
 replace pkg.world.dev/world-engine/cardinal => ../../cardinal
 
+replace pkg.world.dev/world-engine/sign => ../../sign
+
+replace pkg.world.dev/world-engine/rift => ../../rift
+
 require (
 	github.com/rotisserie/eris v0.5.4
-	pkg.world.dev/world-engine/cardinal v1.0.6-beta.0.20240104191834-89728d063830
+	pkg.world.dev/world-engine/cardinal v1.7.0
 )
 
 require (
@@ -27,6 +31,7 @@ require (
 	github.com/argus-labs/go-jobqueue v0.1.6 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/coocood/freecache v1.2.4 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgraph-io/badger/v4 v4.2.0 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
@@ -121,11 +126,11 @@ require (
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	google.golang.org/grpc v1.63.2 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.63.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a // indirect
-	pkg.world.dev/world-engine/sign v1.0.1-beta // indirect
+	pkg.world.dev/world-engine/rift v1.2.0 // indirect
+	pkg.world.dev/world-engine/sign v1.1.0 // indirect
 )

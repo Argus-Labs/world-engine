@@ -113,7 +113,15 @@
         "cardinal/game/query",
         "cardinal/game/cql",
         "cardinal/game/evm",
-        "cardinal/game/persona"
+        "cardinal/game/persona",
+        {
+          "group": "Configurations (world.toml)",
+          "pages": [
+            "cardinal/game/configuration/cardinal",
+            "cardinal/game/configuration/evm",
+            "cardinal/game/configuration/nakama"
+          ]
+        }
       ]
     },
     {

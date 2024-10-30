@@ -28,6 +28,12 @@ lint-fix:
 	@echo "--> Running linter"
 	@go list -f '{{.Dir}}/...' -m | xargs golangci-lint run --timeout=10m --fix -v
 
+push-check:
+	@$(MAKE) lint
+	@$(MAKE) swagger-check
+	@$(MAKE) unit-test-all
+	@$(MAKE) e2e-nakama
+	@$(MAKE) e2e-evm
 
 .PHONY: tidy
 

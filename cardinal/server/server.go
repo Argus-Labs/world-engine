@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/coocood/freecache"
 	"github.com/gofiber/contrib/socketio"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -20,19 +21,21 @@ import (
 )
 
 const (
-	defaultPort     = "4040"
-	shutdownTimeout = 5 * time.Second
+	defaultPort              = "4040"
+	shutdownTimeout          = 5 * time.Second
+	defaultMessageExpiration = 10   // seconds
+	defaultHashCacheSizeKB   = 1024 // default to 1MB hash Cache
 )
 
 type config struct {
-	port                            string
-	isSignatureVerificationDisabled bool
-	isSwaggerDisabled               bool
+	port              string
+	isSwaggerDisabled bool
 }
 
 type Server struct {
 	app    *fiber.App
 	config config
+	verify handler.SignatureVerification
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
@@ -50,13 +53,23 @@ func New(
 	s := &Server{
 		app: app,
 		config: config{
-			port:                            defaultPort,
-			isSignatureVerificationDisabled: false,
-			isSwaggerDisabled:               false,
+			port:              defaultPort,
+			isSwaggerDisabled: false,
+		},
+		verify: handler.SignatureVerification{
+			IsDisabled:               false,
+			MessageExpirationSeconds: defaultMessageExpiration,
+			HashCacheSizeKB:          defaultHashCacheSizeKB,
+			Cache:                    nil,
 		},
 	}
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	// Setup Cache for hashes to prevent replay attacks
+	if !s.verify.IsDisabled {
+		s.verify.Cache = freecache.NewCache(s.verify.HashCacheSizeKB)
 	}
 
 	// Enable CORS
@@ -167,7 +180,7 @@ func (s *Server) setupRoutes(
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.config.isSignatureVerificationDisabled))
+	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.verify))
 
 	// Route: /cql
 	s.app.Post("/cql", handler.PostCQL(world))

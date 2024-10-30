@@ -4,6 +4,9 @@ go 1.22.1
 
 // external, necessary replacements
 replace (
+
+	pkg.world.dev/world-engine/rift => ../rift
+
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 
@@ -55,7 +58,7 @@ require (
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a
+	pkg.world.dev/world-engine/rift v1.2.0
 )
 
 require (

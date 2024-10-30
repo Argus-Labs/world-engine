@@ -29,7 +29,8 @@ services:
     container_name: relay_nakama # Do not change this without changing the e2e-nakama makescript or e2e test will fail
     platform: linux/amd64
     build:
-      context: ./relay/nakama
+      context: ./
+      dockerfile: relay/nakama/Dockerfile
       target: nakama # Build the amd64 version of the image
     depends_on:
       - "cockroachdb"
@@ -58,7 +59,7 @@ services:
       test: [ "CMD", "/nakama/nakama", "healthcheck" ]
       interval: 1s
       timeout: 1s
-      retries: 20
+      retries: 30
     restart: unless-stopped
     networks:
       - world-engine
@@ -75,8 +76,8 @@ services:
       - FAUCET_AMOUNT=${FAUCET_AMOUNT:-0x56BC75E2D63100000} # ETH in wei unit, encoded as hexadecimal. (Default: 100 ETH)
       - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01} # Secure auth token for game shard
     build:
-      context: evm
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: evm/Dockerfile
     restart: unless-stopped
     expose:
       - "1317"

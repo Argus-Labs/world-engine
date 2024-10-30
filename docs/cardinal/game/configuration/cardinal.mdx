@@ -1,0 +1,111 @@
+---
+title: 'Cardinal'
+description: 'This section configures Cardinal, which handles shard routing, logging, and rollup modes.'
+---
+
+```
+[cardinal]
+BASE_SHARD_ROUTER_KEY = "router_key"
+BASE_SHARD_SEQUENCER_ADDRESS = "localhost:9601"
+CARDINAL_LOG_LEVEL = "log_level"
+CARDINAL_LOG_PRETTY = false
+CARDINAL_NAMESPACE = "defaultnamespace"
+CARDINAL_ROLLUP_ENABLED = false
+REDIS_ADDRESS = "localhost:6379"
+REDIS_PASSWORD = "redis_password"
+TELEMETRY_PROFILER_ENABLED = false
+TELEMETRY_TRACE_ENABLED = false
+```
+
+### BASE_SHARD_ROUTER_KEY
+
+A secure authentication token used for routing game shards. It ensures proper routing within the Cardinal system. 
+Router key must be length 64 and only contain alphanumerics.
+
+**Example**
+```
+BASE_SHARD_ROUTER_KEY = 'e99e9ed8d90e593ec8ef86d6e9cbeb0de5aabfa415d2fd369d6ee1974dc2bb7d'
+```
+
+### BASE_SHARD_SEQUENCER_ADDRESS
+
+The address of the sequencer service, which coordinates shard operations. If rollup mode is enabled, this address points to the sequencer handling transactions.
+**Required if Cardinal’s rollup mode is enabled.**
+
+**Example**
+```
+BASE_SHARD_SEQUENCER_ADDRESS = 'localhost:9601'
+```
+
+### CARDINAL_LOG_LEVEL
+
+Sets the verbosity level of logging in Cardinal. The available levels are (`trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic`, `disabled`)
+
+**Example**
+```
+CARDINAL_LOG_LEVEL = 'info'
+```
+
+### CARDINAL_LOG_PRETTY
+
+When set to true, enables human-readable (pretty) logs for easier debugging, the default value is false.
+
+**Example**
+```
+CARDINAL_LOG_PRETTY = true
+```
+
+### CARDINAL_NAMESPACE
+
+A unique identifier for the Cardinal shard namespace. This ensures that different shards don’t interfere with each other and prevents signature replay attacks.
+
+**Example**
+```
+CARDINAL_NAMESPACE = 'defaultnamespace'
+```
+
+### CARDINAL_ROLLUP_ENABLED
+
+Enables or disables rollup mode, where Cardinal sequences and recovers transactions on the base shard, default value is false.
+
+**Example**
+```
+CARDINAL_ROLLUP_ENABLED = false
+```
+
+### REDIS_ADDRESS
+
+The address of the Redis server, this parameter is unused if you are running cardinal using world cli v1.3.1, because world cli will force you to use local redis container
+
+**Example**
+```
+REDIS_ADDRESS = 'localhost:6379'
+```
+
+### REDIS_PASSWORD
+
+The password for the Redis server. Leave empty for no password. 
+Make sure to set this in production to secure your Redis instance.
+
+**Example**
+```
+REDIS_PASSWORD = ''
+```
+
+### TELEMETRY_PROFILER_ENABLED
+
+Enables OpenTelemetry profiling, which collects performance data to help identify bottlenecks and inefficiencies.
+
+**Example**
+```
+TELEMETRY_PROFILER_ENABLED = false
+```
+
+### TELEMETRY_TRACE_ENABLED
+
+Enables Datadog trace profiling, allowing for continuous application monitoring and tracing.
+
+**Example**
+```
+TELEMETRY_TRACE_ENABLED = false
+```

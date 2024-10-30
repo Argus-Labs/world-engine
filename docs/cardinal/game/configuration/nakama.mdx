@@ -1,0 +1,68 @@
+---
+title: 'Nakama'
+description: 'This section configures Nakama, including allowlist, metrics, and tracing settings.'
+---
+
+```
+[nakama]
+ENABLE_ALLOWLIST = "false"
+OUTGOING_QUEUE_SIZE = 64
+NAKAMA_TRACE_ENABLED = true
+NAKAMA_METRICS_ENABLED = true
+NAKAMA_TRACE_SAMPLE_RATE = 0.6
+NAKAMA_METRICS_INTERVAL = 30
+```
+
+### ENABLE_ALLOWLIST
+
+Enables Nakama’s allowlist feature, which allows for beta keys. This is useful for restricted access to certain parts of the game during development or early access.
+
+**Example**
+```
+ENABLE_ALLOWLIST = 'false'
+```
+
+### OUTGOING_QUEUE_SIZE
+
+Specifies the maximum number of undelivered notifications Nakama will allow before shutting down a client connection.
+
+**Example**
+```
+OUTGOING_QUEUE_SIZE = 64
+```
+
+### NAKAMA_TRACE_ENABLED
+
+Enables tracing within Nakama, which integrates with external tracing tools such as Jaeger for visualizing system performance.
+
+**Example**
+```
+NAKAMA_TRACE_ENABLED = true
+```
+
+### NAKAMA_METRICS_ENABLED
+
+Enables metrics collection within Nakama, integrating with Prometheus for system metrics tracking.
+
+**Example**
+```
+NAKAMA_METRICS_ENABLED = true
+```
+
+### NAKAMA_TRACE_SAMPLE_RATE
+
+Trace sample rate. valid values are between 0.0 to 1.0 inclusive. This is a float value.
+
+**Example**
+```
+NAKAMA_TRACE_SAMPLE_RATE = 0.6
+```
+
+### NAKAMA_METRICS_INTERVAL
+
+Prometheus scraping interval in seconds.
+
+**Example**
+```
+NAKAMA_METRICS_INTERVAL = 30
+```
