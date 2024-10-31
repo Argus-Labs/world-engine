@@ -52,8 +52,8 @@ func PostTransaction(
 
 		// make sure the transaction hasn't expired
 		if validationErr := validator.ValidateTransactionTTL(tx); validationErr != nil {
-			log.Errorf(validationErr.InternalMsg)                                  // log the private internal details
-			return fiber.NewError(validationErr.StatusCode, validationErr.Error()) // return public error result
+			log.Errorf(validationErr.GetInternalMessage())                              // log the private internal details
+			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
 		}
 
 		// Decode the message from the transaction
@@ -73,8 +73,8 @@ func PostTransaction(
 
 		// Validate the transaction's signature
 		if validationErr := validator.ValidateTransactionSignature(tx, signerAddress); validationErr != nil {
-			log.Errorf(validationErr.InternalMsg)                                  // log the private internal details
-			return fiber.NewError(validationErr.StatusCode, validationErr.Error()) // return public error result
+			log.Errorf(validationErr.GetInternalMessage())                              // log the private internal details
+			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
 		}
 
 		// Add the transaction to the engine
