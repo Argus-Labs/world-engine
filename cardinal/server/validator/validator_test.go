@@ -81,11 +81,14 @@ func (s *ValidatorTestSuite) createDisabledValidator() *SignatureValidator {
 	return NewSignatureValidator(true, 0, 0, s.namespace, s.provider)
 }
 
-func (s *ValidatorTestSuite) createValidatorWithTTL(ttl int) *SignatureValidator {
+// create an enabled validator with a specific ttl
+func (s *ValidatorTestSuite) createValidatorWithTTL(ttl int) *SignatureValidator { //nolint: unparam // future use
 	return NewSignatureValidator(false, ttl, 200, s.namespace, s.provider)
 }
 
-func (s *ValidatorTestSuite) simulateReceivedTransaction(personaTag, namespace string, data any) (*Transaction, error) {
+func (s *ValidatorTestSuite) simulateReceivedTransaction(personaTag, namespace string,
+	data any, //nolint: unparam // future use
+) (*Transaction, error) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, namespace, data)
 	if err == nil {
 		// sign puts a hash value into the transaction, but a newly received transaction will not have a hash value
@@ -269,7 +272,7 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	s.Require().NoError(e)
 	s.Require().True(sign.IsZeroHash(tx.Hash))
 
-	savedTs := tx.Timestamp
+	saved := tx.Timestamp
 
 	tx.Timestamp = veryOldTimestamp
 	err := validator.ValidateTransactionTTL(tx)
@@ -283,9 +286,10 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusBadRequest, err.GetStatusCode())
 	s.Require().Equal("Bad Request - "+ErrBadTimestamp.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), fmt.Sprintf("message timestamp more than %d seconds in the future", ttlMaxFutureSeconds))
+	s.Require().Contains(err.GetInternalMessage(), fmt.Sprintf("message timestamp more than %d seconds in the future",
+		ttlMaxFutureSeconds))
 
-	tx.Timestamp = savedTs - 1
+	tx.Timestamp = saved - 1
 	err = validator.ValidateTransactionTTL(tx)
 	s.Require().NoError(err)
 
@@ -324,7 +328,7 @@ func (s *ValidatorTestSuite) TestRejectsAlteredSaltTx() {
 	s.Require().NoError(e)
 	s.Require().True(sign.IsZeroHash(tx.Hash))
 
-	tx.Salt = tx.Salt + 1 // alter the sat
+	tx.Salt++ // alter the sat
 
 	err := validator.ValidateTransactionTTL(tx)
 	s.Require().NoError(err)
