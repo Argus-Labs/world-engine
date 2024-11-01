@@ -28,6 +28,8 @@ const ttlMaxFutureSeconds = 2 // this is how many seconds in the future a messag
 // we don't want to take messages from an unlimited amount of time into the future since they could cause our hash
 // cache to overflow
 
+const bytesPerKb = 1024
+
 var (
 	ErrNoPersonaTag     = errors.New("persona tag is required")
 	ErrWrongNamespace   = errors.New("incorrect namespace")
@@ -50,20 +52,20 @@ type SignatureValidator struct {
 
 type ValidationError interface {
 	error
-	GetInternalMessage() string
+	GetLogMessage() string
 	GetStatusCode() int
 }
 type validationError struct {
 	error
-	StatusCode  int
-	InternalMsg string // internal, for logging only
+	StatusCode int
+	LogMsg     string // internal, for logging only
 }
 
 func (e *validationError) Error() string {
 	return http.StatusText(e.StatusCode) + " - " + e.error.Error()
 }
-func (e *validationError) GetStatusCode() int         { return e.StatusCode }
-func (e *validationError) GetInternalMessage() string { return e.InternalMsg }
+func (e *validationError) GetStatusCode() int    { return e.StatusCode }
+func (e *validationError) GetLogMessage() string { return e.LogMsg }
 
 func NewSignatureValidator(disabled bool, msgExpirationSec int, hashCacheSizeKB int, namespace string,
 	provider SignerAddressProvider,
@@ -77,7 +79,7 @@ func NewSignatureValidator(disabled bool, msgExpirationSec int, hashCacheSizeKB 
 		signerAddressProvider:    provider,
 	}
 	if !disabled {
-		validator.cache = freecache.NewCache(validator.HashCacheSizeKB)
+		validator.cache = freecache.NewCache(validator.HashCacheSizeKB * bytesPerKb)
 	}
 	return &validator
 }
@@ -94,12 +96,12 @@ func (validator *SignatureValidator) ValidateTransactionTTL(tx *Transaction) Val
 		if tx.Timestamp < txEarliestValidTimestamp {
 			return &validationError{ErrMessageExpired, http.StatusRequestTimeout,
 				fmt.Sprintf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
-					validator.MessageExpirationSeconds, tx.Timestamp, sign.TimestampNow())}
+					validator.MessageExpirationSeconds, tx.Timestamp, sign.TimestampAt(now))}
 		} else if tx.Timestamp > txLatestValidTimestamp {
 			return &validationError{ErrBadTimestamp, http.StatusBadRequest,
 				fmt.Sprintf(
 					"message timestamp more than %d seconds in the future. Got timestamp: %d, current timestamp: %d ",
-					ttlMaxFutureSeconds, tx.Timestamp, sign.TimestampNow())}
+					ttlMaxFutureSeconds, tx.Timestamp, sign.TimestampAt(now))}
 		}
 		// check for duplicate message via hash cache
 		if found, err := validator.isHashInCache(tx.Hash); err != nil {

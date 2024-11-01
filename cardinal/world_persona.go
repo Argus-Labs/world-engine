@@ -11,7 +11,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
+// implements the validator.SignerAddressProvider interface
 func (w *World) GetSignerAddressForPersonaTag(personaTag string) (addr string, err error) {
+	// the server PostTransaction code called this with zero for tick so we are preserving that behavior
 	return w.GetSignerForPersonaTag(personaTag, 0)
 }
 

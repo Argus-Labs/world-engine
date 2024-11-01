@@ -47,14 +47,17 @@ type Transaction struct {
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
 }
 
+// returns a sign compatible timestamp for the current wall time
 func TimestampNow() int64 {
 	return time.Now().UnixMilli() // millisecond accuracy on timestamps, easily available on all platforms
 }
 
+// returns a sign compatible timestamp for the time passed in
 func TimestampAt(t time.Time) int64 {
 	return t.UnixMilli()
 }
 
+// returns a GoLang time from a sign compatible timestamp
 func Timestamp(t int64) time.Time {
 	return time.UnixMilli(t)
 }

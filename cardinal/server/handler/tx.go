@@ -52,7 +52,7 @@ func PostTransaction(
 
 		// make sure the transaction hasn't expired
 		if validationErr := validator.ValidateTransactionTTL(tx); validationErr != nil {
-			log.Errorf(validationErr.GetInternalMessage())                              // log the private internal details
+			log.Errorf(validationErr.GetLogMessage())                                   // log the private internal details
 			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
 		}
 
@@ -73,7 +73,7 @@ func PostTransaction(
 
 		// Validate the transaction's signature
 		if validationErr := validator.ValidateTransactionSignature(tx, signerAddress); validationErr != nil {
-			log.Errorf(validationErr.GetInternalMessage())                              // log the private internal details
+			log.Errorf(validationErr.GetLogMessage())                                   // log the private internal details
 			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
 		}
 
@@ -129,12 +129,12 @@ func PostPersonaTransaction(
 	return PostTransaction(world, msgs, validator)
 }
 
-func extractTx(ctx *fiber.Ctx, validate *SignatureValidator) (*sign.Transaction, *fiber.Error) {
+func extractTx(ctx *fiber.Ctx, validator *SignatureValidator) (*sign.Transaction, *fiber.Error) {
 	var tx *sign.Transaction
 	var err error
 	// Parse the request body into a sign.Transaction struct tx := new(Transaction)
 	// this also calculates the hash
-	if !validate.IsDisabled {
+	if !validator.IsDisabled {
 		// we are doing signature verification, so use sign's Unmarshal which does extra checks
 		tx, err = sign.UnmarshalTransaction(ctx.Body())
 	} else {

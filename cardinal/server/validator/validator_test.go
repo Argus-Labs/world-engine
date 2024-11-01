@@ -143,7 +143,7 @@ func (s *ValidatorTestSuite) TestCanValidateBadNamespaceTxWithVerificationDisabl
 	s.Require().NoError(err)
 }
 
-// TestCanValidateBadSignatureTxWithVerificationDisabled tests that you can validate transactions with expired or
+// TestCanValidateBadTimestampsTxWithVerificationDisabled tests that you can validate transactions with expired or
 // future timestamps when sig verification is disabled.
 func (s *ValidatorTestSuite) TestCanValidateBadTimestampsTxWithVerificationDisabled() {
 	validator := s.createDisabledValidator()
@@ -261,10 +261,11 @@ func (s *ValidatorTestSuite) TestRejectsBadNamespaceTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
 	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), "incorrect namespace")
+	s.Require().Contains(err.GetLogMessage(), "incorrect namespace")
 }
 
-// TestRejectsInvalidTimestampsTx tests that transactions with invalid or altered timestamps are rejected
+// TestRejectsInvalidTimestampsTx tests that transactions with invalid timestamps or with a timestamp altered
+// after signing are rejected
 func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	ttl := 10
 	validator := s.createValidatorWithTTL(ttl)
@@ -279,14 +280,14 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusRequestTimeout, err.GetStatusCode())
 	s.Require().Equal("Request Timeout - "+ErrMessageExpired.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), fmt.Sprintf("message older than %d seconds", ttl))
+	s.Require().Contains(err.GetLogMessage(), fmt.Sprintf("message older than %d seconds", ttl))
 
 	tx.Timestamp = futureTimestamp
 	err = validator.ValidateTransactionTTL(tx)
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusBadRequest, err.GetStatusCode())
 	s.Require().Equal("Bad Request - "+ErrBadTimestamp.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), fmt.Sprintf("message timestamp more than %d seconds in the future",
+	s.Require().Contains(err.GetLogMessage(), fmt.Sprintf("message timestamp more than %d seconds in the future",
 		ttlMaxFutureSeconds))
 
 	tx.Timestamp = saved - 1
@@ -298,10 +299,10 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
 	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), "Signature validation failed for message")
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
-// TestRejectsAlteredHashTx
+// TestRejectsAlteredHashTx tests that a transaction with a hashes that is altered after signing is rejected
 func (s *ValidatorTestSuite) TestRejectsAlteredHashTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
@@ -318,17 +319,17 @@ func (s *ValidatorTestSuite) TestRejectsAlteredHashTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
 	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), "Signature validation failed for message")
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
-// TestRejectsAlteredSaltTx
+// TestRejectsAlteredSaltTx tests that a transaction with a salt value that is altered after signing is rejected
 func (s *ValidatorTestSuite) TestRejectsAlteredSaltTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
 	s.Require().NoError(e)
 	s.Require().True(sign.IsZeroHash(tx.Hash))
 
-	tx.Salt++ // alter the sat
+	tx.Salt++ // alter the salt value
 
 	err := validator.ValidateTransactionTTL(tx)
 	s.Require().NoError(err)
@@ -338,17 +339,17 @@ func (s *ValidatorTestSuite) TestRejectsAlteredSaltTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
 	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), "Signature validation failed for message")
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
-// TestRejectsAlteredBodyTx
+// TestRejectsAlteredBodyTx tests that a transaction with a body that is altered after signing is rejected
 func (s *ValidatorTestSuite) TestRejectsAlteredBodyTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
 	s.Require().NoError(e)
 	s.Require().True(sign.IsZeroHash(tx.Hash))
 
-	tx.Body = []byte(hackedRequestBody) // alter the sat
+	tx.Body = []byte(hackedRequestBody) // replace the body with another valid one
 
 	err := validator.ValidateTransactionTTL(tx)
 	s.Require().NoError(err)
@@ -358,7 +359,7 @@ func (s *ValidatorTestSuite) TestRejectsAlteredBodyTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
 	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), "Signature validation failed for message")
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
 // TestRejectsInvalidPersonaTx tests that a transaction with an invalid signature is rejected.
@@ -373,10 +374,11 @@ func (s *ValidatorTestSuite) TestRejectsInvalidPersonaTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
 	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), "could not get signer for persona bad_persona")
+	s.Require().Contains(err.GetLogMessage(), "could not get signer for persona bad_persona")
 }
 
-// TestRejectsDuplicateTx
+// TestRejectsDuplicateTx tests that a transaction that's previously been validated is rejected if you try to validate
+// it again. This prevents replay attacks because each message sent must be uniquely signed.
 func (s *ValidatorTestSuite) TestRejectsDuplicateTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
@@ -392,5 +394,5 @@ func (s *ValidatorTestSuite) TestRejectsDuplicateTx() {
 	s.Require().Error(err)
 	s.Require().Equal(http.StatusForbidden, err.GetStatusCode())
 	s.Require().Equal("Forbidden - "+ErrDuplicateMessage.Error(), err.Error())
-	s.Require().Contains(err.GetInternalMessage(), fmt.Sprintf("message %s already handled", tx.Hash))
+	s.Require().Contains(err.GetLogMessage(), fmt.Sprintf("message %s already handled", tx.Hash))
 }
