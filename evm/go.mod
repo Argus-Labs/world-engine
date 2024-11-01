@@ -4,8 +4,6 @@ go 1.22.1
 
 // external, necessary replacements
 replace (
-	// pkg.world.dev/world-engine/rift => ../rift
-
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 
