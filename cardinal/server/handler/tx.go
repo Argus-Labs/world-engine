@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/rotisserie/eris"
 
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
@@ -33,7 +32,7 @@ type PostTransactionResponse struct {
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *validator.SignatureValidator,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -101,7 +100,7 @@ func PostTransaction(
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *validator.SignatureValidator,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(world, msgs, validator)
 }
@@ -122,7 +121,7 @@ func PostGameTransaction(
 //	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *validator.SignatureValidator,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(world, msgs, validator)
 }

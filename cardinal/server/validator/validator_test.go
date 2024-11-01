@@ -49,7 +49,7 @@ type ProviderFixture struct {
 	vts *ValidatorTestSuite
 }
 
-func (pf *ProviderFixture) GetSignerForPersonaTag(personaTag string, _ uint64) (addr string, err error) {
+func (pf *ProviderFixture) GetSignerAddressForPersonaTag(personaTag string) (addr string, err error) {
 	if personaTag == badPersona {
 		// emulates what would happen if the personal lookup provider couldn't find a signer for the persona
 		return "", persona.ErrPersonaTagHasNoSigner
@@ -73,18 +73,22 @@ func (s *ValidatorTestSuite) SetupTest() {
 	}
 }
 
+// TearDownTest runs after each test in the suite.
+func (s *ValidatorTestSuite) TearDownTest() {
+}
+
 func (s *ValidatorTestSuite) createDisabledValidator() *SignatureValidator {
 	return NewSignatureValidator(true, 0, 0, s.namespace, s.provider)
 }
 
 // create an enabled validator with a specific ttl
-func (s *ValidatorTestSuite) createValidatorWithTTL(ttl uint) *SignatureValidator { //nolint: unparam // future use
+func (s *ValidatorTestSuite) createValidatorWithTTL(ttl int) *SignatureValidator { //nolint: unparam // future use
 	return NewSignatureValidator(false, ttl, 200, s.namespace, s.provider)
 }
 
 func (s *ValidatorTestSuite) simulateReceivedTransaction(personaTag, namespace string,
 	data any, //nolint: unparam // future use
-) (*sign.Transaction, error) {
+) (*Transaction, error) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, namespace, data)
 	if err == nil {
 		// sign puts a hash value into the transaction, but a newly received transaction will not have a hash value
@@ -263,7 +267,7 @@ func (s *ValidatorTestSuite) TestRejectsBadNamespaceTx() {
 // TestRejectsInvalidTimestampsTx tests that transactions with invalid timestamps or with a timestamp altered
 // after signing are rejected
 func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
-	ttl := uint(10)
+	ttl := 10
 	validator := s.createValidatorWithTTL(ttl)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
 	s.Require().NoError(e)
