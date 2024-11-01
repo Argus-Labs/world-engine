@@ -102,6 +102,34 @@ func TestIsSignedSystemPayload(t *testing.T) {
 	assert.Check(t, sp.IsSystemTransaction())
 }
 
+func TestTimestamps(t *testing.T) {
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	body := `{"msg": "this is a request body"}`
+	personaTag := "my-tag"
+	namespace := "my-namespace"
+
+	ts := TimestampNow()
+	tx, err := NewTransaction(goodKey, personaTag, namespace, body)
+	assert.NilError(t, err)
+	assert.Check(t, tx.Timestamp-ts <= 1)
+
+	time.Sleep(100 * time.Millisecond)
+	tm := time.Now()
+	ts2 := TimestampNow()
+	ts3 := TimestampAt(tm)
+	assert.Check(t, ts3-ts2 <= 1)
+	tm2 := Timestamp(ts2)
+	tm3 := Timestamp(ts3)
+	assert.Check(t, tm.Sub(tm2) < 1*time.Millisecond) // check millisecond accuracy of timestamp
+	assert.Check(t, tm2.Sub(tm3) < 2*time.Millisecond)
+
+	tx2, err := NewTransaction(goodKey, personaTag, namespace, body)
+	assert.NilError(t, err)
+	assert.Check(t, tx2.Timestamp-ts2 <= 1)
+	assert.Check(t, ts != ts2)
+}
+
 func TestFailsIfFieldsMissing(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)

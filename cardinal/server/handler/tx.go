@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/rotisserie/eris"
 
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
+	"pkg.world.dev/world-engine/cardinal/server/validator"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -43,6 +43,7 @@ type SignatureVerification struct {
 }
 
 type Transaction = sign.Transaction
+type SignatureValidator = validator.SignatureValidator
 
 // PostTransaction godoc
 //
@@ -59,7 +60,7 @@ type Transaction = sign.Transaction
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -69,15 +70,15 @@ func PostTransaction(
 		}
 
 		// extract the transaction from the fiber context
-		tx, fiberErr := extractTx(ctx, verify)
+		tx, fiberErr := extractTx(ctx, validator)
 		if fiberErr != nil {
 			return fiberErr
 		}
 
-		// Validate the transaction
-		if err := validateTx(tx); err != nil {
-			log.Errorf("message %s has invalid transaction payload: %v", tx.Hash.String(), err)
-			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - invalid payload")
+		// make sure the transaction hasn't expired
+		if validationErr := validator.ValidateTransactionTTL(tx); validationErr != nil {
+			log.Errorf(validationErr.GetLogMessage())                                   // log the private internal details
+			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
 		}
 
 		// Decode the message from the transaction
@@ -87,31 +88,18 @@ func PostTransaction(
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - failed to decode tx message")
 		}
 
-		// check the signature
-		if !verify.IsDisabled {
-			var signerAddress string
-			if msgType.Name() == personaMsg.CreatePersonaMessageName {
-				// don't need to check the cast bc we already validated this above
-				createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
-				signerAddress = createPersonaMsg.SignerAddress
-			}
+		// there's a special case for the CreatePersona message
+		var signerAddress string
+		if msgType.Name() == personaMsg.CreatePersonaMessageName {
+			// don't need to check the cast bc we already validated this above
+			createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
+			signerAddress = createPersonaMsg.SignerAddress
+		}
 
-			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
-				log.Errorf("Signature validation failed for message %s: %v", tx.Hash.String(), err)
-				return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized - invalid signature")
-			}
-
-			// the message was valid, so add its hash to the cache
-			// we don't do this until we have verified the signature to prevent an attack where someone sends
-			// large numbers of hashes with unsigned/invalid messages and thus blocks legit messages from
-			// being handled
-			err = verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
-			if err != nil {
-				// if we couldn't store the hash in the cache, don't process the transaction, since that
-				// would open us up to replay attacks
-				log.Errorf("unexpected cache store error %v. message %s ignored", err, tx.Hash.String())
-				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache store")
-			}
+		// Validate the transaction's signature
+		if validationErr := validator.ValidateTransactionSignature(tx, signerAddress); validationErr != nil {
+			log.Errorf(validationErr.GetLogMessage())                                   // log the private internal details
+			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
 		}
 
 		// Add the transaction to the engine
@@ -140,9 +128,9 @@ func PostTransaction(
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, verify)
+	return PostTransaction(world, msgs, validator)
 }
 
 // NOTE: duplication for cleaner swagger docs
@@ -161,31 +149,17 @@ func PostGameTransaction(
 //	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, verify)
+	return PostTransaction(world, msgs, validator)
 }
 
-func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
-	_, err := cache.Get(hash.Bytes())
-	if err == nil {
-		// found it
-		return true, nil
-	}
-	if errors.Is(err, freecache.ErrNotFound) {
-		// ignore ErrNotFound, just return false
-		return false, nil
-	}
-	// return all other errors
-	return false, err
-}
-
-func extractTx(ctx *fiber.Ctx, verify SignatureVerification) (*sign.Transaction, *fiber.Error) {
+func extractTx(ctx *fiber.Ctx, validator *SignatureValidator) (*sign.Transaction, *fiber.Error) {
 	var tx *sign.Transaction
 	var err error
 	// Parse the request body into a sign.Transaction struct tx := new(Transaction)
 	// this also calculates the hash
-	if !verify.IsDisabled {
+	if !validator.IsDisabled {
 		// we are doing signature verification, so use sign's Unmarshal which does extra checks
 		tx, err = sign.UnmarshalTransaction(ctx.Body())
 	} else {
