@@ -3,12 +3,12 @@ package validator
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/suite"
 
 	"pkg.world.dev/world-engine/cardinal/persona"
@@ -49,7 +49,7 @@ type ProviderFixture struct {
 	vts *ValidatorTestSuite
 }
 
-func (pf *ProviderFixture) GetSignerForPersonaTag(personaTag string, _ uint64) (addr string, err error) {
+func (pf *ProviderFixture) GetSignerAddressForPersonaTag(personaTag string) (addr string, err error) {
 	if personaTag == badPersona {
 		// emulates what would happen if the personal lookup provider couldn't find a signer for the persona
 		return "", persona.ErrPersonaTagHasNoSigner
@@ -73,18 +73,22 @@ func (s *ValidatorTestSuite) SetupTest() {
 	}
 }
 
+// TearDownTest runs after each test in the suite.
+func (s *ValidatorTestSuite) TearDownTest() {
+}
+
 func (s *ValidatorTestSuite) createDisabledValidator() *SignatureValidator {
 	return NewSignatureValidator(true, 0, 0, s.namespace, s.provider)
 }
 
 // create an enabled validator with a specific ttl
-func (s *ValidatorTestSuite) createValidatorWithTTL(ttl uint) *SignatureValidator { //nolint: unparam // future use
+func (s *ValidatorTestSuite) createValidatorWithTTL(ttl int) *SignatureValidator { //nolint: unparam // future use
 	return NewSignatureValidator(false, ttl, 200, s.namespace, s.provider)
 }
 
 func (s *ValidatorTestSuite) simulateReceivedTransaction(personaTag, namespace string,
 	data any, //nolint: unparam // future use
-) (*sign.Transaction, error) {
+) (*Transaction, error) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, namespace, data)
 	if err == nil {
 		// sign puts a hash value into the transaction, but a newly received transaction will not have a hash value
@@ -220,7 +224,8 @@ func (s *ValidatorTestSuite) TestAlwaysRejectsMissingPersonaTx() {
 	s.Require().NoError(err)
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrNoPersonaTag))
+	s.Require().Equal(http.StatusBadRequest, err.GetStatusCode())
+	s.Require().Equal("Bad Request - "+ErrNoPersonaTag.Error(), err.Error())
 
 	validator = s.createDisabledValidator()
 	tx = &sign.Transaction{PersonaTag: "", Body: []byte(goodRequestBody)}
@@ -229,7 +234,8 @@ func (s *ValidatorTestSuite) TestAlwaysRejectsMissingPersonaTx() {
 	s.Require().NoError(err)
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrNoPersonaTag))
+	s.Require().Equal(http.StatusBadRequest, err.GetStatusCode())
+	s.Require().Equal("Bad Request - "+ErrNoPersonaTag.Error(), err.Error())
 }
 
 // TestRejectsUnsignedTx tests that an unsigned transaction with a valid timestamp is rejected.
@@ -240,7 +246,8 @@ func (s *ValidatorTestSuite) TestRejectsUnsignedTx() {
 	s.Require().NoError(err)
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
 }
 
 // TestRejectsBadNamespaceTx tests that a signed transaction with the wrong namespace is rejected
@@ -252,13 +259,15 @@ func (s *ValidatorTestSuite) TestRejectsBadNamespaceTx() {
 	s.Require().NoError(err)
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), "incorrect namespace")
 }
 
 // TestRejectsInvalidTimestampsTx tests that transactions with invalid timestamps or with a timestamp altered
 // after signing are rejected
 func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
-	ttl := uint(10)
+	ttl := 10
 	validator := s.createValidatorWithTTL(ttl)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
 	s.Require().NoError(e)
@@ -269,14 +278,16 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	tx.Timestamp = veryOldTimestamp
 	err := validator.ValidateTransactionTTL(tx)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrMessageExpired))
-	s.Require().Contains(err.Error(), fmt.Sprintf("message older than %d seconds", ttl))
+	s.Require().Equal(http.StatusRequestTimeout, err.GetStatusCode())
+	s.Require().Equal("Request Timeout - "+ErrMessageExpired.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), fmt.Sprintf("message older than %d seconds", ttl))
 
 	tx.Timestamp = futureTimestamp
 	err = validator.ValidateTransactionTTL(tx)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrBadTimestamp))
-	s.Require().Contains(err.Error(), fmt.Sprintf("message timestamp more than %d seconds in the future",
+	s.Require().Equal(http.StatusBadRequest, err.GetStatusCode())
+	s.Require().Equal("Bad Request - "+ErrBadTimestamp.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), fmt.Sprintf("message timestamp more than %d seconds in the future",
 		ttlMaxFutureSeconds))
 
 	tx.Timestamp = saved - 1
@@ -286,8 +297,9 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	// this step actually calculates the hash
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
-	s.Require().Contains(err.Error(), "signature validation failed for message")
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
 // TestRejectsAlteredHashTx tests that a transaction with a hashes that is altered after signing is rejected
@@ -305,8 +317,9 @@ func (s *ValidatorTestSuite) TestRejectsAlteredHashTx() {
 	// this step normally calculates the hash, but since it's altered it will use the altered one
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
-	s.Require().Contains(err.Error(), "signature validation failed for message")
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
 // TestRejectsAlteredSaltTx tests that a transaction with a salt value that is altered after signing is rejected
@@ -324,8 +337,9 @@ func (s *ValidatorTestSuite) TestRejectsAlteredSaltTx() {
 	// this step normally calculates the hash, but since it's altered it will use the altered one
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
-	s.Require().Contains(err.Error(), "signature validation failed for message")
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
 // TestRejectsAlteredBodyTx tests that a transaction with a body that is altered after signing is rejected
@@ -343,8 +357,9 @@ func (s *ValidatorTestSuite) TestRejectsAlteredBodyTx() {
 	// this step normally calculates the hash, but since it's altered it will use the altered one
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
-	s.Require().Contains(err.Error(), "signature validation failed for message")
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), "Signature validation failed for message")
 }
 
 // TestRejectsInvalidPersonaTx tests that a transaction with an invalid signature is rejected.
@@ -357,8 +372,9 @@ func (s *ValidatorTestSuite) TestRejectsInvalidPersonaTx() {
 	s.Require().NoError(err)
 	err = validator.ValidateTransactionSignature(tx, lookupSignerAddress)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrInvalidSignature))
-	s.Require().Contains(err.Error(), "could not get signer for persona bad_persona")
+	s.Require().Equal(http.StatusUnauthorized, err.GetStatusCode())
+	s.Require().Equal("Unauthorized - "+ErrInvalidSignature.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), "could not get signer for persona bad_persona")
 }
 
 // TestRejectsDuplicateTx tests that a transaction that's previously been validated is rejected if you try to validate
@@ -376,6 +392,7 @@ func (s *ValidatorTestSuite) TestRejectsDuplicateTx() {
 	// try to validate same transaction again, detect an error
 	err = validator.ValidateTransactionTTL(tx)
 	s.Require().Error(err)
-	s.Require().True(eris.Is(err, ErrDuplicateMessage))
-	s.Require().Contains(err.Error(), fmt.Sprintf("message %s already handled", tx.Hash))
+	s.Require().Equal(http.StatusForbidden, err.GetStatusCode())
+	s.Require().Equal("Forbidden - "+ErrDuplicateMessage.Error(), err.Error())
+	s.Require().Contains(err.GetLogMessage(), fmt.Sprintf("message %s already handled", tx.Hash))
 }
