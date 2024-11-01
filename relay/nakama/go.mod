@@ -2,7 +2,7 @@ module pkg.world.dev/world-engine/relay/nakama
 
 go 1.22.1
 
-replace pkg.world.dev/world-engine/sign => ../../sign
+//replace pkg.world.dev/world-engine/sign => ../../sign
 
 require (
 	cloud.google.com/go/kms v1.15.7

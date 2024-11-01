@@ -4,9 +4,9 @@ go 1.22.1
 
 replace pkg.world.dev/world-engine/cardinal => ../../cardinal
 
-replace pkg.world.dev/world-engine/sign => ../../sign
+//replace pkg.world.dev/world-engine/sign => ../../sign
 
-replace pkg.world.dev/world-engine/rift => ../../rift
+//replace pkg.world.dev/world-engine/rift => ../../rift
 
 require (
 	github.com/rotisserie/eris v0.5.4
