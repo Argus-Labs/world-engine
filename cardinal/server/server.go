@@ -184,7 +184,7 @@ func (s *Server) setupRoutes(
 
 	// Route: /tx/...
 	tx := s.app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.verify))
+	tx.Post("/:group/:name", handler.PostTransaction(world, msgIndex, s.validator))
 
 	// Route: /cql
 	s.app.Post("/cql", handler.PostCQL(world))

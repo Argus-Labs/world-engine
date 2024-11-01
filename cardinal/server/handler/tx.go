@@ -1,12 +1,6 @@
 package handler
 
 import (
-	"errors"
-	"fmt"
-	"time"
-
-	"github.com/coocood/freecache"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 
@@ -17,29 +11,10 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal expiration a hash is left in the cache.
-// we want to ensure it's long enough that any message that's not expired but
-// still has its hash in the cache for replay protection. Setting it too long
-// would cause the cache to be bigger than necessary
-
-var (
-	ErrNoPersonaTag               = errors.New("persona tag is required")
-	ErrWrongNamespace             = errors.New("incorrect namespace")
-	ErrSystemTransactionRequired  = errors.New("system transaction required")
-	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
-)
-
 // PostTransactionResponse is the HTTP response for a successful transaction submission
 type PostTransactionResponse struct {
 	TxHash string
 	Tick   uint64
-}
-
-type SignatureVerification struct {
-	IsDisabled               bool
-	MessageExpirationSeconds int
-	HashCacheSizeKB          int
-	Cache                    *freecache.Cache
 }
 
 type Transaction = sign.Transaction
@@ -171,63 +146,5 @@ func extractTx(ctx *fiber.Ctx, validator *SignatureValidator) (*sign.Transaction
 		log.Errorf("body parse failed: %v", err)
 		return nil, fiber.NewError(fiber.StatusBadRequest, "Bad Request - unparseable body")
 	}
-	if !verify.IsDisabled {
-		txEarliestValidTimestamp := sign.TimestampAt(
-			time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second)))
-		// before we even create the hash or validate the signature, check to see if the message has expired
-		if tx.Timestamp < txEarliestValidTimestamp {
-			log.Errorf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
-				verify.MessageExpirationSeconds, tx.Timestamp, sign.TimestampNow())
-			return nil, fiber.NewError(fiber.StatusRequestTimeout, "Request Timeout - signature too old")
-		}
-		// check for duplicate message via hash cache
-		if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
-			log.Errorf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())
-			return nil, fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
-		} else if found {
-			// if found in the cache, the message hash has already been used, so reject it
-			log.Errorf("message %s already handled", tx.Hash.String())
-			return nil, fiber.NewError(fiber.StatusForbidden, "Forbidden - duplicate message")
-		}
-		// at this point we know that the generated hash is not in the cache, so this message is not a replay
-	}
 	return tx, nil
-}
-
-func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
-	var err error
-	if signerAddress == "" {
-		signerAddress, err = world.GetSignerForPersonaTag(tx.PersonaTag, 0)
-		if err != nil {
-			return fmt.Errorf("could not get signer for persona %s: %w", tx.PersonaTag, err)
-		}
-	}
-	if err = validateSignature(tx, signerAddress, world.Namespace(),
-		tx.IsSystemTransaction()); err != nil {
-		return fmt.Errorf("could not validate signature for persona %s: %w", tx.PersonaTag, err)
-	}
-	return nil
-}
-
-// validateTx validates the transaction payload
-func validateTx(tx *Transaction) error {
-	// TODO(scott): we should use the validator package here
-	if tx.PersonaTag == "" {
-		return ErrNoPersonaTag
-	}
-	return nil
-}
-
-// validateSignature validates that the signature of transaction is valid
-func validateSignature(tx *Transaction, signerAddr string, namespace string, systemTx bool) error {
-	if tx.Namespace != namespace {
-		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
-	}
-	if systemTx && !tx.IsSystemTransaction() {
-		return eris.Wrap(ErrSystemTransactionRequired, "")
-	}
-	if !systemTx && tx.IsSystemTransaction() {
-		return eris.Wrap(ErrSystemTransactionForbidden, "")
-	}
-	return eris.Wrap(tx.Verify(signerAddr), "")
 }
