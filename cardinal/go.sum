@@ -520,4 +520,8 @@ honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 pkg.world.dev/world-engine/assert v1.0.0 h1:vD6+QLT1pvQa86FPFi+wGcVA7PEwTGndXr+PkTY/Fpw=
 pkg.world.dev/world-engine/assert v1.0.0/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
+pkg.world.dev/world-engine/rift v1.2.0 h1:789ymNG9HdLubkXB9NLZ93kRu5gTAvlXcxY9vjuQxuM=
+pkg.world.dev/world-engine/rift v1.2.0/go.mod h1:vimnFo4VCFYHzixIv5ZtqnaRQM5+8a0J+V4AAOKrKk0=
+pkg.world.dev/world-engine/sign v1.1.0 h1:hotNGChaT+HCOfB3NMlqjISi1jX/UWjOPGlvuq9ws5s=
+pkg.world.dev/world-engine/sign v1.1.0/go.mod h1:pHHRuZ7P3HkZQbch0++xgy66iq0MwBuIeKymLdw0IMg=
 sigs.k8s.io/yaml v1.3.0/go.mod h1:GeOyir5tyXNByN85N/dRIT9es5UQNerPYEKK56eTBm8=

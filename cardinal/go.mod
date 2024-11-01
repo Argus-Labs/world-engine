@@ -2,10 +2,6 @@ module pkg.world.dev/world-engine/cardinal
 
 go 1.22.1
 
-replace pkg.world.dev/world-engine/sign => ../sign
-
-replace pkg.world.dev/world-engine/rift => ../rift
-
 require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
