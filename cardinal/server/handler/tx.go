@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/rotisserie/eris"
 
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
@@ -17,9 +18,6 @@ type PostTransactionResponse struct {
 	Tick   uint64
 }
 
-type Transaction = sign.Transaction
-type SignatureValidator = validator.SignatureValidator
-
 // PostTransaction godoc
 //
 //	@Summary      Submits a transaction
@@ -28,14 +26,14 @@ type SignatureValidator = validator.SignatureValidator
 //	@Produce      application/json
 //	@Param        txGroup  path      string                   true  "Message group"
 //	@Param        txName   path      string                   true  "Name of a registered message"
-//	@Param        txBody   body      Transaction              true  "Transaction details & message to be submitted"
+//	@Param        txBody   body      sign.Transaction         true  "Transaction details & message to be submitted"
 //	@Success      200      {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400      {string}  string                   "Invalid request parameter"
 //	@Failure      403      {string}  string                   "Forbidden"
 //	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *validator.SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
@@ -67,7 +65,10 @@ func PostTransaction(
 		var signerAddress string
 		if msgType.Name() == personaMsg.CreatePersonaMessageName {
 			// don't need to check the cast bc we already validated this above
-			createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
+			createPersonaMsg, ok := msg.(personaMsg.CreatePersona)
+			if !ok {
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - bad message type")
+			}
 			signerAddress = createPersonaMsg.SignerAddress
 		}
 
@@ -96,14 +97,14 @@ func PostTransaction(
 //	@Accept       application/json
 //	@Produce      application/json
 //	@Param        txName  path      string                   true  "Name of a registered message"
-//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Param        txBody  body      sign.Transaction         true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Failure      403     {string}  string                   "Forbidden"
 //	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *validator.SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(world, msgs, validator)
 }
@@ -115,7 +116,7 @@ func PostGameTransaction(
 //	@Description  Creates a persona
 //	@Accept       application/json
 //	@Produce      application/json
-//	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
+//	@Param        txBody  body      sign.Transaction         true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
 //	@Failure      401     {string}  string                   "Unauthorized - signature was invalid"
@@ -124,12 +125,12 @@ func PostGameTransaction(
 //	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *SignatureValidator,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, validator *validator.SignatureValidator,
 ) func(*fiber.Ctx) error {
 	return PostTransaction(world, msgs, validator)
 }
 
-func extractTx(ctx *fiber.Ctx, validator *SignatureValidator) (*sign.Transaction, *fiber.Error) {
+func extractTx(ctx *fiber.Ctx, validator *validator.SignatureValidator) (*sign.Transaction, error) {
 	var tx *sign.Transaction
 	var err error
 	// Parse the request body into a sign.Transaction struct tx := new(Transaction)
@@ -144,7 +145,7 @@ func extractTx(ctx *fiber.Ctx, validator *SignatureValidator) (*sign.Transaction
 	}
 	if err != nil {
 		log.Errorf("body parse failed: %v", err)
-		return nil, fiber.NewError(fiber.StatusBadRequest, "Bad Request - unparseable body")
+		return nil, eris.Wrap(err, "Bad Request - unparseable body")
 	}
 	return tx, nil
 }

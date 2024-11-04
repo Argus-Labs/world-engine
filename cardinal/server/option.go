@@ -31,7 +31,7 @@ func DisableSignatureVerification() Option {
 // This setting is ignored if the DisableSignatureVerification option is used
 // NOTE: this means that the real time clock for the sender and receiver
 // must be synchronized
-func WithMessageExpiration(seconds int) Option {
+func WithMessageExpiration(seconds uint) Option {
 	return func(s *Server) {
 		s.config.messageExpirationSeconds = seconds
 	}
@@ -40,7 +40,7 @@ func WithMessageExpiration(seconds int) Option {
 // WithHashCacheSize how big the cache of hashes used for replay protection
 // is allowed to be. Default is 1MB.
 // This setting is ignored if the DisableSignatureVerification option is used
-func WithHashCacheSize(sizeKB int) Option {
+func WithHashCacheSize(sizeKB uint) Option {
 	return func(s *Server) {
 		s.config.messageHashCacheSizeKB = sizeKB
 	}
