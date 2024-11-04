@@ -11,15 +11,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-// implements the validator.SignerAddressProvider interface
-func (w *World) GetSignerAddressForPersonaTag(personaTag string) (addr string, err error) {
-	// the server PostTransaction code called this with zero for tick so we are preserving that behavior
-	return w.GetSignerForPersonaTag(personaTag, 0)
-}
-
 // GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
 // given tick. If the engine's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is
 // returned. If the given personaTag has no signer address, ErrPersonaTagHasNoSigner is returned.
+// implements the validator.SignerAddressProvider interface
 func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	if tick >= w.CurrentTick() {
 		return "", persona.ErrCreatePersonaTxsNotProcessed

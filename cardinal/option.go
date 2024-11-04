@@ -56,9 +56,18 @@ func WithDisableSignatureVerification() WorldOption {
 // This setting is ignored if the DisableSignatureVerification option is used
 // NOTE: this means that the real time clock for the sender and receiver
 // must be synchronized
-func WithMessageExpiration(seconds int) WorldOption {
+func WithMessageExpiration(seconds uint) WorldOption {
 	return WorldOption{
 		serverOption: server.WithMessageExpiration(seconds),
+	}
+}
+
+// WithHashCacheSize how big the cache of hashes used for replay protection
+// is allowed to be. Default is 1MB.
+// This setting is ignored if the DisableSignatureVerification option is used
+func WithHashCacheSize(sizeKB uint) WorldOption {
+	return WorldOption{
+		serverOption: server.WithHashCacheSize(sizeKB),
 	}
 }
 

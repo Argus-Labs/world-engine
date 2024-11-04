@@ -31,8 +31,8 @@ type config struct {
 	port                          string
 	isSwaggerDisabled             bool
 	isSignatureValidationDisabled bool
-	messageExpirationSeconds      int
-	messageHashCacheSizeKB        int
+	messageExpirationSeconds      uint
+	messageHashCacheSizeKB        uint
 }
 
 type Server struct {
