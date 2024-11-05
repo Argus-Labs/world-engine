@@ -18,3 +18,9 @@ type Signer interface {
 	SignSystemTx(ctx context.Context, namespace string, data any) (*sign.Transaction, error)
 	SignerAddress() string
 }
+
+type TestOnlySigner interface {
+	Signer
+	SignTxWithTimestamp(ctx context.Context, personaTag string, namespace string, data any, timestamp int64, salt uint16) (
+		*sign.Transaction, error)
+}

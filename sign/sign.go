@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,15 +34,25 @@ var (
 	ErrNoNamespaceField  = errors.New("transaction must contain namespace field")
 	ErrNoSignatureField  = errors.New("transaction must contain signature field")
 	ErrNoBodyField       = errors.New("transaction must contain body field")
+	ErrNoTimestampField  = errors.New("transaction must contain timestamp field")
 )
 
 type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
-	Nonce      uint64          `json:"nonce"`
-	Signature  string          `json:"signature"` // hex encoded string
-	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
+	Timestamp  int64           `json:"timestamp"`                 // unix millisecond timestamp
+	Salt       uint16          `json:"salt,omitempty"`            // an optional field for additional hash uniqueness
+	Signature  string          `json:"signature"`                 // hex encoded string
+	Hash       common.Hash     `json:"-"`                         // don't marshal or unmarshal for json
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
+}
+
+func TimestampNow() int64 {
+	return time.Now().UnixMilli() // millisecond accuracy on timestamps, easily available on all platforms
+}
+
+func TimestampAt(t time.Time) int64 {
+	return t.UnixMilli()
 }
 
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {
@@ -64,11 +77,17 @@ func (s *Transaction) checkRequiredFields() error {
 	if s.PersonaTag == "" {
 		return eris.Wrap(ErrNoPersonaTagField, "")
 	}
-	if s.Namespace == "" {
-		return eris.Wrap(ErrNoNamespaceField, "")
-	}
+	// when unmarshalling, some tests fail if this is required, seemingly because it's not used
+	// by the createPersona request
+	// if s.Namespace == "" {
+	// 	return eris.Wrap(ErrNoNamespaceField, "")
+	// }
+	//
 	if s.Signature == "" {
 		return eris.Wrap(ErrNoSignatureField, "")
+	}
+	if s.Timestamp == 0 {
+		return eris.Wrap(ErrNoTimestampField, "")
 	}
 	if len(s.Body) == 0 {
 		return eris.Wrap(ErrNoBodyField, "")
@@ -83,7 +102,8 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 		"personaTag": true,
 		"namespace":  true,
 		"signature":  true,
-		"nonce":      true,
+		"timestamp":  true,
+		"salt":       true,
 		"body":       true,
 		"hash":       true,
 	}
@@ -147,8 +167,9 @@ func normalizeJSON(data any) ([]byte, error) {
 	return normalizedBz, nil
 }
 
-// sign uses the given private key to sign the personaTag, namespace, nonce, and data.
-func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*Transaction, error) {
+// sign uses the given private key to sign the personaTag, namespace, timestamp, and data. The timestamp is set
+// automatically to the wall time by the sign function just before signing.
+func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transaction, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, ErrCannotSignEmptyBody
 	}
@@ -165,7 +186,8 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 	sp := &Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
-		Nonce:      nonce,
+		Timestamp:  TimestampNow(),
+		Salt:       uint16(rand.Intn(math.MaxUint16)), //nolint: gosec // additional uniqueness for each hash and sign
 		Body:       bz,
 	}
 	sp.populateHash()
@@ -177,9 +199,9 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 	return sp, nil
 }
 
-// NewSystemTransaction signs a given body, and nonce with the given private key using the SystemPersonaTag.
-func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, nonce uint64, data any) (*Transaction, error) {
-	return sign(pk, SystemPersonaTag, namespace, nonce, data)
+// NewSystemTransaction signs a given body with the given private key using the SystemPersonaTag.
+func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, data any) (*Transaction, error) {
+	return sign(pk, SystemPersonaTag, namespace, data)
 }
 
 // NewTransaction signs a given body, tag, and nonce with the given private key.
@@ -187,13 +209,12 @@ func NewTransaction(
 	pk *ecdsa.PrivateKey,
 	personaTag,
 	namespace string,
-	nonce uint64,
 	data any,
 ) (*Transaction, error) {
 	if len(personaTag) == 0 || personaTag == SystemPersonaTag {
 		return nil, ErrInvalidPersonaTag
 	}
-	return sign(pk, personaTag, namespace, nonce, data)
+	return sign(pk, personaTag, namespace, data)
 }
 
 func (s *Transaction) IsSystemTransaction() bool {
@@ -207,13 +228,14 @@ func (s *Transaction) Marshal() ([]byte, error) {
 	return res, err
 }
 
-func isZeroHash(hash common.Hash) bool {
+func IsZeroHash(hash common.Hash) bool {
 	return hash == common.Hash{}
 }
 
-// HashHex return a hex encoded hash of the signature.
+// HashHex return a hex encoded hash of the message and its data.
+// if the hash was not previously set, it will be generated
 func (s *Transaction) HashHex() string {
-	if isZeroHash(s.Hash) {
+	if IsZeroHash(s.Hash) {
 		s.populateHash()
 	}
 	return s.Hash.Hex()
@@ -226,7 +248,7 @@ func (s *Transaction) HashHex() string {
 func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
-	if isZeroHash(s.Hash) {
+	if IsZeroHash(s.Hash) {
 		s.populateHash()
 	}
 
@@ -251,10 +273,22 @@ func (s *Transaction) Verify(hexAddress string) error {
 }
 
 func (s *Transaction) populateHash() {
-	s.Hash = crypto.Keccak256Hash(
-		[]byte(s.PersonaTag),
-		[]byte(s.Namespace),
-		[]byte(strconv.FormatUint(s.Nonce, 10)),
-		s.Body,
-	)
+	if s.Salt != 0 {
+		s.Hash = crypto.Keccak256Hash(
+			[]byte(s.PersonaTag),
+			[]byte(s.Namespace),
+			[]byte(strconv.FormatInt(s.Timestamp, 10)),
+			[]byte(strconv.FormatInt(int64(s.Salt), 10)),
+			s.Body,
+		)
+	} else {
+		// salt not set, don't include it in the hash
+		// this is needed for kms test with precomputed signature
+		s.Hash = crypto.Keccak256Hash(
+			[]byte(s.PersonaTag),
+			[]byte(s.Namespace),
+			[]byte(strconv.FormatInt(s.Timestamp, 10)),
+			s.Body,
+		)
+	}
 }

@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/argus-labs/go-jobqueue v0.1.6
+	github.com/coocood/freecache v1.2.4
 	github.com/ethereum/go-ethereum v1.13.10
 	github.com/fasthttp/websocket v1.5.8
 	github.com/goccy/go-json v0.10.3
@@ -30,12 +31,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.26.0
 	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.35.1
 	gopkg.in/DataDog/dd-trace-go.v1 v1.63.1
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/rift v1.1.0-beta.0.20240402214846-de1fc179818a
-	pkg.world.dev/world-engine/sign v1.0.1-beta
+	pkg.world.dev/world-engine/rift v1.2.0
+	pkg.world.dev/world-engine/sign v1.1.0
 )
 
 require (
@@ -121,7 +122,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.26.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.23.0 // indirect

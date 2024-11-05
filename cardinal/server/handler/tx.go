@@ -3,8 +3,12 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/coocood/freecache"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/rotisserie/eris"
 
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
@@ -12,6 +16,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
+
+const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal expiration a hash is left in the cache.
+// we want to ensure it's long enough that any message that's not expired but
+// still has its hash in the cache for replay protection. Setting it too long
+// would cause the cache to be bigger than necessary
 
 var (
 	ErrNoPersonaTag               = errors.New("persona tag is required")
@@ -24,6 +33,13 @@ var (
 type PostTransactionResponse struct {
 	TxHash string
 	Tick   uint64
+}
+
+type SignatureVerification struct {
+	IsDisabled               bool
+	MessageExpirationSeconds int
+	HashCacheSizeKB          int
+	Cache                    *freecache.Cache
 }
 
 type Transaction = sign.Transaction
@@ -39,44 +55,62 @@ type Transaction = sign.Transaction
 //	@Param        txBody   body      Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200      {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400      {string}  string                   "Invalid request parameter"
+//	@Failure      403      {string}  string                   "Forbidden"
+//	@Failure      408      {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/{txGroup}/{txName} [post]
 func PostTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
 		if !ok {
-			return fiber.NewError(fiber.StatusNotFound, "message type not found")
+			log.Errorf("Unknown msg type: %s", ctx.Params("name"))
+			return fiber.NewError(fiber.StatusNotFound, "Not Found - bad msg type")
 		}
 
-		// Parse the request body into a sign.Transaction struct
-		tx := new(Transaction)
-		if err := ctx.BodyParser(tx); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
+		// extract the transaction from the fiber context
+		tx, fiberErr := extractTx(ctx, verify)
+		if fiberErr != nil {
+			return fiberErr
 		}
 
 		// Validate the transaction
 		if err := validateTx(tx); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid transaction payload: "+err.Error())
+			log.Errorf("message %s has invalid transaction payload: %v", tx.Hash.String(), err)
+			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - invalid payload")
 		}
 
 		// Decode the message from the transaction
 		msg, err := msgType.Decode(tx.Body)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction")
+			log.Errorf("message %s Decode failed: %v", tx.Hash.String(), err)
+			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - failed to decode tx message")
 		}
 
-		if !disableSigVerification {
+		// check the signature
+		if !verify.IsDisabled {
 			var signerAddress string
-			// TODO(scott): don't hardcode this
-			if msgType.Name() == "create-persona" {
+			if msgType.Name() == personaMsg.CreatePersonaMessageName {
 				// don't need to check the cast bc we already validated this above
 				createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
 				signerAddress = createPersonaMsg.SignerAddress
 			}
 
 			if err = lookupSignerAndValidateSignature(world, signerAddress, tx); err != nil {
-				return err
+				log.Errorf("Signature validation failed for message %s: %v", tx.Hash.String(), err)
+				return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized - invalid signature")
+			}
+
+			// the message was valid, so add its hash to the cache
+			// we don't do this until we have verified the signature to prevent an attack where someone sends
+			// large numbers of hashes with unsigned/invalid messages and thus blocks legit messages from
+			// being handled
+			err = verify.Cache.Set(tx.Hash.Bytes(), nil, verify.MessageExpirationSeconds+cacheRetentionExtraSeconds)
+			if err != nil {
+				// if we couldn't store the hash in the cache, don't process the transaction, since that
+				// would open us up to replay attacks
+				log.Errorf("unexpected cache store error %v. message %s ignored", err, tx.Hash.String())
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache store")
 			}
 		}
 
@@ -102,11 +136,13 @@ func PostTransaction(
 //	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
+//	@Failure      403     {string}  string                   "Forbidden"
+//	@Failure      408     {string}  string                   "Request Timeout - message expired"
 //	@Router       /tx/game/{txName} [post]
 func PostGameTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, disableSigVerification)
+	return PostTransaction(world, msgs, verify)
 }
 
 // NOTE: duplication for cleaner swagger docs
@@ -119,11 +155,69 @@ func PostGameTransaction(
 //	@Param        txBody  body      Transaction              true  "Transaction details & message to be submitted"
 //	@Success      200     {object}  PostTransactionResponse  "Transaction hash and tick"
 //	@Failure      400     {string}  string                   "Invalid request parameter"
+//	@Failure      401     {string}  string                   "Unauthorized - signature was invalid"
+//	@Failure      403     {string}  string                   "Forbidden"
+//	@Failure      408     {string}  string                   "Request Timeout - message expired"
+//	@Failure      500     {string}  string                   "Internal Server Error - unexpected cache errors"
 //	@Router       /tx/persona/create-persona [post]
 func PostPersonaTransaction(
-	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, disableSigVerification bool,
+	world servertypes.ProviderWorld, msgs map[string]map[string]types.Message, verify SignatureVerification,
 ) func(*fiber.Ctx) error {
-	return PostTransaction(world, msgs, disableSigVerification)
+	return PostTransaction(world, msgs, verify)
+}
+
+func isHashInCache(hash common.Hash, cache *freecache.Cache) (bool, error) {
+	_, err := cache.Get(hash.Bytes())
+	if err == nil {
+		// found it
+		return true, nil
+	}
+	if errors.Is(err, freecache.ErrNotFound) {
+		// ignore ErrNotFound, just return false
+		return false, nil
+	}
+	// return all other errors
+	return false, err
+}
+
+func extractTx(ctx *fiber.Ctx, verify SignatureVerification) (*sign.Transaction, *fiber.Error) {
+	var tx *sign.Transaction
+	var err error
+	// Parse the request body into a sign.Transaction struct tx := new(Transaction)
+	// this also calculates the hash
+	if !verify.IsDisabled {
+		// we are doing signature verification, so use sign's Unmarshal which does extra checks
+		tx, err = sign.UnmarshalTransaction(ctx.Body())
+	} else {
+		// we aren't doing signature verification, so just use the generic body parser with is more forgiving
+		tx = new(sign.Transaction)
+		err = ctx.BodyParser(tx)
+	}
+	if err != nil {
+		log.Errorf("body parse failed: %v", err)
+		return nil, fiber.NewError(fiber.StatusBadRequest, "Bad Request - unparseable body")
+	}
+	if !verify.IsDisabled {
+		txEarliestValidTimestamp := sign.TimestampAt(
+			time.Now().Add(-(time.Duration(verify.MessageExpirationSeconds) * time.Second)))
+		// before we even create the hash or validate the signature, check to see if the message has expired
+		if tx.Timestamp < txEarliestValidTimestamp {
+			log.Errorf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
+				verify.MessageExpirationSeconds, tx.Timestamp, sign.TimestampNow())
+			return nil, fiber.NewError(fiber.StatusRequestTimeout, "Request Timeout - signature too old")
+		}
+		// check for duplicate message via hash cache
+		if found, err := isHashInCache(tx.Hash, verify.Cache); err != nil {
+			log.Errorf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())
+			return nil, fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - cache failed")
+		} else if found {
+			// if found in the cache, the message hash has already been used, so reject it
+			log.Errorf("message %s already handled", tx.Hash.String())
+			return nil, fiber.NewError(fiber.StatusForbidden, "Forbidden - duplicate message")
+		}
+		// at this point we know that the generated hash is not in the cache, so this message is not a replay
+	}
+	return tx, nil
 }
 
 func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAddress string, tx *Transaction) error {
@@ -131,17 +225,12 @@ func lookupSignerAndValidateSignature(world servertypes.ProviderWorld, signerAdd
 	if signerAddress == "" {
 		signerAddress, err = world.GetSignerForPersonaTag(tx.PersonaTag, 0)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
+			return fmt.Errorf("could not get signer for persona %s: %w", tx.PersonaTag, err)
 		}
 	}
 	if err = validateSignature(tx, signerAddress, world.Namespace(),
 		tx.IsSystemTransaction()); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
-	}
-	// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
-	//  to mark the nonce as used once it's included in the tick, not the server.
-	if err = world.UseNonce(signerAddress, tx.Nonce); err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
+		return fmt.Errorf("could not validate signature for persona %s: %w", tx.PersonaTag, err)
 	}
 	return nil
 }

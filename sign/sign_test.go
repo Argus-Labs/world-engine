@@ -3,6 +3,7 @@ package sign
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -18,9 +19,10 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
-	wantNonce := uint64(100)
+	wantJustAMomentAgo := TimestampNow()
+	time.Sleep(1 * time.Second)
 
-	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
+	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantBody)
 	assert.NilError(t, err)
 
 	buf, err := sp.Marshal()
@@ -34,7 +36,8 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
-	assert.Equal(t, toBeVerified.Nonce, wantNonce)
+	assert.Assert(t, toBeVerified.Timestamp >= wantJustAMomentAgo) // make sure unix time stamp is reasonable
+	assert.Assert(t, toBeVerified.Timestamp <= TimestampNow())
 	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
 	// Make sure an empty hash is regenerated
 	toBeVerified.Hash = common.Hash{}
@@ -52,9 +55,8 @@ func TestCanParseAMappedTransaction(t *testing.T) {
 	body := `{"msg": "this is a request body"}`
 	personaTag := "my-tag"
 	namespace := "my-namespace"
-	nonce := uint64(100)
 
-	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
+	sp, err := NewTransaction(goodKey, personaTag, namespace, body)
 	assert.NilError(t, err)
 	bz, err := json.Marshal(sp)
 	assert.NilError(t, err)
@@ -73,9 +75,8 @@ func TestCanGetHashHex(t *testing.T) {
 	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
-	wantNonce := uint64(100)
 
-	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
+	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantBody)
 	assert.NilError(t, err)
 	wantHash := sp.HashHex()
 
@@ -91,13 +92,12 @@ func TestIsSignedSystemPayload(t *testing.T) {
 	body := `{"msg": "this is a request body"}`
 	personaTag := "my-tag"
 	namespace := "my-namespace"
-	nonce := uint64(100)
 
-	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
+	sp, err := NewTransaction(goodKey, personaTag, namespace, body)
 	assert.NilError(t, err)
 	assert.Check(t, !sp.IsSystemTransaction())
 
-	sp, err = NewSystemTransaction(goodKey, namespace, nonce, body)
+	sp, err = NewSystemTransaction(goodKey, namespace, body)
 	assert.NilError(t, err)
 	assert.Check(t, sp.IsSystemTransaction())
 }
@@ -114,42 +114,42 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 		{
 			name: "valid",
 			payload: func() (*Transaction, error) {
-				return NewTransaction(goodKey, "tag", "namespace", 40, "{}")
+				return NewTransaction(goodKey, "tag", "namespace", "{}")
 			},
 			expErr: nil,
 		},
 		{
 			name: "missing persona tag",
 			payload: func() (*Transaction, error) {
-				return NewTransaction(goodKey, "", "ns", 20, "{}")
+				return NewTransaction(goodKey, "", "ns", "{}")
 			},
 			expErr: ErrInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
 			payload: func() (*Transaction, error) {
-				return NewTransaction(goodKey, "fop", "", 20, "{}")
+				return NewTransaction(goodKey, "fop", "", "{}")
 			},
 			expErr: ErrInvalidNamespace,
 		},
 		{
 			name: "system transaction",
 			payload: func() (*Transaction, error) {
-				return NewSystemTransaction(goodKey, "some-namespace", 25, "{}")
+				return NewSystemTransaction(goodKey, "some-namespace", "{}")
 			},
 			expErr: nil,
 		},
 		{
 			name: "signed payload with SystemPersonaTag",
 			payload: func() (*Transaction, error) {
-				return NewTransaction(goodKey, SystemPersonaTag, "some-namespace", 25, "{}")
+				return NewTransaction(goodKey, SystemPersonaTag, "some-namespace", "{}")
 			},
 			expErr: ErrInvalidPersonaTag,
 		},
 		{
 			name: "empty body",
 			payload: func() (*Transaction, error) {
-				return NewSystemTransaction(goodKey, "some-namespace", 25, "")
+				return NewSystemTransaction(goodKey, "some-namespace", "")
 			},
 			expErr: ErrCannotSignEmptyBody,
 		},
@@ -194,7 +194,7 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 
 	for _, tc := range testCases {
 		var sp *Transaction
-		sp, err = NewTransaction(key, "coolmage", "world", 100, tc)
+		sp, err = NewTransaction(key, "coolmage", "world", tc)
 		assert.NilError(t, err)
 		var buf []byte
 		buf, err = sp.Marshal()
@@ -215,11 +215,11 @@ func TestRejectInvalidSignatures(t *testing.T) {
 	type Payload struct {
 		Value int
 	}
-	_, err = NewTransaction(key, "", "namespace", 100, Payload{100})
+	_, err = NewTransaction(key, "", "namespace", Payload{100})
 	assert.ErrorIs(t, err, ErrInvalidPersonaTag)
-	_, err = NewTransaction(key, "persona_tag", "", 100, Payload{100})
+	_, err = NewTransaction(key, "persona_tag", "", Payload{100})
 	assert.ErrorIs(t, err, ErrInvalidNamespace)
-	_, err = NewTransaction(key, "persona_tag", "", 100, nil)
+	_, err = NewTransaction(key, "persona_tag", "namespace", nil)
 	assert.ErrorIs(t, err, ErrCannotSignEmptyBody)
 }
 
@@ -233,7 +233,7 @@ func TestRejectSignatureWithExtraField(t *testing.T) {
 	data := map[string]any{
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
-		"nonce":      100,
+		"timestamp":  TimestampNow(),
 		"signature":  "xyzzy",
 		"body":       "bar",
 	}
@@ -256,7 +256,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 	validData := map[string]any{
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
-		"nonce":      100,
+		"timestamp":  TimestampNow(),
 		"signature":  "xyzzy",
 		"body":       "bar",
 	}
@@ -267,7 +267,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 	_, err = UnmarshalTransaction(bz)
 	assert.NilError(t, err)
 
-	fieldsToOmit := []string{"personaTag", "namespace", "signature", "body"}
+	fieldsToOmit := []string{"personaTag", "signature", "timestamp", "body"}
 
 	copyValidData := func() map[string]any {
 		cpy := map[string]any{}
@@ -303,7 +303,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 					"alpha":1
 				}`
 
-	tx, err := NewTransaction(key, "persona-tag", "namespace", 100, bodyStr)
+	tx, err := NewTransaction(key, "persona-tag", "namespace", bodyStr)
 	assert.NilError(t, err)
 
 	body := map[string]any{
@@ -314,7 +314,8 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 	dataAsMap := map[string]any{
 		"personaTag": "persona-tag",
 		"namespace":  "namespace",
-		"nonce":      100,
+		"timestamp":  tx.Timestamp,
+		"salt":       tx.Salt,
 		"signature":  tx.Signature,
 		"body":       body,
 	}

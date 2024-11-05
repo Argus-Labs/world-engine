@@ -35,24 +35,15 @@ type nakamaSigner struct {
 	nk            runtime.NakamaModule
 	privateKey    *ecdsa.PrivateKey
 	signerAddress string
-	nonceManager  NonceManager
 }
 
-func (n *nakamaSigner) SignTx(
-	ctx context.Context,
-	personaTag string,
-	namespace string,
-	data any,
-) (tx *sign.Transaction, err error) {
-	nonce, err := n.nonceManager.IncNonce(ctx)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to increment nonce")
-	}
-
+func (n *nakamaSigner) SignTx(_ context.Context, personaTag string, namespace string, data any) (
+	tx *sign.Transaction, err error,
+) {
 	if personaTag == "" {
-		tx, err = sign.NewSystemTransaction(n.privateKey, namespace, nonce, data)
+		tx, err = sign.NewSystemTransaction(n.privateKey, namespace, data)
 	} else {
-		tx, err = sign.NewTransaction(n.privateKey, personaTag, namespace, nonce, data)
+		tx, err = sign.NewTransaction(n.privateKey, personaTag, namespace, data)
 	}
 
 	if err != nil {
@@ -69,7 +60,7 @@ func (n *nakamaSigner) SignerAddress() string {
 	return n.signerAddress
 }
 
-func NewNakamaSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, nonceManager NonceManager) (
+func NewNakamaSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (
 	Signer, error,
 ) {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
@@ -88,9 +79,6 @@ func NewNakamaSigner(ctx context.Context, logger runtime.Logger, nk runtime.Naka
 		if err = setPrivateKeyHex(ctx, nk, privateKeyHex); err != nil {
 			return nil, err
 		}
-		if err = nonceManager.SetNonce(ctx, 1); err != nil {
-			return nil, err
-		}
 	}
 	// We've either loaded the existing private key, or initialized a new one
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
@@ -102,7 +90,6 @@ func NewNakamaSigner(ctx context.Context, logger runtime.Logger, nk runtime.Naka
 		nk:            nk,
 		privateKey:    privateKey,
 		signerAddress: signerAddress,
-		nonceManager:  nonceManager,
 	}, nil
 }
 
