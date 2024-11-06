@@ -18,5 +18,5 @@ RUN apt-get -y update && \
     apt-get -y install --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /nakama/plugin/plugin.so /nakama/data/modules/
 COPY relay/nakama/local.yml /nakama/data/
+COPY --from=builder /nakama/plugin/plugin.so /nakama/data/modules/
