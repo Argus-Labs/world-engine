@@ -55,7 +55,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./relay/nakama
+          context: .
+          file: ./relay/nakama/Dockerfile
           target: nakama
           platforms: linux/amd64
           push: true
