@@ -6,7 +6,6 @@ ENV CGO_ENABLED 1
 WORKDIR /nakama/plugin
 
 COPY . .
-COPY ../../sign /sign
 
 RUN go mod download
 
