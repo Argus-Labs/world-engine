@@ -154,7 +154,8 @@
       "pages": [
         "client/nakama/overview",
         "client/nakama/getting-started",
-        "client/nakama/relay"
+        "client/nakama/relay",
+        "client/nakama/monitoring-nakama"
       ]
     },
     {
