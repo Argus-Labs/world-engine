@@ -29,8 +29,7 @@ services:
     container_name: relay_nakama # Do not change this without changing the e2e-nakama makescript or e2e test will fail
     platform: linux/amd64
     build:
-      context: ./
-      dockerfile: relay/nakama/Dockerfile
+      context: ./relay/nakama
       target: nakama # Build the amd64 version of the image
     depends_on:
       - "cockroachdb"
