@@ -5,7 +5,7 @@ ENV CGO_ENABLED 1
 
 WORKDIR /nakama/plugin
 
-COPY relay/nakama .
+COPY . .
 
 RUN go mod download
 
@@ -18,4 +18,4 @@ RUN apt-get -y update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /nakama/plugin/plugin.so /nakama/data/modules/
-COPY relay/nakama/local.yml /nakama/data/
+COPY local.yml /nakama/data/
