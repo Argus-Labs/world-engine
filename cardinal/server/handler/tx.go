@@ -43,27 +43,26 @@ func PostTransaction(
 		}
 
 		// extract the transaction from the fiber context
-		tx, fiberErr := extractTx(ctx, validator)
-		if fiberErr != nil {
-			return fiberErr
+		tx, err := extractTx(ctx, validator)
+		if err != nil {
+			return err
 		}
 
 		// make sure the transaction hasn't expired
-		if err := validator.ValidateTransactionTTL(tx); err != nil {
+		if err = validator.ValidateTransactionTTL(tx); err != nil {
 			return httpResultFromError(err, false)
 		}
 
 		// Decode the message from the transaction
 		msg, err := msgType.Decode(tx.Body)
 		if err != nil {
-			log.Error("message %s Decode failed: %v", tx.Hash.String(), err)
+			log.Errorf("message %s Decode failed: %v", tx.Hash.String(), err)
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - failed to decode tx message")
 		}
 
 		// there's a special case for the CreatePersona message
 		var signerAddress string
 		if msgType.Name() == personaMsg.CreatePersonaMessageName {
-			// don't need to check the cast bc we already validated this above
 			createPersonaMsg, ok := msg.(personaMsg.CreatePersona)
 			if !ok {
 				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - bad message type")
@@ -133,7 +132,7 @@ func extractTx(ctx *fiber.Ctx, validator *validator.SignatureValidator) (*sign.T
 	var err error
 	// Parse the request body into a sign.Transaction struct tx := new(Transaction)
 	// this also calculates the hash
-	if !validator.IsDisabled {
+	if validator != nil && !validator.IsDisabled {
 		// we are doing signature verification, so use sign's Unmarshal which does extra checks
 		tx, err = sign.UnmarshalTransaction(ctx.Body())
 	} else {
@@ -169,5 +168,5 @@ func httpResultFromError(err error, isSignatureValidation bool) error {
 	if isSignatureValidation {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - signature validation failed")
 	}
-	return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - ttyl validation failed")
+	return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - ttl validation failed")
 }

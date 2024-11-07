@@ -26,7 +26,7 @@ const cacheRetentionExtraSeconds = 10 // this is how many seconds past normal ex
 // would cause the cache to be bigger than necessary
 
 const ttlMaxFutureSeconds = 2 // this is how many seconds in the future a message is allowed to be timestamped
-// this allows for some degree of clock drift. It's safe enought to accept a message that's stamped from the near
+// this allows for some degree of clock drift. It's safe enough to accept a message that's stamped from the near
 // future because we will still keep it in the hash cache and prevent it from being a replay attack vector. However,
 // we don't want to take messages from an unlimited amount of time into the future since they could cause our hash
 // cache to overflow
@@ -82,7 +82,7 @@ func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction
 		txEarliestValidTimestamp := sign.TimestampAt(
 			now.Add(-(time.Duration(validator.MessageExpirationSeconds) * time.Second)))
 		txLatestValidTimestamp := sign.TimestampAt(now.Add(time.Duration(ttlMaxFutureSeconds) * time.Second))
-		// before we even create the hash or validator the signature, check to see if the message has expired
+		// before we even create the hash or validate the signature, check to see if the message has expired
 		if tx.Timestamp < txEarliestValidTimestamp {
 			return eris.Wrap(ErrMessageExpired,
 				fmt.Sprintf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
