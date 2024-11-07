@@ -49,15 +49,14 @@ func PostTransaction(
 		}
 
 		// make sure the transaction hasn't expired
-		if validationErr := validator.ValidateTransactionTTL(tx); validationErr != nil {
-			log.Errorf(validationErr.GetLogMessage())                                   // log the private internal details
-			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
+		if err := validator.ValidateTransactionTTL(tx); err != nil {
+			return httpResultFromError(err, false)
 		}
 
 		// Decode the message from the transaction
 		msg, err := msgType.Decode(tx.Body)
 		if err != nil {
-			log.Errorf("message %s Decode failed: %v", tx.Hash.String(), err)
+			log.Error("message %s Decode failed: %v", tx.Hash.String(), err)
 			return fiber.NewError(fiber.StatusBadRequest, "Bad Request - failed to decode tx message")
 		}
 
@@ -73,9 +72,8 @@ func PostTransaction(
 		}
 
 		// Validate the transaction's signature
-		if validationErr := validator.ValidateTransactionSignature(tx, signerAddress); validationErr != nil {
-			log.Errorf(validationErr.GetLogMessage())                                   // log the private internal details
-			return fiber.NewError(validationErr.GetStatusCode(), validationErr.Error()) // return public error result
+		if err = validator.ValidateTransactionSignature(tx, signerAddress); err != nil {
+			return httpResultFromError(err, true)
 		}
 
 		// Add the transaction to the engine
@@ -148,4 +146,28 @@ func extractTx(ctx *fiber.Ctx, validator *validator.SignatureValidator) (*sign.T
 		return nil, eris.Wrap(err, "Bad Request - unparseable body")
 	}
 	return tx, nil
+}
+
+// turns the various errors into an appropriate HTTP result
+func httpResultFromError(err error, isSignatureValidation bool) error {
+	log.Error(err) // log the private internal details
+	if eris.Is(err, validator.ErrDuplicateMessage) {
+		return fiber.NewError(fiber.StatusForbidden, "Forbidden - duplicate message")
+	}
+	if eris.Is(err, validator.ErrMessageExpired) {
+		return fiber.NewError(fiber.StatusRequestTimeout, "Request Timeout - message expired")
+	}
+	if eris.Is(err, validator.ErrBadTimestamp) {
+		return fiber.NewError(fiber.StatusBadRequest, "Bad Request - bad timestamp")
+	}
+	if eris.Is(err, validator.ErrNoPersonaTag) {
+		return fiber.NewError(fiber.StatusBadRequest, "Bad Request - no persona tag")
+	}
+	if eris.Is(err, validator.ErrInvalidSignature) {
+		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized - signature validation failed")
+	}
+	if isSignatureValidation {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - signature validation failed")
+	}
+	return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - ttyl validation failed")
 }

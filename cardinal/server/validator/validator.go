@@ -3,7 +3,6 @@ package validator
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/coocood/freecache"
@@ -35,14 +34,14 @@ const ttlMaxFutureSeconds = 2 // this is how many seconds in the future a messag
 const bytesPerKb = 1024
 
 var (
-	ErrNoPersonaTag     = errors.New("persona tag is required")
-	ErrWrongNamespace   = errors.New("incorrect namespace")
-	ErrMessageExpired   = errors.New("signature too old")
-	ErrBadTimestamp     = errors.New("invalid future timestamp")
-	ErrCacheReadFailed  = errors.New("cache read failed")
-	ErrCacheWriteFailed = errors.New("cache store failed")
-	ErrDuplicateMessage = errors.New("duplicate message")
-	ErrInvalidSignature = errors.New("invalid signature")
+	ErrNoPersonaTag     = eris.New("persona tag is required")
+	ErrWrongNamespace   = eris.New("incorrect namespace")
+	ErrMessageExpired   = eris.New("signature too old")
+	ErrBadTimestamp     = eris.New("invalid future timestamp")
+	ErrCacheReadFailed  = eris.New("cache read failed")
+	ErrCacheWriteFailed = eris.New("cache store failed")
+	ErrDuplicateMessage = eris.New("duplicate message")
+	ErrInvalidSignature = eris.New("invalid signature")
 )
 
 type SignatureValidator struct {
@@ -53,23 +52,6 @@ type SignatureValidator struct {
 	cache                    *freecache.Cache
 	signerAddressProvider    SignerAddressProvider
 }
-
-type ValidationError interface {
-	error
-	GetLogMessage() string
-	GetStatusCode() int
-}
-type validationError struct {
-	error
-	StatusCode int
-	LogMsg     string // internal, for logging only
-}
-
-func (e *validationError) Error() string {
-	return http.StatusText(e.StatusCode) + " - " + e.error.Error()
-}
-func (e *validationError) GetStatusCode() int    { return e.StatusCode }
-func (e *validationError) GetLogMessage() string { return e.LogMsg }
 
 func NewSignatureValidator(disabled bool, msgExpirationSec uint, hashCacheSizeKB uint, namespace string,
 	provider SignerAddressProvider,
@@ -94,7 +76,7 @@ func NewSignatureValidator(disabled bool, msgExpirationSec uint, hashCacheSizeKB
 // returns an error (ErrMessageExpired, ErrBadTimestamp, ErrDuplicateMessage, or ErrCacheReadFailed) if
 // there was a problem, and nil if everything was ok
 // if signature validation is disabled, no checks are done and nil is always returned
-func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction) ValidationError {
+func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction) error {
 	if !validator.IsDisabled {
 		now := time.Now()
 		txEarliestValidTimestamp := sign.TimestampAt(
@@ -102,23 +84,23 @@ func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction
 		txLatestValidTimestamp := sign.TimestampAt(now.Add(time.Duration(ttlMaxFutureSeconds) * time.Second))
 		// before we even create the hash or validator the signature, check to see if the message has expired
 		if tx.Timestamp < txEarliestValidTimestamp {
-			return &validationError{ErrMessageExpired, http.StatusRequestTimeout,
+			return eris.Wrap(ErrMessageExpired,
 				fmt.Sprintf("message older than %d seconds. Got timestamp: %d, current timestamp: %d ",
-					validator.MessageExpirationSeconds, tx.Timestamp, sign.TimestampAt(now))}
+					validator.MessageExpirationSeconds, tx.Timestamp, sign.TimestampAt(now)))
 		} else if tx.Timestamp > txLatestValidTimestamp {
-			return &validationError{ErrBadTimestamp, http.StatusBadRequest,
+			return eris.Wrap(ErrBadTimestamp,
 				fmt.Sprintf(
 					"message timestamp more than %d seconds in the future. Got timestamp: %d, current timestamp: %d ",
-					ttlMaxFutureSeconds, tx.Timestamp, sign.TimestampAt(now))}
+					ttlMaxFutureSeconds, tx.Timestamp, sign.TimestampAt(now)))
 		}
 		// check for duplicate message via hash cache
 		if found, err := validator.isHashInCache(tx.Hash); err != nil {
-			return &validationError{ErrCacheReadFailed, http.StatusInternalServerError,
-				fmt.Sprintf("unexpected cache error %v. message %s ignored", err, tx.Hash.String())}
+			return eris.Wrap(ErrCacheReadFailed,
+				fmt.Sprintf("unexpected cache error %v. message %s ignored", err, tx.Hash.String()))
 		} else if found {
 			// if found in the cache, the message hash has already been used, so reject it
-			return &validationError{ErrDuplicateMessage, http.StatusForbidden,
-				fmt.Sprintf("message %s already handled", tx.Hash.String())}
+			return eris.Wrap(ErrDuplicateMessage,
+				fmt.Sprintf("message %s already handled", tx.Hash.String()))
 		}
 	}
 	return nil
@@ -129,11 +111,11 @@ func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction
 // known message, and nil is returned. Other possible returns are ErrNoPersonaTag, ErrInvalidSignature, and
 // ErrCacheWriteFailed. If signature validation is disabled, we only check for the presence of a persona tag.
 func (validator *SignatureValidator) ValidateTransactionSignature(tx *sign.Transaction, signerAddress string,
-) ValidationError {
+) error {
 	// this is the only validation we do when signature validation is disabled
 	if tx.PersonaTag == "" {
-		return &validationError{ErrNoPersonaTag, http.StatusBadRequest,
-			fmt.Sprintf("Missing persona tag for message %s", tx.Hash.String())}
+		return eris.Wrap(ErrNoPersonaTag,
+			fmt.Sprintf("missing persona tag for message %s", tx.Hash.String()))
 	}
 	if validator.IsDisabled {
 		return nil
@@ -144,15 +126,15 @@ func (validator *SignatureValidator) ValidateTransactionSignature(tx *sign.Trans
 	if signerAddress == "" {
 		signerAddress, err = validator.signerAddressProvider.GetSignerForPersonaTag(tx.PersonaTag, 0)
 		if err != nil {
-			return &validationError{ErrInvalidSignature, http.StatusUnauthorized,
-				fmt.Sprintf("could not get signer for persona %s: %v", tx.PersonaTag, err)}
+			return eris.Wrap(ErrInvalidSignature,
+				fmt.Sprintf("could not get signer for persona %s: %v", tx.PersonaTag, err))
 		}
 	}
 
 	// check the signature against the address
 	if err = validator.validateSignature(tx, signerAddress); err != nil {
-		return &validationError{ErrInvalidSignature, http.StatusUnauthorized,
-			fmt.Sprintf("Signature validation failed for message %s: %v", tx.Hash.String(), err)}
+		return eris.Wrap(ErrInvalidSignature,
+			fmt.Sprintf("signature validation failed for message %s: %v", tx.Hash.String(), err))
 	}
 
 	// the message was valid, so add its hash to the cache
@@ -164,8 +146,8 @@ func (validator *SignatureValidator) ValidateTransactionSignature(tx *sign.Trans
 	if err != nil {
 		// if we couldn't store the hash in the cache, don't process the transaction, since that
 		// would open us up to replay attacks
-		return &validationError{ErrCacheWriteFailed, http.StatusInternalServerError,
-			fmt.Sprintf("unexpected cache store error %v. message %s ignored", err, tx.Hash.String())}
+		return eris.Wrap(ErrCacheWriteFailed,
+			fmt.Sprintf("unexpected cache store error %v. message %s ignored", err, tx.Hash.String()))
 	}
 	return nil
 }
@@ -189,5 +171,5 @@ func (validator *SignatureValidator) validateSignature(tx *sign.Transaction, sig
 	if tx.Namespace != validator.namespace {
 		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", validator.namespace, tx.Namespace))
 	}
-	return eris.Wrap(tx.Verify(signerAddr), "")
+	return tx.Verify(signerAddr)
 }
