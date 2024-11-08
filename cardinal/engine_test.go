@@ -12,8 +12,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/sign"
 )
 
 var _ iterator.Iterator = (*FakeIterator)(nil)

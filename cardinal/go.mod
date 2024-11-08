@@ -36,7 +36,6 @@ require (
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/rift v1.2.0
-	pkg.world.dev/world-engine/sign v1.1.0
 )
 
 require (

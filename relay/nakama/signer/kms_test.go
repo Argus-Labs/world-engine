@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 )
 
 const (

@@ -102,7 +102,6 @@ unit-test:
 unit-test-all:
 	$(MAKE) unit-test cardinal
 	$(MAKE) unit-test evm
-	$(MAKE) unit-test sign
 	$(MAKE) unit-test relay/nakama
 
 #################

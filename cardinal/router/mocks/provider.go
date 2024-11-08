@@ -5,12 +5,12 @@
 package mocks
 
 import (
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	component "pkg.world.dev/world-engine/cardinal/persona/component"
 	types "pkg.world.dev/world-engine/cardinal/types"
-	sign "pkg.world.dev/world-engine/sign"
 )
 
 // MockProvider is a mock of Provider interface.

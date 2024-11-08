@@ -11,8 +11,8 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"pkg.world.dev/world-engine/sign"
 )
 
 const (

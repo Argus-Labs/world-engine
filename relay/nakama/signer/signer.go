@@ -6,7 +6,7 @@ package signer
 import (
 	"context"
 
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 )
 
 const (

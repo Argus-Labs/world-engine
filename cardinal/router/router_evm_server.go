@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/rift/credentials"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-	"pkg.world.dev/world-engine/sign"
 )
 
 const (

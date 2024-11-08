@@ -10,7 +10,6 @@ COPY assert assert
 COPY e2e/testgames e2e/testgames
 COPY cardinal cardinal
 COPY rift rift
-COPY sign sign
 
 # cardinal and assert are part of the go mods, so this must be done after they are copied
 WORKDIR /go/src/app/e2e/testgames

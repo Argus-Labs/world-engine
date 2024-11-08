@@ -11,8 +11,8 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/sign"
 )
 
 var (

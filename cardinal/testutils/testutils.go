@@ -10,8 +10,8 @@ import (
 	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/sign"
 )
 
 var (

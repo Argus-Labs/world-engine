@@ -6,7 +6,7 @@ ENV CGO_ENABLED 1
 WORKDIR /nakama/plugin
 
 COPY relay/nakama .
-COPY sign /sign
+COPY cardinal /cardinal
 
 RUN go mod download
 

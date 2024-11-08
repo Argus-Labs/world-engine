@@ -13,10 +13,10 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/cardinal/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
-	"pkg.world.dev/world-engine/sign"
 )
 
 var _ types.Message = &mockMsg{}

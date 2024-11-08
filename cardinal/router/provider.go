@@ -2,8 +2,8 @@ package router
 
 import (
 	"pkg.world.dev/world-engine/cardinal/persona/component"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/sign"
 )
 
 //go:generate mockgen -source=provider.go -package mocks -destination=mocks/provider.go

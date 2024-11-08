@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"pkg.world.dev/world-engine/cardinal/persona"
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 )
 
 const goodRequestBody = `{"msg": "this is a request body"}`

@@ -2,7 +2,7 @@ module pkg.world.dev/world-engine/relay/nakama
 
 go 1.22.1
 
-//replace pkg.world.dev/world-engine/sign => ../../sign
+replace pkg.world.dev/world-engine/cardinal => ../../cardinal
 
 require (
 	cloud.google.com/go/kms v1.15.7
@@ -19,9 +19,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.29.0
 	google.golang.org/api v0.169.0
 	google.golang.org/grpc v1.64.0
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.35.1
 	pkg.world.dev/world-engine/assert v1.0.0
-	pkg.world.dev/world-engine/sign v1.1.0
+	pkg.world.dev/world-engine/cardinal v1.7.1
 )
 
 require (

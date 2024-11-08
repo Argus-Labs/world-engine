@@ -9,9 +9,9 @@ import (
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	"pkg.world.dev/world-engine/cardinal/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
-	"pkg.world.dev/world-engine/sign"
 )
 
 // Iterator provides functionality to iterate over transactions stored onchain.

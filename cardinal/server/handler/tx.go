@@ -6,10 +6,10 @@ import (
 	"github.com/rotisserie/eris"
 
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 	servertypes "pkg.world.dev/world-engine/cardinal/server/types"
 	"pkg.world.dev/world-engine/cardinal/server/validator"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/sign"
 )
 
 // PostTransactionResponse is the HTTP response for a successful transaction submission
