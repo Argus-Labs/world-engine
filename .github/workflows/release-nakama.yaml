@@ -62,3 +62,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push (linux/arm64)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./relay/nakama/Dockerfile
+          target: nakama-arm
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-arm64
+          labels: ${{ steps.meta.outputs.labels }}
