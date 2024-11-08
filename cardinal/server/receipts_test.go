@@ -7,7 +7,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 )
 
 func (s *ServerTestSuite) TestReceiptsQuery() {

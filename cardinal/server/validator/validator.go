@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common" // for hash
 	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/server/sign"
 )
 
 // we define the particular interface we need here to avoid dragging in the whole world provider interface
