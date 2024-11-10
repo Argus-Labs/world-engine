@@ -206,11 +206,6 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, data any) (*Transa
 	return sp, nil
 }
 
-// NewSystemTransaction signs a given body with the given private key using the SystemPersonaTag.
-func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, data any) (*Transaction, error) {
-	return sign(pk, SystemPersonaTag, namespace, data)
-}
-
 // NewTransaction signs a given body, tag, and nonce with the given private key.
 func NewTransaction(
 	pk *ecdsa.PrivateKey,
@@ -248,20 +243,14 @@ func (s *Transaction) HashHex() string {
 	return s.Hash.Hex()
 }
 
-// Verify verifies this Transaction has a valid signature. If nil is returned, the signature is valid.
-// Signature verification follows the pattern in crypto.TestSign:
-// https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
-// TODO: Review this signature verification, and compare it to geth's sig verification
-func (s *Transaction) Verify(hexAddress string) error {
-	addr := common.HexToAddress(hexAddress)
-
+func (s *Transaction) Signer() (common.Address, error) {
 	if IsZeroHash(s.Hash) {
 		s.populateHash()
 	}
 
 	sig := common.Hex2Bytes(s.Signature)
 	if len(sig) < crypto.RecoveryIDOffset {
-		return eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
+		return common.Address{}, eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
 	}
 	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
 		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
@@ -270,9 +259,21 @@ func (s *Transaction) Verify(hexAddress string) error {
 	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
 	err = eris.Wrap(err, "")
 	if err != nil {
+		return common.Address{}, err
+	}
+
+	return crypto.PubkeyToAddress(*signerPubKey), nil
+}
+
+// Verify verifies this Transaction has a valid signature. If nil is returned, the signature is valid.
+// Signature verification follows the pattern in crypto.TestSign:
+// https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
+// TODO: Review this signature verification, and compare it to geth's sig verification
+func (s *Transaction) Verify(addr common.Address) error {
+	signerAddr, err := s.Signer()
+	if err != nil {
 		return err
 	}
-	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
 	if signerAddr != addr {
 		return eris.Wrap(ErrSignatureValidationFailed, "")
 	}

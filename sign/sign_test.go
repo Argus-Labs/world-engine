@@ -31,20 +31,20 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	toBeVerified, err := UnmarshalTransaction(buf)
 	assert.NilError(t, err)
 
-	goodAddressHex := crypto.PubkeyToAddress(goodKey.PublicKey).Hex()
-	badAddressHex := crypto.PubkeyToAddress(badKey.PublicKey).Hex()
+	goodAddress := crypto.PubkeyToAddress(goodKey.PublicKey)
+	badAddress := crypto.PubkeyToAddress(badKey.PublicKey)
 
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Assert(t, toBeVerified.Timestamp >= wantJustAMomentAgo) // make sure unix time stamp is reasonable
 	assert.Assert(t, toBeVerified.Timestamp <= TimestampNow())
-	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
+	assert.NilError(t, toBeVerified.Verify(goodAddress))
 	// Make sure an empty hash is regenerated
 	toBeVerified.Hash = common.Hash{}
-	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
+	assert.NilError(t, toBeVerified.Verify(goodAddress))
 
 	// Verify signature verification can fail
-	errorWithStackTrace := toBeVerified.Verify(badAddressHex)
+	errorWithStackTrace := toBeVerified.Verify(badAddress)
 	err = eris.Unwrap(errorWithStackTrace)
 	assert.ErrorIs(t, err, ErrSignatureValidationFailed)
 }
@@ -161,25 +161,11 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 			expErr: ErrInvalidNamespace,
 		},
 		{
-			name: "system transaction",
-			payload: func() (*Transaction, error) {
-				return NewSystemTransaction(goodKey, "some-namespace", "{}")
-			},
-			expErr: nil,
-		},
-		{
 			name: "signed payload with SystemPersonaTag",
 			payload: func() (*Transaction, error) {
 				return NewTransaction(goodKey, SystemPersonaTag, "some-namespace", "{}")
 			},
 			expErr: ErrInvalidPersonaTag,
-		},
-		{
-			name: "empty body",
-			payload: func() (*Transaction, error) {
-				return NewSystemTransaction(goodKey, "some-namespace", "")
-			},
-			expErr: ErrCannotSignEmptyBody,
 		},
 	}
 
@@ -349,7 +335,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 	}
 	gotTx, err := MappedTransaction(dataAsMap)
 	assert.NilError(t, err)
-	addr := crypto.PubkeyToAddress(key.PublicKey).Hex()
+	addr := crypto.PubkeyToAddress(key.PublicKey)
 
 	assert.NilError(t, gotTx.Verify(addr))
 }

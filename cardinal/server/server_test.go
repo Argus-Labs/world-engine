@@ -351,7 +351,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace(), createPersonaTx)
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace(), createPersonaTx)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))

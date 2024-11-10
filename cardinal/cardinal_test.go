@@ -702,7 +702,7 @@ func TestCreatePersona(t *testing.T) {
 	}
 	wantBody, err := json.Marshal(body)
 	assert.NilError(t, err)
-	sp, err := sign.NewSystemTransaction(goodKey, namespace, wantBody)
+	sp, err := sign.NewTransaction(goodKey, "a", namespace, wantBody)
 	assert.NilError(t, err)
 	bodyBytes, err := json.Marshal(sp)
 	assert.NilError(t, err)

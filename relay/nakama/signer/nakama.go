@@ -40,11 +40,7 @@ type nakamaSigner struct {
 func (n *nakamaSigner) SignTx(_ context.Context, personaTag string, namespace string, data any) (
 	tx *sign.Transaction, err error,
 ) {
-	if personaTag == "" {
-		tx, err = sign.NewSystemTransaction(n.privateKey, namespace, data)
-	} else {
-		tx, err = sign.NewTransaction(n.privateKey, personaTag, namespace, data)
-	}
+	tx, err = sign.NewTransaction(n.privateKey, personaTag, namespace, data)
 
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to sign transaction")
