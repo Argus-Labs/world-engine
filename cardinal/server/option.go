@@ -19,7 +19,7 @@ func DisableSwagger() Option {
 // DisableSignatureVerification disables signature verification.
 func DisableSignatureVerification() Option {
 	return func(s *Server) {
-		s.verify.IsDisabled = true
+		s.config.isSignatureValidationDisabled = true
 	}
 }
 
@@ -31,17 +31,17 @@ func DisableSignatureVerification() Option {
 // This setting is ignored if the DisableSignatureVerification option is used
 // NOTE: this means that the real time clock for the sender and receiver
 // must be synchronized
-func WithMessageExpiration(seconds int) Option {
+func WithMessageExpiration(seconds uint) Option {
 	return func(s *Server) {
-		s.verify.MessageExpirationSeconds = seconds
+		s.config.messageExpirationSeconds = seconds
 	}
 }
 
 // WithHashCacheSize how big the cache of hashes used for replay protection
 // is allowed to be. Default is 1MB.
 // This setting is ignored if the DisableSignatureVerification option is used
-func WithHashCacheSize(sizeKB int) Option {
+func WithHashCacheSize(sizeKB uint) Option {
 	return func(s *Server) {
-		s.verify.HashCacheSizeKB = sizeKB
+		s.config.messageHashCacheSizeKB = sizeKB
 	}
 }
