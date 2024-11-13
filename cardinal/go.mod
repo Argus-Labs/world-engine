@@ -2,6 +2,8 @@ module pkg.world.dev/world-engine/cardinal
 
 go 1.22.1
 
+retract v1.7.0
+
 require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
