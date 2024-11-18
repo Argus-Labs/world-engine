@@ -421,7 +421,7 @@
         "required": [
           "body",
           "namespace",
-          "nonce",
+          "timestamp",
           "personaTag",
           "signature"
         ],
@@ -435,9 +435,9 @@
             "type": "string",
             "example": "agar-shooter"
           },
-          "nonce": {
+          "timestamp": {
             "type": "integer",
-            "format": "int64"
+            "format": "unix millisecond timestamp"
           },
           "signature": {
             "type": "string"
@@ -539,7 +539,7 @@
         "required": [
           "body",
           "namespace",
-          "nonce",
+          "timestamp",
           "personaTag",
           "signature"
         ],
@@ -553,9 +553,9 @@
             "type": "string",
             "example": "agar-shooter"
           },
-          "nonce": {
+          "timestamp": {
             "type": "integer",
-            "format": "int64"
+            "format": "unix millisecond timestamp"
           },
           "signature": {
             "type": "string"
