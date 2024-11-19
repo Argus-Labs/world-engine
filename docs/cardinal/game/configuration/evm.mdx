@@ -13,6 +13,8 @@ DA_NAMESPACE_ID = "defaultnamespace"
 FAUCET_ADDRESS = "faucet_address"
 FAUCET_AMOUNT = "0x56BC75E2D6310000"  # 100 ETH
 FAUCET_ENABLED = false
+EVM_IMAGE="ghcr.io/argus-labs/world-engine-evm:latest"
+EVM_IMAGE_PLATFORM="linux/amd64"
 ```
 
 ### CHAIN_ID
@@ -87,4 +89,25 @@ Enables or disables the faucet feature, which automatically distributes tokens t
 **Example**
 ```
 FAUCET_ENABLED = false
+```
+
+### EVM_IMAGE
+
+Specifies EVM docker image. This will only work on world cli v1.3.3 above.
+- For Cardinal v1.7.1 and later, the EVM image must be `v1.5.1` or later.
+- For Cardinal v1.6.x and earlier, the EVM image must be `v1.4.1` or earlier.
+
+**Example**
+```
+EVM_IMAGE = "ghcr.io/argus-labs/world-engine-evm:1.5.1"
+```
+
+### EVM_IMAGE_PLATFORM
+
+Specifies the platform architecture for the EVM Docker image. The default value will match the operating system platform. this will only work on world cli v1.3.3 above. 
+For more details, you can visit this <a href='https://docs.docker.com/build/building/multi-platform/' target='_blank'>link</a> 
+
+**Example**
+```
+EVM_IMAGE_PLATFORM = "linux/amd64"
 ```
