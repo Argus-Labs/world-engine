@@ -23,7 +23,17 @@ const (
 
 var (
 	ErrBadCustomAuthType = errors.New("bad custom auth type")
+	GlobalJWTSecret      string
 )
+
+func checkJWTSecret(logger runtime.Logger) {
+	if GlobalJWTSecret == "" {
+		GlobalJWTSecret = os.Getenv(envJWTSecret)
+	}
+	if GlobalJWTSecret == "" {
+		logger.Warn("JWT secret isn't set. You won't be able to use Argus ID custom link")
+	}
+}
 
 // Now we can only use symmetric JWTs, which means that the custom Argus ID authentication can only
 // be used for our (Argus) projects because we can't share the JWT secret. Instead of failing
@@ -38,10 +48,7 @@ func InitCustomAuthentication(logger runtime.Logger, initializer runtime.Initial
 	if err := initializer.RegisterBeforeAuthenticateCustom(handleCustomAuthentication); err != nil {
 		return eris.Wrap(err, "failed to init custom authentication")
 	}
-	globalJWTSecret := os.Getenv(envJWTSecret)
-	if globalJWTSecret == "" {
-		logger.Warn("JWT secret isn't set. You won't be able to use Argus ID custom authentication")
-	}
+	checkJWTSecret(logger)
 	return nil
 }
 
@@ -89,10 +96,7 @@ func InitCustomLink(logger runtime.Logger, initializer runtime.Initializer) erro
 	if err := initializer.RegisterBeforeLinkCustom(handleCustomLink); err != nil {
 		return eris.Wrap(err, "failed to init custom link")
 	}
-	globalJWTSecret := os.Getenv(envJWTSecret)
-	if globalJWTSecret == "" {
-		logger.Warn("JWT secret isn't set. You won't be able to use Argus ID custom link")
-	}
+	checkJWTSecret(logger)
 	return nil
 }
 
