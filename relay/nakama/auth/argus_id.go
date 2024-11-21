@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 
@@ -49,7 +50,8 @@ type AMREntry struct {
 
 func validateAndParseJWT(jwtHash string, jwtString string, jwtSecret string) (*SupabaseClaims, error) {
 	computedHash := sha256.Sum256([]byte(jwtString))
-	if string(computedHash[:]) != jwtHash {
+	computedHashString := hex.EncodeToString(computedHash[:])
+	if computedHashString != jwtHash {
 		return nil, ErrInvalidIDForJWT
 	}
 

@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 
 	"github.com/golang-jwt/jwt"
@@ -25,7 +26,7 @@ func TestValidateAndParseJWTHappyPath(t *testing.T) {
 	assert.Nil(t, err)
 
 	hash := sha256.Sum256([]byte(jwtString))
-	jwtHash := string(hash[:])
+	jwtHash := hex.EncodeToString(hash[:])
 
 	_, err = validateAndParseJWT(jwtHash, jwtString, testJWTSecret)
 	assert.Nil(t, err)
@@ -62,7 +63,7 @@ func TestValidateAndParseJWTWithWrongSecret(t *testing.T) {
 	assert.Nil(t, err)
 
 	hash := sha256.Sum256([]byte(jwtString))
-	jwtHash := string(hash[:])
+	jwtHash := hex.EncodeToString(hash[:])
 
 	_, err = validateAndParseJWT(jwtHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, jwt.ErrSignatureInvalid.Error())
@@ -82,7 +83,7 @@ func TestValidateAndParseJWTWithWrongSigningMethod(t *testing.T) {
 	assert.Nil(t, err)
 
 	hash := sha256.Sum256([]byte(jwtString))
-	jwtHash := string(hash[:])
+	jwtHash := hex.EncodeToString(hash[:])
 
 	_, err = validateAndParseJWT(jwtHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, ErrInvalidJWTSigningMethod.Error())
@@ -94,7 +95,7 @@ func TestValidateAndParseJWTWithInvalidClaims(t *testing.T) {
 	assert.Nil(t, err)
 
 	hash := sha256.Sum256([]byte(jwtString))
-	jwtHash := string(hash[:])
+	jwtHash := hex.EncodeToString(hash[:])
 
 	_, err = validateAndParseJWT(jwtHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, ErrInvalidJWTClaims.Error())
