@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"os"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/heroiclabs/nakama-common/api"
@@ -92,9 +91,8 @@ func authWithArgusID(
 	in *api.AuthenticateCustomRequest,
 	span trace.Span,
 ) (*api.AuthenticateCustomRequest, error) {
-	span.AddEvent("Getting JWT secret from environment")
-	globalJWTSecret := os.Getenv(envJWTSecret)
-	if globalJWTSecret == "" {
+	span.AddEvent("Checking for existence of JWT secret")
+	if GlobalJWTSecret == "" {
 		logger.Error("Tried to use Argus ID authentication but JWT secret isn't set")
 		return nil, ErrBadCustomAuthType
 	}
@@ -102,7 +100,7 @@ func authWithArgusID(
 	span.AddEvent("Validating and Parsing JWT")
 	jwtHash := in.GetAccount().GetId()
 	jwt := in.GetAccount().GetVars()["jwt"]
-	claims, err := validateAndParseJWT(jwtHash, jwt, globalJWTSecret)
+	claims, err := validateAndParseJWT(jwtHash, jwt, GlobalJWTSecret)
 	if err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Failed to validate and parse JWT")
 		return nil, err
@@ -135,9 +133,8 @@ func linkWithArgusID(
 	in *api.AccountCustom,
 	span trace.Span,
 ) (*api.AccountCustom, error) {
-	span.AddEvent("Getting JWT secret from environment")
-	globalJWTSecret := os.Getenv(envJWTSecret)
-	if globalJWTSecret == "" {
+	span.AddEvent("Checking for existence of JWT secret")
+	if GlobalJWTSecret == "" {
 		logger.Error("Tried to use Argus ID authentication but JWT secret isn't set.")
 		return nil, ErrBadCustomAuthType
 	}
@@ -145,7 +142,7 @@ func linkWithArgusID(
 	span.AddEvent("Validating and Parsing JWT")
 	jwtHash := in.GetId()
 	jwt := in.GetVars()["jwt"]
-	claims, err := validateAndParseJWT(jwtHash, jwt, globalJWTSecret)
+	claims, err := validateAndParseJWT(jwtHash, jwt, GlobalJWTSecret)
 	if err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Failed to parse and verify JWT")
 		return nil, err
