@@ -145,7 +145,7 @@ func linkWithArgusID(
 	jwt := in.GetVars()["jwt"]
 	claims, err := validateAndParseJWT(jwtHash, jwt, globalJWTSecret)
 	if err != nil {
-		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Faile to parse and verify JWT")
+		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Failed to parse and verify JWT")
 		return nil, err
 	}
 
