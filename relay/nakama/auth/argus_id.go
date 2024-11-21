@@ -102,7 +102,7 @@ func authWithArgusID(
 	jwt := in.GetAccount().GetVars()["jwt"]
 	claims, err := validateAndParseJWT(jwtHash, jwt, globalJWTSecret)
 	if err != nil {
-		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Faile to validate and parse JWT")
+		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Failed to validate and parse JWT")
 		return nil, err
 	}
 
