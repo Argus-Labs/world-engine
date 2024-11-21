@@ -126,12 +126,12 @@ func InitModule(
 		return eris.Wrap(err, "failed to init save file query endpoint")
 	}
 
-	if err := auth.InitCustomAuthentication(initializer); err != nil {
-		return eris.Wrap(err, "failed to init ethereum authentication")
+	if err := auth.InitCustomAuthentication(logger, initializer); err != nil {
+		return eris.Wrap(err, "failed to init custom authentication")
 	}
 
-	if err := auth.InitCustomLink(initializer); err != nil {
-		return eris.Wrap(err, "failed to init ethereum link")
+	if err := auth.InitCustomLink(logger, initializer); err != nil {
+		return eris.Wrap(err, "failed to init custom link")
 	}
 	return nil
 }
