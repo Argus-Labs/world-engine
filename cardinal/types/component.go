@@ -23,7 +23,7 @@ type Component interface {
 type ComponentMetadata interface { //revive:disable-line:exported
 	// SetID sets the ArchetypeID of this component. It must only be set once
 	SetID(ComponentID) error
-	// ArchetypeID returns the ArchetypeID of the component.
+	// ID returns the ArchetypeID of the component.
 	ID() ComponentID
 	// New returns the marshaled bytes of the default value for the component struct.
 	New() ([]byte, error)

@@ -36,7 +36,7 @@ type WorldContext interface {
 	EmitEvent(map[string]any) error
 
 	// EmitStringEvent emits a string event that will be broadcast to all websocket subscribers.
-	// This method is provided for backwards compatability. EmitEvent should be used for most cases.
+	// This method is provided for backwards compatibility. EmitEvent should be used for most cases.
 	EmitStringEvent(string) error
 
 	// Namespace returns the namespace of the world.

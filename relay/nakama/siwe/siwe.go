@@ -250,7 +250,7 @@ func getNonceStorageObject(
 	} else if len(objs) == 0 {
 		// No existing storage object was found, so return a storage object with no nonces and no version
 		return &nonceStorageObj{
-			// When this is later saved back to the DB, it will only be successful it the stoage object
+			// When this is later saved back to the DB, it will only be successful it the storage object
 			// doesn't already exist in the DB.
 			Version: "*",
 		}, nil
