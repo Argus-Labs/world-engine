@@ -11,6 +11,8 @@ NAKAMA_TRACE_ENABLED = true
 NAKAMA_METRICS_ENABLED = true
 NAKAMA_TRACE_SAMPLE_RATE = 0.6
 NAKAMA_METRICS_INTERVAL = 30
+NAKAMA_IMAGE = "ghcr.io/argus-labs/world-engine-nakama:latest"
+NAKAMA_IMAGE_PLATFORM = "linux/amd64"
 ```
 
 ### ENABLE_ALLOWLIST
@@ -65,4 +67,25 @@ Prometheus scraping interval in seconds.
 **Example**
 ```
 NAKAMA_METRICS_INTERVAL = 30
+```
+
+### NAKAMA_IMAGE
+
+Specifies Nakama Docker image. this will only work on world cli v1.3.3 above.
+- For Cardinal v1.7.1 and later, the Nakama image must be `v1.4.0` or later.
+- For Cardinal v1.6.x and earlier, the Nakama image must be `v1.2.9` or earlier.
+
+**Example**
+```
+NAKAMA_IMAGE = "ghcr.io/argus-labs/world-engine-nakama:1.4.0"
+```
+
+### NAKAMA_IMAGE_PLATFORM
+
+Specifies the platform architecture for the Nakama Docker image. The default value will match the operating system platform. this will only work on world cli v1.3.3 above.
+For more details, you can visit this <a href='https://docs.docker.com/build/building/multi-platform/' target='_blank'>link</a> 
+
+**Example**
+```
+NAKAMA_IMAGE_PLATFORM = "linux/arm64"
 ```
