@@ -1,0 +1,304 @@
+basePath: /
+definitions:
+  cardinal_server_handler.GetHealthResponse:
+    properties:
+      isGameLoopRunning:
+        type: boolean
+      isServerRunning:
+        type: boolean
+    type: object
+  cardinal_server_handler.GetReceiptsRequest:
+    properties:
+      txHashes:
+        items:
+          items:
+            type: integer
+          type: array
+        type: array
+    type: object
+  cardinal_server_handler.GetReceiptsResponse:
+    properties:
+      receipts:
+        additionalProperties:
+          items:
+            type: integer
+          type: array
+        type: object
+    type: object
+  cardinal_server_handler.PostTransactionResponse:
+    properties:
+      txHash:
+        items:
+          type: integer
+        type: array
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.ComponentInfo:
+    properties:
+      fields:
+        additionalProperties: {}
+        description: property name and type
+        type: object
+      name:
+        description: name of the component
+        type: string
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.EndpointInfo:
+    properties:
+      fields:
+        additionalProperties: {}
+        description: property name and type
+        type: object
+      name:
+        description: name of the message or query
+        type: string
+      url:
+        type: string
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.EntityData:
+    properties:
+      components:
+        type: object
+      id:
+        type: integer
+    type: object
+  pkg_world_dev_world-engine_cardinal_types.WorldInfo:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.ComponentInfo'
+        type: array
+      messages:
+        items:
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EndpointInfo'
+        type: array
+      namespace:
+        type: string
+      queries:
+        items:
+          $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EndpointInfo'
+        type: array
+    type: object
+  sign.Transaction:
+    properties:
+      body:
+        description: json string
+        type: object
+      hash:
+        type: string
+      namespace:
+        type: string
+      nonce:
+        type: integer
+      personaTag:
+        type: string
+      signature:
+        description: hex encoded string
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Backend server for World Engine
+  title: Cardinal
+  version: 0.0.1
+paths:
+  /debug/state:
+    post:
+      description: Retrieves a list of all entities in the game state
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of all entities
+          schema:
+            items:
+              $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityData'
+            type: array
+      summary: Retrieves a list of all entities in the game state
+  /events:
+    get:
+      description: Establishes a new websocket connection to retrieve system events
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switch protocol to ws
+          schema:
+            type: string
+      summary: Establishes a new websocket connection to retrieve system events
+  /health:
+    get:
+      description: Retrieves the status of the server and game loop
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server and game loop status
+          schema:
+            $ref: '#/definitions/cardinal_server_handler.GetHealthResponse'
+      summary: Retrieves the status of the server and game loop
+  /query/{queryGroup}/{queryName}:
+    post:
+      consumes:
+      - application/json
+      description: Executes a query
+      parameters:
+      - description: Query group
+        in: path
+        name: queryGroup
+        required: true
+        type: string
+      - description: Name of a registered query
+        in: path
+        name: queryName
+        required: true
+        type: string
+      - description: Query to be executed
+        in: body
+        name: queryBody
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Results of the executed query
+          schema:
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Executes a query
+  /query/receipts/list:
+    post:
+      consumes:
+      - application/json
+      description: Retrieves all transaction receipts
+      parameters:
+      - description: Query body
+        in: body
+        name: GetReceiptsRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cardinal_server_handler.GetReceiptsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of receipts
+          schema:
+            $ref: '#/definitions/cardinal_server_handler.GetReceiptsResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+      summary: Retrieves all transaction receipts
+  /tx/{group}/{name}:
+    post:
+      consumes:
+      - application/json
+      description: Submits a transaction
+      parameters:
+      - description: Message group
+        in: path
+        name: group
+        required: true
+        type: string
+      - description: Name of a registered message
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Transaction details & message to be submitted
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sign.Transaction'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction hash and tick
+          schema:
+            $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
+        "400":
+          description: Invalid request parameter
+          schema:
+            type: string
+      summary: Submits a transaction
+  /tx/game/{txName}:
+    post:
+      consumes:
+      - application/json
+      description: Submits a transaction
+      parameters:
+      - description: Name of a registered message
+        in: path
+        name: txName
+        required: true
+        type: string
+      - description: Transaction details & message to be submitted
+        in: body
+        name: txBody
+        required: true
+        schema:
+          $ref: '#/definitions/sign.Transaction'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction hash and tick
+          schema:
+            $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
+        "400":
+          description: Invalid request parameter
+          schema:
+            type: string
+      summary: Submits a transaction
+  /tx/persona/create-persona:
+    post:
+      consumes:
+      - application/json
+      description: Creates a persona
+      parameters:
+      - description: Transaction details & message to be submitted
+        in: body
+        name: txBody
+        required: true
+        schema:
+          $ref: '#/definitions/sign.Transaction'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction hash and tick
+          schema:
+            $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
+        "400":
+          description: Invalid request parameter
+          schema:
+            type: string
+      summary: Creates a persona
+  /world:
+    get:
+      consumes:
+      - application/json
+      description: Contains the registered components, messages, queries, and namespace
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Details of the game world
+          schema:
+            $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.WorldInfo'
+        "400":
+          description: Invalid request parameters
+          schema:
+            type: string
+      summary: Retrieves details of the game world
+schemes:
+- http
+- ws
+swagger: "2.0"

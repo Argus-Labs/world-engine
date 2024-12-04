@@ -89,7 +89,7 @@ func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 	assert.Equal(t, string(tx.Body), string(wantTx.Body))
 
 	// Also make sure the resulting signature can be verified by the sign package.
-	assert.NilError(t, tx.Verify(precomputedSignerAddress))
+	assert.NilError(t, tx.Verify(common.HexToAddress(precomputedSignerAddress)))
 }
 
 // TestQueryRealKMSService is a test that will query Google's actual KMS service to sign a transaction. It's left here
@@ -116,7 +116,7 @@ func TestQueryRealKMSService(t *testing.T) {
 	tx, err := txSigner.SignTx(ctx, personaTag, namespace, data)
 	assert.NilError(t, err)
 
-	assert.NilError(t, tx.Verify(txSigner.SignerAddress()))
+	assert.NilError(t, tx.Verify(common.HexToAddress(txSigner.SignerAddress())))
 }
 
 type fakeAsymmetricSigner struct {
