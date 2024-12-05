@@ -1,40 +1,42 @@
 package telemetry
 
 import (
-	"errors"
+	"context"
 
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 type Manager struct {
-	tracerShutdownFunc   func() error
-	profilerShutdownFunc func()
-	tracerProvider       *ddotel.TracerProvider
+	namespace          string
+	tracerShutdownFunc func() error
+	tracerProvider     *trace.TracerProvider
 }
 
-func New(enableTrace bool, enableProfiler bool) (*Manager, error) {
+func New(enableTrace bool, namespace string) (*Manager, error) {
+	ctx := context.Background()
+
 	tm := Manager{
+		namespace:          namespace,
 		tracerShutdownFunc: nil,
 		tracerProvider:     nil,
 	}
 
 	// Set up propagator
-	tm.setupPropagator()
+	exporter, err := tm.setupExporter(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Set up trace provider used for creating spans
 	if enableTrace {
-		tm.setupTrace()
-	}
-
-	// Set up profiler
-	if enableProfiler {
-		if err := tm.setupProfiler(); err != nil {
-			return nil, errors.Join(err, tm.Shutdown())
+		err := tm.setupTrace(exporter)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -51,45 +53,29 @@ func (tm *Manager) Shutdown() error {
 		return err
 	}
 
-	if tm.profilerShutdownFunc != nil {
-		tm.profilerShutdownFunc()
-	}
-
 	log.Debug().Msg("Successfully shutdown telemetry")
 	return nil
 }
 
-func (tm *Manager) setupPropagator() {
-	prop := propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	)
-	otel.SetTextMapPropagator(prop)
+func (tm *Manager) setupExporter(ctx context.Context) (trace.SpanExporter, error) {
+	return otlptracegrpc.New(ctx)
 }
 
-func (tm *Manager) setupTrace() {
-	tm.tracerProvider = ddotel.NewTracerProvider(tracer.WithRuntimeMetrics())
-	tm.tracerShutdownFunc = tm.tracerProvider.Shutdown
-	otel.SetTracerProvider(tm.tracerProvider)
-}
-
-func (tm *Manager) setupProfiler() error {
-	err := profiler.Start(
-		profiler.WithProfileTypes(
-			profiler.CPUProfile,
-			profiler.HeapProfile,
-			// The profiles below are disabled by default to keep overhead
-			// low, but can be enabled as needed.
-			// profiler.BlockProfile,
-			// profiler.MutexProfile,
-			// profiler.GoroutineProfile,
+func (tm *Manager) setupTrace(exporter trace.SpanExporter) error {
+	// Ensure default SDK resources and the required service name are set.
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(tm.namespace+"-cardinal"),
 		),
 	)
 	if err != nil {
 		return err
 	}
 
-	tm.profilerShutdownFunc = profiler.Stop
+	tm.tracerProvider = trace.NewTracerProvider(trace.WithResource(r), trace.WithBatcher(exporter))
+	otel.SetTracerProvider(tm.tracerProvider)
 
 	return nil
 }

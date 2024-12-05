@@ -108,7 +108,7 @@ type searchBuilder interface {
 //
 // cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
 func NewSearch() searchBuilder {
-	return NewLegacySearch(nil).(searchBuilder)
+	return NewLegacySearch(nil).(searchBuilder) //nolint:errcheck // It's safe
 }
 
 // TODO: should deprecate this in the future.

@@ -13,7 +13,6 @@ CARDINAL_NAMESPACE = "defaultnamespace"
 CARDINAL_ROLLUP_ENABLED = false
 REDIS_ADDRESS = "localhost:6379"
 REDIS_PASSWORD = "redis_password"
-TELEMETRY_PROFILER_ENABLED = false
 TELEMETRY_TRACE_ENABLED = false
 ```
 
@@ -92,18 +91,10 @@ Make sure to set this in production to secure your Redis instance.
 REDIS_PASSWORD = ''
 ```
 
-### TELEMETRY_PROFILER_ENABLED
-
-Enables OpenTelemetry profiling, which collects performance data to help identify bottlenecks and inefficiencies.
-
-**Example**
-```
-TELEMETRY_PROFILER_ENABLED = false
-```
 
 ### TELEMETRY_TRACE_ENABLED
 
-Enables Datadog trace profiling, allowing for continuous application monitoring and tracing.
+Enables trace collection, allowing for continuous application monitoring and tracing.
 
 **Example**
 ```

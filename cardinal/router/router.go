@@ -12,8 +12,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
-	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/txpool"
@@ -102,7 +100,7 @@ func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Opt
 		rtr.sequencerJobQueue, err = jobqueue.New[*shard.SubmitTransactionsRequest](
 			"./.cardinal/badger",
 			"submit-tx",
-			20, //nolint:gomnd // Will do this later
+			20, //nolint:mnd // Will do this later
 			handleSubmitTx(rtr.ShardSequencer, tracer),
 		)
 		if err != nil {
@@ -136,7 +134,7 @@ func (r *router) SubmitTxBlob(
 	epoch,
 	unixTimestamp uint64,
 ) error {
-	_, span := r.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "router.submit-tx-blob")
+	_, span := r.tracer.Start(ctx, "router.submit-tx-blob")
 	defer span.End()
 
 	messageIDtoTxs := make(map[uint64]*shard.Transactions)
@@ -206,8 +204,7 @@ func handleSubmitTx(sequencer shard.TransactionHandlerClient, tracer trace.Trace
 	jobqueue.JobContext, *shard.SubmitTransactionsRequest,
 ) error {
 	return func(_ jobqueue.JobContext, req *shard.SubmitTransactionsRequest) error {
-		_, span := tracer.Start(ddotel.ContextWithStartOptions(context.Background(), ddtracer.Measured()),
-			"router.job-queue.submit-tx")
+		_, span := tracer.Start(context.Background(), "router.job-queue.submit-tx")
 		defer span.End()
 
 		_, err := sequencer.Submit(context.Background(), req)
