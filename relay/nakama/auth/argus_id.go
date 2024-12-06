@@ -10,6 +10,7 @@ import (
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 
@@ -47,13 +48,18 @@ type AMREntry struct {
 	Provider  string `json:"provider,omitempty"`
 }
 
-func validateAndParseJWT(jwtHash string, jwtString string, jwtSecret string) (*SupabaseClaims, error) {
+func validateAndParseJWT(ctx context.Context, jwtHash string, jwtString string, jwtSecret string) (*SupabaseClaims, error) {
+	ctx, span := otel.Tracer("nakama.auth").Start(ctx, "Validating and Parsing JWT")
+	defer span.End()
+
+	span.AddEvent("Comparing given JWT hash with actual JWT hash")
 	computedHash := sha256.Sum256([]byte(jwtString))
 	computedHashString := hex.EncodeToString(computedHash[:])
 	if computedHashString != jwtHash {
 		return nil, ErrInvalidIDForJWT
 	}
 
+	span.AddEvent("Parsing JWT Claims")
 	token, err := jwt.ParseWithClaims(
 		jwtString,
 		&SupabaseClaims{},
@@ -63,11 +69,9 @@ func validateAndParseJWT(jwtHash string, jwtString string, jwtSecret string) (*S
 			}
 			return []byte(jwtSecret), nil
 		})
-
 	if err != nil {
 		return nil, eris.Wrap(err, "Failed to parse JWT")
 	}
-
 	if !token.Valid {
 		return nil, ErrInvalidJWT
 	}
@@ -85,22 +89,15 @@ func validateAndParseJWT(jwtHash string, jwtString string, jwtSecret string) (*S
 // include the JWT as a request variable. This is done because the JWTs are often longer than the
 // max length of AuthenticateCustom IDs (128 characters).
 func authWithArgusID(
-	_ context.Context,
+	ctx context.Context,
 	logger runtime.Logger,
 	_ runtime.NakamaModule,
 	in *api.AuthenticateCustomRequest,
 	span trace.Span,
 ) (*api.AuthenticateCustomRequest, error) {
-	span.AddEvent("Checking for existence of JWT secret")
-	if GlobalJWTSecret == "" {
-		logger.Error("Tried to use Argus ID authentication but JWT secret isn't set")
-		return nil, ErrBadCustomAuthType
-	}
-
-	span.AddEvent("Validating and Parsing JWT")
 	jwtHash := in.GetAccount().GetId()
 	jwt := in.GetAccount().GetVars()["jwt"]
-	claims, err := validateAndParseJWT(jwtHash, jwt, GlobalJWTSecret)
+	claims, err := validateAndParseJWT(ctx, jwtHash, jwt, GlobalJWTSecret)
 	if err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Failed to validate and parse JWT")
 		return nil, err
@@ -127,22 +124,15 @@ func authWithArgusID(
 }
 
 func linkWithArgusID(
-	_ context.Context,
+	ctx context.Context,
 	logger runtime.Logger,
 	_ runtime.NakamaModule,
 	in *api.AccountCustom,
 	span trace.Span,
 ) (*api.AccountCustom, error) {
-	span.AddEvent("Checking for existence of JWT secret")
-	if GlobalJWTSecret == "" {
-		logger.Error("Tried to use Argus ID authentication but JWT secret isn't set.")
-		return nil, ErrBadCustomAuthType
-	}
-
-	span.AddEvent("Validating and Parsing JWT")
 	jwtHash := in.GetId()
 	jwt := in.GetVars()["jwt"]
-	claims, err := validateAndParseJWT(jwtHash, jwt, GlobalJWTSecret)
+	claims, err := validateAndParseJWT(ctx, jwtHash, jwt, GlobalJWTSecret)
 	if err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "Failed to parse and verify JWT")
 		return nil, err
@@ -159,7 +149,7 @@ func linkWithArgusID(
 		if strValue, ok := value.(string); ok {
 			in.Vars[key] = strValue
 		} else {
-			logger.Warn("Found non-string value in user metadata: %v", value)
+			logger.Warn("Found non-string value in user metadata for key: %s", key)
 		}
 	}
 
