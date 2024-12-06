@@ -76,7 +76,7 @@ func handleCustomAuthentication(
 		span.SetStatus(otelcode.Ok, "Successfully authenticated with SIWE")
 		return in, nil
 	}
-	if authType == signInWithArgusIDType {
+	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
 		span.AddEvent("Handling custom auth with Argus ID")
 		in, err := authWithArgusID(ctx, logger, nk, in, span)
 		if err != nil {
@@ -123,7 +123,7 @@ func handleCustomLink(
 		span.SetStatus(otelcode.Ok, "Successfully linked with SIWE")
 		return in, nil
 	}
-	if authType == signInWithArgusIDType {
+	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
 		in, err := linkWithArgusID(ctx, logger, nk, in, span)
 		if err != nil {
 			span.RecordError(err)
