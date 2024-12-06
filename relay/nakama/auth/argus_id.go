@@ -11,6 +11,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel"
+	otelcode "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 
@@ -48,14 +49,21 @@ type AMREntry struct {
 	Provider  string `json:"provider,omitempty"`
 }
 
-func validateAndParseJWT(ctx context.Context, jwtHash string, jwtString string, jwtSecret string) (*SupabaseClaims, error) {
-	ctx, span := otel.Tracer("nakama.auth").Start(ctx, "Validating and Parsing JWT")
+func validateAndParseJWT(
+	ctx context.Context,
+	jwtHash string,
+	jwtString string,
+	jwtSecret string,
+) (*SupabaseClaims, error) {
+	_, span := otel.Tracer("nakama.auth").Start(ctx, "Validating and Parsing JWT")
 	defer span.End()
 
 	span.AddEvent("Comparing given JWT hash with actual JWT hash")
 	computedHash := sha256.Sum256([]byte(jwtString))
 	computedHashString := hex.EncodeToString(computedHash[:])
 	if computedHashString != jwtHash {
+		span.RecordError(ErrInvalidIDForJWT)
+		span.SetStatus(otelcode.Error, "Given JWT hash does not match computed hash")
 		return nil, ErrInvalidIDForJWT
 	}
 
@@ -70,18 +78,25 @@ func validateAndParseJWT(ctx context.Context, jwtHash string, jwtString string, 
 			return []byte(jwtSecret), nil
 		})
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcode.Error, "Failed to parse JWT")
 		return nil, eris.Wrap(err, "Failed to parse JWT")
 	}
 	if !token.Valid {
+		span.RecordError(ErrInvalidJWT)
+		span.SetStatus(otelcode.Error, "Invalid JWT token")
 		return nil, ErrInvalidJWT
 	}
 
 	claims, ok := token.Claims.(*SupabaseClaims)
 	// Make sure claims has a subject (the user ID set by Supabase)
 	if !ok || claims.Subject == "" {
+		span.RecordError(ErrInvalidJWTClaims)
+		span.SetStatus(otelcode.Error, "Invalid JWT claims")
 		return nil, ErrInvalidJWTClaims
 	}
 
+	span.SetStatus(otelcode.Ok, "Successfully parsed and validated JWT")
 	return claims, nil
 }
 
