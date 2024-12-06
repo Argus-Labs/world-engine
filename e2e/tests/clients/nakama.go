@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rotisserie/eris"
 	"nhooyr.io/websocket"
 
 	"pkg.world.dev/world-engine/assert"
@@ -229,7 +230,18 @@ func (c *NakamaClient) validateSuccessfulAuth(resp *http.Response) error {
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return fmt.Errorf("failed to decode body: %w", err)
 	}
-	c.authHeader = fmt.Sprintf("Bearer %s", body["token"].(string))
+
+	token, ok := body["token"]
+	if !ok {
+		return eris.New("unable to find token")
+	}
+
+	tokenStr, ok := token.(string)
+	if !ok {
+		return eris.New("token is not a string")
+	}
+
+	c.authHeader = fmt.Sprintf("Bearer %s", tokenStr)
 	if err := c.listenForNotifications(); err != nil {
 		return fmt.Errorf("failed to start streaming notifications: %w", err)
 	}

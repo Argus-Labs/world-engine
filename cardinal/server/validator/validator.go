@@ -3,6 +3,7 @@ package validator
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/coocood/freecache"
@@ -77,8 +78,14 @@ func NewSignatureValidator(disabled bool, msgExpirationSec uint, hashCacheSizeKB
 // there was a problem, and nil if everything was ok
 // if signature validation is disabled, no checks are done and nil is always returned
 func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction) error {
-	if !validator.IsDisabled {
+	if !validator.IsDisabled { //nolint:nestif // its fine
 		now := time.Now()
+		if validator.MessageExpirationSeconds > math.MaxInt64 {
+			return eris.New("message expiration seconds too large")
+		}
+		if validator.MessageExpirationSeconds < 1 {
+			return eris.New("message expiration seconds too small")
+		}
 		txEarliestValidTimestamp := sign.TimestampAt(
 			now.Add(-(time.Duration(validator.MessageExpirationSeconds) * time.Second)))
 		txLatestValidTimestamp := sign.TimestampAt(now.Add(time.Duration(ttlMaxFutureSeconds) * time.Second))

@@ -2,7 +2,7 @@
 # golangci-lint #
 #################
 
-lint_version=v1.57.1
+lint_version=v1.62.2
 
 lint-install:
 	@echo "--> Checking if golangci-lint $(lint_version) is installed"

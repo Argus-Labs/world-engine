@@ -42,15 +42,15 @@ func NewMemoryResultStorage(keepAlive time.Duration) ResultStorage {
 }
 
 func (r *resultStorageMemory) Result(hash string) (Result, bool) {
-	log.Debug().Msgf("attempting to get result for %q", hash)
 	res, ok := r.results.Load(hash)
 	defer r.clearStaleEntries()
 	if !ok {
-		log.Debug().Msg("no result found")
 		return Result{}, ok
 	}
-	log.Debug().Msg("result found")
-	return res.(Result), ok
+	if res, ok := res.(Result); ok {
+		return res, true
+	}
+	return Result{}, false
 }
 
 func (r *resultStorageMemory) SetResult(msg *routerv1.SendMessageResponse) {

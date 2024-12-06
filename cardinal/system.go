@@ -11,8 +11,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
-	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 const (
@@ -137,7 +135,7 @@ func (m *systemManager) registerSystem(isInit bool, systemName string, systemFun
 
 // RunSystems runs all the registered system in the order that they were registered.
 func (m *systemManager) runSystems(ctx context.Context, wCtx WorldContext) error {
-	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "system.run")
+	ctx, span := m.tracer.Start(ctx, "system.run")
 	defer span.End()
 
 	var systemsToRun []systemType
@@ -158,16 +156,15 @@ func (m *systemManager) runSystems(ctx context.Context, wCtx WorldContext) error
 		wCtx.setLogger(logger.With().Str("system", sys.Name).Logger())
 
 		// Executes the system function that the user registered
-		_, systemFnSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
-			ddtracer.Measured()),
-			"system.run."+sys.Name)
+		_, systemFnSpan := m.tracer.Start(ctx, "system.run."+sys.Name)
 		if err := sys.Fn(wCtx); err != nil {
 			m.currentSystem = ""
 			span.SetStatus(codes.Error, eris.ToString(err, true))
 			span.RecordError(err)
 			systemFnSpan.SetStatus(codes.Error, eris.ToString(err, true))
 			systemFnSpan.RecordError(err)
-			return eris.Wrapf(err, "System %s generated an error", sys.Name) //nolint:spancheck // false positive
+			systemFnSpan.End()
+			return eris.Wrapf(err, "System %s generated an error", sys.Name)
 		}
 		systemFnSpan.End()
 	}

@@ -5,8 +5,7 @@ use (
 	cardinal
 	e2e/testgames
 	e2e/tests
-	evm
 	relay/nakama
-	sign
 	rift
+	sign
 )

@@ -44,7 +44,7 @@ func main() {
 	systems := []cardinal.System{}
 
 	options := []cardinal.WorldOption{
-		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
+		cardinal.WithReceiptHistorySize(10), //nolint:mnd // fine for testing.
 	}
 
 	world, err := cardinal.NewWorld(options...)

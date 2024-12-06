@@ -19,7 +19,7 @@ func NewTxCmd() *cobra.Command {
 		Use:                        namespacetypes.ModuleName,
 		Short:                      "Namespace transaction subcommands",
 		DisableFlagParsing:         true,
-		SuggestionsMinimumDistance: 2, //nolint:gomnd // not needed.
+		SuggestionsMinimumDistance: 2, //nolint:mnd // not needed.
 		RunE:                       client.ValidateCmd,
 	}
 
@@ -38,7 +38,7 @@ func NewRegisterNamespaceCmd() *cobra.Command {
 		Short:   "Register a game shard's gRPC address",
 		Long:    `Register a game shard's gRPC address, allowing for cross-shard communication from the EVM.'`,
 		Example: fmt.Sprintf("%s tx namespace register foobar api.cool.game:9601", version.AppName),
-		Args:    cobra.ExactArgs(2), //nolint:gomnd // not needed
+		Args:    cobra.ExactArgs(2), //nolint:mnd // not needed
 		RunE: func(cmd *cobra.Command, args []string) error {
 			namespace := args[0]
 			grpcAddress := args[1]
