@@ -91,7 +91,11 @@ func TestValidateAndParseJWTWithWrongSigningMethod(t *testing.T) {
 }
 
 func TestValidateAndParseJWTWithInvalidClaims(t *testing.T) {
-	token := jwt.New(jwt.SigningMethodHS256)
+	// Subject should be set
+	claims := SupabaseClaims{
+		StandardClaims: jwt.StandardClaims{},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	jwtString, err := token.SignedString([]byte(testJWTSecret))
 	assert.Nil(t, err)
 
