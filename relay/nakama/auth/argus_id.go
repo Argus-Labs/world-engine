@@ -32,21 +32,7 @@ type SupabaseClaims struct {
 	// Supabase uses jwt.RegisteredClaims from golang-jwt/jwt/v5, but it's still based on the same
 	// RFC (https://datatracker.ietf.org/doc/html/rfc7519) as this version's jwt.StandardClaims.
 	jwt.StandardClaims
-	Email                         string                 `json:"email"`
-	Phone                         string                 `json:"phone"`
-	AppMetaData                   map[string]interface{} `json:"app_metadata"`
-	UserMetaData                  map[string]interface{} `json:"user_metadata"`
-	Role                          string                 `json:"role"`
-	AuthenticatorAssuranceLevel   string                 `json:"aal,omitempty"`
-	AuthenticationMethodReference []AMREntry             `json:"amr,omitempty"`
-	SessionID                     string                 `json:"session_id,omitempty"`
-	IsAnonymous                   bool                   `json:"is_anonymous"`
-}
-
-type AMREntry struct {
-	Method    string `json:"method"`
-	Timestamp int64  `json:"timestamp"`
-	Provider  string `json:"provider,omitempty"`
+	UserMetaData map[string]interface{} `json:"user_metadata"`
 }
 
 func validateAndParseJWT(
