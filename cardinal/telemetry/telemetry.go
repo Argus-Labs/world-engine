@@ -34,7 +34,7 @@ func New(enableTrace bool, namespace string) (*Manager, error) {
 
 	// Set up trace provider used for creating spans
 	if enableTrace {
-		err := tm.setupTrace(exporter)
+		err = tm.setupTrace(exporter)
 		if err != nil {
 			return nil, err
 		}

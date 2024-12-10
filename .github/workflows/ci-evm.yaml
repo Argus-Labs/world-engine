@@ -1,6 +1,6 @@
 # Temporarily disabled
 # name: CI
-# 
+
 # on:
 #   pull_request:
 #     paths:
@@ -10,7 +10,7 @@
 #       - evm/**
 #     branches:
 #       - main
-# 
+
 # jobs:
 #   build-evm:
 #     name: Build (EVM)

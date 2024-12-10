@@ -204,7 +204,7 @@ func handleSubmitTx(sequencer shard.TransactionHandlerClient, tracer trace.Trace
 	jobqueue.JobContext, *shard.SubmitTransactionsRequest,
 ) error {
 	return func(_ jobqueue.JobContext, req *shard.SubmitTransactionsRequest) error {
-		_, span := tracer.Start(ctx, "router.job-queue.submit-tx")
+		_, span := tracer.Start(context.Background(), "router.job-queue.submit-tx")
 		defer span.End()
 
 		_, err := sequencer.Submit(context.Background(), req)
