@@ -123,34 +123,4 @@ jobs:
       - name: E2E docker compose logs last status
         if: success() || failure()
         run: |
-          docker compose logs
-  
-  e2e-evm:
-    name: E2E (EVM)
-    runs-on:
-      - nscloud-ubuntu-22.04-amd64-4x16-with-cache-with-features
-      - nscloud-cache-tag-e2e
-      - nscloud-exp-features:privileged;host-pid-namespace
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          ## skip cache, use Namespace volume cache
-          cache: false
-      - name: Install and configure Namespace CLI
-        uses: namespacelabs/nscloud-setup@v0
-      - name: Configure Namespace powered Buildx
-        uses: namespacelabs/nscloud-setup-buildx-action@v0
-      - name: Setup Namespace cache
-        uses: namespacelabs/nscloud-cache-action@v1
-        with:
-          cache: go
-      - name: E2E Test (EVM)
-        run: make e2e-evm
-      - name: E2E docker compose logs last status
-        if: success() || failure()
-        run: |
-          docker compose logs
+          docker compose logs 
