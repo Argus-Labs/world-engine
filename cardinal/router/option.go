@@ -14,7 +14,7 @@ func WithMockJobQueue() Option {
 		sequencerJobQueue, err := jobqueue.New[*shard.SubmitTransactionsRequest](
 			"",
 			"submit-tx",
-			20, //nolint:gomnd // Will do this later
+			20, //nolint:mnd // Will do this later
 			handleSubmitTx(rtr.ShardSequencer, rtr.tracer),
 			jobqueue.WithInmemDB[*shard.SubmitTransactionsRequest](),
 		)

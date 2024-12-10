@@ -10,15 +10,14 @@ type ComponentFilter interface {
 	MatchesComponents(components []types.Component) bool
 }
 
+// ComponentWrapper wraps a Component type for filtering purposes.
 type ComponentWrapper struct {
 	Component types.Component
 }
 
-// Component is public but contains an unexported return type
-// this is done with intent as the user should never use ComponentWrapper
-// explicitly.
-//
-//revive:disable-next-line:unexported-return
+// Component returns a ComponentWrapper for the given component type T.
+// This function is intentionally designed to return an unexported type
+// as ComponentWrapper should not be used directly.
 func Component[T types.Component]() ComponentWrapper {
 	var x T
 	return ComponentWrapper{

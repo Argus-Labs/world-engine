@@ -47,7 +47,6 @@ var (
 		BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
 		BaseShardRouterKey:        "",
 		TelemetryTraceEnabled:     false,
-		TelemetryProfilerEnabled:  false,
 	}
 )
 
@@ -78,9 +77,6 @@ type WorldConfig struct {
 
 	// TelemetryTraceEnabled When true, Cardinal will collect OpenTelemetry traces
 	TelemetryTraceEnabled bool `mapstructure:"TELEMETRY_TRACE_ENABLED"`
-
-	// TelemetryProfilerEnabled When true, Cardinal will run Datadog continuous profiling
-	TelemetryProfilerEnabled bool `mapstructure:"TELEMETRY_PROFILER_ENABLED"`
 }
 
 func loadWorldConfig() (*WorldConfig, error) {

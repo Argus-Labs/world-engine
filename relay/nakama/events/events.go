@@ -56,7 +56,7 @@ func (eh *EventHub) connectWithRetry(logger runtime.Logger) error {
 		} else if err != nil {
 			// sleep a little try again...
 			logger.Error("Failed to establish websocket connection: %v", err)
-			time.Sleep(2 * time.Second) //nolint:gomnd // its ok.
+			time.Sleep(2 * time.Second) //nolint:mnd // its ok.
 			continue
 		}
 
@@ -156,8 +156,10 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 	defer eh.Shutdown()
 	defer func() {
 		eh.channels.Range(func(key any, _ any) bool {
-			log.Info(fmt.Sprintf("shutting down: %s", key.(string)))
-			eh.Unsubscribe(key.(string))
+			if keyStr, ok := key.(string); ok {
+				log.Info(fmt.Sprintf("shutting down: %s", keyStr))
+				eh.Unsubscribe(keyStr)
+			}
 			return true
 		})
 	}()

@@ -138,7 +138,7 @@ func protoTxToSignTx(t *shard.Transaction) *sign.Transaction {
 }
 
 func makePageKey(tick uint64) []byte {
-	buf := make([]byte, 8) //nolint: gomnd // its fine.
+	buf := make([]byte, 8) //nolint:mnd // its fine.
 	binary.BigEndian.PutUint64(buf, tick)
 	return buf
 }
