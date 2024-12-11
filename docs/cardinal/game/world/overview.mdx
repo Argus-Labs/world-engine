@@ -29,18 +29,29 @@ func main() {
 	}
 
 	// Register components
-	// NOTE: You must register your components here for it to be accessible.
+	// Components must be registered before any systems that use them.
+	// Order components by dependency (base components first).
 	Must(
+		// Base components (no dependencies)
 		cardinal.RegisterComponent[component.Player](w),
-		cardinal.RegisterComponent[component.Health](w),
+		cardinal.RegisterComponent[component.Transform](w),
+
+		// Dependent components
+		cardinal.RegisterComponent[component.Health](w),    // Depends on Player
+		cardinal.RegisterComponent[component.Inventory](w), // Depends on Player
 	)
 
-	// Register messages (user action)
-	// NOTE: You must register your messages here for it to be executed.
+	// Register messages (user actions)
+	// Message names should be descriptive and follow the pattern: "{action}_{target}"
 	Must(
+		// Player management messages
 		cardinal.RegisterMessage[msg.CreatePlayerRequest, msg.CreatePlayerResponse](w, "create_player"),
+		cardinal.RegisterMessage[msg.UpdatePlayerRequest, msg.UpdatePlayerResponse](w, "update_player"),
+
+		// Combat messages
 		cardinal.RegisterMessage[msg.AttackPlayerRequest, msg.AttackPlayerResponse](w, "attack_player"),
-    )
+		cardinal.RegisterMessage[msg.DefendPlayerRequest, msg.DefendPlayerResponse](w, "defend_player"),
+	)
 
 	// Register queries
 	// NOTE: You must register your queries here for it to be accessible.
@@ -51,15 +62,27 @@ func main() {
 	))
 
 	// Register systems
-	// Each system executes sequentially in the order they are added.
-	// NOTE: You must register your systems here for it to be executed.
+	// Systems are executed sequentially in registration order.
+	// Follow this recommended order:
+	// 1. Input/Message processing systems
+	// 2. Game state update systems
+	// 3. Output/Effect systems
 	Must(cardinal.RegisterSystems(w,
-		system.AttackSystem,
-		system.RegenSystem,
-		system.PlayerSpawnerSystem,
+		// 1. Input processing
+		system.MessageProcessingSystem,
+		system.PlayerInputSystem,
+
+		// 2. Game state updates
+		system.MovementSystem,
+		system.CombatSystem,
+
+		// 3. Effects and outputs
+		system.EffectSystem,
+		system.NotificationSystem,
 	))
 
 	// Start the game shard
+	// This will begin the game loop and start processing ticks
 	Must(w.StartGame())
 }
 
