@@ -106,6 +106,13 @@
             "cardinal/world/stages"
           ]
         },
+        {
+          "group": "Advanced Tutorials",
+          "pages": [
+            "cardinal/tutorials/plugin-development",
+            "cardinal/tutorials/world-lifecycle"
+          ]
+        },
         "cardinal/game/component",
         {
           "group": "System",
