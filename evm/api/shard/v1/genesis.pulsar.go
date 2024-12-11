@@ -164,7 +164,7 @@ func (x *fastReflection_GenesisState) Has(fd protoreflect.FieldDescriptor) bool 
 		return len(x.NamespaceTransactions) != 0
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
 		}
 		panic(fmt.Errorf("message shard.v1.GenesisState does not contain field %s", fd.FullName()))
 	}

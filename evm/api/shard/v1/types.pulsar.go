@@ -123,7 +123,7 @@ func (x *fastReflection_Transaction) Has(fd protoreflect.FieldDescriptor) bool {
 		return len(x.GameShardTransaction) != 0
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
 		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}
@@ -143,7 +143,7 @@ func (x *fastReflection_Transaction) Clear(fd protoreflect.FieldDescriptor) {
 		x.GameShardTransaction = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
 		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}

@@ -127,7 +127,7 @@ func (x *fastReflection_QueryTransactionsRequest) Has(fd protoreflect.FieldDescr
 		return x.Page != nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
@@ -147,7 +147,7 @@ func (x *fastReflection_QueryTransactionsRequest) Clear(fd protoreflect.FieldDes
 		x.Page = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
@@ -169,7 +169,7 @@ func (x *fastReflection_QueryTransactionsRequest) Get(descriptor protoreflect.Fi
 		return protoreflect.ValueOfMessage(value.ProtoReflect())
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", descriptor.FullName()))
 	}
@@ -193,7 +193,7 @@ func (x *fastReflection_QueryTransactionsRequest) Set(fd protoreflect.FieldDescr
 		x.Page = value.Message().Interface().(*PageRequest)
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
@@ -217,10 +217,10 @@ func (x *fastReflection_QueryTransactionsRequest) Mutable(fd protoreflect.FieldD
 		}
 		return protoreflect.ValueOfMessage(x.Page.ProtoReflect())
 	case "shard.v1.QueryTransactionsRequest.namespace":
-		panic(fmt.Errorf("field namespace of message shard.v1.QueryTransactionsRequest is not mutable"))
+		panic(errors.New("field namespace of message shard.v1.QueryTransactionsRequest is not mutable"))
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
@@ -238,7 +238,7 @@ func (x *fastReflection_QueryTransactionsRequest) NewField(fd protoreflect.Field
 		return protoreflect.ValueOfMessage(m.ProtoReflect())
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}

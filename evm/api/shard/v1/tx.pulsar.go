@@ -206,7 +206,7 @@ func (x *fastReflection_SubmitShardTxRequest) Has(fd protoreflect.FieldDescripto
 		return len(x.Txs) != 0
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
 		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", fd.FullName()))
 	}

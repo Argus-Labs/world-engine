@@ -4,6 +4,7 @@
 package types
 
 import (
+	"errors"
 	fmt "fmt"
 	proto "github.com/cosmos/gogoproto/proto"
 	io "io"
@@ -607,7 +608,7 @@ func skipTypes(dAtA []byte) (n int, err error) {
 }
 
 var (
-	ErrInvalidLengthTypes        = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowTypes          = fmt.Errorf("proto: integer overflow")
-	ErrUnexpectedEndOfGroupTypes = fmt.Errorf("proto: unexpected end of group")
+	ErrInvalidLengthTypes        = errors.New("proto: negative length found during unmarshaling")
+	ErrIntOverflowTypes          = errors.New("proto: integer overflow")
+	ErrUnexpectedEndOfGroupTypes = errors.New("proto: unexpected end of group")
 )

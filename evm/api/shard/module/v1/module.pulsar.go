@@ -3,6 +3,7 @@ package modulev1
 
 import (
 	_ "cosmossdk.io/api/cosmos/app/v1alpha1"
+	"errors"
 	fmt "fmt"
 	runtime "github.com/cosmos/cosmos-proto/runtime"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -114,7 +115,7 @@ func (x *fastReflection_Module) Has(fd protoreflect.FieldDescriptor) bool {
 		return x.Authority != ""
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.module.v1.Module"))
+			panic(errors.New("proto3 declared messages do not support extensions: shard.module.v1.Module"))
 		}
 		panic(fmt.Errorf("message shard.module.v1.Module does not contain field %s", fd.FullName()))
 	}

@@ -2,6 +2,7 @@
 package namespacev1
 
 import (
+	"errors"
 	fmt "fmt"
 	runtime "github.com/cosmos/cosmos-proto/runtime"
 	_ "github.com/cosmos/gogoproto/gogoproto"
@@ -125,7 +126,7 @@ func (x *fastReflection_Namespace) Has(fd protoreflect.FieldDescriptor) bool {
 		return x.ShardAddress != ""
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: namespace.v1.Namespace"))
+			panic(errors.New("proto3 declared messages do not support extensions: namespace.v1.Namespace"))
 		}
 		panic(fmt.Errorf("message namespace.v1.Namespace does not contain field %s", fd.FullName()))
 	}
