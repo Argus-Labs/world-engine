@@ -1,0 +1,247 @@
+---
+title: 'World Lifecycle Management'
+description: 'Learn how to manage Cardinal world stages and lifecycle'
+---
+
+# World Lifecycle Management
+
+This tutorial covers managing Cardinal world stages, from initialization to shutdown, with practical examples and best practices.
+
+## Understanding World Stages
+
+Cardinal worlds progress through several stages:
+
+```go
+const (
+    Init         Stage = "Init"
+    Starting     Stage = "Starting"
+    Recovering   Stage = "Recovering"
+    Ready        Stage = "Ready"
+    Running      Stage = "Running"
+    ShuttingDown Stage = "ShuttingDown"
+    ShutDown     Stage = "ShutDown"
+)
+```
+
+## Basic World Management
+
+```go
+func main() {
+    // Create world
+    world, err := cardinal.NewWorld()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Register components and systems during Init stage
+    if err := registerGameSystems(world); err != nil {
+        log.Fatal(err)
+    }
+
+    // Start the world
+    if err := world.StartGame(); err != nil {
+        log.Fatal(err)
+    }
+
+    // Handle shutdown gracefully
+    defer world.Shutdown()
+}
+```
+
+## Stage-Specific Operations
+
+### Init Stage
+
+```go
+// During Init stage
+func initializeWorld(world *cardinal.World) error {
+    // Register components
+    if err := cardinal.RegisterComponent[PlayerComponent](world); err != nil {
+        return err
+    }
+
+    // Register systems
+    if err := cardinal.RegisterSystems(world,
+        NewMovementSystem(),
+        NewCombatSystem(),
+    ); err != nil {
+        return err
+    }
+
+    return nil
+}
+```
+
+### Starting Stage
+
+```go
+// Monitor starting stage
+go func() {
+    <-world.NotifyOnStage(worldstage.Starting)
+    log.Info().Msg("World is starting...")
+
+    // Perform starting stage operations
+    initializeGameState()
+}()
+```
+
+### Running Stage
+
+```go
+// Monitor running stage
+go func() {
+    <-world.NotifyOnStage(worldstage.Running)
+    log.Info().Msg("World is running")
+
+    // Start game loops or monitoring
+    startGameLoops()
+}()
+```
+
+### Shutdown Process
+
+```go
+func handleShutdown(world *cardinal.World) {
+    // Wait for shutdown signal
+    <-world.NotifyOnStage(worldstage.ShuttingDown)
+
+    // Perform cleanup
+    cleanup()
+
+    // Wait for complete shutdown
+    <-world.NotifyOnStage(worldstage.ShutDown)
+    log.Info().Msg("World shutdown complete")
+}
+```
+
+## Advanced Stage Management
+
+### Stage Transitions
+
+```go
+type StageManager struct {
+    world *cardinal.World
+}
+
+func (m *StageManager) handleTransition(from, to worldstage.Stage) {
+    success := m.world.CompareAndSwap(from, to)
+    if !success {
+        log.Error().Msgf("Failed to transition from %s to %s", from, to)
+        return
+    }
+
+    log.Info().Msgf("Successfully transitioned from %s to %s", from, to)
+}
+```
+
+### Recovery Handling
+
+```go
+func handleRecovery(world *cardinal.World) {
+    <-world.NotifyOnStage(worldstage.Recovering)
+
+    // Implement recovery logic
+    if err := recoverGameState(world); err != nil {
+        log.Error().Err(err).Msg("Failed to recover game state")
+        return
+    }
+
+    // Transition to Ready stage
+    world.CompareAndSwap(worldstage.Recovering, worldstage.Ready)
+}
+```
+
+## Best Practices
+
+1. **Initialization**
+   - Complete all registrations during Init
+   - Validate configurations early
+   - Handle initialization errors properly
+
+2. **Stage Transitions**
+   - Use CompareAndSwap for transitions
+   - Monitor stage changes
+   - Handle transition failures
+
+3. **Error Handling**
+   - Provide meaningful error messages
+   - Log stage transitions
+   - Handle edge cases
+
+4. **Resource Management**
+   - Clean up resources during shutdown
+   - Handle long-running operations
+   - Manage goroutines properly
+
+<Warning>
+    Always implement proper error handling and recovery mechanisms for each stage transition.
+</Warning>
+
+## Common Pitfalls
+
+1. **Stage Management**
+   - Attempting invalid stage transitions
+   - Not handling all possible stages
+   - Ignoring stage notifications
+
+2. **Resource Leaks**
+   - Not cleaning up resources
+   - Leaking goroutines
+   - Incomplete shutdown
+
+3. **Recovery Issues**
+   - Incomplete state recovery
+   - Missing error handling
+   - Incorrect stage transitions
+
+4. **Concurrency**
+   - Race conditions in transitions
+   - Deadlocks in stage handling
+   - Unmanaged goroutines
+
+## Example: Complete World Management
+
+```go
+func main() {
+    world, err := cardinal.NewWorld()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Initialize components and systems
+    if err := initializeWorld(world); err != nil {
+        log.Fatal(err)
+    }
+
+    // Set up stage monitoring
+    go monitorStages(world)
+
+    // Start the world
+    if err := world.StartGame(); err != nil {
+        log.Fatal(err)
+    }
+
+    // Wait for shutdown signal
+    waitForShutdown(world)
+}
+
+func monitorStages(world *cardinal.World) {
+    for {
+        select {
+        case <-world.NotifyOnStage(worldstage.Starting):
+            handleStarting(world)
+        case <-world.NotifyOnStage(worldstage.Running):
+            handleRunning(world)
+        case <-world.NotifyOnStage(worldstage.ShuttingDown):
+            handleShutdown(world)
+            return
+        }
+    }
+}
+```
+
+## Related Documentation
+- [World Stages](/cardinal/world/stages)
+- [Plugin System](/cardinal/plugins/introduction)
+- [System Management](/cardinal/game/system/overview)
+- [Error Handling](/cardinal/game/error-handling)
