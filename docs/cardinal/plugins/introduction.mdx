@@ -1,0 +1,153 @@
+---
+title: 'Plugin System'
+description: 'Understanding and using the Cardinal Plugin System'
+---
+
+# Plugin System
+
+Cardinal's plugin system provides a way to extend world functionality through modular components. Plugins can register components, systems, messages, and queries, enabling seamless integration of new features into your game world.
+
+## Overview
+
+The plugin system is built around the `Plugin` interface, which requires implementing a single `Register` method:
+
+```go
+type Plugin interface {
+    Register(world *World) error
+}
+```
+
+## Built-in Plugins
+
+### Persona Plugin
+
+The persona plugin manages user identity and authorization within your game world. It provides:
+
+- Persona tag registration and management
+- Signer address authorization
+- EVM address integration
+- Query support for persona information
+
+#### Key Features
+
+- **Persona Tag System**: Create unique identifiers for players
+- **Multi-Address Support**: Authorize multiple EVM addresses per persona
+- **Case-Insensitive Handling**: Persona tags are stored case-sensitively but matched case-insensitively
+- **EVM Integration**: Direct support for blockchain wallet integration
+
+#### Usage Example
+
+```go
+// Register a new persona
+msg := msg.CreatePersona{
+    PersonaTag: "Player123",
+    SignerAddress: "0x..."
+}
+
+// Authorize additional addresses
+auth := msg.AuthorizePersonaAddress{
+    Address: "0x..."
+}
+```
+
+### Task Plugin
+
+The task plugin enables scheduling and execution of future tasks in your game world. It provides:
+
+- Tick-based task scheduling
+- Timestamp-based task scheduling
+- Automatic task cleanup
+- Custom task definitions
+
+#### Key Features
+
+- **Flexible Scheduling**: Schedule tasks by tick or timestamp
+- **Custom Task Types**: Define your own task types with custom handling logic
+- **Automatic Execution**: Tasks are automatically executed when their trigger condition is met
+- **Clean Task Management**: Completed tasks are automatically removed
+
+#### Usage Example
+
+```go
+// Define a custom task
+type MyTask struct {}
+
+func (t MyTask) Name() string {
+    return "MyTask"
+}
+
+func (t MyTask) Handle(ctx WorldContext) error {
+    // Task implementation
+    return nil
+}
+
+// Register the task
+RegisterTask[MyTask](world)
+```
+
+## Creating Custom Plugins
+
+To create a custom plugin:
+
+1. Implement the Plugin interface
+2. Register your components, systems, messages, and queries
+3. Add your plugin during world creation
+
+### Example Plugin Implementation
+
+```go
+type MyPlugin struct{}
+
+func (p *MyPlugin) Register(world *World) error {
+    // Register components
+    if err := RegisterComponent[MyComponent](world); err != nil {
+        return err
+    }
+
+    // Register systems
+    if err := RegisterSystems(world, mySystem); err != nil {
+        return err
+    }
+
+    // Register messages
+    if err := RegisterMessage[MyMessage, MyResult](world, "my-message"); err != nil {
+        return err
+    }
+
+    return nil
+}
+```
+
+## Best Practices
+
+1. **Modular Design**
+   - Keep plugins focused on specific functionality
+   - Avoid dependencies between plugins when possible
+   - Use clear naming conventions for components and messages
+
+2. **Error Handling**
+   - Always return meaningful errors from Register
+   - Handle component and system registration failures gracefully
+   - Provide clear error messages for debugging
+
+3. **State Management**
+   - Use components for persistent state
+   - Avoid global variables (except for optimization)
+   - Consider state recovery scenarios
+
+4. **Performance**
+   - Register systems in appropriate order
+   - Use efficient query patterns
+   - Consider the impact on world ticks
+
+## Common Pitfalls
+
+- **Registration Order**: Ensure dependencies are registered before dependent systems
+- **Name Collisions**: Use unique names for components and messages
+- **State Management**: Avoid storing state outside of components
+- **Error Handling**: Don't ignore registration errors
+
+## Related Documentation
+- [Component System](/cardinal/game/component)
+- [Message System](/cardinal/game/message)
+- [Query System](/cardinal/game/query)

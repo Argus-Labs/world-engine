@@ -99,6 +99,13 @@
             "cardinal/game/world/api-reference"
           ]
         },
+        {
+          "group": "Plugin System",
+          "pages": [
+            "cardinal/plugins/introduction",
+            "cardinal/world/stages"
+          ]
+        },
         "cardinal/game/component",
         {
           "group": "System",

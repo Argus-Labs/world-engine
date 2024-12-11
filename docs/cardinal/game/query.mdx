@@ -39,7 +39,7 @@ You can easily create a new query and register it to the world by following thes
         type PlayerHealthResponse struct {
             HP int
         }
-    
+
         func PlayerHealth(world cardinal.WorldContext, req *PlayerHealthRequest) (*PlayerHealthResponse, error) {
             // Handle PlayerHealthRequest -> PlayerHealthResponse here
         }
@@ -75,28 +75,139 @@ You can easily create a new query and register it to the world by following thes
     </Step>
 </Steps>
 
---- 
+---
 
 ## Query Options
 
-### EVM Support
+### Custom Query Groups
 
-Queries can be sent by EVM smart contracts by using the `WithQueryEVMSupport` option when you register your queries. This will generate the ABI types necessary for interactions with smart contracts.
-
+Queries can be organized into logical groups using the `WithCustomQueryGroup` option. This helps organize related queries and enables group-specific handling.
 
 ```go
 import (
     "pkg.world.dev/world-engine/cardinal"
     qry "pkg.world.dev/world-engine/cardinal/query"
-    "github.com/argus-labs/starter-game-template/cardinal/query"
 )
 
-cardinal.RegisterQuery[query.PlayerHealthRequest, query.PlayerHealthResponse](w, "player-health", 
-    qry.WithQueryEVMSupport[query.PlayerHealthRequest, query.PlayerHealthResponse]())
+// Register query in the "player" group
+err := cardinal.RegisterQuery[PlayerHealthRequest, PlayerHealthResponse](
+    w,
+    "player-health",
+    PlayerHealth,
+    qry.WithCustomQueryGroup[PlayerHealthRequest, PlayerHealthResponse]("player"),
+)
 ```
 
+Query groups can be used for:
+- API organization
+- Access control
+- Rate limiting
+- Metrics and monitoring
+
+### EVM Support
+
+Queries can be accessed by EVM smart contracts using the `WithQueryEVMSupport` option. This generates the necessary ABI types for smart contract interaction.
+
+```go
+// Register query with EVM support
+err := cardinal.RegisterQuery[PlayerHealthRequest, PlayerHealthResponse](
+    w,
+    "player-health",
+    PlayerHealth,
+    qry.WithQueryEVMSupport[PlayerHealthRequest, PlayerHealthResponse](),
+)
+```
+
+#### Supported Types for EVM Queries
+
 <Note>
-  Not all Go types are supported for the fields in your query structs when using this option. See [EVM+ Message and Query](/cardinal/game/evm) to learn more.
+When using EVM support, query struct fields must use EVM-compatible types:
 </Note>
 
----
+```go
+// Supported types
+type EVMCompatibleQuery struct {
+    IntValue    int64
+    UintValue   uint64
+    BoolValue   bool
+    StringValue string
+    BytesValue  []byte
+    Address     common.Address
+}
+```
+
+#### Smart Contract Integration
+
+```solidity
+// Solidity interface for the query
+interface IPlayerHealth {
+    struct PlayerHealthRequest {
+        string nickname;
+    }
+
+    struct PlayerHealthResponse {
+        uint256 hp;
+    }
+
+    function PlayerHealth(PlayerHealthRequest calldata request)
+        external view returns (PlayerHealthResponse memory);
+}
+```
+
+### Multiple Options
+
+You can combine multiple query options:
+
+```go
+err := cardinal.RegisterQuery[PlayerHealthRequest, PlayerHealthResponse](
+    w,
+    "player-health",
+    PlayerHealth,
+    qry.WithQueryEVMSupport[PlayerHealthRequest, PlayerHealthResponse](),
+    qry.WithCustomQueryGroup[PlayerHealthRequest, PlayerHealthResponse]("player"),
+)
+```
+
+## Best Practices
+
+1. **Query Organization**
+   - Use meaningful group names
+   - Keep related queries in the same group
+   - Document group purposes
+
+2. **EVM Integration**
+   - Test EVM queries thoroughly
+   - Handle type conversions carefully
+   - Document ABI interfaces
+
+3. **Performance**
+   - Keep queries focused and efficient
+   - Consider caching strategies
+   - Monitor query latency
+
+4. **Error Handling**
+   - Return meaningful error messages
+   - Validate input parameters
+   - Handle edge cases
+
+## Common Pitfalls
+
+1. **EVM Type Mismatches**
+   - Using unsupported types in EVM queries
+   - Incorrect type mappings
+   - Missing type conversions
+
+2. **Query Group Management**
+   - Inconsistent group naming
+   - Missing group documentation
+   - Unclear group purposes
+
+3. **Performance Issues**
+   - Inefficient query implementations
+   - Missing indexes
+   - Unnecessary data fetching
+
+## Related Documentation
+- [EVM Integration](/cardinal/game/evm)
+- [Query Performance](/cardinal/game/query-performance)
+- [API Best Practices](/cardinal/game/api-best-practices)

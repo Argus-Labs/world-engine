@@ -7,7 +7,7 @@ description: 'How to define and register a component'
     If you are unfamiliar with Entity Component System (ECS), we recommend reading [Introduction to ECS](/cardinal/ecs) before proceeding.
 </Warning>
 
-Components are data attributes attached to an entity. They define the properties of an entity, but it does not implement logic or behavior. 
+Components are data attributes attached to an entity. They define the properties of an entity, but it does not implement logic or behavior.
 
 In Cardinal, components are defined as Go structs.
 
@@ -19,47 +19,133 @@ In Cardinal, components are defined as Go structs.
 
 ## Defining Components
 
-By convention, components are defined in the `component` directory in its own separate files. 
+By convention, components are defined in the `component` directory in its own separate files.
 
 You can easily create a new component and register it to the world by following these steps:
 
 <Steps>
     <Step title="Define the component struct">
         A component is defined as a Go struct. It must implement the `Name()` method which returns a unique name of the component. This is used to identify the component in the world.
-        
+
         ```go /component/component_health.go
         package component
-        
+
         type Health struct {
-            Current int,
-            Max int
+            Current int `json:"current" validate:"gte=0,lte=maxHealth"`
+            Max     int `json:"max" validate:"required,gt=0"`
         }
 
         func (Health) Name() string {
             return "Health"
         }
+
+        func (Health) DefaultValue() Health {
+            return Health{
+                Current: 100,
+                Max: 100,
+            }
+        }
         ```
     </Step>
     <Step title="Register the component in main.go">
         Components must be registered in the world before they can be used. This is done by calling the `RegisterComponent` function.
-        
+
         ```go main.go
         package main
-        
+
         func main() {
             w, err := cardinal.NewWorld()
             if err != nil {
                 log.Fatal().Err(err).Msg("failed to create world")
             }
-        
+
             // Register components
             err := cardinal.RegisterComponent[component.Health](w)
             if err != nil {
                 log.Fatal().Err(err).Msg("failed to register component")
             }
-        
+
             // ...
         }
         ```
     </Step>
 </Steps>
+
+## Schema Validation
+
+Components support field validation using struct tags. Cardinal uses the `validate` tag to enforce constraints on component fields.
+
+```go
+type Inventory struct {
+    Capacity int    `validate:"required,gt=0,lte=100"`
+    Owner    string `validate:"required,min=3,max=32"`
+    Items    []Item `validate:"dive,required"`
+}
+```
+
+Common validation tags:
+- `required`: Field must not be zero value
+- `gt`, `gte`: Greater than (or equal)
+- `lt`, `lte`: Less than (or equal)
+- `min`, `max`: Minimum/maximum length for strings
+- `dive`: Validate slice elements
+- `oneof`: Value must be one of the specified values
+
+<Note>
+    Validation occurs when components are created or updated. Invalid values will result in errors.
+</Note>
+
+## Default Values
+
+Components can provide default values by implementing the optional `DefaultValue()` method:
+
+```go
+type Position struct {
+    X float64
+    Y float64
+    Z float64
+}
+
+func (Position) Name() string {
+    return "Position"
+}
+
+func (Position) DefaultValue() Position {
+    return Position{
+        X: 0,
+        Y: 0,
+        Z: 0,
+    }
+}
+```
+
+Default values are used when:
+- Creating new entities without specifying component values
+- Resetting components to their initial state
+- Providing baseline values for game objects
+
+<Warning>
+    Default values should be immutable and deterministic to ensure consistent game state.
+</Warning>
+
+## Best Practices
+
+1. **Validation**
+   - Use meaningful validation rules
+   - Document validation constraints
+   - Handle validation errors gracefully
+
+2. **Default Values**
+   - Keep defaults simple and predictable
+   - Consider game balance when setting defaults
+   - Document default value behavior
+
+3. **Component Design**
+   - Keep components focused and minimal
+   - Use appropriate data types
+   - Consider serialization implications
+
+## Related Documentation
+- [Entity Management](/cardinal/game/entity)
+- [System Implementation](/cardinal/game/system)
+- [Game State](/cardinal/game/state)
