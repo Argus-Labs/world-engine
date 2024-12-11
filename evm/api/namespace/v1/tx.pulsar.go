@@ -3,6 +3,7 @@ package namespacev1
 
 import (
 	_ "cosmossdk.io/api/cosmos/msg/v1"
+	"errors"
 	fmt "fmt"
 	_ "github.com/cosmos/cosmos-proto"
 	runtime "github.com/cosmos/cosmos-proto/runtime"
@@ -126,7 +127,7 @@ func (x *fastReflection_UpdateNamespaceRequest) Has(fd protoreflect.FieldDescrip
 		return x.Namespace != nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: namespace.v1.UpdateNamespaceRequest"))
+			panic(errors.New("proto3 declared messages do not support extensions: namespace.v1.UpdateNamespaceRequest"))
 		}
 		panic(fmt.Errorf("message namespace.v1.UpdateNamespaceRequest does not contain field %s", fd.FullName()))
 	}

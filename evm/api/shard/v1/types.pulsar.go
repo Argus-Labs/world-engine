@@ -2,6 +2,7 @@
 package shardv1
 
 import (
+	"errors"
 	fmt "fmt"
 	runtime "github.com/cosmos/cosmos-proto/runtime"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

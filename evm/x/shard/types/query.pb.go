@@ -5,6 +5,7 @@ package types
 
 import (
 	context "context"
+	"errors"
 	fmt "fmt"
 	_ "github.com/cosmos/cosmos-proto"
 	_ "github.com/cosmos/cosmos-sdk/types/msgservice"

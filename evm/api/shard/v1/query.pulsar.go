@@ -3,6 +3,7 @@ package shardv1
 
 import (
 	_ "cosmossdk.io/api/cosmos/msg/v1"
+	"errors"
 	fmt "fmt"
 	_ "github.com/cosmos/cosmos-proto"
 	runtime "github.com/cosmos/cosmos-proto/runtime"
