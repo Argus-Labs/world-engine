@@ -67,7 +67,7 @@ func handleCustomAuthentication(
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
 		span.AddEvent("Handling custom auth with SIWE")
-		in, err := authWithSIWE(ctx, logger, nk, in, span)
+		in, err := authWithSIWE(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(otelcode.Error, "Failed to authenticate with SIWE")
@@ -78,7 +78,7 @@ func handleCustomAuthentication(
 	}
 	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
 		span.AddEvent("Handling custom auth with Argus ID")
-		in, err := authWithArgusID(ctx, logger, nk, in, span)
+		in, err := authWithArgusID(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(otelcode.Error, "Failed to authenticate with Argus ID")
@@ -114,7 +114,7 @@ func handleCustomLink(
 	defer span.End()
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
-		in, err := linkWithSIWE(ctx, logger, nk, in, span)
+		in, err := linkWithSIWE(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(otelcode.Error, "Failed to link with SIWE")
@@ -124,7 +124,7 @@ func handleCustomLink(
 		return in, nil
 	}
 	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
-		in, err := linkWithArgusID(ctx, logger, nk, in, span)
+		in, err := linkWithArgusID(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(otelcode.Error, "Failed to link with Argus ID")
