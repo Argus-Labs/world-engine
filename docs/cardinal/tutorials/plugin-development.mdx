@@ -1,0 +1,240 @@
+---
+title: 'Plugin Development Tutorial'
+description: 'Learn how to create and integrate custom plugins in Cardinal'
+---
+
+# Plugin Development Tutorial
+
+This tutorial guides you through creating custom plugins for Cardinal, from basic implementation to advanced features and best practices.
+
+## Prerequisites
+
+- Basic understanding of Go programming
+- Familiarity with Cardinal's [ECS architecture](/cardinal/ecs)
+- Understanding of [component system](/cardinal/game/component)
+
+## Basic Plugin Implementation
+
+Let's create a simple inventory plugin that manages player items:
+
+```go
+package plugin
+
+import (
+    "pkg.world.dev/world-engine/cardinal"
+    "pkg.world.dev/world-engine/cardinal/component"
+)
+
+// InventoryPlugin manages player inventories
+type InventoryPlugin struct{}
+
+// Define inventory component
+type InventoryComponent struct {
+    Items     []string `json:"items" validate:"dive,required"`
+    MaxSlots  int      `json:"max_slots" validate:"required,gt=0,lte=100"`
+}
+
+func (InventoryComponent) Name() string {
+    return "Inventory"
+}
+
+func (InventoryComponent) DefaultValue() InventoryComponent {
+    return InventoryComponent{
+        Items:    make([]string, 0),
+        MaxSlots: 20,
+    }
+}
+
+// Register implements the Plugin interface
+func (p *InventoryPlugin) Register(world *World) error {
+    // Register component
+    if err := cardinal.RegisterComponent[InventoryComponent](world); err != nil {
+        return fmt.Errorf("failed to register inventory component: %w", err)
+    }
+
+    // Register systems
+    if err := cardinal.RegisterSystems(world,
+        NewInventorySystem(),
+    ); err != nil {
+        return fmt.Errorf("failed to register inventory systems: %w", err)
+    }
+
+    return nil
+}
+```
+
+<Note>
+    Components should be registered before systems that depend on them.
+</Note>
+
+## Adding Systems
+
+Create systems to manage inventory logic:
+
+```go
+type InventorySystem struct{}
+
+func NewInventorySystem() *InventorySystem {
+    return &InventorySystem{}
+}
+
+func (s *InventorySystem) Name() string {
+    return "InventorySystem"
+}
+
+func (s *InventorySystem) Run(ctx cardinal.WorldContext) error {
+    // System implementation
+    return nil
+}
+```
+
+## Message Handling
+
+Add message handlers for inventory operations:
+
+```go
+// Message definitions
+type AddItemMessage struct {
+    EntityID cardinal.EntityID
+    Item     string
+}
+
+type RemoveItemMessage struct {
+    EntityID cardinal.EntityID
+    Item     string
+}
+
+// Register messages
+if err := cardinal.RegisterMessage[AddItemMessage, bool](world, "add-item"); err != nil {
+    return err
+}
+```
+
+## Query Support
+
+Implement queries for inventory inspection:
+
+```go
+type InventoryQuery struct {
+    EntityID cardinal.EntityID
+}
+
+type InventoryQueryResponse struct {
+    Items    []string
+    MaxSlots int
+}
+
+func QueryInventory(ctx cardinal.WorldContext, req *InventoryQuery) (*InventoryQueryResponse, error) {
+    // Query implementation
+    return &InventoryQueryResponse{}, nil
+}
+```
+
+## Advanced Features
+
+### State Management
+
+```go
+// Use components for persistent state
+type InventoryStateComponent struct {
+    LastUpdated int64 `json:"last_updated"`
+    Version     int   `json:"version"`
+}
+
+// Register state component
+cardinal.RegisterComponent[InventoryStateComponent](world)
+```
+
+### Event Handling
+
+```go
+// Define custom events
+type InventoryUpdateEvent struct {
+    EntityID    cardinal.EntityID
+    UpdatedItem string
+    Action      string
+}
+
+// Emit events
+ctx.EmitEvent(&InventoryUpdateEvent{
+    EntityID:    entityID,
+    UpdatedItem: item,
+    Action:      "add",
+})
+```
+
+## Integration Example
+
+```go
+func main() {
+    world, err := cardinal.NewWorld()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Register plugin
+    inventoryPlugin := &InventoryPlugin{}
+    if err := world.RegisterPlugin(inventoryPlugin); err != nil {
+        log.Fatal(err)
+    }
+
+    // Start the world
+    if err := world.StartGame(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+## Best Practices
+
+1. **Component Design**
+   - Keep components focused and minimal
+   - Use appropriate validation rules
+   - Implement DefaultValue() when needed
+
+2. **System Implementation**
+   - Handle errors gracefully
+   - Use appropriate logging
+   - Consider performance implications
+
+3. **Message Handling**
+   - Validate message inputs
+   - Use meaningful error messages
+   - Consider message ordering
+
+4. **State Management**
+   - Use components for state
+   - Avoid global variables
+   - Plan for recovery scenarios
+
+<Warning>
+    Always test plugins thoroughly before deployment, especially state management and recovery scenarios.
+</Warning>
+
+## Common Pitfalls
+
+1. **Registration Order**
+   - Components must be registered before dependent systems
+   - Messages should be registered before handlers
+   - Consider dependencies between plugins
+
+2. **State Management**
+   - Avoid storing state outside components
+   - Plan for concurrent access
+   - Handle initialization properly
+
+3. **Error Handling**
+   - Don't ignore registration errors
+   - Provide meaningful error messages
+   - Handle edge cases
+
+4. **Performance**
+   - Avoid expensive operations in systems
+   - Use efficient data structures
+   - Consider caching strategies
+
+## Related Documentation
+- [Plugin System Overview](/cardinal/plugins/introduction)
+- [Component System](/cardinal/game/component)
+- [System Implementation](/cardinal/game/system/overview)
+- [Message System](/cardinal/game/message)
