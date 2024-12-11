@@ -218,7 +218,7 @@ func TestNewTestWorld(t *testing.T) {
 		},
 		{
 			name:    "with multiple options",
-			opts:    []cardinal.WorldOption{cardinal.WithMockRedis(), cardinal.WithPort(4040)},
+			opts:    []cardinal.WorldOption{cardinal.WithMockRedis(), cardinal.WithPort("4040")},
 			wantErr: false,
 		},
 	}
