@@ -2,13 +2,13 @@ package testsuite
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -148,17 +148,17 @@ func (t *testOutputMsg) GetInFieldInformation() map[string]any { return map[stri
 func TestGetMessage(t *testing.T) {
 	tests := []struct {
 		name        string
-		msgType     string
+		msgID       types.MessageID
 		shouldError bool
 	}{
 		{
 			name:        "get registered message",
-			msgType:     "test.test_input_msg",
+			msgID:       1,
 			shouldError: false,
 		},
 		{
 			name:        "get unregistered message",
-			msgType:     "test.unregistered_msg",
+			msgID:       999,
 			shouldError: true,
 		},
 	}
@@ -166,20 +166,22 @@ func TestGetMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a test world
-			world := cardinal.NewTestWorld(t)
+			world := NewTestWorld(t)
 
 			// Register test messages
-			err := world.RegisterMessage(&testInputMsg{})
+			err := world.RegisterMessage(&testInputMsg{}, reflect.TypeOf(testInputMsg{}))
 			require.NoError(t, err)
-			err = world.RegisterMessage(&testOutputMsg{})
+			err = world.RegisterMessage(&testOutputMsg{}, reflect.TypeOf(testOutputMsg{}))
 			require.NoError(t, err)
 
 			// Test message retrieval
-			_, err = world.GetMessage(tt.msgType)
+			msg, found := world.GetMessageByID(tt.msgID)
 			if tt.shouldError {
-				require.Error(t, err)
+				assert.False(t, found)
+				assert.Nil(t, msg)
 			} else {
-				require.NoError(t, err)
+				assert.True(t, found)
+				assert.NotNil(t, msg)
 			}
 		})
 	}
