@@ -94,8 +94,9 @@ func authWithArgusID(
 	logger runtime.Logger,
 	_ runtime.NakamaModule,
 	in *api.AuthenticateCustomRequest,
-	span trace.Span,
 ) (*api.AuthenticateCustomRequest, error) {
+	span := trace.SpanFromContext(ctx)
+
 	jwtHash := in.GetAccount().GetId()
 	jwt := in.GetAccount().GetVars()["jwt"]
 	claims, err := validateAndParseJWT(ctx, jwtHash, jwt, GlobalJWTSecret)
@@ -129,8 +130,9 @@ func linkWithArgusID(
 	logger runtime.Logger,
 	_ runtime.NakamaModule,
 	in *api.AccountCustom,
-	span trace.Span,
 ) (*api.AccountCustom, error) {
+	span := trace.SpanFromContext(ctx)
+
 	jwtHash := in.GetId()
 	jwt := in.GetVars()["jwt"]
 	claims, err := validateAndParseJWT(ctx, jwtHash, jwt, GlobalJWTSecret)

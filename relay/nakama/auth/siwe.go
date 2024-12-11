@@ -40,8 +40,8 @@ func processSIWE(
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
 	signerAddress, signature, message string,
-	span trace.Span,
 ) error {
+	span := trace.SpanFromContext(ctx)
 	span.AddEvent("Validating SIWE request")
 	isValidationRequest, err := validateSIWE(signerAddress, message, signature)
 	if err != nil {
@@ -86,13 +86,12 @@ func authWithSIWE(
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
 	in *api.AuthenticateCustomRequest,
-	span trace.Span,
 ) (*api.AuthenticateCustomRequest, error) {
 	signerAddress := in.GetAccount().GetId()
 	signature := in.GetAccount().GetVars()["signature"]
 	message := in.GetAccount().GetVars()["message"]
 
-	err := processSIWE(ctx, logger, nk, signerAddress, signature, message, span)
+	err := processSIWE(ctx, logger, nk, signerAddress, signature, message)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +105,12 @@ func linkWithSIWE(
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
 	in *api.AccountCustom,
-	span trace.Span,
 ) (*api.AccountCustom, error) {
 	signerAddress := in.GetId()
 	signature := in.GetVars()["signature"]
 	message := in.GetVars()["message"]
 
-	err := processSIWE(ctx, logger, nk, signerAddress, signature, message, span)
+	err := processSIWE(ctx, logger, nk, signerAddress, signature, message)
 	if err != nil {
 		return nil, err
 	}
