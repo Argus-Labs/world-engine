@@ -29,16 +29,13 @@ func main() {
 	}
 
 	// Register components
-	// Components must be registered before any systems that use them.
-	// Order components by dependency (base components first).
+	// Components can be registered in any order. Each component must have a unique name.
 	Must(
-		// Base components (no dependencies)
+		// Example component registration - order doesn't matter
 		cardinal.RegisterComponent[component.Player](w),
 		cardinal.RegisterComponent[component.Transform](w),
-
-		// Dependent components
-		cardinal.RegisterComponent[component.Health](w),    // Depends on Player
-		cardinal.RegisterComponent[component.Inventory](w), // Depends on Player
+		cardinal.RegisterComponent[component.Health](w),
+		cardinal.RegisterComponent[component.Inventory](w),
 	)
 
 	// Register messages (user actions)
