@@ -102,8 +102,7 @@
         {
           "group": "Plugin System",
           "pages": [
-            "cardinal/plugins/introduction",
-            "cardinal/world/stages"
+            "cardinal/plugins/introduction"
           ]
         },
         {
