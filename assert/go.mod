@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/rotisserie/eris v0.5.4
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	gotest.tools/v3 v3.5.1
 )
 
