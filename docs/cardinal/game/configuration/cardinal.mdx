@@ -56,11 +56,12 @@ CARDINAL_LOG_PRETTY = true
 
 ### CARDINAL_NAMESPACE
 
-A unique identifier for the Cardinal shard namespace. This configuration is critical for security and isolation:
+A unique identifier for the Cardinal shard namespace. This configuration is critical for security:
 
-- Prevents cross-shard interference
-- Blocks signature replay attacks
-- Isolates game state between different environments
+- Prevents signature replay attacks across different Cardinal instances
+- Ensures unique transaction signatures per game instance
+
+Each Cardinal instance must have a unique namespace to ensure that signatures cannot be replayed across different instances of the game. This is particularly important in production environments where multiple game instances may be running simultaneously.
 
 **Example**
 ```
