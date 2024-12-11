@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
+	"github.com/stretchr/testify/require"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -45,6 +46,7 @@ func UniqueSignatureWithName(name string) *sign.Transaction {
 			panic(err)
 		}
 	}
+
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
 	// directly to the World tx pool. It's OK if the signature does not match the payload.
 	sig, err := sign.NewTransaction(privateKey, name, "namespace", `{"some":"data"}`)
@@ -71,4 +73,11 @@ func GetMessage[In any, Out any](w *cardinal.World) (*cardinal.MessageType[In, O
 		return &msg, eris.New("wrong type")
 	}
 	return res, nil
+}
+
+// NewTestWorld creates a new world instance for testing purposes.
+func NewTestWorld(t *testing.T, opts ...cardinal.WorldOption) *cardinal.World {
+	world, err := cardinal.NewWorld(opts...)
+	require.NoError(t, err)
+	return world
 }
