@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -44,25 +45,36 @@ func TestSetTestTimeout(t *testing.T) {
 
 func TestUniqueSignatureWithName(t *testing.T) {
 	tests := []struct {
-		name       string
-		personaTag string
+		name        string
+		personaTag  string
+		shouldPanic bool
 	}{
 		{
-			name:       "generates signature with custom name",
-			personaTag: "custom_persona",
+			name:        "generates signature with custom name",
+			personaTag:  "custom_persona",
+			shouldPanic: false,
 		},
 		{
-			name:       "generates signature with empty name",
-			personaTag: "",
+			name:        "panics with empty name",
+			personaTag:  "",
+			shouldPanic: true,
 		},
 		{
-			name:       "generates signature with special characters",
-			personaTag: "test@123_-.",
+			name:        "generates signature with special characters",
+			personaTag:  "test@123_-.",
+			shouldPanic: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.shouldPanic {
+				assert.Panics(t, func() {
+					UniqueSignatureWithName(tt.personaTag)
+				})
+				return
+			}
+
 			sig := UniqueSignatureWithName(tt.personaTag)
 			require.NotNil(t, sig)
 			assert.Equal(t, tt.personaTag, sig.PersonaTag)
@@ -146,6 +158,15 @@ func (t *testOutputMsg) IsEVMCompatible() bool                 { return false }
 func (t *testOutputMsg) GetInFieldInformation() map[string]any { return map[string]any{} }
 
 func TestGetMessage(t *testing.T) {
+	// Create a single test world with minimal configuration to be shared across test cases
+	world := NewTestWorld(t, cardinal.WithMockRedis())
+
+	// Register test messages once for all test cases
+	err := world.RegisterMessage(&testInputMsg{}, reflect.TypeOf(testInputMsg{}))
+	require.NoError(t, err)
+	err = world.RegisterMessage(&testOutputMsg{}, reflect.TypeOf(testOutputMsg{}))
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		msgID       types.MessageID
@@ -165,15 +186,6 @@ func TestGetMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a test world
-			world := NewTestWorld(t)
-
-			// Register test messages
-			err := world.RegisterMessage(&testInputMsg{}, reflect.TypeOf(testInputMsg{}))
-			require.NoError(t, err)
-			err = world.RegisterMessage(&testOutputMsg{}, reflect.TypeOf(testOutputMsg{}))
-			require.NoError(t, err)
-
 			// Test message retrieval
 			msg, found := world.GetMessageByID(tt.msgID)
 			if tt.shouldError {
