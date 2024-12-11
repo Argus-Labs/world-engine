@@ -82,7 +82,7 @@ This method has no parameters.
 The WithReceiptHistorySize option specifies the number of ticks for which the World object retains receipts. For instance, at tick 40 with a receipt history size of 5, the World stores receipts from ticks 35 to 39. Upon reaching tick 41, it will hold receipts for ticks 36 to 40. If this option remains unset, it defaults to a history size of 10. Game clients can get receipts via the [/query/receipts/list](/cardinal/rest/query-receipts-list) endpoint. Nakama also uses this endpoint to transmit receipts to listening clients.
 
 ```go
-func WithReceiptHistorySize(size int) Option
+func WithReceiptHistorySize(size int) WorldOption
 ```
 
 ##### Parameters
@@ -90,6 +90,10 @@ func WithReceiptHistorySize(size int) Option
 | Parameter | Type     | Description                                           |
 |-----------|----------|-------------------------------------------------------|
 | size      | int      | The size of the receipt history to be set for World.  |
+
+<Warning>
+    Setting a very large receipt history size may impact memory usage and performance. Choose a size that balances your game's needs with resource constraints.
+</Warning>
 
 #### WithStoreManager
 
@@ -123,13 +127,24 @@ func WithTickChannel(ch <-chan time.Time) WorldOption
 ##### Example
 
 ```go
-// option to make ticks happen every 500 milliseconds.
+// Example 1: Set tick rate to 500ms (2 ticks per second)
 opt := WithTickChannel(time.Tick(500*time.Millisecond))
+
+// Example 2: Set tick rate to 50ms (20 ticks per second) for fast-paced games
+opt := WithTickChannel(time.Tick(50*time.Millisecond))
+
+// Example 3: Use a custom channel for manual tick control in tests
+tickCh := make(chan time.Time)
+opt := WithTickChannel(tickCh)
 ```
+
+<Warning>
+    Choose your tick rate carefully based on your game's requirements. Higher tick rates provide smoother updates but require more processing power and network bandwidth.
+</Warning>
 
 #### WithTickDoneChannel
 
-The `WithTickDone` option sets a channel that will receive the just-completed tick number each time a tick completes execution. All systems are guaranteed to have been called when a message appears on this channel. This is useful in tests (in conjunction with the WithTickChannel) to make sure your user-defined Systems have fully executed before checking expectations.
+The `WithTickDoneChannel` option sets a channel that will receive the just-completed tick number each time a tick completes execution. All systems are guaranteed to have been called when a message appears on this channel. This is particularly useful in tests to ensure your systems have fully executed before checking expectations.
 
 ```go
 func WithTickDoneChannel(ch chan<- uint64) WorldOption
@@ -141,7 +156,35 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption
 |-----------|-----------------|------------------------------------------------------------|
 | ch        | `chan<- uint64` | The channel that will be notified at the end of each tick. |
 
-## RegisterSystems
+##### Example
+```go
+// Example usage in tests
+func TestGameSystem(t *testing.T) {
+    tickCh := make(chan time.Time)
+    doneCh := make(chan uint64)
+
+    world, _ := cardinal.NewWorld(
+        WithTickChannel(tickCh),
+        WithTickDoneChannel(doneCh),
+    )
+
+    // Start game in a goroutine
+    go world.StartGame()
+
+    // Trigger a tick
+    tickCh <- time.Now()
+
+    // Wait for tick to complete
+    <-doneCh
+
+    // Now safe to check game state
+    // Your test assertions here...
+}
+```
+
+<Tip>
+    The WithTickDoneChannel is essential for writing deterministic tests. Always wait for the done signal before making assertions about game state changes.
+</Tip>
 
 `RegisterSystems` registers one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
 
