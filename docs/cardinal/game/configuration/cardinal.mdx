@@ -18,7 +18,7 @@ TELEMETRY_TRACE_ENABLED = false
 
 ### BASE_SHARD_ROUTER_KEY
 
-A secure authentication token used for routing game shards. It ensures proper routing within the Cardinal system. 
+A secure authentication token used to authenticate Cardinal with the EVM Base Shard gRPC private endpoint. This key ensures secure communication between Cardinal and the base shard services.
 Router key must be length 64 and only contain alphanumerics.
 
 **Example**
@@ -56,25 +56,54 @@ CARDINAL_LOG_PRETTY = true
 
 ### CARDINAL_NAMESPACE
 
-A unique identifier for the Cardinal shard namespace. This ensures that different shards don’t interfere with each other and prevents signature replay attacks.
+A unique identifier for the Cardinal shard namespace. This configuration is critical for security:
+
+- Prevents signature replay attacks across different Cardinal instances
+- Ensures unique transaction signatures per game instance
+
+Each Cardinal instance must have a unique namespace to ensure that signatures cannot be replayed across different instances of the game. This is particularly important in production environments where multiple game instances may be running simultaneously.
 
 **Example**
 ```
-CARDINAL_NAMESPACE = 'defaultnamespace'
+# Production namespace
+CARDINAL_NAMESPACE = 'prod-game-v1'
+
+# Development namespace
+CARDINAL_NAMESPACE = 'dev-game-v1'
 ```
 
 ### CARDINAL_ROLLUP_ENABLED
 
-Enables or disables rollup mode, where Cardinal sequences and recovers transactions on the base shard, default value is false.
+Controls Cardinal's rollup mode, which affects transaction handling and state management:
+
+- **When Enabled (true)**:
+  - Cardinal sequences and recovers transactions on the base shard
+  - Requires valid BASE_SHARD_SEQUENCER_ADDRESS
+  - Provides stronger consistency guarantees
+  - Suitable for production deployments
+
+- **When Disabled (false)**:
+  - Processes transactions locally
+  - Useful for development and testing
+  - No sequencer dependency
+  - Default setting
 
 **Example**
 ```
+# Production setting
+CARDINAL_ROLLUP_ENABLED = true
+
+# Development setting
 CARDINAL_ROLLUP_ENABLED = false
 ```
 
 ### REDIS_ADDRESS
 
-The address of the Redis server, this parameter is unused if you are running cardinal using world cli v1.3.1, because world cli will force you to use local redis container
+The address of the Redis server used for storing game state. When using world cli v1.3.1 or later, this setting is automatically managed:
+
+- **Local Development**: world cli creates and manages a local Redis container
+- **Production**: Configure this for your production Redis instance
+- **Testing**: Uses an in-memory Redis instance
 
 **Example**
 ```
@@ -83,14 +112,13 @@ REDIS_ADDRESS = 'localhost:6379'
 
 ### REDIS_PASSWORD
 
-The password for the Redis server. Leave empty for no password. 
+The password for the Redis server. Leave empty for no password.
 Make sure to set this in production to secure your Redis instance.
 
 **Example**
 ```
 REDIS_PASSWORD = ''
 ```
-
 
 ### TELEMETRY_TRACE_ENABLED
 

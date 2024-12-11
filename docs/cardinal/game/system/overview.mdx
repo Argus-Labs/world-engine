@@ -5,7 +5,7 @@ description: 'How to create and register a system'
 
 <Warning>
     If you are unfamiliar with Entity Component System (ECS), we recommend reading [Introduction to ECS](/cardinal/ecs) before proceeding.
-    
+
     If you are unfamiliar with the concept of game loop and tick, we recommend reading [Loop-driven Runtime](/cardinal/loop) before proceeding.
 </Warning>
 
@@ -18,7 +18,7 @@ func System(worldCtx cardinal.WorldContext) error
 ```
 
 **Example:**
-- A `RegenSystem` that increments the current health of all entities that have the `Health` component. 
+- A `RegenSystem` that increments the current health of all entities that have the `Health` component.
 - An `AttackSystem` that handles the `AttackPlayerMsg` message and reduces the health of the target player.
 
 ---
@@ -28,15 +28,36 @@ Before we implement our systems, there are high-level concepts that you need to 
 
 ### Systems are always executed once per tick
 
-In Cardinal, systems are executed once per tick regardless of whether there are user message/transactions. 
+In Cardinal, systems are executed once per tick regardless of whether there are user message/transactions.
 
 <Tip>
 If you are coming from EVM development background, you might notice that this behavior is in stark contrast to how smart contracts work.
-    
+
 In smart contracts, game state can only be updated when a transaction calls a function of the contract. In Cardinal, game state is updated via systems at every tick regardless of whether there are transactions.
 
 This makes it easy to implement state updates (e.g. regeneration, gravity, etc.) that need to consistently happen at every time step/interval which EVM smart contracts are not able to do seamlessly.
 </Tip>
+
+### System Execution Order
+Systems are executed sequentially in the order they are registered. This order is critical for game logic as it determines the sequence of state updates within each tick. For example:
+
+```go
+// Systems execute in this order:
+// 1. InputSystem processes player inputs
+// 2. MovementSystem updates positions
+// 3. CollisionSystem checks for collisions
+// 4. CombatSystem resolves combat
+cardinal.RegisterSystems(w,
+    system.InputSystem,
+    system.MovementSystem,
+    system.CollisionSystem,
+    system.CombatSystem,
+)
+```
+
+<Warning>
+    Carefully consider the dependencies between your systems when determining their execution order. For example, collision detection should typically run after movement updates.
+</Warning>
 
 ### All game state must be stored in components
 As a general rule of thumb, systems should not store any game state in global variables as it will not be persisted. Systems should only store & read game state to & from components.
@@ -55,7 +76,7 @@ You can easily create a new system and register it to the world by following the
 
         ```go /system/regen.go
         package system
-        
+
         func RegenSystem(worldCtx cardinal.WorldContext) error {
             // ...
             return nil
@@ -77,10 +98,17 @@ You can easily create a new system and register it to the world by following the
 
             // Register systems
             // Each system executes sequentially in the order they are added.
-            // NOTE: You must register your systems here for it to be executed.
-            err := cardinal.RegisterSystems(w, system.RegenSystem)
+            // Systems should be registered in dependency order:
+            // 1. Input processing systems
+            // 2. Game logic systems
+            // 3. Output/Effect systems
+            err := cardinal.RegisterSystems(w,
+                system.InputSystem,    // Process player inputs first
+                system.MovementSystem, // Update positions based on inputs
+                system.CombatSystem,   // Resolve combat after movement
+            )
             if err != nil {
-                log.Fatal().Err(err).Msg("failed to register system")
+                log.Fatal().Err(err).Msg("failed to register systems")
             }
 
             // ...
@@ -154,6 +182,62 @@ func RegenSystem(worldCtx cardinal.WorldContext) error {
 	return nil
 }
 ```
+
+### Error Handling Best Practices
+
+When implementing systems, proper error handling is crucial for maintaining game stability and debugging:
+
+1. **Component Operations**
+```go
+// Always check errors from component operations
+health, err := cardinal.GetComponent[component.Health](worldCtx, id)
+if err != nil {
+    // Log the error with context
+    log.Error().Err(err).
+        Str("component", "Health").
+        Uint64("entity", uint64(id)).
+        Msg("failed to get component")
+    return fmt.Errorf("failed to get Health component: %w", err)
+}
+```
+
+2. **Message Handling**
+```go
+// Handle message processing errors gracefully
+return cardinal.EachMessage[msg.AttackMsg, msg.AttackMsgReply](worldCtx,
+    func(attack cardinal.TxData[msg.AttackMsg]) (msg.AttackMsgReply, error) {
+        if err := validateAttack(attack); err != nil {
+            // Return meaningful error responses to clients
+            return msg.AttackMsgReply{
+                Success: false,
+                Error: "invalid attack parameters",
+            }, nil
+        }
+        // Process valid attack
+        // PLACEHOLDER: attack processing logic
+    },
+)
+```
+
+3. **Entity Creation**
+```go
+// Proper error handling for entity creation
+id, err := cardinal.Create(worldCtx,
+    component.Player{Name: "Player1"},
+    component.Health{Current: 100, Maximum: 100},
+)
+if err != nil {
+    return fmt.Errorf("failed to create player entity: %w", err)
+}
+```
+
+<Warning>
+    Always wrap errors with context using `fmt.Errorf` and include relevant entity IDs and component names in error messages for easier debugging.
+</Warning>
+
+<Tip>
+    Use structured logging (e.g., zerolog) to include additional context in error logs, making it easier to diagnose issues in production.
+</Tip>
 
 ### Handling Messages
 <CodeGroup>
