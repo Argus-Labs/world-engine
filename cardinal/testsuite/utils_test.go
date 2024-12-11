@@ -2,6 +2,7 @@ package testsuite
 
 import (
 	"errors"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -197,4 +198,74 @@ func TestGetMessage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewTestWorld(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    []cardinal.WorldOption
+		wantErr bool
+	}{
+		{
+			name:    "default options",
+			opts:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "with mock redis",
+			opts:    []cardinal.WorldOption{cardinal.WithMockRedis()},
+			wantErr: false,
+		},
+		{
+			name:    "with multiple options",
+			opts:    []cardinal.WorldOption{cardinal.WithMockRedis(), cardinal.WithPort(4040)},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			world := NewTestWorld(t, tt.opts...)
+			require.NotNil(t, world)
+
+			// Test basic world operations
+			ctx := cardinal.NewWorldContext(world)
+			entityID := types.EntityID(1)
+
+			// Verify components are registered
+			components := []string{
+				"location",
+				"value",
+				"power",
+				"health",
+				"speed",
+				"test",
+				"test_two",
+			}
+			for _, compName := range components {
+				_, err := world.GetComponentByName(compName)
+				require.NoError(t, err, "component %s should be registered", compName)
+			}
+
+			// Test component operations
+			err := cardinal.AddComponentTo[LocationComponent](ctx, entityID)
+			require.NoError(t, err)
+			err = cardinal.SetComponent(ctx, entityID, &LocationComponent{X: 1, Y: 2})
+			require.NoError(t, err)
+
+			// Test message registration
+			err = world.RegisterMessage(&testInputMsg{}, reflect.TypeOf(testInputMsg{}))
+			require.NoError(t, err)
+			msg, found := world.GetMessageByID(1)
+			require.True(t, found)
+			require.NotNil(t, msg)
+		})
+	}
+}
+
+// TestMain manages test lifecycle
+func TestMain(m *testing.M) {
+	// Run tests
+	code := m.Run()
+	os.Exit(code)
 }

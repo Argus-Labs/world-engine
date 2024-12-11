@@ -1,11 +1,13 @@
 package testsuite
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/require"
@@ -77,7 +79,66 @@ func GetMessage[In any, Out any](w *cardinal.World) (*cardinal.MessageType[In, O
 
 // NewTestWorld creates a new world instance for testing purposes.
 func NewTestWorld(t *testing.T, opts ...cardinal.WorldOption) *cardinal.World {
+	t.Helper()
+
+	// Create a new Redis instance for each test
+	mr := miniredis.NewMiniRedis()
+	mr.RequireAuth("") // Disable authentication
+
+	// Start Redis and let it choose its own port
+	err := mr.Start()
+	require.NoError(t, err)
+
+	// Get the address that Redis chose
+	addr := mr.Addr()
+	t.Logf("Started miniredis on %s", addr)
+
+	// Ensure Redis is closed after the test
+	t.Cleanup(func() {
+		if mr != nil {
+			mr.Close()
+		}
+	})
+
+	// Set the Redis address environment variable
+	t.Setenv("REDIS_ADDRESS", addr)
+
+	// Add mock redis option
+	opts = append(opts, cardinal.WithMockRedis())
+
 	world, err := cardinal.NewWorld(opts...)
 	require.NoError(t, err)
+
+	// Register test components while world is in Init state
+	RegisterComponents(world)
+
+	// Start the world and wait for Running state
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- world.StartGame()
+	}()
+
+	// Wait for world to be ready
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if world.IsGameRunning() {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !world.IsGameRunning() {
+		t.Fatal("world did not enter Running state within timeout")
+	}
+
+	// Ensure world is properly cleaned up after the test
+	t.Cleanup(func() {
+		if world != nil && world.IsGameRunning() {
+			world.Shutdown()
+			if err := <-errCh; err != nil && err != context.Canceled {
+				t.Errorf("world.StartGame() error = %v", err)
+			}
+		}
+	})
+
 	return world
 }
