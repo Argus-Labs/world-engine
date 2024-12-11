@@ -20,8 +20,9 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
-	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/testsuite"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -119,7 +120,7 @@ func TestForEachTransaction(t *testing.T) {
 			assert.True(t, ok)
 			for i := 0; i < tc.numTx; i++ {
 				req := SomeMsgRequest{GenerateError: tc.generateError}
-				txHash := tf.AddTransaction(someMsg.ID(), req, testutils.UniqueSignature())
+				txHash := tf.AddTransaction(someMsg.ID(), req, testsuite.UniqueSignature())
 				knownTxHashes[txHash] = req
 			}
 
@@ -128,14 +129,14 @@ func TestForEachTransaction(t *testing.T) {
 			receipts, err := world.GetTransactionReceiptsForTick(world.CurrentTick() - 1)
 			assert.NilError(t, err)
 			assert.Equal(t, len(knownTxHashes), len(receipts))
-			for _, receipt := range receipts {
-				request, ok := knownTxHashes[receipt.TxHash]
+			for _, r := range receipts {
+				_, ok := knownTxHashes[r.TxHash]
 				assert.Check(t, ok)
 				if tc.generateError {
-					assert.Check(t, len(receipt.Errs) > 0)
+					assert.Check(t, len(r.Errs) > 0)
 				} else {
-					assert.Equal(t, 0, len(receipt.Errs))
-					assert.Equal(t, receipt.Result.(SomeMsgResponse), SomeMsgResponse{Successful: true})
+					assert.Equal(t, 0, len(r.Errs))
+					assert.Equal(t, r.Result.(SomeMsgResponse), SomeMsgResponse{Successful: true})
 				}
 			}
 		})
@@ -167,11 +168,11 @@ type EmptyMsgResult struct{}
 
 func TestSystemExecution(t *testing.T) {
 	testCases := []struct {
-		name           string
-		setupSystem    func(*cardinal.World) error
-		setupEntities  func(cardinal.WorldContext) ([]types.EntityID, error)
-		validateState  func(*testing.T, cardinal.WorldContext, []types.EntityID)
-		numTicks       int
+		name          string
+		setupSystem   func(*cardinal.World) error
+		setupEntities func(cardinal.WorldContext) ([]types.EntityID, error)
+		validateState func(*testing.T, cardinal.WorldContext, []types.EntityID)
+		numTicks      int
 	}{
 		{
 			name: "counter increments each tick",
@@ -263,7 +264,7 @@ func TestSystemExecution(t *testing.T) {
 
 			// Add transactions if needed
 			if tc.name == "score updates from transactions" {
-				modifyScoreMsg, err := testutils.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](tf.World)
+				modifyScoreMsg, err := testsuite.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](tf.World)
 				assert.NilError(t, err)
 				updates := map[int]int{5: 105, 10: 110, 50: 150}
 				for idx, amount := range updates {
@@ -372,7 +373,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx cardinal.WorldContext) error {
-			modScoreMsg, err := testutils.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](world)
+			modScoreMsg, err := testsuite.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](world)
 			if err != nil {
 				return err
 			}
@@ -386,7 +387,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	err = cardinal.RegisterSystems(
 		world,
 		func(wCtx cardinal.WorldContext) error {
-			modScoreMsg, err := testutils.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](world)
+			modScoreMsg, err := testsuite.GetMessage[*ModifyScoreMsg, *EmptyMsgResult](world)
 			if err != nil {
 				return err
 			}
@@ -497,390 +498,241 @@ func TestMessageRegistration(t *testing.T) {
 	}
 }
 
-func TestTransactionProcessing(t *testing.T) {
-	testCases := []struct {
-		name            string
-		setupSystem     func(*cardinal.World) error
-		addTransaction  func(*cardinal.TestFixture, types.MessageID)
-		validateReceipt func(*testing.T, []types.TransactionReceipt)
-		validateState   func(*testing.T, int) // For validating system calls
-	}{
-		{
-			name: "can get transaction errors and results",
-			setupSystem: func(w *cardinal.World) error {
-				type MoveMsg struct {
-					DeltaX, DeltaY int
-				}
-				type MoveMsgResult struct {
-					EndX, EndY int
-				}
-				msgName := "move"
-				if err := cardinal.RegisterMessage[MoveMsg, MoveMsgResult](w, msgName); err != nil {
-					return err
-				}
+type moveMsg struct {
+	DeltaX, DeltaY int
+}
 
-				wantFirstError := errors.New("this is a transaction error")
-				wantSecondError := errors.New("another transaction error")
+type moveMsgResult struct {
+	EndX, EndY int
+}
 
-				return cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					moveMsg, err := testutils.GetMessage[MoveMsg, MoveMsgResult](w)
-					if err != nil {
-						return err
-					}
-					txData := moveMsg.In(wCtx)
-					if len(txData) != 1 {
-						return fmt.Errorf("expected 1 move transaction, got %d", len(txData))
-					}
-					tx := txData[0]
-					moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
-					moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
-					moveMsg.SetResult(wCtx, tx.Hash, MoveMsgResult{42, 42})
-					return nil
-				})
-			},
-			addTransaction: func(tf *cardinal.TestFixture, msgID types.MessageID) {
-				tf.AddTransaction(msgID, struct{ DeltaX, DeltaY int }{99, 100})
-			},
-			validateReceipt: func(t *testing.T, receipts []types.TransactionReceipt) {
-				assert.Equal(t, 1, len(receipts))
-				r := receipts[0]
-				assert.Equal(t, 2, len(r.Errs))
-				assert.ErrorContains(t, r.Errs[0], "this is a transaction error")
-				assert.ErrorContains(t, r.Errs[1], "another transaction error")
-				got, ok := r.Result.(struct{ EndX, EndY int })
-				assert.Check(t, ok)
-				assert.Equal(t, struct{ EndX, EndY int }{42, 42}, got)
-			},
-		},
-		{
-			name: "errors propagate between systems",
-			setupSystem: func(w *cardinal.World) error {
-				type MsgIn struct{ Number int }
-				type MsgOut struct{ Number int }
-				msgName := "number"
-				if err := cardinal.RegisterMessage[MsgIn, MsgOut](w, msgName); err != nil {
-					return err
-				}
+type numberMsg struct {
+	Number int
+}
 
-				wantErr := errors.New("some transaction error")
-				systemCalls := 0
+type numberMsgResult struct {
+	Number int
+}
 
-				// First system adds error
-				if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					_, _, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, !ok)
-					numTx.AddError(wCtx, hash, wantErr)
-					return nil
-				}); err != nil {
-					return err
-				}
+func setupTransactionTest(t *testing.T) (*cardinal.TestFixture, *cardinal.World) {
+	tf := cardinal.NewTestFixture(t, nil)
+	return tf, tf.World
+}
 
-				// Second system verifies error
-				return cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					_, errs, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, ok)
-					assert.Equal(t, 1, len(errs))
-					assert.ErrorContains(t, errs[0], "some transaction error")
-					return nil
-				})
-			},
-			addTransaction: func(tf *cardinal.TestFixture, msgID types.MessageID) {
-				tf.AddTransaction(msgID, struct{ Number int }{100})
-			},
-			validateReceipt: func(t *testing.T, receipts []types.TransactionReceipt) {
-				assert.Equal(t, 1, len(receipts))
-				r := receipts[0]
-				assert.Equal(t, 1, len(r.Errs))
-				assert.ErrorContains(t, r.Errs[0], "some transaction error")
-			},
-			validateState: func(t *testing.T, systemCalls int) {
-				assert.Equal(t, 2, systemCalls)
-			},
-		},
-		{
-			name: "later systems can overwrite results",
-			setupSystem: func(w *cardinal.World) error {
-				type MsgIn struct{ Number int }
-				type MsgOut struct{ Number int }
-				msgName := "number"
-				if err := cardinal.RegisterMessage[MsgIn, MsgOut](w, msgName); err != nil {
-					return err
-				}
+func registerMoveMsg(w *cardinal.World) error {
+	return cardinal.RegisterMessage[moveMsg, moveMsgResult](w, "move")
+}
 
-				firstResult := MsgOut{1234}
-				secondResult := MsgOut{5678}
-				systemCalls := 0
+func registerNumberMsg(w *cardinal.World) error {
+	return cardinal.RegisterMessage[numberMsg, numberMsgResult](w, "number")
+}
 
-				// First system sets initial result
-				if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					_, _, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, !ok)
-					numTx.SetResult(wCtx, hash, firstResult)
-					return nil
-				}); err != nil {
-					return err
-				}
+func setupMoveMessageSystem(t *testing.T, w *cardinal.World) systemSetupResult {
+	result := systemSetupResult{}
 
-				// Second system overwrites result
-				return cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					out, errs, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, ok)
-					assert.Equal(t, 0, len(errs))
-					assert.Equal(t, firstResult, out)
-					numTx.SetResult(wCtx, hash, secondResult)
-					return nil
-				})
-			},
-			addTransaction: func(tf *cardinal.TestFixture, msgID types.MessageID) {
-				tf.AddTransaction(msgID, struct{ Number int }{100})
-			},
-			validateReceipt: func(t *testing.T, receipts []types.TransactionReceipt) {
-				assert.Equal(t, 1, len(receipts))
-				r := receipts[0]
-				assert.Equal(t, 0, len(r.Errs))
-				got, ok := r.Result.(struct{ Number int })
-				assert.Check(t, ok)
-				assert.Equal(t, struct{ Number int }{5678}, got)
-			},
-			validateState: func(t *testing.T, systemCalls int) {
-				assert.Equal(t, 2, systemCalls)
-			},
-		},
+	if err := registerMoveMsg(w); err != nil {
+		result.err = err
+		return result
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tf := cardinal.NewTestFixture(t, nil)
-			world := tf.World
+	wantFirstError := errors.New("this is a transaction error")
+	wantSecondError := errors.New("another transaction error")
+	wantResult := moveMsgResult{42, 42}
 
-			assert.NilError(t, tc.setupSystem(world))
-			tf.StartWorld()
+	if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
+		result.systemCalls++
+		moveMsg, err := testsuite.GetMessage[moveMsg, moveMsgResult](w)
+		if err != nil {
+			return err
+		}
+		txData := moveMsg.In(wCtx)
+		assert.Equal(t, 1, len(txData))
+		tx := txData[0]
+		moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
+		moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
+		moveMsg.SetResult(wCtx, tx.Hash, wantResult)
 
-			moveMsg, ok := world.GetMessageByFullName("game.move")
-			assert.True(t, ok)
-			tc.addTransaction(tf, moveMsg.ID())
-
-			tf.DoTick()
-
-			receipts, err := world.GetTransactionReceiptsForTick(world.CurrentTick() - 1)
-			assert.NilError(t, err)
-			tc.validateReceipt(t, receipts)
-			if tc.validateState != nil {
-				tc.validateState(t, 2) // Both test cases use 2 system calls
-			}
-		})
+		// Verify errors and result were set correctly
+		result, errs, ok := moveMsg.GetReceipt(wCtx, tx.Hash)
+		assert.Check(t, ok)
+		assert.Equal(t, 2, len(errs))
+		assert.ErrorContains(t, errs[0], "this is a transaction error")
+		assert.ErrorContains(t, errs[1], "another transaction error")
+		assert.Equal(t, wantResult, result)
+		return nil
+	}); err != nil {
+		result.err = err
+		return result
 	}
+
+	return result
+}
+
+type systemSetupResult struct {
+	err         error
+	systemCalls int
+}
+
+func setupErrorPropagationSystem(t *testing.T, w *cardinal.World) systemSetupResult {
+	result := systemSetupResult{}
+
+	if err := registerNumberMsg(w); err != nil {
+		result.err = err
+		return result
+	}
+
+	wantErr := errors.New("some transaction error")
+
+	if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
+		result.systemCalls++
+		numTx, err := testsuite.GetMessage[numberMsg, numberMsgResult](w)
+		if err != nil {
+			return err
+		}
+		txs := numTx.In(wCtx)
+		assert.Equal(t, 1, len(txs))
+		numTx.AddError(wCtx, txs[0].Hash, wantErr)
+		return nil
+	}); err != nil {
+		result.err = err
+		return result
+	}
+
+	if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
+		result.systemCalls++
+		numTx, err := testsuite.GetMessage[numberMsg, numberMsgResult](w)
+		if err != nil {
+			return err
+		}
+		txs := numTx.In(wCtx)
+		assert.Equal(t, 1, len(txs))
+		_, errs, ok := numTx.GetReceipt(wCtx, txs[0].Hash)
+		assert.Check(t, ok)
+		assert.Equal(t, 1, len(errs))
+		assert.ErrorContains(t, errs[0], "some transaction error")
+		return nil
+	}); err != nil {
+		result.err = err
+		return result
+	}
+
+	return result
+}
+
+func setupResultOverwriteSystem(t *testing.T, w *cardinal.World) systemSetupResult {
+	result := systemSetupResult{}
+
+	if err := registerNumberMsg(w); err != nil {
+		result.err = err
+		return result
+	}
+
+	firstResult := numberMsgResult{1234}
+	secondResult := numberMsgResult{5678}
+
+	if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
+		result.systemCalls++
+		numTx, err := testsuite.GetMessage[numberMsg, numberMsgResult](w)
+		if err != nil {
+			return err
+		}
+		txs := numTx.In(wCtx)
+		assert.Equal(t, 1, len(txs))
+		numTx.SetResult(wCtx, txs[0].Hash, firstResult)
+		return nil
+	}); err != nil {
+		result.err = err
+		return result
+	}
+
+	if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
+		result.systemCalls++
+		numTx, err := testsuite.GetMessage[numberMsg, numberMsgResult](w)
+		if err != nil {
+			return err
+		}
+		txs := numTx.In(wCtx)
+		assert.Equal(t, 1, len(txs))
+		hash := txs[0].Hash
+		out, errs, ok := numTx.GetReceipt(wCtx, hash)
+		assert.Check(t, ok)
+		assert.Equal(t, 0, len(errs))
+		assert.Equal(t, firstResult, out)
+		numTx.SetResult(wCtx, hash, secondResult)
+		return nil
+	}); err != nil {
+		result.err = err
+		return result
+	}
+
+	return result
+}
+
+func validateMoveReceipt(t *testing.T, receipts []receipt.Receipt) {
+	assert.Equal(t, 1, len(receipts))
+	r := receipts[0]
+	assert.Equal(t, 2, len(r.Errs))
+	assert.ErrorContains(t, r.Errs[0], "this is a transaction error")
+	assert.ErrorContains(t, r.Errs[1], "another transaction error")
+	got, ok := r.Result.(moveMsgResult)
+	assert.Check(t, ok)
+	assert.Equal(t, moveMsgResult{42, 42}, got)
+}
+
+func validateErrorPropagation(t *testing.T, receipts []receipt.Receipt) {
+	assert.Equal(t, 1, len(receipts))
+	r := receipts[0]
+	assert.Equal(t, 1, len(r.Errs))
+	assert.ErrorContains(t, r.Errs[0], "some transaction error")
+}
+
+func validateResultOverwrite(t *testing.T, receipts []receipt.Receipt) {
+	assert.Equal(t, 1, len(receipts))
+	r := receipts[0]
+	assert.Equal(t, 0, len(r.Errs))
+	got, ok := r.Result.(numberMsgResult)
+	assert.Check(t, ok)
+	assert.Equal(t, numberMsgResult{5678}, got)
 }
 
 func TestTransactionProcessing(t *testing.T) {
 	testCases := []struct {
 		name            string
-		setupSystem     func(*cardinal.World) error
+		setupSystem     func(*testing.T, *cardinal.World) interface{}
 		addTransaction  func(*cardinal.TestFixture, types.MessageID)
-		validateReceipt func(*testing.T, []types.TransactionReceipt)
-		validateState   func(*testing.T, int) // For validating system calls
+		validateReceipt func(*testing.T, []receipt.Receipt)
+		validateState   func(*testing.T, int)
 	}{
 		{
-			name: "can get transaction errors and results",
-			setupSystem: func(w *cardinal.World) error {
-				type MoveMsg struct {
-					DeltaX, DeltaY int
-				}
-				type MoveMsgResult struct {
-					EndX, EndY int
-				}
-				msgName := "move"
-				if err := cardinal.RegisterMessage[MoveMsg, MoveMsgResult](w, msgName); err != nil {
-					return err
-				}
-
-				wantFirstError := errors.New("this is a transaction error")
-				wantSecondError := errors.New("another transaction error")
-
-				return cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					moveMsg, err := testutils.GetMessage[MoveMsg, MoveMsgResult](w)
-					if err != nil {
-						return err
-					}
-					txData := moveMsg.In(wCtx)
-					if len(txData) != 1 {
-						return fmt.Errorf("expected 1 move transaction, got %d", len(txData))
-					}
-					tx := txData[0]
-					moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
-					moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
-					moveMsg.SetResult(wCtx, tx.Hash, MoveMsgResult{42, 42})
-					return nil
-				})
-			},
+			name:        "can get transaction errors and results",
+			setupSystem: func(t *testing.T, w *cardinal.World) interface{} { return setupMoveMessageSystem(t, w) },
 			addTransaction: func(tf *cardinal.TestFixture, msgID types.MessageID) {
-				tf.AddTransaction(msgID, struct{ DeltaX, DeltaY int }{99, 100})
+				tf.AddTransaction(msgID, moveMsg{99, 100})
 			},
-			validateReceipt: func(t *testing.T, receipts []types.TransactionReceipt) {
-				assert.Equal(t, 1, len(receipts))
-				r := receipts[0]
-				assert.Equal(t, 2, len(r.Errs))
-				assert.ErrorContains(t, r.Errs[0], "this is a transaction error")
-				assert.ErrorContains(t, r.Errs[1], "another transaction error")
-				got, ok := r.Result.(struct{ EndX, EndY int })
-				assert.Check(t, ok)
-				assert.Equal(t, struct{ EndX, EndY int }{42, 42}, got)
-			},
+			validateReceipt: validateMoveReceipt,
 		},
 		{
 			name: "errors propagate between systems",
-			setupSystem: func(w *cardinal.World) error {
-				type MsgIn struct{ Number int }
-				type MsgOut struct{ Number int }
-				msgName := "number"
-				if err := cardinal.RegisterMessage[MsgIn, MsgOut](w, msgName); err != nil {
-					return err
-				}
-
-				wantErr := errors.New("some transaction error")
-				systemCalls := 0
-
-				// First system adds error
-				if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					_, _, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, !ok)
-					numTx.AddError(wCtx, hash, wantErr)
-					return nil
-				}); err != nil {
-					return err
-				}
-
-				// Second system verifies error
-				return cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					_, errs, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, ok)
-					assert.Equal(t, 1, len(errs))
-					assert.ErrorContains(t, errs[0], "some transaction error")
-					return nil
-				})
+			setupSystem: func(t *testing.T, w *cardinal.World) interface{} {
+				return setupErrorPropagationSystem(t, w)
 			},
 			addTransaction: func(tf *cardinal.TestFixture, msgID types.MessageID) {
-				tf.AddTransaction(msgID, struct{ Number int }{100})
+				tf.AddTransaction(msgID, numberMsg{100})
 			},
-			validateReceipt: func(t *testing.T, receipts []types.TransactionReceipt) {
-				assert.Equal(t, 1, len(receipts))
-				r := receipts[0]
-				assert.Equal(t, 1, len(r.Errs))
-				assert.ErrorContains(t, r.Errs[0], "some transaction error")
-			},
+			validateReceipt: validateErrorPropagation,
 			validateState: func(t *testing.T, systemCalls int) {
 				assert.Equal(t, 2, systemCalls)
 			},
 		},
 		{
 			name: "later systems can overwrite results",
-			setupSystem: func(w *cardinal.World) error {
-				type MsgIn struct{ Number int }
-				type MsgOut struct{ Number int }
-				msgName := "number"
-				if err := cardinal.RegisterMessage[MsgIn, MsgOut](w, msgName); err != nil {
-					return err
-				}
-
-				firstResult := MsgOut{1234}
-				secondResult := MsgOut{5678}
-				systemCalls := 0
-
-				// First system sets initial result
-				if err := cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					_, _, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, !ok)
-					numTx.SetResult(wCtx, hash, firstResult)
-					return nil
-				}); err != nil {
-					return err
-				}
-
-				// Second system overwrites result
-				return cardinal.RegisterSystems(w, func(wCtx cardinal.WorldContext) error {
-					systemCalls++
-					numTx, err := testutils.GetMessage[MsgIn, MsgOut](w)
-					if err != nil {
-						return err
-					}
-					txs := numTx.In(wCtx)
-					assert.Equal(t, 1, len(txs))
-					hash := txs[0].Hash
-					out, errs, ok := numTx.GetReceipt(wCtx, hash)
-					assert.Check(t, ok)
-					assert.Equal(t, 0, len(errs))
-					assert.Equal(t, firstResult, out)
-					numTx.SetResult(wCtx, hash, secondResult)
-					return nil
-				})
+			setupSystem: func(t *testing.T, w *cardinal.World) interface{} {
+				return setupResultOverwriteSystem(t, w)
 			},
 			addTransaction: func(tf *cardinal.TestFixture, msgID types.MessageID) {
-				tf.AddTransaction(msgID, struct{ Number int }{100})
+				tf.AddTransaction(msgID, numberMsg{100})
 			},
-			validateReceipt: func(t *testing.T, receipts []types.TransactionReceipt) {
-				assert.Equal(t, 1, len(receipts))
-				r := receipts[0]
-				assert.Equal(t, 0, len(r.Errs))
-				got, ok := r.Result.(struct{ Number int })
-				assert.Check(t, ok)
-				assert.Equal(t, struct{ Number int }{5678}, got)
-			},
+			validateReceipt: validateResultOverwrite,
 			validateState: func(t *testing.T, systemCalls int) {
 				assert.Equal(t, 2, systemCalls)
 			},
@@ -889,10 +741,19 @@ func TestTransactionProcessing(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tf := cardinal.NewTestFixture(t, nil)
-			world := tf.World
+			tf, world := setupTransactionTest(t)
+			result := tc.setupSystem(t, world)
+			var err error
+			var systemCalls int
 
-			assert.NilError(t, tc.setupSystem(world))
+			switch r := result.(type) {
+			case error:
+				err = r
+			case systemSetupResult:
+				err = r.err
+				systemCalls = r.systemCalls
+			}
+			assert.NilError(t, err)
 			tf.StartWorld()
 
 			moveMsg, ok := world.GetMessageByFullName("game.move")
@@ -905,7 +766,7 @@ func TestTransactionProcessing(t *testing.T) {
 			assert.NilError(t, err)
 			tc.validateReceipt(t, receipts)
 			if tc.validateState != nil {
-				tc.validateState(t, 2) // Both test cases use 2 system calls
+				tc.validateState(t, systemCalls)
 			}
 		})
 	}
@@ -919,7 +780,7 @@ func TestTransactionExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessage[AddHealthToEntityTx, AddHealthToEntityResult](world, msgName))
 	err := cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		// test "In" method
-		addHealthToEntity, err := testutils.GetMessage[AddHealthToEntityTx, AddHealthToEntityResult](world)
+		addHealthToEntity, err := testsuite.GetMessage[AddHealthToEntityTx, AddHealthToEntityResult](world)
 		if err != nil {
 			return err
 		}
@@ -956,7 +817,7 @@ func TestTransactionExample(t *testing.T) {
 	// Queue up the transaction.
 	idToModify := ids[3]
 	amountToModify := 20
-	payload := testutils.UniqueSignature()
+	payload := testsuite.UniqueSignature()
 	addHealthToEntity, ok := world.GetMessageByFullName("game." + msgName)
 	assert.True(t, ok)
 	tf.AddTransaction(addHealthToEntity.ID(), AddHealthToEntityTx{idToModify, amountToModify}, payload)
@@ -1026,7 +887,7 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {
-	testutils.SetTestTimeout(t, 10*time.Second)
+	testsuite.SetTestTimeout(t, 10*time.Second)
 
 	tf := cardinal.NewTestFixture(t, nil)
 	world := tf.World
@@ -1095,7 +956,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 
 func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
-	testutils.SetTestTimeout(t, 10*time.Second)
+	testsuite.SetTestTimeout(t, 10*time.Second)
 	tf := cardinal.NewTestFixture(t, nil)
 	world, addr := tf.World, tf.BaseURL
 	httpBaseURL := "http://" + addr

@@ -5,6 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	"pkg.world.dev/world-engine/cardinal/testsuite"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -14,7 +15,7 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 	const wantNumOfZeroLocation = 5
 
 	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, wantNumOfZeroLocation, LocationComponent{})
+	_, err := cardinal.CreateMany(wCtx, wantNumOfZeroLocation, testsuite.LocationComponent{})
 	personaTag := s.CreateRandomPersona()
 	moveMessage, ok := s.world.GetMessageByFullName("game." + moveMsgName)
 	s.Require().True(ok)
@@ -35,7 +36,7 @@ func (s *ServerTestSuite) TestDebugStateQuery() {
 		if comp == nil {
 			continue
 		}
-		var loc LocationComponent
+		var loc testsuite.LocationComponent
 		s.Require().NoError(json.Unmarshal(comp, &loc))
 
 		if loc.Y == 0 {
