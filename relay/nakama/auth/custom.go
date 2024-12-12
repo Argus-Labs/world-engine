@@ -66,7 +66,8 @@ func handleCustomAuthentication(
 	defer span.End()
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
-		span.AddEvent("Handling custom auth with SIWE")
+		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "SIWE Custom Auth")
+		defer span.End()
 		in, err := authWithSIWE(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
@@ -77,7 +78,8 @@ func handleCustomAuthentication(
 		return in, nil
 	}
 	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
-		span.AddEvent("Handling custom auth with Argus ID")
+		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "Argus ID Custom Auth")
+		defer span.End()
 		in, err := authWithArgusID(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
@@ -114,6 +116,8 @@ func handleCustomLink(
 	defer span.End()
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
+		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "SIWE Custom Link")
+		defer span.End()
 		in, err := linkWithSIWE(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
@@ -124,6 +128,8 @@ func handleCustomLink(
 		return in, nil
 	}
 	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
+		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "Argus ID Custom Link")
+		defer span.End()
 		in, err := linkWithArgusID(ctx, logger, nk, in)
 		if err != nil {
 			span.RecordError(err)
