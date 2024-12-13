@@ -52,6 +52,10 @@ jobs:
             type=semver,pattern={{version}},value=${{ steps.semver.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.semver.outputs.tag }}
             type=sha
+      - name: Prepare arm64 tags
+        id: arm64_tags
+        run: |
+          echo "tags=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/$/-arm64/g')" >> $GITHUB_OUTPUT
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -70,5 +74,5 @@ jobs:
           target: nakama-arm
           platforms: linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}-arm64
+          tags: ${{ steps.arm64_tags.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}-arm64
