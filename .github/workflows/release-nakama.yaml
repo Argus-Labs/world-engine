@@ -56,8 +56,10 @@ jobs:
         id: arm64_tags
         run: |
           TAGS="${{ steps.meta.outputs.tags }}"
-          TAGS_ARM64="$(echo "$TAGS" | sed 's/$/-arm64/g')"
-          echo "tags=$TAGS_ARM64" >> $GITHUB_OUTPUT
+          TAGS_ARM64="$(echo "$TAGS" | grep -v 'sha-' | sed 's/$/-arm64/g')"
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS_ARM64" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
