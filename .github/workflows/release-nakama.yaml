@@ -55,7 +55,9 @@ jobs:
       - name: Prepare arm64 tags
         id: arm64_tags
         run: |
-          echo "tags=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/$/-arm64/g')" >> $GITHUB_OUTPUT
+          TAGS="${{ steps.meta.outputs.tags }}"
+          TAGS_ARM64="$(echo "$TAGS" | sed 's/$/-arm64/g')"
+          echo "tags=$TAGS_ARM64" >> $GITHUB_OUTPUT
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
