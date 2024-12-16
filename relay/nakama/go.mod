@@ -21,7 +21,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0
 	go.opentelemetry.io/otel/trace v1.32.0
 	google.golang.org/api v0.171.0
-	google.golang.org/grpc v1.68.1
+	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.2
 	pkg.world.dev/world-engine/assert v1.0.0
 	pkg.world.dev/world-engine/sign v1.1.0
