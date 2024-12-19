@@ -9,7 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/testsuite"
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
@@ -309,7 +309,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		err := cardinal.RegisterSystems(
 			world,
 			func(wCtx cardinal.WorldContext) error {
-				someTx, err := testutils.GetMessage[Msg, Result](world)
+				someTx, err := testsuite.GetMessage[Msg, Result](world)
 				return cardinal.EachMessage[Msg, Result](wCtx, func(tx cardinal.TxData[Msg]) (Result, error) {
 					someTx.SetResult(wCtx, tx.Hash, Result{})
 					return Result{}, err
@@ -323,7 +323,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		someTx, ok := world.GetMessageByFullName("game." + msgName)
 		assert.Assert(t, ok)
 		for i := 0; i < 3; i++ {
-			_ = tf.AddTransaction(someTx.ID(), Msg{}, testutils.UniqueSignature())
+			_ = tf.AddTransaction(someTx.ID(), Msg{}, testsuite.UniqueSignature())
 		}
 
 		for i := 0; i < 5; i++ {

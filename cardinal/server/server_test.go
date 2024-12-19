@@ -23,6 +23,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
+	"pkg.world.dev/world-engine/cardinal/testsuite"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -34,7 +35,7 @@ type MoveMsgInput struct {
 
 // Used for Registering message
 type MoveMessageOutput struct {
-	Location LocationComponent
+	Location testsuite.LocationComponent
 }
 
 type QueryLocationRequest struct {
@@ -42,7 +43,7 @@ type QueryLocationRequest struct {
 }
 
 type QueryLocationResponse struct {
-	LocationComponent
+	testsuite.LocationComponent
 }
 
 type ServerTestSuite struct {
@@ -83,10 +84,10 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.Require().True(ok)
 	s.runTx(personaTag, moveMessage, MoveMsgInput{Direction: "up"})
 	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
-	var loc LocationComponent
+	var loc testsuite.LocationComponent
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
-	s.Require().Equal(LocationComponent{0, 1}, loc)
+	s.Require().Equal(testsuite.LocationComponent{X: 0, Y: 1}, loc)
 }
 
 // TestGetFieldInformation tests the fields endpoint.
@@ -184,10 +185,10 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 
 	// check the component was successfully updated, despite not using any signature data.
 	res = s.fixture.Post("query/game/location", QueryLocationRequest{Persona: persona})
-	var loc LocationComponent
+	var loc testsuite.LocationComponent
 	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
-	s.Require().Equal(LocationComponent{0, 1}, loc)
+	s.Require().Equal(testsuite.LocationComponent{X: 0, Y: 1}, loc)
 }
 
 func (s *ServerTestSuite) TestQueryCustomGroup() {
@@ -362,7 +363,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.fixture = cardinal.NewTestFixture(s.T(), nil, opts...)
 	s.world = s.fixture.World
-	err := cardinal.RegisterComponent[LocationComponent](s.world)
+	err := cardinal.RegisterComponent[testsuite.LocationComponent](s.world)
 	s.Require().NoError(err)
 	err = cardinal.RegisterMessage[MoveMsgInput, MoveMessageOutput](s.world, moveMsgName)
 	s.Require().NoError(err)
@@ -372,14 +373,14 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 				posID, exists := personaToPosition[tx.Tx.PersonaTag]
 				if !exists {
-					id, err := cardinal.Create(context, LocationComponent{})
+					id, err := cardinal.Create(context, testsuite.LocationComponent{})
 					s.Require().NoError(err)
 					personaToPosition[tx.Tx.PersonaTag] = id
 					posID = id
 				}
-				var resultLocation LocationComponent
-				err = cardinal.UpdateComponent[LocationComponent](context, posID,
-					func(loc *LocationComponent) *LocationComponent {
+				var resultLocation testsuite.LocationComponent
+				err = cardinal.UpdateComponent[testsuite.LocationComponent](context, posID,
+					func(loc *testsuite.LocationComponent) *testsuite.LocationComponent {
 						switch tx.Msg.Direction {
 						case "up":
 							loc.Y++
@@ -406,7 +407,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)
 			}
-			loc, err := cardinal.GetComponent[LocationComponent](wCtx, locID)
+			loc, err := cardinal.GetComponent[testsuite.LocationComponent](wCtx, locID)
 			s.Require().NoError(err)
 
 			return &QueryLocationResponse{*loc}, nil
@@ -437,20 +438,12 @@ func (s *ServerTestSuite) CreateRandomPersona() string {
 	return persona
 }
 
-type LocationComponent struct {
-	X, Y uint64
-}
-
-func (LocationComponent) Name() string {
-	return "location"
-}
-
 func (s *ServerTestSuite) TestCQL() {
 	s.setupWorld()
 	s.fixture.DoTick()
 
 	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	_, err := cardinal.CreateMany(wCtx, 10, testsuite.LocationComponent{})
 	assert.NilError(s.T(), err)
 
 	s.fixture.DoTick()
@@ -467,7 +460,7 @@ func (s *ServerTestSuite) TestCQL_InvalidFormat() {
 	s.fixture.DoTick()
 
 	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	_, err := cardinal.CreateMany(wCtx, 10, testsuite.LocationComponent{})
 	assert.NilError(s.T(), err)
 
 	s.fixture.DoTick()
@@ -483,7 +476,7 @@ func (s *ServerTestSuite) TestCQL_NonExistentComponent() {
 	s.fixture.DoTick()
 
 	wCtx := cardinal.NewWorldContext(s.world)
-	_, err := cardinal.CreateMany(wCtx, 10, LocationComponent{})
+	_, err := cardinal.CreateMany(wCtx, 10, testsuite.LocationComponent{})
 	assert.NilError(s.T(), err)
 
 	s.fixture.DoTick()

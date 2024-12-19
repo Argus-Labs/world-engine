@@ -100,17 +100,24 @@ func WithStoreManager(s gamestate.Manager) WorldOption {
 	}
 }
 
-// WithMockRedis runs the World with an embedded miniredis instance on port 6379.
+// WithMockRedis runs the World with an embedded miniredis instance.
+// If REDIS_ADDRESS is already set, it will use that address instead of starting a new instance.
 func WithMockRedis() WorldOption {
-	// Start a miniredis instance on port 6379.
+	// Check if REDIS_ADDRESS is already set
+	if addr := os.Getenv("REDIS_ADDRESS"); addr != "" {
+		log.Debug().Msgf("Using existing Redis at %s", addr)
+		return WorldOption{}
+	}
+
+	// Start a new miniredis instance
 	mr := miniredis.NewMiniRedis()
-	err := mr.StartAddr(":6379")
+	err := mr.Start()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to start miniredis")
 	}
 	log.Debug().Msgf("miniredis started at %s", mr.Addr())
 
-	// Set the REDIS_ADDRESS environment variable to the miniredis address.
+	// Set the REDIS_ADDRESS environment variable to the miniredis address
 	err = os.Setenv("REDIS_ADDRESS", mr.Addr())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to set REDIS_ADDRESS")
