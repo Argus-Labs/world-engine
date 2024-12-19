@@ -99,6 +99,19 @@
             "cardinal/game/world/api-reference"
           ]
         },
+        {
+          "group": "Plugin System",
+          "pages": [
+            "cardinal/plugins/introduction"
+          ]
+        },
+        {
+          "group": "Advanced Tutorials",
+          "pages": [
+            "cardinal/tutorials/plugin-development",
+            "cardinal/tutorials/world-lifecycle"
+          ]
+        },
         "cardinal/game/component",
         {
           "group": "System",
