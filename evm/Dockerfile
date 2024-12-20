@@ -1,7 +1,10 @@
 ################################
 # Build Image
 ################################
-FROM golang:1.22.1-bullseye AS build
+FROM --platform=$TARGETPLATFORM golang:1.22.1-bullseye AS build
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 WORKDIR /go/src/app/
 
@@ -21,7 +24,7 @@ RUN CGO_ENABLED=1 make install # Binary will be in /go/bin/world-evm
 ################################
 # Runtime Image
 ################################
-FROM ubuntu:18.04 AS runtime
+FROM --platform=$TARGETPLATFORM ubuntu:18.04 AS runtime
 
 # Expose ports needed by the World EVM
 EXPOSE 26656 26657 1317 9090 8546 8545 9601

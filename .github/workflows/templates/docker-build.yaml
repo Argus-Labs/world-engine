@@ -1,0 +1,55 @@
+name: Docker Build Template
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        required: true
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      platforms:
+        required: false
+        type: string
+        default: 'linux/amd64,linux/arm64'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_PREFIX: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: namespacelabs/nscloud-setup@v0
+      - uses: namespacelabs/nscloud-setup-buildx-action@v0
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: semver
+        run: |
+          echo "tag=$(echo ${GITHUB_REF#refs/tags/v})" >> $GITHUB_OUTPUT
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ inputs.component }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.semver.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.semver.outputs.tag }}
+            type=sha
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
