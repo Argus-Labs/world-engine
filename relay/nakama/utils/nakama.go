@@ -22,7 +22,7 @@ func GetUserID(ctx context.Context) (string, error) {
 	return userID, nil
 }
 
-// MarshalResult marshals the given result and converts any marshalling error into a "Internal" RPC error.
+// MarshalResult marshals the given result and converts any marshalling error into an "Internal" RPC error.
 func MarshalResult(logger runtime.Logger, result any) (string, error) {
 	bz, err := json.Marshal(result)
 	if err != nil {
