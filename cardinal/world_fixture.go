@@ -163,7 +163,7 @@ func (t *TestFixture) Post(path string, payload any) *http.Response {
 	return resp
 }
 
-// Get executes a http GET request to this TestFixture's cardinal server.
+// Get executes an http GET request to this TestFixture's cardinal server.
 func (t *TestFixture) Get(path string) *http.Response {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(strings.Trim(path, "/")),
 		nil)
