@@ -41,7 +41,7 @@ func TestPersonaTagIsValid(t *testing.T) {
 }
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
-	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
+	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with an engine.
 	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
@@ -125,7 +125,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 }
 
 func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
-	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
+	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with an engine.
 	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
@@ -140,7 +140,7 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 }
 
 func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
-	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
+	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with an engine.
 	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
@@ -154,7 +154,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 }
 
 func TestCanAuthorizeAddress(t *testing.T) {
-	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
+	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with an engine.
 	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
@@ -192,7 +192,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 }
 
 func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
-	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
+	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with an engine.
 	tf := NewTestFixture(t, nil)
 	world := tf.World
 	tf.StartWorld()
