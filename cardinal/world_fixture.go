@@ -146,7 +146,7 @@ func (t *TestFixture) httpURL(path string) string {
 	return fmt.Sprintf("http://%s/%s", t.BaseURL, path)
 }
 
-// Post executes a http POST request to this TextFixture's cardinal server.
+// Post executes an http POST request to this TextFixture's cardinal server.
 func (t *TestFixture) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t, err)
