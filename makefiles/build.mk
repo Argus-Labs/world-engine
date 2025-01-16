@@ -1,5 +1,8 @@
 SHELL := /bin/bash
 
+# Use PWD instead of CURDIR for better cross-platform compatibility
+ROOT_DIR := $(shell pwd)
+
 rift:
 	cd rift/proto && buf generate
 .PHONY: rift
@@ -22,13 +25,13 @@ world-docs:
 	cd docs && mintlify dev
 
 # Find all directories containing go.mod files
-GO_MOD_DIRS := $(shell find . -name "go.mod" -exec dirname {} \;)
+GO_MOD_DIRS := $(shell find . -type f -name "go.mod" -exec dirname {} \;)
 
-# Runs go generate ./... in all go.mod directories.
+# Runs go generate ./... in all go.mod directories
 generate:
 	@echo "Running go generate..."
 	@for dir in $(GO_MOD_DIRS); do \
-		(cd $$dir && go generate ./...); \
+		(cd "$$dir" && go generate ./...); \
 	done
 	@echo "Go generate completed successfully."
 

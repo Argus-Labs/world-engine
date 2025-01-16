@@ -7,8 +7,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel/codes"
-	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
-	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 // The world tick must be updated in the same atomic transaction as all the state changes
@@ -37,7 +35,7 @@ func (m *EntityCommandBuffer) GetLastFinalizedTick() (uint64, error) {
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
 // to the DB.
 func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
-	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "ecb.tick.finalize")
+	ctx, span := m.tracer.Start(ctx, "ecb.tick.finalize")
 	defer span.End()
 
 	pipe, err := m.makePipeOfRedisCommands(ctx)

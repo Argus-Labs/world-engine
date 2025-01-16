@@ -82,7 +82,7 @@ This method has no parameters.
 The WithReceiptHistorySize option specifies the number of ticks for which the World object retains receipts. For instance, at tick 40 with a receipt history size of 5, the World stores receipts from ticks 35 to 39. Upon reaching tick 41, it will hold receipts for ticks 36 to 40. If this option remains unset, it defaults to a history size of 10. Game clients can get receipts via the [/query/receipts/list](/cardinal/rest/query-receipts-list) endpoint. Nakama also uses this endpoint to transmit receipts to listening clients.
 
 ```go
-func WithReceiptHistorySize(size int) Option
+func WithReceiptHistorySize(size int) WorldOption
 ```
 
 ##### Parameters
@@ -90,6 +90,10 @@ func WithReceiptHistorySize(size int) Option
 | Parameter | Type     | Description                                           |
 |-----------|----------|-------------------------------------------------------|
 | size      | int      | The size of the receipt history to be set for World.  |
+
+<Warning>
+    Setting a very large receipt history size may impact memory usage and performance. Choose a size that balances your game's needs with resource constraints.
+</Warning>
 
 #### WithStoreManager
 
@@ -123,13 +127,24 @@ func WithTickChannel(ch <-chan time.Time) WorldOption
 ##### Example
 
 ```go
-// option to make ticks happen every 500 milliseconds.
+// Example 1: Set tick rate to 500ms (2 ticks per second)
 opt := WithTickChannel(time.Tick(500*time.Millisecond))
+
+// Example 2: Set tick rate to 50ms (20 ticks per second) for fast-paced games
+opt := WithTickChannel(time.Tick(50*time.Millisecond))
+
+// Example 3: Use a custom channel for manual tick control in tests
+tickCh := make(chan time.Time)
+opt := WithTickChannel(tickCh)
 ```
+
+<Warning>
+    Choose your tick rate carefully based on your game's requirements. Higher tick rates provide smoother updates but require more processing power and network bandwidth.
+</Warning>
 
 #### WithTickDoneChannel
 
-The `WithTickDone` option sets a channel that will receive the just-completed tick number each time a tick completes execution. All systems are guaranteed to have been called when a message appears on this channel. This is useful in tests (in conjunction with the WithTickChannel) to make sure your user-defined Systems have fully executed before checking expectations.
+The `WithTickDoneChannel` option sets a channel that will receive the just-completed tick number each time a tick completes execution. All systems are guaranteed to have been called when a message appears on this channel. This is particularly useful in tests to ensure your systems have fully executed before checking expectations.
 
 ```go
 func WithTickDoneChannel(ch chan<- uint64) WorldOption
@@ -141,7 +156,35 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption
 |-----------|-----------------|------------------------------------------------------------|
 | ch        | `chan<- uint64` | The channel that will be notified at the end of each tick. |
 
-#### WithMessageExpiration
+##### Example
+```go
+// Example usage in tests
+func TestGameSystem(t *testing.T) {
+    tickCh := make(chan time.Time)
+    doneCh := make(chan uint64)
+
+    world, _ := cardinal.NewWorld(
+        WithTickChannel(tickCh),
+        WithTickDoneChannel(doneCh),
+    )
+
+    // Start game in a goroutine
+    go world.StartGame()
+
+    // Trigger a tick
+    tickCh <- time.Now()
+
+    // Wait for tick to complete
+    <-doneCh
+
+    // Now safe to check game state
+    // Your test assertions here...
+}
+```
+
+<Tip>
+    The WithTickDoneChannel is essential for writing deterministic tests. Always wait for the done signal before making assertions about game state changes.
+</Tip>#### WithMessageExpiration
 
 The `WithMessageExpiration` option controls how long messages will live past their creation time on the sender before they are considered to be expired and will not be processed. Default is 10 seconds. For longer expiration times you may also need to set a larger hash cache size using the `WithHashCacheSize` option. This setting is ignored if the DisableSignatureVerification option is used. **NOTE**: this means that the real time clock for the sender and receiver must be synchronized
 
@@ -421,16 +464,3 @@ func (w *World) StartGame() error
 | Type   | Description                                              |
 |--------|----------------------------------------------------------|
 | error  | An error indicating any issues when starting the game.   |
-
-## Environment Variables
-
-| Env Variable                 | Default          | Description                                                                                                                                                     |
-|------------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| CARDINAL_MODE                | "development"    | One of "production" or "development". Dev mode, ideal for local development, has relaxed security. Production mode is required for router and EVM functionality |
-| CARDINAL_NAMESPACE           | "world-1"        | The cardinal namespace; must not be the default value in "production" mode.                                                                                     |
-| CARDINAL_LOG_LEVEL           | "info"           | The zerolog log level to emit. Values include "debug", "info", "warn", and "error".                                                                             |
-| BASE_SHARD_SEQUENCER_ADDRESS | ""               | The address of the base shard’s router service that handles sequencing game shard txs.                                                                          |
-| REDIS_ADDRESS                | "localhost:6379" | The URL of a redis instance to use for persistent storage.                                                                                                      |
-| REDIS_PASSWORD               | ""               | The password for the redis instance.                                                                                                                            |
-| STATSD_ADDRESS               | "localhost:8125" | The address of a statsd metric agent that will collect stats from cardinal.                                                                                     |
-| TRACE_ADDRESS                | ""               | The address of an agent that supports the collection of traces (e.g. a DataDog agent)                                                                           |

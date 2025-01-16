@@ -1,3 +1,5 @@
+# Use PWD instead of CURDIR for better cross-platform compatibility
+ROOT_DIR := $(shell pwd)
 
 .PHONY: tag tag-cardinal tag-sign tag-nakama
 
@@ -5,7 +7,7 @@
 # a best-guess about the next logical version number, applies the tag to
 # a git commit, and pushed the tag to origin.
 tag:
-	@scripts/tag.sh
+	@bash "$(ROOT_DIR)/scripts/tag.sh"
 
 tag-cardinal:
 	@$(MAKE) tag TAG_PREFIX=cardinal/v

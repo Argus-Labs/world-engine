@@ -45,8 +45,12 @@ services:
       - "/bin/sh"
       - "-ecx"
       - >
-        /nakama/nakama migrate up --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
+        /nakama/nakama migrate up \
+          --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama && \
+        exec /nakama/nakama \
+          --config /nakama/data/local.yml \
+          --database.address root:${DB_PASSWORD:-development}@cockroachdb:26257/nakama \
+          --socket.outgoing_queue_size=${OUTGOING_QUEUE_SIZE:-64}
     expose:
       - "7349"
       - "7350"
@@ -124,10 +128,6 @@ services:
       - BASE_SHARD_SEQUENCER_ADDRESS=${BASE_SHARD_SEQUENCER_ADDRESS:-chain:9601}
       - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
       - TELEMETRY_TRACE_ENABLED=${TELEMETRY_TRACE_ENABLED:-false}
-      - TELEMETRY_PROFILER_ENABLED=${TELEMETRY_PROFILER_ENABLED:-false}
-      - DD_AGENT_HOST=datadog
-      - DD_ENV=local
-      - DD_SERVICE=world-engine-cardinal-local
     build:
       context: ./
       dockerfile: e2e/testgames/game/Dockerfile
@@ -163,10 +163,6 @@ services:
       - BASE_SHARD_SEQUENCER_ADDRESS=${BASE_SHARD_SEQUENCER_ADDRESS:-chain:9601}
       - BASE_SHARD_ROUTER_KEY=${BASE_SHARD_ROUTER_KEY:-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01}
       - TELEMETRY_TRACE_ENABLED=${TELEMETRY_TRACE_ENABLED:-false}
-      - TELEMETRY_PROFILER_ENABLED=${TELEMETRY_PROFILER_ENABLED:-false}
-      - DD_AGENT_HOST=datadog
-      - DD_ENV=local
-      - DD_SERVICE=world-engine-cardinal-local
     build:
       context: ./
       dockerfile: e2e/testgames/game/Dockerfile
@@ -208,7 +204,7 @@ services:
       - NAKAMA_ADDRESS=http://nakama:7350
     networks:
       - world-engine
-  
+
   jaeger:
     container_name: jaeger
     image: jaegertracing/all-in-one:latest
@@ -221,21 +217,9 @@ services:
     networks:
       - world-engine
 
-  datadog:
-    image: datadog/agent:7
-    pid: host
-    environment:
-      - DD_API_KEY=${DD_API_KEY:-}
-      - DD_SITE=us3.datadoghq.com
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /proc/:/host/proc/:ro
-      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
-    networks:
-      - world-engine
-
 volumes:
   data:
+
 
 networks:
   world-engine:

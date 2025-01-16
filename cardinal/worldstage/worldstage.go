@@ -51,7 +51,7 @@ func (m *Manager) CompareAndSwap(oldStage, newStage Stage) (swapped bool) {
 }
 
 func (m *Manager) Current() Stage {
-	return m.current.Load().(Stage)
+	return m.current.Load().(Stage) //nolint:errcheck // Will never have issues here
 }
 
 func (m *Manager) Store(newStage Stage) {

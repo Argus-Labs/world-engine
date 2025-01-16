@@ -17,8 +17,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
-	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
-	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/filter"
@@ -105,8 +103,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Initialize telemetry
 	var tm *telemetry.Manager
-	if cfg.TelemetryTraceEnabled || cfg.TelemetryProfilerEnabled {
-		tm, err = telemetry.New(cfg.TelemetryTraceEnabled, cfg.TelemetryProfilerEnabled)
+	if cfg.TelemetryTraceEnabled {
+		tm, err = telemetry.New(cfg.TelemetryTraceEnabled, cfg.CardinalNamespace)
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create telemetry manager")
 		}
@@ -200,7 +198,7 @@ func (w *World) CurrentTick() uint64 {
 // doTick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each system in turn with the snapshot of transactions.
 func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
-	ctx, span := w.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "world.tick")
+	ctx, span := w.tracer.Start(ctx, "world.tick")
 	defer span.End()
 
 	startTime := time.Now()
@@ -270,7 +268,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	}
 
 	log.Info().
-		Int("tick", int(w.CurrentTick()-1)).
+		Int64("tick", int64(w.CurrentTick()-1)).
 		Str("duration", time.Since(startTime).String()).
 		Int("tx_count", txPool.GetAmountOfTxs()).
 		Msg("Tick completed")
@@ -589,8 +587,7 @@ func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
 }
 
 func (w *World) broadcastTickResults(ctx context.Context) {
-	_, span := w.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()),
-		"world.tick.broadcast_tick_results")
+	_, span := w.tracer.Start(ctx, "world.tick.broadcast_tick_results")
 	defer span.End()
 
 	// TODO(scott): this "- 1" is hacky because the receipt history manager doesn't allow you to get receipts for the

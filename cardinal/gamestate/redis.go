@@ -8,8 +8,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	ddotel "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/opentelemetry"
-	ddtracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -126,7 +124,7 @@ func (r *RedisStorage) StartTransaction(_ context.Context) (Transaction[string],
 }
 
 func (r *RedisStorage) EndTransaction(ctx context.Context) error {
-	ctx, span := r.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "redis.transaction.end")
+	ctx, span := r.tracer.Start(ctx, "redis.transaction.end")
 	defer span.End()
 
 	pipeline, ok := r.currentClient.(redis.Pipeliner)
@@ -150,7 +148,7 @@ func (r *RedisStorage) EndTransaction(ctx context.Context) error {
 // makePipeOfRedisCommands return a pipeliner with all pending state changes to redis ready to be committed in an atomic
 // transaction. If an error is returned, no redis changes will have been made.
 func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (PrimitiveStorage[string], error) {
-	ctx, span := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, ddtracer.Measured()), "ecb.tick.finalize.pipe_make")
+	ctx, span := m.tracer.Start(ctx, "ecb.tick.finalize.pipe_make")
 	defer span.End()
 
 	pipe, err := m.dbStorage.StartTransaction(ctx)
@@ -179,15 +177,14 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Prim
 	}
 
 	for _, operation := range operations {
-		ctx, pipeSpan := m.tracer.Start(ddotel.ContextWithStartOptions(ctx, //nolint:spancheck // false positive
-			ddtracer.Measured()),
-			"tick.span.finalize.pipe_make."+operation.name)
+		ctx, pipeSpan := m.tracer.Start(ctx, "tick.span.finalize.pipe_make."+operation.name)
 		if err := operation.method(ctx, pipe); err != nil {
 			span.SetStatus(codes.Error, eris.ToString(err, true))
 			span.RecordError(err)
 			pipeSpan.SetStatus(codes.Error, eris.ToString(err, true))
 			pipeSpan.RecordError(err)
-			return nil, eris.Wrapf(err, "failed to run step %q", operation.name) //nolint:spancheck // false positive
+			pipeSpan.End()
+			return nil, eris.Wrapf(err, "failed to run step %q", operation.name)
 		}
 		pipeSpan.End()
 	}

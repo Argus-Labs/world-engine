@@ -357,7 +357,14 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 func doTickCapturePanic(ctx context.Context, world *World) (err error) {
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			err = fmt.Errorf(panicValue.(string))
+			switch v := panicValue.(type) {
+			case string:
+				err = fmt.Errorf("%s", v)
+			case error:
+				err = v
+			default:
+				err = fmt.Errorf("%v", v)
+			}
 		}
 	}()
 	world.tickTheEngine(ctx, nil)

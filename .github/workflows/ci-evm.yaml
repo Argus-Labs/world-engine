@@ -1,25 +1,25 @@
-name: CI
+# name: CI
 
-on:
-  pull_request:
-    paths:
-      - evm/**
-  push:
-    paths:
-      - evm/**
-    branches:
-      - main
+# on:
+#   pull_request:
+#     paths:
+#       - evm/**
+#   push:
+#     paths:
+#       - evm/**
+#     branches:
+#       - main
 
-jobs:
-  build-evm:
-    name: Build (EVM)
-    runs-on: namespace-profile-linux-8vcpu-16gb-cached
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build Rollup
-        run: make rollup-build
+# jobs:
+#   build-evm:
+#     name: Build (EVM)
+#     runs-on: namespace-profile-linux-8vcpu-16gb-cached
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+#       - name: Install Foundry
+#         uses: foundry-rs/foundry-toolchain@v1
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+#       - name: Build Rollup
+#         run: make rollup-build

@@ -8,6 +8,7 @@ import (
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 
 	"pkg.world.dev/world-engine/relay/nakama/siwe"
@@ -23,7 +24,7 @@ func validateSIWE(signer, message, signature string) (isValidationRequest bool, 
 		errs = append(errs, eris.Wrap(siwe.ErrMissingSignature, "signature field must be set"))
 	}
 	if signature != "" && message == "" {
-		errs = append(errs, eris.Wrap(siwe.ErrMissingMessage, "signature field must be set"))
+		errs = append(errs, eris.Wrap(siwe.ErrMissingMessage, "message field must be set"))
 	}
 	if len(errs) > 0 {
 		return false, errors.Join(errs...)
@@ -40,6 +41,8 @@ func processSIWE(
 	nk runtime.NakamaModule,
 	signerAddress, signature, message string,
 ) error {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("Validating SIWE request")
 	isValidationRequest, err := validateSIWE(signerAddress, message, signature)
 	if err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "invalid vars")
@@ -47,6 +50,7 @@ func processSIWE(
 	}
 
 	if !isValidationRequest {
+		span.AddEvent("Generating SIWE message to sign")
 		// The signature and message is empty. Generate a new SIWE message for the user.
 		resp, err := siwe.GenerateNewSIWEMessage(signerAddress)
 		if err != nil {
@@ -54,6 +58,7 @@ func processSIWE(
 			return err
 		}
 
+		span.AddEvent("Marshalling SIWE message into JSON")
 		bz, err := json.Marshal(resp)
 		if err != nil {
 			_, err = utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
@@ -64,6 +69,7 @@ func processSIWE(
 		return runtime.NewError(string(bz), int(codes.Unauthenticated))
 	}
 
+	span.AddEvent("Validating SIWE signature")
 	// The user has provided a signature and a message. Attempt to authenticate the user.
 	if err := siwe.ValidateSignature(ctx, nk, signerAddress, message, signature); err != nil {
 		_, err = utils.LogErrorWithMessageAndCode(

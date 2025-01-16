@@ -46,7 +46,7 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOptio
 		redis = miniredis.RunT(t)
 	}
 
-	ports, err := findOpenPorts(2) //nolint:gomnd
+	ports, err := findOpenPorts(2) //nolint:mnd
 	assert.NilError(t, err)
 
 	cardinalPort := ports[0]
@@ -110,7 +110,7 @@ func NewTestFixture(t testing.TB, redis *miniredis.Miniredis, opts ...WorldOptio
 // be registered before calling this function.
 func (t *TestFixture) StartWorld() {
 	t.startOnce.Do(func() {
-		timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
+		timeout := time.After(5 * time.Second) //nolint:mnd // fine for now.
 		startupError := make(chan error)
 		go func() {
 			// StartGame is meant to block forever, so any return value will be non-nil and cause for concern.
@@ -127,7 +127,7 @@ func (t *TestFixture) StartWorld() {
 
 				t.Fatal("timeout while waiting for game to start")
 			default:
-				time.Sleep(10 * time.Millisecond) //nolint:gomnd // its for testing its ok.
+				time.Sleep(10 * time.Millisecond) //nolint:mnd // its for testing its ok.
 			}
 		}
 		t.Cleanup(t.doCleanup)
@@ -264,7 +264,7 @@ func findOpenPort() (string, error) {
 		if err == nil {
 			return port, nil
 		}
-		time.Sleep(10 * time.Millisecond) //nolint:gomnd // it's fine.
+		time.Sleep(10 * time.Millisecond) //nolint:mnd // it's fine.
 	}
 
 	return "", eris.New("failed to find an open port")
