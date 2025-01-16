@@ -49,7 +49,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// NewHistory creates a object that can track transaction receipts over a number of ticks.
+// NewHistory creates an object that can track transaction receipts over a number of ticks.
 func NewHistory(currentTick uint64, ticksToStore int) *History {
 	// Add an extra tick for the "current" tick.
 	ticksToStore++
