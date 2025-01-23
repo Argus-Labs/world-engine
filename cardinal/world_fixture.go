@@ -245,7 +245,7 @@ func findOpenPort() (string, error) {
 			return "", eris.Wrap(err, "failed to initialize listener")
 		}
 
-		// Get the autoamtically assigned port number from the listener
+		// Get the automatically assigned port number from the listener
 		tcpAddr, err := net.ResolveTCPAddr(l.Addr().Network(), l.Addr().String())
 		if err != nil {
 			return "", eris.Wrap(err, "failed to resolve address")
