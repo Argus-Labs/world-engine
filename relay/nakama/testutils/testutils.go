@@ -155,7 +155,7 @@ func MockMatchWriteKey(key string) interface{} {
 //
 // This Fake implements the atomic guarantees of StorageRead and StorageWrite.
 // In addition, Version field is populated during StorageRead which allows for compare-and-swap writes.
-type FakeNakamaModule struct { //nolint:decorder
+type FakeNakamaModule struct { //nolint:decoder
 	runtime.NakamaModule
 	sync.Mutex
 	versionItr   int
