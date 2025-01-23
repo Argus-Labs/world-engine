@@ -89,7 +89,7 @@ func New(namespace, sequencerAddr, routerKey string, world Provider, opts ...Opt
 		grpc.WithPerRPCCredentials(credentials.NewTokenCredential(routerKey)),
 	)
 	if err != nil {
-		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
+		return nil, eris.Wrapf(err, "error dialing shard sequencer address at %q", sequencerAddr)
 	}
 	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
 
