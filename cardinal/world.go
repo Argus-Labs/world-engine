@@ -354,7 +354,7 @@ func (w *World) StartGame() error {
 		return w.server.Serve(ctx)
 	})
 	if err := g.Wait(); err != nil {
-		return eris.Wrap(err, "error occured while running cardinal")
+		return eris.Wrap(err, "error occurred while running cardinal")
 	}
 
 	return nil
