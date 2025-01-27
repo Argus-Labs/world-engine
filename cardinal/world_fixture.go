@@ -207,7 +207,7 @@ func findOpenPorts(amount int) ([]string, error) {
 	for i := 0; i < amount; i++ {
 		var found bool
 
-		// Try to find a random port, retying if it turns out to be a duplicate in list of ports up to 10 times
+		// Try to find a random port, retrying if it turns out to be a duplicate in list of ports up to 10 times
 		for retries := 10; retries > 0; retries-- {
 			port, err := findOpenPort()
 			if err != nil {
