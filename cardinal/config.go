@@ -47,6 +47,7 @@ var (
 		BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
 		BaseShardRouterKey:        "",
 		TelemetryTraceEnabled:     false,
+		CardinalTickRate:          0,
 	}
 )
 
@@ -77,6 +78,9 @@ type WorldConfig struct {
 
 	// TelemetryTraceEnabled When true, Cardinal will collect OpenTelemetry traces
 	TelemetryTraceEnabled bool `mapstructure:"TELEMETRY_TRACE_ENABLED"`
+
+	// CardinalTickRate The number of ticks per second
+	CardinalTickRate uint64 `mapstructure:"CARDINAL_TICK_RATE"`
 }
 
 func loadWorldConfig() (*WorldConfig, error) {

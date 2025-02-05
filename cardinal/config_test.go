@@ -36,6 +36,7 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 		RedisPassword:             "bar",
 		BaseShardSequencerAddress: "localhost:8080",
 		BaseShardRouterKey:        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01",
+		CardinalTickRate:          10,
 	}
 
 	// Set env vars to target config values
@@ -47,7 +48,7 @@ func TestWorldConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
 	t.Setenv("BASE_SHARD_ROUTER_KEY", wantCfg.BaseShardRouterKey)
-
+	t.Setenv("CARDINAL_TICK_RATE", strconv.FormatUint(wantCfg.CardinalTickRate, 10))
 	gotCfg, err := loadWorldConfig()
 	assert.NilError(t, err)
 
