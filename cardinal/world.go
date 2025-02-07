@@ -179,6 +179,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		}
 	}
 
+	// Set tick rate if provided
+	// it will be overridden by WithTickChannel option if provided
+	if cfg.CardinalTickRate > 0 {
+		world.tickChannel = time.Tick(time.Second / time.Duration(cfg.CardinalTickRate)) //nolint:staticcheck // its ok.
+	}
+
 	// Apply options
 	for _, opt := range cardinalOptions {
 		opt(world)
