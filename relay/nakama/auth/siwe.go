@@ -97,7 +97,7 @@ func authWithSIWE(
 	}
 
 	// The user has successfully been authenticated
-	return in, err
+	return in, nil
 }
 
 func linkWithSIWE(
@@ -116,5 +116,5 @@ func linkWithSIWE(
 	}
 
 	// The user has successfully been authenticated
-	return in, err
+	return in, nil
 }
