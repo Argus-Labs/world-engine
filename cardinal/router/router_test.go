@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -110,7 +109,7 @@ func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 	name := "foobar"
 	provider.EXPECT().GetMessageByFullName(name).Return(msg, true).Times(1)
 
-	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
+	res, err := rtr.server.SendMessage(t.Context(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
 	assert.Equal(t, res.GetCode(), CodeUnsupportedMessage)
 }
@@ -119,14 +118,14 @@ func TestRouter_SendMessage_FailedDecode(t *testing.T) {
 	rtr, provider := getTestRouterAndProvider(t)
 	msg := &mockMsg{
 		evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
-			return nil, fmt.Errorf("some error")
+			return nil, errors.New("some error")
 		},
 	}
 	name := "foo"
 
 	provider.EXPECT().GetMessageByFullName(name).Return(msg, true).Times(1)
 
-	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
+	res, err := rtr.server.SendMessage(t.Context(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
 	assert.Equal(t, res.GetCode(), CodeInvalidFormat)
 }
@@ -143,10 +142,10 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 	persona := "tyler"
 
 	provider.EXPECT().GetMessageByFullName(name).Return(msg, true).Times(1)
-	provider.EXPECT().GetSignerComponentForPersona(persona).Return(nil, fmt.Errorf("not found")).Times(1)
+	provider.EXPECT().GetSignerComponentForPersona(persona).Return(nil, errors.New("not found")).Times(1)
 
 	res, err := router.server.SendMessage(
-		context.Background(),
+		t.Context(),
 		&routerv1.SendMessageRequest{MessageId: name, PersonaTag: persona, Sender: sender},
 	)
 	assert.NilError(t, err)
@@ -182,7 +181,7 @@ func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().ConsumeEVMMsgResult(evmTxHash).Return(nil, nil, "", false).Times(1)
 
-	res, err := router.server.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(t.Context(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.GetCode(), CodeNoResult)
 }
@@ -216,7 +215,7 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().ConsumeEVMMsgResult(evmTxHash).Return([]byte("response"), nil, evmTxHash, true).Times(1)
 
-	res, err := router.server.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(t.Context(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.GetCode(), CodeSuccess)
 }
@@ -247,7 +246,7 @@ func TestRouter_SendMessage_NoAuthorizedAddress(t *testing.T) {
 		Return(&component.SignerComponent{AuthorizedAddresses: []string{"bogus"}}, nil).
 		Times(1)
 
-	res, err := router.server.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(t.Context(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.GetCode(), CodeUnauthorized)
 }
@@ -284,7 +283,7 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 		Return([]byte("response"), []error{errors.New("oh no"), errors.New("oh no1")}, evmTxHash, true).
 		Times(1)
 
-	res, err := router.server.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(t.Context(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.GetCode(), CodeTxFailed)
 }
@@ -295,7 +294,7 @@ func TestRegisterCalledWithCorrectParams(t *testing.T) {
 	rtr.serverAddr = "meow:9000"
 	txHandler := &fakeTxHandler{}
 	rtr.ShardSequencer = txHandler
-	err := rtr.RegisterGameShard(context.Background())
+	err := rtr.RegisterGameShard(t.Context())
 	assert.NilError(t, err)
 
 	assert.Equal(t, txHandler.req.GetNamespace(), rtr.namespace)

@@ -27,12 +27,12 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// Used for Registering message
+// Used for Registering message.
 type MoveMsgInput struct {
 	Direction string
 }
 
-// Used for Registering message
+// Used for Registering message.
 type MoveMessageOutput struct {
 	Location LocationComponent
 }
@@ -422,7 +422,7 @@ func (s *ServerTestSuite) readBody(body io.ReadCloser) string {
 	return string(buf)
 }
 
-// CreateRandomPersona Creates a random persona and returns it as a string
+// CreateRandomPersona Creates a random persona and returns it as a string.
 func (s *ServerTestSuite) CreateRandomPersona() string {
 	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))

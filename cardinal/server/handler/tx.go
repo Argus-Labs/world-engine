@@ -12,7 +12,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// PostTransactionResponse is the HTTP response for a successful transaction submission
+// PostTransactionResponse is the HTTP response for a successful transaction submission.
 type PostTransactionResponse struct {
 	TxHash string
 	Tick   uint64
@@ -63,8 +63,8 @@ func PostTransaction(
 		// there's a special case for the CreatePersona message
 		var signerAddress string
 		if msgType.Name() == personaMsg.CreatePersonaMessageName {
-			createPersonaMsg, ok := msg.(personaMsg.CreatePersona)
-			if !ok {
+			createPersonaMsg, isCreatePersona := msg.(personaMsg.CreatePersona)
+			if !isCreatePersona {
 				return fiber.NewError(fiber.StatusInternalServerError, "Internal Server Error - bad message type")
 			}
 			signerAddress = createPersonaMsg.SignerAddress
@@ -147,7 +147,7 @@ func extractTx(ctx *fiber.Ctx, validator *validator.SignatureValidator) (*sign.T
 	return tx, nil
 }
 
-// turns the various errors into an appropriate HTTP result
+// turns the various errors into an appropriate HTTP result.
 func httpResultFromError(err error, isSignatureValidation bool) error {
 	log.Error(err) // log the private internal details
 	if eris.Is(err, validator.ErrDuplicateMessage) {

@@ -5,13 +5,13 @@ import (
 	"math/big"
 )
 
-type Tree struct {
+type Tree struct { //nolint:recvcheck
 	Nums  [10]int `json:"nums"`
 	Left  *Tree   `json:"left"`
 	Right *Tree   `json:"right"`
 }
 
-func (Tree) Name() string {
+func (t Tree) Name() string {
 	return "Tree"
 }
 

@@ -84,7 +84,7 @@ type World struct {
 	addChannelWaitingForNextTick chan chan struct{}
 }
 
-// NewWorld creates a new World object using Redis as the storage layer
+// NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, routerOptions, cardinalOptions := separateOptions(opts)
 
@@ -158,8 +158,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		tick:                         tick,
 		timestamp:                    new(atomic.Uint64),
 		tickResults:                  NewTickResults(tick.Load()),
-		tickChannel:                  time.Tick(time.Second), //nolint:staticcheck // its ok.
-		tickDoneChannel:              nil,                    // Will be injected via options
+		tickChannel:                  time.Tick(time.Second),
+		tickDoneChannel:              nil, // Will be injected via options
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 
@@ -182,7 +182,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	// Set tick rate if provided
 	// it will be overridden by WithTickChannel option if provided
 	if cfg.CardinalTickRate > 0 {
-		world.tickChannel = time.Tick(time.Second / time.Duration(cfg.CardinalTickRate)) //nolint:staticcheck // its ok.
+		world.tickChannel = time.Tick(time.Second / time.Duration(cfg.CardinalTickRate)) //nolint:gosec
 	}
 
 	// Apply options
@@ -274,7 +274,7 @@ func (w *World) doTick(ctx context.Context, timestamp uint64) (err error) {
 	}
 
 	log.Info().
-		Int64("tick", int64(w.CurrentTick()-1)).
+		Int64("tick", int64(w.CurrentTick()-1)). //nolint:gosec // G115: ignoring integer overflow conversion
 		Str("duration", time.Since(startTime).String()).
 		Int("tx_count", txPool.GetAmountOfTxs()).
 		Msg("Tick completed")
@@ -405,7 +405,7 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
 	// but this is the highest terminal point.
 	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
-	err := w.doTick(ctx, uint64(time.Now().UnixMilli()))
+	err := w.doTick(ctx, uint64(time.Now().UnixMilli())) //nolint:gosec // G115: ignoring integer overflow conversion
 	if err != nil {
 		bytes, errMarshal := json.Marshal(eris.ToJSON(err, true))
 		if errMarshal != nil {

@@ -69,13 +69,13 @@ func (m *queryManager) HandleQueryEVM(group string, name string, abiRequest []by
 	return q.handleQueryEVM(NewReadOnlyWorldContext(m.world), abiRequest)
 }
 
-// getQuery returns a query corresponding to the identifier with the format <group>/<name>.
+// getQuery returns a query corresponding to the identifier with the format <group>/<n>.
 func (m *queryManager) getQuery(group string, name string) (query, error) {
-	query, ok := m.registeredQueriesByGroup[group][name]
+	queryObj, ok := m.registeredQueriesByGroup[group][name]
 	if !ok {
 		return nil, types.ErrQueryNotFound
 	}
-	return query, nil
+	return queryObj, nil
 }
 
 func (m *queryManager) BuildQueryFields() []types.FieldDetail {

@@ -47,8 +47,7 @@ func NewEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress s
 	return res, nil
 }
 
-// connectWithRetry attempts to make a websocket connection. If Shutdown is called while this method is
-// running ErrEventHubIsShuttingDown will be returned
+// running ErrEventHubIsShuttingDown will be returned.
 func (eh *EventHub) connectWithRetry(logger runtime.Logger) error {
 	for tries := 1; ; tries++ {
 		if err := eh.establishConnection(); errors.Is(err, ErrEventHubIsShuttingDown) {

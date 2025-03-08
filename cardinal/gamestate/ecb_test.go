@@ -1,7 +1,6 @@
 package gamestate_test
 
 import (
-	"context"
 	"runtime"
 	"testing"
 	"time"
@@ -81,7 +80,7 @@ func init() {
 
 func TestCanCreateEntityAndSetComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	wantValue := Foo{99}
 
 	id, err := manager.CreateEntity(fooComp)
@@ -104,7 +103,7 @@ func TestCanCreateEntityAndSetComponent(t *testing.T) {
 
 func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	wantValue := Foo{99}
 
 	id, err := manager.CreateEntity(fooComp)
@@ -135,7 +134,7 @@ func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 
 func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ids, err := manager.CreateManyEntities(10, fooComp)
 	assert.NilError(t, err)
@@ -245,7 +244,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -572,7 +571,7 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	client := redis.NewClient(&options)
 	storage := gamestate.NewRedisPrimitiveStorage(client)
@@ -591,7 +590,7 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 // resources when processing the same amount of data.
 func TestFinalizeTickPerformanceIsConsistent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// CreateAndFinalizeEntities cardinal.Creates some entities and then calls FinalizeTick. It returns the amount
 	// of time it took to execute FinalizeTick and how many bytes of memory were allocated during the call.

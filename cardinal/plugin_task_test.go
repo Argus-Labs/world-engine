@@ -253,7 +253,7 @@ func TestPluginTask_ScheduleTimeTask(t *testing.T) {
 	}
 }
 
-// TestPluginTask_ScheduleTimeTask_Recovery tests that the task is recovered after a world restart
+// TestPluginTask_ScheduleTimeTask_Recovery tests that the task is recovered after a world restart.
 func TestPluginTask_ScheduleTimeTask_Recovery(t *testing.T) {
 	tf1 := cardinal.NewTestFixture(t, nil)
 	world1 := tf1.World
@@ -462,7 +462,7 @@ func TestPluginTask_ScheduleTickTask(t *testing.T) {
 	}
 }
 
-// TestPluginTask_ScheduleTickTask_Recovery tests that the task is recovered after a world restart
+// TestPluginTask_ScheduleTickTask_Recovery tests that the task is recovered after a world restart.
 func TestPluginTask_ScheduleTickTask_Recovery(t *testing.T) {
 	tf1 := cardinal.NewTestFixture(t, nil)
 	world1 := tf1.World

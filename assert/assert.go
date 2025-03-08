@@ -209,21 +209,21 @@ func NotContains(t testify.TestingT, s, contains interface{}, msgAndArgs ...inte
 }
 
 func Subset(t testify.TestingT, list, subset interface{}, msgAndArgs ...interface{}) (ok bool) {
-	if ht, ok := t.(helperT); ok {
+	if ht, isHelperT := t.(helperT); isHelperT {
 		ht.Helper()
 	}
 	return testify.Subset(t, list, subset, msgAndArgs...)
 }
 
 func NotSubset(t testify.TestingT, list, subset interface{}, msgAndArgs ...interface{}) (ok bool) {
-	if ht, ok := t.(helperT); ok {
+	if ht, isHelperT := t.(helperT); isHelperT {
 		ht.Helper()
 	}
 	return testify.NotSubset(t, list, subset, msgAndArgs...)
 }
 
 func ElementsMatch(t testify.TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
-	if ht, ok := t.(helperT); ok {
+	if ht, isHelperT := t.(helperT); isHelperT {
 		ht.Helper()
 	}
 	return testify.ElementsMatch(t, listA, listB, msgAndArgs...)

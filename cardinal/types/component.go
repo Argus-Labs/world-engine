@@ -61,7 +61,7 @@ func isSchemaValid(jsonSchemaBytes1 []byte, jsonSchemaBytes2 []byte) (bool, erro
 	return patch.String() == "", nil
 }
 
-// ConvertComponentMetadatasToComponents Cast an array of ComponentMetadata into an array of Component
+// ConvertComponentMetadatasToComponents Cast an array of ComponentMetadata into an array of Component.
 func ConvertComponentMetadatasToComponents(comps []ComponentMetadata) []Component {
 	ret := make([]Component, len(comps))
 	for i, comp := range comps {

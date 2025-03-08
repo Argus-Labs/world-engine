@@ -18,9 +18,7 @@ func MatchComponentMetadata(
 	return false
 }
 
-// CreateComponentMatcher creates a function given a slice of components. This function will
-// take a parameter that is a single component and return true if it is in the slice of components
-// or false otherwise
+// or false otherwise.
 func CreateComponentMatcher(components []types.Component) func(types.Component) bool {
 	mapStringToComponent := make(map[string]types.Component, len(components))
 	for _, component := range components {

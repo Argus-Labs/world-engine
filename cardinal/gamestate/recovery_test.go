@@ -1,7 +1,6 @@
 package gamestate_test
 
 import (
-	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -11,7 +10,7 @@ import (
 
 func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ids, err := manager.CreateManyEntities(50, fooComp)
 	assert.NilError(t, err)
@@ -29,7 +28,7 @@ func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
 
 func TestComponentSetsCanBeRecovered(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	firstID, err := manager.CreateEntity(barComp)
 	assert.NilError(t, err)
@@ -65,7 +64,7 @@ func getArchIDForEntity(t *testing.T, m *gamestate.EntityCommandBuffer, id types
 
 func TestComponentSetsAreRememberedFromPreviousDB(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := manager.CreateEntity(barComp)
 	assert.NilError(t, err)
@@ -86,7 +85,7 @@ func TestComponentSetsAreRememberedFromPreviousDB(t *testing.T) {
 
 func TestAddedComponentsCanBeDiscarded(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -113,7 +112,7 @@ func TestAddedComponentsCanBeDiscarded(t *testing.T) {
 
 func TestCanGetComponentTypesAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var id types.EntityID
 	_, err := manager.CreateEntity(fooComp)
@@ -132,7 +131,7 @@ func TestCanGetComponentTypesAfterReload(t *testing.T) {
 
 func TestCanDiscardPreviouslyAddedComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -151,7 +150,7 @@ func TestCanDiscardPreviouslyAddedComponent(t *testing.T) {
 
 func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ids, err := manager.CreateManyEntities(10, fooComp, barComp)
 	assert.NilError(t, err)
@@ -177,7 +176,7 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 
 func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ids, err := manager.CreateManyEntities(10, fooComp)
 	assert.NilError(t, err)
@@ -211,7 +210,7 @@ func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 
 func TestTheRemovalOfEntitiesIsRememberedAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	startingIDs, err := manager.CreateManyEntities(10, fooComp, barComp)
 	assert.NilError(t, err)
@@ -239,7 +238,7 @@ func TestTheRemovalOfEntitiesIsRememberedAfterReload(t *testing.T) {
 
 func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
@@ -268,7 +267,7 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 
 func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -289,7 +288,7 @@ func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 
 func TestCannotFetchComponentOnRemovedEntityAfterCommit(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)

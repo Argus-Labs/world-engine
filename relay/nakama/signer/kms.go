@@ -29,14 +29,7 @@ var _ TestOnlySigner = &kmsSigner{}
 
 var oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 
-// The documentation at https://cloud.google.com/kms/docs/retrieve-public-key#kms-get-public-key-go recommends using
-// x509.ParsePKIXPublicKey to convert the raw bytes from Google's API to an ecdsa.PublicKey. Unfortunately, it doesn't
-// seem like ParsePKIXPublicKey supports the secp256k1 (asn1 1.3.132.0.10) curve.
-// See https://cs.opensource.google/go/go/+/refs/tags/go1.21.6:src/crypto/x509/x509.go;l=504-525 for the curves that
-// are supported.
-//
-// I've adapted the public key parsing code of https://pkg.go.dev/github.com/openware/pkg/signer to convert the KMS
-// bytes to an ecdsa.PublicKey
+// bytes to an ecdsa.PublicKey.
 type publicKeyInfo struct {
 	Raw       asn1.RawContent
 	Algorithm pkix.AlgorithmIdentifier
@@ -65,7 +58,7 @@ func NewKMSSigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyNam
 	return ks, err
 }
 
-// only use this for testing
+// only use this for testing.
 func NewKMSTestOnlySigner(ctx context.Context, asymmetricSigner AsymmetricSigner, keyName string) (
 	TestOnlySigner, error,
 ) {
@@ -88,7 +81,7 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 	return t, err
 }
 
-// don't call this directly except for testing. Call SignTx instead
+// don't call this directly except for testing. Call SignTx instead.
 func (k *kmsSigner) SignTxWithTimestamp(
 	ctx context.Context, personaTag string, namespace string, data any, timestamp int64, salt uint16) (
 	*sign.Transaction, error,

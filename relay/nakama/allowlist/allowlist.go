@@ -75,7 +75,7 @@ func GenerateBetaKeys(ctx context.Context, nk runtime.NakamaModule, msg GenKeysM
 
 	const bzLen = 16
 	keys := make([]string, 0, msg.Amount)
-	for i := 0; i < msg.Amount; i++ {
+	for range msg.Amount {
 		randomBytes, err := generateRandomBytes(bzLen) // 16 bytes for the desired format
 		if err != nil {
 			return res, err

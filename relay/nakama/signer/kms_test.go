@@ -20,8 +20,7 @@ const (
 	// These "precomputed" constants are values that were computed with actual network calls to Google's KMS service.
 	// They are saved here so that unit tests can run without hitting the KMS service.
 
-	// precomputedPublicKeyPEM was generated via google's KMS API with the algorithm:
-	// Elliptic Curve secp256k1 - SHA256 Digest
+	// Elliptic Curve secp256k1 - SHA256 Digest.
 	precomputedPublicKeyPEM = `-----BEGIN PUBLIC KEY-----
 MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAESWUEDAsP/3WQRa5fxjdLlQM4mYeYAvhz
 esyjsoEDFTFKevyeDa6u83cNzv0lXeeTza8GSafyemA+4LtnYXorQw==
@@ -29,13 +28,7 @@ esyjsoEDFTFKevyeDa6u83cNzv0lXeeTza8GSafyemA+4LtnYXorQw==
 	// precomputedSignerAddress is the signer address from the public key decoded from the above PEM.
 	precomputedSignerAddress = "0xDE0699273dae85C20f430C5BeFfC429239948499"
 
-	// precomputedSignatureHex is a hex encoded signature for this transaction:
-	// sign.Transaction{
-	// 	PersonaTag: "some-persona-tag",
-	// 	Namespace: "some-namespace",
-	//  Timestamp: 99,
-	//  Body: `{"A":1,"B":2,"C":3}`
-	// }
+	// }.
 	precomputedSignatureHex = `` +
 		`3045022100dfafbc7fea20b2485eaed90009` +
 		`9205af4ca238420104f951cfe1388b544de5` +
@@ -63,13 +56,13 @@ func TestCanConvertPEMKeyToSignerAddress(t *testing.T) {
 		pemToReturn: precomputedPublicKeyPEM,
 	}
 
-	ks, err := NewKMSSigner(context.Background(), as, "some_key_name")
+	ks, err := NewKMSSigner(t.Context(), as, "some_key_name")
 	assert.NilError(t, err)
 	assert.Equal(t, ks.SignerAddress(), precomputedSignerAddress)
 }
 
 func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	kmsClient := newFakeSigner()
 	// we have to use the TestOnlySigner since it will allow us to set a specific timestamp
 	// whereas the normal signer will stamp it with time.Now() at the moment of signing
@@ -102,7 +95,7 @@ func TestCanSignTxWithPrecomputedSignature(t *testing.T) {
 func TestQueryRealKMSService(t *testing.T) {
 	t.Skip("Do not query the actual KMS service in unit tests")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	const credsFile = "/path/to/some/gcp/credentials/file.json"
 	const keyPath = "projects/<project>/locations/global/keyRings/<keyRing>/cryptoKeys/<name>/cryptoKeyVersions/<num>"
 	client, err := kms.NewKeyManagementClient(ctx, option.WithCredentialsFile(credsFile))

@@ -1,7 +1,6 @@
 package testutils_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -13,7 +12,7 @@ import (
 func TestObjectStoreComplainsAboutNonJSONEncodedValues(t *testing.T) {
 	fakeNK := testutils.NewFakeNakamaModule()
 	// Nakama's storage requires the value field is JSON encoded
-	_, err := fakeNK.StorageWrite(context.Background(), []*runtime.StorageWrite{
+	_, err := fakeNK.StorageWrite(t.Context(), []*runtime.StorageWrite{
 		{
 			Collection: "foo",
 			Key:        "bar",
@@ -25,7 +24,7 @@ func TestObjectStoreComplainsAboutNonJSONEncodedValues(t *testing.T) {
 }
 
 func TestRandomVersionShouldFail(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fakeNK := testutils.NewFakeNakamaModule()
 	write := &runtime.StorageWrite{
 		Collection: "foo",
@@ -42,7 +41,7 @@ func TestRandomVersionShouldFail(t *testing.T) {
 // TestConditionalWrites ensures writes are only successful if the given version matches.
 // See https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes
 func TestConditionalWrite(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fakeNK := testutils.NewFakeNakamaModule()
 	write := &runtime.StorageWrite{
 		Collection: "foo",
@@ -82,7 +81,7 @@ func TestConditionalWrite(t *testing.T) {
 }
 
 func TestConditionalWriteIfNotExists(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fakeNK := testutils.NewFakeNakamaModule()
 	write := &runtime.StorageWrite{
 		Collection: "foo",

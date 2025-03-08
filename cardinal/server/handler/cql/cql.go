@@ -79,9 +79,9 @@ func (o *cqlOperator) Capture(s []string) error {
 	return nil
 }
 
-// Display
-func (o cqlOperator) String() string {
-	switch o {
+// Display.
+func (o *cqlOperator) String() string {
+	switch *o {
 	case opAnd:
 		return "&"
 	case opOr:
@@ -145,7 +145,7 @@ func (f *cqlFactor) String() string {
 }
 
 func (o *cqlOpFactor) String() string {
-	return fmt.Sprintf("%s %s", o.Operator, o.Factor)
+	return fmt.Sprintf("%s %s", &o.Operator, o.Factor)
 }
 
 func (t *cqlTerm) String() string {

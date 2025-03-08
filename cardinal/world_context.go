@@ -19,7 +19,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// interface guard
+// interface guard.
 var _ WorldContext = (*worldContext)(nil)
 
 //go:generate mockgen -source=context.go -package mocks -destination=mocks/context.go
@@ -130,7 +130,7 @@ func (ctx *worldContext) ScheduleTimeTask(duration time.Duration, task Task) err
 		return eris.New("duration value must be positive")
 	}
 
-	triggerAtTimestamp := ctx.Timestamp() + uint64(duration.Milliseconds())
+	triggerAtTimestamp := ctx.Timestamp() + uint64(duration.Milliseconds()) //nolint:gosec
 	return createTimestampTask(ctx, triggerAtTimestamp, task)
 }
 

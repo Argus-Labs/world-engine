@@ -13,8 +13,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// we define the particular interface we need here to avoid dragging in the whole world provider interface
-// and making independent testing of validator require more complicated interfaces
+// and making independent testing of validator require more complicated interfaces.
 type SignerAddressProvider interface {
 	// tick is used by world provider, but not by the validator package. we include it here
 	// to avoid creating an extra method for a very minor bit of abstraction
@@ -67,16 +66,12 @@ func NewSignatureValidator(disabled bool, msgExpirationSec uint, hashCacheSizeKB
 	}
 	if !disabled {
 		// freecache enforces its own minimum size of 512K
-		validator.cache = freecache.NewCache(int(validator.HashCacheSizeKB * bytesPerKb))
+		validator.cache = freecache.NewCache(int(validator.HashCacheSizeKB * bytesPerKb)) //nolint:gosec
 	}
 	return &validator
 }
 
-// ValidateTransactionTTL checks that the timestamp on the message is valid, the message has not expired,
-// and that the message is not previously handled as indicated by it being in the hash cache.
-// returns an error (ErrMessageExpired, ErrBadTimestamp, ErrDuplicateMessage, or ErrCacheReadFailed) if
-// there was a problem, and nil if everything was ok
-// if signature validation is disabled, no checks are done and nil is always returned
+// if signature validation is disabled, no checks are done and nil is always returned.
 func (validator *SignatureValidator) ValidateTransactionTTL(tx *sign.Transaction) error {
 	if !validator.IsDisabled { //nolint:nestif // its fine
 		now := time.Now()
@@ -149,7 +144,7 @@ func (validator *SignatureValidator) ValidateTransactionSignature(tx *sign.Trans
 	// large numbers of hashes with unsigned/invalid messages and thus blocks legit messages from
 	// being handled
 	err = validator.cache.Set(tx.Hash.Bytes(), nil,
-		int(validator.MessageExpirationSeconds+cacheRetentionExtraSeconds))
+		int(validator.MessageExpirationSeconds+cacheRetentionExtraSeconds)) //nolint:gosec
 	if err != nil {
 		// if we couldn't store the hash in the cache, don't process the transaction, since that
 		// would open us up to replay attacks
@@ -173,7 +168,7 @@ func (validator *SignatureValidator) isHashInCache(hash common.Hash) (bool, erro
 	return false, err
 }
 
-// validateSignature validates that the signature of transaction is valid
+// validateSignature validates that the signature of transaction is valid.
 func (validator *SignatureValidator) validateSignature(tx *sign.Transaction, signerAddr string) error {
 	if tx.Namespace != validator.namespace {
 		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", validator.namespace, tx.Namespace))

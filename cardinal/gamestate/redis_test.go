@@ -5,7 +5,6 @@ package gamestate
 // internal state of redis is correct, so they need access to the package private methods in keys.go.
 
 import (
-	"context"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -28,7 +27,7 @@ func (b Beta) Name() string {
 }
 
 func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s := miniredis.RunT(t)
 	options := redis.Options{
 		Addr:     s.Addr(),

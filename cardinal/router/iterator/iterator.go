@@ -90,7 +90,7 @@ OuterLoop:
 			timestamp := epoch.GetUnixTimestamp()
 			batches := make([]*TxBatch, 0, len(epoch.GetTxs()))
 			for _, tx := range epoch.GetTxs() {
-				msgType, exists := t.getMsgByID(types.MessageID(tx.GetTxId()))
+				msgType, exists := t.getMsgByID(types.MessageID(tx.GetTxId())) //nolint:gosec
 				if !exists {
 					return eris.Errorf(
 						"queried message with ID %d, but it does not exist in Cardinal", tx.GetTxId(),

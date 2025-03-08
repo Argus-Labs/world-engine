@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -36,7 +37,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	miniRedis := miniredis.RunT(t)
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, isFirstIteration := range []bool{true, false} {
 		world, err := NewWorld(WithPort(getOpenPort(t)))
@@ -154,7 +155,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	rs := miniredis.RunT(t)
 	t.Setenv("REDIS_ADDRESS", rs.Addr())
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	world, err := NewWorld(WithPort(getOpenPort(t)))
 	assert.NilError(t, err)
@@ -296,7 +297,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 			miniRedis := miniredis.RunT(t)
 			t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			world, err := NewWorld(WithPort(getOpenPort(t)))
 			assert.NilError(t, err)
@@ -381,5 +382,5 @@ func getOpenPort(t testing.TB) string {
 	assert.NilError(t, err)
 	tcpAddr, err := net.ResolveTCPAddr(l.Addr().Network(), l.Addr().String())
 	assert.NilError(t, err)
-	return fmt.Sprintf("%d", tcpAddr.Port)
+	return strconv.Itoa(tcpAddr.Port)
 }

@@ -2,7 +2,7 @@
 # golangci-lint #
 #################
 
-lint_version=v1.62.2
+lint_version=latest
 
 lint-install:
 	@echo "--> Checking if golangci-lint $(lint_version) is installed"
@@ -16,17 +16,23 @@ lint-install:
 lint:
 	@$(MAKE) lint-install
 	@echo "--> Running linter"
-	@go list -f '{{.Dir}}/...' -m | xargs -I {} golangci-lint run --timeout=10m -v "{}"
+	@for dir in $(GO_DIRS); do \
+		echo "Running linter in \"$$dir\""; \
+		(cd "$$dir" && golangci-lint run --timeout=10m ./...); \
+	done
 
 lint-cardinal:
 	@$(MAKE) lint-install
 	@echo "--> Running linter only on ./cardinal"
-	@golangci-lint run cardinal/... --timeout=10m -v
+	@(cd cardinal && golangci-lint run ./... --timeout=10m)
 
 lint-fix:
 	@$(MAKE) lint-install
 	@echo "--> Running linter"
-	@go list -f '{{.Dir}}/...' -m | xargs -I {} golangci-lint run --timeout=10m --fix -v "{}"
+	@for dir in $(GO_DIRS); do \
+		echo "Running linter with fix in \"$$dir\""; \
+		(cd "$$dir" && golangci-lint run --timeout=10m --fix ./...); \
+	done
 
 push-check:
 	@$(MAKE) lint

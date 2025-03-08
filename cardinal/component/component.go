@@ -12,7 +12,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-// Interface guard
+// Interface guard.
 var _ types.ComponentMetadata = (*componentMetadata[types.Component])(nil)
 
 // Option is a type that can be passed to NewComponentMetadata to augment the creation

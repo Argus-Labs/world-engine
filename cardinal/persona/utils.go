@@ -14,7 +14,7 @@ var (
 	personaTagRegexp = regexp.MustCompile("^[a-zA-Z0-9_]+$")
 )
 
-// IsValidPersonaTag checks that string is a valid persona tag: alphanumeric + underscore
+// IsValidPersonaTag checks that string is a valid persona tag: alphanumeric + underscore.
 func IsValidPersonaTag(s string) bool {
 	if length := len(s); length < MinimumPersonaTagLength || length > MaximumPersonaTagLength {
 		return false

@@ -90,7 +90,6 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter2 := atomic.Int32{}
 	counter2.Store(0)
 	for _, dialer := range dialers {
-		dialer := dialer
 		waitForDialersToRead.Add(1)
 		go func() {
 			defer waitForDialersToRead.Done()

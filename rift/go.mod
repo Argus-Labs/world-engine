@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/rift
 
-go 1.22.1
+go 1.24
 
 require (
 	github.com/rotisserie/eris v0.5.4

@@ -59,7 +59,7 @@ func NewHistory(currentTick uint64, ticksToStore int) *History {
 		ticksToStore: uint64(ticksToStore),
 	}
 	h.history = make([]map[types.TxHash]Receipt, 0, ticksToStore)
-	for i := 0; i < ticksToStore; i++ {
+	for range ticksToStore {
 		h.history = append(h.history, map[types.TxHash]Receipt{})
 	}
 	h.currTick.Store(currentTick)
@@ -85,7 +85,7 @@ func (h *History) SetTick(tick uint64) {
 // AddError associates the given error with the given transaction hash. Calling this multiple times will append
 // the error any previously added errors.
 func (h *History) AddError(hash types.TxHash, err error) {
-	tick := int(h.currTick.Load() % h.ticksToStore)
+	tick := int(h.currTick.Load() % h.ticksToStore) //nolint:gosec
 	rec := h.history[tick][hash]
 	rec.TxHash = hash
 	rec.Errs = append(rec.Errs, err)
@@ -95,7 +95,7 @@ func (h *History) AddError(hash types.TxHash, err error) {
 // SetResult sets the given transaction hash to the given result. Calling this multiple times will replace any previous
 // results.
 func (h *History) SetResult(hash types.TxHash, result any) {
-	tick := int(h.currTick.Load() % h.ticksToStore)
+	tick := int(h.currTick.Load() % h.ticksToStore) //nolint:gosec
 	rec := h.history[tick][hash]
 	rec.TxHash = hash
 	rec.Result = result
@@ -105,7 +105,7 @@ func (h *History) SetResult(hash types.TxHash, result any) {
 // GetReceipt gets the receipt (the transaction result and the list of errors) for the given transaction hash in the
 // current tick. To get receipts from previous ticks use GetReceiptsForTick.
 func (h *History) GetReceipt(hash types.TxHash) (Receipt, bool) {
-	tick := int(h.currTick.Load() % h.ticksToStore)
+	tick := int(h.currTick.Load() % h.ticksToStore) //nolint:gosec
 	rec, ok := h.history[tick][hash]
 	return rec, ok
 }

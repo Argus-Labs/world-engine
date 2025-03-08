@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
@@ -29,7 +28,7 @@ func TestValidateAndParseJWTHappyPath(t *testing.T) {
 	hash := sha256.Sum256([]byte(jwtString))
 	jwtHash := hex.EncodeToString(hash[:])
 
-	_, err = validateAndParseJWT(context.Background(), jwtHash, jwtString, testJWTSecret)
+	_, err = validateAndParseJWT(t.Context(), jwtHash, jwtString, testJWTSecret)
 	assert.Nil(t, err)
 }
 
@@ -47,7 +46,7 @@ func TestValidateAndParseJWTWithWrongID(t *testing.T) {
 
 	wrongHash := "invalidhashvalue"
 
-	_, err = validateAndParseJWT(context.Background(), wrongHash, jwtString, testJWTSecret)
+	_, err = validateAndParseJWT(t.Context(), wrongHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, ErrInvalidIDForJWT.Error())
 }
 
@@ -66,7 +65,7 @@ func TestValidateAndParseJWTWithWrongSecret(t *testing.T) {
 	hash := sha256.Sum256([]byte(jwtString))
 	jwtHash := hex.EncodeToString(hash[:])
 
-	_, err = validateAndParseJWT(context.Background(), jwtHash, jwtString, testJWTSecret)
+	_, err = validateAndParseJWT(t.Context(), jwtHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, jwt.ErrSignatureInvalid.Error())
 }
 
@@ -86,7 +85,7 @@ func TestValidateAndParseJWTWithWrongSigningMethod(t *testing.T) {
 	hash := sha256.Sum256([]byte(jwtString))
 	jwtHash := hex.EncodeToString(hash[:])
 
-	_, err = validateAndParseJWT(context.Background(), jwtHash, jwtString, testJWTSecret)
+	_, err = validateAndParseJWT(t.Context(), jwtHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, ErrInvalidJWTSigningMethod.Error())
 }
 
@@ -102,6 +101,6 @@ func TestValidateAndParseJWTWithInvalidClaims(t *testing.T) {
 	hash := sha256.Sum256([]byte(jwtString))
 	jwtHash := hex.EncodeToString(hash[:])
 
-	_, err = validateAndParseJWT(context.Background(), jwtHash, jwtString, testJWTSecret)
+	_, err = validateAndParseJWT(t.Context(), jwtHash, jwtString, testJWTSecret)
 	assert.ErrorContains(t, err, ErrInvalidJWTClaims.Error())
 }

@@ -77,7 +77,7 @@ func (s *ValidatorTestSuite) createDisabledValidator() *SignatureValidator {
 	return NewSignatureValidator(true, 0, 0, s.namespace, s.provider)
 }
 
-// create an enabled validator with a specific ttl
+// create an enabled validator with a specific ttl.
 func (s *ValidatorTestSuite) createValidatorWithTTL(ttl uint) *SignatureValidator { //nolint: unparam // future use
 	return NewSignatureValidator(false, ttl, 200, s.namespace, s.provider)
 }
@@ -94,8 +94,7 @@ func (s *ValidatorTestSuite) simulateReceivedTransaction(personaTag, namespace s
 	return tx, err
 }
 
-// TestCanValidateSignedTxWithVerificationDisabled tests that you can validate a full signed tx when
-// sig verification is disabled (no actual validation is done)
+// sig verification is disabled (no actual validation is done).
 func (s *ValidatorTestSuite) TestCanValidateSignedTxWithVerificationDisabled() {
 	validator := s.createDisabledValidator()
 	tx, err := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
@@ -208,8 +207,7 @@ func (s *ValidatorTestSuite) TestCanValidateSignedTx() {
 	s.Require().NoError(err)
 }
 
-// TestRejectsMissingPersonaTx tests that transaction without a persona tag is always rejected, regardless
-// of whether signature validation is enabled or not
+// of whether signature validation is enabled or not.
 func (s *ValidatorTestSuite) TestAlwaysRejectsMissingPersonaTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
@@ -243,7 +241,7 @@ func (s *ValidatorTestSuite) TestRejectsUnsignedTx() {
 	s.Require().True(eris.Is(err, ErrInvalidSignature))
 }
 
-// TestRejectsBadNamespaceTx tests that a signed transaction with the wrong namespace is rejected
+// TestRejectsBadNamespaceTx tests that a signed transaction with the wrong namespace is rejected.
 func (s *ValidatorTestSuite) TestRejectsBadNamespaceTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, badNamespace, goodRequestBody)
@@ -255,8 +253,7 @@ func (s *ValidatorTestSuite) TestRejectsBadNamespaceTx() {
 	s.Require().True(eris.Is(err, ErrInvalidSignature))
 }
 
-// TestRejectsInvalidTimestampsTx tests that transactions with invalid timestamps or with a timestamp altered
-// after signing are rejected
+// after signing are rejected.
 func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	ttl := uint(10)
 	validator := s.createValidatorWithTTL(ttl)
@@ -290,7 +287,7 @@ func (s *ValidatorTestSuite) TestRejectsInvalidTimestampsTx() {
 	s.Require().Contains(err.Error(), "signature validation failed for message")
 }
 
-// TestRejectsAlteredHashTx tests that a transaction with a hashes that is altered after signing is rejected
+// TestRejectsAlteredHashTx tests that a transaction with a hashes that is altered after signing is rejected.
 func (s *ValidatorTestSuite) TestRejectsAlteredHashTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
@@ -309,7 +306,7 @@ func (s *ValidatorTestSuite) TestRejectsAlteredHashTx() {
 	s.Require().Contains(err.Error(), "signature validation failed for message")
 }
 
-// TestRejectsAlteredSaltTx tests that a transaction with a salt value that is altered after signing is rejected
+// TestRejectsAlteredSaltTx tests that a transaction with a salt value that is altered after signing is rejected.
 func (s *ValidatorTestSuite) TestRejectsAlteredSaltTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)
@@ -328,7 +325,7 @@ func (s *ValidatorTestSuite) TestRejectsAlteredSaltTx() {
 	s.Require().Contains(err.Error(), "signature validation failed for message")
 }
 
-// TestRejectsAlteredBodyTx tests that a transaction with a body that is altered after signing is rejected
+// TestRejectsAlteredBodyTx tests that a transaction with a body that is altered after signing is rejected.
 func (s *ValidatorTestSuite) TestRejectsAlteredBodyTx() {
 	validator := s.createValidatorWithTTL(10)
 	tx, e := s.simulateReceivedTransaction(goodPersona, goodNamespace, goodRequestBody)

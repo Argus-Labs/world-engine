@@ -1,3 +1,7 @@
+// Package server provides the HTTP server and handlers for Cardinal.
+// @title Cardinal API
+// @version 1.0.0
+// @description Cardinal server API for World Engine
 package server
 
 import (
@@ -137,13 +141,7 @@ func (s *Server) shutdown() error {
 	return nil
 }
 
-// @title			Cardinal
-// @description	Backend server for World Engine
-// @version		0.0.1
-// @schemes		http ws
-// @BasePath		/
-// @consumes		application/json
-// @produces		application/json
+// @produces		application/json.
 func (s *Server) setupRoutes(
 	world servertypes.ProviderWorld,
 	messages []types.Message,
