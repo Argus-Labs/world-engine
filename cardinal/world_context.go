@@ -9,7 +9,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -52,6 +54,10 @@ type WorldContext interface {
 	// ScheduleTimeTask schedules a task to be executed after the specified duration (in wall clock time).
 	// The given Task must have been registered using RegisterTask.
 	ScheduleTimeTask(time.Duration, Task) error
+
+	// GetAllEntities returns all entities and their components as a map.
+	// The map is keyed by entity ID, and the value is a map of component name to component data.
+	GetAllEntities() (map[types.EntityID]map[string]any, error)
 
 	// Private methods for internal use.
 	setLogger(logger zerolog.Logger)
@@ -159,6 +165,43 @@ func (ctx *worldContext) Rand() *rand.Rand {
 
 func (ctx *worldContext) Namespace() string {
 	return ctx.world.Namespace()
+}
+
+// GetAllEntities returns all entities and their components as a map.
+// The map is keyed by entity ID, and the value is a map of component name to component data.
+func (ctx *worldContext) GetAllEntities() (map[types.EntityID]map[string]any, error) {
+	entities := make(map[types.EntityID]map[string]any)
+
+	// Get all entities excluding internal Persona components
+	err := NewSearch().Entity(
+		filter.Not(
+			filter.Or(
+				filter.Contains(filter.Component[component.SignerComponent]()),
+				filter.Contains(filter.Component[taskMetadata]()),
+			),
+		),
+	).Each(ctx, func(id types.EntityID) bool {
+		entities[id] = make(map[string]any)
+
+		components, err := ctx.world.StoreReader().GetComponentTypesForEntity(id)
+		if err != nil {
+			return false
+		}
+
+		for _, c := range components {
+			compJSON, err := ctx.world.StoreReader().GetComponentForEntityInRawJSON(c, id)
+			if err != nil {
+				return false
+			}
+			entities[id][c.Name()] = compJSON
+		}
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return entities, nil
 }
 
 // -----------------------------------------------------------------------------
