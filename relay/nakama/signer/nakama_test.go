@@ -1,7 +1,6 @@
 package signer
 
 import (
-	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -9,7 +8,7 @@ import (
 )
 
 func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := testutils.MockNoopLogger(t)
 	fakeNK := testutils.NewFakeNakamaModule()
 

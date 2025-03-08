@@ -204,7 +204,7 @@ func findOpenPorts(amount int) ([]string, error) {
 	ports := make([]string, 0, amount)
 
 	// Try to find open ports until we find the target amount or we run out of retries
-	for i := 0; i < amount; i++ {
+	for range amount {
 		var found bool
 
 		// Try to find a random port, retying if it turns out to be a duplicate in list of ports up to 10 times

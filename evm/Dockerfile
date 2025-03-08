@@ -1,7 +1,7 @@
 ################################
 # Build Image
 ################################
-FROM golang:1.22.1-bullseye AS build
+FROM golang:1.24-bullseye AS build
 
 WORKDIR /go/src/app/
 

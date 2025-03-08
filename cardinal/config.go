@@ -23,7 +23,7 @@ const (
 	DefaultRedisAddress              = "localhost:6379"
 	DefaultBaseShardSequencerAddress = "localhost:9601"
 
-	// Toml config file related
+	// Toml config file related.
 	configFilePathEnvVariable = "CARDINAL_CONFIG"
 	defaultConfigFileName     = "world.toml"
 )
@@ -215,7 +215,7 @@ func setupViper() {
 	val := reflect.ValueOf(&defaultConfig).Elem()
 	typ := val.Type()
 
-	for i := 0; i < val.NumField(); i++ {
+	for i := range val.NumField() {
 		field := typ.Field(i)
 		tag := field.Tag.Get("mapstructure")
 		if tag != "" {

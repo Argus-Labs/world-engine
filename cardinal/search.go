@@ -102,11 +102,7 @@ type searchBuilder interface {
 	Entity(componentFilter filter.ComponentFilter) EntitySearch
 }
 
-// NewSearch is used to create a search object.
-//
-// Usage:
-//
-// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]()))
+// cardinal.NewSearch().Entity(filter.Contains(filter.Component[EnergyComponent]())).
 func NewSearch() searchBuilder {
 	return NewLegacySearch(nil).(searchBuilder) //nolint:errcheck // It's safe
 }

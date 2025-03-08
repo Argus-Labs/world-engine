@@ -36,7 +36,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 
 func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
-	for i := 0; i < rt.NumField(); i++ {
+	for i := range rt.NumField() {
 		field := rt.Field(i)
 		kind := field.Type.Kind()
 		fieldType := field.Type.String()

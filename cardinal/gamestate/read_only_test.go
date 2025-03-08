@@ -1,7 +1,6 @@
 package gamestate_test
 
 import (
-	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -12,7 +11,7 @@ import (
 
 func TestReadOnly_CanGetComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -34,7 +33,7 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 
 func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	testCases := []struct {
 		name  string
@@ -81,7 +80,7 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	testCases := []struct {
 		name        string
 		idsToCreate int
@@ -121,7 +120,7 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 
 func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.FinalizeTick(ctx))
@@ -155,7 +154,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 
 func TestReadOnly_ArchetypeCount(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	roManager := manager.ToReadOnly()
 
 	// No archetypes have been cardinal.Created yet
@@ -179,7 +178,7 @@ func TestReadOnly_ArchetypeCount(t *testing.T) {
 
 func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tf := cardinal.NewTestFixture(t, nil, cardinal.WithStoreManager(manager))
 	world := tf.World

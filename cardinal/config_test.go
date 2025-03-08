@@ -262,7 +262,7 @@ func TestWorldConfig_loadWorldConfigUsingOverrideByenv(t *testing.T) {
 	assert.Equal(t, "my-world-env", cfg.CardinalNamespace)
 }
 
-// CleanupViper resets Viper configuration
+// CleanupViper resets Viper configuration.
 func CleanupViper(t *testing.T) {
 	viper.Reset()
 

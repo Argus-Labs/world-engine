@@ -141,7 +141,6 @@ func TestReceipts(t *testing.T) {
 	}
 }
 
-//nolint:gocognit
 func TestTransactionAndCQLAndRead(t *testing.T) {
 	// Test persona
 	privateKey, err := crypto.GenerateKey()

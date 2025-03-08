@@ -19,7 +19,7 @@ const (
 	eventsEndpoint = "events"
 )
 
-// Test that the Notifications system works as expected with the Dispatcher and a Mock Server
+// Test that the Notifications system works as expected with the Dispatcher and a Mock Server.
 func TestNotifierIntegrationWithEventHub(t *testing.T) {
 	ch := make(chan TickResults, 1)
 	nk := mocks.NewMockNakamaModule(t)

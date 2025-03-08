@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -67,7 +66,7 @@ func TestCopyTransactions(t *testing.T) {
 	txp.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
 	txp.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
 
-	copyTxp := txp.CopyTransactions(context.Background())
+	copyTxp := txp.CopyTransactions(t.Context())
 	assert.Equal(t, copyTxp.GetAmountOfTxs(), 2)
 	assert.Equal(t, txp.GetAmountOfTxs(), 0)
 }

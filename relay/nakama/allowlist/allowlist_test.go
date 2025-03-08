@@ -40,7 +40,7 @@ func TestConcurrentKeyClaims(t *testing.T) {
 	for _, user := range users {
 		for _, key := range resp.Keys {
 			user := user
-			key := key
+
 			// Have every user attempt to claim every beta key. Each beta key should be used exactly 1 time and
 			// each user should have 9 failed attempts and 1 successful attempt.
 			go func() {

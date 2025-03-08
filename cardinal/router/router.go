@@ -150,7 +150,7 @@ func (r *router) SubmitTxBlob(
 				Body:       tx.Body,
 			})
 		}
-		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}
+		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs} //nolint:gosec
 	}
 
 	req := shard.SubmitTransactionsRequest{

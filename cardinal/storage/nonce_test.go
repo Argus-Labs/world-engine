@@ -1,9 +1,8 @@
 package storage_test
 
 import (
-	"context"
-	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -32,13 +31,13 @@ func TestUseNonce(t *testing.T) {
 func TestCanStoreManyNonces(t *testing.T) {
 	rs := GetRedisStorage(t)
 	for i := uint64(10); i < 100; i++ {
-		addr := fmt.Sprintf("%d", i)
+		addr := strconv.FormatUint(i, 10)
 		assert.NilError(t, rs.UseNonce(addr, i))
 	}
 
 	// These nonces can no longer be used
 	for i := uint64(10); i < 100; i++ {
-		addr := fmt.Sprintf("%d", i)
+		addr := strconv.FormatUint(i, 10)
 		err := rs.UseNonce(addr, i)
 		assert.ErrorIs(t, redis.ErrNonceHasAlreadyBeenUsed, err)
 	}
@@ -60,7 +59,7 @@ func TestNonceStorageIsBounded(t *testing.T) {
 
 	// Find the redis key that contains the used nonces for the above address
 	client := rs.Client
-	ctx := context.Background()
+	ctx := t.Context()
 	keys, err := client.Keys(ctx, "*"+addr+"*").Result()
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(keys))

@@ -300,7 +300,7 @@ func Triple(s string) (string, string, string) {
 
 func RandomString() string {
 	b := &strings.Builder{}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		n := rand.Intn(len(chars)) //nolint:gosec // it's fine just a test.
 		b.WriteString(chars[n : n+1])
 	}

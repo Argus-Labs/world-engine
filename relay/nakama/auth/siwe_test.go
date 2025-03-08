@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -85,7 +84,7 @@ func TestMissingSignerAddressReturnsError(t *testing.T) {
 		in := &api.AuthenticateCustomRequest{
 			Account: tc.account,
 		}
-		_, err := handleCustomAuthentication(context.Background(), logger, db, nk, in)
+		_, err := handleCustomAuthentication(t.Context(), logger, db, nk, in)
 		assert.ErrorContains(t, err, tc.wantErr.Error())
 	}
 }
@@ -106,7 +105,7 @@ func TestCanGenerateAndSignSIWEMessage(t *testing.T) {
 			},
 		},
 	}
-	_, err = handleCustomAuthentication(context.Background(), logger, db, nk, in)
+	_, err = handleCustomAuthentication(t.Context(), logger, db, nk, in)
 	assert.NotNil(t, err)
 	var result siwe.GenerateResult
 	err = json.Unmarshal([]byte(err.Error()), &result)
@@ -125,11 +124,11 @@ func TestCanGenerateAndSignSIWEMessage(t *testing.T) {
 	// Use the message and signature to validate this user
 	in.Account.Vars["message"] = result.SIWEMessage
 	in.Account.Vars["signature"] = signature
-	in, err = handleCustomAuthentication(context.Background(), logger, db, nk, in)
+	in, err = handleCustomAuthentication(t.Context(), logger, db, nk, in)
 	assert.NilError(t, err)
 	assert.NotNil(t, in)
 
 	// Attempting to authenticate again should fail
-	_, err = handleCustomAuthentication(context.Background(), logger, db, nk, in)
+	_, err = handleCustomAuthentication(t.Context(), logger, db, nk, in)
 	assert.IsError(t, err)
 }

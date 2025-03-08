@@ -1,7 +1,7 @@
 ################################
 # Build Image
 ################################
-FROM golang:1.22-bookworm AS build
+FROM golang:1.24-bookworm AS build
 
 WORKDIR /go/src/app
 
@@ -35,7 +35,7 @@ CMD ["app"]
 ################################
 # Runtime Image - Debug
 ################################
-FROM golang:1.22-bookworm AS runtime-debug
+FROM golang:1.24-bookworm AS runtime-debug
 
 # Install delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest

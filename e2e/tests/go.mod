@@ -1,8 +1,6 @@
 module github.com/argus-labs/world-engine/e2e/tests
 
-go 1.22.7
-
-toolchain go1.23.3
+go 1.24
 
 replace pkg.world.dev/world-engine/cardinal => ../../cardinal
 

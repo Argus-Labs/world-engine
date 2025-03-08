@@ -66,28 +66,28 @@ func handleCustomAuthentication(
 	defer span.End()
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
-		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "SIWE Custom Auth")
-		defer span.End()
-		in, err := authWithSIWE(ctx, logger, nk, in)
+		ctxSiwe, spanSiwe := otel.Tracer("nakama.auth").Start(ctx, "SIWE Custom Auth")
+		defer spanSiwe.End()
+		inResult, err := authWithSIWE(ctxSiwe, logger, nk, in)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(otelcode.Error, "Failed to authenticate with SIWE")
+			spanSiwe.RecordError(err)
+			spanSiwe.SetStatus(otelcode.Error, "Failed to authenticate with SIWE")
 			return nil, err
 		}
-		span.SetStatus(otelcode.Ok, "Successfully authenticated with SIWE")
-		return in, nil
+		spanSiwe.SetStatus(otelcode.Ok, "Successfully authenticated with SIWE")
+		return inResult, nil
 	}
 	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
-		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "Argus ID Custom Auth")
-		defer span.End()
-		in, err := authWithArgusID(ctx, logger, nk, in)
+		ctxArgus, spanArgus := otel.Tracer("nakama.auth").Start(ctx, "Argus ID Custom Auth")
+		defer spanArgus.End()
+		inResult, err := authWithArgusID(ctxArgus, logger, nk, in)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(otelcode.Error, "Failed to authenticate with Argus ID")
+			spanArgus.RecordError(err)
+			spanArgus.SetStatus(otelcode.Error, "Failed to authenticate with Argus ID")
 			return nil, err
 		}
-		span.SetStatus(otelcode.Ok, "Successfully authenticated with Argus ID")
-		return in, nil
+		spanArgus.SetStatus(otelcode.Ok, "Successfully authenticated with Argus ID")
+		return inResult, nil
 	}
 	span.RecordError(ErrBadCustomAuthType)
 	span.SetStatus(otelcode.Error, "Bad custom auth type")
@@ -116,28 +116,28 @@ func handleCustomLink(
 	defer span.End()
 	// In the future, other authentication methods can be added here (e.g. Twitter)
 	if authType == signInWithEthereumType {
-		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "SIWE Custom Link")
-		defer span.End()
-		in, err := linkWithSIWE(ctx, logger, nk, in)
+		ctxSiwe, spanSiwe := otel.Tracer("nakama.auth").Start(ctx, "SIWE Custom Link")
+		defer spanSiwe.End()
+		inResult, err := linkWithSIWE(ctxSiwe, logger, nk, in)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(otelcode.Error, "Failed to link with SIWE")
+			spanSiwe.RecordError(err)
+			spanSiwe.SetStatus(otelcode.Error, "Failed to link with SIWE")
 			return nil, err
 		}
-		span.SetStatus(otelcode.Ok, "Successfully linked with SIWE")
-		return in, nil
+		spanSiwe.SetStatus(otelcode.Ok, "Successfully linked with SIWE")
+		return inResult, nil
 	}
 	if authType == signInWithArgusIDType && GlobalJWTSecret != "" {
-		ctx, span := otel.Tracer("nakama.auth").Start(ctx, "Argus ID Custom Link")
-		defer span.End()
-		in, err := linkWithArgusID(ctx, logger, nk, in)
+		ctxArgus, spanArgus := otel.Tracer("nakama.auth").Start(ctx, "Argus ID Custom Link")
+		defer spanArgus.End()
+		inResult, err := linkWithArgusID(ctxArgus, logger, nk, in)
 		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(otelcode.Error, "Failed to link with Argus ID")
+			spanArgus.RecordError(err)
+			spanArgus.SetStatus(otelcode.Error, "Failed to link with Argus ID")
 			return nil, err
 		}
-		span.SetStatus(otelcode.Ok, "Successfully linked with Argus ID")
-		return in, nil
+		spanArgus.SetStatus(otelcode.Ok, "Successfully linked with Argus ID")
+		return inResult, nil
 	}
 	span.RecordError(ErrBadCustomAuthType)
 	span.SetStatus(otelcode.Error, "Bad custom auth type")

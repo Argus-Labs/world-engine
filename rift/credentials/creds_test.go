@@ -139,7 +139,7 @@ func TestTokenFromContext(t *testing.T) {
 		{
 			name: "Valid token",
 			ctx: metadata.NewIncomingContext(
-				context.Background(),
+				t.Context(),
 				metadata.New(map[string]string{TokenKey: "foo"}),
 			),
 			expectedToken: "foo",
@@ -147,20 +147,20 @@ func TestTokenFromContext(t *testing.T) {
 		},
 		{
 			name:          "Missing metadata",
-			ctx:           context.Background(),
+			ctx:           t.Context(),
 			expectedToken: "",
 			expectedError: "missing metadata",
 		},
 		{
 			name:          "Missing token key",
-			ctx:           metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{})),
+			ctx:           metadata.NewIncomingContext(t.Context(), metadata.New(map[string]string{})),
 			expectedToken: "",
 			expectedError: fmt.Sprintf("missing %s", TokenKey),
 		},
 		{
 			name: "Empty token value",
 			ctx: metadata.NewIncomingContext(
-				context.Background(),
+				t.Context(),
 				metadata.New(map[string]string{TokenKey: ""}),
 			),
 			expectedToken: "",

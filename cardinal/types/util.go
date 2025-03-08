@@ -10,7 +10,7 @@ func GetFieldInformation(t reflect.Type) map[string]any {
 
 	fieldMap := make(map[string]any)
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		fieldName := field.Name
 

@@ -1,7 +1,6 @@
 package siwe_test
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"strings"
@@ -49,7 +48,7 @@ func signMessage(t *testing.T, msg string, pk *ecdsa.PrivateKey) string {
 }
 
 func TestCanSignAndValidateMessage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fakeNK := testutils.NewFakeNakamaModule()
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -120,7 +119,7 @@ func TestInvalidSignatureIsRejected(t *testing.T) {
 	}
 
 	fakeNK := testutils.NewFakeNakamaModule()
-	ctx := context.Background()
+	ctx := t.Context()
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -144,7 +143,7 @@ func TestInvalidSignatureIsRejected(t *testing.T) {
 }
 
 func TestOnlyOneValidateMessageShouldBeSuccessful(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fakeNK := testutils.NewFakeNakamaModule()
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -175,7 +174,7 @@ func TestOnlyOneValidateMessageShouldBeSuccessful(t *testing.T) {
 }
 
 func TestCustomNonceCanBeUsed(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	fakeNK := testutils.NewFakeNakamaModule()
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)

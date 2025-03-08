@@ -53,7 +53,7 @@ func (m *messageManager) RegisterMessage(msgType types.Message, msgReflectType r
 	return nil
 }
 
-// GetRegisteredMessages returns the list of all registered messages
+// GetRegisteredMessages returns the list of all registered messages.
 func (m *messageManager) GetRegisteredMessages() []types.Message {
 	msgs := make([]types.Message, 0, len(m.registeredMessages))
 	for _, msg := range m.registeredMessages {

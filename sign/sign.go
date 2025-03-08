@@ -47,17 +47,17 @@ type Transaction struct {
 	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
 }
 
-// returns a sign compatible timestamp for the current wall time
+// returns a sign compatible timestamp for the current wall time.
 func TimestampNow() int64 {
 	return time.Now().UnixMilli() // millisecond accuracy on timestamps, easily available on all platforms
 }
 
-// returns a sign compatible timestamp for the time passed in
+// returns a sign compatible timestamp for the time passed in.
 func TimestampAt(t time.Time) int64 {
 	return t.UnixMilli()
 }
 
-// returns a GoLang time from a sign compatible timestamp
+// returns a GoLang time from a sign compatible timestamp.
 func Timestamp(t int64) time.Time {
 	return time.UnixMilli(t)
 }
@@ -239,8 +239,7 @@ func IsZeroHash(hash common.Hash) bool {
 	return hash == common.Hash{}
 }
 
-// HashHex return a hex encoded hash of the message and its data.
-// if the hash was not previously set, it will be generated
+// if the hash was not previously set, it will be generated.
 func (s *Transaction) HashHex() string {
 	if IsZeroHash(s.Hash) {
 		s.populateHash()
@@ -248,10 +247,7 @@ func (s *Transaction) HashHex() string {
 	return s.Hash.Hex()
 }
 
-// Verify verifies this Transaction has a valid signature. If nil is returned, the signature is valid.
-// Signature verification follows the pattern in crypto.TestSign:
-// https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
-// TODO: Review this signature verification, and compare it to geth's sig verification
+// TODO: Review this signature verification, and compare it to geth's sig verification.
 func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 

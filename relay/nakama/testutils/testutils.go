@@ -35,7 +35,7 @@ import (
 // context.valueCtx is the type returned by context.Background.
 var AnyContext = mock.AnythingOfType("*context.valueCtx")
 
-// Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
+// Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't).
 var _ runtime.Logger = (*FakeLogger)(nil)
 
 type keyTuple struct {
@@ -68,7 +68,7 @@ func (l *FakeLogger) Error(format string, args ...interface{}) {
 	l.Errors = append(l.Errors, fmt.Sprintf(format, args...))
 }
 
-// GetErrors A method to retrieve captured errors for assertions
+// GetErrors A method to retrieve captured errors for assertions.
 func (l *FakeLogger) GetErrors() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()

@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-// Test component types
+// Test component types.
 type TestComponentA struct {
 	Value string
 }

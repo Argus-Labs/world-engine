@@ -54,14 +54,31 @@ const docTemplate = `{
         },
         "/debug/state": {
             "post": {
-                "description": "Retrieves a list of all entities in the game state",
+                "description": "Retrieves the debug state of the world",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Retrieves a list of all entities in the game state",
+                "tags": [
+                    "debug"
+                ],
+                "summary": "Get Debug State",
+                "parameters": [
+                    {
+                        "description": "Debug State Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cardinal_server_handler.DebugStateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "List of all entities",
+                        "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -218,7 +235,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
+                            "$ref": "#/definitions/sign.Transaction"
                         }
                     }
                 ],
@@ -231,6 +248,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request parameter",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout - message expired",
                         "schema": {
                             "type": "string"
                         }
@@ -255,7 +284,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
+                            "$ref": "#/definitions/sign.Transaction"
                         }
                     }
                 ],
@@ -268,6 +297,30 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request parameter",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - signature was invalid",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout - message expired",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error - unexpected cache errors",
                         "schema": {
                             "type": "string"
                         }
@@ -306,7 +359,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cardinal_server_handler.Transaction"
+                            "$ref": "#/definitions/sign.Transaction"
                         }
                     }
                 ],
@@ -319,6 +372,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request parameter",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "408": {
+                        "description": "Request Timeout - message expired",
                         "schema": {
                             "type": "string"
                         }
@@ -372,6 +437,9 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "cardinal_server_handler.DebugStateRequest": {
+            "type": "object"
         },
         "cardinal_server_handler.GetHealthResponse": {
             "type": "object",
@@ -465,35 +533,10 @@ const docTemplate = `{
                 }
             }
         },
-        "cardinal_server_handler.Transaction": {
+        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
             "type": "object",
             "properties": {
-                "body": {
-                    "description": "json string",
-                    "type": "object"
-                },
-                "hash": {
-                    "type": "string"
-                },
-                "namespace": {
-                    "type": "string"
-                },
-                "timestamp": {
-                    "type": "integer"
-                },
-                "personaTag": {
-                    "type": "string"
-                },
-                "signature": {
-                    "description": "hex encoded string",
-                    "type": "string"
-                }
-            }
-        },
-        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
-            "type": "object",
-            "properties": {
-                "data": {
+                "components": {
                     "type": "object"
                 },
                 "id": {
@@ -501,10 +544,10 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg_world_dev_world-engine_cardinal_types.DebugStateElement": {
+        "pkg_world_dev_world-engine_cardinal_types.EntityStateElement": {
             "type": "object",
             "properties": {
-                "components": {
+                "data": {
                     "type": "object"
                 },
                 "id": {
@@ -528,18 +571,45 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "sign.Transaction": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "description": "json string",
+                    "type": "object"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "personaTag": {
+                    "type": "string"
+                },
+                "salt": {
+                    "description": "an optional field for additional hash uniqueness",
+                    "type": "integer"
+                },
+                "signature": {
+                    "description": "hex encoded string",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "unix millisecond timestamp",
+                    "type": "integer"
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.0.1",
+	Version:          "1.0.0",
 	Host:             "",
-	BasePath:         "/",
-	Schemes:          []string{"http", "ws"},
-	Title:            "Cardinal",
-	Description:      "Backend server for World Engine",
+	BasePath:         "",
+	Schemes:          []string{},
+	Title:            "Cardinal API",
+	Description:      "Cardinal server API for World Engine",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

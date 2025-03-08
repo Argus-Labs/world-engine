@@ -11,13 +11,14 @@ type DebugStateRequest struct{}
 
 type DebugStateResponse = []types.DebugStateElement
 
-// GetState godoc
-//
-// @Summary      Retrieves a list of all entities in the game state
-// @Description  Retrieves a list of all entities in the game state
-// @Produce      application/json
-// @Success      200  {object}  DebugStateResponse "List of all entities"
-// @Router       /debug/state [post]
+// @Summary Get the debug state of the world.
+// @Description Get the debug state of the world.
+// @Accept json
+// @Produce json
+// @Param request body DebugStateRequest true "Debug state request"
+// @Success 200 {array} types.DebugStateElement
+// @Failure 500 {object} error
+// @Router /debug/state [post].
 func GetState(world servertypes.ProviderWorld) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		var result DebugStateResponse

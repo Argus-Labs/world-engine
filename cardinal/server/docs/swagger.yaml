@@ -1,4 +1,3 @@
-basePath: /
 definitions:
   cardinal_server_handler.CQLQueryRequest:
     properties:
@@ -11,6 +10,8 @@ definitions:
         items:
           $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.EntityStateElement'
         type: array
+    type: object
+  cardinal_server_handler.DebugStateRequest:
     type: object
   cardinal_server_handler.GetHealthResponse:
     properties:
@@ -72,36 +73,16 @@ definitions:
       txHash:
         type: string
     type: object
-  cardinal_server_handler.Transaction:
+  pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
     properties:
-      body:
-        description: json string
-        type: object
-      namespace:
-        type: string
-      timestamp:
-        description: Unix timestamp, in milliseconds, for TTL-based replay protection.
-        type: integer
-      salt:
-        description: optional additional randomness for hash and signing
-        type: integer
-        required: false
-      personaTag:
-        type: string
-      signature:
-        description: hex encoded string
-        type: string
-    type: object
-  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
-    properties:
-      data:
+      components:
         type: object
       id:
         type: integer
     type: object
-  pkg_world_dev_world-engine_cardinal_types.DebugStateElement:
+  pkg_world_dev_world-engine_cardinal_types.EntityStateElement:
     properties:
-      components:
+      data:
         type: object
       id:
         type: integer
@@ -118,11 +99,30 @@ definitions:
       url:
         type: string
     type: object
+  sign.Transaction:
+    properties:
+      body:
+        description: json string
+        type: object
+      namespace:
+        type: string
+      personaTag:
+        type: string
+      salt:
+        description: an optional field for additional hash uniqueness
+        type: integer
+      signature:
+        description: hex encoded string
+        type: string
+      timestamp:
+        description: unix millisecond timestamp
+        type: integer
+    type: object
 info:
   contact: {}
-  description: Backend server for World Engine
-  title: Cardinal
-  version: 0.0.1
+  description: Cardinal server API for World Engine
+  title: Cardinal API
+  version: 1.0.0
 paths:
   /cql:
     post:
@@ -150,17 +150,28 @@ paths:
       summary: Executes a CQL (Cardinal Query Language) query
   /debug/state:
     post:
-      description: Retrieves a list of all entities in the game state
+      consumes:
+      - application/json
+      description: Retrieves the debug state of the world
+      parameters:
+      - description: Debug State Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/cardinal_server_handler.DebugStateRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: List of all entities
+          description: OK
           schema:
             items:
               $ref: '#/definitions/pkg_world_dev_world-engine_cardinal_types.DebugStateElement'
             type: array
-      summary: Retrieves a list of all entities in the game state
+      summary: Get Debug State
+      tags:
+      - debug
   /events:
     get:
       description: Establishes a new websocket connection to retrieve system events
@@ -262,7 +273,7 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.Transaction'
+          $ref: '#/definitions/sign.Transaction'
       produces:
       - application/json
       responses:
@@ -272,6 +283,14 @@ paths:
             $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
         "400":
           description: Invalid request parameter
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "408":
+          description: Request Timeout - message expired
           schema:
             type: string
       summary: Submits a transaction
@@ -291,7 +310,7 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.Transaction'
+          $ref: '#/definitions/sign.Transaction'
       produces:
       - application/json
       responses:
@@ -301,6 +320,14 @@ paths:
             $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
         "400":
           description: Invalid request parameter
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "408":
+          description: Request Timeout - message expired
           schema:
             type: string
       summary: Submits a transaction
@@ -315,7 +342,7 @@ paths:
         name: txBody
         required: true
         schema:
-          $ref: '#/definitions/cardinal_server_handler.Transaction'
+          $ref: '#/definitions/sign.Transaction'
       produces:
       - application/json
       responses:
@@ -325,6 +352,22 @@ paths:
             $ref: '#/definitions/cardinal_server_handler.PostTransactionResponse'
         "400":
           description: Invalid request parameter
+          schema:
+            type: string
+        "401":
+          description: Unauthorized - signature was invalid
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "408":
+          description: Request Timeout - message expired
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error - unexpected cache errors
           schema:
             type: string
       summary: Creates a persona
@@ -345,7 +388,4 @@ paths:
           schema:
             type: string
       summary: Retrieves details of the game world
-schemes:
-- http
-- ws
 swagger: "2.0"

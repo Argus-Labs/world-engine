@@ -54,7 +54,7 @@ func loadEntityIntoEvent(
 		arrayLogger = loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	zeroLoggerEvent.Array("components", arrayLogger)
-	zeroLoggerEvent.Int("entity_id", int(entityID))
+	zeroLoggerEvent.Int("entity_id", int(entityID)) //nolint:gosec
 	return zeroLoggerEvent.Int("archetype_id", int(archID))
 }
 
