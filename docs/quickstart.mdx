@@ -61,7 +61,14 @@ Learn how to install World Engine dependencies and the World CLI.
         **Advanced tip**: If you want to install a specific version of World CLI, you can run the following command:
 
         ```bash
-        go install pkg.world.dev/world-cli/cmd/world@<tag>
+        go install pkg.world.dev/world-cli/cmd/world@<version_tag>
+        ```
+
+        **Important**: If you have previously installed World CLI using the install script, 
+        you need to remove it first by running the following command:
+
+        ```bash
+        rm $(which world)
         ```
     </Accordion>
     <Accordion icon="planet-ringed" title="Install OrbStack (Optional — MacOS only)">
