@@ -103,7 +103,7 @@ func (r *routerImpl) PostBlockHook(transactions ethtypes.Transactions, receipts 
 		// NOT the tx.Origin address, or, more formally, the EOA address that triggered the tx.
 		if txTo := tx.To(); txTo != nil {
 			toAddr := *txTo
-			// check if theres a cross-shard tx queued from this address
+			// check if there's a cross-shard tx queued from this address
 			if r.queue.IsSet(toAddr) {
 				receipt := receipts[i]
 				// ensure this tx was executed successfully. we don't want to send a tx to Cardinal if the
