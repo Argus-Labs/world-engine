@@ -156,7 +156,7 @@ EVM Base Shard Codes:
 
 ### Querying Game Shards
 
-Game shards can be queried using the same contructs as above, however, the precompile will return the results synchronously.
+Game shards can be queried using the same constructs as above, however, the precompile will return the results synchronously.
 
 ```solidity
   QueryLocation memory q = QueryLocation(name);
