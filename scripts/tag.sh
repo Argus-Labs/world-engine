@@ -36,7 +36,7 @@ else
     ((patch+=1))  # Increment the patch version by default
 fi
 
-## REMOVE THIS SUGGGESTIONS VERSION. JUST SAY DEFAULT
+## REMOVE THIS SUGGESTIONS VERSION. JUST SAY DEFAULT
 # Suggest the new version
 new_version="$major.$minor.$patch"
 echo "Suggested new version: $new_version"
