@@ -40,7 +40,7 @@ func checkJWTSecret(logger runtime.Logger) {
 // during initialization if the JWT secret isn't set, we'll log a warning message and return a
 // ErrBadCustomAuthType if a client tries to use Argus ID custom authentication.
 //
-// When Supabase rolls out asymmetric JWTs, the JWT secret can be shared because it is essentialy a
+// When Supabase rolls out asymmetric JWTs, the JWT secret can be shared because it is essentially a
 // public key. If the JWT_SECRET variable isn't set, we can consider fetching a valid public key
 // and set it as the value of JWT_SECRET. This way, Argus ID authentication will always be enabled
 // (assuming the fetch didn't fail), and we don't have to return an error.
