@@ -27,7 +27,7 @@ func (w *World) ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, 
 
 func (w *World) GetEVMMsgReceipt(evmTxHash string) (EVMTxReceipt, bool) {
 	rcpt, exists := w.evmTxReceipts[evmTxHash]
-	// TODO(scott): this is an anti pattern, getters shouldnt be state mutating
+	// TODO(scott): this is an anti pattern, getters shouldn't be state mutating
 	delete(w.evmTxReceipts, evmTxHash)
 	return rcpt, exists
 }
