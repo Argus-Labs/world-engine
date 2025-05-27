@@ -46,7 +46,7 @@ func (t *TxPool) GetAmountOfTxs() int {
 func (t *TxPool) GetEVMTxs() []TxData {
 	transactions := make([]TxData, 0)
 	for _, txs := range t.m {
-		// skip if theres nothing
+		// skip if there's nothing
 		if len(txs) == 0 {
 			continue
 		}
