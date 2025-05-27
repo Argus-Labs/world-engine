@@ -53,7 +53,7 @@ func TestUpdateNamespaceRequest(t *testing.T) {
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
-			name: "cant use non-alphanumeric in shard names",
+			name: "can't use non-alphanumeric in shard names",
 			msg: UpdateNamespaceRequest{
 				Authority: validAddr,
 				Namespace: &Namespace{
