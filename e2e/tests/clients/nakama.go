@@ -186,7 +186,7 @@ func (c *NakamaClient) AuthenticateSIWE(username, signerAddress string, signFn f
 		return err
 	}
 
-	// Now sign the message and re-send the authenciate/custom request
+	// Now sign the message and re-send the authenticate/custom request
 	body.Vars.Signature = signFn(siwe.SIWEMessage)
 	body.Vars.Message = siwe.SIWEMessage
 
