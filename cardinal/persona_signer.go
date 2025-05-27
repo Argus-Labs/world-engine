@@ -32,7 +32,7 @@ func PersonaSignerQuery(wCtx WorldContext, req *PersonaSignerQueryRequest) (*Per
 
 	addr, err := wCtx.getSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if err != nil {
-		//nolint:gocritic // cant switch case this.
+		//nolint:gocritic // can't switch case this.
 		if errors.Is(err, persona.ErrPersonaTagHasNoSigner) {
 			status = PersonaStatusAvailable
 		} else if errors.Is(err, persona.ErrCreatePersonaTxsNotProcessed) {
