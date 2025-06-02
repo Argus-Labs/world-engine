@@ -45,7 +45,7 @@ jobs:
         run: echo "path=$(go list -f '{{.Dir}}/...' -m | xargs)" >> $GITHUB_OUTPUT
         ## Equivalent to 'make lint' arguments
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --timeout=10m -v ${{ steps.go-dir.outputs.path }}
