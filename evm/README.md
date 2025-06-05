@@ -196,7 +196,7 @@ Required:
 - DA_AUTH_TOKEN=celetia-rpc-node-auth-token
 
    Get Authentication token from [rollkit/local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet) with `docker logs celestia_devnet | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`.
-   For Celestia Arabica/Mocha testnet, follow the [RPC-API tutorial](https://docs.celestia.org/developers/rpc-tutorial/#auth-token).
+   For Celestia Arabica/Mocha testnet, follow the [RPC-API tutorial](https://docs.celestia.org/tutorials/node-api#rpc-api-tutorial/#auth-token).
 
 Optional:
 
