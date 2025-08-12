@@ -25,7 +25,7 @@ jobs:
       GO_VERSION: 1.24
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
@@ -57,7 +57,7 @@ jobs:
     runs-on: namespace-profile-linux-4vcpu-8gb-cached
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
@@ -103,7 +103,7 @@ jobs:
       - nscloud-exp-features:privileged;host-pid-namespace
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
