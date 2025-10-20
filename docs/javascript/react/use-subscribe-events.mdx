@@ -1,0 +1,208 @@
+---
+title: useSubscribeEvents
+description: A React hook that allows you to subscribe to events from your World Engine shard
+---
+
+The `useSubscribeEvents` hook provides a React-friendly way to subscribe to real-time events from your World Engine shard. It handles automatic subscription setup and cleanup when components mount and unmount.
+
+<Note>
+  **Prerequisites**: Make sure you understand the basics by reading the [Subscribe Events
+  guide](/guides/subscribe-events) first. This guide focuses on React-specific usage patterns.
+</Note>
+
+## Basic Usage
+
+```tsx Basic Usage
+import { useSubscribeEvents } from '@argus-labs/sdk/react'
+import { playerSpawnEvent } from './events'
+import { shard } from './shard'
+
+function GameNotifications() {
+  useSubscribeEvents({
+    shardClient: shard,
+    events: [
+      playerSpawnEvent({
+        onSuccess: (payload) => {
+          console.log(`${payload.argus_auth_name} spawned at (${payload.x}, ${payload.y})`)
+        },
+        onError: (error) => {
+          console.error('Event error:', error)
+        },
+      }),
+    ],
+  })
+
+  return <div>Game notifications active</div>
+}
+```
+
+## Conditional Subscriptions
+
+Use the `disabled` prop to conditionally subscribe based on game state:
+
+```tsx Conditional Subscriptions
+import { useSubscribeEvents } from '@argus-labs/sdk/react'
+import { playerSpawnEvent } from './events'
+import { shard } from './shard'
+import { useCurrentScene } from './hooks' // Your own hook to check if the player is in the game
+
+function PlayerSpawnNotifications() {
+  const currentScene = useCurrentScene()
+
+  useSubscribeEvents({
+    shardClient: shard,
+    events: [
+      playerSpawnEvent({
+        onSuccess: (payload) => {
+          toast(`${payload.argus_auth_name} joined the game!`)
+        },
+        onError: console.error,
+      }),
+    ],
+    disabled: currentScene !== 'Game', // Only subscribe when in game
+  })
+
+  if (currentScene !== 'Game') return null
+  return <div>Player notifications active</div>
+}
+```
+
+## Multiple Event Subscriptions
+
+Subscribe to multiple events in a single hook call:
+
+```tsx Multiple Event Subscriptions
+import { useSubscribeEvents } from '@argus-labs/sdk/react'
+import { playerSpawnEvent, playerMovementEvent } from './events'
+import { shard } from './shard'
+
+function GameEventHandler() {
+  const [notifications, setNotifications] = useState<string[]>([])
+
+  const addNotification = (message: string) => {
+    setNotifications((prev) => [...prev.slice(-4), message]) // Keep last 5
+  }
+
+  useSubscribeEvents({
+    shardClient: shard,
+    events: [
+      playerSpawnEvent({
+        onSuccess: (payload) => {
+          addNotification(`${payload.argus_auth_name} spawned`)
+        },
+        onError: console.error,
+      }),
+      playerMovementEvent({
+        onSuccess: (payload) => {
+          addNotification(`${payload.argus_auth_name} moved`)
+        },
+        onError: console.error,
+      }),
+    ],
+  })
+
+  return (
+    <div className="notifications">
+      {notifications.map((notification, index) => (
+        <div key={index}>{notification}</div>
+      ))}
+    </div>
+  )
+}
+```
+
+## Error Handling
+
+Handle subscription errors with the `onError` prop:
+
+```tsx Error Handling
+import { useSubscribeEvents } from '@argus-labs/sdk/react'
+import { playerSpawnEvent } from './events'
+import { shard } from './shard'
+
+function GameEventsWithErrorHandling() {
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'error' | 'connecting'>(
+    'connecting'
+  )
+
+  useSubscribeEvents({
+    shardClient: shard,
+    events: [
+      playerSpawnEvent({
+        onSuccess: (payload) => {
+          setConnectionStatus('connected')
+          console.log('Player spawned:', payload)
+        },
+        onError: (error) => {
+          console.error('Event processing error:', error)
+        },
+      }),
+    ],
+    onError: (error) => {
+      console.error('Subscription error:', error)
+      setConnectionStatus('error')
+    },
+  })
+
+  return (
+    <div>
+      <div>Connection: {connectionStatus}</div>
+      {connectionStatus === 'error' && <div>Failed to connect to game events</div>}
+    </div>
+  )
+}
+```
+
+## Type Safety with Schema
+
+Combine with schema validation for full type safety:
+
+```tsx Type Safety with Schema
+import { z } from 'zod'
+import { createEventDefinition } from '@argus-labs/sdk'
+import { useSubscribeEvents } from '@argus-labs/sdk/react'
+
+// Define schema outside component to avoid re-creation
+const playerSpawnSchema = z.object({
+  argus_auth_id: z.string(),
+  argus_auth_name: z.string(),
+  x: z.number(),
+  y: z.number(),
+})
+
+const playerSpawnEvent = createEventDefinition({
+  name: 'player-spawn',
+  schema: playerSpawnSchema,
+})
+
+function TypedEventHandler() {
+  useSubscribeEvents({
+    shardClient: shard,
+    events: [
+      playerSpawnEvent({
+        onSuccess: (payload) => {
+          // payload is fully typed and validated
+          console.log(`${payload.argus_auth_name} spawned at (${payload.x}, ${payload.y})`)
+        },
+        onError: console.error,
+      }),
+    ],
+  })
+
+  return <div>Listening for player spawns…</div>
+}
+```
+
+## Best Practices
+
+1. **Always handle all error cases** (both subscription and event errors)
+2. **Combine with schema validation** for runtime type safety
+3. **Create event definitions outside components** to avoid re-creation on every render
+4. **Use `disabled` prop** for conditional subscriptions instead of conditional rendering
+5. **Keep event handlers simple** - delegate complex logic to separate functions
+6. **Clean up is automatic** - the hook handles unsubscription when components unmount
+
+<Check>
+  You're now ready to build reactive React applications that respond to real-time game events
+  efficiently with proper error handling and type safety.
+</Check>

@@ -21,36 +21,10 @@
   </a>
 </div>
 
-## Overview
+## ⚠️ Work in Progress
 
-World Engine allows onchain games to scale to thousands of transactions per second with sub-100ms block time, while
-increasing development speed significantly. Sharding enables game developers to distribute their game load across
-various shards.
+Hey there!
 
-## Getting Started
+We're in the process of rewriting the World Engine from the ground up.
 
-The simplest way to get started with World Engine is to follow the World
-Engine [quickstart guide](https://world.dev/quickstart)
-
-Note, this repo is for the core development of the World Engine only, and should not be used for developing World Engine
-powered games.
-
-## Documentation
-
-For an in-depth guide on how to use World Engine, visit our [documentation](https://world.dev).
-
-## Directory Structure
-
-<pre>
-◢ ✦ ◣ World Engine ◢ ✦ ◣
-├── <a href="./assert">assert</a>: Custom testing package that includes stack traces in errors.
-├── <a href="./cardinal">cardinal</a>: The first World Engine game shard implementation.
-├── <a href="./evm">evm</a>: Rollkit and Polaris integrated Base Shard rollup.
-├── <a href="./relay">relay</a>: Game Shard message relayer. Currently contains one implementation using Nakama.
-├── <a href="./rift">rift</a>: Protobuf definitions and generated Go code for the World Engine's cross shard messaging protocol.
-├── <a href="./sign">sign</a>: Library to facilitate message signing and verification.
-</pre>
-
-## World Engine Development
-
-Check out [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed instructions on setting up the development environment, running tests, and debugging.
+Stay tuned!

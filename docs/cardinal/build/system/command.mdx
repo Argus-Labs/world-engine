@@ -1,0 +1,83 @@
+---
+title: Handling Commands
+description: How to create and handle commands in Cardinal
+---
+
+Commands are how players interact with your game world. They represent actions that players
+want to perform, such as moving, attacking, or chatting.
+
+Commands are sent by the client, with payload shape pre-defined in the command struct.
+
+## Defining Commands
+
+All commands must embed `cardinal.BaseCommand` and implement the `Name()` method.
+By convention, commands are defined in the **system** in which they are used.
+
+```go system/player_move.go
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+)
+
+type MovePlayerCommand struct {
+	cardinal.BaseCommand
+	// The payload of the command.
+	X uint32 `json:"x"`
+	Y uint32 `json:"y"`
+}
+
+func (MovePlayerCommand) Name() string {
+	// The name of the command. Clients specify the name when sending the command.
+	return "move-player"
+}
+```
+
+## Handling Commands
+
+Commands are handled in systems using the `WithCommand` field.
+
+```go system/player_move.go highlight={21,26-34} focus={19-36}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+)
+
+type MovePlayerCommand struct {
+	cardinal.BaseCommand
+	// The payload of the command.
+	X uint32 `json:"x"`
+	Y uint32 `json:"y"`
+}
+
+func (MovePlayerCommand) Name() string {
+	// The name of the command. Clients specify the name when sending the command.
+	return "move-player"
+}
+
+type MovePlayerSystemState struct {
+	cardinal.BaseSystemState
+	MovePlayerCommands cardinal.WithCommand[MovePlayerCommand]
+	Players            PlayerSearch
+}
+
+func MovePlayerSystem(state *MovePlayerSystemState) error {
+	// Iterate over all move-player commands received in the tick.
+	for cmd := range state.MovePlayerCommands.Iter() {
+		payload := cmd.Payload()
+		state.Logger().Info().Msgf("Player moved to %d, %d", payload.X, payload.Y)
+
+		// You can also access the persona associated with the command.
+		persona := cmd.Persona()
+		state.Logger().Info().Msgf("Command sent by persona %s", persona)
+	}
+	return nil
+}
+```
+
+<Tip>
+  Simply logging commands isn't very useful. You can [create/destroy
+  entities](/cardinal/build/system/entity), [get/set components](/cardinal/build/system/component),
+  or as you'll learn in the next page, [send events](/cardinal/build/system/event).
+</Tip>

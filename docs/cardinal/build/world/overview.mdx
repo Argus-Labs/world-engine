@@ -1,0 +1,38 @@
+---
+title: Overview
+description: How to create and manage your Cardinal world
+---
+
+In Cardinal, the `main.go` file is used as the entry point for your game shard implementation. This is where you will initialize your world and register your component, message, query, and system to it.
+
+## Example
+
+A typical `main.go` file will look like this:
+
+```go main.go
+package main
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/system"
+)
+
+func main() {
+	world := cardinal.NewWorld()
+
+	// Example of using a hook. This hook runs before the main update phase.
+	// There are also other hooks:
+	// - Init (runs only once, at tick 0)
+	// - PreUpdate (runs before the main update phase)
+	// - Update (runs during the main update phase)
+	// - PostUpdate (runs after the main update phase)
+	cardinal.RegisterSystem(world, system.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
+
+	cardinal.RegisterSystem(world, system.PlayerSpawnSystem)
+	cardinal.RegisterSystem(world, system.MovePlayerSystem)
+	cardinal.RegisterSystem(world, system.PlayerLeaveSystem)
+	cardinal.RegisterSystem(world, system.OnlineStatusUpdater)
+
+	world.StartGame()
+}
+```

@@ -1,0 +1,71 @@
+---
+title: Create/Destroy Entity
+description: How to create and remove entities in Cardinal
+---
+
+import LearnSearch from '/snippets/learn-search.mdx'
+
+## Creating Entity
+
+To create an entity, you need to call the `Create` method on your search.
+
+```go system/create_player.go highlight={12,19-22}
+package system
+
+import (
+	"fmt"
+
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/component"
+)
+
+type CreatePlayerSystemState struct {
+	cardinal.BaseSystemState
+	Players PlayerSearch
+}
+
+func CreatePlayerSystem(state *CreatePlayerSystemState) error {
+	for i := range 10 {
+		name := fmt.Sprintf("default-%d", i)
+
+		id, err := state.Players.Create(
+			component.PlayerTag{Nickname: name},
+			component.Position{X: 0, Y: 0},
+		)
+		if err != nil {
+			return err
+		}
+
+		state.Logger().Info().Uint32("entity", uint32(id)).Msgf("Created player %s", name)
+	}
+	return nil
+}
+```
+
+<LearnSearch />
+
+## Destroying Entity
+
+To destroy an entity, you need to call the `Destroy` method on the entity.
+
+```go system/destroy_player.go highlight={15}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+)
+
+type DestroyPlayerSystemState struct {
+	cardinal.BaseSystemState
+	Players PlayerSearch
+}
+
+func DestroyPlayerSystem(state *DestroyPlayerSystemState) error {
+	for entity, player := range state.Players.Iter() {
+		if player.Tag.Get().Nickname == "testing" {
+			entity.Destroy()
+		}
+	}
+	return nil
+}
+```

@@ -1,0 +1,106 @@
+---
+title: Multiple Regions
+description: Configure and manage multiple regions for optimal connectivity
+---
+
+The SDK supports multiple regions to provide optimal connectivity for users worldwide.
+If regions is unspecified, the SDK defaults to a single `localhost` region.
+You can configure multiple regions and let the SDK automatically select the best one based on latency.
+
+## Configuration
+
+Configure multiple regions in your SDK setup:
+
+```typescript
+import { createConfig, createSDK } from '@argus-labs/sdk'
+
+const config = createConfig({
+  regions: {
+    'us-west-2': {
+      gatewayUrl: 'http://localhost:8080',
+      displayName: 'US West (Oregon)',
+      simulateLatencyCheckMs: 100, // optional, for development only
+    },
+    'eu-central-1': {
+      gatewayUrl: 'http://localhost:8081',
+      displayName: 'Europe (Frankfurt)',
+      simulateLatencyCheckMs: 300,
+    },
+    'ap-southeast-1': {
+      gatewayUrl: 'http://localhost:8082',
+      displayName: 'Asia Pacific (Singapore)',
+      simulateLatencyCheckMs: 200,
+    },
+  },
+})
+
+export const world = createSDK(config)
+```
+
+The optional `simulateLatencyCheckMs` property simulates network latency during development (`NODE_ENV === 'development'`)
+to help test region selection behavior. It only affects latency checks, not actual commands or queries.
+
+<Note>
+  Using World Forge? Check out the [World Forge guide](/javascript/guides/world-forge) for
+  predefined region configurations.
+</Note>
+
+<Tip>
+  Using React? You can skip everyhing below and head to [React
+  integration](/javascript/react/multiple-regions) for a complete example.
+</Tip>
+
+## Initialization and Auto-Selection
+
+Initialize the region manager to perform latency checks and automatically select the best region:
+
+```typescript
+import { world } from './sdk'
+
+// Initialize and get cleanup function
+const unsubscribe = world.regions.initialize()
+
+// Clean up when done (e.g., game exits)
+unsubscribe()
+```
+
+The `initialize()` method:
+
+- Performs latency checks against all configured regions
+- Automatically selects the region with the lowest latency
+- Returns an unsubscribe function for cleanup
+
+## Accessing Region Status
+
+Subscribe to region status changes to track latency checks and region data:
+
+```typescript
+import { world } from './sdk'
+
+// Subscribe to region status updates
+const unsubscribe = world.regions.subscribe((status) => {
+  console.log('Selected region:', status.selectedRegion?.config.displayName)
+  console.log('Latency check status:', status.latencyCheckStatus)
+
+  if (status.latencyCheckStatus === 'done') {
+    // Show latencies to help users make informed choices
+    Object.entries(status.regions).forEach(([regionId, region]) => {
+      console.log(`${region.config.displayName}: ${region.latency}ms`)
+    })
+  }
+})
+
+// Clean up subscription
+unsubscribe()
+```
+
+## Manual Region Selection
+
+Users can manually override the automatic selection, typically after seeing latency results:
+
+```typescript
+import { world } from './sdk'
+
+// Select a specific region by ID
+world.regions.select('eu-central-1') // key from config
+```

@@ -1,0 +1,213 @@
+---
+title: Query
+description: Learn how to query the game state of your World Engine shard using the Argus Labs SDK
+---
+
+# Querying Game State
+
+The Query API allows you to retrieve game state from your World Engine shard.
+This guide covers everything from basic queries to advanced filtering and validation.
+
+## Basic Query
+
+The simplest query retrieves entities that contain specific components:
+
+```typescript Basic Query
+import { Match } from '@argus-labs/sdk'
+import { shard } from './shard'
+
+export async function getPlayers() {
+  const { error, data } = await shard.query({
+    find: ['playertag', 'position'],
+    match: Match.CONTAINS,
+  })
+
+  if (error) {
+    console.error(error)
+    return null
+  }
+
+  return data
+}
+```
+
+This query returns all entities that contain both `playertag` and `position` components.
+
+## Match Types
+
+The `match` field determines how the query matches entities against the specified components:
+
+### Match.CONTAINS
+
+Returns entities that contain **at least** the specified components (they may have additional components):
+
+```typescript Match.CONTAINS
+// Returns entities with playertag + position + any other components
+const { data } = await shard.query({
+  find: ['playertag', 'position'],
+  match: Match.CONTAINS, // Default behavior
+})
+```
+
+### Match.EXACT
+
+Returns entities that contain **exactly** the specified components (no more, no less):
+
+```typescript Match.EXACT
+// Returns entities with only playertag + position components
+const { data } = await shard.query({
+  find: ['playertag', 'position'],
+  match: Match.EXACT,
+})
+```
+
+<Note>
+  **ECS Concept**: These match types reflect Entity Component System (ECS) patterns. `CONTAINS` is
+  useful for finding entities by their capabilities, while `EXACT` is useful for finding entities
+  with a specific component combination.
+</Note>
+
+## Advanced Filtering with Where Clauses
+
+For more complex queries, use the `where` field with expression language:
+
+```typescript Where Clauses
+import { Match } from '@argus-labs/sdk'
+import { shard } from './shard'
+
+export async function getOnlinePlayers() {
+  const { data, error } = await shard.query({
+    find: ['playertag', 'onlinestatus'],
+    match: Match.CONTAINS,
+    // Note that the field name is PascalCase (follows your Cardinal component struct), not camelCase
+    where: 'onlinestatus.Online == true',
+  })
+
+  if (error) return null
+  return data
+}
+
+export async function getPlayersByName(name: string) {
+  const { data, error } = await shard.query({
+    find: ['playertag', 'position'],
+    match: Match.CONTAINS,
+    where: `playertag.Name == "${name}"`,
+  })
+
+  if (error) return null
+  return data
+}
+```
+
+<Tip>To learn more, head on over to the [Query API](/cardinal/build/query-api) page.</Tip>
+
+## Type Safety with Schema Validation
+
+Validate query responses using schema libraries like [Zod](https://zod.dev):
+
+```typescript Type Safety with Schema Validation
+import { Match } from '@argus-labs/sdk'
+import { shard } from './shard'
+import { z } from 'zod'
+
+// Define your schema
+const playersSchema = z.array(
+  z.object({
+    _id: z.number(),
+    onlinestatus: z.object({
+      last_active: z.string(),
+      online: z.boolean(),
+    }),
+    playertag: z.object({
+      argus_auth_id: z.string(),
+      argus_auth_name: z.string(),
+    }),
+    position: z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+  })
+)
+
+type PlayerQueryResponse = z.infer<typeof playersSchema>
+
+export const getValidatedPlayers = async (): Promise<PlayerQueryResponse | null> => {
+  const { data, error } = await shard.query(
+    {
+      find: ['playertag', 'position', 'onlinestatus'],
+      match: Match.EXACT,
+    },
+    { schema: playersSchema } // Pass schema as second parameter
+  )
+
+  if (error) return null
+
+  // data is now fully typed and validated
+  return data
+}
+```
+
+### Schema Library Support
+
+The SDK supports any schema library that implements [Standard Schema](https://github.com/standard-schema/standard-schema):
+
+- **[Zod](https://zod.dev)** - TypeScript-first schema validation
+- **[Valibot](https://valibot.dev)** - Modular schema library
+- **[Yup](https://github.com/jquense/yup)** - JavaScript schema builder
+- **[Joi](https://joi.dev)** - Object schema validation
+- **[ArkType](https://arktype.io)** - TypeScript schema validation
+
+<Accordion title="Example with Valibot">
+
+```typescript Example with Valibot
+import * as v from 'valibot'
+
+const playersSchema = v.array(
+  v.object({
+    _id: v.number(),
+    playertag: v.object({
+      argus_auth_id: v.string(),
+      argus_auth_name: v.string(),
+    }),
+    position: v.object({
+      x: v.number(),
+      y: v.number(),
+    }),
+  })
+)
+
+const { data } = await shard.query({ find: ['playertag', 'position'] }, { schema: playersSchema })
+```
+
+</Accordion>
+
+## Error Handling
+
+Always handle query errors gracefully:
+
+```typescript Error Handling
+export async function safeQuery() {
+  const { data, error } = await shard.query({
+    find: ['playertag'],
+    match: Match.CONTAINS,
+  })
+
+  if (error) {
+    console.error('Query failed:', error)
+    return null
+  }
+
+  return data
+}
+```
+
+## Best Practices
+
+1. **Use schema validation** for type safety and runtime validation
+2. **Handle errors** appropriately in your application
+3. **Use specific queries** - only query for components you need
+4. **Cache results** when appropriate to reduce server load
+5. **Use `Match.EXACT`** when you know the exact component composition
+6. **Use `Match.CONTAINS`** for flexible entity matching
+
+<Tip>If you're using React, you can use the [useQuery](/javascript/react/use-query) hook.</Tip>

@@ -1,0 +1,71 @@
+---
+title: Multiple Regions (React)
+description: React-specific patterns for managing multiple regions
+---
+
+## Prerequisites
+
+You need to first configure multiple regions, see the [Multiple Regions
+guide](/javascript/guides/multiple-regions).
+
+This page covers React-specific patterns for working with regions.
+
+## Initialization in React
+
+Initialize the region manager during component mount:
+
+```typescript
+import { useEffect } from 'react'
+import { world } from './sdk'
+
+function App() {
+  useEffect(() => {
+    const unsubscribe = world.regions.initialize()
+    return unsubscribe // Cleanup on unmount
+  }, [])
+
+  return <div>{/* Your app components */}</div>
+}
+```
+
+## Using Region State
+
+Use `useSyncExternalStore` to access region data in React components:
+
+```typescript
+import { useSyncExternalStore } from 'react'
+import { world } from './sdk'
+
+const RegionSelector = () => {
+  const { regions, selectedRegion, latencyCheckStatus } = useSyncExternalStore(
+    world.regions.subscribe,
+    world.regions.getSnapshot
+  )
+
+  const handleRegionChange = (regionId: string) => {
+    world.regions.select(regionId)
+  }
+
+  return (
+    <div>
+      {regions &&
+        Object.entries(regions).map(([regionId, region]) => (
+          <label key={regionId}>
+            <input
+              type="radio"
+              value={regionId}
+              checked={selectedRegion?.id === regionId}
+              onChange={(e) => handleRegionChange(e.target.value)}
+            />
+            {region.config.displayName}
+            {region.latency !== null ? (
+              <span>({region.latency}ms)</span>
+            ) : (
+              <span>{latencyCheckStatus === 'loading' ? 'Checking…' : 'Offline'}</span>
+            )}
+          </label>
+        ))}
+    </div>
+  )
+}
+```

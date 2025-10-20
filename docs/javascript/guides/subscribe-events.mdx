@@ -1,0 +1,200 @@
+---
+title: Subscribe Events
+description: Learn how to subscribe to events in World Engine
+---
+
+Events allow you to listen for real-time changes in your World Engine shard.
+This guide covers everything from basic event subscriptions to advanced patterns
+with schema validation and error handling.
+
+## Prerequisites
+
+Before you begin, make sure you have completed the [Quickstart guide](../quickstart) and [Authentication with Argus Auth](./authentication).
+
+## Basic Event Subscription
+
+The simplest event subscription listens for a specific event type:
+
+```typescript Basic Event Subscription
+import { createEventDefinition } from '@argus-labs/sdk'
+import { shard } from './shard'
+
+// Create event definition
+const playerSpawnEvent = createEventDefinition({
+  name: 'player-spawn',
+})
+
+export async function subscribeToPlayerSpawn() {
+  const { error, unsubscribe } = await shard.subscribeEvents([
+    playerSpawnEvent({
+      onSuccess: (payload) => {
+        console.log('Player spawned:', payload)
+      },
+      onError: (error) => {
+        console.error('Event error:', error)
+      },
+    }),
+  ])
+
+  if (error) {
+    console.error('Failed to subscribe:', error)
+    return null
+  }
+
+  return unsubscribe
+}
+```
+
+This subscription will trigger whenever a player spawns in the game world.
+
+## Type Safety with Schema Validation
+
+For better type safety and validation, add schemas to your event definitions:
+
+```typescript Type Safety with Schema Validation
+import { createEventDefinition } from '@argus-labs/sdk'
+import { shard } from './shard'
+import { z } from 'zod'
+
+// Define the event schema
+const playerSpawnEventSchema = z.object({
+  argus_auth_id: z.string(),
+  argus_auth_name: z.string(),
+  x: z.number(),
+  y: z.number(),
+})
+type PlayerSpawnEventPayload = z.infer<typeof playerSpawnEventSchema>
+
+// Create event definition with schema
+const playerSpawnEvent = createEventDefinition({
+  name: 'player-spawn',
+  schema: playerSpawnEventSchema,
+})
+
+export async function subscribeToPlayerSpawn() {
+  const { error, unsubscribe } = await shard.subscribeEvents([
+    playerSpawnEvent({
+      onSuccess: (payload) => {
+        // payload is fully typed and validated
+        console.log(`${payload.argus_auth_name} spawned at (${payload.x}, ${payload.y})`)
+      },
+      onError: (error) => {
+        console.error('Event error:', error)
+      },
+    }),
+  ])
+
+  if (error) {
+    console.error('Failed to subscribe:', error)
+    return null
+  }
+
+  return unsubscribe
+}
+```
+
+<Note>
+  **Schema Validation**: Using schemas provides runtime validation and compile-time type safety. The
+  SDK supports any schema library that implements Standard Schema.
+</Note>
+
+## Multiple Event Subscriptions
+
+Subscribe to multiple events in a single call:
+
+```typescript Multiple Event Subscriptions
+import { shard } from './shard'
+import { playerSpawnEvent, playerMovementEvent } from './events'
+
+export async function subscribeToPlayerEvents() {
+  const { error, unsubscribe } = await shard.subscribeEvents([
+    playerSpawnEvent({
+      onSuccess: (payload) => {
+        console.log('Player spawned:', payload.argus_auth_name)
+      },
+      onError: console.error,
+    }),
+    playerMovementEvent({
+      onSuccess: (payload) => {
+        console.log('Player moved:', payload.argus_auth_id)
+      },
+      onError: console.error,
+    }),
+  ])
+
+  if (error) {
+    console.error('Failed to subscribe to events:', error)
+    return null
+  }
+
+  return unsubscribe
+}
+```
+
+## Unsubscribing from Events
+
+The following example shows how to unsubscribe from events (fictional game framework example).
+
+```typescript Unsubscribing from Events
+import type { UnsubscribeEventsResult } from '@argus-labs/sdk'
+
+class Game {
+  private unsubscribe: (() => Promise<UnsubscribeEventsResult>) | null = null
+
+  constructor() {}
+
+  async create() {
+    this.unsubscribe = await subscribeToPlayerEvents()
+  }
+
+  async destroy() {
+    if (!this.unsubscribe) return
+
+    const { error } = await this.unsubscribe()
+
+    if (error) {
+      console.error('Failed to unsubscribe from events:', error)
+    }
+  }
+}
+```
+
+## Error Handling
+
+Both `subscribeEvents` and its returned `unsubscribe` function return (a promise that resolves to) an object with an `error` property.
+
+```typescript Error Handling
+import { shard } from './shard'
+
+// `error` is null if the subscription is successful
+const { error, unsubscribe } = await shard.subscribeEvents([
+  playerSpawnEvent({
+    onSuccess: (payload) => {
+      console.log('Player spawned:', payload)
+    },
+    onError: (error) => {
+      // Error during event (e.g. schema validation failed)
+      console.error('Event error:', error)
+    },
+  }),
+])
+
+if (error) {
+  console.error('Failed to subscribe to events:', error)
+}
+
+// `error` is null if the unsubscribe is successful
+const { error: unsubscribeError } = await unsubscribe()
+
+if (unsubscribeError) {
+  console.error('Failed to unsubscribe from events:', unsubscribeError)
+}
+```
+
+## Best Practices
+
+1. **Always define event schemas** for type safety and validation
+2. **Handle both subscription and event errors** appropriately
+3. **Group related events** in single subscription calls
+4. **Store unsubscribe functions** for proper cleanup
+5. **Clean up subscriptions** when game scene changes (or component unmounts)

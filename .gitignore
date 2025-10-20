@@ -1,0 +1,121 @@
+# Keep version plans tracked
+!.nx/version-plans/
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+.ionide
+
+# Go
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Binary output directory
+bin/
+dist/
+
+# Local development environment
+.env
+.env.local
+*.pid
+
+# Debug files
+debug
+__debug_bin
+
+# IDE specific files
+.idea/
+*.swp
+*.swo
+
+# Benchmark results
+bench.json
+bench.txt
+
+# JUnit XML output
+junit.xml
+
+# Tilt PID file
+.tilt.pid
+
+# Tilt log file
+.tilt.log
+
+# JS
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+!proto/gen/csharp/csharp.sln
+*.sw?
+# OS specific
+
+# Task files
+tasks.json
+tasks/
+.taskmaster/
+
+# Claude
+.claude/
+.mcp.json
+
+# Generated files
+proto/forge/proto/gen/
+
+
+.nx/cache
+.nx/workspace-data
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+.vercel
+PLAN.md
+services/forge/main

@@ -1,0 +1,101 @@
+---
+title: 'Configuration'
+---
+
+Cardinal shards are configured using environment variables. This page documents all available configuration
+options, their default values, and usage examples.
+
+## Configuration Options
+
+### CARDINAL_ORG
+
+**Type:** `string`  
+**Default:** `"organization"`  
+**Required:** Yes
+
+The organization identifier for the shard. This is used to namespace your organization within the larger World Engine stack.
+
+```bash
+export CARDINAL_ORG="my-game-studio"
+```
+
+### CARDINAL_PROJECT
+
+**Type:** `string`  
+**Default:** `"project"`  
+**Required:** Yes
+
+The project name within the organization. This is used to namespace your project within the organization.
+
+```bash
+export CARDINAL_PROJECT="my-awesome-game"
+```
+
+### CARDINAL_SHARD_ID
+
+**Type:** `string`  
+**Default:** `"service"`  
+**Required:** Yes
+
+A unique identifier for this shard. This is used to identify the shard within the project.
+
+```bash
+export CARDINAL_SHARD_ID="shard-1"
+```
+
+### CARDINAL_TICK_RATE
+
+**Type:** `uint32`  
+**Default:** `1`  
+**Required:** Yes
+
+The tick rate determines how frequently the shard processes game state updates (in ticks per second).
+Higher values provide more responsive gameplay but consume more resources.
+
+```bash
+export CARDINAL_TICK_RATE="20"  # 20 ticks per second
+```
+
+### CARDINAL_MODE
+
+**Type:** `string`  
+**Default:** `"LEADER"`  
+**Valid Values:** `"LEADER"`, `"FOLLOWER"`
+
+The shard mode determines the role of this shard:
+
+- **LEADER**: Primary shard that processes game logic and state changes
+- **FOLLOWER**: Secondary shard that follows the leader's state (used for scaling and redundancy)
+
+```bash
+export CARDINAL_MODE="LEADER"
+```
+
+### CARDINAL_LOG_LEVEL
+
+**Type:** `string`  
+**Default:** `"info"`  
+**Valid Values:** `"debug"`, `"info"`, `"warn"`, `"error"`
+
+Controls the verbosity of log output:
+
+- **debug**: Most verbose, includes all log messages
+- **info**: General information about world operations
+- **warn**: Warning messages and potential issues
+- **error**: Only error messages
+
+```bash
+export CARDINAL_LOG_LEVEL="debug"
+```
+
+### CARDINAL_PRIVATE_KEY
+
+**Type:** `string`  
+**Default:** None  
+**Required:** Yes
+
+The hex-encoded Ed25519 private key used for signing inter-shard commands. This key is critical for secure communication between world instances.
+
+```bash
+export CARDINAL_PRIVATE_KEY="your-hex-encoded-ed25519-private-key"
+```

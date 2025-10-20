@@ -1,0 +1,106 @@
+---
+title: Authentication
+description: Learn how to integrate Argus Auth into your World Engine game client for seamless user authentication and identity management
+---
+
+This guide will walk you through integrating **Argus Auth** into your World Engine game client.
+Argus Auth provides secure, seamless authentication that works perfectly with multiplayer games.
+
+<Tip>We use the term Argus Auth and Argus ID interchangeably.</Tip>
+
+## **Prerequisites**
+
+Before you begin, make sure you have completed the [Quickstart guide](../quickstart).
+
+## Sign in with Argus ID
+
+### Checking authentication state
+
+Use `world.auth.getUser()` to get the current user. If this is your first time using Argus Auth,
+this will return `null`. You'd normally do this in the main menu of your game.
+
+```typescript Main Menu
+import { world } from './sdk'
+
+export function mainMenu() {
+  const user = world.auth.getUser()
+  console.log(user)
+}
+```
+
+The `getUser()` method returns either:
+
+- An `AuthUser` object if the user is authenticated
+- `null` if no user is currently signed in
+
+<Accordion title="What's in the AuthUser object?">
+The `AuthUser` object contains user information from Argus Auth:
+
+```typescript
+interface AuthUser {
+  id: string
+  name: string
+  email: string
+  // Additional user properties may be available
+}
+```
+
+</Accordion>
+
+### Signing in
+
+The following example shows how to sign in if no user is found. This is a simple example,
+on your game you might want to show a button to sign in.
+
+```typescript Main Menu highlight={8}
+import { world } from './sdk'
+
+export async function mainMenu() {
+  let user = world.auth.getUser()
+
+  // Perform sign in if no user is found
+  if (!user) {
+    const { data, error } = await world.auth.signInWithArgusID()
+
+    if (error) {
+      console.error(error)
+    } else {
+      user = data
+    }
+  }
+
+  // If there's still no user at this point, something went wrong
+  if (!user) {
+    alert('Failed to sign in, please try again')
+  }
+}
+```
+
+<Tip>
+  The `signInWithArgusID()` method automatically handles the auth flow, including opening the
+  authentication popup and managing token. The token is stored in the browser's local storage,
+  therefore is persistent across reloads.
+</Tip>
+
+## Handling User Logout
+
+Use the `logout()` method to sign out the current user:
+
+```typescript Logout
+import { world } from './sdk'
+
+export function handleLogout() {
+  world.auth.logout()
+  console.log('User has been logged out')
+}
+```
+
+## Next Steps
+
+Now that you have authentication set up, you're ready to learn about another World Engine concept: **Subscribe Events**.
+
+<CardGroup cols={2}>
+  <Card title="Subscribe Events" icon="podcast" href="./subscribe-events">
+    Learn how to subscribe to events in World Engine
+  </Card>
+</CardGroup>

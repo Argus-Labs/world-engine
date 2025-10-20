@@ -1,0 +1,26 @@
+---
+title: Component
+description: How to create and use components in Cardinal
+---
+
+Components (the "C" in ECS) are the data attributes attached to entities. By convention, components in
+Cardinal are defined in the **component** directory.
+
+```go component/playertag.go
+package component
+
+type PlayerTag struct {
+	Nickname string `json:"nickname"`
+}
+
+func (PlayerTag) Name() string {
+	return "playertag"
+}
+```
+
+There's no need to register components manually. As long as your component is accessed by one or more systems,
+it will be registered automatically.
+
+## Next Steps
+
+Now that you've defined your components, you can start writing systems. Click next below to learn more.

@@ -1,0 +1,160 @@
+name: CI (Go)
+
+on:
+  push:
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Taskfile.yml'
+      - '.golangci.yaml'
+      - '.ko.yaml'
+      - '.github/workflows/go-ci.yaml'
+      - '!**.md'
+      - '!docs/**'
+
+env:
+  GO_VERSION: 1.24.0
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Git for private repos
+        run: git config --global url."https://x-token-auth:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: go
+          path: |
+            ~/go/pkg
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+
+      - name: Run Go linter
+        run: task lint
+
+  test:
+    name: Test
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: go
+          path: |
+            ~/go/pkg
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+
+      - name: Setup envtest
+        id: setup-envtest
+        run: |
+          go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+          mkdir -p bin
+          setup-envtest use 1.31.0 --bin-dir=bin
+          KUBEBUILDER_ASSETS_PATH=$(setup-envtest use 1.31.0 --bin-dir=bin -p path)
+          KUBEBUILDER_ASSETS_ABSOLUTE=$(realpath "$KUBEBUILDER_ASSETS_PATH")
+          echo "kubebuilder-assets=$KUBEBUILDER_ASSETS_ABSOLUTE" >> $GITHUB_OUTPUT
+
+      - name: Verify envtest setup
+        run: |
+          echo "KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}"
+          echo "Directory listing:"
+          ls -la "${{ steps.setup-envtest.outputs.kubebuilder-assets }}"
+          echo "Checking for etcd binary:"
+          ls -la "${{ steps.setup-envtest.outputs.kubebuilder-assets }}/etcd" || echo "etcd not found"
+        env:
+          KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}
+      
+      - name: Run Go CI tests
+        run: task test:ci
+        env:
+          KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Argus-Labs/monorepo
+          files: |
+            **/coverage.out
+
+      - name: Upload test results to Codecov
+        uses: codecov/test-results-action@v1
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Test Summary
+        uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: |
+            **/junit.xml
+
+  # benchmark:
+  #   name: Benchmark
+  #   needs: optimize_ci
+  #   if: needs.optimize_ci.outputs.skip == 'false'
+  #   runs-on: namespace-profile-linux-8vcpu-16gb-cached
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install Task
+  #       uses: arduino/setup-task@v2
+  #       with:
+  #         version: 3.x
+  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
+  #
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
+  #         cache: false
+  #
+  #     - uses: namespacelabs/nscloud-cache-action@v1
+  #       with:
+  #         cache: go
+  #         path: |
+  #           ~/go/pkg/mod
+  #           ~/.cache/go-build
+  #           ~/.cache/golangci-lint
+  #
+  #     - name: Run benchmark
+  #       run: task bench:ci
+  #
+  #     - name: Store ECS benchmark result
+  #       uses: benchmark-action/github-action-benchmark@v1
+  #       with:
+  #         tool: 'go'
+  #         output-file-path: bench.txt
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         auto-push: true
+  #         alert-threshold: '200%'
+  #         comment-on-alert: true

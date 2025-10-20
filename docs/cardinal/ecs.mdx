@@ -1,0 +1,30 @@
+---
+title: Introduction to ECS
+---
+
+Cardinal utilizes the Entity Component System (ECS) as the idiomatic pattern to structure and write your game code.
+
+ECS is an architectural pattern widely used in game development. It contributes greatly to the efficiency, performance, and developer experience of games, especially those with complex and dynamic environments.
+
+- **Entity** — All the objects in your game world. They're essentially containers for one or more components. Examples could be players, enemies, items, or environment objects.
+
+- **Component** — Data attributes attached to entities. They define the properties of an entity, but it does not implement logic or behavior. For instance, a "Position" component might store the X and Y coordinates of an entity in the game world, while a "Health" component might keep track of an entity's health.
+
+- **System** — The logic in ECS. They operate over entities that have a particular set of components, processing them to create the gameplay and behavior. A "MovementSystem", for example, might move all entities with a "Position" and "Speed" component each game tick.
+
+## Benefits of ECS
+
+**Flexibility** — The ECS architecture allows for high flexibility. By combining different components, developers can create a wide range of unique entities without needing to create a complex inheritance tree.
+
+**Performance** — ECS often enhances performance. Systems can process only entities with specific components, reducing unnecessary checks, and allow data I/O access patterns to be optimized.
+
+**Complexity Management** — ECS scales well as project complexity increases. Adding new behaviour is as easy as writing new systems or adding new components to entities.
+
+## ECS Development Workflow
+
+In practice, using ECS architecture involves two basic steps:
+
+1. **Define components:** Set up the basic data structures that hold information about entities.
+2. **Implement systems:** Define systems that provide the logic behind how entities behave based on their components.
+
+While the ECS style can take some time to get used to, the benefits it provides, especially in terms of flexibility, performance, and complexity management, make it a robust and reliable approach in modern game development. The opinionated architecture provides you with a strong foundation and helps avoid the need to rewrite your codebase as your game grows.

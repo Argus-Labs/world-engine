@@ -1,0 +1,133 @@
+---
+title: 'Installation & Setup'
+description: 'Start developing your first World Engine game in under 5 minutes'
+---
+
+## Install dependencies and World CLI
+
+Learn how to install World Engine dependencies and the World CLI.
+
+<Warning>
+  **Note**: This assumes that you are using Linux or MacOS. If you are using Windows, we
+  recommend you use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run World
+  Engine.
+</Warning>
+
+<AccordionGroup>
+    <Accordion icon="golang" title="Install Go">
+        World Engine (WE) is built using [Go](https://golang.org), a performant, easy-to-learn, and expressive
+        programming language that is widely used in distributed systems.
+
+        To install Go, follow the instructions on the [Go website](https://golang.org/doc/install).
+
+        To verify that Go is installed, run the following command in your terminal:
+
+        ```bash
+        go version
+        ```
+
+        **Go beginner tip**: World Engine, combined with the simplicity of Go, makes it easy to get started with
+        your game with little to no experience in Go. If this is your first time writing a program in Go,
+        we recommend you follow the [Go tour](https://tour.golang.org/welcome/1) to familiarize yourself with
+        the language. However, you don't need prior Go knowledge to complete this quickstart
+    </Accordion>
+    <Accordion icon="docker" title="Install Docker">
+        World Engine uses [Docker](https://docker.com) to make it easier to develop and deploy your rollup and game in
+        any operating system.
+
+        Docker is a containerization tool that allows you to run applications in a sandboxed
+        environment; it ensures
+        that the World Engine stack will run the same way on your machine as it will on production deployments.
+
+        To install Docker, follow the instructions on the [Docker website](https://docs.docker.com/get-docker/).
+
+        To verify that Docker is installed, run the following command in your terminal:
+
+        ```bash
+        docker version
+        ```
+    </Accordion>
+    <Accordion icon="rectangle-terminal" title="Install World CLI ">
+        [World CLI](https://github.com/argus-labs/world-cli) is a swiss army knife command-line tool for creating,
+        managing, and deploying World Engine projects.
+
+        **Important: World CLI will not work properly without Go and Docker**
+
+        To install World CLI, follow the instructions on the [CLI release page](https://github.com/Argus-Labs/world-cli/releases/).
+
+        **Important**: If you have previously installed World CLI using the install script,
+        you need to remove it first by running the following command:
+
+        ```bash
+        rm $(which world)
+        ```
+    </Accordion>
+    <Accordion icon="planet-ringed" title="Install OrbStack (Optional — MacOS only)">
+        [OrbStack](https://orbstack.dev) is a tool that makes it easier to run Docker containers on MacOS. It is not
+        required to run World
+        Engine, but it is recommended for MacOS users as it provides a better performance and user experience than
+        Docker
+        Desktop.
+
+        The [Argus Labs](https://argus.gg) team uses OrbStack to develop and build on top of World Engine, and we
+        recommend it for MacOS
+        users.
+
+        To install OrbStack, follow the instructions on the [OrbStack website](https://orbstack.dev).
+    </Accordion>
+
+</AccordionGroup>
+
+## Setup your first World Engine project
+
+<Tip>
+  If you're looking for fully functioning examples, you can head over to the [basic
+  example](/examples/basic) or [demo game example](/examples/demo-game).
+</Tip>
+
+### Scaffold a boilerplate project
+
+<Note>
+  This scaffolds the same stack as the [demo game example](/examples/demo-game), minus the client.
+</Note>
+
+Once you have World CLI installed, you can scaffold your first World Engine stack by running the following command
+in your terminal:
+
+```bash
+world setup
+```
+
+<img className="block" src="/images/world-setup.png" alt="CLI: world setup" />
+
+<Warning>
+    **Troubleshooting**
+
+    If you encountered `Error: dependency check "Docker daemon is running" failed`, make sure that you have
+    installed Docker and have Docker Desktop or OrbStack running.
+
+</Warning>
+
+### Start World Engine stack
+
+Once you have scaffolded your project, you can start World Engine stack by running the following
+command from your project directory in your terminal:
+
+```bash
+world cardinal start
+```
+To stop the World Engine Stack you can run the following
+command from your project directory in your terminal:
+```bash
+world cardinal stop
+```
+To clean up your docker images you can run the following command in your terminal:
+
+```bash
+world cardinal purge
+```
+
+<Check>
+  Once that's up and running, you can start integrating your client using one of our [client
+  SDKs](/client/introduction).
+</Check>

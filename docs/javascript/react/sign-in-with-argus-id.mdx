@@ -1,0 +1,84 @@
+---
+title: SignInWithArgusID
+description: A React button component that handles authentication with Argus ID
+---
+
+## Props
+
+| Prop              | Type                       | Default                   | Description                          |
+| ----------------- | -------------------------- | ------------------------- | ------------------------------------ |
+| `config`          | `SDKConfig`                | _required_                | SDK configuration object             |
+| `onSignInSuccess` | `(user: AuthUser) => void` | undefined                 | Callback fired when sign-in succeeds |
+| `onSignInError`   | `(error: Error) => void`   | undefined                 | Callback fired when sign-in fails    |
+| `idleText`        | `string`                   | `"Sign in with Argus ID"` | Button text when idle                |
+| `loadingText`     | `string`                   | `"Signing in…"`           | Button text when loading             |
+| `errorText`       | `string`                   | `"Sign in failed"`        | Button text when error occurs        |
+| `successText`     | `string`                   | `"Sign in successful"`    | Button text when successful          |
+
+The component also accepts all standard HTML button props.
+
+## States
+
+The component automatically manages four states:
+
+- **idle**: Ready to sign in
+- **loading**: Sign-in in progress
+- **success**: Sign-in completed successfully
+- **error**: Sign-in failed
+
+## Usage
+
+### Basic Example
+
+```tsx
+import { SignInWithArgusID } from '@argus-labs/sdk/react'
+import { config } from './sdk'
+
+function LoginPage() {
+  const handleSignInSuccess = (user: AuthUser) => {
+    console.log('User signed in:', user)
+    // Handle successful sign-in
+  }
+
+  const handleSignInError = (error: Error) => {
+    console.error('Sign-in error:', error)
+    // Handle sign-in error
+  }
+
+  return (
+    <SignInWithArgusID
+      config={config} // pass in the config object
+      onSignInSuccess={handleSignInSuccess} // callback fired when sign-in succeeds
+      onSignInError={handleSignInError} // callback fired when sign-in fails
+    />
+  )
+}
+```
+
+### Styling
+
+It comes unstyled by default. You can style it using standard `className` or `style` props.
+
+```tsx
+<SignInWithArgusID
+  config={config}
+  onSignInSuccess={handleSignInSuccess}
+  onSignInError={handleSignInError}
+  className="my-button"
+  style={{ fontSize: '16px' }}
+/>
+```
+
+### Custom Text
+
+```tsx
+<SignInWithArgusID
+  config={config}
+  onSignInSuccess={handleSignInSuccess}
+  onSignInError={handleSignInError}
+  idleText="Login with Argus"
+  loadingText="Authenticating…"
+  errorText="Authentication failed"
+  successText="Welcome!"
+/>
+```

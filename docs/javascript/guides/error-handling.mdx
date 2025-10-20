@@ -1,0 +1,104 @@
+---
+title: Error Handling
+description: Handle errors gracefully using ConnectError and error codes
+---
+
+## Overview
+
+Most errors in our SDK are typed as `ConnectError`, providing structured error information
+with specific error codes, metadata, and detailed messages. Our SDK uses a structured response
+pattern that returns `{ error, data }` instead of throwing errors.
+
+## Basic Error Handling
+
+```typescript
+const { error, data } = await shard.query({
+  // your query parameters
+})
+
+if (error) {
+  console.log('Error code:', error.code)
+  console.log('Error message:', error.message)
+  console.log('Raw message:', error.rawMessage)
+} else {
+  // Handle successful response
+  console.log('Data:', data)
+}
+```
+
+## ConnectError Properties
+
+- **`code`**: The specific error code (see Error Codes below)
+- **`message`**: Full error message including status code
+- **`rawMessage`**: Error message without status code prefix
+- **`metadata`**: Response headers and trailers
+- **`details`**: Additional error details for advanced use cases
+- **`cause`**: Underlying cause of the error
+
+## Error Codes
+
+| Code                 | Value | Description                          |
+| -------------------- | ----- | ------------------------------------ |
+| `Canceled`           | 1     | Operation canceled by user           |
+| `Unknown`            | 2     | Unknown error                        |
+| `InvalidArgument`    | 3     | Invalid argument regardless of state |
+| `DeadlineExceeded`   | 4     | Operation expired                    |
+| `NotFound`           | 5     | Entity not found                     |
+| `AlreadyExists`      | 6     | Entity already exists                |
+| `PermissionDenied`   | 7     | Operation not authorized             |
+| `ResourceExhausted`  | 8     | Quota exhausted                      |
+| `FailedPrecondition` | 9     | Invalid argument in current state    |
+| `Aborted`            | 10    | Operation aborted                    |
+| `OutOfRange`         | 11    | Out of bounds                        |
+| `Unimplemented`      | 12    | Operation not implemented            |
+| `Internal`           | 13    | Internal server error                |
+| `Unavailable`        | 14    | Service unavailable                  |
+| `DataLoss`           | 15    | Unrecoverable data loss              |
+| `Unauthenticated`    | 16    | Request not authenticated            |
+
+## Pattern Matching
+
+Handle specific error types by matching against error codes:
+
+```typescript
+import { ConnectError, Code } from '@argus-labs/sdk'
+
+const { error, data } = await shard.query({
+  // your query parameters
+})
+
+if (error) {
+  switch (error.code) {
+    case Code.Unauthenticated:
+      // Redirect to login
+      redirectToLogin()
+      break
+    case Code.PermissionDenied:
+      // Show access denied message
+      showAccessDeniedError()
+      break
+    case Code.NotFound:
+      // Handle missing resource
+      showNotFoundError()
+      break
+    case Code.Unavailable:
+      // Retry logic for temporary issues
+      scheduleRetry()
+      break
+    default:
+      // Handle other errors
+      showGenericError(error.message)
+  }
+} else {
+  // Handle successful response
+  processData(data)
+}
+```
+
+## Best Practices
+
+1. **Always check for errors**: Check the `error` field before processing `data`
+2. **Match specific codes**: Handle common error scenarios like authentication and authorization
+3. **Provide user-friendly messages**: Use `rawMessage` for cleaner user-facing errors
+4. **Log full context**: Include error code and metadata in logs for debugging
+5. **Implement retry logic**: For transient errors like `Unavailable` or `DeadlineExceeded`

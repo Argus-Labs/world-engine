@@ -1,0 +1,42 @@
+---
+title: 'Loop-driven Runtime'
+description: "How Cardinal's loop-driven runtime makes developing games on the blockchain easier"
+---
+
+Cardinal employs a loop-driven runtime. This is in contrast to EVM smart contracts that are event-driven in nature. But how do they differ?
+
+### Event-driven Runtime
+
+![Event-driven runtime](/images/event.jpg)
+
+If you are coming from EVM smart contract development, you have already experienced an event-driven runtime.
+
+In event-driven runtimes like the EVM, state transitions only happen when an event occurs. For example, in EVM smart contracts, the runtime is only running when a transaction is sent to the smart contract.
+
+This implies that no state transition can happen without a transaction. This becomes problematic for developing games because games need to consistently update the game state at a fixed interval. For example, you might want to apply health regen to a player or apply gravity to a player's character every second.
+
+The workaround for this is to run a "crank" that creates a transaction which calls a function that updates the game state. However, this is not ideal for multiple reasons:
+
+- **Unreliable timing**: The timing of the crank is not guaranteed to be consistent. For example, the crank might miss a block because of latency or congestion causing the game state to enter an invalid state.
+
+- **Increases system complexity & decreases resiliency**: The crank introduces another moving part to your game system that can cause headaches when it goes down or when it's not working as expected.
+
+- **Cost**: The cost of running a crank is high as it requires a transaction to be sent to the smart contract at every fixed interval. This can be incredibly expensive if you are running a crank every second.
+
+### Loop-driven Runtime
+
+![Loop-driven runtime](/images/loop.jpg)
+
+To mitigate the issues of an event-driven runtime like the EVM, Cardinal adopts loop-driven runtime architecture, commonly used by modern game engines. This allows Cardinal to consistently execute state transitions without the need of a crank.
+
+This is achieved by having a "tick" that is executed at a fixed interval. A "tick" in game development refers to a single iteration of a game's main loop and represents an atomic unit of time in the game. This tick is executed by the protocol and is not dependent on any external factors like transactions.
+
+Games are then organized around the loop that continuously executes systems and performs state updates. During each tick, the game can perform several operations such as processing player input, applying gravity to objects, handling collisions, applying damage, etc.
+
+By doing this, Cardinal's loop-driven runtime provides the following benefits:
+
+- **Support for broader game mechanics**: Event-driven runtimes limit the types of game mechanics that can be implemented. For example, it is not possible to reliably implement a gravity mechanic that updates the player's location every subsecond. With a loop-driven runtime, this can be trivially accomplished.
+
+- **Consistent ordering of game actions**: In an event-driven runtime, each game action is executed in a different transaction. This means that the ordering of game actions is not guaranteed. For example, if a player is hit by a bullet and the player's HP is reduced to 0, the player might still be able to shoot a bullet before the player's HP is reduced to 0. This is because the player's HP is reduced in a different transaction than the player's shooting action. This is not an issue with loop-driven runtimes because all game actions are executed in an explicit sequential order.
+
+- **Zero cost**: Loop-driven runtimes do not require any transactions to be sent to the smart contract. This means there is no cost associated with updating the game state. Using this architecture, game state can be updated as frequently as you want while eliminating extra gas costs.
