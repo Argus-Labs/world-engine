@@ -641,8 +641,8 @@ func TestArchetype_SerializeDeserialize_ErrorHandling(t *testing.T) {
 		cm := newComponentManager()
 		arch := &archetype{}
 
-		// This should not panic - protobuf Get methods handle nil gracefully
-		// but should result in empty archetype since nil protobuf has no columns
+		// This should not panic - protobuf Get methods handle nil gracefully.
+		// but should result in empty archetype since nil protobuf has no columns.
 		err := arch.deserialize(nil, &cm)
 		require.NoError(t, err) // No error for empty protobuf
 		assert.Equal(t, uint64(0), arch.id)
