@@ -1,0 +1,51 @@
+---
+title: Basic
+description: A basic example of how to use World Engine
+---
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- World Engine ([quickstart](/quickstart))
+
+## Scaffold a basic example
+
+```bash
+world create --example basic
+```
+
+The basic example is a close to barebones example of how to use World Engine.
+
+The Cardinal shard contains the following:
+
+- Player **entities**
+- Health **component**
+- Regen **system**
+- Attack **command**
+- Player death **event**
+
+While the client is a minimal Go client that operates via command-line.
+
+Once scaffolded, you can run the World Engine stack (Cardinal shard, gateway, etc.) with:
+
+```bash
+world dev # TODO
+```
+
+Once Tilt is running, you can play around with the client.
+
+```bash
+go run cmd/client/main.go create-player johndoe
+# go run cmd/client/main.go to see all commands
+```
+
+## What's next?
+
+Learn more about World Engine:
+
+<CardGroup cols={2}>
+  <Card title="Introduction to Cardinal (Shard)" icon="pen-to-square" href="/cardinal/introduction">
+    Learn about Cardinal (Shard)
+  </Card>
+</CardGroup>

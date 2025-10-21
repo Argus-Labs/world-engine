@@ -1,0 +1,77 @@
+---
+title: Overview
+description: Understanding World Engine's architecture and design principles
+---
+
+World Engine is built on a modern, scalable architecture designed for high-performance
+onchain games. This section provides an overview of the key architectural components and design
+principles.
+
+## Core Components
+
+<img className="block" src="/images/architecture.png" alt="World Engine stack" />
+
+### Cardinal (Game Shard)
+
+Cardinal is the core game server that handles:
+
+- **Entity Component System (ECS)**: Efficient game state management
+- **Command Processing**: Handling player actions and game logic
+- **Query System**: Real-time game state queries
+- **Event System**: Game event emission and processing
+- **Inter-Shard Communication**: Communication between multiple game instances
+
+### Gateway
+
+Gateway is a service within the World Engine stack that sits in front of your Cardinal shards that handles:
+
+- **Argus ID integration**: Handles Persona signing (in conjunction with Argus ID)
+- **One door to your Cardinal shards**: Set the URL in your SDK config, and forget that it even exists
+
+### Client SDKs
+
+Client integration via JavaScript SDK ([@argus-labs/sdk-ts](https://www.npmjs.com/package/@argus-labs/sdk)):
+
+- **JavaScript SDK**: Complete client-side solution with TypeScript support
+- **Real-time Events**: Built-in event streaming for reactive gameplay
+- **Authentication**: Argus ID integration (Sign in with Argus ID)
+
+TODO: Add C# SDK
+
+### Argus ID
+
+Independent from World Engine, [Argus ID](https://auth.argus.gg) is an auth service that allows you to build
+games without worrying about user authentication.
+
+## Design Principles
+
+### 1. **ECS-First Architecture**
+
+Built around Entity Component System patterns for:
+
+- High performance with large numbers of entities
+- Flexible game logic composition
+- Predictable execution order
+
+### 2. **Command-Query Separation**
+
+Clear separation between:
+
+- **Commands**: Actions that modify game state
+- **Queries**: Read-only access to game state
+- **Events**: Reactive notifications of state changes
+
+### 3. **Tick-Based Execution**
+
+Deterministic game loop with:
+
+- Fixed tick rate for consistent gameplay
+- Batch processing for performance
+- Deterministic execution order
+
+### 4. **Inter-Shard Scalability**
+
+Designed for horizontal scaling:
+
+- Multiple game shards for different regions/instances
+- Cross-shard communication protocols

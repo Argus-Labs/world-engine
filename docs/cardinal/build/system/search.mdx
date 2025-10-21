@@ -1,0 +1,111 @@
+---
+title: Search for Entities with Components
+description: How to search for entities with components in Cardinal
+---
+
+**Search** is an important concept in Cardinal, it allows you to:
+
+- Create entities
+- Find entities with specific components
+
+## Defining a Search
+
+Start by defining the search, this is done in your system state struct. By convention, we put searches
+in the `system/shared.go` file.
+
+```go system/shared.go highlight={8-13}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/component"
+	"github.com/argus-labs/monorepo/pkg/cardinal/ecs"
+)
+
+// ecs.Exact or ecs.Contains (explained in Match Types below)
+type PlayerSearch = ecs.Contains[struct {
+	Tag      ecs.Ref[component.PlayerTag]
+	Position ecs.Ref[component.Position]
+}]
+
+// … other searches
+```
+
+## Using a Search
+
+### Creating Entities
+
+We have a specific page on [creating entities](/cardinal/build/system/entity).
+
+### Iterating Over Entities
+
+You can use the `PlayerSearch` to search for entities with the `PlayerTag` and `Position` components.
+
+```go system/example_player_system.go highlight={9,13}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+)
+
+type PlayerSystemState struct {
+	cardinal.BaseSystemState
+	Players PlayerSearch
+}
+
+func PlayerSystem(state *PlayerSystemState) error {
+	for entity, player := range state.Players.Iter() {
+		tag := player.Tag.Get()
+		position := player.Position.Get()
+
+		state.Logger().Info().Msgf("Player %s is at %d, %d", tag.Nickname, position.X, position.Y)
+	}
+	return nil
+}
+```
+
+## Match Types
+
+| Match Type     | Description                                    |
+| -------------- | ---------------------------------------------- |
+| `ecs.Contains` | Entity must have **at least** these components |
+| `ecs.Exact`    | Entity must have **exactly** these components  |
+
+### `ecs.Contains`
+
+Returns entities that contain **at least** the specified components (they may have additional components):
+
+```go system/example_contains.go
+type PlayerSearch = ecs.Exact[struct {
+	Tag      ecs.Ref[component.PlayerTag]
+	Position ecs.Ref[component.Position]
+}]
+```
+
+**Behavior**:
+
+- Entity with `[PlayerTag, Position, Health]` → ✅ Match
+- Entity with `[PlayerTag, Position]` → ✅ Match
+- Entity with `[PlayerTag]` → ❌ No match
+
+### `ecs.Exact`
+
+Returns entities that contain **exactly** the specified components (no more, no less):
+
+```go system/example_exact.go
+type PlayerSearch = ecs.Exact[struct {
+	Tag      ecs.Ref[component.PlayerTag]
+	Position ecs.Ref[component.Position]
+}]
+```
+
+**Behavior**:
+
+- Entity with `[PlayerTag, Position, Health]` → ❌ No match
+- Entity with `[PlayerTag, Position]` → ✅ Match
+- Entity with `[PlayerTag]` → ❌ No match
+
+<Note>
+  **ECS Concept**: These match types reflect Entity Component System (ECS) patterns. `ecs.Contains`
+  is useful for finding entities by their capabilities, while `ecs.Exact` is useful for finding
+  entities with a specific component combination.
+</Note>

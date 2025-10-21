@@ -1,0 +1,67 @@
+---
+title: Get/Set Component
+description: How to get and set components on entities in Cardinal
+---
+
+import LearnSearch from '/snippets/learn-search.mdx'
+
+## Getting Component
+
+To get a component from an entity, you need to call the `Get` method on the component field.
+
+```go system/example_get_position.go highlight={10,14-15}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/component"
+)
+
+type GetPositionSystemState struct {
+	cardinal.BaseSystemState
+	Players PlayerSearch
+}
+
+func GetPositionSystem(state *GetPositionSystemState) error {
+	for entity, player := range state.Players.Iter() {
+		position := player.Position.Get()
+
+		state.Logger().Info().
+			Uint32("entity", uint32(entity.ID)).
+		  Msgf("Player is at position X: %d, Y: %d", position.X, position.Y)
+	}
+	return nil
+}
+```
+
+<LearnSearch />
+
+## Setting Component
+
+To set a component on an entity, you need to call the `Set` method on the component field
+with the new component data.
+
+```go system/example_set_position.go highlight={10,15}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/component"
+)
+
+type SetPositionSystemState struct {
+	cardinal.BaseSystemState
+	Players PlayerSearch
+}
+
+func SetPositionSystem(state *SetPositionSystemState) error {
+	for entity, player := range state.Players.Iter() {
+		player.Position.Set(component.Position{X: 100, Y: 200})
+
+		state.Logger().Info().
+			Uint32("entity", uint32(entity.ID)).
+			Msg("Updated player position to X: 100, Y: 200")
+	}
+	return nil
+}
+```

@@ -1,0 +1,146 @@
+---
+title: Query API
+description: How to query the Cardinal state from your clients
+---
+
+The Query API provides your clients access to the Cardinal state. Unlike commands, queries are read-only and retrieve
+information about entities, components, and world state.
+
+- **Read-Only**: Never modify game state
+- **Real-Time**: Reflect current world state
+- **Flexible**: Support complex filtering and searching
+- **Efficient**: Optimized for fast data retrieval
+
+Example of a query:
+
+```json Basic Query
+{
+  "find": ["PlayerTag", "Health"],
+  "match": "contains",
+  "where": "Health.HP > 50"
+}
+```
+
+## Query Structure
+
+Queries consist of three main parts:
+
+### Find
+
+Specify which components to search for:
+
+- **Component Names**: List of component types to match
+- **Case Sensitive**: Component names must match exactly
+
+### Match
+
+How to match components:
+
+- **"exact"**: Entity must have exactly these components
+- **"contains"**: Entity must have at least these components
+
+#### Match Type: Contains
+
+Returns entities that contain **at least** the specified components (they may have additional components):
+
+```json Match Type: Contains
+{
+  "find": ["PlayerTag", "Position"],
+  "match": "contains"
+}
+```
+
+**Behavior**:
+
+- Entity with `[PlayerTag, Position, Health]` → ✅ Match
+- Entity with `[PlayerTag, Position]` → ✅ Match
+- Entity with `[PlayerTag]` → ❌ No match
+
+#### Match Type: Exact
+
+Returns entities that contain **exactly** the specified components (no more, no less):
+
+```json Match Type: Exact
+{
+  "find": ["PlayerTag", "Position"],
+  "match": "exact"
+}
+```
+
+**Behavior**:
+
+- Entity with `[PlayerTag, Position, Health]` → ❌ No match
+- Entity with `[PlayerTag, Position]` → ✅ Match
+- Entity with `[PlayerTag]` → ❌ No match
+
+<Note>
+  **ECS Concept**: These match types reflect Entity Component System (ECS) patterns. `contains` is
+  useful for finding entities by their capabilities, while `exact` is useful for finding entities
+  with a specific component combination.
+</Note>
+
+### Where Clause (Optional)
+
+Filter results using expression language. The `where` field uses the
+[Expr expression language](https://expr-lang.org/), which provides:
+
+- **Comparison operators**: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- **Logical operators**: `&&`, `||`, `!`
+- **Membership testing**: `in`, `not in`
+- **Built-in functions**: `len()`, `all()`, `any()`, `filter()`, `map()`
+
+**Examples**:
+
+- **Comparisons**: `Health.HP > 100`
+- **Logic**: `PlayerTag.Level >= 10 && Health.HP > 50`
+- **String Operations**: `PlayerTag.Nickname contains "admin"`
+
+#### Where Clause Examples
+
+```json By Online Status
+{
+  "find": ["PlayerTag", "OnlineStatus"],
+  "match": "contains",
+  "where": "OnlineStatus.Online == true"
+}
+```
+
+```json By Name
+{
+  "find": ["PlayerTag", "Position"],
+  "match": "contains",
+  "where": "PlayerTag.Name == \"Alice\""
+}
+```
+
+```json By Nickname
+{
+  "find": ["PlayerTag"],
+  "match": "contains",
+  "where": "PlayerTag.Nickname contains \"admin\""
+}
+```
+
+```json By Online Status and Position
+{
+  "find": ["PlayerTag", "Position", "OnlineStatus"],
+  "match": "contains",
+  "where": "Position.X > 100 && Position.Y < 200 && OnlineStatus.Online == true"
+}
+```
+
+```json By PlayerTag ID
+{
+  "find": ["PlayerTag"],
+  "match": "contains",
+  "where": "PlayerTag.ID in [\"user1\", \"user2\", \"user3\"]"
+}
+```
+
+```json By Nickname Length and Position
+{
+  "find": ["PlayerTag", "Position"],
+  "match": "contains",
+  "where": "len(PlayerTag.Nickname) > 5 && Position.X + Position.Y < 500"
+}
+```

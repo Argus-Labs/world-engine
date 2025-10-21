@@ -1,0 +1,163 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "World Engine",
+  "colors": {
+    "primary": "#D49338",
+    "light": "#F5D64E",
+    "dark": "#D49338"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "dropdowns": [
+      {
+        "dropdown": "World Engine",
+        "icon": "triangle",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["introduction", "setup"]
+          },
+
+          {
+            "group": "Architecture",
+            "pages": ["architecture/overview"]
+          },
+
+          {
+            "group": "Client SDKs",
+            "pages": ["client/introduction"]
+          },
+
+          {
+            "group": "Forge",
+            "pages": ["forge/quickstart", "forge/organization", "forge/project", "forge/deployment"]
+          },
+
+          {
+            "group": "Examples",
+            "pages": ["examples/basic", "examples/demo-game"]
+          }
+        ]
+      },
+
+      {
+        "dropdown": "Cardinal (Shard)",
+        "icon": "server",
+        "groups": [
+          {
+            "group": "Cardinal (Shard)",
+            "pages": ["cardinal/introduction", "cardinal/ecs", "cardinal/loop"]
+          },
+          {
+            "group": "Building Your Cardinal Shard",
+            "pages": [
+              "cardinal/build/project-structure",
+              {
+                "group": "World (main.go)",
+                "pages": ["cardinal/build/world/overview", "cardinal/build/world/configuration"]
+              },
+
+              "cardinal/build/component",
+
+              {
+                "group": "System",
+                "pages": [
+                  "cardinal/build/system/overview",
+                  "cardinal/build/system/search",
+                  "cardinal/build/system/entity",
+                  "cardinal/build/system/component",
+                  "cardinal/build/system/command",
+                  "cardinal/build/system/event"
+                ]
+              },
+
+              "cardinal/build/query-api",
+
+              "cardinal/build/persona"
+            ]
+          }
+        ]
+      },
+
+      {
+        "dropdown": "JavaScript Client SDK",
+        "icon": "js",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["javascript/introduction", "javascript/quickstart"]
+          },
+
+          {
+            "group": "Guides",
+            "pages": [
+              "javascript/guides/authentication",
+              "javascript/guides/query",
+              "javascript/guides/command",
+              "javascript/guides/subscribe-events",
+              "javascript/guides/error-handling",
+              "javascript/guides/configuration",
+              "javascript/guides/multiple-regions",
+              "javascript/guides/world-forge",
+              "javascript/guides/shard-client"
+            ]
+          },
+
+          {
+            "group": "React",
+            "pages": [
+              "javascript/react/sign-in-with-argus-auth",
+              "javascript/react/use-query",
+              "javascript/react/use-subscribe-events",
+              "javascript/react/multiple-regions",
+              "javascript/react/devtool"
+            ]
+          },
+
+          {
+            "group": "Examples",
+            "pages": ["javascript/examples/demo-game"]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/argus-labs/world-engine",
+          "icon": "github"
+        },
+        {
+          "anchor": "Telegram Dev Chat",
+          "href": "https://t.me/worldengine_dev",
+          "icon": "telegram"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "https://t.me/worldengine_dev"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://world.dev/quickstart"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/ArgusLabs_",
+      "github": "https://github.com/argus-labs"
+    }
+  }
+}

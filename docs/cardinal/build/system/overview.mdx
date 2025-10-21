@@ -1,0 +1,42 @@
+---
+title: Overview
+description: How to write systems in Cardinal
+---
+
+**Systems** (the "S" in ECS) contain game logic that act on **entities** with the desired **components**. For example:
+
+- A physics system acts on all entities that have a mass and position component
+- A regen system acts on all entities that have a health component
+- A player movement system acts on all entities that have a position component
+
+## Registering Systems
+
+Before your systems can run, you need to register them with the world using `cardinal.RegisterSystem()`.
+
+```go
+func main() {
+    world := cardinal.NewWorld()
+
+    // Spawn player at tick 0 (only once)
+    cardinal.RegisterSystem(world, system.PlayerSpawnerSystem, cardinal.WithHook(cardinal.Init))
+
+    // Register player movement system (runs every tick)
+    cardinal.RegisterSystem(world, system.PlayerMoveSystem)
+
+    world.StartGame()
+}
+```
+
+Systems can be registered with different hooks to control **when** they execute during the game loop.
+
+| Hook                                     | When it runs                                                                                   |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `cardinal.WithHook(cardinal.Init)`       | Once during world initialization (only **once at tick 0**), before any game loop starts        |
+| `cardinal.WithHook(cardinal.PreUpdate)`  | Every tick, **before** the main update phase                                                   |
+| `cardinal.WithHook(cardinal.Update)`     | Every tick, **during** the main update phase (this is the **default** if no hook is specified) |
+| `cardinal.WithHook(cardinal.PostUpdate)` | Every tick, **after** the main update phase                                                    |
+
+## Next Steps
+
+Before you start writing systems, there's an important concept to learn: how to search for entities with components.
+Click next below to learn more.

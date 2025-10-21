@@ -1,0 +1,102 @@
+---
+title: 'Quickstart'
+description: 'Forge — Publishing platform for deploying World Engine projects'
+---
+
+**Forge** is World Engine's publishing platform that enables you to deploy your World Engine projects to the cloud with ease. It provides a complete workflow from authentication to production deployment, making it simple to get your games and applications live.
+
+## What is Forge?
+
+Forge is the deployment and publishing arm of World Engine that handles:
+
+- **Cloud Infrastructure** — Managed cloud resources for your World Engine projects
+- **Deployment Pipeline** — Automated build and deployment processes
+- **Environment Management** — Preview and production environments
+- **Team Collaboration** — Organization and project management
+- **Monitoring & Logs** — Real-time application monitoring and debugging
+
+## Getting Started with Forge
+
+The Forge workflow consists of five main steps:
+
+### 1. Authentication
+
+Start by authenticating with World Engine using your Argus ID:
+
+```bash
+world login
+```
+
+This will open your browser to complete the authentication process and create or link to your Argus ID account.
+
+### 2. Create an Organization
+
+Organizations group related projects and manage team access:
+
+```bash
+world organization create
+```
+
+This interactive process will guide you through creating your organization.
+
+### 3. Set Up Your Project Repository
+
+Your project needs to be stored in a Git repository for deployment:
+
+```bash
+git init
+git branch -M main
+git add .
+git commit -m "Initial commit"
+git remote add origin <your-repository-url>
+git push -u origin main
+```
+
+### 4. Create and Deploy Your Project
+
+Create a project in Forge and deploy it:
+
+```bash
+world project create
+world deploy
+```
+
+This will build your Cardinal shards and deploy to the preview environment.
+
+### 5. Monitor Your Deployment
+
+Check the status and view logs of your deployed project:
+
+```bash
+world status
+world logs
+```
+
+These commands provide real-time monitoring and debugging capabilities for your deployed application.
+
+## Development Workflow
+
+1. **Local Development** → Use `world cardinal start` for local development
+2. **Version Control** → Commit and push changes to your repository
+3. **Preview Deployment** → `world deploy` for testing in preview environment
+4. **Production Promotion** → `world promote` when ready for live users
+5. **Monitoring** → Use `world status` and `world logs` for ongoing monitoring
+
+## Next Steps
+
+Ready to get started with Forge? Follow these guides:
+
+<CardGroup cols={2}>
+  <Card title="Create Organization" icon="users" href="/forge/organization">
+    Set up your organization for team collaboration
+  </Card>
+  <Card title="Create Project" icon="folder" href="/forge/project">
+    Create your first World Engine project
+  </Card>
+  <Card title="Deploy Project" icon="rocket" href="/forge/deployment">
+    Deploy your project to the cloud
+  </Card>
+  <Card title="Installation & Setup" icon="play" href="/setup">
+    Get started with World Engine
+  </Card>
+</CardGroup>

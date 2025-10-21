@@ -1,0 +1,221 @@
+---
+title: Quickstart
+description: Get your World Engine game client up and running quickly with the Argus Labs SDK
+---
+
+# Getting Started
+
+This guide will help you set up and start using the **Argus Labs SDK** in your project.
+The SDK provides a powerful interface for building multiplayer games and real-time applications.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- Scaffolded a boilerplate project ([World Engine quickstart](/quickstart))
+- [Node.js](https://nodejs.org) version 22 or higher installed
+- A package manager (npm, yarn, pnpm, or bun)
+
+### Project Setup
+
+<Tip>
+  If you're looking for a fully functioning example, you can [scaffold a full-fledged demo
+  game](./examples/demo-game).
+</Tip>
+
+If you don't have an existing project, you can create one using either
+[Phaser](https://docs.phaser.io/phaser/getting-started/installation)
+or an empty [Vite](https://vite.dev/guide/) project.
+
+The SDK is flexible and works seamlessly across the spectrum,
+from simple vanilla JavaScript projects to complex Phaser + React + TypeScript games.
+
+## Installing the SDK
+
+Install the World SDK using your preferred package manager:
+
+<CodeGroup>
+```bash npm
+npm install @argus-labs/sdk
+```
+
+```bash yarn
+yarn add @argus-labs/sdk
+```
+
+```bash pnpm
+pnpm add @argus-labs/sdk
+```
+
+```bash bun
+bun add @argus-labs/sdk
+```
+
+</CodeGroup>
+
+## Basic Setup
+
+First, set up your SDK instance. Create a new file `src/lib/sdk.ts` (or `src/lib/sdk.js` for JavaScript projects):
+
+```typescript sdk.ts
+import { createConfig, createSDK } from '@argus-labs/sdk'
+
+// Basic configuration
+export const config = createConfig()
+
+// Create the SDK instance
+export const world = createSDK(config)
+```
+
+<Note>TypeScript is optional, but highly recommended.</Note>
+
+## Registering Shard Client
+
+A shard client connects to a specific Cardinal shard.
+It lets you send commands, query game state, and listen for events from that shard.
+
+```typescript shard.ts
+import { world } from './sdk'
+
+export const shard = world.shard.register({
+  organization: 'argus',
+  project: 'demo',
+  shardId: 'cardinal-demo-game-1',
+})
+```
+
+## Sending your first command
+
+With the `shard` registered, you can now `sendCommand` to the Cardinal shard.
+
+```typescript spawn-player.ts
+import { shard } from './shard'
+
+interface SpawnPlayerCommand {
+  name: 'player-spawn'
+  payload: {
+    argus_auth_id: string
+    argus_auth_name: string
+    x: number
+    y: number
+  }
+}
+
+// Call the following function from an event handler, e.g. a button
+export async function spawnPlayer() {
+  const { error } = await shard.sendCommand({
+    name: 'player-spawn',
+    payload: {
+      argus_auth_id: 'abc123',
+      argus_auth_name: 'John Doe',
+      x: 100,
+      y: 200,
+    },
+  } satisfies SpawnPlayerCommand)
+
+  if (error) console.error(error)
+}
+```
+
+<Accordion title="I got an error.">
+  The example assumes you scaffolded the project using the World CLI, and have the following
+  command and system on your Cardinal shard:
+
+```go system/player_spawn.go
+type PlayerSpawnCommand struct {
+	cardinal.BaseCommand
+	ArgusAuthID   string `json:"argus_auth_id"`
+	ArgusAuthName string `json:"argus_auth_name"`
+	X             uint32 `json:"x"`
+	Y             uint32 `json:"y"`
+}
+
+func (a PlayerSpawnCommand) Name() string {
+	return "player-spawn"
+}
+
+func PlayerSpawnSystem(state *SpawnPlayerSystemState) error {
+  // ... code omitted for brevity
+}
+
+```
+
+If you need help, please drop by our [Telegram channel](https://t.me/worldengine_dev).
+
+</Accordion>
+
+## Making your first query
+
+You've now spawned your first player. With that, we can `query` the world state and see that the player exists:
+
+```typescript player-query.ts
+import { Match } from '@argus-labs/sdk'
+import { shard } from './shard'
+
+export async function playerQuery() {
+  const { error, data } = await shard.query({
+    find: ['playertag', 'position'],
+    match: Match.CONTAINS,
+  })
+
+  if (error) {
+    console.error(error)
+    return null
+  }
+
+  return data
+}
+```
+
+<Accordion title="I got an error.">
+  The example assumes you scaffolded the project using the World CLI, and have the following
+  components in your cardinal:
+
+```go component/playertag.go
+package component
+
+type PlayerTag struct {
+	ArgusAuthID   string `json:"argus_auth_id"`
+	ArgusAuthName string `json:"argus_auth_name"`
+}
+
+func (PlayerTag) Name() string {
+	return "playertag"
+}
+
+```
+
+```go component/position.go
+package component
+
+type Position struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+func (Position) Name() string {
+	return "position"
+}
+
+```
+
+If you need help, please drop by our [Telegram channel](https://t.me/worldengine_dev).
+
+</Accordion>
+
+<Check>
+  Congratulations! You've now set up your first World Engine game client using the Argus Labs SDK
+  and learned the basics of **Shard Client**, **Command**, and **Query**.
+</Check>
+
+## Next Step
+
+To build a complete multiplayer experience, you'll want to set up **authentication** using **Argus Auth**.
+World Engine integrates seamlessly with Argus Auth to handle user authentication and identity management,
+making it easy to create personalized gaming experiences for your players.
+
+<CardGroup cols={2}>
+  <Card title="Argus Auth" icon="fingerprint" href="./guides/authentication">
+    Learn how to integrate Argus Auth into your game
+  </Card>
+</CardGroup>

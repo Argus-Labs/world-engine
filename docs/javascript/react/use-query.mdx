@@ -1,0 +1,149 @@
+---
+title: useQuery
+description: A React hook that allows you to make queries to your World Engine shard
+---
+
+The `useQuery` hook provides a React-friendly way to query game state from your
+World Engine shard. It handles loading states, errors, and automatic re-execution when dependencies change.
+
+<Note>
+  **Prerequisites**: Make sure you understand the basics by reading the [Query
+  guide](/javascript/guides/query) first. This guide focuses on React-specific usage patterns.
+</Note>
+
+## Basic Usage
+
+```tsx Basic Usage
+import { useQuery } from '@argus-labs/sdk/react'
+import { Match } from '@argus-labs/sdk'
+import { shard } from './shard'
+
+function PlayerList() {
+  const { status, data, error } = useQuery({
+    shardClient: shard,
+    query: {
+      find: ['playertag', 'position'],
+      match: Match.CONTAINS,
+    },
+  })
+
+  if (status === 'idle') return null
+  if (status === 'loading') return <div>Loading players…</div>
+  if (status === 'error') return <div>Error: {error?.message}</div>
+
+  return (
+    <ul>
+      {data?.map((player) => (
+        <li key={player._id}>
+          {player.playertag.argus_auth_name} at ({player.position.x}, {player.position.y})
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+## Query States
+
+The hook returns a state object with four possible statuses:
+
+- **`idle`** - Query is disabled via the `disabled` prop
+- **`loading`** - Query is in progress
+- **`success`** - Query completed successfully, `data` contains results
+- **`error`** - Query failed, `error` contains the error details
+
+## Conditional Queries
+
+Use the `disabled` prop to conditionally execute queries:
+
+```tsx Conditional Queries
+function PlayerProfile({ playerId }: { playerId?: string }) {
+  const { status, data, error } = useQuery({
+    shardClient: shard,
+    query: {
+      find: ['playertag', 'position', 'onlinestatus'],
+      match: Match.CONTAINS,
+      where: `playertag.argus_auth_id == "${playerId}"`,
+    },
+    disabled: !playerId, // Only query when playerId is available
+  })
+
+  if (!playerId) return <div>Select a player to view profile</div>
+  if (status === 'idle') return null
+  if (status === 'loading') return <div>Loading profile…</div>
+  if (status === 'error') {
+    console.error(error)
+    return <div>Failed to load profile</div>
+  }
+
+  return (
+    <div>
+      <h2>{data[0]?.playertag.argus_auth_name}</h2>
+      <p>Status: {data[0]?.onlinestatus.online ? 'Online' : 'Offline'}</p>
+    </div>
+  )
+}
+```
+
+## Type Safety with Schema
+
+Combine with schema validation for full type safety:
+
+```tsx Type Safety with Schema
+import { z } from 'zod'
+
+const playersSchema = z.array(
+  z.object({
+    _id: z.number(),
+    playertag: z.object({
+      argus_auth_id: z.string(),
+      argus_auth_name: z.string(),
+    }),
+    position: z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+    onlinestatus: z.object({
+      last_active: z.string(),
+      online: z.boolean(),
+    }),
+  })
+)
+
+function TypedPlayerList() {
+  const { status, data, error } = useQuery({
+    shardClient: shard,
+    query: {
+      find: ['playertag', 'position', 'onlinestatus'],
+      match: Match.EXACT,
+    },
+    schema: playersSchema, // Validates and types the response
+  })
+
+  // data is now fully typed based on the schema
+  if (status === 'success') {
+    return (
+      <div>
+        {data.map((player) => (
+          <div key={player._id}>
+            {/* Full TypeScript support */}
+            <h3>{player.playertag.argus_auth_name}</h3>
+            <p>
+              Position: {player.position.x}, {player.position.y}
+            </p>
+            <p>Online: {player.onlinestatus.online ? 'Yes' : 'No'}</p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return <div>No data</div>
+}
+```
+
+## Best Practices
+
+1. **Always handle all status states** (`idle`, `loading`, `success`, `error`) explicitly
+2. **Combine with schema validation** for runtime type safety
+3. **Create schema outside of the component** to avoid re-creating it on every render

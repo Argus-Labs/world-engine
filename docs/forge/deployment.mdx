@@ -1,0 +1,143 @@
+---
+title: 'Deployment'
+description: 'Deploy your World Engine project to the cloud and manage your deployments'
+---
+
+
+## Prerequisites
+
+Before deploying your World Engine project, ensure you have:
+
+- [Created an organization](/forge/organization)
+- [Created a project](/forge/project)
+
+## Deployment Overview
+
+World Engine provides a comprehensive deployment system that allows you to deploy your projects to different environments:
+
+- **Preview Environment**: For testing and development
+- **Live Environment**: For production deployments
+
+## Deploy to Preview Environment
+
+Deploy your project to the preview environment for testing:
+
+```bash
+world deploy
+```
+
+This command will:
+
+1. Build your Cardinal shards
+2. Package your application
+3. Deploy to the preview environment
+4. Provide deployment status and URLs
+
+<Note>
+  The preview environment is perfect for testing your game before promoting to production.
+</Note>
+
+### Force Deploy
+
+If you need to force a deployment (e.g., after configuration changes):
+
+```bash
+world deploy --force
+```
+
+<Warning>
+  Force deployments will override any existing deployment and may cause downtime.
+</Warning>
+
+## Check Deployment Status
+
+Monitor the status of your deployed project:
+
+```bash
+world status
+```
+
+This command provides information about:
+
+- Deployment status (running, failed, building)
+- Environment URLs
+- Health checks
+- Resource usage
+
+## Promote to Live Environment
+
+Once you're satisfied with your preview deployment, promote it to the live environment:
+
+```bash
+world promote
+```
+
+<Note>
+  Promoting to live will make your game available to end users. Ensure thorough testing in preview first.
+</Note>
+
+## View Application Logs
+
+Monitor your application in real-time by tailing logs:
+
+```bash
+# Default: us-west-2 region, preview environment
+world logs
+
+# Specify region and environment
+world logs us-east-1 preview
+world logs eu-central-1 live
+```
+
+### Available Regions
+
+- `us-west-2` (default)
+- `us-east-1`
+- `eu-central-1`
+- `ap-southeast-1`
+
+### Available Environments
+
+- `preview` (default)
+- `live`
+
+<Note>
+  Logs are streamed in real-time. Use Ctrl+C to stop the log stream.
+</Note>
+
+## Reset Deployment
+
+If you need to restart your deployment with a clean state:
+
+```bash
+world reset
+```
+
+This command will:
+
+1. Stop the current deployment
+2. Clear all data and state
+3. Redeploy with a fresh environment
+
+<Warning>
+  Resetting will clear all game state and data. This action cannot be undone.
+</Warning>
+
+## Destroy Deployment
+
+Remove your project's infrastructure from the cloud:
+
+```bash
+world destroy
+```
+
+This command will:
+
+1. Stop all running services
+2. Remove all deployed resources
+3. Clean up infrastructure
+
+<Warning>
+  Destroying your deployment will permanently remove all data and infrastructure. This action cannot be undone.
+</Warning>
+

@@ -1,5 +1,5 @@
 ---
-title: 'Introduction to ECS'
+title: Introduction to ECS
 ---
 
 Cardinal utilizes the Entity Component System (ECS) as the idiomatic pattern to structure and write your game code.
@@ -13,6 +13,7 @@ ECS is an architectural pattern widely used in game development. It contributes 
 - **System** — The logic in ECS. They operate over entities that have a particular set of components, processing them to create the gameplay and behavior. A "MovementSystem", for example, might move all entities with a "Position" and "Speed" component each game tick.
 
 ## Benefits of ECS
+
 **Flexibility** — The ECS architecture allows for high flexibility. By combining different components, developers can create a wide range of unique entities without needing to create a complex inheritance tree.
 
 **Performance** — ECS often enhances performance. Systems can process only entities with specific components, reducing unnecessary checks, and allow data I/O access patterns to be optimized.
@@ -21,9 +22,9 @@ ECS is an architectural pattern widely used in game development. It contributes 
 
 ## ECS Development Workflow
 
-In practice, using ECS architecture involves three basic steps:
+In practice, using ECS architecture involves two basic steps:
+
 1. **Define components:** Set up the basic data structures that hold information about entities.
 2. **Implement systems:** Define systems that provide the logic behind how entities behave based on their components.
-3. **Implement queries:** Define queries that allow clients to read the game state.
 
-While the ECS style can take some time to get used to, the benefits it provides, especially in terms of flexibility, performance, and complexity management, make it a robust and reliable approach in modern game development. The opinionated architecture provides you with a strong foundation and helps avoid the need to rewrite your codebase as your game grows. 
+While the ECS style can take some time to get used to, the benefits it provides, especially in terms of flexibility, performance, and complexity management, make it a robust and reliable approach in modern game development. The opinionated architecture provides you with a strong foundation and helps avoid the need to rewrite your codebase as your game grows.

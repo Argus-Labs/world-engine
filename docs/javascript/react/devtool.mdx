@@ -1,0 +1,37 @@
+---
+title: Devtool
+description: Learn how to use the World Engine Devtool to debug your game
+---
+
+## Overview
+
+The SDK Devtool is a UI containing logs of your **queries**, **commands**, and **events**.
+
+![Devtool](/images/devtool.png)
+
+## Installation
+
+It comes pre-installed with the SDK. You just need to import the component and call it in your React app.
+
+It takes in one prop: `defaultOpen`. If you set it to `true`, the Devtool will be open by default.
+
+To open the Devtool, there's a button in the bottom right corner of the screen.
+
+```typescript App.tsx
+import { Devtool } from '@argus-labs/sdk/react-devtool'
+
+function App() {
+  return (
+    <div id="app">
+      {/* Your other app content */}
+
+      <Devtool defaultOpen />
+    </div>
+  )
+}
+```
+
+<Note>
+  The Devtool is only included in your JS bundle when `process.env.NODE_ENV === 'development'`. You
+  don't have to worry about it leaking to production.
+</Note>

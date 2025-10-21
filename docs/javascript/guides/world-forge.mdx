@@ -1,0 +1,62 @@
+---
+title: World Forge
+description: Using predefined configurations for World Forge platform
+---
+
+[World Forge](https://forge.world.dev) is our managed platform that provides pre-configured regions for easy deployment.
+
+## Region Presets
+
+The SDK includes predefined region configurations for World Forge:
+
+### Development
+
+For development environments:
+
+```typescript
+import { createConfig, createSDK, worldForgePresetDevelopment } from '@argus-labs/sdk'
+
+const config = createConfig({
+  regions: worldForgePresetDevelopment,
+})
+
+export const world = createSDK(config)
+```
+
+This preset includes:
+
+- **US West (Oregon)**: `us-west-2` region for development testing
+
+### Production
+
+For production environments:
+
+```typescript
+import { createConfig, createSDK, worldForgePresetProduction } from '@argus-labs/sdk'
+
+const config = createConfig({
+  regions: worldForgePresetProduction,
+})
+
+export const world = createSDK(config)
+```
+
+This preset includes:
+
+- **US West (Oregon)**: `us-west-2` region
+- **US East (Virginia)**: `us-east-1` region
+- **Asia Pacific (Singapore)**: `ap-southeast-1` region
+- **Europe (Frankfurt)**: `eu-central-1` region
+
+## Benefits
+
+Using World Forge presets provides:
+
+- **Pre-configured regions** optimized for global connectivity
+- **Managed infrastructure** with high availability
+- **Automatic updates** to region configurations
+- **Simplified setup** without manual region configuration
+
+<Card title="World Forge" href="https://forge.world.dev">
+  Learn more about World Forge.
+</Card>

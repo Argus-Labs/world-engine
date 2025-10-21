@@ -1,0 +1,34 @@
+---
+title: Project Structure
+description: Best practice for structuring your Cardinal shard code
+---
+
+Once you have created the starter project using the [Quickstart](/quickstart) guide, you will see
+two directories with the following structure:
+
+{/* prettier-ignore */}
+<pre>
+    <strong className="text-white">project-name</strong>
+    ├── demo-game  # a shard
+    &thinsp;│&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/demo-game-template/tree/main/cardinal/component"} style={{color: '#F5D64E'}}>component</a>
+    &thinsp;│&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/demo-game-template/tree/main/cardinal/event"} style={{color: '#F5D64E'}}>event</a>
+    &thinsp;│&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/demo-game-template/tree/main/cardinal/system"} style={{color: '#F5D64E'}}>system</a>
+    &thinsp;│&nbsp;&nbsp;&nbsp;&nbsp;└── <a href={"https://github.com/Argus-Labs/demo-game-template/blob/main/cardinal/main.go"} style={{color: '#F5D64E'}}>main.go</a>
+    └── chat  # another shard
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/demo-game-template/tree/main/cardinal/component"} style={{color: '#F5D64E'}}>component</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/demo-game-template/tree/main/cardinal/event"} style={{color: '#F5D64E'}}>event</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/demo-game-template/tree/main/cardinal/system"} style={{color: '#F5D64E'}}>system</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <a href={"https://github.com/Argus-Labs/demo-game-template/blob/main/cardinal/main.go"} style={{color: '#F5D64E'}}>main.go</a>
+</pre>
+
+This is the basic structure of a project with multiple Cardinal shards.
+
+The `component`, `event`, and `system` directories are where you will be spending most of your time.
+The `main.go` file is where everything is wired up together and is the entry point to starting your shard.
+
+<Tip>
+  While the `component`, `event`, and `system` directories are not required, we encourage you to
+  follow it as a best practice so your project is easier to organize and navigate.
+</Tip>
+
+In the next page, you will learn what goes into each of these files and directories.

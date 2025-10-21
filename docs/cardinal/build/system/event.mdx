@@ -1,0 +1,231 @@
+---
+title: Events and System Events
+description: How to emit events and system events in Cardinal
+---
+
+Events provide a way for Cardinal to communicate state changes and important occurrences to clients / other systems in real-time.
+
+- **Notifications**: Messages about what happened in the game
+- **Reactive**: Allow clients to respond to game state changes
+- **Real-Time**: Published immediately after game tick processing
+- **Typed**: Strongly typed for safety and clarity
+
+## Types of Events
+
+- **Events**: Published to clients
+- **System Events**: Published to other systems within Cardinal
+
+## Events
+
+Events that are published to clients, for example:
+
+- **Player Actions**: Movement, combat, item usage
+- **World Changes**: Environmental updates, state changes
+- **Social Events**: Chat messages, player interactions
+
+By convention, events are defined in the `event` directory. These events must embed `cardinal.BaseEvent`
+and implement the `Name()` method.
+
+The following example shows a simple event that is emitted when a player moves, so other players can see the movement.
+
+```go event/event.go
+package event
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+)
+
+type PlayerMovement struct {
+	cardinal.BaseEvent
+	// The payload of the event.
+	Nickname string `json:"nickname"`
+	X        uint32 `json:"x"`
+	Y        uint32 `json:"y"`
+}
+
+func (PlayerMovement) Name() string {
+	// The name of the event. Clients specify the name when subscribing to the event.
+	return "player-movement"
+}
+```
+
+### Emitting Events
+
+You can use the event by creating a `WithEvent` field in your system state, then emitting the event using the `Emit` method.
+
+<Tip>
+  This example shows emitting an event as part of a command handler, however events can be emitted
+  from any system, e.g. when a player dies, a monster spawns, etc.
+</Tip>
+
+```go system/player_move.go highlight={23,44-48} focus={20-52}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/component"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/demo-game/event"
+)
+
+type MovePlayerCommand struct {
+	cardinal.BaseCommand
+	Nickname string `json:"nickname"`
+	X        uint32 `json:"x"`
+	Y        uint32 `json:"y"`
+}
+
+func (a MovePlayerCommand) Name() string {
+	return "move-player"
+}
+
+type MovePlayerSystemState struct {
+	cardinal.BaseSystemState
+	MovePlayerCommands  cardinal.WithCommand[MovePlayerCommand]
+	PlayerMovementEvent cardinal.WithEvent[event.PlayerMovement]
+	Players             PlayerSearch
+}
+
+func MovePlayerSystem(state *MovePlayerSystemState) error {
+	// This is a contrived example for demonstration purposes.
+	// In a real implementation, you would want to avoid the nested loop
+	// by using a more efficient lookup mechanism (e.g., a map or index).
+
+	// Iterate over all move-player commands received in the tick.
+	for msg := range state.MovePlayerCommands.Iter() {
+		// Iterate over all players in the state.
+		for entity, player := range state.Players.Iter() {
+			tag := player.Tag.Get()
+
+			if msg.Nickname != tag.Nickname {
+				continue
+			}
+
+			player.Position.Set(component.Position{X: int(msg.X), Y: int(msg.Y)})
+
+			state.PlayerMovementEvent.Emit(event.PlayerMovement{
+				Nickname: tag.Nickname,
+				X:           msg.X,
+				Y:           msg.Y,
+			})
+		}
+	}
+	return nil
+}
+```
+
+### Receiving Events
+
+To receive events on your client, you can use one of the client SDKs that we have. Here's an example of how to [subscribe
+to events using the JavaScript SDK](/javascript/guides/subscribe-events).
+
+## System Events
+
+Events for communication between systems:
+
+- **Cross-System**: Share data between different systems
+- **Lifecycle**: Entity creation/destruction notifications
+- **Triggers**: Activate secondary game logic
+
+By convention, system events are defined in the `system_event` directory. Unlike events, system events doesn't need to
+embed `cardinal.BaseEvent`.
+
+The following example shows a system event that creates a grave when a player is attacked and dies.
+
+```go system_event/system_event.go
+package systemevent
+
+type PlayerDeath struct {
+	Nickname string
+}
+
+func (PlayerDeath) Name() string {
+	return "player-death"
+}
+```
+
+### Emitting System Events
+
+You can use the system event by creating a `WithSystemEventEmitter` field in your system state, then emitting it
+using the `Emit` method.
+
+```go system/player_attack.go highlight={22,46} focus={19-51}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/basic/component"
+	systemevent "github.com/argus-labs/monorepo/pkg/cardinal/examples/basic/system_event"
+)
+
+type AttackPlayerCommand struct {
+	cardinal.BaseCommand
+	Target string
+	Damage uint32
+}
+
+func (a AttackPlayerCommand) Name() string {
+	return "attack-player"
+}
+
+type AttackPlayerSystemState struct {
+	cardinal.BaseSystemState
+	AttackPlayerCommands    cardinal.WithCommand[AttackPlayerCommand]
+	PlayerDeathSystemEvents cardinal.WithSystemEventEmitter[systemevent.PlayerDeath]
+	Players                 PlayerSearch
+}
+
+func AttackPlayerSystem(state *AttackPlayerSystemState) error {
+	// This is a contrived example for demonstration purposes.
+	// In a real implementation, you would want to avoid the nested loop
+	// by using a more efficient lookup mechanism (e.g., a map or index).
+
+	// Iterate over all attack-player commands received in the tick.
+	for msg := range state.AttackPlayerCommands.Iter() {
+		// Iterate over all players in the state.
+		for entity, player := range state.Players.Iter() {
+			tag := player.Tag.Get()
+
+			if msg.Target != tag.Nickname {
+				continue
+			}
+
+			newHealth := player.Health.Get().HP - int(msg.Damage)
+			if newHealth > 0 {
+				player.Health.Set(component.Health{HP: newHealth})
+			} else {
+				entity.Destroy()
+				state.PlayerDeathSystemEvents.Emit(systemevent.PlayerDeath{Nickname: tag.Nickname})
+			}
+		}
+	}
+	return nil
+}
+```
+
+### Receiving System Events
+
+To receive system events, create a `WithSystemEventReceiver` field in your system state, then iterate over the emitted system events.
+
+```go system/graveyard.go highlight={11,17}
+package system
+
+import (
+	"github.com/argus-labs/monorepo/pkg/cardinal"
+	"github.com/argus-labs/monorepo/pkg/cardinal/examples/basic/component"
+	systemevent "github.com/argus-labs/monorepo/pkg/cardinal/examples/basic/system_event"
+)
+
+type GraveyardSystemState struct {
+	cardinal.BaseSystemState
+	PlayerDeathSystemEvents cardinal.WithSystemEventReceiver[systemevent.PlayerDeath]
+	Graves                  GraveSearch
+}
+
+func GraveyardSystem(state *GraveyardSystemState) error {
+	// Iterate over all player-death system events received in the tick.
+	for event := range state.PlayerDeathSystemEvents.Iter() {
+		_, _ = state.Graves.Create(component.Gravestone{Nickname: event.Nickname})
+	}
+	return nil
+}
+```

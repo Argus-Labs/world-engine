@@ -1,0 +1,107 @@
+---
+title: 'Project'
+description: 'Create and manage World Engine projects within your organization'
+---
+
+
+## Project Overview
+
+Projects are where your World Engine games and applications live. Each project belongs to an organization and can contain multiple Cardinal shards.
+
+## Create a New Project
+
+```bash
+world project create
+```
+
+The project creation process will guide you through several steps:
+
+### 1. Project Details
+
+- **Project Name**: Enter a descriptive name for your project
+- **Project Slug**: Enter a unique identifier for your project
+
+<Warning>
+  Project slugs must be unique across all projects within an organization.
+</Warning>
+
+### 2. Repository Configuration
+
+- **Repository URL**: The Git repository URL where your project code is hosted
+- **Repository Path**: The path within the repository where your World Engine project is located
+
+<Note>
+  Your project must be in a Git repository. If you haven't initialized a Git repository yet, do so before creating the project.
+</Note>
+
+### 3. Region Selection
+
+Choose the regions where you want to deploy your project. Multiple regions can be selected for global distribution.
+
+### 4. Notification Settings (Optional)
+
+Configure notifications for your project:
+
+- **Discord**: Set up Discord webhook for deployment notifications
+- **Slack**: Set up Slack webhook for deployment notifications
+
+
+## Update Project Configuration
+
+To modify your project settings:
+
+```bash
+world project update
+```
+
+This allows you to update:
+- Project name and slug
+- Repository configuration
+- Region selection
+- Notification settings
+
+## Download a Project
+
+For new team members, you can download a project from your organization:
+
+```bash
+world project download
+```
+
+This command will:
+
+1. **Select Project**: Choose from available projects in your organization
+2. **Choose Download Path**: Specify where to download the project locally
+3. **Clone Repository**: Download the project code from the Git repository
+4. **Set Up Environment**: Configure the project for local development
+
+<Note>
+  You must have access permissions to the project's Git repository to download it successfully.
+</Note>
+
+<Warning>
+  If you don't have the necessary permissions to the repository, the download will fail. Contact your organization admin to grant you access.
+</Warning>
+
+### Prerequisites for Download
+
+Before downloading a project, ensure you have:
+
+- Access to the project's Git repository
+- [World CLI installed and authenticated](/quickstart)
+- Sufficient disk space for the project
+- Git installed on your local machine
+
+## Delete a Project
+
+To remove a project from your organization:
+
+```bash
+world project delete
+```
+
+<Warning>
+  Deleting a project will permanently remove all associated data and deployments. This action cannot be undone.
+</Warning>
+
+

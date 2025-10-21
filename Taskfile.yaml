@@ -1,0 +1,103 @@
+version: '3'
+
+silent: true
+
+vars:
+  FORCE_COLOR: true
+  LINT_VERSION: v2.1.2
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmd: task --list
+
+  # Linting.
+  lint:
+    desc: Run linter for Go code
+    cmds:
+      - task: _lint:go
+        vars:
+          FIX: false
+
+  lint:fix:
+    desc: Run linter and automatically fix issues for Go code
+    cmds:
+      - task: _lint:go
+        vars:
+          FIX: true
+
+  # Testing.
+  test:
+    desc: Run all Go tests (unit + integration)
+    cmds:
+      - task: _test:go:all
+        vars:
+          CI: false
+
+  test:ci:
+    desc: Run all Go tests in CI mode
+    cmds:
+      - task: _test:go:all
+        vars:
+          CI: true
+
+  test:unit:
+    desc: Run Go tests (unit tests only)
+    cmds:
+      - task: _test:go:unit
+        vars:
+          CI: false
+
+
+  # Utilities.
+  clean:
+    desc: Clean generated files and caches
+    cmds:
+      - rm -f coverage.out junit.xml
+      - go clean -cache
+      - go clean -testcache
+
+  # Internal.
+  _lint:go:
+    internal: true
+    deps: [_deps:golangci-lint]
+    requires:
+      vars: [FIX]
+    cmds:
+      - golangci-lint run --timeout=10m {{if .FIX}}--fix{{end}} ./pkg/...
+
+  _test:go:unit:
+    internal: true
+    deps: [_deps:gotestsum]
+    requires:
+      vars: [CI]
+    cmds:
+      - gotestsum {{if .CI}}--junitfile=junit.xml -- -coverprofile=coverage.out -covermode=atomic{{end}} ./pkg/... -tags="!integration"
+
+  _test:go:all:
+    internal: true
+    deps: [_deps:gotestsum]
+    requires:
+      vars: [CI]
+    cmds:
+      - gotestsum {{if .CI}}--junitfile=junit.xml -- -coverprofile=coverage.out -covermode=atomic{{end}} ./pkg/...
+
+  _deps:golangci-lint:
+    internal: true
+    run: once
+    desc: Install golangci-lint
+    cmds:
+      - |
+        if [ "$(golangci-lint --version 2> /dev/null | awk '{print $4}')" != "{{.LINT_VERSION}}" ]; then
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.LINT_VERSION}}
+        fi
+
+  _deps:gotestsum:
+    internal: true
+    run: once
+    desc: Install gotestsum
+    cmds:
+      - |
+        if ! command -v gotestsum >/dev/null 2>&1; then
+          go install gotest.tools/gotestsum@latest
+        fi

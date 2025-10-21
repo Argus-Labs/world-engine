@@ -1,0 +1,175 @@
+---
+title: Command
+description: Learn how to send commands to your World Engine shard using the Argus Labs SDK
+---
+
+# Sending Commands
+
+Commands allow you to modify game state on your World Engine shard. This guide covers everything from basic command sending to advanced patterns with TypeScript interfaces and error handling.
+
+## Basic Command
+
+The simplest command sends data to modify game state:
+
+```typescript Basic Command
+import { shard } from './shard'
+
+export async function spawnPlayer() {
+  const { error } = await shard.sendCommand({
+    name: 'player-spawn',
+    payload: {
+      // TODO: when persona is implemented, we might not need to send auth id and name
+      argus_auth_id: 'abc123',
+      argus_auth_name: 'John Doe',
+      x: 100,
+      y: 200,
+    },
+  })
+
+  if (error) {
+    console.error(error)
+    return { error }
+  }
+
+  return { success: true }
+}
+```
+
+This command creates a new player entity with the specified properties.
+
+## Type Safety
+
+For better type safety and maintainability, declare command interfaces that match your Cardinal command structs:
+
+```typescript Type Safety
+import { shard } from './shard'
+
+// Sync with your Cardinal PlayerSpawnCommand struct
+interface SpawnPlayerCommand {
+  name: 'player-spawn'
+  payload: {
+    argus_auth_id: string
+    argus_auth_name: string
+    x: number
+    y: number
+  }
+}
+
+export async function spawnPlayer({
+  authId,
+  name,
+  x,
+  y,
+}: {
+  authId: string
+  name: string
+  x: number
+  y: number
+}) {
+  const { error } = await shard.sendCommand({
+    name: 'player-spawn',
+    payload: {
+      argus_auth_id: authId,
+      argus_auth_name: name,
+      x,
+      y,
+    },
+  } satisfies SpawnPlayerCommand) // TypeScript will validate the structure
+
+  if (error) return { error }
+  return { success: true }
+}
+```
+
+<Note>
+  **TypeScript Tip**: The `satisfies` operator ensures your command object matches the interface
+  without losing type inference. This catches typos and structural mismatches at compile time.
+</Note>
+
+## Integration with Argus Auth
+
+Most commands require user authentication. Here's how to integrate with Argus Auth:
+
+```typescript With Argus Auth
+import { world } from './sdk'
+import { shard } from './shard'
+
+interface SpawnPlayerCommand {
+  name: 'player-spawn'
+  payload: {
+    argus_auth_id: string
+    argus_auth_name: string
+    x: number
+    y: number
+  }
+}
+
+export async function spawnPlayer({ x, y }: { x: number; y: number }) {
+  const user = world.auth.getUser()
+  if (!user) {
+    return { error: 'No Argus ID user found, are you not logged into Argus ID?' }
+  }
+
+  const { id, name } = user
+
+  return shard.sendCommand({
+    name: 'player-spawn',
+    payload: { argus_auth_id: id, argus_auth_name: name, x, y },
+  } satisfies SpawnPlayerCommand)
+}
+```
+
+## Error Handling
+
+Commands return a simple error object structure:
+
+```typescript Error Handling
+export async function handleCommand() {
+  const { error } = await shard.sendCommand({
+    name: 'player-spawn',
+    payload: {
+      argus_auth_id: 'abc123',
+      argus_auth_name: 'John Doe',
+      x: 100,
+      y: 200,
+    },
+  })
+
+  if (error) {
+    console.error('Command failed:', error)
+    return { error }
+  }
+
+  return { success: true }
+}
+```
+
+## Best Practices
+
+1. **Always declare interfaces** that match your Cardinal command structs
+2. **Use `satisfies`** for compile-time type checking
+3. **Check for errors** in the response
+4. **Keep payload structure** consistent with your Go structs
+5. **Use descriptive command names** that match your Cardinal system names
+
+<Accordion title="Cardinal Command Struct Example">
+
+Your TypeScript interfaces should match your Go command structs:
+
+```go Cardinal Command Struct Example
+type PlayerSpawnCommand struct {
+    cardinal.BaseCommand
+    ArgusAuthID   string `json:"argus_auth_id"`
+    ArgusAuthName string `json:"argus_auth_name"`
+    Position      struct {
+        X int `json:"x"`
+        Y int `json:"y"`
+    } `json:"position"`
+}
+
+func (c PlayerSpawnCommand) Name() string {
+    return "player-spawn"
+}
+```
+
+</Accordion>

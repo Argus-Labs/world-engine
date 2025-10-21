@@ -1,0 +1,87 @@
+---
+title: Configuration
+description: Configure the SDK for your application
+---
+
+The SDK configuration defines how your application connects to game servers and manages regions.
+
+## Basic Configuration
+
+Create a configuration using `createConfig`:
+
+```typescript
+import { createConfig, createSDK } from '@argus-labs/sdk'
+
+const config = createConfig({
+  // Configuration options go here
+})
+
+export const world = createSDK(config)
+```
+
+## Regions
+
+### Default Region
+
+If no regions are specified, the SDK defaults to a single `localhost` region:
+
+```typescript
+const config = createConfig({
+  // No regions specified - defaults to localhost:8080
+})
+```
+
+This is equivalent to:
+
+```typescript
+const config = createConfig({
+  regions: {
+    localhost: {
+      gatewayUrl: 'http://localhost:8080',
+      displayName: 'Localhost',
+    },
+  },
+})
+```
+
+### Development vs Production
+
+For development, you typically use localhost or development servers:
+
+```typescript
+const config = createConfig({
+  regions: {
+    'dev-server': {
+      gatewayUrl: 'http://localhost:8080',
+      displayName: 'Development Server',
+    },
+  },
+})
+```
+
+For production, configure multiple regions for optimal global connectivity:
+
+```typescript
+const config = createConfig({
+  regions: {
+    'us-west-2': {
+      gatewayUrl: 'https://us-west-2.gateway.example.com',
+      displayName: 'US West (Oregon)',
+    },
+    'eu-central-1': {
+      gatewayUrl: 'https://eu-central-1.gateway.example.com',
+      displayName: 'Europe (Frankfurt)',
+    },
+  },
+})
+```
+
+<Note>
+  Using World Forge? Check out the [World Forge guide](/javascript/guides/world-forge) for
+  predefined region configurations.
+</Note>
+
+## Multiple Regions
+
+For detailed information about configuring and managing multiple regions, including automatic
+region selection and latency optimization, see the [Multiple Regions guide](/javascript/guides/multiple-regions).

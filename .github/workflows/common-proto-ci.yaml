@@ -1,0 +1,21 @@
+name: CI (Protobuf)
+
+on:
+  push:
+    paths:
+      - 'proto/**'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+      - '.github/workflows/proto-ci.yaml'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}

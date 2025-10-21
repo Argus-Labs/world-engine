@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package cardinal.v1;
+
+import "buf/validate/validate.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/cardinal/v1;cardinalv1";
+
+// CardinalSnapshot represents a complete snapshot of the world state.
+message CardinalSnapshot {
+  // Archetypes in the world state
+  repeated Archetype archetypes = 1;
+
+  // Entity manager state
+  uint32 next_id = 2;
+  repeated uint32 free_ids = 3;
+  map<uint32, uint64> entity_archetypes = 4; // EntityID -> ArchetypeID
+}
+
+// Archetype represents a collection of entities with the same component types.
+message Archetype {
+  // Unique identifier for this archetype
+  uint64 id = 1;
+
+  // Bitmap representing entity IDs in this archetype
+  bytes entities_bitmap = 2;
+
+  // Bitmap representing component types in this archetype
+  bytes components_bitmap = 3;
+
+  // Columns containing component data
+  repeated Column columns = 4;
+}
+
+// Column represents a sparse set data structure for storing component data.
+message Column {
+  // Name of the component stored in this column
+  string component_name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Sparse array mapping entity IDs to dense array indices
+  // -1 means entity not present in this column
+  repeated int64 sparse = 2;
+
+  // Dense array of entity IDs
+  repeated uint32 dense_entity_ids = 3;
+
+  // Dense array of serialized component data (JSON)
+  repeated bytes dense_component_data = 4;
+}

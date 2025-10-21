@@ -1,0 +1,101 @@
+---
+title: 'Organization'
+description: 'Create and manage organizations for your World Engine projects'
+---
+
+## Organization Overview
+
+Organizations in World Engine allow you to group related projects and manage team access. Each organization can contain multiple projects and team members.
+
+## Create a New Organization
+
+```bash
+world organization create
+```
+
+This interactive command will guide you through the organization creation process:
+
+1. **Organization Name**: Enter a descriptive name for your organization
+2. **Organization Slug**: Enter a unique identifier for your organization
+
+<Warning>
+  Organization slugs must be unique across all World Engine organizations.
+</Warning>
+
+
+## Invite Members to Your Organization
+
+Once you have created an organization, you can invite team members to collaborate on your projects.
+
+### Invite a User
+
+```bash
+world user invite
+```
+
+This interactive command will guide you through the invitation process:
+
+1. **User Email**: Enter the email address of the person you want to invite
+2. **User Role**: Select the appropriate role for the user
+
+### Available Roles
+
+- **Owner**: Full access to the organization, including deleting the organization
+- **Admin**: Can manage projects, invite users, and change user roles
+- **Member**: Can view and contribute to projects
+- **None**: No access (used for removing permissions)
+
+<Note>
+  Only organization owners and admins can invite new members to the organization.
+</Note>
+
+### Invite with Specific Role
+
+You can also invite users with a specific role using flags:
+
+```bash
+world user invite --email="user@example.com" --role="admin"
+```
+
+### Change User Roles
+
+To change an existing user's role in your organization:
+
+```bash
+world user role
+```
+
+This command allows you to:
+- Update a user's role within the organization
+- Promote members to admin or owner
+- Demote users to member or none
+
+### View Organization Members
+
+To see all members in your organization:
+
+```bash
+world organization members
+```
+
+This will display:
+- All current members
+- Their assigned roles
+- When they joined the organization
+
+## Next Steps
+
+After creating your organization, you can:
+
+- [Create a project](/deployment/project) to start building your game
+- [Invite team members](/deployment/organization#invite-members-to-your-organization) to collaborate
+- [Manage user roles](/deployment/organization#change-user-roles) as your team grows
+
+<CardGroup cols={2}>
+  <Card title="Create Project" icon="folder" href="/deployment/project">
+    Create your first World Engine project
+  </Card>
+  <Card title="Deploy Project" icon="rocket" href="/deployment/deploy">
+    Deploy your project to the cloud
+  </Card>
+</CardGroup> 
