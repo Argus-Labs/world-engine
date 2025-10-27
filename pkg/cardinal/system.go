@@ -17,7 +17,6 @@ type (
 	Exact[T any]         = ecs.Exact[T]
 	Ref[T ecs.Component] = ecs.Ref[T]
 	Contains[T any]      = ecs.Contains[T]
-	Entity               = ecs.Entity
 )
 
 // RegisterSystem registers a system and its state with the world. By default, systems are registered to the
