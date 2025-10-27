@@ -9,14 +9,14 @@ import (
 
 // World represents the root ECS state with double buffering support.
 type World struct {
-	state WorldState
+	state *worldState
 
-	// Systems
+	// Systems.
 	initSystems []initSystem       // Initialization systems, run once during the genesis tick
 	scheduler   [3]systemScheduler // Systems schedulers (PreTick, Update, PostTick)
 
 	// Components, commands, events, system events.
-	components   componentManager   // Component type registry (immutable after world start)
+	// components   componentManager   // Component type registry (immutable after world start)
 	commands     commandManager     // Receives commands from external sources
 	events       eventManager       // Stores events to be emitted to external sources
 	systemEvents systemEventManager // Manages system events
@@ -25,14 +25,14 @@ type World struct {
 // NewWorld creates a new World instance.
 func NewWorld() *World {
 	world := &World{
+		state:        newWorldState(),
 		initSystems:  make([]initSystem, 0),
 		scheduler:    [3]systemScheduler{},
 		systemEvents: newSystemEventManager(),
 		commands:     newCommandManager(),
 		events:       newEventManager(),
-		components:   newComponentManager(),
+		// components:   newComponentManager(),
 	}
-	world.state = newWorldState(world)
 
 	for i := range world.scheduler {
 		world.scheduler[i] = newSystemScheduler()
@@ -86,13 +86,8 @@ func (w *World) Tick(commands []micro.Command) ([]RawEvent, error) {
 
 // CustomTick allows for a custom update function to be run instead of the registered systems.
 // This function is for testing and internal use only!
-func (w *World) CustomTick(fn func(*WorldState)) {
-	fn(w.getState())
-}
-
-// getState returns a pointer to the world state.
-func (w *World) getState() *WorldState {
-	return &w.state
+func (w *World) CustomTick(fn func(*worldState)) {
+	fn(w.state)
 }
 
 // clearBuffers clears the previous tick's buffers.

@@ -1,12 +1,9 @@
 package cardinal
 
 import (
-	"strings"
-
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/caarlos0/env/v11"
 	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
 )
 
 // worldConfig holds the configuration for a Cardinal World instance.
@@ -26,9 +23,6 @@ type worldConfig struct {
 
 	// Hex-encoded Ed25519 private key used for signing (inter-shard) commands.
 	PrivateKey string `env:"CARDINAL_PRIVATE_KEY"`
-
-	// Log level configuration ("debug", "info", "warn", "error").
-	LogLevel string `env:"CARDINAL_LOG_LEVEL" envDefault:"info"`
 }
 
 // loadWorldConfig loads the world configuration from environment variables.
@@ -64,12 +58,6 @@ func (cfg *worldConfig) validate() error {
 		return eris.New("private key cannot be empty")
 	}
 
-	// Validate log level.
-	_, err := zerolog.ParseLevel(strings.ToLower(cfg.LogLevel))
-	if err != nil {
-		return eris.Errorf("invalid log level: %s (must be 'debug', 'info', 'warn', or 'error')", cfg.LogLevel)
-	}
-
 	return nil
 }
 
@@ -80,12 +68,6 @@ func (cfg *worldConfig) applyToOptions(opt *WorldOptions) {
 	opt.Project = cfg.Project
 	opt.ShardID = cfg.ShardID
 	opt.PrivateKey = cfg.PrivateKey
-}
-
-// GetLogLevel converts the log level string to zerolog.Level.
-func (cfg *worldConfig) GetLogLevel() zerolog.Level {
-	level, _ := zerolog.ParseLevel(cfg.LogLevel) // Error is already checked during validateConfig
-	return level
 }
 
 type WorldOptions struct {

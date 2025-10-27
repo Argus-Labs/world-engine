@@ -32,7 +32,7 @@ type Client struct {
 type NATSConfig struct {
 	Name            string `env:"NATS_NAME" envDefault:"isc"`
 	URL             string `env:"NATS_URL" envDefault:"nats://nats:4222"`
-	CredentialsFile string `env:"NATS_CREDENTIALS_FILE" envDefault:"/etc/nats/nats.creds"`
+	CredentialsFile string `env:"NATS_CREDENTIALS_FILE"`
 }
 
 // Validate validates the NATS configuration and returns an error if invalid.
@@ -40,7 +40,8 @@ func (cfg NATSConfig) Validate() error {
 	if cfg.URL == "" {
 		return eris.New("NATS URL is required")
 	}
-	// CredentialsFile is optional - if not provided, will connect without authentication (for testing).
+	// CredentialsFile, NKey fields are all optional.
+	// If none are provided, will connect without authentication (for testing).
 	return nil
 }
 
@@ -83,6 +84,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if c.natsConfig.CredentialsFile != "" {
 		natsOpts = append(natsOpts, nats.UserCredentials(c.natsConfig.CredentialsFile))
 	}
+	// Else we're unauthenticated.
 
 	// Create the NATS connection.
 	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)

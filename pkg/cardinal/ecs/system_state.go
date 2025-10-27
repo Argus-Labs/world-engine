@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"iter"
+	"math"
 	"reflect"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -60,6 +61,12 @@ func (b *BaseSystemState) init(w *World) (bitmap.Bitmap, error) {
 // tag returns the type of system state field.
 func (b *BaseSystemState) tag() systemStateFieldType {
 	return FieldBase
+}
+
+// UnsafeWorldState returns a pointer to the world's underlying state. Use this only when you know
+// what you're doing as it's possible to mess up the world state.
+func (b *BaseSystemState) UnsafeWorldState() *worldState { //nolint:revive // it's ok
+	return b.world.state
 }
 
 // EmitRawEvent emits a raw event to the world with the given event kind and payload.
@@ -401,15 +408,13 @@ func (s *search[T]) init(w *World) (bitmap.Bitmap, error) {
 		s.fields[i] = fieldRef
 
 		// Register the component.
-		component, err := fieldRef.registerAndGetComponent(w)
+		cid, err := fieldRef.register(w)
 		if err != nil {
 			return bitmap.Bitmap{}, err
 		}
 
 		// Set the component ID in the bitmap so the scheduler can order the systems correctly.
-		compID, err := w.components.getComponentID(component)
-		assert.That(err == nil, "component %s not automatically registered", component.Name())
-		s.components.Set(compID)
+		s.components.Set(cid)
 	}
 
 	return s.components, nil
@@ -423,6 +428,8 @@ func (s *search[T]) tag() systemStateFieldType {
 // Create creates a new entity with the given components. Returns an error if any of the components
 // are not defined in the search field.
 //
+// This is the recommended system-friendly alternative to ecs.Create() for creating entities within systems.
+//
 // Example:
 //
 //	entity, err := state.Mob.Create(Health{Value: 100}, Position{X: 0, Y: 0})
@@ -430,52 +437,39 @@ func (s *search[T]) tag() systemStateFieldType {
 //	    state.Logger().Error().Err(err).Msg("Failed to create entity")
 //	}
 //	// Use entity...
-func (s *search[T]) Create(components ...Component) (EntityID, error) {
-	if len(components) == 0 {
-		return 0, eris.New("no components provided")
+func (s *search[T]) Create() (EntityID, T) {
+	ws := s.world.state
+	eid := ws.newEntityWithArchetype(s.components)
+
+	for i := range s.fields {
+		s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
 	}
 
-	// Validate given components.
-	for _, component := range components {
-		id, err := s.world.components.getComponentID(component)
-		if err != nil {
-			return 0, eris.Errorf("component %s is not registered", component.Name())
-		}
-		if !s.components.Contains(id) {
-			return 0, eris.Errorf("component %s not defined in search field", component.Name())
-		}
-	}
+	return eid, s.result
+}
 
-	return Create(s.world.getState(), components...), nil
+// Destroy deletes an entity and all its components from the world.
+//
+// This is the recommended system-friendly alternative to ecs.Destroy() for destroying entities within systems.
+func (s *search[T]) Destroy(eid EntityID) bool {
+	return Destroy(s.world.state, eid)
 }
 
 // iter returns an iterator over all entities that match the given archetypes.
-func (s *search[archetypeSelector]) iter(archs []*archetype) iter.Seq2[Entity, archetypeSelector] {
-	ws := s.world.getState()
-	return func(yield func(Entity, archetypeSelector) bool) {
-		for _, arch := range archs {
-			if arch == nil {
-				continue
-			}
+func (s *search[T]) iter(archetypeIDs []archetypeID) iter.Seq2[EntityID, T] {
+	ws := s.world.state
+	return func(yield func(EntityID, T) bool) {
+		for _, id := range archetypeIDs {
+			arch := ws.archetypes[id]
+			for _, eid := range arch.entities {
+				for i := range s.fields {
+					s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
+				}
 
-			isStopIterating := false
-			arch.entities.Range(func(id uint32) {
-				if isStopIterating {
+				if !yield(eid, s.result) {
 					return
 				}
-
-				entityID := EntityID(id)
-				for i := range s.fields {
-					s.fields[i].attach(entityID, ws) // Attach the entity and world state buffer to the ref
-				}
-
-				entity := Entity{ID: entityID, ws: ws}
-				// Use a boolean flag instead of return because returning here will just skip to the next
-				// iteration of `entities.Range` instead of the function returned from Iter.
-				if !yield(entity, s.result) {
-					isStopIterating = true
-				}
-			})
+			}
 		}
 	}
 }
@@ -500,7 +494,7 @@ func (s *search[archetypeSelector]) iter(archs []*archetype) iter.Seq2[Entity, a
 //	    }
 //	    return nil
 //	}
-type Contains[archetypeSelector any] struct{ search[archetypeSelector] }
+type Contains[T any] struct{ search[T] }
 
 // Iter returns an iterator over entities and their components that match the Contains search.
 //
@@ -511,10 +505,8 @@ type Contains[archetypeSelector any] struct{ search[archetypeSelector] }
 //	    vel := mover.Velocity.Get()
 //	    mover.Position.Set(Position{X: pos.X + vel.X, Y: pos.Y + vel.Y})
 //	}
-func (c *Contains[archetypeSelector]) Iter() iter.Seq2[Entity, archetypeSelector] {
-	// Only returns alive entities.
-	archs := c.world.getState().archContains(c.components) // Only returns alive entities
-	return c.iter(archs)
+func (c *Contains[T]) Iter() iter.Seq2[EntityID, T] {
+	return c.iter(c.world.state.archContains(c.components))
 }
 
 // Exact provides a search that matches archetypes containing exactly the specified component types,
@@ -537,7 +529,7 @@ func (c *Contains[archetypeSelector]) Iter() iter.Seq2[Entity, archetypeSelector
 //	    }
 //	    return nil
 //	}
-type Exact[archetypeSelector any] struct{ search[archetypeSelector] }
+type Exact[T any] struct{ search[T] }
 
 // Iter returns an iterator over entities and their components that match the Exact query.
 //
@@ -547,52 +539,36 @@ type Exact[archetypeSelector any] struct{ search[archetypeSelector] }
 //	    health := player.Health.Get()
 //	    player.Health.Set(Health{HP: health.HP + 100})
 //	}
-func (c *Exact[archetypeSelector]) Iter() iter.Seq2[Entity, archetypeSelector] {
-	// Only returns alive entities.
-	return c.iter([]*archetype{c.world.getState().archExact(c.components)})
+func (c *Exact[T]) Iter() iter.Seq2[EntityID, T] {
+	archetypes := make([]int, 0, 1)
+	if id, ok := c.world.state.archExact(c.components); ok {
+		archetypes = append(archetypes, id)
+	}
+	return c.iter(archetypes)
 }
 
 // -------------------------------------------------------------------------------------------------
-// Entity and Component Handles
+// Component Handles
 // -------------------------------------------------------------------------------------------------
-
-// Entity is a type-safe handle to an entity in the world state.
-type Entity struct {
-	ID EntityID    // The entity's ID
-	ws *WorldState // Internal reference to the world state
-}
-
-// Destroy destroys the entity.
-//
-// Example:
-//
-//	for entity, player := range state.Players.Iter() {
-//	    if player.Health.Get().HP <= 0 {
-//	        entity.Destroy()
-//	    }
-//	}
-func (e *Entity) Destroy() {
-	Destroy(e.ws, e.ID)
-}
 
 // ref is an internal interface for component references.
 type ref interface {
-	attach(EntityID, *WorldState)
-	registerAndGetComponent(*World) (Component, error)
+	attach(*worldState, EntityID)
+	register(*World) (componentID, error)
 }
 
 var _ ref = &Ref[Component]{}
 
 // Ref provides a type-safe handle to a component on an entity.
 type Ref[T Component] struct {
+	ws     *worldState // Internal reference to the world state
 	entity EntityID    // The entity's ID
-	ws     *WorldState // Internal reference to the world state
 }
 
 // attach sets the entity and world state to the Ref so that Get and Set works properly.
-func (r *Ref[T]) attach(entity EntityID, ws *WorldState) {
-	r.entity = entity
+func (r *Ref[T]) attach(ws *worldState, eid EntityID) {
 	r.ws = ws
+	r.entity = eid
 }
 
 // TODO: might be possible to get the read/write type of the component in the query so we can
@@ -600,19 +576,14 @@ func (r *Ref[T]) attach(entity EntityID, ws *WorldState) {
 // ref types, ReadOnlyRef and ReadWriteRef. For the read-only ref, we don't have to set its ID in
 // the system bitmap.
 
-// registerAndGetComponent returns the registerAndGetComponent type for this Ref.
-func (r *Ref[T]) registerAndGetComponent(w *World) (Component, error) {
-	var zero T
-
-	err := w.components.register(zero.Name(), newColumnConstructor[T]())
-	if err != nil {
-		return zero, err
-	}
-
-	return zero, nil
+// register returns the registerAndGetComponent type for this Ref.
+func (r *Ref[T]) register(w *World) (componentID, error) {
+	return registerComponent[T](w.state)
 }
 
 // Get retrieves the component value for this Ref's entity.
+//
+// This is the recommended system-friendly alternative to ecs.Get() for accessing components within systems.
 //
 // Example:
 //
@@ -620,12 +591,14 @@ func (r *Ref[T]) registerAndGetComponent(w *World) (Component, error) {
 //	    health := player.Health.Get()
 //	}
 func (r *Ref[T]) Get() T {
-	result, err := Get[T](r.ws, r.entity)
-	assert.That(err == nil, "failed to get entity or archetype") // Should never happen
-	return result
+	component, err := Get[T](r.ws, r.entity)
+	assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
+	return component
 }
 
 // Set updates the component value for this Ref's entity.
+//
+// This is the recommended system-friendly alternative to ecs.Set() for modifying components within systems.
 //
 // Example:
 //
@@ -633,7 +606,8 @@ func (r *Ref[T]) Get() T {
 //	    player.Health.Set(Health{HP: 100})
 //	}
 func (r *Ref[T]) Set(component T) {
-	Set(r.ws, r.entity, component)
+	err := Set(r.ws, r.entity, component)
+	assert.That(err == nil, "entity doesn't exist") // Shouldn't happen
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -743,8 +717,8 @@ func initializeSystemState[T any]( //nolint:gocognit // Will refactor after thin
 	}
 
 	// Add system event deps to component deps.
-	n := w.components.nextID
-	assert.That(systemEventDeps.Count()+int(n) <= maxComponentID, "system dependencies exceed max limit")
+	n := w.state.components.nextID
+	assert.That(systemEventDeps.Count()+int(n) <= math.MaxUint32-1, "system dependencies exceed max limit")
 	systemEventDeps.Range(func(x uint32) {
 		componentDeps.Set(n + x)
 	})

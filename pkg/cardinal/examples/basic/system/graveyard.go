@@ -14,7 +14,8 @@ type GraveyardSystemState struct {
 
 func GraveyardSystem(state *GraveyardSystemState) error {
 	for event := range state.PlayerDeathSystemEvents.Iter() {
-		_, _ = state.Graves.Create(component.Gravestone{Nickname: event.Nickname})
+		_, entity := state.Graves.Create()
+		entity.Grave.Set(component.Gravestone{Nickname: event.Nickname})
 
 		state.Logger().Info().Msgf("Created grave stone for player %s", event.Nickname)
 	}

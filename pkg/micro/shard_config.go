@@ -50,13 +50,8 @@ type shardConfig struct {
 
 	DisablePersona bool `env:"SHARD_DISABLE_PERSONA" envDefault:"false"`
 
-	// Maximum bytes for epoch stream. Default is 1GB.
-	// Required by some NATS providers like Synadia Cloud.
-	EpochStreamMaxBytes int64 `env:"SHARD_EPOCH_STREAM_MAX_BYTES" envDefault:"1073741824"`
-
-	// Maximum bytes for snapshot storage (ObjectStore). Default is 10GB.
-	// Required by some NATS providers like Synadia Cloud.
-	SnapshotStorageMaxBytes int64 `env:"SHARD_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"10737418240"`
+	// Maximum bytes for epoch stream. Required by some NATS providers like Synadia Cloud.
+	EpochStreamMaxBytes uint32 `env:"SHARD_EPOCH_STREAM_MAX_BYTES" envDefault:"0"`
 }
 
 // loadShardConfig loads the shard configuration from environment variables.
@@ -93,6 +88,9 @@ func (cfg *shardConfig) validate() error {
 		return eris.New("snapshot frequency cannot be 0")
 	}
 
+	// A EpochStreamMaxBytes value of 0 means unlimited epoch stream storage. This is the default, we
+	// don't need to validate it here.
+
 	return nil
 }
 
@@ -112,42 +110,39 @@ func (cfg *shardConfig) applyToOptions(opt *ShardOptions) {
 	opt.SnapshotFrequency = cfg.SnapshotFrequency
 	opt.DisablePersona = cfg.DisablePersona
 	opt.EpochStreamMaxBytes = cfg.EpochStreamMaxBytes
-	opt.SnapshotStorageMaxBytes = cfg.SnapshotStorageMaxBytes
 }
 
 const MinEpochFrequency = 10
 
 // ShardOptions contains configuration options for creating a new shard.
 type ShardOptions struct {
-	Client                  *Client                // NATS client
-	Address                 *ServiceAddress        // Shard's service address
-	Mode                    ShardMode              // Operation mode (Leader or Follower)
-	EpochFrequency          uint32                 // Number of ticks per epoch
-	TickRate                float64                // Number of ticks per second
-	Telemetry               *telemetry.Telemetry   // Telemetry for logging and tracing
-	SnapshotStorageType     SnapshotStorageType    // Snapshot storage type
-	SnapshotStorageOptions  SnapshotStorageOptions // Optional snapshot storage options
-	SnapshotFrequency       uint32                 // Number of epochs per snapshot
-	DisablePersona          bool                   // Disable persona verification for development/testing
-	EpochStreamMaxBytes     int64                  // Maximum bytes for epoch stream (required by some NATS providers)
-	SnapshotStorageMaxBytes int64                  // Maximum bytes for snapshot storage (required by some NATS providers)
+	Client                 *Client                // NATS client
+	Address                *ServiceAddress        // Shard's service address
+	Mode                   ShardMode              // Operation mode (Leader or Follower)
+	EpochFrequency         uint32                 // Number of ticks per epoch
+	TickRate               float64                // Number of ticks per second
+	Telemetry              *telemetry.Telemetry   // Telemetry for logging and tracing
+	SnapshotStorageType    SnapshotStorageType    // Snapshot storage type
+	SnapshotStorageOptions SnapshotStorageOptions // Optional snapshot storage options
+	SnapshotFrequency      uint32                 // Number of epochs per snapshot
+	DisablePersona         bool                   // Disable persona verification for development/testing
+	EpochStreamMaxBytes    uint32                 // Maximum bytes for epoch stream (required by some NATS providers)
 }
 
 // newDefaultShardOptions creates ShardOptions with default values.
 func newDefaultShardOptions() ShardOptions {
 	// Set these to invalid values to force users to pass in the correct options.
 	return ShardOptions{
-		Client:                  nil,
-		Address:                 nil,
-		Mode:                    ModeLeader,
-		EpochFrequency:          0,
-		TickRate:                0,
-		Telemetry:               nil,
-		SnapshotStorageType:     SnapshotStorageUndefined,
-		SnapshotStorageOptions:  nil,
-		SnapshotFrequency:       0,
-		EpochStreamMaxBytes:     1073741824,  // 1GB default
-		SnapshotStorageMaxBytes: 10737418240, // 10GB default
+		Client:                 nil,
+		Address:                nil,
+		Mode:                   ModeLeader,
+		EpochFrequency:         0,
+		TickRate:               0,
+		Telemetry:              nil,
+		SnapshotStorageType:    SnapshotStorageUndefined,
+		SnapshotStorageOptions: nil,
+		SnapshotFrequency:      0,
+		EpochStreamMaxBytes:    0, // There is no invalid values for this, just set default of 0
 	}
 }
 
@@ -180,14 +175,9 @@ func (opt *ShardOptions) apply(newOpt ShardOptions) {
 	if newOpt.SnapshotFrequency != 0 {
 		opt.SnapshotFrequency = newOpt.SnapshotFrequency
 	}
-	if newOpt.EpochStreamMaxBytes != 0 {
-		opt.EpochStreamMaxBytes = newOpt.EpochStreamMaxBytes
-	}
-	if newOpt.SnapshotStorageMaxBytes != 0 {
-		opt.SnapshotStorageMaxBytes = newOpt.SnapshotStorageMaxBytes
-	}
-	// newOpt's DisablePersona zero value is false, so if unset it will always override opt.
-	// We'll just make it configurable only from the env var.
+	// These options' zero values are always valid, so if unset they will always override opt.
+	// We'll just make them configurable only from the env var.
+	// These include: DisablePersona, EpochStreamMaxBytes
 }
 
 // validate checks that all required options are set and valid.
@@ -225,16 +215,6 @@ func (opt *ShardOptions) validate() error {
 	// Snapshot frequency validation.
 	if opt.SnapshotFrequency == 0 {
 		return eris.New("snapshot frequency cannot be 0")
-	}
-
-	// Epoch stream max bytes validation.
-	if opt.EpochStreamMaxBytes <= 0 {
-		return eris.New("epoch stream max bytes must be positive")
-	}
-
-	// Snapshot storage max bytes validation.
-	if opt.SnapshotStorageMaxBytes <= 0 {
-		return eris.New("snapshot storage max bytes must be positive")
 	}
 
 	return nil

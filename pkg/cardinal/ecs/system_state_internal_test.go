@@ -533,8 +533,9 @@ func TestContains_Iter(t *testing.T) {
 			name:   "no matching components",
 			search: &Contains[struct{ Ref[Position] }]{},
 			setupFn: func(state *initSystemState) error {
-				_, err := state.Velocity.Create(Velocity{})
-				require.NoError(t, err)
+				_, velocity := state.Velocity.Create()
+				velocity.Set(Velocity{})
+
 				return nil
 			},
 			getResult: func(s systemStateField) []any {
@@ -555,11 +556,11 @@ func TestContains_Iter(t *testing.T) {
 			setupFn: func(state *initSystemState) error {
 				for i := range 20 {
 					if i%2 == 0 {
-						_, err := state.Position.Create(Position{X: i, Y: i})
-						require.NoError(t, err)
+						_, position := state.Position.Create()
+						position.Set(Position{X: i, Y: i})
 					} else {
-						_, err := state.Velocity.Create(Velocity{X: i, Y: i})
-						require.NoError(t, err)
+						_, velocity := state.Velocity.Create()
+						velocity.Set(Velocity{X: i, Y: i})
 					}
 				}
 				return nil
@@ -586,8 +587,8 @@ func TestContains_Iter(t *testing.T) {
 			search: &Contains[struct{ Ref[Position] }]{},
 			setupFn: func(state *initSystemState) error {
 				for i := range 10 {
-					_, err := state.Position.Create(Position{X: i, Y: i})
-					require.NoError(t, err)
+					_, position := state.Position.Create()
+					position.Set(Position{X: i, Y: i})
 				}
 				return nil
 			},
@@ -597,7 +598,7 @@ func TestContains_Iter(t *testing.T) {
 
 				search := s.(*Contains[struct{ Ref[Position] }])
 				iter := search.Iter()
-				iter(func(_ Entity, pos struct{ Ref[Position] }) bool {
+				iter(func(_ EntityID, pos struct{ Ref[Position] }) bool {
 					result = append(result, pos.Get())
 					count++
 					return count < 3 // Stop after collecting 3 items
@@ -677,11 +678,11 @@ func TestContains_Iter2(t *testing.T) {
 				Velocity Ref[Velocity]
 			}]{},
 			setupFn: func(state *initSystemState) error {
-				_, err := state.Position.Create(Position{X: 1, Y: 1})
-				require.NoError(t, err)
+				_, position := state.Position.Create()
+				position.Set(Position{X: 1, Y: 1})
 
-				_, err = state.Velocity.Create(Velocity{X: 2, Y: 2})
-				require.NoError(t, err)
+				_, velocity := state.Velocity.Create()
+				velocity.Set(Velocity{X: 2, Y: 2})
 				return nil
 			},
 			getResult: func(s systemStateField) []any {
@@ -708,11 +709,12 @@ func TestContains_Iter2(t *testing.T) {
 			setupFn: func(state *initSystemState) error {
 				for i := range 10 {
 					if i%2 == 0 {
-						_, err := state.PositionVelocity.Create(Position{X: i, Y: i}, Velocity{X: i * 10, Y: i * 10})
-						require.NoError(t, err)
+						_, posVel := state.PositionVelocity.Create()
+						posVel.Position.Set(Position{X: i, Y: i})
+						posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
 					} else {
-						_, err := state.Position.Create(Position{X: i, Y: i})
-						require.NoError(t, err)
+						_, position := state.Position.Create()
+						position.Set(Position{X: i, Y: i})
 					}
 				}
 				return nil
@@ -749,8 +751,9 @@ func TestContains_Iter2(t *testing.T) {
 			}]{},
 			setupFn: func(state *initSystemState) error {
 				for i := range 10 {
-					_, err := state.PositionVelocity.Create(Position{X: i, Y: i}, Velocity{X: i * 10, Y: i * 10})
-					require.NoError(t, err)
+					_, posVel := state.PositionVelocity.Create()
+					posVel.Position.Set(Position{X: i, Y: i})
+					posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
 				}
 				return nil
 			},
@@ -763,7 +766,7 @@ func TestContains_Iter2(t *testing.T) {
 					Velocity Ref[Velocity]
 				}])
 				iter := search.Iter()
-				iter(func(_ Entity, comps struct {
+				iter(func(_ EntityID, comps struct {
 					Position Ref[Position]
 					Velocity Ref[Velocity]
 				}) bool {
@@ -841,11 +844,12 @@ func TestExact_Iter(t *testing.T) {
 			name:   "no matching components",
 			search: &Exact[struct{ Ref[Position] }]{},
 			setupFn: func(state *initSystemState) error {
-				_, err := state.Velocity.Create(Velocity{})
-				require.NoError(t, err)
+				_, velocity := state.Velocity.Create()
+				velocity.Set(Velocity{})
 
-				_, err = state.PositionVelocity.Create(Position{X: 5, Y: 5}, Velocity{})
-				require.NoError(t, err)
+				_, posVel := state.PositionVelocity.Create()
+				posVel.Position.Set(Position{X: 5, Y: 5})
+				posVel.Velocity.Set(Velocity{})
 				return nil
 			},
 			getResult: func(s systemStateField) []any {
@@ -866,11 +870,11 @@ func TestExact_Iter(t *testing.T) {
 			setupFn: func(state *initSystemState) error {
 				for i := range 20 {
 					if i%2 == 0 {
-						_, err := state.Position.Create(Position{X: i, Y: i})
-						require.NoError(t, err)
+						_, position := state.Position.Create()
+						position.Set(Position{X: i, Y: i})
 					} else {
-						_, err := state.Velocity.Create(Velocity{X: i, Y: i})
-						require.NoError(t, err)
+						_, velocity := state.Velocity.Create()
+						velocity.Set(Velocity{X: i, Y: i})
 					}
 				}
 				return nil
@@ -898,8 +902,8 @@ func TestExact_Iter(t *testing.T) {
 			search: &Exact[struct{ Ref[Position] }]{},
 			setupFn: func(state *initSystemState) error {
 				for i := range 10 {
-					_, err := state.Position.Create(Position{X: i, Y: i})
-					require.NoError(t, err)
+					_, position := state.Position.Create()
+					position.Set(Position{X: i, Y: i})
 				}
 				return nil
 			},
@@ -909,7 +913,7 @@ func TestExact_Iter(t *testing.T) {
 
 				search := s.(*Exact[struct{ Ref[Position] }])
 				iter := search.Iter()
-				iter(func(_ Entity, pos struct{ Ref[Position] }) bool {
+				iter(func(_ EntityID, pos struct{ Ref[Position] }) bool {
 					result = append(result, pos.Get())
 					count++
 					return count < 3 // Stop after collecting 3 items
@@ -989,11 +993,11 @@ func TestExact_Iter2(t *testing.T) {
 				Velocity Ref[Velocity]
 			}]{},
 			setupFn: func(state *initSystemState) error {
-				_, err := state.Position.Create(Position{X: 1, Y: 1})
-				require.NoError(t, err)
+				_, position := state.Position.Create()
+				position.Set(Position{X: 1, Y: 1})
 
-				_, err = state.Velocity.Create(Velocity{X: 2, Y: 2})
-				require.NoError(t, err)
+				_, velocity := state.Velocity.Create()
+				velocity.Set(Velocity{X: 2, Y: 2})
 				return nil
 			},
 			getResult: func(s systemStateField) []any {
@@ -1020,11 +1024,12 @@ func TestExact_Iter2(t *testing.T) {
 			setupFn: func(state *initSystemState) error {
 				for i := range 10 {
 					if i%2 == 0 {
-						_, err := state.PositionVelocity.Create(Position{X: i, Y: i}, Velocity{X: i * 10, Y: i * 10})
-						require.NoError(t, err)
+						_, posVel := state.PositionVelocity.Create()
+						posVel.Position.Set(Position{X: i, Y: i})
+						posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
 					} else {
-						_, err := state.Position.Create(Position{X: i, Y: i})
-						require.NoError(t, err)
+						_, position := state.Position.Create()
+						position.Set(Position{X: i, Y: i})
 					}
 				}
 				return nil
@@ -1061,8 +1066,9 @@ func TestExact_Iter2(t *testing.T) {
 			}]{},
 			setupFn: func(state *initSystemState) error {
 				for i := range 10 {
-					_, err := state.PositionVelocity.Create(Position{X: i, Y: i}, Velocity{X: i * 10, Y: i * 10})
-					require.NoError(t, err)
+					_, posVel := state.PositionVelocity.Create()
+					posVel.Position.Set(Position{X: i, Y: i})
+					posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
 				}
 				return nil
 			},
@@ -1075,7 +1081,7 @@ func TestExact_Iter2(t *testing.T) {
 					Velocity Ref[Velocity]
 				}])
 				iter := search.Iter()
-				iter(func(_ Entity, comps struct {
+				iter(func(_ EntityID, comps struct {
 					Position Ref[Position]
 					Velocity Ref[Velocity]
 				}) bool {
@@ -1146,8 +1152,8 @@ func BenchmarkSearch_Iter(b *testing.B) {
 			name: "single component 100",
 			setup: func(state *benchmarkSystemState) error {
 				for i := range 100 {
-					_, err := state.Position.Create(Position{X: i, Y: i})
-					require.NoError(b, err)
+					_, position := state.Position.Create()
+					position.Set(Position{X: i, Y: i})
 				}
 				return nil
 			},
@@ -1162,8 +1168,9 @@ func BenchmarkSearch_Iter(b *testing.B) {
 			name: "two components 100",
 			setup: func(state *benchmarkSystemState) error {
 				for i := range 100 {
-					_, err := state.PositionVelocity.Create(Position{X: i, Y: i}, Velocity{X: i, Y: i})
-					require.NoError(b, err)
+					_, posVel := state.PositionVelocity.Create()
+					posVel.Position.Set(Position{X: i, Y: i})
+					posVel.Velocity.Set(Velocity{X: i, Y: i})
 				}
 				return nil
 			},
@@ -1178,8 +1185,10 @@ func BenchmarkSearch_Iter(b *testing.B) {
 			name: "three components 100",
 			setup: func(state *benchmarkSystemState) error {
 				for i := range 100 {
-					_, err := state.PositionVelocityHealth.Create(Position{X: i, Y: i}, Velocity{X: i, Y: i}, Health{Value: i})
-					require.NoError(b, err)
+					_, posVelHealth := state.PositionVelocityHealth.Create()
+					posVelHealth.Position.Set(Position{X: i, Y: i})
+					posVelHealth.Velocity.Set(Velocity{X: i, Y: i})
+					posVelHealth.Health.Set(Health{Value: i})
 				}
 				return nil
 			},

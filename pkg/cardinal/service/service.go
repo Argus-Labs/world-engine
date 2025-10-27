@@ -78,7 +78,7 @@ func NewShardService(opts ShardServiceOptions) (*ShardService, error) {
 		s.tel.Logger.Info().Str("personaID", personaID).Msg("loaded persisted persona ID")
 	} else {
 		if err != nil {
-			s.tel.Logger.Warn().Err(err).Msg("failed reading persona file")
+			s.tel.Logger.Debug().Err(err).Msg("failed reading persona file")
 		}
 		// No persisted persona ID found, register with the registry service.
 		if err := s.registerShard(opts.Address, signer.GetSignerAddress(), opts.DisablePersona); err != nil {

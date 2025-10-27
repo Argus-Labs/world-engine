@@ -2,6 +2,7 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/examples/demo-game/event"
 )
 
@@ -23,7 +24,7 @@ type PlayerLeaveSystemState struct {
 
 // PlayerLeaveSystem is called when a player leaves a quadrant (e.g. to join another quadrant).
 func PlayerLeaveSystem(state *PlayerLeaveSystemState) error {
-	players := make(map[string]cardinal.Entity)
+	players := make(map[string]ecs.EntityID)
 
 	for entity, player := range state.Players.Iter() {
 		players[player.Tag.Get().ArgusAuthID] = entity
@@ -32,13 +33,13 @@ func PlayerLeaveSystem(state *PlayerLeaveSystemState) error {
 	for cmd := range state.PlayerLeaveCommands.Iter() {
 		command := cmd.Payload()
 
-		entity, exists := players[command.ArgusAuthID]
+		entityID, exists := players[command.ArgusAuthID]
 		if !exists {
 			state.Logger().Info().Msgf("Player with ID %s not found", command.ArgusAuthID)
 			continue
 		}
 
-		entity.Destroy()
+		state.Players.Destroy(entityID)
 
 		state.PlayerDepartureEvent.Emit(event.PlayerDeparture{
 			ArgusAuthID: command.ArgusAuthID,

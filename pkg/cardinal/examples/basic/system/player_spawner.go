@@ -25,18 +25,14 @@ type CreatePlayerSystemState struct {
 func CreatePlayerSystem(state *CreatePlayerSystemState) error {
 	for cmd := range state.CreatePlayerCommands.Iter() {
 		command := cmd.Payload()
-		id, err := state.Players.Create(
-			component.PlayerTag{Nickname: command.Nickname},
-			component.Health{HP: 100},
-		)
-		if err != nil {
-			// If we return the error, Cardinal will shutdown, so just log it.
-			state.Logger().Error().Err(err).Msg("error creating entity")
-			continue
-		}
+
+		_, entity := state.Players.Create()
+
+		entity.Tag.Set(component.PlayerTag{Nickname: command.Nickname})
+		entity.Health.Set(component.Health{HP: 100})
 
 		state.NewPlayerEvents.Emit(event.NewPlayer{Nickname: command.Nickname})
-		state.Logger().Info().Uint32("entity", uint32(id)).Str("persona", cmd.Persona()).
+		state.Logger().Info().Uint32("entity", uint32(0)).Str("persona", cmd.Persona()).
 			Msgf("Created player %s", command.Nickname)
 	}
 	return nil

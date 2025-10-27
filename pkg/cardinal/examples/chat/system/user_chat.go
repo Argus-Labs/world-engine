@@ -32,22 +32,15 @@ func UserChatSystem(state *UserChatSystemState) error {
 
 		timestamp := time.Now()
 
-		id, err := state.ChatSearch.Create(
-			component.UserTag{
-				ArgusAuthID:   command.ArgusAuthID,
-				ArgusAuthName: command.ArgusAuthName,
-			},
-			component.Chat{
-				Message:   command.Message,
-				Timestamp: timestamp,
-			},
-		)
-
-		if err != nil {
-			// If we return the error, Cardinal will shutdown, so just log it.
-			state.Logger().Error().Err(err).Msg("error creating entity")
-			continue
-		}
+		id, chat := state.ChatSearch.Create()
+		chat.UserTag.Set(component.UserTag{
+			ArgusAuthID:   command.ArgusAuthID,
+			ArgusAuthName: command.ArgusAuthName,
+		})
+		chat.Chat.Set(component.Chat{
+			Message:   command.Message,
+			Timestamp: timestamp,
+		})
 
 		state.Logger().Info().
 			Uint32("entity", uint32(id)).

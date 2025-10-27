@@ -1,59 +1,63 @@
 package ecs
 
 import (
-	"encoding/json"
+	"math/rand"
 	"testing"
 
-	. "github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
+	"github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/cardinal/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestColumn_NewColumn(t *testing.T) {
+func TestColumn_New(t *testing.T) {
 	t.Parallel()
 
-	col := newColumn[Health]()
-	assert.NotNil(t, col)
+	col := newColumn[testutils.Health]()
+
+	assert.Equal(t, 0, col.len())
+	assert.Equal(t, "Health", col.name())
+	assert.Equal(t, 16, cap(col.components))
 }
 
-func TestColumn_InsertAndGet(t *testing.T) {
+func TestColumn_Set(t *testing.T) {
 	t.Parallel()
 
-	col := newColumn[Health]()
 	testCases := []struct {
 		name        string
-		entity      EntityID
-		value       Health
-		expected    Health
-		shouldExist bool
-		wantErr     bool
+		setup       func(*column[testutils.Position])
+		row         int
+		component   testutils.Position
+		expectedLen int
+		validate    func(*testing.T, *column[testutils.Position])
 	}{
 		{
-			name:        "insert new component",
-			entity:      1,
-			value:       Health{Value: 42},
-			expected:    Health{Value: 42},
-			shouldExist: true,
+			name: "update existing component",
+			setup: func(col *column[testutils.Position]) {
+				col.extend()
+				col.set(0, testutils.Position{X: 1, Y: 2})
+			},
+			row:         0,
+			component:   testutils.Position{X: 10, Y: 20},
+			expectedLen: 1,
+			validate: func(t *testing.T, col *column[testutils.Position]) {
+				assert.Equal(t, testutils.Position{X: 10, Y: 20}, col.get(0))
+			},
 		},
 		{
-			name:        "update existing component",
-			entity:      1,
-			value:       Health{Value: 100},
-			expected:    Health{Value: 100},
-			shouldExist: true,
-		},
-		{
-			name:        "zero entity ID",
-			entity:      0,
-			value:       Health{Value: 50},
-			expected:    Health{Value: 50},
-			shouldExist: true,
-		},
-		{
-			name:        "get non-existent entity",
-			entity:      999,
-			shouldExist: false,
+			name: "set component in pre-allocated slot",
+			setup: func(col *column[testutils.Position]) {
+				col.extend()
+				col.set(0, testutils.Position{X: 1, Y: 2})
+				col.extend() // Allocate second slot
+			},
+			row:         1,
+			component:   testutils.Position{X: 3, Y: 4},
+			expectedLen: 2,
+			validate: func(t *testing.T, col *column[testutils.Position]) {
+				assert.Equal(t, testutils.Position{X: 1, Y: 2}, col.get(0))
+				assert.Equal(t, testutils.Position{X: 3, Y: 4}, col.get(1))
+			},
 		},
 	}
 
@@ -61,126 +65,178 @@ func TestColumn_InsertAndGet(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if tc.shouldExist {
-				err := col.set(tc.entity, tc.value)
-				require.NoError(t, err)
-			}
+			col := newColumn[testutils.Position]()
+			tc.setup(&col)
 
-			value, exists := col.get(tc.entity)
-			assert.Equal(t, tc.shouldExist, exists, "existence check failed")
-			if tc.shouldExist && !tc.wantErr {
-				assert.Equal(t, tc.expected, value, "value mismatch")
-			}
+			col.set(tc.row, tc.component)
+
+			assert.Equal(t, tc.expectedLen, col.len())
+			tc.validate(t, &col)
 		})
 	}
+}
+
+func TestColumn_Get(t *testing.T) {
+	t.Parallel()
+
+	col := newColumn[testutils.Health]()
+	health := testutils.Health{Value: 100}
+
+	col.extend()
+	col.set(0, health)
+	retrieved := col.get(0)
+
+	assert.Equal(t, health, retrieved)
+}
+
+func TestColumn_SetAbstract(t *testing.T) {
+	t.Parallel()
+
+	col := newColumn[testutils.Position]()
+	pos := testutils.Position{X: 5, Y: 10}
+
+	col.extend()
+	col.setAbstract(0, pos)
+
+	assert.Equal(t, 1, col.len())
+	assert.Equal(t, pos, col.get(0))
+
+	// Test getAbstract too.
+	retrieved := col.getAbstract(0)
+	assert.Equal(t, pos, retrieved)
 }
 
 func TestColumn_Remove(t *testing.T) {
 	t.Parallel()
 
-	t.Run("existing entity", func(t *testing.T) {
-		t.Parallel()
-
-		col := newColumn[Health]()
-		entity := EntityID(1)
-		comp := Health{Value: 42}
-
-		err := col.set(entity, comp)
-		require.NoError(t, err)
-		assert.True(t, col.contains(entity))
-
-		col.remove(entity)
-		assert.False(t, col.contains(entity))
-		_, exists := col.get(entity)
-		assert.False(t, exists)
-	})
-
-	t.Run("non-existing entity", func(t *testing.T) {
-		t.Parallel()
-		col := newColumn[Health]()
-		entity := EntityID(1)
-		col.remove(entity)
-		assert.Equal(t, 0, col.len()) // Shouldn't change from no-op
-	})
-
-	t.Run("entity ID too large", func(t *testing.T) {
-		t.Parallel()
-		col := newColumn[Health]()
-		entity := EntityID(1)
-		comp := Health{Value: 42}
-
-		err := col.set(entity, comp)
-		require.NoError(t, err)
-		assert.True(t, col.contains(entity))
-
-		col.remove(EntityID(1<<30 + 1))
-		assert.Equal(t, 1, col.len()) // Shouldn't change from no-op
-	})
-}
-
-func TestColumn_Clear(t *testing.T) {
-	t.Parallel()
-	col := newColumn[Health]()
-
-	entities := []EntityID{1, 2, 3}
-	for _, entity := range entities {
-		err := col.set(entity, Health{Value: 1})
-		require.NoError(t, err)
+	testCases := []struct {
+		name        string
+		setup       func(*column[testutils.Position])
+		removeIdx   int
+		expectedLen int
+		validate    func(*testing.T, *column[testutils.Position])
+	}{
+		{
+			name: "remove middle element swaps with last",
+			setup: func(col *column[testutils.Position]) {
+				col.extend()
+				col.set(0, testutils.Position{X: 1, Y: 1})
+				col.extend()
+				col.set(1, testutils.Position{X: 2, Y: 2})
+				col.extend()
+				col.set(2, testutils.Position{X: 3, Y: 3})
+			},
+			removeIdx:   1,
+			expectedLen: 2,
+			validate: func(t *testing.T, col *column[testutils.Position]) {
+				assert.Equal(t, testutils.Position{X: 1, Y: 1}, col.get(0))
+				assert.Equal(t, testutils.Position{X: 3, Y: 3}, col.get(1)) // Last element moved to index 1.
+			},
+		},
+		{
+			name: "remove last element",
+			setup: func(col *column[testutils.Position]) {
+				col.extend()
+				col.set(0, testutils.Position{X: 1, Y: 1})
+				col.extend()
+				col.set(1, testutils.Position{X: 2, Y: 2})
+			},
+			removeIdx:   1,
+			expectedLen: 1,
+			validate: func(t *testing.T, col *column[testutils.Position]) {
+				assert.Equal(t, testutils.Position{X: 1, Y: 1}, col.get(0))
+			},
+		},
+		{
+			name: "remove single element",
+			setup: func(col *column[testutils.Position]) {
+				col.extend()
+				col.set(0, testutils.Position{X: 1, Y: 1})
+			},
+			removeIdx:   0,
+			expectedLen: 0,
+			validate:    func(t *testing.T, col *column[testutils.Position]) {},
+		},
 	}
 
-	assert.Equal(t, len(entities), col.len())
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	col.clear()
-	assert.Zero(t, col.len())
+			col := newColumn[testutils.Position]()
+			tc.setup(&col)
 
-	// Test operations after clear
-	err := col.set(1, Health{Value: 42})
-	require.NoError(t, err)
-	assert.Equal(t, 1, col.len())
-	assert.True(t, col.contains(1))
-}
+			col.remove(tc.removeIdx)
 
-func TestColumn_Len(t *testing.T) {
-	t.Parallel()
-	col := newColumn[Health]()
-	assert.Zero(t, col.len(), "new column should be empty")
-
-	err := col.set(1, Health{Value: 42})
-	require.NoError(t, err)
-	assert.Equal(t, 1, col.len(), "length should be 1 after insert")
-
-	err = col.set(2, Health{Value: 43})
-	require.NoError(t, err)
-	assert.Equal(t, 2, col.len(), "length should be 2 after second insert")
-
-	err = col.set(1, Health{Value: 44}) // Update existing
-	require.NoError(t, err)
-	assert.Equal(t, 2, col.len(), "length should not change after update")
-
-	col.remove(1)
-	assert.Equal(t, 1, col.len(), "length should be 1 after remove")
-
-	col.remove(999) // Remove non-existent
-	assert.Equal(t, 1, col.len(), "length should not change after removing non-existent")
-
-	col.clear()
-	assert.Zero(t, col.len(), "length should be 0 after clear")
-}
-
-func BenchmarkColumn_Set(b *testing.B) {
-	col := newColumn[Health]()
-
-	for i := 0; b.Loop(); i++ {
-		_ = col.set(1, Health{Value: i})
+			assert.Equal(t, tc.expectedLen, col.len())
+			tc.validate(t, &col)
+		})
 	}
 }
 
-func BenchmarkColumn_Get(b *testing.B) {
-	col := newColumn[Health]()
-	_ = col.set(1, Health{Value: 1})
+// Property-based test for column operations.
+func TestColumn_Operations_Sequence(t *testing.T) {
+	t.Parallel()
 
-	for b.Loop() {
-		_, _ = col.get(1)
+	const numIterations = 100
+	const maxOps = 50
+
+	for range numIterations {
+		t.Run("iteration", func(t *testing.T) {
+			t.Parallel()
+
+			col := newColumn[testutils.Position]()
+			reference := make([]testutils.Position, 0)
+
+			numOps := rand.Intn(maxOps) + 1
+
+			for range numOps {
+				if len(reference) == 0 {
+					// Can only add when empty.
+					pos := testutils.Position{X: rand.Intn(1000), Y: rand.Intn(1000)}
+					col.extend()
+					col.set(0, pos)
+					reference = append(reference, pos)
+				} else {
+					operation := rand.Intn(3) // 0=extend, 1=update, 2=remove
+
+					switch operation {
+					case 0: // Extend and add new component.
+						pos := testutils.Position{X: rand.Intn(1000), Y: rand.Intn(1000)}
+						col.extend()
+						col.set(len(reference), pos)
+						reference = append(reference, pos)
+
+					case 1: // Update existing component.
+						if len(reference) > 0 {
+							idx := rand.Intn(len(reference))
+							pos := testutils.Position{X: rand.Intn(1000), Y: rand.Intn(1000)}
+							col.set(idx, pos)
+							reference[idx] = pos
+						}
+
+					case 2: // Remove component.
+						if len(reference) > 0 {
+							idx := rand.Intn(len(reference))
+							col.remove(idx)
+
+							// Simulate swap-remove in reference.
+							lastIdx := len(reference) - 1
+							reference[idx] = reference[lastIdx]
+							reference = reference[:lastIdx]
+						}
+					}
+				}
+
+				// Verify invariants.
+				require.Equal(t, len(reference), col.len())
+
+				// Verify all components match.
+				for j := range reference {
+					assert.Equal(t, reference[j], col.get(j))
+				}
+			}
+		})
 	}
 }
 
@@ -189,51 +245,49 @@ func TestColumn_SerializeDeserialize_RoundTrip(t *testing.T) {
 
 	testCases := []struct {
 		name    string
-		setupFn func() *column[Health]
+		setupFn func() *column[testutils.Health]
 	}{
 		{
 			name: "empty column",
-			setupFn: func() *column[Health] {
-				return newColumn[Health]()
+			setupFn: func() *column[testutils.Health] {
+				col := newColumn[testutils.Health]()
+				return &col
 			},
 		},
 		{
 			name: "single entity",
-			setupFn: func() *column[Health] {
-				col := newColumn[Health]()
-				_ = col.set(1, Health{Value: 42})
-				return col
+			setupFn: func() *column[testutils.Health] {
+				col := newColumn[testutils.Health]()
+				col.extend()
+				col.set(0, testutils.Health{Value: 42})
+				return &col
 			},
 		},
 		{
 			name: "multiple entities",
-			setupFn: func() *column[Health] {
-				col := newColumn[Health]()
-				_ = col.set(1, Health{Value: 100})
-				_ = col.set(5, Health{Value: 200})
-				_ = col.set(10, Health{Value: 300})
-				return col
-			},
-		},
-		{
-			name: "sparse column with gaps",
-			setupFn: func() *column[Health] {
-				col := newColumn[Health]()
-				_ = col.set(1, Health{Value: 10})
-				_ = col.set(100, Health{Value: 20})
-				_ = col.set(1000, Health{Value: 30})
-				return col
+			setupFn: func() *column[testutils.Health] {
+				col := newColumn[testutils.Health]()
+				col.extend()
+				col.set(0, testutils.Health{Value: 100})
+				col.extend()
+				col.set(1, testutils.Health{Value: 200})
+				col.extend()
+				col.set(2, testutils.Health{Value: 300})
+				return &col
 			},
 		},
 		{
 			name: "column after removals",
-			setupFn: func() *column[Health] {
-				col := newColumn[Health]()
-				_ = col.set(1, Health{Value: 10})
-				_ = col.set(2, Health{Value: 20})
-				_ = col.set(3, Health{Value: 30})
-				col.remove(2) // Create gap
-				return col
+			setupFn: func() *column[testutils.Health] {
+				col := newColumn[testutils.Health]()
+				col.extend()
+				col.set(0, testutils.Health{Value: 10})
+				col.extend()
+				col.set(1, testutils.Health{Value: 20})
+				col.extend()
+				col.set(2, testutils.Health{Value: 30})
+				col.remove(1)
+				return &col
 			},
 		},
 	}
@@ -244,20 +298,18 @@ func TestColumn_SerializeDeserialize_RoundTrip(t *testing.T) {
 
 			original := tc.setupFn()
 
-			// Serialize
+			// Serialize.
 			serialized, err := original.serialize()
 			require.NoError(t, err)
 
-			// Deserialize into new column
-			deserialized := newColumn[Health]()
+			// Deserialize into new column.
+			deserialized := newColumn[testutils.Health]()
 			err = deserialized.deserialize(serialized)
 			require.NoError(t, err)
 
-			// Verify round-trip property: deserialize(serialize(x)) == x
+			// Verify round-trip property: deserialize(serialize(x)) == x.
 			assert.Equal(t, original.compName, deserialized.compName)
-			assert.Equal(t, original.sparse, deserialized.sparse)
-			assert.Equal(t, original.denseEntityID, deserialized.denseEntityID)
-			assert.Equal(t, original.denseComponent, deserialized.denseComponent)
+			assert.Equal(t, original.components, deserialized.components)
 		})
 	}
 }
@@ -265,105 +317,159 @@ func TestColumn_SerializeDeserialize_RoundTrip(t *testing.T) {
 func TestColumn_SerializeDeserialize_Determinism(t *testing.T) {
 	t.Parallel()
 
-	col := newColumn[Health]()
-	_ = col.set(1, Health{Value: 100})
-	_ = col.set(5, Health{Value: 200})
-	_ = col.set(10, Health{Value: 300})
+	testCases := []struct {
+		name    string
+		setupFn func() abstractColumn
+	}{
+		{
+			name: "simple health component",
+			setupFn: func() abstractColumn {
+				col := newColumn[testutils.Health]()
+				col.extend()
+				col.set(0, testutils.Health{Value: 100})
+				col.extend()
+				col.set(1, testutils.Health{Value: 200})
+				col.extend()
+				col.set(2, testutils.Health{Value: 300})
+				return &col
+			},
+		},
+		{
+			name: "component with map fields",
+			setupFn: func() abstractColumn {
+				col := newColumn[testutils.MapComponent]()
+				col.extend()
+				col.set(0, testutils.MapComponent{
+					Items: map[string]int{
+						"sword":   1,
+						"shield":  1,
+						"potion":  5,
+						"gold":    100,
+						"key":     3,
+						"torch":   2,
+						"rope":    1,
+						"compass": 1,
+					},
+				})
+				return &col
+			},
+		},
+		{
+			name: "multiple entities with maps",
+			setupFn: func() abstractColumn {
+				col := newColumn[testutils.MapComponent]()
+				col.extend()
+				col.set(0, testutils.MapComponent{
+					Items: map[string]int{
+						"apple":  3,
+						"banana": 7,
+						"cherry": 2,
+					},
+				})
+				col.extend()
+				col.set(1, testutils.MapComponent{
+					Items: map[string]int{
+						"zinc":    10,
+						"alpha":   5,
+						"beta":    15,
+						"gamma":   20,
+						"delta":   25,
+						"epsilon": 30,
+					},
+				})
+				return &col
+			},
+		},
+	}
 
-	// Serialize the same column multiple times
-	serialized1, err := col.serialize()
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	serialized2, err := col.serialize()
-	require.NoError(t, err)
+			col := tc.setupFn()
 
-	// Verify determinism property: serialize(x) == serialize(x)
-	assert.Equal(t, serialized1.GetComponentName(), serialized2.GetComponentName())
-	assert.Equal(t, serialized1.GetSparse(), serialized2.GetSparse())
-	assert.Equal(t, serialized1.GetDenseEntityIds(), serialized2.GetDenseEntityIds())
-	assert.Equal(t, serialized1.GetDenseComponentData(), serialized2.GetDenseComponentData())
+			// Serialize the same column multiple times and verify determinism.
+			const iterations = 10
+			var prev *cardinalv1.Column
+
+			for i := 0; i < iterations; i++ {
+				current, err := col.serialize()
+				require.NoError(t, err)
+
+				if prev != nil {
+					assert.Equal(t, prev.GetComponentName(), current.GetComponentName(),
+						"iteration %d: component name differs", i)
+					assert.Equal(t, prev.GetComponents(), current.GetComponents(),
+						"iteration %d: components differ", i)
+				}
+
+				prev = current
+			}
+		})
+	}
 }
 
 func TestColumn_SerializeDeserialize_ErrorHandling(t *testing.T) {
 	t.Parallel()
 
-	t.Run("component name mismatch", func(t *testing.T) {
-		t.Parallel()
-
-		col := newColumn[Health]()
-
-		// Create protobuf with wrong component name
-		invalidPb := &cardinalv1.Column{
-			ComponentName:      "WrongComponent",
-			Sparse:             []int64{},
-			DenseEntityIds:     []uint32{},
-			DenseComponentData: [][]byte{},
-		}
-
-		err := col.deserialize(invalidPb)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "component name mismatch")
-	})
-
-	t.Run("invalid JSON in component data", func(t *testing.T) {
-		t.Parallel()
-
-		col := newColumn[Health]()
-
-		// Create protobuf with invalid JSON
-		invalidPb := &cardinalv1.Column{
-			ComponentName:      "Health",
-			Sparse:             []int64{0},
-			DenseEntityIds:     []uint32{1},
-			DenseComponentData: [][]byte{[]byte("invalid json")},
-		}
-
-		err := col.deserialize(invalidPb)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to deserialize component")
-	})
-
-	t.Run("mismatched array lengths", func(t *testing.T) {
-		t.Parallel()
-
-		col := newColumn[Health]()
-
-		// Create protobuf with mismatched dense array lengths
-		validJSON, _ := json.Marshal(Health{Value: 42})
-		invalidPb := &cardinalv1.Column{
-			ComponentName:      "Health",
-			Sparse:             []int64{0},
-			DenseEntityIds:     []uint32{1},
-			DenseComponentData: [][]byte{validJSON, validJSON}, // Extra component data
-		}
-
-		err := col.deserialize(invalidPb)
-		// This should not panic and the column should handle gracefully
-		// Note: Current implementation doesn't validate array length consistency
-		// but it shouldn't crash
-		if err == nil {
-			// If no error, verify the column is in a valid state
-			assert.Len(t, col.denseEntityID, 1)
-			assert.Len(t, col.denseComponent, 2) // Takes what's provided
-		}
-	})
-
-	t.Run("nil protobuf", func(t *testing.T) {
-		t.Parallel()
-
-		col := newColumn[Health]()
-
-		// This should not panic
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("deserialize should not panic on nil input: %v", r)
+	testCases := []struct {
+		name          string
+		setupColumn   func() abstractColumn
+		setupProtobuf func() *cardinalv1.Column
+		errorContains string
+	}{
+		{
+			name: "component name mismatch",
+			setupColumn: func() abstractColumn {
+				col := newColumn[testutils.Health]()
+				return &col
+			},
+			setupProtobuf: func() *cardinalv1.Column {
+				return &cardinalv1.Column{
+					ComponentName: "WrongComponent",
+					Components:    [][]byte{},
 				}
-			}()
+			},
+			errorContains: "component name mismatch",
+		},
+		{
+			name: "invalid JSON in component data",
+			setupColumn: func() abstractColumn {
+				col := newColumn[testutils.Health]()
+				return &col
+			},
+			setupProtobuf: func() *cardinalv1.Column {
+				return &cardinalv1.Column{
+					ComponentName: "Health",
+					Components:    [][]byte{[]byte("invalid json")},
+				}
+			},
+			errorContains: "failed to deserialize component",
+		},
+		{
+			name: "nil protobuf",
+			setupColumn: func() abstractColumn {
+				col := newColumn[testutils.Health]()
+				return &col
+			},
+			setupProtobuf: func() *cardinalv1.Column {
+				return nil
+			},
+			errorContains: "protobuf column is nil",
+		},
+	}
 
-			err := col.deserialize(nil)
-			// Should get an error when accessing nil protobuf fields
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			col := tc.setupColumn()
+			pb := tc.setupProtobuf()
+
+			err := col.deserialize(pb)
+
 			require.Error(t, err)
-		}()
-	})
+			assert.Contains(t, err.Error(), tc.errorContains)
+		})
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/nats-io/nats.go/jetstream"
@@ -32,9 +33,14 @@ func NewJetStreamSnapshotStorage(opts JetStreamSnapshotStorageOptions) (*JetStre
 	// Same format as streams because it regular service address format isn't accepted.
 	bucketName := fmt.Sprintf("%s_%s_%s_snapshot",
 		opts.address.GetOrganization(), opts.address.GetProject(), opts.address.GetServiceId())
+
+	if opts.SnapshotStorageMaxBytes > math.MaxInt64 {
+		return nil, eris.New("snapshot storage max bytes exceeds maximum int64 value")
+	}
+
 	osConfig := jetstream.ObjectStoreConfig{
 		Bucket:   bucketName,
-		MaxBytes: opts.SnapshotStorageMaxBytes, // Required by some NATS providers like Synadia Cloud
+		MaxBytes: int64(opts.SnapshotStorageMaxBytes), // Required by some NATS providers like Synadia Cloud
 	}
 	os, err := js.CreateObjectStore(ctx, osConfig)
 	if err != nil {
@@ -75,7 +81,9 @@ func (j *JetStreamSnapshotStorage) Load() (*Snapshot, error) {
 		}
 		return nil, eris.Wrap(err, "failed to get snapshot from ObjectStore")
 	}
-	defer object.Close()
+	defer func() {
+		_ = object.Close()
+	}()
 
 	data, err := io.ReadAll(object)
 	if err != nil {
@@ -102,10 +110,11 @@ func (j *JetStreamSnapshotStorage) Exists() bool {
 
 type JetStreamSnapshotStorageOptions struct {
 	ObjectName string `env:"SHARD_SNAPSHOT_JETSTREAM_OBJECT_NAME" envDefault:"snapshot"`
+	// Maximum bytes for snapshot storage (ObjectStore). // Required by some NATS providers like Synadia Cloud.
+	SnapshotStorageMaxBytes uint64 `env:"SHARD_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"0"`
 
-	client                  *Client
-	address                 *ServiceAddress
-	SnapshotStorageMaxBytes int64
+	client  *Client
+	address *ServiceAddress
 }
 
 var _ SnapshotStorageOptions = (*JetStreamSnapshotStorageOptions)(nil)
@@ -113,7 +122,8 @@ var _ SnapshotStorageOptions = (*JetStreamSnapshotStorageOptions)(nil)
 func newJetstreamSnapshotStorageOptions() (JetStreamSnapshotStorageOptions, error) {
 	// Set default values.
 	opts := JetStreamSnapshotStorageOptions{
-		ObjectName: "snapshot",
+		ObjectName:              "snapshot",
+		SnapshotStorageMaxBytes: 0,
 		// Guaranteed to be not nil from a validated shard options.
 		client:  nil,
 		address: nil,
@@ -138,7 +148,6 @@ func (opt *JetStreamSnapshotStorageOptions) apply(shardOpts ShardOptions) {
 	// shardOpts is already validated, just apply.
 	opt.client = shardOpts.Client
 	opt.address = shardOpts.Address
-	opt.SnapshotStorageMaxBytes = shardOpts.SnapshotStorageMaxBytes
 }
 
 // validate validates the options. We only need to validate the public fields as the private ones
@@ -153,8 +162,6 @@ func (opt *JetStreamSnapshotStorageOptions) validate() error {
 	if opt.address == nil {
 		return eris.New("service address cannot be nil")
 	}
-	if opt.SnapshotStorageMaxBytes <= 0 {
-		return eris.New("snapshot storage max bytes must be positive")
-	}
+	// SnapshotStorageMaxBytes can be 0 which means unlimited storage. No need to validate here.
 	return nil
 }

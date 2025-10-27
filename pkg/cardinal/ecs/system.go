@@ -1,7 +1,40 @@
 package ecs
 
+import (
+	"fmt"
+
+	"github.com/rotisserie/eris"
+)
+
 // System is a function that contains game logic.
 type System[T any] func(state *T) error
+
+func RegisterSystem[T any](w *World, system System[T], opts ...SystemOption) {
+	// Apply options to the default config.
+	cfg := newSystemConfig()
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	// Initialize the fields in the system state.
+	state := new(T)
+	componentDeps, err := initializeSystemState(w, state, cfg.modifiers)
+	if err != nil {
+		panic(eris.Wrapf(err, "failed to register system %T", system))
+	}
+
+	name := fmt.Sprintf("%T", system)
+	systemFn := func() error { return system(state) }
+
+	switch cfg.hook {
+	case Init:
+		w.initSystems = append(w.initSystems, initSystem{name: name, fn: systemFn})
+	case PreUpdate, Update, PostUpdate:
+		w.scheduler[cfg.hook].register(name, componentDeps, systemFn)
+	default:
+		panic("invalid system hook")
+	}
+}
 
 // initSystem represents a system that should be run once during world initialization.
 type initSystem struct {

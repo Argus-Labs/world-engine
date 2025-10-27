@@ -61,7 +61,7 @@ func MovePlayerSystem(state *MovePlayerSystemState) error {
 			name := tag.ArgusAuthName
 
 			state.Logger().Info().
-				Uint32("entity", uint32(entity.ID)).
+				Uint32("entity", uint32(entity)).
 				Msgf("Player %s (id: %s) moved to %d, %d", name, tag.ArgusAuthID, command.X, command.Y)
 		}
 	}

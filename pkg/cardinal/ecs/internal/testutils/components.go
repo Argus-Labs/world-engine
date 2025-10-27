@@ -25,3 +25,9 @@ func (PlayerTag) Name() string { return "PlayerTag" }
 type Level struct{ Value int }
 
 func (Level) Name() string { return "Level" }
+
+type MapComponent struct {
+	Items map[string]int `json:"items"`
+}
+
+func (MapComponent) Name() string { return "MapComponent" }

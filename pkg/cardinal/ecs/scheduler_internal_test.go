@@ -348,12 +348,19 @@ func TestScheduler_RunExecutionOrder(t *testing.T) {
 			t.Parallel()
 
 			w := NewWorld()
-			RegisterComponent[Position](w)
-			RegisterComponent[Velocity](w)
-			RegisterComponent[Health](w)
-			RegisterComponent[PlayerTag](w)
-			RegisterComponent[Experience](w)
-			RegisterComponent[Level](w)
+			ws := w.state
+			_, err := registerComponent[Position](ws)
+			require.NoError(t, err)
+			_, err = registerComponent[Velocity](ws)
+			require.NoError(t, err)
+			_, err = registerComponent[Health](ws)
+			require.NoError(t, err)
+			_, err = registerComponent[PlayerTag](ws)
+			require.NoError(t, err)
+			_, err = registerComponent[Experience](ws)
+			require.NoError(t, err)
+			_, err = registerComponent[Level](ws)
+			require.NoError(t, err)
 
 			var mu sync.Mutex
 			var executionOrder []string
@@ -364,7 +371,7 @@ func TestScheduler_RunExecutionOrder(t *testing.T) {
 			// Make sure all properties hold after multiple ticks.
 			for range 100 {
 				executionOrder = executionOrder[:0]
-				w.CustomTick(func(_ *WorldState) {
+				w.CustomTick(func(_ *worldState) {
 					err := w.scheduler[Update].Run()
 					require.NoError(t, err)
 					tt.testFn(t, executionOrder)

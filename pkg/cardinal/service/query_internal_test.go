@@ -45,23 +45,20 @@ type InitSystemState struct {
 }
 
 func initSystem(state *InitSystemState) error {
-	var err error
 	// Create 100 entities with PlayerTag + Health with varying HP values
 	for i := range 100 {
-		_, err = state.Query.Create(
-			PlayerTag{Nickname: fmt.Sprintf("player%d", i)},
-			Health{HP: 100 + (i * 5)}, // HP ranges from 100 to 595
-		)
+		_, entity := state.Query.Create()
+		entity.Tag.Set(PlayerTag{Nickname: fmt.Sprintf("player%d", i)})
+		entity.Health.Set(Health{HP: 100 + (i * 5)}) // HP ranges from 100 to 595
 	}
 
 	// Create 50 entities with PlayerTag + Position in different quadrants
 	for i := range 50 {
 		x := (i % 5) * 20 // X: 0, 20, 40, 60, 80 repeating
 		y := (i / 5) * 20 // Y: increases by 20 every 5 entities
-		_, err = state.Query.Create(
-			PlayerTag{Nickname: fmt.Sprintf("scout%d", i)},
-			Position{X: x, Y: y},
-		)
+		_, entity := state.Query.Create()
+		entity.Tag.Set(PlayerTag{Nickname: fmt.Sprintf("scout%d", i)})
+		entity.Position.Set(Position{X: x, Y: y})
 	}
 
 	// Create 50 entities with all components (for complex queries)
@@ -82,33 +79,35 @@ func initSystem(state *InitSystemState) error {
 			items = append(items, "shield")
 		}
 
-		_, err = state.Query.Create(
-			PlayerTag{Nickname: fmt.Sprintf("hero%d", i)},
-			Health{HP: hp},
-			Position{X: x, Y: y},
-			Score{Value: score},
-			Inventory{Items: items},
-		)
+		_, entity := state.Query.Create()
+		entity.Tag.Set(PlayerTag{Nickname: fmt.Sprintf("hero%d", i)})
+		entity.Health.Set(Health{HP: hp})
+		entity.Position.Set(Position{X: x, Y: y})
+		entity.Score.Set(Score{Value: score})
+		entity.Inventory.Set(Inventory{Items: items})
 	}
 
 	// Create 50 Position-only entities in a grid pattern
 	for i := range 50 {
 		x := ((i % 7) * 30) - 90 // X: -90 to 90 in steps of 30
 		y := ((i / 7) * 30) - 90 // Y: -90 to 90 in steps of 30
-		_, err = state.Query.Create(Position{X: x, Y: y})
+		_, entity := state.Query.Create()
+		entity.Position.Set(Position{X: x, Y: y})
 	}
 
 	// Create 25 Health-only entities with varying HP
 	for i := range 25 {
-		_, err = state.Query.Create(Health{HP: 50 + (i * 20)}) // HP ranges from 50 to 530
+		_, entity := state.Query.Create()
+		entity.Health.Set(Health{HP: 50 + (i * 20)}) // HP ranges from 50 to 530
 	}
 
 	// Create 25 Score-only entities
 	for i := range 25 {
-		_, err = state.Query.Create(Score{Value: 500 + (i * 100)}) // Scores from 500 to 2900
+		_, entity := state.Query.Create()
+		entity.Score.Set(Score{Value: 500 + (i * 100)}) // Scores from 500 to 2900
 	}
 
-	return err
+	return nil
 }
 
 func BenchmarkQuery(b *testing.B) {

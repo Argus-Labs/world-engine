@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"iter"
+
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 	"github.com/kelindar/bitmap"
@@ -61,37 +63,38 @@ func (w *World) NewSearch(params SearchParam) ([]map[string]any, error) {
 		return nil, eris.Wrap(err, "invalid search params")
 	}
 
-	archs, err := getArchetypes(w, params.Find, params.Match)
+	archetypeIDs, err := findMatchingArchetypes(w, params.Find, params.Match)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to get archetypes from components")
 	}
 
 	results := make([]map[string]any, 0)
-	for _, arch := range archs {
-		if arch == nil {
-			continue
-		}
+	for _, id := range archetypeIDs {
+		// Makes a copy of the arch.
+		arch := w.state.archetypes[id]
 
-		isStopIterating := false
-		arch.entities.Range(func(id uint32) {
-			if isStopIterating {
-				return
+		for eid, components := range archIter(arch) {
+			// Create the payload map.
+			result := make(map[string]any)
+			// We have to cast id from EntityID to int here or else we can't query the data because for some
+			// reason expr can't compare EntityID with integers in the expression.
+			result["_id"] = uint32(eid)
+
+			for _, component := range components {
+				result[component.Name()] = component
 			}
-			entityMap := EntityID(id).toMap(arch)
 
 			// If there's no filter, include all entities.
 			if filter == nil {
-				results = append(results, entityMap)
-				return
+				results = append(results, result)
+				continue
 			}
 
 			// Run the filter expression. We set the entity map as the environment for `Run` so the vm
 			// program has access to the entity data to filter.
-			output, innerErr := expr.Run(filter, entityMap)
+			output, innerErr := expr.Run(filter, result)
 			if innerErr != nil {
-				err = eris.Wrap(innerErr, "failed to run filter expression")
-				isStopIterating = true
-				return
+				return nil, eris.Wrap(innerErr, "failed to run filter expression")
 			}
 
 			isMatchFilter, ok := output.(bool)
@@ -100,65 +103,62 @@ func (w *World) NewSearch(params SearchParam) ([]map[string]any, error) {
 			// especially when we filter for a struct field e.g. health.hp > 200, expr can't determine the
 			// type of health.hp during compilation.
 			if !ok {
-				err = eris.New("invalid where clause")
-				isStopIterating = true
-				return
+				return nil, eris.New("invalid where clause")
 			}
 
 			if isMatchFilter {
-				results = append(results, entityMap)
+				results = append(results, result)
 			}
-		})
+		}
 	}
 
 	return results, nil
 }
 
-// getArchetypes returns the archetypes that match the given components and match type.
-func getArchetypes(w *World, compNames []string, match SearchMatch) ([]*archetype, error) {
+// findMatchingArchetypes returns the archetypes that match the given components and match type.
+func findMatchingArchetypes(w *World, compNames []string, match SearchMatch) ([]archetypeID, error) {
 	if len(compNames) == 0 {
 		return nil, eris.New("component list cannot be empty")
 	}
 
+	ws := w.state
 	component := bitmap.Bitmap{}
 	for _, name := range compNames {
-		id, exists := w.components.registry[name]
+		id, exists := ws.components.catalog[name]
 		if !exists {
 			return nil, eris.Errorf("component %s not registered", name)
 		}
 		component.Set(id)
 	}
 
-	var archs []*archetype
+	var archIDs []int
 	switch match {
 	case MatchExact:
-		arch := w.getState().archExact(component)
-		if arch != nil {
-			archs = []*archetype{arch}
+		aid, ok := ws.archExact(component)
+		if ok {
+			archIDs = []int{aid}
 		}
 	case MatchContains:
-		archs = w.getState().archContains(component)
+		archIDs = ws.archContains(component)
 	}
-	return archs, nil
+	return archIDs, nil
 }
 
-// entityToMap converts an entity to a map of its components. A "_id" key is added to the map
-// to store the entity ID.
-func (id EntityID) toMap(arch *archetype) map[string]any {
-	data := make(map[string]any, arch.components.Count())
+// archIter returns an iterator of the archetypes entities and its components.
+func archIter(a *archetype) iter.Seq2[EntityID, []Component] {
+	return func(yield func(EntityID, []Component) bool) {
+		for row := range a.entities {
+			eid := a.entities[row]
 
-	// We have to cast id from EntityID to int here or else we can't query the data because for some
-	// reason expr can't compare EntityID with integers in the expression.
-	data["_id"] = uint32(id)
+			components := make([]Component, 0, a.compCount)
+			for _, column := range a.columns {
+				component := column.getAbstract(row)
+				components = append(components, component)
+			}
 
-	for _, col := range arch.columns {
-		c := toAbstractColumn(col)
-		comp, ok := c.getAbstract(id)
-		if !ok {
-			continue
+			if !yield(eid, components) {
+				return
+			}
 		}
-		data[comp.Name()] = comp
 	}
-
-	return data
 }

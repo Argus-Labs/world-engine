@@ -70,7 +70,7 @@ func (s *Shard) endTick() error {
 
 	// Increment tick count at the end of the tick.
 	logger := s.tel.GetLogger("shard")
-	logger.Info().Uint64("tick", s.tickHeight).Msg("tick completed")
+	logger.Debug().Uint64("tick", s.tickHeight).Msg("tick completed")
 	s.tickHeight++
 
 	if len(s.ticks) == int(s.frequency) { //nolint:nestif // its ok
@@ -98,7 +98,7 @@ func (s *Shard) endTick() error {
 		}
 
 		// Increment epoch count after publishing the epoch.
-		logger.Info().Uint64("epoch", s.epochHeight).Msg("epoch completed")
+		logger.Debug().Uint64("epoch", s.epochHeight).Msg("epoch completed")
 		s.epochHeight++
 
 		// Clear ticks array to prepare for the next epoch.
@@ -173,7 +173,7 @@ func (s *Shard) createAndStoreSnapshot(snapshot *Snapshot) {
 		return
 	}
 
-	logger.Info().
+	logger.Debug().
 		Uint64("epoch", snapshot.EpochHeight).
 		Uint64("tick", snapshot.TickHeight).
 		Msg("snapshot created successfully")

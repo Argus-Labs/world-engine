@@ -31,7 +31,7 @@ func OnlineStatusUpdater(state *OnlineStatusUpdaterState) error {
 			})
 
 			state.Logger().Info().
-				Uint32("entity", uint32(entity.ID)).
+				Uint32("entity", uint32(entity)).
 				Msgf("Player %s (id: %s) is offline", player.PlayerTag.Get().ArgusAuthName, player.PlayerTag.Get().ArgusAuthID)
 		}
 	}

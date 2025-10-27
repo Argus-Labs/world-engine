@@ -45,18 +45,12 @@ func PlayerSpawnSystem(state *SpawnPlayerSystemState) error {
 			continue
 		}
 
-		id, err := state.Players.Create(
-			component.PlayerTag{ArgusAuthID: command.ArgusAuthID, ArgusAuthName: command.ArgusAuthName},
-			component.Position{X: int(command.X), Y: int(command.Y)},
-			component.OnlineStatus{Online: true, LastActive: time.Now()},
-		)
-		playerSet.Add(command.ArgusAuthID)
+		id, player := state.Players.Create()
+		player.Tag.Set(component.PlayerTag{ArgusAuthID: command.ArgusAuthID, ArgusAuthName: command.ArgusAuthName})
+		player.Position.Set(component.Position{X: int(command.X), Y: int(command.Y)})
+		player.Online.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
 
-		if err != nil {
-			// If we return the error, Cardinal will shutdown, so just log it.
-			state.Logger().Error().Err(err).Msg("error creating entity")
-			continue
-		}
+		playerSet.Add(command.ArgusAuthID)
 
 		state.Logger().Info().
 			Uint32("entity", uint32(id)).

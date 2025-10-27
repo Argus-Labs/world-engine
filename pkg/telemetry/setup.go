@@ -3,9 +3,11 @@ package telemetry
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
@@ -13,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 	otelTrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -108,24 +110,30 @@ func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options
 	), nil
 }
 
-// newLogger creates a trace-aware logger with console formatting.
+// newLogger creates a trace-aware logger with the specified format.
 func newLogger(opts Options) zerolog.Logger {
 	level, err := zerolog.ParseLevel(opts.LogLevel)
 	if err != nil {
 		level = zerolog.InfoLevel
 	}
 
-	consoleWriter := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
+	var writer io.Writer
+	switch opts.LogFormat {
+	case LogFormatPretty:
+		writer = zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: time.RFC3339,
+		}
+	case LogFormatJSON:
+		writer = os.Stdout
+	case LogFormatUndefined:
+		assert.That(true, "unreachable")
 	}
 
-	logger := zerolog.New(consoleWriter).
+	return zerolog.New(writer).
 		Level(level).
 		With().
 		Timestamp().
 		Caller().
 		Logger()
-
-	return logger
 }

@@ -1,19 +1,9 @@
 package ecs
 
 import (
-	"math"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
-
-// componentID is a unique identifier for a component type.
-// It is used internally to track and manage component types efficiently.
-type componentID = uint32
-
-// maxComponentID is the maximum number of components types that can be registered.
-const maxComponentID = math.MaxUint32 - 1
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
@@ -23,94 +13,53 @@ type Component interface { //nolint:iface // We may add more methods in the futu
 	Name() string
 }
 
+// componentID is a unique identifier for a component type.
+// It is used internally to track and manage component types efficiently.
+type componentID = uint32
+
 // componentManager manages component type registration and lookup.
 type componentManager struct {
-	nextID        componentID            // The next available component ID
-	registry      map[string]componentID // Component name -> Component ID
-	columnFactory []func() any           // Component ID -> Column constructor
+	nextID    componentID            // The next available component ID
+	catalog   map[string]componentID // Component name -> component ID
+	factories []columnFactory        // Component ID -> column factory
 }
 
 // newComponentManager creates a new component manager.
 func newComponentManager() componentManager {
 	return componentManager{
-		nextID:        0,
-		registry:      make(map[string]componentID),
-		columnFactory: make([]func() any, 0),
+		nextID:    0,
+		catalog:   make(map[string]componentID),
+		factories: make([]columnFactory, 0),
 	}
 }
 
-// register registers a new component type. if the component is already registered, no-op.
-func (c *componentManager) register(name string, factory func() any) error {
+// register registers a new component type and returns its ID.
+// If the component is already registered, no-op.
+func (cm *componentManager) register(name string, factory columnFactory) (componentID, error) {
 	if name == "" {
-		return eris.New("component name cannot be empty")
+		return 0, eris.New("component name cannot be empty")
 	}
 
-	if _, exists := c.registry[name]; exists {
-		return nil
+	// If component already exists, no-op.
+	if cid, exists := cm.catalog[name]; exists {
+		return cid, nil
 	}
 
-	if c.nextID > maxComponentID {
-		return eris.New("max number of components exceeded")
-	}
+	cm.catalog[name] = cm.nextID
+	cm.factories = append(cm.factories, factory)
+	cm.nextID++
+	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 
-	// Register new component type.
-	c.registry[name] = c.nextID
-	c.columnFactory = append(c.columnFactory, factory)
-	c.nextID++
-	assert.That(int(c.nextID) == len(c.columnFactory), "component id doesn't match number of components")
-
-	return nil
+	return cm.nextID - 1, nil
 }
 
-// get returns the ID for a given component name.
-func (c *componentManager) get(name string) (componentID, error) {
-	id, exists := c.registry[name]
+// getID returns a component's ID given a name.
+func (cm *componentManager) getID(name string) (componentID, error) {
+	id, exists := cm.catalog[name]
+
 	if !exists {
-		return 0, eris.Errorf("component %s not registered", name)
+		return 0, eris.Wrapf(ErrComponentNotFound, "component %s", name)
 	}
+
 	return id, nil
-}
-
-// getComponentID returns the ID for a given component.
-func (c *componentManager) getComponentID(component Component) (componentID, error) {
-	return c.get(component.Name())
-}
-
-// toComponentBitmap returns a bitmap of component IDs for the given components.
-func (c *componentManager) toComponentBitmap(components []Component) (bitmap.Bitmap, error) {
-	var comps bitmap.Bitmap
-	for _, component := range components {
-		id, err := c.getComponentID(component)
-		if err != nil {
-			return comps, eris.Wrap(err, "failed to get component ID")
-		}
-		comps.Set(id)
-	}
-	return comps, nil
-}
-
-// createArchetype creates a new archetype for the given component type IDs. Callers are expected
-// to check that all components are registered.
-func (c *componentManager) createArchetype(id archetypeID, components bitmap.Bitmap) archetype {
-	maxID, ok := components.Max()
-	assert.That(ok && maxID < c.nextID, "component not registered") // This should never happen
-
-	// Create the archetype columns.
-	i := 0
-	columns := make([]any, components.Count())
-	components.Range(func(compID uint32) {
-		columns[i] = c.columnFactory[compID]()
-		i++
-	})
-
-	return newArchetype(id, components, columns)
-}
-
-// getColumnFactory returns the column factory function for the given component name.
-func (c *componentManager) getColumnFactory(name string) (func() any, error) {
-	id, exists := c.registry[name]
-	if !exists {
-		return nil, eris.Errorf("component %s not registered", name)
-	}
-	return c.columnFactory[id], nil
 }

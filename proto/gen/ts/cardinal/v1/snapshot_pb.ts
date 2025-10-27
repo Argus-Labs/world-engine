@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cardinal/v1/snapshot.proto.
  */
 export const file_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("ChpjYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxILY2FyZGluYWwudjEi6gEKEENhcmRpbmFsU25hcHNob3QSKgoKYXJjaGV0eXBlcxgBIAMoCzIWLmNhcmRpbmFsLnYxLkFyY2hldHlwZRIPCgduZXh0X2lkGAIgASgNEhAKCGZyZWVfaWRzGAMgAygNEk4KEWVudGl0eV9hcmNoZXR5cGVzGAQgAygLMjMuY2FyZGluYWwudjEuQ2FyZGluYWxTbmFwc2hvdC5FbnRpdHlBcmNoZXR5cGVzRW50cnkaNwoVRW50aXR5QXJjaGV0eXBlc0VudHJ5EgsKA2tleRgBIAEoDRINCgV2YWx1ZRgCIAEoBDoCOAEicQoJQXJjaGV0eXBlEgoKAmlkGAEgASgEEhcKD2VudGl0aWVzX2JpdG1hcBgCIAEoDBIZChFjb21wb25lbnRzX2JpdG1hcBgDIAEoDBIkCgdjb2x1bW5zGAQgAygLMhMuY2FyZGluYWwudjEuQ29sdW1uInEKBkNvbHVtbhIfCg5jb21wb25lbnRfbmFtZRgBIAEoCUIHukgEcgIQARIOCgZzcGFyc2UYAiADKAMSGAoQZGVuc2VfZW50aXR5X2lkcxgDIAMoDRIcChRkZW5zZV9jb21wb25lbnRfZGF0YRgEIAMoDEJoWkZnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("ChpjYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxILY2FyZGluYWwudjEidgoQQ2FyZGluYWxTbmFwc2hvdBIPCgduZXh0X2lkGAEgASgNEhAKCGZyZWVfaWRzGAIgAygNEhMKC2VudGl0eV9hcmNoGAMgAygDEioKCmFyY2hldHlwZXMYBCADKAsyFi5jYXJkaW5hbC52MS5BcmNoZXR5cGUieAoJQXJjaGV0eXBlEgoKAmlkGAEgASgFEhkKEWNvbXBvbmVudHNfYml0bWFwGAIgASgMEgwKBHJvd3MYAyADKAMSEAoIZW50aXRpZXMYBCADKA0SJAoHY29sdW1ucxgFIAMoCzITLmNhcmRpbmFsLnYxLkNvbHVtbiI9CgZDb2x1bW4SHwoOY29tcG9uZW50X25hbWUYASABKAlCB7pIBHICEAESEgoKY29tcG9uZW50cxgCIAMoDEJoWkZnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * CardinalSnapshot represents a complete snapshot of the world state.
@@ -20,30 +20,30 @@ export const file_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
  */
 export type CardinalSnapshot = Message<"cardinal.v1.CardinalSnapshot"> & {
   /**
-   * Archetypes in the world state
-   *
-   * @generated from field: repeated cardinal.v1.Archetype archetypes = 1;
-   */
-  archetypes: Archetype[];
-
-  /**
    * Entity manager state
    *
-   * @generated from field: uint32 next_id = 2;
+   * @generated from field: uint32 next_id = 1;
    */
   nextId: number;
 
   /**
-   * @generated from field: repeated uint32 free_ids = 3;
+   * @generated from field: repeated uint32 free_ids = 2;
    */
   freeIds: number[];
 
   /**
-   * EntityID -> ArchetypeID
+   * Entity to archetype mapping as sparse set
    *
-   * @generated from field: map<uint32, uint64> entity_archetypes = 4;
+   * @generated from field: repeated int64 entity_arch = 3;
    */
-  entityArchetypes: { [key: number]: bigint };
+  entityArch: bigint[];
+
+  /**
+   * Archetypes in the world state
+   *
+   * @generated from field: repeated cardinal.v1.Archetype archetypes = 4;
+   */
+  archetypes: Archetype[];
 };
 
 /**
@@ -60,30 +60,37 @@ export const CardinalSnapshotSchema: GenMessage<CardinalSnapshot> = /*@__PURE__*
  */
 export type Archetype = Message<"cardinal.v1.Archetype"> & {
   /**
-   * Unique identifier for this archetype
+   * Unique identifier for this archetype (corresponds to index in archetypes array)
    *
-   * @generated from field: uint64 id = 1;
+   * @generated from field: int32 id = 1;
    */
-  id: bigint;
-
-  /**
-   * Bitmap representing entity IDs in this archetype
-   *
-   * @generated from field: bytes entities_bitmap = 2;
-   */
-  entitiesBitmap: Uint8Array;
+  id: number;
 
   /**
    * Bitmap representing component types in this archetype
    *
-   * @generated from field: bytes components_bitmap = 3;
+   * @generated from field: bytes components_bitmap = 2;
    */
   componentsBitmap: Uint8Array;
 
   /**
+   * Entity to row mapping as sparse set
+   *
+   * @generated from field: repeated int64 rows = 3;
+   */
+  rows: bigint[];
+
+  /**
+   * List of entity IDs in this archetype
+   *
+   * @generated from field: repeated uint32 entities = 4;
+   */
+  entities: number[];
+
+  /**
    * Columns containing component data
    *
-   * @generated from field: repeated cardinal.v1.Column columns = 4;
+   * @generated from field: repeated cardinal.v1.Column columns = 5;
    */
   columns: Column[];
 };
@@ -109,26 +116,11 @@ export type Column = Message<"cardinal.v1.Column"> & {
   componentName: string;
 
   /**
-   * Sparse array mapping entity IDs to dense array indices
-   * -1 means entity not present in this column
-   *
-   * @generated from field: repeated int64 sparse = 2;
-   */
-  sparse: bigint[];
-
-  /**
-   * Dense array of entity IDs
-   *
-   * @generated from field: repeated uint32 dense_entity_ids = 3;
-   */
-  denseEntityIds: number[];
-
-  /**
    * Dense array of serialized component data (JSON)
    *
-   * @generated from field: repeated bytes dense_component_data = 4;
+   * @generated from field: repeated bytes components = 2;
    */
-  denseComponentData: Uint8Array[];
+  components: Uint8Array[];
 };
 
 /**

@@ -20,6 +20,9 @@ type Config struct {
 
 	// Log level configuration ("debug", "info", "warn", "error").
 	LogLevel string `env:"OTEL_LOG_LEVEL" envDefault:"info"`
+
+	// Log format configuration ("json", "pretty").
+	LogFormat string `env:"OTEL_LOG_FORMAT" envDefault:"json"`
 }
 
 // LoadConfig loads the configuration from environment variables.
@@ -45,6 +48,11 @@ func (cfg *Config) validate() error {
 		return eris.Errorf("invalid log level: %s (must be 'debug', 'info', 'warn', or 'error')", cfg.LogLevel)
 	}
 
+	// Validate log format.
+	if ParseLogFormat(cfg.LogFormat) == LogFormatUndefined {
+		return eris.Errorf("invalid log format: %s (must be 'json' or 'pretty')", cfg.LogFormat)
+	}
+
 	// Validate OTLP configuration
 	if cfg.Enabled {
 		if cfg.Endpoint == "" {
@@ -62,6 +70,7 @@ func (cfg *Config) validate() error {
 func (cfg *Config) applyToOptions(opt *Options) {
 	opt.Endpoint = cfg.Endpoint
 	opt.LogLevel = cfg.LogLevel
+	opt.LogFormat = ParseLogFormat(cfg.LogFormat)
 	opt.TraceSampleRate = cfg.TraceSampleRate
 }
 
@@ -69,6 +78,7 @@ type Options struct {
 	ServiceName     string // Name of the service for telemetry
 	Endpoint        string
 	LogLevel        string
+	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64
 }
 
@@ -78,6 +88,7 @@ func newDefaultOptions() Options {
 		Endpoint:        "",
 		ServiceName:     "",
 		LogLevel:        "",
+		LogFormat:       LogFormatUndefined,
 		TraceSampleRate: -1.0,
 	}
 }
@@ -89,6 +100,9 @@ func (opt *Options) apply(newOpt Options) {
 	}
 	if newOpt.LogLevel != "" {
 		opt.LogLevel = newOpt.LogLevel
+	}
+	if newOpt.LogFormat != LogFormatUndefined {
+		opt.LogFormat = newOpt.LogFormat
 	}
 	if newOpt.TraceSampleRate != 0.0 {
 		opt.TraceSampleRate = newOpt.TraceSampleRate
@@ -107,8 +121,51 @@ func (opt *Options) validate() error {
 	if err != nil {
 		return eris.Errorf("invalid log level: %s (must be 'debug', 'info', 'warn', or 'error')", opt.LogLevel)
 	}
+	if opt.LogFormat == LogFormatUndefined {
+		return eris.New("log format must be specified")
+	}
 	if opt.TraceSampleRate < 0.0 || opt.TraceSampleRate > 1.0 {
 		return eris.New("trace sample rate must be between 0.0 and 1.0")
 	}
 	return nil
+}
+
+// LogFormat represents the log output format.
+type LogFormat uint8
+
+const (
+	LogFormatUndefined LogFormat = iota // Used as the zero value
+	LogFormatJSON                       // Outputs structured JSON logs
+	LogFormatPretty                     // Outputs human-readable console logs
+)
+
+const (
+	jsonFormatString      = "json"
+	prettyFormatString    = "pretty"
+	undefinedFormatString = "undefined"
+)
+
+func (f LogFormat) String() string {
+	switch f {
+	case LogFormatUndefined:
+		return undefinedFormatString
+	case LogFormatJSON:
+		return jsonFormatString
+	case LogFormatPretty:
+		return prettyFormatString
+	default:
+		return undefinedFormatString
+	}
+}
+
+// ParseLogFormat converts a string to LogFormat enum.
+func ParseLogFormat(s string) LogFormat {
+	switch strings.ToLower(s) {
+	case jsonFormatString:
+		return LogFormatJSON
+	case prettyFormatString:
+		return LogFormatPretty
+	default:
+		return LogFormatUndefined
+	}
 }

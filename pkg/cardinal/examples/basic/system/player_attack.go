@@ -40,16 +40,16 @@ func AttackPlayerSystem(state *AttackPlayerSystemState) error {
 				player.Health.Set(component.Health{HP: newHealth})
 
 				state.Logger().Info().
-					Uint32("entity", uint32(entity.ID)).
+					Uint32("entity", uint32(entity)).
 					Msgf("Player %s received %d damage", command.Target, command.Damage)
 			} else {
-				entity.Destroy()
+				state.Players.Destroy(entity)
 
 				state.PlayerDeathEvents.Emit(event.PlayerDeath{Nickname: tag.Nickname})
 
 				state.PlayerDeathSystemEvents.Emit(systemevent.PlayerDeath{Nickname: tag.Nickname})
 
-				state.Logger().Info().Uint32("entity", uint32(entity.ID)).Msgf("Player %s died", command.Target)
+				state.Logger().Info().Uint32("entity", uint32(entity)).Msgf("Player %s died", command.Target)
 			}
 		}
 	}

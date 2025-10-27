@@ -97,11 +97,11 @@ func NewShard(base ShardEngine, opts ShardOptions) (*Shard, error) {
 		Retention: jetstream.LimitsPolicy,
 		Storage:   jetstream.FileStorage,
 		Replicas:  1,
-		MaxBytes:  options.EpochStreamMaxBytes, // Required by some NATS providers like Synadia Cloud
+		MaxBytes:  int64(options.EpochStreamMaxBytes),
 	}
 
 	// Try to get existing stream first, if it exists we'll update it
-	stream, err := js.Stream(context.Background(), streamName) //nolint: staticcheck, wastedassign // Set up the var here
+	stream, err := js.Stream(context.Background(), streamName) //nolint: staticcheck, wastedassign // this is ok
 	if err != nil {
 		// Stream doesn't exist, try to create it
 		stream, err = js.CreateStream(context.Background(), streamConfig)

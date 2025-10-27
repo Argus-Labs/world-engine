@@ -119,11 +119,11 @@ func TestSearch_FindAndMatch(t *testing.T) {
 				Match: ecs.MatchExact,
 			},
 			setup: func(state *initSystemState) error {
-				_, err := state.Position.Create(Position{X: 1, Y: 2})
-				require.NoError(t, err)
+				_, position := state.Position.Create()
+				position.Set(Position{X: 1, Y: 2})
 
-				_, err = state.Position.Create(Position{X: 3, Y: 4})
-				require.NoError(t, err)
+				_, position = state.Position.Create()
+				position.Set(Position{X: 3, Y: 4})
 
 				return nil
 			},
@@ -142,11 +142,12 @@ func TestSearch_FindAndMatch(t *testing.T) {
 				Match: ecs.MatchContains,
 			},
 			setup: func(state *initSystemState) error {
-				_, err := state.Position.Create(Position{X: 1, Y: 2})
-				require.NoError(t, err)
+				_, position := state.Position.Create()
+				position.Set(Position{X: 1, Y: 2})
 
-				_, err = state.PositionHealth.Create(Position{X: 3, Y: 4}, Health{Value: 100})
-				require.NoError(t, err)
+				_, positionHealth := state.PositionHealth.Create()
+				positionHealth.Position.Set(Position{X: 3, Y: 4})
+				positionHealth.Health.Set(Health{Value: 100})
 
 				return nil
 			},
@@ -169,8 +170,8 @@ func TestSearch_FindAndMatch(t *testing.T) {
 				Match: ecs.MatchExact,
 			},
 			setup: func(state *initSystemState) error {
-				_, err := state.Position.Create(Position{X: 1, Y: 2})
-				require.NoError(t, err)
+				_, position := state.Position.Create()
+				position.Set(Position{X: 1, Y: 2})
 				return nil
 			},
 			validate: func(t *testing.T, results []map[string]any) {
@@ -217,14 +218,14 @@ func TestSearch_Where(t *testing.T) {
 				Where: "Health.Value > 75",
 			},
 			setup: func(state *initSystemState) error {
-				_, err := state.Health.Create(Health{Value: 100})
-				require.NoError(t, err)
+				_, health := state.Health.Create()
+				health.Set(Health{Value: 100})
 
-				_, err = state.Health.Create(Health{Value: 50})
-				require.NoError(t, err)
+				_, health = state.Health.Create()
+				health.Set(Health{Value: 50})
 
-				_, err = state.Health.Create(Health{Value: 80})
-				require.NoError(t, err)
+				_, health = state.Health.Create()
+				health.Set(Health{Value: 80})
 
 				return nil
 			},
@@ -244,17 +245,17 @@ func TestSearch_Where(t *testing.T) {
 				Where: "Position.X > 0 && Position.Y > 0",
 			},
 			setup: func(state *initSystemState) error {
-				_, err := state.Position.Create(Position{X: 1, Y: 2})
-				require.NoError(t, err)
+				_, position := state.Position.Create()
+				position.Set(Position{X: 1, Y: 2})
 
-				_, err = state.Position.Create(Position{X: -1, Y: 2})
-				require.NoError(t, err)
+				_, position = state.Position.Create()
+				position.Set(Position{X: -1, Y: 2})
 
-				_, err = state.Position.Create(Position{X: 3, Y: -4})
-				require.NoError(t, err)
+				_, position = state.Position.Create()
+				position.Set(Position{X: 3, Y: -4})
 
-				_, err = state.Position.Create(Position{X: 5, Y: 6})
-				require.NoError(t, err)
+				_, position = state.Position.Create()
+				position.Set(Position{X: 5, Y: 6})
 
 				return nil
 			},
@@ -275,17 +276,21 @@ func TestSearch_Where(t *testing.T) {
 				Where: "Position.X > 0 && Health.Value >= 100",
 			},
 			setup: func(state *initSystemState) error {
-				_, err := state.PositionHealth.Create(Position{X: 1, Y: 2}, Health{Value: 100})
-				require.NoError(t, err)
+				_, positionHealth := state.PositionHealth.Create()
+				positionHealth.Position.Set(Position{X: 1, Y: 2})
+				positionHealth.Health.Set(Health{Value: 100})
 
-				_, err = state.PositionHealth.Create(Position{X: -1, Y: 2}, Health{Value: 100})
-				require.NoError(t, err)
+				_, positionHealth = state.PositionHealth.Create()
+				positionHealth.Position.Set(Position{X: -1, Y: 2})
+				positionHealth.Health.Set(Health{Value: 100})
 
-				_, err = state.PositionHealth.Create(Position{X: 3, Y: 4}, Health{Value: 50})
-				require.NoError(t, err)
+				_, positionHealth = state.PositionHealth.Create()
+				positionHealth.Position.Set(Position{X: 3, Y: 4})
+				positionHealth.Health.Set(Health{Value: 50})
 
-				_, err = state.PositionHealth.Create(Position{X: 5, Y: 6}, Health{Value: 150})
-				require.NoError(t, err)
+				_, positionHealth = state.PositionHealth.Create()
+				positionHealth.Position.Set(Position{X: 5, Y: 6})
+				positionHealth.Health.Set(Health{Value: 150})
 
 				return nil
 			},

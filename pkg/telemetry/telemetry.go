@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"io"
 	"os"
 	"time"
 
@@ -76,21 +77,40 @@ func (t *Telemetry) GetLoggerWithTrace(ctx context.Context, component string) ze
 }
 
 func init() { //nolint:gochecknoinits // Its fine
-	// Set up the global logger
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	// Create a console writer with timestamp
-	consoleWriter := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
-	}
-
-	// Set the global logger
-	log.Logger = zerolog.New(consoleWriter). //nolint:reassign // Its fine
+	config, err := loadConfig()
+	if err != nil {
+		// Default to info level and JSON format.
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		log.Logger = zerolog.New(os.Stdout). //nolint:reassign // Its fine
 							With().
 							Timestamp().
 							Caller().
 							Logger()
+		return
+	}
+
+	opts := newDefaultOptions()
+	config.applyToOptions(&opts)
+
+	level, err := zerolog.ParseLevel(opts.LogLevel)
+	if err != nil {
+		level = zerolog.InfoLevel
+	}
+	zerolog.SetGlobalLevel(level)
+
+	var writer io.Writer = os.Stdout // Default to JSON
+	if opts.LogFormat == LogFormatPretty {
+		writer = zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: time.RFC3339,
+		}
+	}
+
+	log.Logger = zerolog.New(writer). //nolint:reassign // Its fine
+						With().
+						Timestamp().
+						Caller().
+						Logger()
 }
 
 // GetGlobalLogger returns a component-specific logger using the global console logger.
