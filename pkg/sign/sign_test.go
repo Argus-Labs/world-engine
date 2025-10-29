@@ -9,7 +9,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/sign"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -92,7 +92,7 @@ func TestSigner_SignCommand(t *testing.T) {
 			signer, err := sign.NewSigner(privateKeyHex, 12345)
 			require.NoError(t, err)
 
-			signedCommand, err := signer.SignCommand(tt.command, iscv1.AuthInfo_MODE_PERSONA)
+			signedCommand, err := signer.SignCommand(tt.command, iscv1.AuthInfo_AUTH_MODE_PERSONA)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -217,7 +217,7 @@ func TestVerifyCommandSignature(t *testing.T) {
 			t.Parallel()
 
 			// Sign the command for each test case
-			signedCommand, err := signer.SignCommand(command, iscv1.AuthInfo_MODE_PERSONA)
+			signedCommand, err := signer.SignCommand(command, iscv1.AuthInfo_AUTH_MODE_PERSONA)
 			require.NoError(t, err)
 
 			// Apply test-specific modifications to the signed command

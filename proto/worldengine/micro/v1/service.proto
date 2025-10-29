@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package worldengine.micro.v1;
+
+import "buf/validate/validate.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Micro.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1";
+
+// ServiceAddress is used to identify a unique service instance and corresponds to its NATS subject.
+//
+// The acceptable NATS subject is a subset of the acceptable NATS subject naming convention:
+// Only lowercase alphanumeric characters and hyphens are allowed for all fields.
+// The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
+//
+// The ServiceAddress convention is as follows:
+// <realm>.<organization>.<project>.<service_id>.<endpoint>
+//
+// <realm> is one of the following:
+// - internal: Reserved for internal services
+// - world: Publicly accessible services that is a part of Worldbase network
+//
+// <organization> represents the entity that owns the project (e.g., "argus").
+//
+// <project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+//
+// <service_id> is a unique identifier for the service instance. It must be unique within the project.
+//
+// <endpoint> is an arbitrary token that identifies specific functionality within a service.
+// An endpoint can contain . as a delimiter to leverage NATS routing.
+//
+// Examples:
+// - internal.argus.platform.gateway-us-west-2.micro.ping
+// - world.argus.rampage.lobby-1.shard.message.player.connect
+// ┌───────────┬───────────┬───────────┬───────────────────┬────────────────────────────────┐
+// │   realm   │    org    │  project  │    service_id     │            endpoint            │
+// ├───────────┼───────────┼───────────┼───────────────────┼────────────────────────────────┤
+// │ internal  │   argus   │ platform  │ gateway-us-west-2 │           micro.ping           │
+// ├───────────┼───────────┼───────────┼───────────────────┼────────────────────────────────┤
+// │   world   │   argus   │  rampage  │      lobby-1      │  shard.message.player.connect  │
+// └───────────┴───────────┴───────────┴───────────────────┴────────────────────────────────┘
+message ServiceAddress {
+  // Realm represents the access scope of the service.
+  enum Realm {
+    // Unspecified realm, should not be used.
+    REALM_UNSPECIFIED = 0;
+
+    // Reserved for internal services
+    REALM_INTERNAL = 1;
+
+    // Publicly accessible services that are part of Worldbase network.
+    REALM_WORLD = 2;
+  }
+
+  string region = 1 [(buf.validate.field).string = {
+    min_len: 1
+    pattern: "^[a-z0-9-]+$"
+  }];
+
+  // The realm of the service.
+  Realm realm = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0] /* Disallow REALM_UNSPECIFIED */
+  }];
+
+  // The organization that owns the project (e.g., "argus").
+  // Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+  string organization = 3 [(buf.validate.field).string = {
+    min_len: 1
+    pattern: "^[a-z0-9_-]+$"
+  }];
+
+  // The project name that groups related services (e.g., "platform", "rampage").
+  // Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+  string project = 4 [(buf.validate.field).string = {
+    min_len: 1
+    pattern: "^[a-z0-9_-]+$"
+  }];
+
+  // The unique identifier for the service instance within the project.
+  // Must be unique within the project and contain only lowercase alphanumeric characters,
+  // hyphens, or underscores.
+  string service_id = 5 [(buf.validate.field).string = {
+    min_len: 1
+    pattern: "^[a-z0-9_-]+$"
+  }];
+}

@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package worldengine.isc.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "worldengine/isc/v1/command.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Isc.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
+
+// TODO: epoch signature. figure whether we want cardinal to sign an epoch so that we can know
+// whether the epoch is pblsih by a cardinal shard.
+//
+// https://buf.build/cosmos/cosmos-sdk/file/main:cometbft/types/v2/types.proto
+
+// Epoch represents a collection of ticks and a hash of the epoch.
+message Epoch {
+  // The epoch number when this event was emitted.
+  uint64 epoch_height = 1;
+
+  // TODO: validation for hash once cardinal's state hash is figured out.
+  // Hash of the epoch for integrity verification.
+  bytes hash = 2;
+
+  // All ticks that occurred in this epoch.
+  repeated Tick ticks = 3;
+}
+
+// Tick represents a single state change in Cardinal.
+message Tick {
+  TickHeader header = 1;
+
+  TickData data = 2;
+}
+
+message TickHeader {
+  // Tick number (monotonically increasing).
+  uint64 tick_height = 1;
+
+  // Timestamp of the tick.
+  google.protobuf.Timestamp timestamp = 2 [(buf.validate.field).required = true];
+}
+
+message TickData {
+  repeated isc.v1.Command commands = 1;
+}

@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package worldengine.isc.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "worldengine/isc/v1/persona.proto";
+import "worldengine/micro/v1/service.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Isc.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
+
+// SignedCommand is a wrapper around command data that carries a signature of the command payload.
+message Command {
+  // The signature of the command.
+  bytes signature = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 64
+  ];
+
+  AuthInfo auth_info = 2 [(buf.validate.field).required = true];
+
+  // The command data itself.
+  bytes command_bytes = 3 [(buf.validate.field).required = true];
+}
+
+// Command represents the data payload of a command to trigger systems in a shard.
+message CommandRaw {
+  // The timestamp when the command was created for replay protection.
+  google.protobuf.Timestamp timestamp = 1 [(buf.validate.field).required = true];
+
+  // Salt for additional uniqueness between commands.
+  bytes salt = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 16
+  ];
+
+  CommandBody body = 3;
+}
+
+message CommandBody {
+  string name = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-zA-Z0-9_-]+$"
+    }
+  ];
+
+  // The address of the cardinal shard to send the command to.
+  micro.v1.ServiceAddress address = 4 [(buf.validate.field).required = true];
+
+  Persona persona = 3 [(buf.validate.field).required = true];
+
+  google.protobuf.Struct payload = 1 [(buf.validate.field).required = true];
+}
+
+message AuthInfo {
+  enum AuthMode {
+    AUTH_MODE_UNSPECIFIED = 0;
+    AUTH_MODE_DIRECT = 1;
+    AUTH_MODE_PERSONA = 2;
+  }
+
+  AuthMode mode = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0] /* Disallow MODE_UNSPECIFIED */
+  }];
+
+  // The address of the signer. Right now this is just the public key.
+  bytes signer_address = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+}

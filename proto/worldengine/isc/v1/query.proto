@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package worldengine.isc.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Isc.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
+
+// Query represents a request to search for entities in Cardinal.
+// This type should correspond to cardinal.Query.
+message Query {
+  // Match specifies how component names should be matched against entities.
+  enum Match {
+    // MATCH_UNSPECIFIED is an invalid state and should not be used.
+    MATCH_UNSPECIFIED = 0;
+
+    // MATCH_EXACT requires entities to have exactly the specified components.
+    MATCH_EXACT = 1;
+
+    // MATCH_CONTAINS requires entities to have at least the specified components, but may contain
+    // additional components.
+    MATCH_CONTAINS = 2;
+  }
+
+  // List of component names to search for.
+  repeated string find = 1 [(buf.validate.field).repeated.items = {
+    string: {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-zA-Z0-9_-]+$"
+    }
+  }];
+
+  // match determines how the components should be matched against entities.
+  Match match = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+
+  // Optional filter expression using the expr language.
+  string where = 3;
+}
+
+// QueryResult contains results of the query.
+message QueryResult {
+  // List of entities that match the query. Each entity is a map of component names to their values
+  // as well as a "_ID" field containing the entity ID.
+  repeated google.protobuf.Struct entities = 1;
+}

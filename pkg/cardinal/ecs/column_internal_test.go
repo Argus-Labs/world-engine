@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/cardinal/v1"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

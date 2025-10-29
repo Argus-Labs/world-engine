@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package worldengine.micro.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Micro.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1";
+
+// Snapshot represents a point-in-time capture of shard state.
+message Snapshot {
+  uint64 epoch_height = 1;
+
+  uint64 tick_height = 2;
+
+  google.protobuf.Timestamp timestamp = 3;
+
+  bytes state_hash = 4;
+
+  bytes data = 6;
+}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
-	microv1 "github.com/argus-labs/world-engine/proto/gen/go/micro/v1"
+	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"

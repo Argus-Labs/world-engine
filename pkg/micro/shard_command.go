@@ -5,7 +5,7 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
