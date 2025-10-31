@@ -1,5 +1,0 @@
-{
-  "find": ["health", "playertag"],
-  "match": "exact",
-  "where": ""
-}
