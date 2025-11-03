@@ -7,7 +7,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/protoutil"
 	"github.com/argus-labs/world-engine/pkg/cardinal/testutils"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

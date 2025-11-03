@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package worldengine.micro.v1;
+
+import "google/protobuf/any.proto";
+import "google/rpc/status.proto";
+import "worldengine/micro/v1/service.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Micro.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1";
+
+// Generic request message that can be used for various microservice operations.
+message Request {
+  // Unique identifier for the request. Optional.
+  optional string request_id = 1;
+
+  // Target service address where the request should be handled.
+  ServiceAddress service_address = 2;
+
+  // Arbitrary message payload.
+  // As a general rule of thumb, the payload must be protobuf encoded.
+  google.protobuf.Any payload = 3;
+}
+
+// Generic response message returned from microservice operations.
+message Response {
+  // Unique identifier corresponding to the request.
+  optional string request_id = 1;
+
+  // Service address where the message was handled.
+  ServiceAddress service_address = 2;
+
+  // Standard Google RPC status that follows Google API Design Guide.
+  // This includes a code, message, and details.
+  google.rpc.Status status = 3;
+
+  // Arbitrary blind response payload.
+  // As a general rule of thumb, the payload must be protobuf encoded.
+  google.protobuf.Any payload = 4;
+}

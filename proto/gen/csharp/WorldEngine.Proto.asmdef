@@ -1,0 +1,14 @@
+{
+  "name": "WorldEngine.Proto",
+  "rootNamespace": "WorldEngine.Proto",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

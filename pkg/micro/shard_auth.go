@@ -9,8 +9,8 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/sign"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
-	registryv1 "github.com/argus-labs/world-engine/proto/gen/go/registry/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	registryv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/registry/v1"
 	"github.com/coocood/freecache"
 	ics23 "github.com/cosmos/ics23/go"
 	"github.com/goccy/go-json"
@@ -74,15 +74,15 @@ func (c *commandVerifier) VerifyCommand(command *iscv1.Command) error {
 	}
 
 	switch command.GetAuthInfo().GetMode() {
-	case iscv1.AuthInfo_MODE_DIRECT:
+	case iscv1.AuthInfo_AUTH_MODE_DIRECT:
 		if err := c.verifyDirect(command); err != nil {
 			return eris.Wrap(err, "failed to verify direct command")
 		}
-	case iscv1.AuthInfo_MODE_PERSONA:
+	case iscv1.AuthInfo_AUTH_MODE_PERSONA:
 		if err := c.verifyPersona(command, commandRaw); err != nil {
 			return eris.Wrap(err, "failed to verify persona command")
 		}
-	case iscv1.AuthInfo_MODE_UNSPECIFIED:
+	case iscv1.AuthInfo_AUTH_MODE_UNSPECIFIED:
 		return eris.New("unspecified command auth mode")
 	}
 

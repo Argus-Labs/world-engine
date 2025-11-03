@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package worldengine.isc.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Isc.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
+
+// Event represents a game event emitted by Cardinal.
+message Event {
+  // The event name.
+  string name = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-zA-Z0-9_-]+$"
+    }
+  ];
+
+  // The payload of the event.
+  google.protobuf.Struct payload = 2 [(buf.validate.field).required = true];
+}

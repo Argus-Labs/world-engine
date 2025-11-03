@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package worldengine.registry.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/registry/v1;registryv1";
+
+// RegistrySnapshot represents the registry-specific snapshot data.
+message RegistrySnapshot {
+  // The IAVL tree version when this snapshot was taken.
+  int64 tree_version = 1;
+
+  // All exported nodes from the IAVL tree in export order (depth-first post-order).
+  repeated IAVLNode nodes = 2;
+}
+
+// IAVLNode represents an exported node from the IAVL tree.
+message IAVLNode {
+  // The key of the IAVL node.
+  bytes key = 1 [(buf.validate.field).required = true];
+
+  // The value associated with the key.
+  bytes value = 2;
+
+  // The version of the IAVL node.
+  int64 version = 3;
+
+  // The height/depth of the node in the tree.
+  int32 height = 4;
+}

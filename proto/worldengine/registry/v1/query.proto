@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package worldengine.registry.v1;
+
+import "buf/validate/validate.proto";
+import "cosmos/ics23/v1/proofs.proto";
+import "google/protobuf/timestamp.proto";
+import "worldengine/isc/v1/persona.proto";
+
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/registry/v1;registryv1";
+
+// QueryPersonaRequest contains the request data for querying persona details.
+message QueryPersonaRequest {
+  // The persona to query for
+  isc.v1.Persona persona = 1 [(buf.validate.field).required = true];
+
+  // Timestamp of the query request
+  google.protobuf.Timestamp timestamp = 2 [(buf.validate.field).required = true];
+}
+
+// QueryPersonaResponse contains the response data for a persona query.
+message QueryPersonaResponse {
+  // Details about the persona
+  PersonaDetails details = 1 [(buf.validate.field).required = true];
+
+  // When this response expires
+  google.protobuf.Timestamp expires_at = 2 [(buf.validate.field).required = true];
+
+  // The registry version for this specific response.
+  int64 version = 3;
+
+  // Merkle proof of this persona's existence.
+  cosmos.ics23.v1.CommitmentProof proof = 4 [(buf.validate.field).required = true];
+
+  // The merkle root hash for proof verification.
+  bytes root = 5 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.min_len = 1
+  ];
+}
+
+// PersonaDetails contains the details about a registered persona.
+message PersonaDetails {
+  // Authorized signer addresses for this persona
+  repeated bytes signers = 1 [(buf.validate.field).repeated.items.bytes.len = 32];
+}

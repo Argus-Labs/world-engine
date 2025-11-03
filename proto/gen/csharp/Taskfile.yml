@@ -1,0 +1,117 @@
+version: "3"
+
+vars:
+  PROJECT_NAME: WorldEngine.Proto
+  SOLUTION_FILE: csharp.sln
+  PROJECT_FILE: "{{.PROJECT_NAME}}/{{.PROJECT_NAME}}.csproj"
+  BUILD_CONFIG: Release
+  OUTPUT_DIR: ./artifacts
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmd: task --list
+
+  restore:
+    desc: Restore NuGet packages
+    cmd: dotnet restore {{.SOLUTION_FILE}}
+
+  build:
+    desc: Build the solution
+    deps: [restore]
+    cmd: dotnet build {{.SOLUTION_FILE}} --configuration {{.BUILD_CONFIG}} --no-restore
+
+  build:debug:
+    desc: Build the solution in Debug configuration
+    deps: [restore]
+    cmd: dotnet build {{.SOLUTION_FILE}} --configuration Debug --no-restore
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - dotnet clean {{.SOLUTION_FILE}}
+      - rm -rf {{.OUTPUT_DIR}}
+      - rm -rf {{.PROJECT_NAME}}/bin
+      - rm -rf {{.PROJECT_NAME}}/obj
+
+  rebuild:
+    desc: Clean and build the solution
+    deps: [clean, build]
+
+  pack:
+    desc: Create NuGet package
+    deps: [build]
+    cmds:
+      - mkdir -p {{.OUTPUT_DIR}}
+      - dotnet pack {{.PROJECT_FILE}} --configuration {{.BUILD_CONFIG}} --no-build --output {{.OUTPUT_DIR}}
+
+  pack:debug:
+    desc: Create NuGet package in Debug configuration
+    deps: [build:debug]
+    cmds:
+      - mkdir -p {{.OUTPUT_DIR}}
+      - dotnet pack {{.PROJECT_FILE}} --configuration Debug --no-build --output {{.OUTPUT_DIR}}
+
+  info:
+    desc: Show project information
+    cmds:
+      - echo "Project{{":"}} {{.PROJECT_NAME}}"
+      - echo "Solution{{":"}} {{.SOLUTION_FILE}}"
+      - echo "Build Config{{":"}} {{.BUILD_CONFIG}}"
+      - echo "Output Dir{{":"}} {{.OUTPUT_DIR}}"
+      - dotnet --version
+
+  check:
+    desc: Verify project builds successfully
+    deps: [build]
+    cmd: echo "✅ {{.PROJECT_NAME}} builds successfully"
+
+  list-packages:
+    desc: List NuGet package references
+    cmd: dotnet list {{.PROJECT_FILE}} package
+
+  outdated:
+    desc: Check for outdated NuGet packages
+    cmd: dotnet list {{.PROJECT_FILE}} package --outdated
+
+  update:
+    desc: Update NuGet packages to latest versions
+    cmd: |
+      echo "Checking for outdated packages..."
+      dotnet list {{.PROJECT_FILE}} package --outdated
+
+  size:
+    desc: Show assembly size information
+    deps: [build]
+    cmd: |
+      echo "Assembly sizes{{":"}}";
+      find {{.PROJECT_NAME}}/bin -name "*.dll" -exec ls -lh {} \;
+
+  watch:
+    desc: Build in watch mode for development
+    cmd: dotnet build {{.SOLUTION_FILE}} --configuration Debug --no-restore --watch
+
+  # CI/CD tasks
+  ci:build:
+    desc: CI build task
+    cmds:
+      - task: restore
+      - task: build
+      - task: check
+
+  ci:pack:
+    desc: CI pack task
+    cmds:
+      - task: ci:build
+      - task: pack
+
+  # Maintenance tasks
+  format:
+    desc: Format code (requires dotnet format tool)
+    cmd: dotnet format {{.SOLUTION_FILE}} --verbosity diagnostic
+    ignore_error: true
+
+  analyze:
+    desc: Run static code analysis
+    cmd: dotnet build {{.SOLUTION_FILE}} --configuration {{.BUILD_CONFIG}} --verbosity normal /p:RunAnalyzersDuringBuild=true
+    ignore_error: true

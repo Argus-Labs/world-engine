@@ -3,7 +3,7 @@ package micro
 import (
 	"time"
 
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 )
 
 // Tick represents a single execution step in the shard's lifecycle.

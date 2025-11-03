@@ -15,7 +15,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/sign"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
@@ -117,7 +117,7 @@ func (s *ShardService) registerShard(address *micro.ServiceAddress, signerAddres
 		return eris.Wrap(err, "failed to marshal register persona command")
 	}
 
-	command, err := s.signer.SignCommand(commandBody, iscv1.AuthInfo_MODE_DIRECT)
+	command, err := s.signer.SignCommand(commandBody, iscv1.AuthInfo_AUTH_MODE_DIRECT)
 	if err != nil {
 		return eris.Wrap(err, "failed to sign register persona command")
 	}

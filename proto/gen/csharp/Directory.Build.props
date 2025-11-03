@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <!-- Common build properties for all projects -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>embedded</DebugType>
+    
+    <!-- Enable Source Link -->
+    <EnableSourceLink Condition="'$(CI)' == 'true'">true</EnableSourceLink>
+    <SourceLinkEnabled Condition="'$(EnableSourceLink)' == 'true'">true</SourceLinkEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EnableSourceLink)' == 'true'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+</Project> 

@@ -1,0 +1,60 @@
+{
+  "name": "@argus-labs/proto",
+  "version": "0.1.0",
+  "description": "Generated TypeScript protobuf definitions for Argus Labs World Engine",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./buf/*.js": "./buf/*.ts",
+    "./buf/*": "./buf/*.ts",
+    "./cosmos/*.js": "./cosmos/*.ts",
+    "./cosmos/*": "./cosmos/*.ts",
+    "./gateway/*.js": "./gateway/*.ts",
+    "./gateway/*": "./gateway/*.ts",
+    "./google/*.js": "./google/*.ts",
+    "./google/*": "./google/*.ts",
+    "./isc/*.js": "./isc/*.ts",
+    "./isc/*": "./isc/*.ts",
+    "./micro/*.js": "./micro/*.ts",
+    "./micro/*": "./micro/*.ts",
+    "./registry/*.js": "./registry/*.ts",
+    "./registry/*": "./registry/*.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./index.js",
+      "./buf/*": "./buf/*",
+      "./cosmos/*": "./cosmos/*",
+      "./gateway/*": "./gateway/*",
+      "./google/*": "./google/*",
+      "./isc/*": "./isc/*",
+      "./micro/*": "./micro/*",
+      "./registry": "./registry/*"
+    },
+    "access": "public"
+  },
+  "files": [
+    "**/*.ts",
+    "**/*.js",
+    "**/*.d.ts",
+    "!node_modules"
+  ],
+  "keywords": [
+    "protobuf",
+    "argus",
+    "world-engine",
+    "typescript"
+  ],
+  "author": "Argus Labs",
+  "license": "ISC",
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.19",
+    "typescript": "~5.7.2"
+  }
+}

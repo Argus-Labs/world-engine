@@ -2,7 +2,7 @@ package ecs
 
 import (
 	"github.com/argus-labs/world-engine/pkg/micro"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/cardinal/v1"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 )

@@ -1,7 +1,7 @@
 package micro
 
 import (
-	microv1 "github.com/argus-labs/world-engine/proto/gen/go/micro/v1"
+	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 )
 
 // Snapshot represents a point-in-time capture of shard state.

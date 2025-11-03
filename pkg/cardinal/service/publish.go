@@ -6,7 +6,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/protoutil"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/isc/v1"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 )
@@ -78,7 +78,7 @@ func (s *ShardService) publishInterShardCommand(raw ecs.RawEvent) error {
 		return eris.Wrap(err, "failed to marshal command")
 	}
 
-	signedCommand, err := s.signer.SignCommand(pbCommand, iscv1.AuthInfo_MODE_PERSONA)
+	signedCommand, err := s.signer.SignCommand(pbCommand, iscv1.AuthInfo_AUTH_MODE_PERSONA)
 	if err != nil {
 		return eris.Wrap(err, "failed to sign inter-shard command")
 	}

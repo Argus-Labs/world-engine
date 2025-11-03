@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package worldengine.isc.v1;
+
+import "buf/validate/validate.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Isc.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
+
+message Persona {
+  // Unique identifier for the persona.
+  string id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-zA-Z0-9._-]+$"
+    }
+  ];
+}
