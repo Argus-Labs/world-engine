@@ -1,0 +1,36 @@
+# World Engine Configuration
+# All commented-out keys are optional with sensible defaults.
+
+# These fields are your project identifier.
+organization = "organization"
+project = "project"
+
+[gateway]
+# log_level = "info"
+# enable_otel = false
+
+[registry]
+# log_level = "info"
+# enable_otel = false
+
+# Shard definitions
+# Each shard's `id` must match its directory name under `shards/` (e.g., shards/game/).
+# If you need to use a different directory location, override with the `path` key.
+
+[[shards]]
+id = "chat"
+# log_level = "info"
+# enable_otel = false
+
+[[shards]]
+id = "game"
+# log_level = "info"
+# enable_otel = false
+
+
+# Example with custom path (uncomment and modify if needed):
+# [[shards]]
+# id = "matchmaking"
+# log_level = "info"
+# enable_otel = false
+# path = "./custom-path/to-your-shard"  # Override default shards/<id> location
