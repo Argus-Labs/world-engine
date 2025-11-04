@@ -627,9 +627,9 @@ func TestContains_Iter(t *testing.T) {
 
 			RegisterSystem(w, tt.setupFn, WithHook(Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err = w.InitSystems()
+			_, err = w.Tick(nil)
 			require.NoError(t, err)
 
 			results := tt.getResult(tt.search)
@@ -802,9 +802,9 @@ func TestContains_Iter2(t *testing.T) {
 
 			RegisterSystem(w, tt.setupFn, WithHook(Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err = w.InitSystems()
+			_, err = w.Tick(nil)
 			require.NoError(t, err)
 
 			results := tt.getResult(tt.search)
@@ -942,9 +942,9 @@ func TestExact_Iter(t *testing.T) {
 
 			RegisterSystem(w, tt.setupFn, WithHook(Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err = w.InitSystems()
+			_, err = w.Tick(nil)
 			require.NoError(t, err)
 
 			results := tt.getResult(tt.search)
@@ -1117,9 +1117,9 @@ func TestExact_Iter2(t *testing.T) {
 
 			RegisterSystem(w, tt.setupFn, WithHook(Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err = w.InitSystems()
+			_, err = w.Tick(nil)
 			require.NoError(t, err)
 
 			results := tt.getResult(tt.search)

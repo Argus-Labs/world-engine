@@ -12,11 +12,11 @@ type World struct {
 	state *worldState
 
 	// Systems.
+	initDone    bool               // Tracks if init systems have been executed
 	initSystems []initSystem       // Initialization systems, run once during the genesis tick
 	scheduler   [3]systemScheduler // Systems schedulers (PreTick, Update, PostTick)
 
-	// Components, commands, events, system events.
-	// components   componentManager   // Component type registry (immutable after world start)
+	// Commands, events, system events.
 	commands     commandManager     // Receives commands from external sources
 	events       eventManager       // Stores events to be emitted to external sources
 	systemEvents systemEventManager // Manages system events
@@ -26,12 +26,12 @@ type World struct {
 func NewWorld() *World {
 	world := &World{
 		state:        newWorldState(),
+		initDone:     false,
 		initSystems:  make([]initSystem, 0),
 		scheduler:    [3]systemScheduler{},
 		systemEvents: newSystemEventManager(),
 		commands:     newCommandManager(),
 		events:       newEventManager(),
-		// components:   newComponentManager(),
 	}
 
 	for i := range world.scheduler {
@@ -41,21 +41,11 @@ func NewWorld() *World {
 	return world
 }
 
-// InitSchedulers initializes the system schedulers by creating their schedules.
-func (w *World) InitSchedulers() {
+// Init initializes the system schedulers by creating their schedules.
+func (w *World) Init() {
 	for i := range w.scheduler {
 		w.scheduler[i].createSchedule()
 	}
-}
-
-// InitSystems runs all registered init systems.
-func (w *World) InitSystems() error {
-	for _, system := range w.initSystems {
-		if err := system.fn(); err != nil {
-			return eris.Wrapf(err, "init system %s failed", system.name)
-		}
-	}
-	return nil
 }
 
 // Tick passes external events into the event manager and executes the
@@ -63,6 +53,17 @@ func (w *World) InitSystems() error {
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
 func (w *World) Tick(commands []micro.Command) ([]RawEvent, error) {
+	// Run init systems once on first tick.
+	if !w.initDone {
+		for _, system := range w.initSystems {
+			if err := system.fn(); err != nil {
+				return []RawEvent{}, eris.Wrapf(err, "init system %s failed", system.name)
+			}
+		}
+		w.initDone = true
+		return []RawEvent{}, nil
+	}
+
 	// Receive commands from external sources and clear buffers.
 	if err := w.commands.receiveCommands(commands); err != nil {
 		return []RawEvent{}, err
@@ -118,5 +119,10 @@ func (w *World) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, &snapshot); err != nil {
 		return eris.Wrap(err, "failed to unmarshal snapshot")
 	}
-	return w.state.deserialize(&snapshot)
+	if err := w.state.deserialize(&snapshot); err != nil {
+		return err
+	}
+	// Mark init as done to prevent re-running init systems after restore.
+	w.initDone = true
+	return nil
 }

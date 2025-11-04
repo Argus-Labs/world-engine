@@ -147,9 +147,9 @@ func BenchmarkQuery(b *testing.B) {
 			world := ecs.NewWorld()
 			ecs.RegisterSystem(world, initSystem, ecs.WithHook(ecs.Init))
 
-			world.InitSchedulers()
+			world.Init()
 
-			err := world.InitSystems()
+			_, err := world.Tick(nil)
 			if err != nil {
 				b.Fatal("failed to initialize world:", err)
 			}
