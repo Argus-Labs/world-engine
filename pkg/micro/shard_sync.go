@@ -5,6 +5,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -58,7 +59,7 @@ func (s *Shard) init() error {
 		return nil
 	}
 
-	_ = s.beginTick(TickData{})
+	_ = s.beginTick(TickData{}, time.Now())
 
 	err := s.base.Init()
 	if err != nil {
@@ -239,7 +240,8 @@ func (s *Shard) replayTick(tick *iscv1.Tick) error {
 
 	tickData := s.commands.GetTickData()
 
-	replayTick := s.beginTick(tickData)
+	timestamp := tick.GetHeader().GetTimestamp().AsTime()
+	replayTick := s.beginTick(tickData, timestamp)
 
 	err := s.base.Replay(replayTick)
 	if err != nil {

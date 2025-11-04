@@ -27,7 +27,7 @@ func (s *Shard) runLeader(ctx context.Context) error {
 		case <-ticker.C:
 			tickData := s.commands.GetTickData()
 
-			tick := s.beginTick(tickData)
+			tick := s.beginTick(tickData, time.Now())
 
 			err := s.base.Tick(tick)
 			if err != nil {
@@ -46,7 +46,7 @@ func (s *Shard) runLeader(ctx context.Context) error {
 }
 
 // beginTick begins a new tick by recording the input and timestamp.
-func (s *Shard) beginTick(data TickData) Tick {
+func (s *Shard) beginTick(data TickData, timestamp time.Time) Tick {
 	assert.That(len(s.ticks) < int(s.frequency), "last epoch is not submitted")
 
 	// Copy commands slice to avoid aliasing issues with reused buffer.
@@ -55,7 +55,7 @@ func (s *Shard) beginTick(data TickData) Tick {
 	tick := Tick{
 		Header: TickHeader{
 			TickHeight: s.tickHeight,
-			Timestamp:  time.Now(),
+			Timestamp:  timestamp,
 		},
 		Data: TickData{Commands: commands},
 	}
