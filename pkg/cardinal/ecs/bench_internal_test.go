@@ -530,8 +530,7 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 			RegisterSystem(w, setupSystem, WithHook(Init))
 			RegisterSystem(w, getSetSystem)
 
-			w.InitSchedulers()
-			_ = w.InitSystems()
+			w.Init()
 
 			_, _ = w.Tick(nil)
 		}
@@ -575,8 +574,7 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 			RegisterSystem(w, setupSystem, WithHook(Init))
 			RegisterSystem(w, getSetSystem)
 
-			w.InitSchedulers()
-			_ = w.InitSystems()
+			w.Init()
 
 			_, _ = w.Tick(nil)
 		}
@@ -636,8 +634,7 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 			RegisterSystem(w, setupSystem, WithHook(Init))
 			RegisterSystem(w, getSetSystem)
 
-			w.InitSchedulers()
-			_ = w.InitSystems()
+			w.Init()
 
 			_, _ = w.Tick(nil)
 		}

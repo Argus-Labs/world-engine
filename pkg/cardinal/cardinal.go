@@ -147,10 +147,7 @@ func newCardinal() *cardinal {
 }
 
 func (c *cardinal) Init() error {
-	c.world.InitSchedulers()
-	if err := c.world.InitSystems(); err != nil {
-		return eris.Wrap(err, "failed to run init systems")
-	}
+	c.world.Init()
 	return nil
 }
 
@@ -212,7 +209,7 @@ func (c *cardinal) Restore(data []byte) error {
 	}
 
 	// Re-initialize schedulers since we don't call Init to do it for us.
-	c.world.InitSchedulers()
+	c.world.Init()
 
 	c.invalidateCache() // Mark state as dirty since it has changed
 	return nil
