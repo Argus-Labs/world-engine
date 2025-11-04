@@ -428,8 +428,6 @@ func (s *search[T]) tag() systemStateFieldType {
 // Create creates a new entity with the given components. Returns an error if any of the components
 // are not defined in the search field.
 //
-// This is the recommended system-friendly alternative to ecs.Create() for creating entities within systems.
-//
 // Example:
 //
 //	entity, err := state.Mob.Create(Health{Value: 100}, Position{X: 0, Y: 0})
@@ -450,11 +448,26 @@ func (s *search[T]) Create() (EntityID, T) {
 
 // Destroy deletes an entity and all its components from the world.
 //
-// This is the recommended system-friendly alternative to ecs.Destroy() for destroying entities within systems.
+// Example:
+//
+//	ok := state.Mob.Destroy(entityID)
+//	if !ok {
+//	    state.Logger().Warn().Msg("Entity doesn't exist or is already destroyed")
+//	}
 func (s *search[T]) Destroy(eid EntityID) bool {
 	return Destroy(s.world.state, eid)
 }
 
+// GetByID retrieves an entity's components by its ID. Returns false if the entity doesn't exist.
+//
+// Example:
+//
+//	mob, ok := state.Mob.GetByID(entityID)
+//	if !ok {
+//	    state.Logger().Warn().Msg("Entity not found")
+//	    return
+//	}
+//	health := mob.Health.Get()
 func (s *search[T]) GetByID(eid EntityID) (T, bool) {
 	ws := s.world.state
 
