@@ -3,6 +3,7 @@ package telemetry
 import (
 	"strings"
 
+	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/caarlos0/env/v11"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -23,6 +24,12 @@ type Config struct {
 
 	// Log format configuration ("json", "pretty").
 	LogFormat string `env:"OTEL_LOG_FORMAT" envDefault:"json"`
+
+	// SentryDsn is the Sentry DSN.
+	SentryDsn string `env:"OTEL_SENTRY_DSN"`
+
+	// SentryEnvironment is to determine if shard is running in development or production (DEV/PROD).
+	SentryENV string `env:"OTEL_SENTRY_ENV"`
 }
 
 // LoadConfig loads the configuration from environment variables.
@@ -72,6 +79,10 @@ func (cfg *Config) applyToOptions(opt *Options) {
 	opt.LogLevel = cfg.LogLevel
 	opt.LogFormat = ParseLogFormat(cfg.LogFormat)
 	opt.TraceSampleRate = cfg.TraceSampleRate
+	opt.SentryOptions = sentry.Options{
+		Dsn:         cfg.SentryDsn,
+		Environment: cfg.SentryENV,
+	}
 }
 
 type Options struct {
@@ -80,6 +91,8 @@ type Options struct {
 	LogLevel        string
 	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64
+
+	SentryOptions sentry.Options
 }
 
 func newDefaultOptions() Options {
@@ -106,6 +119,9 @@ func (opt *Options) apply(newOpt Options) {
 	}
 	if newOpt.TraceSampleRate != 0.0 {
 		opt.TraceSampleRate = newOpt.TraceSampleRate
+	}
+	if newOpt.SentryOptions.Tags != nil {
+		opt.SentryOptions.Tags = newOpt.SentryOptions.Tags
 	}
 }
 
