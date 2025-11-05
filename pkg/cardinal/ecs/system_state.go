@@ -455,6 +455,20 @@ func (s *search[T]) Destroy(eid EntityID) bool {
 	return Destroy(s.world.state, eid)
 }
 
+func (s *search[T]) GetByID(eid EntityID) (T, bool) {
+	ws := s.world.state
+
+	if !Alive(ws, eid) {
+		var zero T
+		return zero, false
+	}
+
+	for i := range s.fields {
+		s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
+	}
+	return s.result, true
+}
+
 // iter returns an iterator over all entities that match the given archetypes.
 func (s *search[T]) iter(archetypeIDs []archetypeID) iter.Seq2[EntityID, T] {
 	ws := s.world.state
