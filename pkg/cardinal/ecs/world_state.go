@@ -36,7 +36,7 @@ type worldState struct {
 func newWorldState() *worldState {
 	ws := worldState{
 		components: newComponentManager(),
-		nextID:     0,
+		nextID:     1,
 		free:       make([]EntityID, 0),
 		entityArch: newSparseSet(),
 		archetypes: make([]*archetype, 1),

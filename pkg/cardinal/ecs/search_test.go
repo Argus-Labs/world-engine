@@ -130,9 +130,9 @@ func TestSearch_FindAndMatch(t *testing.T) {
 			validate: func(t *testing.T, results []map[string]any) {
 				assert.Len(t, results, 2)
 				assert.Contains(t, results,
-					map[string]any{"Position": Position{X: 1, Y: 2}, "_id": uint32(0)})
+					map[string]any{"Position": Position{X: 1, Y: 2}, "_id": uint32(1)})
 				assert.Contains(t, results,
-					map[string]any{"Position": Position{X: 3, Y: 4}, "_id": uint32(1)})
+					map[string]any{"Position": Position{X: 3, Y: 4}, "_id": uint32(2)})
 			},
 		},
 		{
@@ -154,12 +154,12 @@ func TestSearch_FindAndMatch(t *testing.T) {
 			validate: func(t *testing.T, results []map[string]any) {
 				assert.Len(t, results, 2)
 				assert.Contains(t, results,
-					map[string]any{"Position": Position{X: 1, Y: 2}, "_id": uint32(0)})
+					map[string]any{"Position": Position{X: 1, Y: 2}, "_id": uint32(1)})
 				assert.Contains(t, results,
 					map[string]any{
 						"Position": Position{X: 3, Y: 4},
 						"Health":   Health{Value: 100},
-						"_id":      uint32(1),
+						"_id":      uint32(2),
 					})
 			},
 		},

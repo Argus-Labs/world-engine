@@ -19,7 +19,7 @@ func TestWorldState_New(t *testing.T) {
 	ws := newWorldState()
 
 	// Verify initialization.
-	assert.Equal(t, EntityID(0), ws.nextID)
+	assert.Equal(t, EntityID(1), ws.nextID)
 	assert.Empty(t, ws.free)
 	assert.Len(t, ws.archetypes, 1)
 
@@ -43,8 +43,8 @@ func TestWorldState_NewEntity(t *testing.T) {
 	eid := ws.newEntity()
 
 	// Verify entity creation.
-	assert.Equal(t, EntityID(0), eid)
-	assert.Equal(t, EntityID(1), ws.nextID)
+	assert.Equal(t, EntityID(1), eid)
+	assert.Equal(t, EntityID(2), ws.nextID)
 
 	// Verify entity is in void archetype.
 	archIndex, exists := ws.entityArch.get(eid)
@@ -63,8 +63,8 @@ func TestWorldState_NewEntity(t *testing.T) {
 
 	// Create another entity.
 	eid2 := ws.newEntity()
-	assert.Equal(t, EntityID(1), eid2)
-	assert.Equal(t, EntityID(2), ws.nextID)
+	assert.Equal(t, EntityID(2), eid2)
+	assert.Equal(t, EntityID(3), ws.nextID)
 	assert.Len(t, voidArch.entities, 2)
 }
 
@@ -522,8 +522,8 @@ func TestWorldState_EntityIDReuse(t *testing.T) {
 	// Create entities.
 	eid1 := ws.newEntity()
 	eid2 := ws.newEntity()
-	assert.Equal(t, EntityID(0), eid1)
-	assert.Equal(t, EntityID(1), eid2)
+	assert.Equal(t, EntityID(1), eid1)
+	assert.Equal(t, EntityID(2), eid2)
 
 	// Remove first entity.
 	success := ws.removeEntity(eid1)
@@ -531,11 +531,11 @@ func TestWorldState_EntityIDReuse(t *testing.T) {
 
 	// Create new entity - should reuse ID (testing if removeEntity properly adds to free list).
 	eid3 := ws.newEntity()
-	assert.Equal(t, EntityID(0), eid3) // Should reuse removed ID.
+	assert.Equal(t, EntityID(1), eid3) // Should reuse removed ID.
 
 	// Create another entity - should use next sequential.
 	eid4 := ws.newEntity()
-	assert.Equal(t, EntityID(2), eid4)
+	assert.Equal(t, EntityID(3), eid4)
 }
 
 func TestWorldState_EntitySwapOnRemoval(t *testing.T) {
