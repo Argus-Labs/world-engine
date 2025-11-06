@@ -127,3 +127,40 @@ func TestComponentManager_GetComponentID(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateComponentName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		compName  string
+		wantError bool
+	}{
+		// Valid names
+		{name: "simple name", compName: "Health", wantError: false},
+		{name: "with underscore", compName: "player_data", wantError: false},
+		{name: "starts with underscore", compName: "_internal", wantError: false},
+		{name: "with numbers", compName: "Component123", wantError: false},
+
+		// Invalid names
+		{name: "empty string", compName: "", wantError: true},
+		{name: "starts with number", compName: "123Component", wantError: true},
+		{name: "contains hyphen", compName: "player-data", wantError: true},
+		{name: "contains space", compName: "my component", wantError: true},
+		{name: "contains dot", compName: "player.data", wantError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validateComponentName(tt.compName)
+
+			if tt.wantError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
