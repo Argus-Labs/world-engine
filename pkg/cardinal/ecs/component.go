@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"regexp"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/rotisserie/eris"
 )
@@ -10,6 +12,16 @@ import (
 type Component interface { //nolint:iface // We may add more methods in the future.
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
+	//
+	// Component names must follow these rules:
+	//   - Start with a letter (a-z, A-Z) or underscore (_)
+	//   - Contain only letters, digits (0-9), and underscores
+	//   - Cannot contain hyphens (-), spaces, dots (.), or other special characters
+	//
+	// Valid examples: "Health", "PlayerData", "player_health", "_internal", "Component123"
+	// Invalid examples: "player-data", "123Invalid", "my.component", "has space"
+	//
+	// These rules ensure component names work correctly in query expressions.
 	Name() string
 }
 
@@ -33,11 +45,35 @@ func newComponentManager() componentManager {
 	}
 }
 
+var componentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// validateComponentName validates that a component name follows expr identifier rules.
+//
+// Per expr language specification (https://expr-lang.org/docs/language-definition#variables):
+// "The variable name must start with a letter or an underscore. The variable name can contain
+// letters, digits and underscores."
+func validateComponentName(name string) error {
+	if name == "" {
+		return eris.New("component name cannot be empty")
+	}
+
+	if !componentNamePattern.MatchString(name) {
+		return eris.Errorf(
+			"component name '%s' is invalid: must start with a letter or underscore, "+
+				"and contain only letters, digits, and underscores",
+			name,
+		)
+	}
+
+	return nil
+}
+
 // register registers a new component type and returns its ID.
 // If the component is already registered, no-op.
 func (cm *componentManager) register(name string, factory columnFactory) (componentID, error) {
-	if name == "" {
-		return 0, eris.New("component name cannot be empty")
+	// Validate component name follows expr identifier rules
+	if err := validateComponentName(name); err != nil {
+		return 0, err
 	}
 
 	// If component already exists, no-op.
