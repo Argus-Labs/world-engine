@@ -12,6 +12,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/service"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
+	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/rotisserie/eris"
 )
 
@@ -35,10 +36,17 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		return nil, eris.Wrap(err, "invalid world options")
 	}
 
-	tel, err := telemetry.New(telemetry.Options{ServiceName: "cardinal"})
+	sentryTags := map[string]string{
+		"region":       options.Region,
+		"organization": options.Organization,
+		"project":      options.Project,
+		"shard_id":     options.ShardID,
+	}
+	tel, err := telemetry.New(telemetry.Options{ServiceName: "cardinal", SentryOptions: sentry.Options{Tags: sentryTags}})
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to initialize telemetry")
 	}
+	defer tel.RecoverAndFlush(true)
 
 	client, err := micro.NewClient(micro.WithLogger(tel.GetLogger("client")))
 	if err != nil {
@@ -82,8 +90,10 @@ func (w *World) StartGame() {
 	defer stop()
 
 	defer w.shutdown()
+	defer w.tel.RecoverAndFlush(true)
 
 	if err := w.Run(ctx); err != nil {
+		w.tel.CaptureException(ctx, err)
 		w.tel.Logger.Error().Err(err).Msg("failed running world")
 	}
 }
@@ -104,16 +114,17 @@ func (w *World) shutdown() {
 
 	w.tel.Logger.Info().Msg("Shutting down world")
 
-	// Shutdown telemetry.
-	if err := w.tel.Shutdown(ctx); err != nil {
-		w.tel.Logger.Error().Err(err).Msg("telemetry shutdown error")
-	}
-
 	base, ok := w.Base().(*cardinal)
 	assert.That(ok, "cardinal shard didn't embed cardinal")
 
 	if err := base.shutdown(); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("cardinal shutdown error")
+		w.tel.CaptureException(ctx, err)
+	}
+
+	// Shutdown telemetry.
+	if err := w.tel.Shutdown(ctx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("telemetry shutdown error")
 	}
 
 	w.tel.Logger.Info().Msg("World shutdown complete")

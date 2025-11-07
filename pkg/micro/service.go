@@ -98,6 +98,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 	}
 
 	sub, err := s.client.Subscribe(Endpoint(s.Address, name), func(msg *nats.Msg) {
+		defer s.tel.RecoverAndFlush(true)
 		// Extract parent context from incoming NATS headers.
 		ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(msg.Header))
 

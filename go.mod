@@ -9,6 +9,7 @@ require (
 	github.com/coocood/freecache v1.2.4
 	github.com/cosmos/ics23/go v0.11.0
 	github.com/expr-lang/expr v1.17.6
+	github.com/getsentry/sentry-go v0.36.2
 	github.com/goccy/go-json v0.10.5
 	github.com/kelindar/bitmap v1.5.3
 	github.com/nats-io/nats-server/v2 v2.12.1

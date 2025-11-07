@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -39,6 +40,11 @@ func New(opts Options) (Telemetry, error) {
 		return Telemetry{}, eris.Wrap(err, "failed to setup telemetry")
 	}
 
+	err = sentry.New(options.SentryOptions)
+	if err != nil {
+		return Telemetry{}, eris.Wrap(err, "failed to setup sentry")
+	}
+
 	return Telemetry{
 		Logger:      logger,
 		Tracer:      tracer,
@@ -49,10 +55,16 @@ func New(opts Options) (Telemetry, error) {
 
 // Shutdown gracefully shuts down the telemetry system.
 func (t *Telemetry) Shutdown(ctx context.Context) error {
+	var err error
 	if t.shutdown != nil {
-		return t.shutdown(ctx)
+		err = t.shutdown(ctx)
+		// Capture shutdown errors that are not expected.
+		if err != nil && !eris.Is(err, context.Canceled) && !eris.Is(err, context.DeadlineExceeded) {
+			t.CaptureException(ctx, err)
+		}
 	}
-	return nil
+	sentry.Shutdown(ctx, 5*time.Second)
+	return err
 }
 
 // GetLogger returns a component-specific logger.
@@ -74,6 +86,14 @@ func (t *Telemetry) GetLoggerWithTrace(ctx context.Context, component string) ze
 	}
 
 	return logger.Logger()
+}
+
+func (t *Telemetry) CaptureException(ctx context.Context, err error) {
+	sentry.CaptureException(ctx, err)
+}
+
+func (t *Telemetry) RecoverAndFlush(repanic bool) {
+	sentry.RecoverAndFlush(repanic)
 }
 
 func init() { //nolint:gochecknoinits // Its fine
