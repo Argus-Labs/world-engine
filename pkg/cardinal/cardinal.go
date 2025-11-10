@@ -12,6 +12,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/service"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
+	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/rotisserie/eris"
 )
@@ -36,13 +37,16 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		return nil, eris.Wrap(err, "invalid world options")
 	}
 
-	sentryTags := map[string]string{
-		"region":       options.Region,
-		"organization": options.Organization,
-		"project":      options.Project,
-		"shard_id":     options.ShardID,
-	}
-	tel, err := telemetry.New(telemetry.Options{ServiceName: "cardinal", SentryOptions: sentry.Options{Tags: sentryTags}})
+	tel, err := telemetry.New(telemetry.Options{
+		ServiceName: "cardinal",
+		SentryOptions: sentry.Options{
+			Tags: options.getSentryTags(),
+		},
+		PosthogOptions: posthog.Options{
+			DistinctID:     options.Organization,
+			BaseProperties: options.getPosthogBaseProperties(),
+		},
+	})
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to initialize telemetry")
 	}
@@ -91,6 +95,8 @@ func (w *World) StartGame() {
 
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
+
+	w.tel.CaptureEvent(ctx, "Start Game", nil)
 
 	if err := w.Run(ctx); err != nil {
 		w.tel.CaptureException(ctx, err)

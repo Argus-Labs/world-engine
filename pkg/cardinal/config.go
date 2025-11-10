@@ -157,3 +157,20 @@ func (opt *WorldOptions) validate() error {
 	}
 	return nil
 }
+
+func (opt *WorldOptions) getPosthogBaseProperties() map[string]any {
+	return map[string]any{
+		"region":   opt.Region,
+		"project":  opt.Project,
+		"shard_id": opt.ShardID,
+	}
+}
+
+func (opt *WorldOptions) getSentryTags() map[string]string {
+	return map[string]string{
+		"region":       opt.Region,
+		"organization": opt.Organization,
+		"project":      opt.Project,
+		"shard_id":     opt.ShardID,
+	}
+}

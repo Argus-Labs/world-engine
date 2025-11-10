@@ -3,6 +3,7 @@ package telemetry
 import (
 	"strings"
 
+	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/caarlos0/env/v11"
 	"github.com/rotisserie/eris"
@@ -30,6 +31,9 @@ type Config struct {
 
 	// SentryEnvironment is to determine if shard is running in development or production (DEV/PROD).
 	SentryENV string `env:"OTEL_SENTRY_ENV"`
+
+	// PosthogAPIKey is the PostHog API key.
+	PosthogAPIKey string `env:"OTEL_POSTHOG_API_KEY"`
 }
 
 // LoadConfig loads the configuration from environment variables.
@@ -83,6 +87,9 @@ func (cfg *Config) applyToOptions(opt *Options) {
 		Dsn:         cfg.SentryDsn,
 		Environment: cfg.SentryENV,
 	}
+	opt.PosthogOptions = posthog.Options{
+		APIKey: cfg.PosthogAPIKey,
+	}
 }
 
 type Options struct {
@@ -92,7 +99,8 @@ type Options struct {
 	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64
 
-	SentryOptions sentry.Options
+	SentryOptions  sentry.Options
+	PosthogOptions posthog.Options
 }
 
 func newDefaultOptions() Options {
@@ -122,6 +130,12 @@ func (opt *Options) apply(newOpt Options) {
 	}
 	if newOpt.SentryOptions.Tags != nil {
 		opt.SentryOptions.Tags = newOpt.SentryOptions.Tags
+	}
+	if newOpt.PosthogOptions.DistinctID != "" {
+		opt.PosthogOptions.DistinctID = newOpt.PosthogOptions.DistinctID
+	}
+	if newOpt.PosthogOptions.BaseProperties != nil {
+		opt.PosthogOptions.BaseProperties = newOpt.PosthogOptions.BaseProperties
 	}
 }
 

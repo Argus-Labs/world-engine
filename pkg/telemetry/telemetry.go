@@ -2,10 +2,12 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -16,6 +18,7 @@ import (
 type Telemetry struct {
 	Logger      zerolog.Logger
 	Tracer      trace.Tracer
+	posthog     *posthog.Client
 	serviceName string
 
 	shutdown func(context.Context) error
@@ -45,9 +48,15 @@ func New(opts Options) (Telemetry, error) {
 		return Telemetry{}, eris.Wrap(err, "failed to setup sentry")
 	}
 
+	posthog, err := posthog.New(options.PosthogOptions)
+	if err != nil {
+		return Telemetry{}, eris.Wrap(err, "failed to setup posthog")
+	}
+
 	return Telemetry{
 		Logger:      logger,
 		Tracer:      tracer,
+		posthog:     posthog,
 		serviceName: options.ServiceName,
 		shutdown:    shutdown,
 	}, nil
@@ -55,16 +64,23 @@ func New(opts Options) (Telemetry, error) {
 
 // Shutdown gracefully shuts down the telemetry system.
 func (t *Telemetry) Shutdown(ctx context.Context) error {
-	var err error
+	var outErr error
+
 	if t.shutdown != nil {
-		err = t.shutdown(ctx)
-		// Capture shutdown errors that are not expected.
+		err := t.shutdown(ctx)
 		if err != nil && !eris.Is(err, context.Canceled) && !eris.Is(err, context.DeadlineExceeded) {
 			t.CaptureException(ctx, err)
 		}
+		outErr = errors.Join(outErr, eris.Wrap(err, "otel shutdown"))
 	}
+
+	if err := t.posthog.Shutdown(); err != nil {
+		t.CaptureException(ctx, err)
+		outErr = errors.Join(outErr, eris.Wrap(err, "posthog shutdown"))
+	}
+
 	sentry.Shutdown(ctx, 5*time.Second)
-	return err
+	return outErr
 }
 
 // GetLogger returns a component-specific logger.
@@ -88,12 +104,24 @@ func (t *Telemetry) GetLoggerWithTrace(ctx context.Context, component string) ze
 	return logger.Logger()
 }
 
+// CaptureException captures an exception and sends it to Sentry.
 func (t *Telemetry) CaptureException(ctx context.Context, err error) {
 	sentry.CaptureException(ctx, err)
 }
 
+// RecoverAndFlush recovers from a panic and flushes buffered events to Sentry.
 func (t *Telemetry) RecoverAndFlush(repanic bool) {
 	sentry.RecoverAndFlush(repanic)
+}
+
+// CaptureEvent captures an event and sends it to PostHog.
+func (t *Telemetry) CaptureEvent(ctx context.Context, event string, properties map[string]any) {
+	err := t.posthog.Capture(ctx, event, properties)
+	if err != nil {
+		// If we fail to capture the event, we still want to capture the exception.
+		// We can track the error in Sentry but not cause user to fail the application.
+		t.CaptureException(ctx, err)
+	}
 }
 
 func init() { //nolint:gochecknoinits // Its fine
