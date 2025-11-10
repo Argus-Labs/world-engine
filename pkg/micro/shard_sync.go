@@ -58,15 +58,14 @@ func (s *Shard) init() error {
 		return nil
 	}
 
-	_ = s.beginTick(TickData{})
-
+	// Initialize the shard engine (registers components, sets up schedulers, etc.)
 	err := s.base.Init()
 	if err != nil {
 		return eris.Wrap(err, "failed to initialize shard")
 	}
 
 	logger.Info().Msg("shard initialized from scratch")
-	return s.endTick()
+	return nil
 }
 
 // restoreSnapshot attempts to restore shard state from a snapshot. Returns true if restoration was
@@ -199,10 +198,6 @@ func (s *Shard) replayEpoch(epochBytes []byte) error {
 	}
 
 	for _, tick := range epoch.GetTicks() {
-		if tick.GetHeader().GetTickHeight() == 0 {
-			continue // This is done in init()
-		}
-
 		if err := s.replayTick(tick); err != nil {
 			return eris.Wrap(err, "failed to replay tick")
 		}
@@ -239,7 +234,8 @@ func (s *Shard) replayTick(tick *iscv1.Tick) error {
 
 	tickData := s.commands.GetTickData()
 
-	replayTick := s.beginTick(tickData)
+	timestamp := tick.GetHeader().GetTimestamp().AsTime()
+	replayTick := s.beginTick(tickData, timestamp)
 
 	err := s.base.Replay(replayTick)
 	if err != nil {

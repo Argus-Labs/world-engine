@@ -1,6 +1,7 @@
 package micro
 
 // TODO: fix.
+// TODO: add tests to verify tick replay uses the correct timestamp depending on the shard mode.
 
 // import (
 // 	"strings"
