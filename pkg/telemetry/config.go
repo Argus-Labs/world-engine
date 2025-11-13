@@ -11,29 +11,28 @@ import (
 )
 
 type Config struct {
-	// Enabled when false disables OpenTelemetry entirely.
-	Enabled bool `env:"OTEL_ENABLED" envDefault:"true"`
-
 	// Endpoint is the OTLP collector endpoint.
-	Endpoint string `env:"OTEL_ENDPOINT" envDefault:"jaeger:4317"`
+	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" envDefault:"jaeger:4317"`
+
+	Protocol string `env:"OTEL_EXPORTER_OTLP_PROTOCOL" envDefault:"http/protobuf"`
 
 	// TraceSampleRate is the sampling rate for traces (0.0 to 1.0).
 	TraceSampleRate float64 `env:"OTEL_TRACE_SAMPLE_RATE" envDefault:"1.0"`
 
 	// Log level configuration ("debug", "info", "warn", "error").
-	LogLevel string `env:"OTEL_LOG_LEVEL" envDefault:"info"`
+	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 
 	// Log format configuration ("json", "pretty").
-	LogFormat string `env:"OTEL_LOG_FORMAT" envDefault:"json"`
+	LogFormat string `env:"LOG_FORMAT" envDefault:"json"`
 
 	// SentryDsn is the Sentry DSN.
-	SentryDsn string `env:"OTEL_SENTRY_DSN"`
+	SentryDsn string `env:"SENTRY_DSN"`
 
 	// SentryEnvironment is to determine if shard is running in development or production (DEV/PROD).
-	SentryENV string `env:"OTEL_SENTRY_ENV"`
+	SentryENV string `env:"SENTRY_ENVIRONMENT"`
 
 	// PosthogAPIKey is the PostHog API key.
-	PosthogAPIKey string `env:"OTEL_POSTHOG_API_KEY"`
+	PosthogAPIKey string `env:"POSTHOG_API_KEY"`
 }
 
 // LoadConfig loads the configuration from environment variables.
@@ -64,12 +63,8 @@ func (cfg *Config) validate() error {
 		return eris.Errorf("invalid log format: %s (must be 'json' or 'pretty')", cfg.LogFormat)
 	}
 
-	// Validate OTLP configuration
-	if cfg.Enabled {
-		if cfg.Endpoint == "" {
-			return eris.New("OTLP endpoint cannot be empty when OTLP is enabled")
-		}
-
+	// Validate OTLP configuration if endpoint is set
+	if cfg.Endpoint != "" {
 		if cfg.TraceSampleRate < 0.0 || cfg.TraceSampleRate > 1.0 {
 			return eris.New("trace sample rate must be between 0.0 and 1.0")
 		}
@@ -80,6 +75,7 @@ func (cfg *Config) validate() error {
 
 func (cfg *Config) applyToOptions(opt *Options) {
 	opt.Endpoint = cfg.Endpoint
+	opt.Protocol = cfg.Protocol
 	opt.LogLevel = cfg.LogLevel
 	opt.LogFormat = ParseLogFormat(cfg.LogFormat)
 	opt.TraceSampleRate = cfg.TraceSampleRate
@@ -95,6 +91,7 @@ func (cfg *Config) applyToOptions(opt *Options) {
 type Options struct {
 	ServiceName     string // Name of the service for telemetry
 	Endpoint        string
+	Protocol        string
 	LogLevel        string
 	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64
@@ -144,9 +141,6 @@ func (opt *Options) validate() error {
 	if opt.ServiceName == "" {
 		return eris.New("service name cannot be empty")
 	}
-	if opt.Endpoint == "" {
-		return eris.New("endpoint cannot be empty")
-	}
 	_, err := zerolog.ParseLevel(strings.ToLower(opt.LogLevel))
 	if err != nil {
 		return eris.Errorf("invalid log level: %s (must be 'debug', 'info', 'warn', or 'error')", opt.LogLevel)
@@ -154,8 +148,10 @@ func (opt *Options) validate() error {
 	if opt.LogFormat == LogFormatUndefined {
 		return eris.New("log format must be specified")
 	}
-	if opt.TraceSampleRate < 0.0 || opt.TraceSampleRate > 1.0 {
-		return eris.New("trace sample rate must be between 0.0 and 1.0")
+	if opt.Endpoint != "" {
+		if opt.TraceSampleRate < 0.0 || opt.TraceSampleRate > 1.0 {
+			return eris.New("trace sample rate must be between 0.0 and 1.0")
+		}
 	}
 	return nil
 }
