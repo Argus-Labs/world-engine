@@ -22,15 +22,20 @@ import (
 // It continuously consumes epochs from the stream and replays them in real-time.
 func (s *Shard) runFollower(ctx context.Context) error {
 	consumeCtx, err := s.consumer.Consume(func(msg jetstream.Msg) {
+		logger := s.tel.GetLogger("shard")
+		msgID := msg.Headers().Get("Nats-Msg-Id")
+		msgLogger := logger.With().
+			Uint64("epoch", epochHeightFromMsgID(msgID, s.subject)).
+			Str("msg_id", msgID).
+			Logger()
+
 		if err := s.replayEpoch(msg.Data()); err != nil {
-			logger := s.tel.GetLogger("shard")
-			logger.Error().Err(err).Msg("failed to replay epoch")
+			msgLogger.Error().Err(err).Uint64("current_tick", s.tickHeight).Msg("failed to replay epoch")
 			return
 		}
 
 		if err := msg.Ack(); err != nil {
-			logger := s.tel.GetLogger("shard")
-			logger.Error().Err(err).Msg("failed to acknowledge message")
+			msgLogger.Error().Err(err).Msg("failed to acknowledge message")
 		}
 	})
 	if err != nil {
@@ -53,30 +58,34 @@ func (s *Shard) runFollower(ctx context.Context) error {
 // otherwise runs the shard engine's init method.
 func (s *Shard) init() error {
 	logger := s.tel.GetLogger("shard")
+	logger.Debug().Str("mode", string(s.mode)).Msg("initializing shard")
+
 	if s.mode == ModeLeader && s.restoreSnapshot() {
-		logger.Info().Uint64("epoch", s.epochHeight).Msg("shard restored from snapshot")
 		return nil
 	}
 
 	// Initialize the shard engine (registers components, sets up schedulers, etc.)
+	logger.Debug().Msg("initializing shard from scratch")
 	err := s.base.Init()
 	if err != nil {
 		return eris.Wrap(err, "failed to initialize shard")
 	}
 
-	logger.Info().Msg("shard initialized from scratch")
+	logger.Debug().Msg("shard initialized from scratch")
 	return nil
 }
 
 // restoreSnapshot attempts to restore shard state from a snapshot. Returns true if restoration was
 // successful, false if fallback to normal init is needed.
 func (s *Shard) restoreSnapshot() bool {
+	logger := s.tel.GetLogger("shard")
+
 	if !s.snapshotStorage.Exists() {
+		logger.Debug().Msg("no snapshot found")
 		return false
 	}
 
-	logger := s.tel.GetLogger("shard")
-
+	logger.Debug().Msg("restoring from snapshot")
 	snapshot, err := s.snapshotStorage.Load()
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to load snapshot, falling back to normal init")
