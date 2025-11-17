@@ -27,7 +27,7 @@ func (s *Shard) runLeader(ctx context.Context) error {
 		case <-ticker.C:
 			tickData := s.commands.GetTickData()
 
-			tick := s.beginTick(tickData)
+			tick := s.beginTick(tickData, time.Now())
 
 			err := s.base.Tick(tick)
 			if err != nil {
@@ -46,7 +46,7 @@ func (s *Shard) runLeader(ctx context.Context) error {
 }
 
 // beginTick begins a new tick by recording the input and timestamp.
-func (s *Shard) beginTick(data TickData) Tick {
+func (s *Shard) beginTick(data TickData, timestamp time.Time) Tick {
 	assert.That(len(s.ticks) < int(s.frequency), "last epoch is not submitted")
 
 	// Copy commands slice to avoid aliasing issues with reused buffer.
@@ -55,7 +55,7 @@ func (s *Shard) beginTick(data TickData) Tick {
 	tick := Tick{
 		Header: TickHeader{
 			TickHeight: s.tickHeight,
-			Timestamp:  time.Now(),
+			Timestamp:  timestamp,
 		},
 		Data: TickData{Commands: commands},
 	}
@@ -110,6 +110,9 @@ func (s *Shard) endTick() error {
 
 // publishEpoch serializes the current epoch and publishes it to the stream.
 func (s *Shard) publishEpoch(ctx context.Context) error {
+	logger := s.tel.GetLogger("shard")
+	logger.Debug().Uint64("epoch", s.epochHeight).Msg("publishing epoch")
+
 	stateHash, err := s.base.StateHash()
 	if err != nil {
 		return eris.Wrap(err, "failed to get state hash for epoch")
@@ -152,6 +155,7 @@ func (s *Shard) publishEpoch(ctx context.Context) error {
 		return eris.Wrap(err, "failed to publish epoch")
 	}
 
+	logger.Debug().Uint64("epoch", s.epochHeight).Hex("hash", stateHash).Msg("epoch published")
 	return nil
 }
 
@@ -160,21 +164,29 @@ func (s *Shard) publishEpoch(ctx context.Context) error {
 // The snapshot metadata is already populated; this function fills in the data and stores it.
 func (s *Shard) createAndStoreSnapshot(snapshot *Snapshot) {
 	logger := s.tel.GetLogger("snapshot")
+	logger.Debug().Uint64("epoch", snapshot.EpochHeight).Msg("creating snapshot")
 
 	engineData, err := s.base.Snapshot()
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to create snapshot")
+		logger.Error().
+			Err(err).
+			Uint64("epoch", snapshot.EpochHeight).
+			Msg("failed to create snapshot")
 		return
 	}
 	snapshot.Data = engineData
 
 	if err := s.snapshotStorage.Store(snapshot); err != nil {
-		logger.Error().Err(err).Msg("failed to store snapshot")
+		logger.Error().
+			Err(err).
+			Uint64("epoch", snapshot.EpochHeight).
+			Hex("hash", snapshot.StateHash).
+			Msg("failed to store snapshot")
 		return
 	}
 
 	logger.Debug().
 		Uint64("epoch", snapshot.EpochHeight).
-		Uint64("tick", snapshot.TickHeight).
-		Msg("snapshot created successfully")
+		Hex("hash", snapshot.StateHash).
+		Msg("snapshot stored")
 }
