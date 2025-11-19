@@ -29,7 +29,7 @@ type Config struct {
 	SentryDsn string `env:"SENTRY_DSN"`
 
 	// SentryEnvironment is to determine if shard is running in development or production (DEV/PROD).
-	SentryENV string `env:"SENTRY_ENVIRONMENT"`
+	SentryEnv string `env:"SENTRY_ENVIRONMENT"`
 
 	// PosthogAPIKey is the PostHog API key.
 	PosthogAPIKey string `env:"POSTHOG_API_KEY"`
@@ -81,7 +81,7 @@ func (cfg *Config) applyToOptions(opt *Options) {
 	opt.TraceSampleRate = cfg.TraceSampleRate
 	opt.SentryOptions = sentry.Options{
 		Dsn:         cfg.SentryDsn,
-		Environment: cfg.SentryENV,
+		Environment: cfg.SentryEnv,
 	}
 	opt.PosthogOptions = posthog.Options{
 		APIKey: cfg.PosthogAPIKey,
