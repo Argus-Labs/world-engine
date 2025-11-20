@@ -98,7 +98,7 @@ func HandleNATSMessage(
 
 	// Enhanced request logging with more context.
 	reqLogger := logger.With().Str("request_id", req.RequestID).Logger()
-	reqLogger.Info().Msg("request received")
+	reqLogger.Debug().Msg("request received")
 
 	// Call the handler to get a response.
 	resp := handler(ctx, req)
@@ -115,7 +115,7 @@ func HandleNATSMessage(
 		reqLogger.Error().Int32("code", statusCode).Str("message", statusMessage).Msg("request failed")
 	} else {
 		span.SetStatus(codes.Ok, "")
-		reqLogger.Info().Msg("request processed successfully")
+		reqLogger.Debug().Msg("request processed successfully")
 	}
 
 	// Convert response to bytes.
