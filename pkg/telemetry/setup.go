@@ -24,7 +24,6 @@ import (
 // It returns a tracer, logger, and shutdown function.
 func setupOpenTelemetry(
 	ctx context.Context,
-	enabled bool,
 	opts Options,
 ) (otelTrace.Tracer, zerolog.Logger, func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
@@ -46,8 +45,8 @@ func setupOpenTelemetry(
 	// Setup logger first
 	logger := newLogger(opts)
 
-	// If telemetry is disabled, return noop tracer
-	if !enabled {
+	// Auto-detect: if endpoint is empty, return noop tracer
+	if opts.Endpoint == "" {
 		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, nil
 	}
 
