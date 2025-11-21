@@ -88,9 +88,9 @@ func TestSearch_Validation(t *testing.T) {
 				return nil // Placeholder system to register components
 			}, ecs.WithHook(ecs.Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err := w.InitSystems()
+			_, err := w.Tick(nil)
 			require.NoError(t, err)
 
 			_, err = w.NewSearch(tt.params)
@@ -187,9 +187,9 @@ func TestSearch_FindAndMatch(t *testing.T) {
 			w := ecs.NewWorld()
 			ecs.RegisterSystem(w, tt.setup, ecs.WithHook(ecs.Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err := w.InitSystems()
+			_, err := w.Tick(nil)
 			require.NoError(t, err)
 
 			results, err := w.NewSearch(tt.params)
@@ -313,9 +313,9 @@ func TestSearch_Where(t *testing.T) {
 			w := ecs.NewWorld()
 			ecs.RegisterSystem(w, tt.setup, ecs.WithHook(ecs.Init))
 
-			w.InitSchedulers()
+			w.Init()
 
-			err := w.InitSystems()
+			_, err := w.Tick(nil)
 			require.NoError(t, err)
 
 			results, err := w.NewSearch(tt.params)

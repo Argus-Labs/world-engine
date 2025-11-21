@@ -100,10 +100,13 @@ func NewShard(base ShardEngine, opts ShardOptions) (*Shard, error) {
 		MaxBytes:  int64(options.EpochStreamMaxBytes),
 	}
 
+	logger := options.Telemetry.GetLogger("shard")
+
 	// Try to get existing stream first, if it exists we'll update it
 	stream, err := js.Stream(context.Background(), streamName) //nolint: staticcheck, wastedassign // this is ok
 	if err != nil {
 		// Stream doesn't exist, try to create it
+		logger.Debug().Str("stream", streamConfig.Name).Msg("creating epoch stream")
 		stream, err = js.CreateStream(context.Background(), streamConfig)
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to create epoch stream (name=%s, subjects=%v, maxBytes=%d)",
@@ -111,6 +114,7 @@ func NewShard(base ShardEngine, opts ShardOptions) (*Shard, error) {
 		}
 	} else {
 		// Stream exists, update it with new config
+		logger.Debug().Str("stream", streamConfig.Name).Msg("updating epoch stream")
 		stream, err = js.UpdateStream(context.Background(), streamConfig)
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to update existing epoch stream (name=%s, subjects=%v, maxBytes=%d)",
