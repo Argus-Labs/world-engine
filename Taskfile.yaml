@@ -4,7 +4,7 @@ silent: true
 
 vars:
   FORCE_COLOR: true
-  LINT_VERSION: v2.1.2
+  LINT_VERSION: v2.6.2
 
 tasks:
   default:
