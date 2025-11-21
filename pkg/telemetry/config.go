@@ -14,8 +14,6 @@ type Config struct {
 	// Endpoint is the OTLP collector endpoint.
 	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" envDefault:"jaeger:4317"`
 
-	Protocol string `env:"OTEL_EXPORTER_OTLP_PROTOCOL" envDefault:"http/protobuf"`
-
 	// TraceSampleRate is the sampling rate for traces (0.0 to 1.0).
 	TraceSampleRate float64 `env:"OTEL_TRACE_SAMPLE_RATE" envDefault:"1.0"`
 
@@ -75,13 +73,12 @@ func (cfg *Config) validate() error {
 
 func (cfg *Config) applyToOptions(opt *Options) {
 	opt.Endpoint = cfg.Endpoint
-	opt.Protocol = cfg.Protocol
 	opt.LogLevel = cfg.LogLevel
 	opt.LogFormat = ParseLogFormat(cfg.LogFormat)
 	opt.TraceSampleRate = cfg.TraceSampleRate
 	opt.SentryOptions = sentry.Options{
 		Dsn:         cfg.SentryDsn,
-		Environment: cfg.SentryEnv,
+		Environment: cfg.SentryEnvironment,
 	}
 	opt.PosthogOptions = posthog.Options{
 		APIKey: cfg.PosthogAPIKey,
@@ -91,7 +88,6 @@ func (cfg *Config) applyToOptions(opt *Options) {
 type Options struct {
 	ServiceName     string // Name of the service for telemetry
 	Endpoint        string
-	Protocol        string
 	LogLevel        string
 	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64

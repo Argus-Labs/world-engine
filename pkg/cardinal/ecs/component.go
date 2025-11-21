@@ -48,10 +48,7 @@ func newComponentManager() componentManager {
 var componentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // validateComponentName validates that a component name follows expr identifier rules.
-//
-// Per expr language specification (https://expr-lang.org/docs/language-definition#variables):
-// "The variable name must start with a letter or an underscore. The variable name can contain
-// letters, digits and underscores."
+// See: https://expr-lang.org/docs/language-definition#variables
 func validateComponentName(name string) error {
 	if name == "" {
 		return eris.New("component name cannot be empty")
