@@ -165,20 +165,3 @@ func init() { //nolint:gochecknoinits // Its fine
 func GetGlobalLogger(component string) zerolog.Logger {
 	return log.With().Str("component", component).Logger()
 }
-
-// SetGlobalLogLevel sets the global log level for console logging.
-// Deprecated: Use proper telemetry configuration instead.
-func SetGlobalLogLevel(level string) {
-	switch level {
-	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	default:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
-}
