@@ -29,7 +29,7 @@ type Config struct {
 	SentryDsn string `env:"SENTRY_DSN"`
 
 	// SentryEnvironment is to determine if shard is running in development or production (DEV/PROD).
-	SentryEnv string `env:"SENTRY_ENVIRONMENT"`
+	SentryEnvironment string `env:"SENTRY_ENVIRONMENT"`
 
 	// PosthogAPIKey is the PostHog API key.
 	PosthogAPIKey string `env:"POSTHOG_API_KEY"`
