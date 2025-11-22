@@ -260,7 +260,14 @@ func (c *Client) requestSyncWithTimeouts(
 		return nil, eris.Wrap(ErrFailedToSubscribe, err.Error())
 	}
 
-	// Auto-cleanup after one message instead of defer Unsubscribe().
+	// Ensure cleanup in all paths (errors, timeouts, and success)
+	defer func() {
+		if err := sub.Unsubscribe(); err != nil {
+			c.log.Warn().Err(err).Str("subject", eventSubject).Msg("Failed to unsubscribe")
+		}
+	}()
+
+	// Auto-cleanup after one message for the success path.
 	if err := sub.AutoUnsubscribe(1); err != nil {
 		return nil, eris.Wrap(ErrFailedToAutoUnsubscribe, err.Error())
 	}
