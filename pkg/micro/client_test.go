@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func TestClient_RequestSync(t *testing.T) {
+func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Parallel()
 
 	// Create a test NATS server
@@ -40,7 +40,7 @@ func TestClient_RequestSync(t *testing.T) {
 		ServiceId:    "test-service",
 	}
 
-	t.Run("successful request-sync flow", func(t *testing.T) {
+	t.Run("successful request-and-subscribe flow", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.buy-item"
 		eventSubject := "event.item-purchased"
@@ -95,7 +95,7 @@ func TestClient_RequestSync(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
@@ -150,7 +150,7 @@ func TestClient_RequestSync(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
 
 		// Should get an error because status code is non-zero
 		require.Error(t, err)
@@ -177,7 +177,7 @@ func TestClient_RequestSync(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
 
 		// Should get a timeout error
 		require.Error(t, err)
@@ -210,7 +210,7 @@ func TestClient_RequestSync(t *testing.T) {
 			cancel()
 		}()
 
-		response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
 
 		// Should get a context cancelled error
 		require.Error(t, err)
@@ -227,7 +227,7 @@ func TestClient_RequestSync(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, nil, eventSubject)
+		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, nil, eventSubject)
 
 		// Should get an error about creating Any payload
 		require.Error(t, err)
@@ -269,7 +269,7 @@ func TestClient_RequestSync(t *testing.T) {
 		defer cancel()
 
 		// Use custom timeouts
-		response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject,
+		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject,
 			micro.WithRequestTimeout(5*time.Second),
 			micro.WithResponseTimeout(5*time.Second),
 		)
@@ -402,7 +402,7 @@ func TestClient_Request(t *testing.T) {
 	})
 }
 
-func TestClient_RequestSync_WithLogger(t *testing.T) {
+func TestClient_RequestAndSubscribe_WithLogger(t *testing.T) {
 	t.Parallel()
 
 	// Create a test NATS server
@@ -477,7 +477,7 @@ func TestClient_RequestSync_WithLogger(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	response, err := client.RequestSync(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+	response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	assert.Equal(t, int32(0), response.GetStatus().GetCode())

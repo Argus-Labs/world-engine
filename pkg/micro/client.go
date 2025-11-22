@@ -27,7 +27,7 @@ var (
 	ErrFailedToUnmarshal       = eris.New("failed to unmarshal event response")
 )
 
-// Default timeout constants for RequestSync.
+// Default timeout constants for RequestAndSubscribe.
 const (
 	defaultRequestTimeout  = 2 * time.Second  // Timeout for initial request validation
 	defaultResponseTimeout = 10 * time.Second // Timeout for event response
@@ -195,23 +195,23 @@ func (c *Client) Request(
 	return &res, nil
 }
 
-// RequestSync sends a request and waits for a response on a separate event subject.
+// RequestAndSubscribe sends a request and waits for a response on a separate event subject.
 // Default timeouts: 2s for request, 10s for response. Use WithRequestTimeout/WithResponseTimeout to customize.
 //
 // Example:
 //
-//	response, err := client.RequestSync(ctx, address, endpoint, payload, eventSubject,
+//	response, err := client.RequestAndSubscribe(ctx, address, endpoint, payload, eventSubject,
 //	    micro.WithRequestTimeout(5*time.Second))
-func (c *Client) RequestSync(
+func (c *Client) RequestAndSubscribe(
 	ctx context.Context,
 	address *ServiceAddress,
 	endpoint string,
 	payload proto.Message,
 	eventSubject string,
-	opts ...RequestSyncOption,
+	opts ...RequestAndSubscribeOption,
 ) (*microv1.Response, error) {
 	// Apply default timeouts
-	cfg := &requestSyncConfig{
+	cfg := &requestAndSubscribeConfig{
 		requestTimeout:  defaultRequestTimeout,
 		responseTimeout: defaultResponseTimeout,
 	}
@@ -221,14 +221,14 @@ func (c *Client) RequestSync(
 		opt(cfg)
 	}
 
-	return c.requestSyncWithTimeouts(
+	return c.requestAndSubscribeWithTimeouts(
 		ctx, address, endpoint, payload, eventSubject,
 		cfg.requestTimeout, cfg.responseTimeout,
 	)
 }
 
-// requestSyncWithTimeouts is the internal implementation of RequestSync.
-func (c *Client) requestSyncWithTimeouts(
+// requestAndSubscribeWithTimeouts is the internal implementation of RequestAndSubscribe.
+func (c *Client) requestAndSubscribeWithTimeouts(
 	ctx context.Context,
 	address *ServiceAddress,
 	endpoint string,
@@ -379,30 +379,30 @@ func WithNATSConfig(cfg NATSConfig) ClientOption {
 }
 
 // ----------------------------------------------------------------------------
-// RequestSync Options
+// RequestAndSubscribe Options
 // ----------------------------------------------------------------------------
 
-// RequestSyncOption defines a function that can modify RequestSync behavior.
-type RequestSyncOption func(*requestSyncConfig)
+// RequestAndSubscribeOption defines a function that can modify RequestAndSubscribe behavior.
+type RequestAndSubscribeOption func(*requestAndSubscribeConfig)
 
-// requestSyncConfig holds configuration for a RequestSync call.
-type requestSyncConfig struct {
+// requestAndSubscribeConfig holds configuration for a RequestAndSubscribe call.
+type requestAndSubscribeConfig struct {
 	requestTimeout  time.Duration
 	responseTimeout time.Duration
 }
 
-// WithRequestTimeout returns a RequestSyncOption that sets the request timeout.
+// WithRequestTimeout returns a RequestAndSubscribeOption that sets the request timeout.
 // This timeout is used for the initial request validation phase.
-func WithRequestTimeout(d time.Duration) RequestSyncOption {
-	return func(cfg *requestSyncConfig) {
+func WithRequestTimeout(d time.Duration) RequestAndSubscribeOption {
+	return func(cfg *requestAndSubscribeConfig) {
 		cfg.requestTimeout = d
 	}
 }
 
-// WithResponseTimeout returns a RequestSyncOption that sets the response timeout.
+// WithResponseTimeout returns a RequestAndSubscribeOption that sets the response timeout.
 // This timeout is used for waiting for the event response.
-func WithResponseTimeout(d time.Duration) RequestSyncOption {
-	return func(cfg *requestSyncConfig) {
+func WithResponseTimeout(d time.Duration) RequestAndSubscribeOption {
+	return func(cfg *requestAndSubscribeConfig) {
 		cfg.responseTimeout = d
 	}
 }
