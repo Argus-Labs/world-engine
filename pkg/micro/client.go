@@ -15,10 +15,22 @@ import (
 
 // Common errors that can occur during NATS operations.
 var (
-	ErrFailedToConnect   = eris.New("failed to connect to NATS server")
-	ErrFailedToSubscribe = eris.New("failed to subscribe to subject")
-	ErrFailedToPublish   = eris.New("failed to publish message")
-	ErrInvalidConfig     = eris.New("invalid NATS configuration")
+	ErrFailedToConnect         = eris.New("failed to connect to NATS server")
+	ErrFailedToSubscribe       = eris.New("failed to subscribe to subject")
+	ErrFailedToPublish         = eris.New("failed to publish message")
+	ErrInvalidConfig           = eris.New("invalid NATS configuration")
+	ErrFailedToCreatePayload   = eris.New("failed to create Any payload")
+	ErrFailedToMarshal         = eris.New("failed to marshal request")
+	ErrFailedToAutoUnsubscribe = eris.New("failed to set auto-unsubscribe")
+	ErrCommandRejected         = eris.New("command rejected")
+	ErrFailedToReceiveEvent    = eris.New("failed to receive event response")
+	ErrFailedToUnmarshal       = eris.New("failed to unmarshal event response")
+)
+
+// Default timeout constants for RequestSync.
+const (
+	defaultRequestTimeout  = 2 * time.Second  // Timeout for initial request validation
+	defaultResponseTimeout = 10 * time.Second // Timeout for event response
 )
 
 // Client represents a NATS client with enhanced logging and error handling.
@@ -183,6 +195,110 @@ func (c *Client) Request(
 	return &res, nil
 }
 
+// RequestSync sends a request and waits for a response on a separate event subject.
+// Default timeouts: 2s for request, 10s for response. Use WithRequestTimeout/WithResponseTimeout to customize.
+//
+// Example:
+//
+//	response, err := client.RequestSync(ctx, address, endpoint, payload, eventSubject,
+//	    micro.WithRequestTimeout(5*time.Second))
+func (c *Client) RequestSync(
+	ctx context.Context,
+	address *ServiceAddress,
+	endpoint string,
+	payload proto.Message,
+	eventSubject string,
+	opts ...RequestSyncOption,
+) (*microv1.Response, error) {
+	// Apply default timeouts
+	cfg := &requestSyncConfig{
+		requestTimeout:  defaultRequestTimeout,
+		responseTimeout: defaultResponseTimeout,
+	}
+
+	// Apply custom options
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	return c.requestSyncWithTimeouts(
+		ctx, address, endpoint, payload, eventSubject,
+		cfg.requestTimeout, cfg.responseTimeout,
+	)
+}
+
+// requestSyncWithTimeouts is the internal implementation of RequestSync.
+func (c *Client) requestSyncWithTimeouts(
+	ctx context.Context,
+	address *ServiceAddress,
+	endpoint string,
+	payload proto.Message,
+	eventSubject string,
+	requestTimeout time.Duration,
+	responseTimeout time.Duration,
+) (*microv1.Response, error) {
+	// Step 1: Prepare the request payload
+	anyPayload, err := anypb.New(payload)
+	if err != nil {
+		return nil, eris.Wrap(ErrFailedToCreatePayload, err.Error())
+	}
+
+	req := &microv1.Request{
+		ServiceAddress: address,
+		Payload:        anyPayload,
+	}
+
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		return nil, eris.Wrap(ErrFailedToMarshal, err.Error())
+	}
+
+	// Subscribe to event subject BEFORE sending request to prevent race condition.
+	// Using SubscribeSync (not Subscribe) to allow NextMsgWithContext for timeout control.
+	sub, err := c.SubscribeSync(eventSubject)
+	if err != nil {
+		return nil, eris.Wrap(ErrFailedToSubscribe, err.Error())
+	}
+
+	// Auto-cleanup after one message instead of defer Unsubscribe().
+	if err := sub.AutoUnsubscribe(1); err != nil {
+		return nil, eris.Wrap(ErrFailedToAutoUnsubscribe, err.Error())
+	}
+
+	// Send command with immediate validation timeout.
+	// Using RequestWithContext (not Publish) because handler calls msg.Respond() for validation.
+	requestCtx, requestCancel := context.WithTimeout(ctx, requestTimeout)
+	defer requestCancel()
+
+	_, err = c.RequestWithContext(requestCtx, Endpoint(address, endpoint), reqBytes)
+	if err != nil {
+		return nil, eris.Wrap(ErrCommandRejected, err.Error())
+	}
+
+	// Wait for event response with separate timeout.
+	responseCtx, responseCancel := context.WithTimeout(ctx, responseTimeout)
+	defer responseCancel()
+
+	msg, err := sub.NextMsgWithContext(responseCtx)
+	if err != nil {
+		return nil, eris.Wrap(ErrFailedToReceiveEvent, err.Error())
+	}
+
+	// Unmarshal the response
+	var res microv1.Response
+	if err := proto.Unmarshal(msg.Data, &res); err != nil {
+		return nil, eris.Wrap(ErrFailedToUnmarshal, err.Error())
+	}
+
+	// micro handlers return errors in the response, so we'll check for it here
+	status := res.GetStatus()
+	if status.GetCode() != 0 { // 0 is the only success code
+		return nil, eris.New(status.GetMessage())
+	}
+
+	return &res, nil
+}
+
 // Close gracefully closes the NATS connection and logs the event.
 func (c *Client) Close() {
 	if c.Conn != nil {
@@ -252,5 +368,34 @@ func WithLogger(log zerolog.Logger) ClientOption {
 func WithNATSConfig(cfg NATSConfig) ClientOption {
 	return func(c *Client) {
 		c.natsConfig = cfg
+	}
+}
+
+// ----------------------------------------------------------------------------
+// RequestSync Options
+// ----------------------------------------------------------------------------
+
+// RequestSyncOption defines a function that can modify RequestSync behavior.
+type RequestSyncOption func(*requestSyncConfig)
+
+// requestSyncConfig holds configuration for a RequestSync call.
+type requestSyncConfig struct {
+	requestTimeout  time.Duration
+	responseTimeout time.Duration
+}
+
+// WithRequestTimeout returns a RequestSyncOption that sets the request timeout.
+// This timeout is used for the initial request validation phase.
+func WithRequestTimeout(d time.Duration) RequestSyncOption {
+	return func(cfg *requestSyncConfig) {
+		cfg.requestTimeout = d
+	}
+}
+
+// WithResponseTimeout returns a RequestSyncOption that sets the response timeout.
+// This timeout is used for waiting for the event response.
+func WithResponseTimeout(d time.Duration) RequestSyncOption {
+	return func(cfg *requestSyncConfig) {
+		cfg.responseTimeout = d
 	}
 }
