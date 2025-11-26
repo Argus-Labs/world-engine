@@ -43,7 +43,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Run("successful request-and-subscribe flow", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.buy-item"
-		eventSubject := "event.item-purchased"
+		eventEndpoint := "event.item-purchased"
 
 		// Subscribe to the command endpoint and respond with validation + event
 		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -82,7 +82,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 			eventBytes, err := proto.Marshal(eventResponse)
 			require.NoError(t, err)
 
-			err = natsTest.Client.Publish(eventSubject, eventBytes)
+			err = natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
 			require.NoError(t, err)
 		})
 		require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
+		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
 		require.NoError(t, err)
 		require.NotNil(t, msg)
 
@@ -110,7 +110,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Run("error response from server", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.invalid-action"
-		eventSubject := "event.invalid-action-result"
+		eventEndpoint := "event.invalid-action-result"
 
 		// Subscribe to the command endpoint and respond with validation success, then error event
 		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -140,7 +140,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 			errorBytes, err := proto.Marshal(errorResponse)
 			require.NoError(t, err)
 
-			err = natsTest.Client.Publish(eventSubject, errorBytes)
+			err = natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), errorBytes)
 			require.NoError(t, err)
 		})
 		require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
+		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
 
 		// RequestAndSubscribe now returns raw message, caller handles status
 		require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Run("context timeout", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.slow-action"
-		eventSubject := "event.slow-action-result"
+		eventEndpoint := "event.slow-action-result"
 
 		// Subscribe to the command but don't respond
 		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -186,7 +186,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
+		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
 
 		// Should get a timeout error
 		require.Error(t, err)
@@ -197,7 +197,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Run("context cancellation", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.cancel-action"
-		eventSubject := "event.cancel-action-result"
+		eventEndpoint := "event.cancel-action-result"
 
 		// Subscribe to the command but delay the response
 		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -219,7 +219,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 			cancel()
 		}()
 
-		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
+		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
 
 		// Should get a context cancelled error
 		require.Error(t, err)
@@ -230,13 +230,13 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Run("invalid payload", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.test"
-		eventSubject := "event.test-result"
+		eventEndpoint := "event.test-result"
 
 		// Try to send a nil payload (should fail during anypb.New)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, nil)
+		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, nil)
 
 		// Should get an error about creating Any payload
 		require.Error(t, err)
@@ -246,7 +246,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Run("timeout via context", func(t *testing.T) {
 		t.Parallel()
 		commandEndpoint := "command.context-timeout"
-		eventSubject := "event.context-timeout-result"
+		eventEndpoint := "event.context-timeout-result"
 
 		// Subscribe to the command endpoint and respond
 		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -267,7 +267,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 				Status:  &status.Status{Code: 0},
 			}
 			eventBytes, _ := proto.Marshal(eventResponse)
-			natsTest.Client.Publish(eventSubject, eventBytes)
+			natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
 		})
 		require.NoError(t, err)
 		defer commandSub.Unsubscribe()
@@ -278,7 +278,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
+		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
 
 		require.NoError(t, err)
 		require.NotNil(t, msg)
@@ -339,7 +339,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), testPayload)
+		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
 
 		require.NoError(t, err)
 		assert.NotNil(t, response)
@@ -369,7 +369,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), testPayload)
+		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -383,7 +383,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), nil)
+		response, err := client.Request(ctx, serviceAddr, endpoint, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -405,7 +405,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), testPayload)
+		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -442,7 +442,7 @@ func TestClient_RequestAndSubscribe_WithLogger(t *testing.T) {
 	}
 
 	commandEndpoint := "command.test-logging"
-	eventSubject := "event.test-logging-result"
+	eventEndpoint := "event.test-logging-result"
 
 	// Subscribe and respond
 	commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -474,7 +474,7 @@ func TestClient_RequestAndSubscribe_WithLogger(t *testing.T) {
 		eventBytes, err := proto.Marshal(eventResponse)
 		require.NoError(t, err)
 
-		err = natsTest.Client.Publish(eventSubject, eventBytes)
+		err = natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
 		require.NoError(t, err)
 	})
 	require.NoError(t, err)
@@ -487,7 +487,7 @@ func TestClient_RequestAndSubscribe_WithLogger(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
+	msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 

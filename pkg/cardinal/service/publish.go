@@ -83,8 +83,7 @@ func (s *ShardService) publishInterShardCommand(raw ecs.RawEvent) error {
 		return eris.Wrap(err, "failed to sign inter-shard command")
 	}
 
-	subject := micro.Endpoint(isc.Target, "command."+isc.Command.Name())
-	_, err = s.client.Request(context.Background(), subject, signedCommand)
+	_, err = s.client.Request(context.Background(), isc.Target, "command."+isc.Command.Name(), signedCommand)
 	if err != nil {
 		err = eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Command.Name())
 		return err

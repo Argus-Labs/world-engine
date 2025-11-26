@@ -131,10 +131,11 @@ func NewTestClient(natsURL string) (*Client, error) {
 }
 
 // Request sends a request to a subject and waits for a response (request-reply pattern).
-// Callers are responsible for constructing the subject using Endpoint() and setting the timeout in ctx.
+// The timeout should be set in ctx.
 func (c *Client) Request(
 	ctx context.Context,
-	subject string,
+	address *ServiceAddress,
+	endpoint string,
 	payload proto.Message,
 ) (*microv1.Response, error) {
 	anyPayload, err := anypb.New(payload)
@@ -143,7 +144,8 @@ func (c *Client) Request(
 	}
 
 	req := &microv1.Request{
-		Payload: anyPayload,
+		ServiceAddress: address,
+		Payload:        anyPayload,
 	}
 
 	reqBytes, err := proto.Marshal(req)
@@ -151,7 +153,7 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to marshal request")
 	}
 
-	msg, err := c.RequestWithContext(ctx, subject, reqBytes)
+	msg, err := c.RequestWithContext(ctx, Endpoint(address, endpoint), reqBytes)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
 	}
@@ -170,16 +172,19 @@ func (c *Client) Request(
 	return &res, nil
 }
 
-// RequestAndSubscribe sends a request to requestSubject and waits for a message on responseSubject.
+// RequestAndSubscribe sends a request to the request endpoint and waits for a message on the response endpoint.
 // This is useful when the response comes on a different subject than the request (e.g., events).
-// Callers are responsible for constructing subjects using Endpoint() and setting the timeout in ctx.
-// Note: responseSubject doesn't have to have the same address as requestSubject.
+// The timeout should be set in ctx.
 func (c *Client) RequestAndSubscribe(
 	ctx context.Context,
-	requestSubject string,
-	responseSubject string,
+	requestAddress *ServiceAddress,
+	requestEndpoint string,
+	responseAddress *ServiceAddress,
+	responseEndpoint string,
 	payload proto.Message,
 ) (*nats.Msg, error) {
+	responseSubject := Endpoint(responseAddress, responseEndpoint)
+
 	// Subscribe BEFORE sending request to prevent race condition where response arrives
 	// before we're listening.
 	sub, err := c.SubscribeSync(responseSubject)
@@ -197,7 +202,7 @@ func (c *Client) RequestAndSubscribe(
 	}
 
 	// Send request. If it fails, return early without waiting for response.
-	_, err = c.Request(ctx, requestSubject, payload)
+	_, err = c.Request(ctx, requestAddress, requestEndpoint, payload)
 	if err != nil {
 		return nil, eris.Wrap(err, "request failed")
 	}
