@@ -282,4 +282,3 @@ func WithNATSConfig(cfg NATSConfig) ClientOption {
 		c.natsConfig = cfg
 	}
 }
-
