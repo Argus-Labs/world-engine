@@ -172,28 +172,28 @@ func (c *Client) Request(
 	return &res, nil
 }
 
-// RequestAndSubscribe sends a request to the request endpoint and waits for a message on the response endpoint.
+// RequestAndSubscribe sends a message to the send endpoint and waits for a message on the receive endpoint.
 // This is useful when the response comes on a different subject than the request (e.g., events).
 // The timeout should be set in ctx.
 func (c *Client) RequestAndSubscribe(
 	ctx context.Context,
-	requestAddress *ServiceAddress,
-	requestEndpoint string,
-	responseAddress *ServiceAddress,
-	responseEndpoint string,
+	sendAddress *ServiceAddress,
+	sendEndpoint string,
+	receiveAddress *ServiceAddress,
+	receiveEndpoint string,
 	payload proto.Message,
 ) (*nats.Msg, error) {
-	responseSubject := Endpoint(responseAddress, responseEndpoint)
+	receiveSubject := Endpoint(receiveAddress, receiveEndpoint)
 
 	// Subscribe BEFORE sending request to prevent race condition where response arrives
 	// before we're listening.
-	sub, err := c.SubscribeSync(responseSubject)
+	sub, err := c.SubscribeSync(receiveSubject)
 	if err != nil {
-		return nil, eris.Wrap(err, "failed to subscribe to response subject")
+		return nil, eris.Wrap(err, "failed to subscribe to receive subject")
 	}
 	defer func() {
 		if err := sub.Unsubscribe(); err != nil {
-			c.log.Warn().Err(err).Str("subject", responseSubject).Msg("Failed to unsubscribe")
+			c.log.Warn().Err(err).Str("subject", receiveSubject).Msg("Failed to unsubscribe")
 		}
 	}()
 
@@ -202,15 +202,15 @@ func (c *Client) RequestAndSubscribe(
 	}
 
 	// Send request. If it fails, return early without waiting for response.
-	_, err = c.Request(ctx, requestAddress, requestEndpoint, payload)
+	_, err = c.Request(ctx, sendAddress, sendEndpoint, payload)
 	if err != nil {
-		return nil, eris.Wrap(err, "request failed")
+		return nil, eris.Wrap(err, "send failed")
 	}
 
-	// Wait for response on the subscription.
+	// Wait for message on the subscription.
 	msg, err := sub.NextMsgWithContext(ctx)
 	if err != nil {
-		return nil, eris.Wrap(err, "failed to receive response")
+		return nil, eris.Wrap(err, "failed to receive message")
 	}
 
 	return msg, nil
