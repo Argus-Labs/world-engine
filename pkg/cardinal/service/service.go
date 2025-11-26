@@ -140,7 +140,7 @@ func (s *ShardService) registerShard(address *micro.ServiceAddress, signerAddres
 
 	registerPersonaEndpoint := "command." + commandPayload.Name()
 
-	_, err = s.client.Request(ctx, registryAddress, registerPersonaEndpoint, command)
+	_, err = s.client.Request(ctx, micro.Endpoint(registryAddress, registerPersonaEndpoint), command)
 	if err != nil {
 		return eris.Wrap(err, "failed to send register-persona command to registry")
 	}

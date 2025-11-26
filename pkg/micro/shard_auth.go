@@ -221,7 +221,7 @@ func (c *commandVerifier) getPersonaWithProof(commandRaw *iscv1.CommandRaw) (per
 		Timestamp: commandRaw.GetTimestamp(),
 	}
 
-	response, err := c.client.Request(ctx, registryAddress, "query.persona", request)
+	response, err := c.client.Request(ctx, Endpoint(registryAddress, "query.persona"), request)
 	if err != nil {
 		return personaWithMerkleProof{}, eris.Wrap(err, "failed to fetch persona from registry")
 	}

@@ -95,11 +95,14 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
 		require.NoError(t, err)
-		require.NotNil(t, response)
+		require.NotNil(t, msg)
 
-		// Verify the response
+		// Verify the response by unmarshaling
+		var response microv1.Response
+		err = proto.Unmarshal(msg.Data, &response)
+		require.NoError(t, err)
 		assert.Equal(t, int32(0), response.GetStatus().GetCode())
 		assert.NotNil(t, response.GetPayload())
 	})
@@ -150,12 +153,18 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
 
-		// Should get an error because status code is non-zero
-		require.Error(t, err)
-		assert.Nil(t, response)
-		assert.Contains(t, err.Error(), "invalid action requested")
+		// RequestAndSubscribe now returns raw message, caller handles status
+		require.NoError(t, err)
+		require.NotNil(t, msg)
+
+		// Verify the error is in the response status
+		var response microv1.Response
+		err = proto.Unmarshal(msg.Data, &response)
+		require.NoError(t, err)
+		assert.Equal(t, int32(3), response.GetStatus().GetCode())
+		assert.Contains(t, response.GetStatus().GetMessage(), "invalid action requested")
 	})
 
 	t.Run("context timeout", func(t *testing.T) {
@@ -177,11 +186,11 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
 
 		// Should get a timeout error
 		require.Error(t, err)
-		assert.Nil(t, response)
+		assert.Nil(t, msg)
 		assert.Contains(t, err.Error(), "context")
 	})
 
@@ -210,11 +219,11 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 			cancel()
 		}()
 
-		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
 
 		// Should get a context cancelled error
 		require.Error(t, err)
-		assert.Nil(t, response)
+		assert.Nil(t, msg)
 		assert.Contains(t, err.Error(), "context")
 	})
 
@@ -227,17 +236,17 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, nil, eventSubject)
+		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, nil)
 
 		// Should get an error about creating Any payload
 		require.Error(t, err)
-		assert.Nil(t, response)
+		assert.Nil(t, msg)
 	})
 
-	t.Run("custom timeouts with options", func(t *testing.T) {
+	t.Run("timeout via context", func(t *testing.T) {
 		t.Parallel()
-		commandEndpoint := "command.custom-timeout"
-		eventSubject := "event.custom-timeout-result"
+		commandEndpoint := "command.context-timeout"
+		eventSubject := "event.context-timeout-result"
 
 		// Subscribe to the command endpoint and respond
 		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
@@ -265,17 +274,18 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// Timeout is now managed via context
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// Use custom timeouts
-		response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject,
-			micro.WithRequestTimeout(5*time.Second),
-			micro.WithResponseTimeout(5*time.Second),
-		)
+		msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
 
 		require.NoError(t, err)
-		assert.NotNil(t, response)
+		require.NotNil(t, msg)
+
+		var response microv1.Response
+		err = proto.Unmarshal(msg.Data, &response)
+		require.NoError(t, err)
 		assert.Equal(t, int32(0), response.GetStatus().GetCode())
 	})
 }
@@ -329,7 +339,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
+		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), testPayload)
 
 		require.NoError(t, err)
 		assert.NotNil(t, response)
@@ -359,7 +369,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
+		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), testPayload)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -373,7 +383,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, serviceAddr, endpoint, nil)
+		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), nil)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -395,7 +405,7 @@ func TestClient_Request(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
+		response, err := client.Request(ctx, micro.Endpoint(serviceAddr, endpoint), testPayload)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -477,8 +487,12 @@ func TestClient_RequestAndSubscribe_WithLogger(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	response, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, testPayload, eventSubject)
+	msg, err := client.RequestAndSubscribe(ctx, micro.Endpoint(serviceAddr, commandEndpoint), eventSubject, testPayload)
 	require.NoError(t, err)
-	require.NotNil(t, response)
+	require.NotNil(t, msg)
+
+	var response microv1.Response
+	err = proto.Unmarshal(msg.Data, &response)
+	require.NoError(t, err)
 	assert.Equal(t, int32(0), response.GetStatus().GetCode())
 }

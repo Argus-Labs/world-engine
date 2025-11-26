@@ -13,26 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-// Common errors that can occur during NATS operations.
-var (
-	ErrFailedToConnect         = eris.New("failed to connect to NATS server")
-	ErrFailedToSubscribe       = eris.New("failed to subscribe to subject")
-	ErrFailedToPublish         = eris.New("failed to publish message")
-	ErrInvalidConfig           = eris.New("invalid NATS configuration")
-	ErrFailedToCreatePayload   = eris.New("failed to create Any payload")
-	ErrFailedToMarshal         = eris.New("failed to marshal request")
-	ErrFailedToAutoUnsubscribe = eris.New("failed to set auto-unsubscribe")
-	ErrCommandRejected         = eris.New("command rejected")
-	ErrFailedToReceiveEvent    = eris.New("failed to receive event response")
-	ErrFailedToUnmarshal       = eris.New("failed to unmarshal event response")
-)
-
-// Default timeout constants for RequestAndSubscribe.
-const (
-	defaultRequestTimeout  = 2 * time.Second  // Timeout for initial request validation
-	defaultResponseTimeout = 10 * time.Second // Timeout for event response
-)
-
 // Client represents a NATS client with enhanced logging and error handling.
 type Client struct {
 	*nats.Conn
@@ -69,7 +49,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	var err error
 	c.natsConfig, err = env.ParseAs[NATSConfig]()
 	if err != nil {
-		return nil, eris.Wrap(ErrInvalidConfig, err.Error())
+		return nil, eris.Wrap(err, "failed to parse NATS config")
 	}
 
 	// Apply options that may override environment variables.
@@ -78,7 +58,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	}
 
 	if err := c.natsConfig.Validate(); err != nil {
-		return nil, eris.Wrap(ErrInvalidConfig, err.Error())
+		return nil, eris.Wrap(err, "invalid NATS config")
 	}
 
 	// Init NATS options with validated configuration.
@@ -101,7 +81,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	// Create the NATS connection.
 	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
 	if err != nil {
-		return nil, eris.Wrap(ErrFailedToConnect, err.Error())
+		return nil, eris.Wrap(err, "failed to connect to NATS server")
 	}
 	c.Conn = conn
 
@@ -138,7 +118,7 @@ func NewTestClient(natsURL string) (*Client, error) {
 	// Connect without authentication (for test NATS servers).
 	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
 	if err != nil {
-		return nil, eris.Wrap(ErrFailedToConnect, err.Error())
+		return nil, eris.Wrap(err, "failed to connect to NATS server")
 	}
 	c.Conn = conn
 
@@ -150,12 +130,11 @@ func NewTestClient(natsURL string) (*Client, error) {
 	return c, nil
 }
 
-// Request sends a request to a specific endpoint and returns the response. Use this method when
-// you want a request-reply pattern.
+// Request sends a request to a subject and waits for a response (request-reply pattern).
+// Callers are responsible for constructing the subject using Endpoint() and setting the timeout in ctx.
 func (c *Client) Request(
 	ctx context.Context,
-	address *ServiceAddress,
-	endpoint string,
+	subject string,
 	payload proto.Message,
 ) (*microv1.Response, error) {
 	anyPayload, err := anypb.New(payload)
@@ -164,8 +143,7 @@ func (c *Client) Request(
 	}
 
 	req := &microv1.Request{
-		ServiceAddress: address,
-		Payload:        anyPayload,
+		Payload: anyPayload,
 	}
 
 	reqBytes, err := proto.Marshal(req)
@@ -173,8 +151,7 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to marshal request")
 	}
 
-	// Use NATS's built-in context support
-	msg, err := c.RequestWithContext(ctx, Endpoint(address, endpoint), reqBytes)
+	msg, err := c.RequestWithContext(ctx, subject, reqBytes)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
 	}
@@ -184,126 +161,54 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to unmarshal response")
 	}
 
-	// micro handlers return errors in the response, so we'll check for it here return it as an error
-	// instead of having the users do it themselves.
+	// Check for application-level errors in the response status.
 	status := res.GetStatus()
-	if status.GetCode() != 0 { // 0 is the only success code
+	if status.GetCode() != 0 {
 		return nil, eris.New(status.GetMessage())
 	}
 
-	// We return the response only if it's successful.
 	return &res, nil
 }
 
-// RequestAndSubscribe sends a request and waits for a response on a separate event subject.
-// Default timeouts: 2s for request, 10s for response. Use WithRequestTimeout/WithResponseTimeout to customize.
-//
-// Example:
-//
-//	response, err := client.RequestAndSubscribe(ctx, address, endpoint, payload, eventSubject,
-//	    micro.WithRequestTimeout(5*time.Second))
+// RequestAndSubscribe sends a request to requestSubject and waits for a message on responseSubject.
+// This is useful when the response comes on a different subject than the request (e.g., events).
+// Callers are responsible for constructing subjects using Endpoint() and setting the timeout in ctx.
+// Note: responseSubject doesn't have to have the same address as requestSubject.
 func (c *Client) RequestAndSubscribe(
 	ctx context.Context,
-	address *ServiceAddress,
-	endpoint string,
+	requestSubject string,
+	responseSubject string,
 	payload proto.Message,
-	eventSubject string,
-	opts ...RequestAndSubscribeOption,
-) (*microv1.Response, error) {
-	// Apply default timeouts
-	cfg := &requestAndSubscribeConfig{
-		requestTimeout:  defaultRequestTimeout,
-		responseTimeout: defaultResponseTimeout,
-	}
-
-	// Apply custom options
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	return c.requestAndSubscribeWithTimeouts(
-		ctx, address, endpoint, payload, eventSubject,
-		cfg.requestTimeout, cfg.responseTimeout,
-	)
-}
-
-// requestAndSubscribeWithTimeouts is the internal implementation of RequestAndSubscribe.
-func (c *Client) requestAndSubscribeWithTimeouts(
-	ctx context.Context,
-	address *ServiceAddress,
-	endpoint string,
-	payload proto.Message,
-	eventSubject string,
-	requestTimeout time.Duration,
-	responseTimeout time.Duration,
-) (*microv1.Response, error) {
-	// Step 1: Prepare the request payload
-	anyPayload, err := anypb.New(payload)
+) (*nats.Msg, error) {
+	// Subscribe BEFORE sending request to prevent race condition where response arrives
+	// before we're listening.
+	sub, err := c.SubscribeSync(responseSubject)
 	if err != nil {
-		return nil, eris.Wrap(ErrFailedToCreatePayload, err.Error())
+		return nil, eris.Wrap(err, "failed to subscribe to response subject")
 	}
-
-	req := &microv1.Request{
-		ServiceAddress: address,
-		Payload:        anyPayload,
-	}
-
-	reqBytes, err := proto.Marshal(req)
-	if err != nil {
-		return nil, eris.Wrap(ErrFailedToMarshal, err.Error())
-	}
-
-	// Subscribe to event subject BEFORE sending request to prevent race condition.
-	// Using SubscribeSync (not Subscribe) to allow NextMsgWithContext for timeout control.
-	sub, err := c.SubscribeSync(eventSubject)
-	if err != nil {
-		return nil, eris.Wrap(ErrFailedToSubscribe, err.Error())
-	}
-
-	// Ensure cleanup in all paths (errors, timeouts, and success)
 	defer func() {
 		if err := sub.Unsubscribe(); err != nil {
-			c.log.Warn().Err(err).Str("subject", eventSubject).Msg("Failed to unsubscribe")
+			c.log.Warn().Err(err).Str("subject", responseSubject).Msg("Failed to unsubscribe")
 		}
 	}()
 
-	// Auto-cleanup after one message for the success path.
 	if err := sub.AutoUnsubscribe(1); err != nil {
-		return nil, eris.Wrap(ErrFailedToAutoUnsubscribe, err.Error())
+		return nil, eris.Wrap(err, "failed to set auto-unsubscribe")
 	}
 
-	// Send command with immediate validation timeout.
-	// Using RequestWithContext (not Publish) because handler calls msg.Respond() for validation.
-	requestCtx, requestCancel := context.WithTimeout(ctx, requestTimeout)
-	defer requestCancel()
-
-	_, err = c.RequestWithContext(requestCtx, Endpoint(address, endpoint), reqBytes)
+	// Send request. If it fails, return early without waiting for response.
+	_, err = c.Request(ctx, requestSubject, payload)
 	if err != nil {
-		return nil, eris.Wrap(ErrCommandRejected, err.Error())
+		return nil, eris.Wrap(err, "request failed")
 	}
 
-	// Wait for event response with separate timeout.
-	responseCtx, responseCancel := context.WithTimeout(ctx, responseTimeout)
-	defer responseCancel()
-
-	msg, err := sub.NextMsgWithContext(responseCtx)
+	// Wait for response on the subscription.
+	msg, err := sub.NextMsgWithContext(ctx)
 	if err != nil {
-		return nil, eris.Wrap(ErrFailedToReceiveEvent, err.Error())
+		return nil, eris.Wrap(err, "failed to receive response")
 	}
 
-	// Unmarshal the response
-	var res microv1.Response
-	if err := proto.Unmarshal(msg.Data, &res); err != nil {
-		return nil, eris.Wrap(ErrFailedToUnmarshal, err.Error())
-	}
-
-	// micro handlers return errors in the response, so we'll check for it here
-	status := res.GetStatus()
-	if status.GetCode() != 0 { // 0 is the only success code
-		return nil, eris.New(status.GetMessage())
-	}
-
-	return &res, nil
+	return msg, nil
 }
 
 // Close gracefully closes the NATS connection and logs the event.
@@ -378,31 +283,3 @@ func WithNATSConfig(cfg NATSConfig) ClientOption {
 	}
 }
 
-// ----------------------------------------------------------------------------
-// RequestAndSubscribe Options
-// ----------------------------------------------------------------------------
-
-// RequestAndSubscribeOption defines a function that can modify RequestAndSubscribe behavior.
-type RequestAndSubscribeOption func(*requestAndSubscribeConfig)
-
-// requestAndSubscribeConfig holds configuration for a RequestAndSubscribe call.
-type requestAndSubscribeConfig struct {
-	requestTimeout  time.Duration
-	responseTimeout time.Duration
-}
-
-// WithRequestTimeout returns a RequestAndSubscribeOption that sets the request timeout.
-// This timeout is used for the initial request validation phase.
-func WithRequestTimeout(d time.Duration) RequestAndSubscribeOption {
-	return func(cfg *requestAndSubscribeConfig) {
-		cfg.requestTimeout = d
-	}
-}
-
-// WithResponseTimeout returns a RequestAndSubscribeOption that sets the response timeout.
-// This timeout is used for waiting for the event response.
-func WithResponseTimeout(d time.Duration) RequestAndSubscribeOption {
-	return func(cfg *requestAndSubscribeConfig) {
-		cfg.responseTimeout = d
-	}
-}
