@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,31 +122,15 @@ func (s *ShardService) registerShard(address *micro.ServiceAddress, signerAddres
 	}
 
 	signatureHex := hex.EncodeToString(command.GetSignature())
-	subject := fmt.Sprintf("%s.reply.%s", micro.String(address), signatureHex)
-
-	sub, err := s.client.SubscribeSync(subject)
-	if err != nil {
-		return eris.Wrap(err, "failed to subscribe to register persona receipt")
-	}
-
-	// We expect only 1 response, so we can automatically unsubscribe after receiving it.
-	if err := sub.AutoUnsubscribe(1); err != nil {
-		return eris.Wrap(err, "failed to auto unsubscribe to subject")
-	}
+	sendEndpoint := "command." + commandPayload.Name()
+	receiveEndpoint := "reply." + signatureHex
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	registerPersonaEndpoint := "command." + commandPayload.Name()
-
-	_, err = s.client.Request(ctx, registryAddress, registerPersonaEndpoint, command)
+	msg, err := s.client.RequestAndSubscribe(ctx, registryAddress, sendEndpoint, address, receiveEndpoint, command)
 	if err != nil {
-		return eris.Wrap(err, "failed to send register-persona command to registry")
-	}
-
-	msg, err := sub.NextMsg(5 * time.Second)
-	if err != nil {
-		return eris.Wrap(err, "failed to receive register-persona response")
+		return eris.Wrap(err, "failed to register persona")
 	}
 
 	personaID, err := unmarshalResponse(msg)
