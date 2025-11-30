@@ -13,14 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-// Common errors that can occur during NATS operations.
-var (
-	ErrFailedToConnect   = eris.New("failed to connect to NATS server")
-	ErrFailedToSubscribe = eris.New("failed to subscribe to subject")
-	ErrFailedToPublish   = eris.New("failed to publish message")
-	ErrInvalidConfig     = eris.New("invalid NATS configuration")
-)
-
 // Client represents a NATS client with enhanced logging and error handling.
 type Client struct {
 	*nats.Conn
@@ -57,7 +49,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	var err error
 	c.natsConfig, err = env.ParseAs[NATSConfig]()
 	if err != nil {
-		return nil, eris.Wrap(ErrInvalidConfig, err.Error())
+		return nil, eris.Wrap(err, "failed to parse NATS config")
 	}
 
 	// Apply options that may override environment variables.
@@ -66,7 +58,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	}
 
 	if err := c.natsConfig.Validate(); err != nil {
-		return nil, eris.Wrap(ErrInvalidConfig, err.Error())
+		return nil, eris.Wrap(err, "invalid NATS config")
 	}
 
 	// Init NATS options with validated configuration.
@@ -89,7 +81,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	// Create the NATS connection.
 	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
 	if err != nil {
-		return nil, eris.Wrap(ErrFailedToConnect, err.Error())
+		return nil, eris.Wrap(err, "failed to connect to NATS server")
 	}
 	c.Conn = conn
 
@@ -126,7 +118,7 @@ func NewTestClient(natsURL string) (*Client, error) {
 	// Connect without authentication (for test NATS servers).
 	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
 	if err != nil {
-		return nil, eris.Wrap(ErrFailedToConnect, err.Error())
+		return nil, eris.Wrap(err, "failed to connect to NATS server")
 	}
 	c.Conn = conn
 
@@ -138,8 +130,8 @@ func NewTestClient(natsURL string) (*Client, error) {
 	return c, nil
 }
 
-// Request sends a request to a specific endpoint and returns the response. Use this method when
-// you want a request-reply pattern.
+// Request sends a request to a subject and waits for a response (request-reply pattern).
+// The timeout should be set in ctx.
 func (c *Client) Request(
 	ctx context.Context,
 	address *ServiceAddress,
@@ -161,7 +153,6 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to marshal request")
 	}
 
-	// Use NATS's built-in context support
 	msg, err := c.RequestWithContext(ctx, Endpoint(address, endpoint), reqBytes)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
@@ -172,15 +163,57 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to unmarshal response")
 	}
 
-	// micro handlers return errors in the response, so we'll check for it here return it as an error
-	// instead of having the users do it themselves.
+	// Check for application-level errors in the response status.
 	status := res.GetStatus()
-	if status.GetCode() != 0 { // 0 is the only success code
+	if status.GetCode() != 0 {
 		return nil, eris.New(status.GetMessage())
 	}
 
-	// We return the response only if it's successful.
 	return &res, nil
+}
+
+// RequestAndSubscribe sends a message to the send endpoint and waits for a message on the receive endpoint.
+// This is useful when the response comes on a different subject than the request (e.g., events).
+// The timeout should be set in ctx.
+func (c *Client) RequestAndSubscribe(
+	ctx context.Context,
+	sendAddress *ServiceAddress,
+	sendEndpoint string,
+	receiveAddress *ServiceAddress,
+	receiveEndpoint string,
+	payload proto.Message,
+) (*nats.Msg, error) {
+	receiveSubject := Endpoint(receiveAddress, receiveEndpoint)
+
+	// Subscribe BEFORE sending request to prevent race condition where response arrives
+	// before we're listening.
+	sub, err := c.SubscribeSync(receiveSubject)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to subscribe to receive subject")
+	}
+	defer func() {
+		if err := sub.Unsubscribe(); err != nil {
+			c.log.Warn().Err(err).Str("subject", receiveSubject).Msg("Failed to unsubscribe")
+		}
+	}()
+
+	if err := sub.AutoUnsubscribe(1); err != nil {
+		return nil, eris.Wrap(err, "failed to set auto-unsubscribe")
+	}
+
+	// Send request. If it fails, return early without waiting for response.
+	_, err = c.Request(ctx, sendAddress, sendEndpoint, payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "send failed")
+	}
+
+	// Wait for message on the subscription.
+	msg, err := sub.NextMsgWithContext(ctx)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to receive message")
+	}
+
+	return msg, nil
 }
 
 // Close gracefully closes the NATS connection and logs the event.
