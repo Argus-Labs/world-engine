@@ -1,0 +1,324 @@
+syntax = "proto3";
+
+package worldengine.matchmaking.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "worldengine/micro/v1/service.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Matchmaking.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/matchmaking/v1;matchmakingv1";
+
+// =============================================================================
+// Filter Types
+// =============================================================================
+
+// StringEqualsFilter matches when a field exactly equals a value.
+message StringEqualsFilter {
+  string field = 1 [(buf.validate.field).required = true];
+  string value = 2 [(buf.validate.field).required = true];
+}
+
+// DoubleRangeFilter matches when a field is within a range [min, max].
+message DoubleRangeFilter {
+  string field = 1 [(buf.validate.field).required = true];
+  double min = 2;
+  double max = 3;
+}
+
+// TagPresentFilter matches when a tag is present in the tags list.
+message TagPresentFilter {
+  string tag = 1 [(buf.validate.field).required = true];
+}
+
+// =============================================================================
+// MatchProfile Configuration
+// =============================================================================
+
+// Pool defines filtering criteria to categorize tickets.
+message Pool {
+  string name = 1 [(buf.validate.field).required = true];
+  repeated StringEqualsFilter string_equals_filters = 2;
+  repeated DoubleRangeFilter double_range_filters = 3;
+  repeated TagPresentFilter tag_present_filters = 4;
+}
+
+// PoolRequirement specifies how many players from a pool are needed per team.
+message PoolRequirement {
+  string pool = 1 [(buf.validate.field).required = true];
+  int32 count = 2 [(buf.validate.field).int32.gt = 0];
+}
+
+// TeamDefinition defines a team for asymmetric games.
+message TeamDefinition {
+  string name = 1 [(buf.validate.field).required = true];
+  int32 size = 2 [(buf.validate.field).int32.gt = 0];
+  repeated PoolRequirement composition = 3;
+}
+
+// MatchProfile is a developer-defined configuration specifying how to form matches.
+message MatchProfile {
+  // Unique identifier for this profile.
+  string name = 1 [(buf.validate.field).required = true];
+
+  // Pool definitions (filtering criteria).
+  repeated Pool pools = 2 [(buf.validate.field).repeated.min_items = 1];
+
+  // For symmetric games: number of teams.
+  int32 team_count = 3;
+
+  // For symmetric games: maximum players per team.
+  int32 team_size = 4;
+
+  // For symmetric games: minimum players per team (default: same as team_size).
+  int32 team_min_size = 5;
+
+  // How pools map to each team. Empty = no role requirements.
+  repeated PoolRequirement team_composition = 6;
+
+  // For asymmetric games: explicit team definitions.
+  repeated TeamDefinition teams = 7;
+
+  // Whether backfill is allowed for this profile.
+  bool enable_backfill = 8;
+
+  // Whether to auto-trigger backfill on disconnect.
+  bool auto_backfill = 9;
+
+  // Arbitrary data passed through to Lobby (not interpreted by Matchmaking).
+  google.protobuf.Struct config = 10;
+
+  // ServiceAddress of destination Lobby Shard.
+  micro.v1.ServiceAddress target_address = 11 [(buf.validate.field).required = true];
+}
+
+// =============================================================================
+// Ticket
+// =============================================================================
+
+// SearchFields contains properties for filter matching.
+message SearchFields {
+  map<string, string> string_args = 1;
+  map<string, double> double_args = 2;
+  repeated string tags = 3;
+}
+
+// PlayerInfo represents a player in a ticket.
+message PlayerInfo {
+  string player_id = 1 [(buf.validate.field).required = true];
+  SearchFields search_fields = 2;
+}
+
+// Ticket represents a matchmaking request for a party.
+message Ticket {
+  // Auto-generated unique identifier.
+  string id = 1 [(buf.validate.field).required = true];
+
+  // Links players together (solo = unique party ID).
+  string party_id = 2 [(buf.validate.field).required = true];
+
+  // Which MatchProfile this ticket targets.
+  string match_profile_name = 3 [(buf.validate.field).required = true];
+
+  // If true, ticket can be matched to backfill requests.
+  bool allow_backfill = 4;
+
+  // Array of players with their search fields.
+  repeated PlayerInfo players = 5 [(buf.validate.field).repeated.min_items = 1];
+
+  // When the ticket was created (for wait time priority).
+  google.protobuf.Timestamp created_at = 6 [(buf.validate.field).required = true];
+
+  // When the ticket expires.
+  google.protobuf.Timestamp expires_at = 7 [(buf.validate.field).required = true];
+}
+
+// =============================================================================
+// Match
+// =============================================================================
+
+// TicketReference is a simplified ticket reference in a match.
+message TicketReference {
+  string id = 1;
+  string party_id = 2;
+  repeated string player_ids = 3;
+}
+
+// Team represents a group of tickets assigned to the same team.
+message Team {
+  string name = 1;
+  repeated TicketReference tickets = 2;
+}
+
+// Match is the result of successful matchmaking.
+message Match {
+  // Unique identifier.
+  string id = 1 [(buf.validate.field).required = true];
+
+  // Array of teams with assigned tickets.
+  repeated Team teams = 2 [(buf.validate.field).repeated.min_items = 1];
+
+  // Which MatchProfile was used.
+  string match_profile_name = 3 [(buf.validate.field).required = true];
+
+  // Whether backfill is allowed (from MatchProfile).
+  bool enable_backfill = 4;
+
+  // Whether auto-backfill on disconnect (from MatchProfile).
+  bool auto_backfill = 5;
+
+  // Passed through from MatchProfile (for Lobby to interpret).
+  google.protobuf.Struct config = 6;
+
+  // This shard's address (for Lobby to send BackfillRequests).
+  micro.v1.ServiceAddress matchmaking_address = 7 [(buf.validate.field).required = true];
+
+  // When match was formed.
+  google.protobuf.Timestamp created_at = 8 [(buf.validate.field).required = true];
+}
+
+// =============================================================================
+// Backfill
+// =============================================================================
+
+// SlotNeeded specifies a slot to fill in a backfill request.
+message SlotNeeded {
+  string pool_name = 1 [(buf.validate.field).required = true];
+  int32 count = 2 [(buf.validate.field).int32.gt = 0];
+}
+
+// BackfillRequest is sent from Lobby Shard to fill vacant slots.
+message BackfillRequest {
+  // Unique identifier.
+  string id = 1 [(buf.validate.field).required = true];
+
+  // Which match needs backfill.
+  string match_id = 2 [(buf.validate.field).required = true];
+
+  // To filter tickets.
+  string match_profile_name = 3 [(buf.validate.field).required = true];
+
+  // Which team needs backfill.
+  string team_name = 4 [(buf.validate.field).required = true];
+
+  // Array of slots to fill.
+  repeated SlotNeeded slots_needed = 5 [(buf.validate.field).repeated.min_items = 1];
+
+  // Where to send matched players.
+  micro.v1.ServiceAddress lobby_address = 6 [(buf.validate.field).required = true];
+
+  // When request was created.
+  google.protobuf.Timestamp created_at = 7 [(buf.validate.field).required = true];
+
+  // Stop trying after this time.
+  google.protobuf.Timestamp expires_at = 8 [(buf.validate.field).required = true];
+}
+
+// BackfillMatch is the result of successful backfill matching.
+message BackfillMatch {
+  // Unique identifier.
+  string id = 1 [(buf.validate.field).required = true];
+
+  // Links back to original BackfillRequest.
+  string backfill_request_id = 2 [(buf.validate.field).required = true];
+
+  // Which match these players join.
+  string match_id = 3 [(buf.validate.field).required = true];
+
+  // Which team the backfilled players join.
+  string team_name = 4 [(buf.validate.field).required = true];
+
+  // Array of matched tickets.
+  repeated TicketReference tickets = 5 [(buf.validate.field).repeated.min_items = 1];
+
+  // When backfill match was formed.
+  google.protobuf.Timestamp created_at = 6 [(buf.validate.field).required = true];
+}
+
+// =============================================================================
+// Commands
+// =============================================================================
+
+// CreateTicketRequest is sent by clients to join matchmaking.
+message CreateTicketRequest {
+  string party_id = 1 [(buf.validate.field).required = true];
+  string match_profile_name = 2 [(buf.validate.field).required = true];
+  bool allow_backfill = 3;
+  repeated PlayerInfo players = 4 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// CreateTicketResponse is returned after ticket creation.
+message CreateTicketResponse {
+  Ticket ticket = 1;
+}
+
+// GetTicketRequest is sent to retrieve ticket status.
+message GetTicketRequest {
+  string ticket_id = 1 [(buf.validate.field).required = true];
+}
+
+// GetTicketResponse returns ticket data.
+message GetTicketResponse {
+  Ticket ticket = 1;
+}
+
+// CancelTicketRequest is sent to cancel a ticket.
+message CancelTicketRequest {
+  string ticket_id = 1 [(buf.validate.field).required = true];
+  string party_id = 2 [(buf.validate.field).required = true];
+}
+
+// CancelTicketResponse confirms cancellation.
+message CancelTicketResponse {
+  bool success = 1;
+}
+
+// CreateBackfillRequest is sent by Lobby Shard to request backfill.
+message CreateBackfillRequestRequest {
+  string match_id = 1 [(buf.validate.field).required = true];
+  string match_profile_name = 2 [(buf.validate.field).required = true];
+  string team_name = 3 [(buf.validate.field).required = true];
+  repeated SlotNeeded slots_needed = 4 [(buf.validate.field).repeated.min_items = 1];
+  micro.v1.ServiceAddress lobby_address = 5 [(buf.validate.field).required = true];
+}
+
+// CreateBackfillRequestResponse returns the created backfill request.
+message CreateBackfillRequestResponse {
+  BackfillRequest backfill_request = 1;
+}
+
+// CancelBackfillRequest is sent to cancel a backfill request.
+message CancelBackfillRequestRequest {
+  string backfill_request_id = 1 [(buf.validate.field).required = true];
+  micro.v1.ServiceAddress lobby_address = 2 [(buf.validate.field).required = true];
+}
+
+// CancelBackfillRequestResponse confirms cancellation.
+message CancelBackfillRequestResponse {
+  bool success = 1;
+}
+
+// GetStatsRequest is sent to retrieve matchmaking stats.
+message GetStatsRequest {}
+
+// GetStatsResponse returns matchmaking statistics.
+message GetStatsResponse {
+  int64 total_tickets = 1;
+  int64 total_backfill_requests = 2;
+  uint64 match_counter = 3;
+  map<string, int64> tickets_by_profile = 4;
+}
+
+// =============================================================================
+// Snapshot
+// =============================================================================
+
+// MatchmakingSnapshot contains the complete state for serialization.
+message MatchmakingSnapshot {
+  repeated Ticket tickets = 1;
+  repeated BackfillRequest backfill_requests = 2;
+  uint64 ticket_counter = 3;
+  uint64 match_counter = 4;
+  uint64 backfill_counter = 5;
+}
