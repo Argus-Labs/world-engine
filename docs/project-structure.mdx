@@ -1,0 +1,94 @@
+---
+title: Project Structure
+---
+
+Cardinal projects are designed to support multiple shards within a single project. While the framework is unopinionated about folder structure, there are some defaults and common patterns.
+
+## Minimal Structure
+
+Here is the minimal structure for a Cardinal project:
+
+```text
+.
+├── shards/
+│   └── <shard-id>/
+│       └── main.go
+├── go.mod
+└── world.toml
+```
+
+| File / Directory | Description |
+| ---------------- | ----------- |
+| `shards/`        | Source code for your game shards. |
+| `shards/<shard-id>/main.go` | The entry point for the shard. |
+| `world.toml`     | Project configuration. |
+| `go.mod`         | Go dependency definition. |
+
+## Registering Shards
+
+To include a shard in your project, you must define it in the `world.toml` file. The World CLI only builds and runs shards that are explicitly listed in this configuration.
+
+By default, the framework looks for a shard's source code in `shards/<shard-id>`. You can override this location by specifying the `path` key (relative to the project root).
+
+```toml world.toml
+[[shards]]
+id = "matchmaking" # Defaults to: shards/matchmaking
+
+[[shards]]
+id = "gameplay"
+path = "custom/path/to/your/shard"
+```
+
+<Danger>
+  TODO: Fix the link below. 
+</Danger>
+
+For a complete reference of available configuration options, see the [Configuration Reference](#).
+
+## Examples
+
+### Organization by Concept
+
+In this structure, code within a shard is organized by Cardinal concepts: components, systems, events, etc.
+
+```text
+.
+├── pkg/                 # Shared libraries
+├── shards/
+│   ├── gameplay/        # Gameplay shard
+│   │    ├── component/  # - Component definitions
+│   │    ├── event/      # - Event definitions
+│   │    ├── system/     # - Systems logic
+│   │    └── main.go
+│   └── matchmaking/     # Matchmaking shard
+├── go.mod
+└── world.toml
+```
+
+This approach groups code by its architectural role (e.g., all components in one place). It is the recommended starting point for most projects as it provides a clear separation between data and logic.
+
+### Organization by Domain
+
+For larger, more complex projects, you may prefer a domain-driven approach where code is grouped by feature (e.g., combat, movement).
+
+```text
+.
+├── pkg/                   # Shared libraries
+├── shards/
+│   ├── gameplay/          # Gameplay shard
+│   │    ├── types/        # - Public type aliases
+│   │    ├── internal/     # - Private implementation logic
+│   │    │   ├── combat/
+│   │    │   └── movement/
+│   │    └── main.go
+│   └── matchmaking/       # Matchmaking shard
+├── go.mod
+└── world.toml
+```
+
+In this layout:
+
+- **`internal/`**: Contains the domain logic and definitions. The special `internal` directory name prevents these packages from being imported by other shards, as enforced by [Go's internal packages](https://pkg.go.dev/cmd/go#hdr-Internal_Directories) rule.
+- **`types/`**: Contains type aliases to the definitions in the `internal` domain packages. This acts as the public API for the shard.
+
+By exporting only specific types via aliases in `types/`, you allow other shards to interact with your data without exposing your internal logic or creating direct dependencies on your implementation packages.

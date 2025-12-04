@@ -1,0 +1,95 @@
+---
+title: System Events
+---
+
+System events are how systems communicate with each other inside a single shard. They are internal messages that one system emits and other systems receive during the same tick.
+
+Unlike [events](/cardinal/events), which are broadcast to game clients, system events never leave the server. They're useful for decoupling systems that need to react to each other's logic. System events are scoped to a single tick: they're produced and consumed within the tick, then cleared.
+
+## Defining System Events
+
+System events are plain Go structs that implement the `SystemEvent` interface. This interface requires a single `Name()` method that returns a **unique** string identifier:
+
+```go
+type PlayerDeath struct {
+    PlayerID string `json:"player_id"`
+    Reason   string `json:"reason"`
+}
+
+func (PlayerDeath) Name() string {
+    return "player-death"
+}
+```
+
+## Using System Events
+
+Just like with components and commands, you must declare the system events a system can access in its state struct.
+
+### Emitting System Events
+
+Add a `cardinal.WithSystemEventEmitter[T]` field to your system state type, where `T` is your system event type:
+
+```go
+import "github.com/argus-labs/world-engine/pkg/cardinal"
+
+type CombatSystemState struct {
+    cardinal.BaseSystemState
+    DeathEvents cardinal.WithSystemEventEmitter[PlayerDeath]
+}
+```
+
+Use `Emit` to send a system event:
+
+```go
+func CombatSystem(state *CombatSystemState) error {
+    // Emit a player death event to be handled by other systems.
+    state.DeathEvents.Emit(PlayerDeath{
+        PlayerID: playerID,
+        Reason:   "health_zero",
+    })
+    return nil
+}
+```
+
+<Note>
+  A system cannot have multiple `WithSystemEventEmitter` fields with the same system event type.
+</Note>
+
+### Receiving System Events
+
+Add a `cardinal.WithSystemEventReceiver[T]` field to your system state type:
+
+```go
+import "github.com/argus-labs/world-engine/pkg/cardinal"
+
+type GraveyardSystemState struct {
+    cardinal.BaseSystemState
+    PlayerDeaths cardinal.WithSystemEventReceiver[PlayerDeath]
+}
+```
+
+Use `Iter` to loop through all system events of that type received this tick:
+
+```go
+func GraveyardSystem(state *GraveyardSystemState) error {
+    for death := range state.PlayerDeaths.Iter() {
+        // Handle death.PlayerID, death.Reason, etc.
+    }
+    return nil
+}
+```
+
+<Note>
+  A system cannot have multiple `WithSystemEventReceiver` fields with the same system event type. However, different systems can receive the same system event type.
+</Note>
+
+## Scheduling and Ordering
+
+Systems run in the order they are registered. To ensure emitters run before receivers, register emitting systems first:
+
+```
+CombatSystem (emits) → GraveyardSystem (receives)
+                     → AnalyticsSystem (receives)
+```
+
+If a receiver runs before its emitter, it will not receive any system events for that tick, as they haven't been emitted yet. Multiple systems can receive the same system event type, and they will each get all events emitted that tick.

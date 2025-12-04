@@ -1,0 +1,236 @@
+---
+title: Client Integration
+---
+
+High-level overview of integrating game clients with Cardinal using the client SDKs.
+
+For full SDK reference documentation, see:
+
+- [JavaScript/TypeScript](/javascript/introduction)
+- [C#](/csharp/introduction) (Unity)
+
+## Initializing the Client
+
+Create a client with a configuration object that specifies the auth URL and region configs. For local development, use dev auth to bypass the normal authentication flow.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    using WorldEngine.SDK;
+    using WorldEngine.SDK.Client;
+
+    var config = new WorldClientConfig
+    {
+        AuthUrl = "http://localhost:3000",
+        AuthClientOverride = new DevAuth("dev@argus.gg"),
+        Regions = new Dictionary<string, RegionConfig>
+        {
+            ["us-west-2"] = new RegionConfig
+            {
+                GatewayUrl = "http://localhost:8080",
+                DisplayName = "US West"
+            }
+        }
+    };
+
+    var client = new WorldClient(config);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+## Authentication
+
+Sign in to authenticate the user. You can retrieve the current user's information and persona after signing in.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    var result = await client.SignInAsync();
+    if (result.Error == null)
+    {
+        var user = result.Data;
+        Debug.Log($"Signed in as {user.Email} (Persona: {user.PersonaId})");
+    }
+
+    // Get current user
+    var currentUser = client.GetUser();
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+Sign out when the user logs out of your game.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    await client.SignOutAsync();
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+## Connecting to a Shard
+
+A shard is a single instance of your game world running on the server. The shard client is your connection to that instance, allowing you to query entities, send commands, and subscribe to events.
+
+To connect, specify the shard's address (region, organization, project, and shard ID) and call connect to get a shard client.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    var addr = new ShardAddress
+    {
+        Region = "us-west-2",
+        Organization = "my-org",
+        Project = "my-game",
+        ShardId = "game-shard"
+    };
+
+    var shard = client.ConnectShard(addr);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+Disconnect from the shard when you no longer need it.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    client.DisconnectShard(addr);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+## Querying Entities
+
+To query entities, define client-side classes with field mappings that correspond to component field names on the server. Build queries to specify which components to find and how to match them. See [Queries](/cardinal/queries) for more details.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    // Define entity classes with Field attribute mapping
+    public class PlayerTag
+    {
+        [Field("nickname")]
+        public string Nickname { get; set; }
+    }
+
+    public class Health
+    {
+        [Field("hp")]
+        public float Hp { get; set; }
+    }
+
+    public class PlayerEntity
+    {
+        [Field("playertag")]
+        public PlayerTag PlayerTag { get; set; }
+
+        [Field("health")]
+        public Health Health { get; set; }
+    }
+
+    // Build and execute query
+    var query = new QueryInfo
+    {
+        Find = new List<string> { "playertag", "health" },
+        Match = QueryMatch.Contains,
+    };
+
+    var results = await shard.QueryAsync<PlayerEntity>(query);
+    foreach (var (entity, id) in results)
+    {
+        Debug.Log($"Player: {entity.PlayerTag.Nickname} Health: {entity.Health.Hp}");
+    }
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+## Sending Commands
+
+Build a command payload and send it to the shard. See [Commands](/cardinal/commands) for more details.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    var payload = new Dictionary<string, object>
+    {
+        ["target"] = "enemy-123",
+        ["damage"] = 50
+    };
+
+    await shard.SendCommandAsync("attack-player", payload);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+## Subscribing to Events
+
+Subscribe toe events with handler callbacks. See [Events](/cardinal/events) for more details.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    var handler = evt =>
+    {
+        Debug.Log($"New player event: {evt.Payload}");
+    };
+    await shard.SubscribeEventAsync("new-player", handler);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+Unsubscribe when you no longer need to receive events.
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    await shard.UnsubscribeEventAsync("player-death", handler);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    // TODO: update
+    ```
+  </Tab>
+</Tabs>
+
