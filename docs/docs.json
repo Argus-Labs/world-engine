@@ -16,66 +16,24 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["introduction", "setup"]
+            "pages": ["introduction", "installation", "project-structure"]
           },
 
           {
-            "group": "Architecture",
-            "pages": ["architecture/overview"]
-          },
-
-          {
-            "group": "Client SDKs",
-            "pages": ["client/introduction"]
+            "group": "Cardinal",
+            "pages": [
+              "cardinal/ecs",
+              "cardinal/commands",
+              "cardinal/events",
+              "cardinal/system-events",
+              "cardinal/queries",
+              "cardinal/client-integration"
+            ]
           },
 
           {
             "group": "Forge",
             "pages": ["forge/quickstart", "forge/organization", "forge/project", "forge/deployment"]
-          },
-
-          {
-            "group": "Examples",
-            "pages": ["examples/basic", "examples/demo-game"]
-          }
-        ]
-      },
-
-      {
-        "dropdown": "Cardinal (Shard)",
-        "icon": "server",
-        "groups": [
-          {
-            "group": "Cardinal (Shard)",
-            "pages": ["cardinal/introduction", "cardinal/ecs", "cardinal/loop"]
-          },
-          {
-            "group": "Building Your Cardinal Shard",
-            "pages": [
-              "cardinal/build/project-structure",
-              {
-                "group": "World (main.go)",
-                "pages": ["cardinal/build/world/overview", "cardinal/build/world/configuration"]
-              },
-
-              "cardinal/build/component",
-
-              {
-                "group": "System",
-                "pages": [
-                  "cardinal/build/system/overview",
-                  "cardinal/build/system/search",
-                  "cardinal/build/system/entity",
-                  "cardinal/build/system/component",
-                  "cardinal/build/system/command",
-                  "cardinal/build/system/event"
-                ]
-              },
-
-              "cardinal/build/query-api",
-
-              "cardinal/build/persona"
-            ]
           }
         ]
       },
@@ -86,38 +44,18 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["javascript/introduction", "javascript/quickstart"]
-          },
+            "pages": ["sdk/javascript/introduction", "sdk/javascript/installation"]
+          }
+        ]
+      },
 
+      {
+        "dropdown": "C# Client SDK",
+        "icon": "hashtag",
+        "groups": [
           {
-            "group": "Guides",
-            "pages": [
-              "javascript/guides/authentication",
-              "javascript/guides/query",
-              "javascript/guides/command",
-              "javascript/guides/subscribe-events",
-              "javascript/guides/error-handling",
-              "javascript/guides/configuration",
-              "javascript/guides/multiple-regions",
-              "javascript/guides/world-forge",
-              "javascript/guides/shard-client"
-            ]
-          },
-
-          {
-            "group": "React",
-            "pages": [
-              "javascript/react/sign-in-with-argus-auth",
-              "javascript/react/use-query",
-              "javascript/react/use-subscribe-events",
-              "javascript/react/multiple-regions",
-              "javascript/react/devtool"
-            ]
-          },
-
-          {
-            "group": "Examples",
-            "pages": ["javascript/examples/demo-game"]
+            "group": "Getting Started",
+            "pages": ["sdk/csharp/introduction", "sdk/csharp/installation"]
           }
         ]
       }

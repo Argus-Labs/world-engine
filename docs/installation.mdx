@@ -1,0 +1,67 @@
+---
+title: 'Installation'
+---
+
+## Prerequisites
+
+Before you begin, make sure your local machine has the following installed:
+
+- **Go**:
+
+    World Engine games are written in [Go](https://go.dev). This guide requires a minimum Go version of **`v1.25.4`**. To check that Go is installed on your computer, run `go version`.
+
+- **Docker**:
+
+  The World Engine development server runs several local services inside containers. Follow the [official instructions](https://docs.docker.com/get-started/get-docker/) to install Docker.
+
+<Tip>
+  Alternatively, you can also use other Docker-compatible container runtimes. We recommend [OrbStack](https://orbstack.dev/) for macOS users and [Podman](https://podman.io/) for Linux users.
+</Tip>
+
+## Installing World CLI
+
+The World CLI is the command-line tool for creating, managing, and deploying World Engine projects.
+
+To install the latest version:
+
+<Tabs>
+  <Tab title="MacOS / Linux">
+    ```bash
+    curl install.world.dev/install.sh | sh
+    ```
+  </Tab>
+  <Tab title="Windows">
+    ```powershell
+    iwr install.world.dev/install.ps1 -useb | iex
+    ```
+  </Tab>
+</Tabs>
+
+## Creating a Project
+
+Now you are ready to create a new World Engine project. The `setup` command will launch an interactive tool to help you configure your project:
+
+```bash
+world setup my-game
+```
+
+When prompted, select the **Basic** template.
+
+<Danger>
+  TODO: Add an updated image of the selection UI
+</Danger>
+
+Once the project has been created, you can start the local development server:
+
+```bash
+cd my-game
+world start
+```
+
+This command builds the game server and runs the World Engine stack. It will take some time during your first run to download the required container images.
+
+## Stopping the Server
+
+Press `Ctrl+C` to stop the server, or run `world stop` from another terminal.
+
+To reset the world state, run `world purge`. This removes all game data and restores the world to a clean state, which is useful when you want to start fresh during development.

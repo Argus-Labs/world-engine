@@ -1,0 +1,82 @@
+---
+title: Queries
+---
+
+Queries let game clients fetch entity data from the game world. They specify which components to match and optional filters to narrow results.
+
+```json
+{
+  "find": ["player", "position"],
+  "match": "contains",
+  "where": "position.x > 100"
+}
+```
+
+## Query Structure
+
+A query consists of three fields: `find`, `match`, and an optional `where` filter.
+
+### `find`
+
+The `find` field is an array of component name strings (the value returned by `Component.Name()`). At least one component is required, and unregistered component names will cause an error. You can include tag components to narrow results.
+
+### `match`
+
+The `match` field controls how components are matched:
+
+| Value | Description |
+|-------|-------------|
+| `"exact"` | Finds entities that have exactly the specified components, nothing more |
+| `"contains"` | Finds entities that have at least the specified components, but may have others |
+
+These have the same behavior as [ECS searches](/cardinal/ecs#searches).
+
+### `where`
+
+The `where` field is an optional [expr-lang](https://expr-lang.org/) expression that filters entities. The expression is evaluated per entity and must return a boolean. Access components by name and fields by dot notation. The entity ID is available as `_id`.
+
+Examples:
+- Comparisons: `health.HP > 100`
+- Logic: `playertag.Level >= 10 && health.HP > 50`
+- String Operations: `playertag.Nickname contains "admin"`
+
+See the [expr-lang documentation](https://expr-lang.org/docs/getting-started) for full syntax. Standard operators include `==`, `!=`, `>`, `<`, `>=`, `<=`, `&&`, and `||`.
+
+## Sending Queries
+
+Use the client SDK to query entities from the server:
+
+<Tabs>
+  <Tab title="C#">
+    ```csharp
+    // Find all entities with player and position components
+    var results = await shard.QueryAsync(new QueryRequest
+    {
+        Find = new[] { "player", "position" },
+        Match = "contains"
+        Where = "health.value <= 20"
+    });
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+The response contains an `entities` array. Each entity includes `_id` (the entity ID) and one property per component, keyed by component name:
+
+```json
+{
+  "entities": [
+    {
+      "_id": 42,
+      "player": { "id": "alice" },
+      "position": { "x": 10, "y": 5 },
+      "health": { "value": 10 }
+    }
+  ]
+}
+```
+
