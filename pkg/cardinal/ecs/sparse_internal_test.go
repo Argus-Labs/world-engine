@@ -19,7 +19,7 @@ import (
 
 func TestSparseSet_ModelBasedFuzz(t *testing.T) {
 	t.Parallel()
-	prng := testutils.NewRand()
+	prng := testutils.NewRand(t)
 
 	impl := newSparseSet()
 	model := make(map[EntityID]int, sparseCapacity)
@@ -128,9 +128,9 @@ func getRandomSparseSetOp(r *rand.Rand) sparseSetOp {
 // 3. Heavy property-based testing would mostly verify Go's type conversion, not our logic.
 // -------------------------------------------------------------------------------------------------
 
-func TestSparseSet_SerializeRoundTrip(t *testing.T) {
+func TestSparseSet_Serialization(t *testing.T) {
 	t.Parallel()
-	prng := testutils.NewRand()
+	prng := testutils.NewRand(t)
 
 	const (
 		opsMax = 100
@@ -150,7 +150,7 @@ func TestSparseSet_SerializeRoundTrip(t *testing.T) {
 	impl2.fromInt64Slice(data)
 
 	// Property: deserialize(serialize(x)) == x
-	assert.Equal(t, len(impl1), len(impl2))
+	assert.Len(t, impl2, len(impl1))
 	for i := range impl1 {
 		assert.Equal(t, impl1[i], impl2[i])
 	}

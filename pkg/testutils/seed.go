@@ -1,26 +1,29 @@
 package testutils
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"os"
 	"strconv"
+	"testing"
 	"time"
 )
 
 var Seed uint64 //nolint:gochecknoglobals // intentionally global for test reproducibility
 
 func init() { //nolint:gochecknoinits // intentionally using init to set seed
+	Seed = uint64(time.Now().UnixNano()) //nolint:gosec // it's ok
 	if envSeed := os.Getenv("TEST_SEED"); envSeed != "" {
-		parsed, err := strconv.ParseUint(envSeed, 10, 64)
-		if err == nil {
+		parsed, err := strconv.ParseUint(envSeed, 0, 64)
+		if err == nil { // Only set using the env if it's valid
 			Seed = parsed
-			return
 		}
 	}
-	Seed = uint64(time.Now().UnixNano()) //nolint:gosec // overflow is acceptable for test seeds
+	fmt.Printf("to reproduce: TEST_SEED=0x%x\n", Seed) //nolint:forbidigo // just for testing
 }
 
-func NewRand() *rand.Rand {
+func NewRand(t *testing.T) *rand.Rand {
+	t.Helper()
 	return rand.New(rand.NewPCG(Seed, Seed)) //nolint:gosec // weak RNG is fine for tests
 }
 

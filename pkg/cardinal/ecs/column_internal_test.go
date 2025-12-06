@@ -6,6 +6,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -19,7 +20,7 @@ import (
 
 func TestColumn_ModelBasedFuzz(t *testing.T) {
 	t.Parallel()
-	prng := testutils.NewRand()
+	prng := testutils.NewRand(t)
 
 	impl := newColumn[testutils.SimpleComponent]()
 	model := make([]testutils.SimpleComponent, 0, columnCapacity)
@@ -134,7 +135,7 @@ func getRandomColumnOp(r *rand.Rand) columnOp {
 
 func TestColumn_Serialization(t *testing.T) {
 	t.Parallel()
-	prng := testutils.NewRand()
+	prng := testutils.NewRand(t)
 
 	const lengthMax = 1000
 
@@ -145,11 +146,11 @@ func TestColumn_Serialization(t *testing.T) {
 	}
 
 	pb, err := col1.toProto()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	col2 := newColumn[testutils.SimpleComponent]()
 	err = col2.fromProto(pb)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
 	assert.Equal(t, col1.len(), col2.len())
