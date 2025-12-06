@@ -26,12 +26,12 @@ func TestSparseSet_ModelBasedFuzz(t *testing.T) {
 
 	const (
 		opsMax = 1 << 15 // 32_768 iterations
-		maxKey = 10_000
+		eidMax = 10_000
 	)
 
 	// Check the impl against the model by running the same operations on both.
 	for range opsMax {
-		key := EntityID(prng.IntN(maxKey))
+		key := EntityID(prng.IntN(eidMax))
 
 		op := getRandomSparseSetOp(prng)
 		switch op {
@@ -50,27 +50,27 @@ func TestSparseSet_ModelBasedFuzz(t *testing.T) {
 			if len(model) > 0 && prng.Float64() < 0.8 {
 				key = testutils.RandMapKey(prng, model)
 			}
-			gotImpl, okImpl := impl.get(key)
-			gotModel, okModel := model[key]
+			implValue, implOk := impl.get(key)
+			modelValue, modelOk := model[key]
 
 			// Property: get(k) returns same existence and value as model.
-			assert.Equal(t, okModel, okImpl, "get(%d) existence mismatch", key)
-			if okImpl {
-				assert.Equal(t, gotModel, gotImpl, "get(%d) value mismatch", key)
+			assert.Equal(t, modelOk, implOk, "get(%d) existence mismatch", key)
+			if implOk {
+				assert.Equal(t, modelValue, implValue, "get(%d) value mismatch", key)
 			}
 
 			// Property: if key doesn't exist but is within bounds, internal value must be tombstone.
-			if !okImpl && int(key) < len(impl) {
+			if !implOk && int(key) < len(impl) {
 				assert.Equal(t, sparseTombstone, impl[key], "get(%d) non-existent key should be tombstone", key)
 			}
 
 		case remove:
-			okImpl := impl.remove(key)
-			_, okModel := model[key]
+			implOk := impl.remove(key)
+			_, modelOk := model[key]
 			delete(model, key)
 
 			// Property: remove(k) returns same existence as model.
-			assert.Equal(t, okModel, okImpl, "remove(%d) existence mismatch", key)
+			assert.Equal(t, modelOk, implOk, "remove(%d) existence mismatch", key)
 
 			// Property: get(k) after remove(k) must not exist (value becomes tombstone).
 			_, ok := impl.get(key)
@@ -85,10 +85,10 @@ func TestSparseSet_ModelBasedFuzz(t *testing.T) {
 	}
 
 	// Final state check: verify all keys in model exist in impl with correct values.
-	for key, expectedVal := range model {
-		gotVal, ok := impl.get(key)
+	for key, modelValue := range model {
+		implValue, ok := impl.get(key)
 		assert.True(t, ok, "key %d should exist in impl", key)
-		assert.Equal(t, expectedVal, gotVal, "key %d value mismatch", key)
+		assert.Equal(t, modelValue, implValue, "key %d value mismatch", key)
 	}
 }
 
@@ -117,4 +117,41 @@ func getRandomSparseSetOp(r *rand.Rand) sparseSetOp {
 		pick -= weight
 	}
 	panic("unreachable")
+}
+
+// -------------------------------------------------------------------------------------------------
+// Serialization tests
+//
+// We don't extensively test toInt64Slice/fromInt64Slice because:
+// 1. The implementation is a trivial type conversion loop (int -> int64 and back).
+// 2. There's no complex branching or error handling.
+// 3. Heavy property-based testing would mostly verify Go's type conversion, not our logic.
+// -------------------------------------------------------------------------------------------------
+
+func TestSparseSet_SerializeRoundTrip(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand()
+
+	const (
+		opsMax = 100
+		eidMax = 10_000
+	)
+
+	impl1 := newSparseSet()
+	for range opsMax {
+		key := EntityID(prng.IntN(eidMax))
+		value := prng.Int()
+		impl1.set(key, value)
+	}
+
+	data := impl1.toInt64Slice()
+
+	impl2 := newSparseSet()
+	impl2.fromInt64Slice(data)
+
+	// Property: deserialize(serialize(x)) == x
+	assert.Equal(t, len(impl1), len(impl2))
+	for i := range impl1 {
+		assert.Equal(t, impl1[i], impl2[i])
+	}
 }

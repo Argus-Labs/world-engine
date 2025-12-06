@@ -20,8 +20,8 @@ type abstractColumn interface {
 	getAbstract(row int) Component
 	remove(row int)
 
-	serialize() (*cardinalv1.Column, error)
-	deserialize(*cardinalv1.Column) error
+	toProto() (*cardinalv1.Column, error)
+	fromProto(*cardinalv1.Column) error
 }
 
 var _ abstractColumn = &column[Component]{}
@@ -33,13 +33,14 @@ type column[T Component] struct {
 	components []T    // Array containing the component data
 }
 
+const columnCapacity = 16
+
 // newColumn creates a new column with the specified type.
 func newColumn[T Component]() column[T] {
 	var zero T
-	const initialCapacity = 16
 	return column[T]{
 		compName:   zero.Name(),
-		components: make([]T, 0, initialCapacity),
+		components: make([]T, 0, columnCapacity),
 	}
 }
 
@@ -120,8 +121,8 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// serialize converts the column to a protobuf message for serialization.
-func (c *column[T]) serialize() (*cardinalv1.Column, error) {
+// toProto converts the column to a protobuf message for serialization.
+func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	componentData := make([][]byte, len(c.components))
 	for i, component := range c.components {
 		data, err := json.Marshal(component)
@@ -137,8 +138,8 @@ func (c *column[T]) serialize() (*cardinalv1.Column, error) {
 	}, nil
 }
 
-// deserialize populates the column from a protobuf message.
-func (c *column[T]) deserialize(pb *cardinalv1.Column) error {
+// fromProto populates the column from a protobuf message.
+func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	if pb == nil {
 		return eris.New("protobuf column is nil")
 	}
