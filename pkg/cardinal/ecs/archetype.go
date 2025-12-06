@@ -16,9 +16,9 @@ type archetypeID = int
 // saves us around 10ns/op, which is 10x speed up in low # of components. We store columns in a
 // slice instead of a map because it's faster for small # of components.
 type archetype struct {
-	id         archetypeID   // Corresponds to the index in the archetypes array
-	components bitmap.Bitmap // Bitmap of components contained in this archetype
-	rows       sparseSet
+	id         archetypeID      // Corresponds to the index in the archetypes array
+	components bitmap.Bitmap    // Bitmap of components contained in this archetype
+	rows       sparseSet        // Maps entity ID -> row index in entities and columns
 	entities   []EntityID       // List of entities of this archetype
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
@@ -149,7 +149,7 @@ func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
 
 	columns := make([]*cardinalv1.Column, len(a.columns))
 	for i, column := range a.columns {
-		data, err := column.serialize()
+		data, err := column.toProto()
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to serialize column %d", i)
 		}
@@ -191,7 +191,7 @@ func (a *archetype) deserialize(pb *cardinalv1.Archetype, cm *componentManager) 
 		factory := cm.factories[cid]
 		column := factory()
 
-		if err := column.deserialize(pbCol); err != nil {
+		if err := column.fromProto(pbCol); err != nil {
 			return eris.Wrapf(err, "failed to deserialize column %d", i)
 		}
 		a.columns[i] = column
