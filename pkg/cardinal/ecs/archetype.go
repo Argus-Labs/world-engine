@@ -161,7 +161,7 @@ func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
 		ComponentsBitmap: componentsBitmap,
 		Entities:         entities,
 		Columns:          columns,
-		Rows:             a.rows.serialize(),
+		Rows:             a.rows.toInt64Slice(),
 	}, nil
 }
 
@@ -174,7 +174,7 @@ func (a *archetype) deserialize(pb *cardinalv1.Archetype, cm *componentManager) 
 
 	a.id = archetypeID(pb.GetId())
 	a.components = bitmap.FromBytes(pb.GetComponentsBitmap())
-	a.rows.deserialize(pb.GetRows())
+	a.rows.fromInt64Slice(pb.GetRows())
 
 	a.entities = make([]EntityID, len(pb.GetEntities()))
 	for i, eid := range pb.GetEntities() {

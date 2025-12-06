@@ -285,7 +285,7 @@ func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
 	return &cardinalv1.CardinalSnapshot{
 		NextId:     uint32(ws.nextID),
 		FreeIds:    freeIDs,
-		EntityArch: ws.entityArch.serialize(),
+		EntityArch: ws.entityArch.toInt64Slice(),
 		Archetypes: pbArchetypes,
 	}, nil
 }
@@ -299,7 +299,7 @@ func (ws *worldState) deserialize(pb *cardinalv1.CardinalSnapshot) error {
 		ws.free[i] = EntityID(freeID)
 	}
 
-	ws.entityArch.deserialize(pb.GetEntityArch())
+	ws.entityArch.fromInt64Slice(pb.GetEntityArch())
 
 	ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
 	for i, pbArch := range pb.GetArchetypes() {
