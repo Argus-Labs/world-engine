@@ -369,14 +369,22 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, arch.id, arch2.id)
-	assert.Equal(t, arch.components.ToBytes(), arch2.components.ToBytes())
-	assert.Equal(t, arch.entities, arch2.entities)
-	assert.Equal(t, arch.rows, arch2.rows)
+	assertArchetypeEqual(t, arch, arch2)
+}
 
-	assert.Len(t, arch2.columns, len(arch.columns))
-	for i := range arch.columns {
-		c1, c2 := arch.columns[i], arch2.columns[i]
+// assertArchetypeEqual checks if two archetypes are struturally equal. This function is extracted
+// so it can be reused in serialization tests "above" this layer.
+func assertArchetypeEqual(t *testing.T, a1, a2 *archetype) {
+	t.Helper()
+
+	assert.Equal(t, a1.id, a2.id)
+	assert.Equal(t, a1.components.ToBytes(), a2.components.ToBytes())
+	assert.Equal(t, a1.entities, a2.entities)
+	assert.Equal(t, sparseSet(a1.rows), sparseSet(a2.rows))
+
+	assert.Len(t, a2.columns, len(a1.columns))
+	for i := range a1.columns {
+		c1, c2 := a1.columns[i], a2.columns[i]
 		assert.Equal(t, c1.len(), c2.len())
 		for row := range c1.len() {
 			assert.Equal(t, c1.getAbstract(row), c2.getAbstract(row))

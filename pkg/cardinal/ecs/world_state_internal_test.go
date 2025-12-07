@@ -444,26 +444,20 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
+	assertWorldStateEqual(t, ws1, ws2)
+}
+
+// assertWorldStateEqual checks if two worldStates are structurally equal. This function is
+// extracted so it can be reused in serialization tests "above" this layer.
+func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
+	t.Helper()
+
 	assert.Equal(t, ws1.nextID, ws2.nextID)
 	assert.Equal(t, ws1.free, ws2.free)
 	assert.Equal(t, sparseSet(ws1.entityArch), sparseSet(ws2.entityArch))
 
 	assert.Len(t, ws2.archetypes, len(ws1.archetypes))
 	for i := range ws1.archetypes {
-		arch1 := ws1.archetypes[i]
-		arch2 := ws2.archetypes[i]
-
-		assert.Equal(t, arch1.id, arch2.id)
-		assert.Equal(t, arch1.components.ToBytes(), arch2.components.ToBytes())
-		assert.Equal(t, arch1.entities, arch2.entities)
-		assert.Equal(t, sparseSet(arch1.rows), sparseSet(arch2.rows))
-
-		assert.Len(t, arch2.columns, len(arch1.columns))
-		for j := range arch1.columns {
-			assert.Equal(t, arch1.columns[j].len(), arch2.columns[j].len())
-			for k := range arch1.columns[j].len() {
-				assert.Equal(t, arch1.columns[j].getAbstract(k), arch2.columns[j].getAbstract(k))
-			}
-		}
+		assertArchetypeEqual(t, ws1.archetypes[i], ws2.archetypes[i])
 	}
 }
