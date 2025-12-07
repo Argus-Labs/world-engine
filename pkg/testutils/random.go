@@ -38,3 +38,26 @@ func RandMapKey[K comparable, V any](r *rand.Rand, m map[K]V) K {
 	}
 	panic("unreachable")
 }
+
+// WeightedOp is a constraint for operation types that use their value as the weight.
+type WeightedOp interface {
+	~uint8 | ~uint16 | ~uint32 | ~int
+}
+
+// RandWeightedOp returns a random operation from a slice, using each op's value as its weight.
+func RandWeightedOp[T WeightedOp](r *rand.Rand, ops []T) T {
+	var total int
+	for _, op := range ops {
+		total += int(op)
+	}
+
+	pick := r.IntN(total)
+	for _, op := range ops {
+		weight := int(op)
+		if pick < weight {
+			return op
+		}
+		pick -= weight
+	}
+	panic("unreachable")
+}

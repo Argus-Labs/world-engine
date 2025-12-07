@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"math/rand/v2"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -9,7 +8,7 @@ import (
 )
 
 // -------------------------------------------------------------------------------------------------
-// Model-Based Fuzzing
+// Model-based fuzzing sparse set operations
 //
 // This test verifies the sparseSet implementation correctness using model-based testing. It
 // compares our implementation against a Go's map as the model by applying random sequences of
@@ -17,23 +16,23 @@ import (
 // Operations are weighted (set=55%, remove=35%, get=10%) to prioritize state mutations.
 // -------------------------------------------------------------------------------------------------
 
-func TestSparseSet_ModelBasedFuzz(t *testing.T) {
+func TestSparseSet_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
-
-	impl := newSparseSet()
-	model := make(map[EntityID]int, sparseCapacity)
 
 	const (
 		opsMax = 1 << 15 // 32_768 iterations
 		eidMax = 10_000
 	)
 
+	impl := newSparseSet()
+	model := make(map[EntityID]int, sparseCapacity)
+
 	// Check the impl against the model by running the same operations on both.
 	for range opsMax {
 		key := EntityID(prng.IntN(eidMax))
 
-		op := getRandomSparseSetOp(prng)
+		op := testutils.RandWeightedOp(prng, sparseSetOps)
 		switch op {
 		case set:
 			value := prng.Int()
@@ -102,25 +101,8 @@ const (
 
 var sparseSetOps = []sparseSetOp{set, remove, get}
 
-func getRandomSparseSetOp(r *rand.Rand) sparseSetOp {
-	var total int
-	for _, op := range sparseSetOps {
-		total += int(op)
-	}
-
-	pick := r.IntN(total)
-	for _, op := range sparseSetOps {
-		weight := int(op)
-		if pick < weight {
-			return op
-		}
-		pick -= weight
-	}
-	panic("unreachable")
-}
-
 // -------------------------------------------------------------------------------------------------
-// Serialization tests
+// Serialization smoke test
 //
 // We don't extensively test toInt64Slice/fromInt64Slice because:
 // 1. The implementation is a trivial type conversion loop (int -> int64 and back).
@@ -128,7 +110,7 @@ func getRandomSparseSetOp(r *rand.Rand) sparseSetOp {
 // 3. Heavy property-based testing would mostly verify Go's type conversion, not our logic.
 // -------------------------------------------------------------------------------------------------
 
-func TestSparseSet_Serialization(t *testing.T) {
+func TestSparseSet_SerializationSmoke(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
@@ -149,7 +131,7 @@ func TestSparseSet_Serialization(t *testing.T) {
 	impl2 := newSparseSet()
 	impl2.fromInt64Slice(data)
 
-	// Property: deserialize(serialize(x)) == x
+	// Property: deserialize(serialize(x)) == x.
 	assert.Len(t, impl2, len(impl1))
 	for i := range impl1 {
 		assert.Equal(t, impl1[i], impl2[i])
