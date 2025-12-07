@@ -13,7 +13,6 @@ import (
 // This test verifies the sparseSet implementation correctness using model-based testing. It
 // compares our implementation against a Go's map as the model by applying random sequences of
 // set/get/remove operations to both and asserting equivalence.
-// Operations are weighted (set=55%, remove=35%, get=10%) to prioritize state mutations.
 // -------------------------------------------------------------------------------------------------
 
 func TestSparseSet_ModelFuzz(t *testing.T) {
@@ -34,7 +33,7 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 
 		op := testutils.RandWeightedOp(prng, sparseSetOps)
 		switch op {
-		case set:
+		case s_set:
 			value := prng.Int()
 			impl.set(key, value)
 			model[key] = value
@@ -44,7 +43,7 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 			assert.True(t, ok, "set(%d) then get should exist", key)
 			assert.Equal(t, value, got, "set(%d) then get value mismatch", key)
 
-		case get:
+		case s_get:
 			// Bias toward existing keys (80%) to test value retrieval path.
 			if len(model) > 0 && prng.Float64() < 0.8 {
 				key = testutils.RandMapKey(prng, model)
@@ -63,7 +62,7 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 				assert.Equal(t, sparseTombstone, impl[key], "get(%d) non-existent key should be tombstone", key)
 			}
 
-		case remove:
+		case s_remove:
 			implOk := impl.remove(key)
 			_, modelOk := model[key]
 			delete(model, key)
@@ -94,12 +93,12 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 type sparseSetOp uint8
 
 const (
-	set    sparseSetOp = 55
-	remove sparseSetOp = 35
-	get    sparseSetOp = 10
+	s_set    sparseSetOp = 55
+	s_remove sparseSetOp = 35
+	s_get    sparseSetOp = 10
 )
 
-var sparseSetOps = []sparseSetOp{set, remove, get}
+var sparseSetOps = []sparseSetOp{s_set, s_remove, s_get}
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test

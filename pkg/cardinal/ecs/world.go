@@ -105,7 +105,7 @@ func (w *World) clearBuffers() {
 // Serialize converts the World's state to a byte slice for serialization.
 // Only serializes the WorldState as components, systems, and managers are recreated on startup.
 func (w *World) Serialize() ([]byte, error) {
-	snapshot, err := w.state.serialize()
+	snapshot, err := w.state.toProto()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (w *World) Deserialize(data []byte) error {
 	if err := proto.Unmarshal(data, &snapshot); err != nil {
 		return eris.Wrap(err, "failed to unmarshal snapshot")
 	}
-	if err := w.state.deserialize(&snapshot); err != nil {
+	if err := w.state.fromProto(&snapshot); err != nil {
 		return err
 	}
 	// Mark init as done to prevent re-running init systems after restore.

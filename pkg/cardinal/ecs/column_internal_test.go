@@ -14,7 +14,6 @@ import (
 // This test verifies the column implementation correctness using model-based testing. It compares
 // our implementation against Go's slice with swap-remove semantics as the model by applying random
 // sequences of extend/set/get/remove operations to both and asserting equivalence.
-// Operations are weighted (extend=20%, set=35%, remove=30%, get=15%) to prioritize state mutations.
 // -------------------------------------------------------------------------------------------------
 
 func TestColumn_ModelFuzz(t *testing.T) {
@@ -29,14 +28,14 @@ func TestColumn_ModelFuzz(t *testing.T) {
 	for range opsMax {
 		op := testutils.RandWeightedOp(prng, columnOps)
 		switch op {
-		case opExtend:
+		case c_extend:
 			impl.extend()
 			model = append(model, testutils.SimpleComponent{})
 
 			// Property: length increases by 1.
 			assert.Equal(t, len(model), impl.len(), "extend length mismatch")
 
-		case opSet:
+		case c_set:
 			if len(model) == 0 {
 				continue
 			}
@@ -50,7 +49,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 			// Property: get(k) after set(k) returns same value.
 			assert.Equal(t, value, impl.get(row), "set(%d) then get value mismatch", row)
 
-		case opGet:
+		case c_get:
 			if len(model) == 0 {
 				continue
 			}
@@ -62,7 +61,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 			// Property: get(k) returns same value as model.
 			assert.Equal(t, modelValue, implValue, "get(%d) value mismatch", row)
 
-		case opRemove:
+		case c_remove:
 			if len(model) == 0 {
 				continue
 			}
@@ -98,13 +97,13 @@ func TestColumn_ModelFuzz(t *testing.T) {
 type columnOp uint8
 
 const (
-	opExtend columnOp = 20
-	opSet    columnOp = 35
-	opRemove columnOp = 30
-	opGet    columnOp = 15
+	c_extend columnOp = 20
+	c_set    columnOp = 35
+	c_remove columnOp = 30
+	c_get    columnOp = 15
 )
 
-var columnOps = []columnOp{opExtend, opSet, opRemove, opGet}
+var columnOps = []columnOp{c_extend, c_set, c_remove, c_get}
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
