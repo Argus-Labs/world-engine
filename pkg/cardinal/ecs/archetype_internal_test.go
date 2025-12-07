@@ -12,7 +12,7 @@ import (
 
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing archetype operations
-//
+// -------------------------------------------------------------------------------------------------
 // This test verifies the archetype implementation correctness using model-based testing. It
 // compares our implementation against Go's map tracking entity->archetype ownership by applying
 // random sequences of new/move/remove operations to both and asserting equivalence.
@@ -153,7 +153,7 @@ var archetypeOps = []archetypeOp{a_new, a_move, a_remove}
 
 // -------------------------------------------------------------------------------------------------
 // Exhaustive archetype move test
-//
+// -------------------------------------------------------------------------------------------------
 // This test exhaustively enumerates all combinations of source/destination archetypes and entity
 // positions to verify moveEntity correctness. The archetype pool covers all component relationship
 // scenarios between source and destination:
@@ -333,7 +333,7 @@ func classifyMove(srcIdx, dstIdx int) string { //nolint:unused // useful for deb
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
-//
+// -------------------------------------------------------------------------------------------------
 // We don't extensively test toProto/fromProto because:
 // 1. The implementation delegates to column and sparse set serialization (tested separately).
 // 2. The remaining logic is straightforward type conversion loops.
@@ -369,5 +369,17 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, arch, arch2) // assert.Equal uses reflect.DeepEqual
+	assert.Equal(t, arch.id, arch2.id)
+	assert.Equal(t, arch.components.ToBytes(), arch2.components.ToBytes())
+	assert.Equal(t, arch.entities, arch2.entities)
+	assert.Equal(t, arch.rows, arch2.rows)
+
+	assert.Len(t, arch2.columns, len(arch.columns))
+	for i := range arch.columns {
+		c1, c2 := arch.columns[i], arch2.columns[i]
+		assert.Equal(t, c1.len(), c2.len())
+		for row := range c1.len() {
+			assert.Equal(t, c1.getAbstract(row), c2.getAbstract(row))
+		}
+	}
 }
