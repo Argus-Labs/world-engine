@@ -266,8 +266,8 @@ func registerComponent[T Component](ws *worldState) (componentID, error) {
 // Serialization
 // -------------------------------------------------------------------------------------------------
 
-// serialize converts the worldState to a protobuf message for serialization.
-func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
+// toProto converts the worldState to a protobuf message for serialization.
+func (ws *worldState) toProto() (*cardinalv1.CardinalSnapshot, error) {
 	freeIDs := make([]uint32, len(ws.free))
 	for i, entityID := range ws.free {
 		freeIDs[i] = uint32(entityID)
@@ -290,8 +290,8 @@ func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
 	}, nil
 }
 
-// deserialize populates the worldState from a protobuf message.
-func (ws *worldState) deserialize(pb *cardinalv1.CardinalSnapshot) error {
+// fromProto populates the worldState from a protobuf message.
+func (ws *worldState) fromProto(pb *cardinalv1.CardinalSnapshot) error {
 	ws.nextID = EntityID(pb.GetNextId())
 
 	ws.free = make([]EntityID, len(pb.GetFreeIds()))

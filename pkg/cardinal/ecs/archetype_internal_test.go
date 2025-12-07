@@ -16,7 +16,6 @@ import (
 // This test verifies the archetype implementation correctness using model-based testing. It
 // compares our implementation against Go's map tracking entity->archetype ownership by applying
 // random sequences of new/move/remove operations to both and asserting equivalence.
-// Operations are weighted (new=40%, move=35%, remove=25%) to prioritize state mutations.
 // We also verify extra invariants such as bijection consistency and global entity uniqueness.
 // -------------------------------------------------------------------------------------------------
 
@@ -36,7 +35,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 	for range opsMax {
 		op := testutils.RandWeightedOp(prng, archetypeOps)
 		switch op {
-		case opNewEntity:
+		case a_new:
 			eid := next
 			next++
 			entities = append(entities, eid)
@@ -50,7 +49,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			assert.True(t, exists)
 			assert.Equal(t, eid, arch.entities[row])
 
-		case opRemoveEntity:
+		case a_remove:
 			if len(entities) == 0 {
 				continue
 			}
@@ -60,14 +59,13 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 
 			arch.removeEntity(eid)
 			delete(model, eid)
-			entities[idx] = entities[len(entities)-1]
-			entities = entities[:len(entities)-1]
+			entities = slices.Delete(entities, idx, idx+1)
 
 			// Property: entity no longer exists.
 			_, exists := arch.rows.get(eid)
 			assert.False(t, exists)
 
-		case opMoveEntity:
+		case a_move:
 			if len(entities) == 0 {
 				continue
 			}
@@ -128,7 +126,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 	}
 
 	// Property: all entities in archetypes match the entities list.
-	assert.Equal(t, len(entities), len(seenGlobal), "entity count mismatch")
+	assert.Len(t, seenGlobal, len(entities), "entity count mismatch")
 	for _, eid := range entities {
 		assert.True(t, seenGlobal[eid], "entity %d in list but not in any archetype", eid)
 	}
@@ -146,12 +144,12 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 type archetypeOp uint8
 
 const (
-	opNewEntity    archetypeOp = 40
-	opMoveEntity   archetypeOp = 35
-	opRemoveEntity archetypeOp = 25
+	a_new    archetypeOp = 40
+	a_move   archetypeOp = 35
+	a_remove archetypeOp = 25
 )
 
-var archetypeOps = []archetypeOp{opNewEntity, opRemoveEntity, opMoveEntity}
+var archetypeOps = []archetypeOp{a_new, a_move, a_remove}
 
 // -------------------------------------------------------------------------------------------------
 // Exhaustive archetype move test
@@ -224,10 +222,10 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 		assert.Equal(t, eid, dst.entities[dstRow], "bijection broken: dst.entities[%d] != %d", dstRow, eid)
 
 		// Property: source entity count decreased by 1.
-		assert.Equal(t, srcLenBefore-1, len(src.entities), "source entity count should decrease by 1")
+		assert.Len(t, src.entities, srcLenBefore-1, "source entity count should decrease by 1")
 
 		// Property: destination entity count increased by 1.
-		assert.Equal(t, dstLenBefore+1, len(dst.entities), "destination entity count should increase by 1")
+		assert.Len(t, dst.entities, dstLenBefore+1, "destination entity count should increase by 1")
 
 		// Property: bijection holds for all remaining entities in source.
 		for i, e := range src.entities {
@@ -310,7 +308,7 @@ func testValueFor(name string) Component {
 
 // classifyMove returns a string describing the move scenario based on archetype indices.
 // This is a helper function to visualize the cases handled in the test above.
-func classifyMove(srcIdx, dstIdx int) string {
+func classifyMove(srcIdx, dstIdx int) string { //nolint:unused // useful for debugging test cases
 	names := []string{"{}", "{A}", "{A,B}", "{B,C}"}
 	label := names[srcIdx] + " -> " + names[dstIdx]
 
@@ -349,12 +347,12 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	const entityMax = 1000
 
 	cm := newComponentManager()
-	cidA, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
+	cid1, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
 	require.NoError(t, err)
-	cidB, err := cm.register(testutils.ComponentB{}.Name(), newColumnFactory[testutils.ComponentB]())
+	cid2, err := cm.register(testutils.ComponentB{}.Name(), newColumnFactory[testutils.ComponentB]())
 	require.NoError(t, err)
 
-	arch := newTestArchetype(0, []uint32{cidA, cidB})
+	arch := newTestArchetype(0, []uint32{cid1, cid2})
 	entityCount := prng.IntN(entityMax) + 1
 	for eid := range entityCount {
 		arch.newEntity(EntityID(eid))
@@ -371,24 +369,5 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, arch.id, arch2.id)
-	assert.Equal(t, arch.components.ToBytes(), arch2.components.ToBytes())
-
-	assert.Equal(t, len(arch.entities), len(arch2.entities))
-	for i := range arch.entities {
-		assert.Equal(t, arch.entities[i], arch2.entities[i])
-	}
-
-	assert.Equal(t, len(arch.rows), len(arch2.rows))
-	for i := range arch.rows {
-		assert.Equal(t, arch.rows[i], arch2.rows[i])
-	}
-
-	assert.Equal(t, len(arch.columns), len(arch2.columns))
-	for i := range arch.columns {
-		assert.Equal(t, arch.columns[i].len(), arch2.columns[i].len())
-		for j := range arch.columns[i].len() {
-			assert.Equal(t, arch.columns[i].getAbstract(j), arch2.columns[i].getAbstract(j))
-		}
-	}
+	assert.Equal(t, arch, arch2) // assert.Equal uses reflect.DeepEqual
 }
