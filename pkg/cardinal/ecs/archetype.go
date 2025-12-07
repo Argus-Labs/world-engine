@@ -12,7 +12,7 @@ import (
 type archetypeID = int
 
 // archetype represents a collection of entities with the same component types.
-// NOTE: We store the compoCount instead of using Bitmap.Count() because counting bits is O(n). This
+// NOTE: We store the compCount instead of using Bitmap.Count() because counting bits is O(n). This
 // saves us around 10ns/op, which is 10x speed up in low # of components. We store columns in a
 // slice instead of a map because it's faster for small # of components.
 type archetype struct {
@@ -112,6 +112,12 @@ func (a *archetype) removeEntity(eid EntityID) {
 // entity in the current archetype. Returns the swapped entity ID from the remove operation and the
 // row in the destination archetype.
 func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
+	// Normally I'd assert(src != dst) here, but since we have newEntityWithArchetype({}) is valid,
+	// we'll just no-op instead of panic.
+	if a == destination {
+		return
+	}
+
 	row, exists := a.rows.get(eid)
 	assert.That(exists, "entity is not in archetype")
 
@@ -138,8 +144,8 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 // Serialization
 // -------------------------------------------------------------------------------------------------
 
-// serialize converts the archetype to a protobuf message for serialization.
-func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
+// toProto converts the archetype to a protobuf message for serialization.
+func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
 	componentsBitmap := a.components.ToBytes()
 
 	entities := make([]uint32, len(a.entities))
@@ -165,9 +171,9 @@ func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
 	}, nil
 }
 
-// deserialize populates the archetype from a protobuf message. We pass a reference to the component
+// fromProto populates the archetype from a protobuf message. We pass a reference to the component
 // manager to get the column factories needed to create the correct column[T].
-func (a *archetype) deserialize(pb *cardinalv1.Archetype, cm *componentManager) error {
+func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) error {
 	if pb == nil {
 		return eris.New("protobuf archetype is nil")
 	}

@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"math/rand/v2"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -10,7 +9,7 @@ import (
 )
 
 // -------------------------------------------------------------------------------------------------
-// Model-based fuzzing
+// Model-based fuzzing column operations
 //
 // This test verifies the column implementation correctness using model-based testing. It compares
 // our implementation against Go's slice with swap-remove semantics as the model by applying random
@@ -18,17 +17,17 @@ import (
 // Operations are weighted (extend=20%, set=35%, remove=30%, get=15%) to prioritize state mutations.
 // -------------------------------------------------------------------------------------------------
 
-func TestColumn_ModelBasedFuzz(t *testing.T) {
+func TestColumn_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
+
+	const opsMax = 1 << 15 // 32_768 iterations
 
 	impl := newColumn[testutils.SimpleComponent]()
 	model := make([]testutils.SimpleComponent, 0, columnCapacity)
 
-	const opsMax = 1 << 15 // 32_768 iterations
-
 	for range opsMax {
-		op := getRandomColumnOp(prng)
+		op := testutils.RandWeightedOp(prng, columnOps)
 		switch op {
 		case opExtend:
 			impl.extend()
@@ -107,33 +106,16 @@ const (
 
 var columnOps = []columnOp{opExtend, opSet, opRemove, opGet}
 
-func getRandomColumnOp(r *rand.Rand) columnOp {
-	var total int
-	for _, op := range columnOps {
-		total += int(op)
-	}
-
-	pick := r.IntN(total)
-	for _, op := range columnOps {
-		weight := int(op)
-		if pick < weight {
-			return op
-		}
-		pick -= weight
-	}
-	panic("unreachable")
-}
-
 // -------------------------------------------------------------------------------------------------
-// Serialization tests
+// Serialization smoke test
 //
-// We don't extensively test serialize/deserialize because:
+// We don't extensively test toProto/fromProto because:
 // 1. The implementation is a thin wrapper around json.Marshal/Unmarshal (well-tested stdlib).
 // 2. The loop logic is trivial with no complex branching.
 // 3. Heavy property-based testing would mostly exercise the json package, not our code.
 // -------------------------------------------------------------------------------------------------
 
-func TestColumn_Serialization(t *testing.T) {
+func TestColumn_SerializationSmoke(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 

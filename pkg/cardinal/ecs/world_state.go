@@ -275,7 +275,7 @@ func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
 
 	pbArchetypes := make([]*cardinalv1.Archetype, len(ws.archetypes))
 	for i, arch := range ws.archetypes {
-		pbArch, err := arch.serialize()
+		pbArch, err := arch.toProto()
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to serialize archetype %d", i)
 		}
@@ -304,7 +304,7 @@ func (ws *worldState) deserialize(pb *cardinalv1.CardinalSnapshot) error {
 	ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
 	for i, pbArch := range pb.GetArchetypes() {
 		ws.archetypes[i] = &archetype{}
-		if err := ws.archetypes[i].deserialize(pbArch, &ws.components); err != nil {
+		if err := ws.archetypes[i].fromProto(pbArch, &ws.components); err != nil {
 			return eris.Wrapf(err, "failed to deserialize archetype %d", i)
 		}
 	}
