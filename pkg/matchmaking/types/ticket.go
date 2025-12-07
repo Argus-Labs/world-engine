@@ -7,17 +7,22 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	matchmakingv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/matchmaking/v1"
+	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 )
 
-// Ticket represents a matchmaking request for a party.
+// Ticket represents a matchmaking request for a group of players.
 type Ticket struct {
 	ID               string
-	PartyID          string
+	PartyID          string // Correlation ID from Game Shard for callback
 	MatchProfileName string
 	AllowBackfill    bool
 	Players          []PlayerInfo
 	CreatedAt        time.Time
 	ExpiresAt        time.Time
+
+	// CallbackAddress is where to send notifications when this ticket is matched.
+	// This is typically the Game Shard address that created the ticket.
+	CallbackAddress *microv1.ServiceAddress
 
 	// Cached pool counts computed during creation
 	PoolCounts map[string]int
@@ -65,6 +70,15 @@ func (t *Ticket) PlayerIDs() []string {
 	return ids
 }
 
+// GetFirstPlayerID returns the first player ID in the ticket.
+// Used as a tiebreaker for deterministic sorting when timestamps are equal.
+func (t *Ticket) GetFirstPlayerID() string {
+	if len(t.Players) == 0 {
+		return ""
+	}
+	return t.Players[0].PlayerID
+}
+
 // IsExpired returns true if the ticket has expired.
 func (t *Ticket) IsExpired(now time.Time) bool {
 	return now.After(t.ExpiresAt)
@@ -91,12 +105,12 @@ func (t *Ticket) ToProto() *matchmakingv1.Ticket {
 
 	return &matchmakingv1.Ticket{
 		Id:               t.ID,
-		PartyId:          t.PartyID,
 		MatchProfileName: t.MatchProfileName,
 		AllowBackfill:    t.AllowBackfill,
 		Players:          players,
 		CreatedAt:        timestamppb.New(t.CreatedAt),
 		ExpiresAt:        timestamppb.New(t.ExpiresAt),
+		CallbackAddress:  t.CallbackAddress,
 	}
 }
 
@@ -120,20 +134,20 @@ func TicketFromProto(proto *matchmakingv1.Ticket) *Ticket {
 
 	return &Ticket{
 		ID:               proto.Id,
-		PartyID:          proto.PartyId,
 		MatchProfileName: proto.MatchProfileName,
 		AllowBackfill:    proto.AllowBackfill,
 		Players:          players,
 		CreatedAt:        proto.CreatedAt.AsTime(),
 		ExpiresAt:        proto.ExpiresAt.AsTime(),
+		CallbackAddress:  proto.CallbackAddress,
 	}
 }
 
 // ToReference creates a TicketReference from the ticket.
 func (t *Ticket) ToReference() *matchmakingv1.TicketReference {
 	return &matchmakingv1.TicketReference{
-		Id:        t.ID,
-		PartyId:   t.PartyID,
-		PlayerIds: t.PlayerIDs(),
+		Id:              t.ID,
+		PlayerIds:       t.PlayerIDs(),
+		CallbackAddress: t.CallbackAddress,
 	}
 }

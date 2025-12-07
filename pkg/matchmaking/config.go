@@ -12,10 +12,8 @@ type config struct {
 	// MatchProfilesPath is the path to the JSON file containing match profiles.
 	MatchProfilesPath string `env:"MATCHMAKING_PROFILES_PATH" envDefault:""`
 
-	// TicketTTL is the default time-to-live for tickets.
-	TicketTTLSeconds int `env:"MATCHMAKING_TICKET_TTL_SECONDS" envDefault:"300"`
-
 	// BackfillTTL is the default time-to-live for backfill requests.
+	// Note: Ticket TTL is specified per-ticket by the Game Shard (defaults to 1 hour).
 	BackfillTTLSeconds int `env:"MATCHMAKING_BACKFILL_TTL_SECONDS" envDefault:"300"`
 }
 
@@ -26,11 +24,6 @@ func loadConfig() (config, error) {
 		return config{}, eris.Wrap(err, "failed to parse matchmaking config")
 	}
 	return cfg, nil
-}
-
-// TicketTTL returns the ticket TTL as a duration.
-func (c config) TicketTTL() time.Duration {
-	return time.Duration(c.TicketTTLSeconds) * time.Second
 }
 
 // BackfillTTL returns the backfill request TTL as a duration.

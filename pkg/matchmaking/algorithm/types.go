@@ -16,6 +16,10 @@ type Ticket interface {
 
 	// PlayerCount returns the total number of players in this ticket.
 	PlayerCount() int
+
+	// GetFirstPlayerID returns the first player ID in the ticket.
+	// Used as a tiebreaker for deterministic sorting when timestamps are equal.
+	GetFirstPlayerID() string
 }
 
 // WaitTime returns the duration a ticket has been waiting.

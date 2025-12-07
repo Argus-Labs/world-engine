@@ -9,6 +9,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/pkg/matchmaking/types"
+	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 )
 
 // TicketStore manages tickets with multiple indexes for efficient access.
@@ -24,8 +25,8 @@ type TicketStore struct {
 	// Index for backfill-eligible tickets per profile
 	backfillTicketsByProfile map[string][]*types.Ticket
 
-	// Index by party_id - to check if party already has a ticket
-	ticketsByParty map[string]*types.Ticket
+	// Index by player_id - to check if player already has a ticket (one ticket per player)
+	ticketsByPlayer map[string]*types.Ticket
 
 	// Counter for generating unique IDs
 	ticketCounter uint64
@@ -37,12 +38,13 @@ func NewTicketStore() *TicketStore {
 		ticketsByID:              make(map[string]*types.Ticket),
 		ticketsByProfile:         make(map[string][]*types.Ticket),
 		backfillTicketsByProfile: make(map[string][]*types.Ticket),
-		ticketsByParty:           make(map[string]*types.Ticket),
+		ticketsByPlayer:          make(map[string]*types.Ticket),
 		ticketCounter:            0,
 	}
 }
 
 // Create creates a new ticket and adds it to the store.
+// Returns error if any player already has an active ticket.
 func (s *TicketStore) Create(
 	partyID string,
 	matchProfileName string,
@@ -51,13 +53,16 @@ func (s *TicketStore) Create(
 	createdAt time.Time,
 	ttl time.Duration,
 	poolCounts map[string]int,
+	callbackAddress *microv1.ServiceAddress,
 ) (*types.Ticket, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if party already has a ticket
-	if _, exists := s.ticketsByParty[partyID]; exists {
-		return nil, eris.Errorf("party %q already has an active ticket", partyID)
+	// Check if any player already has a ticket (one ticket per player)
+	for _, p := range players {
+		if _, exists := s.ticketsByPlayer[p.PlayerID]; exists {
+			return nil, eris.Errorf("player %q already has an active ticket", p.PlayerID)
+		}
 	}
 
 	s.ticketCounter++
@@ -70,6 +75,7 @@ func (s *TicketStore) Create(
 		CreatedAt:        createdAt,
 		ExpiresAt:        createdAt.Add(ttl),
 		PoolCounts:       poolCounts,
+		CallbackAddress:  callbackAddress,
 	}
 
 	// Add to primary storage
@@ -85,8 +91,10 @@ func (s *TicketStore) Create(
 			s.backfillTicketsByProfile[matchProfileName], ticket)
 	}
 
-	// Add to party index
-	s.ticketsByParty[partyID] = ticket
+	// Add to player index (all players in ticket)
+	for _, p := range players {
+		s.ticketsByPlayer[p.PlayerID] = ticket
+	}
 
 	return ticket, nil
 }
@@ -100,12 +108,12 @@ func (s *TicketStore) Get(ticketID string) (*types.Ticket, bool) {
 	return ticket, ok
 }
 
-// GetByParty retrieves a ticket by party ID.
-func (s *TicketStore) GetByParty(partyID string) (*types.Ticket, bool) {
+// GetByPlayer retrieves a ticket by player ID.
+func (s *TicketStore) GetByPlayer(playerID string) (*types.Ticket, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	ticket, ok := s.ticketsByParty[partyID]
+	ticket, ok := s.ticketsByPlayer[playerID]
 	return ticket, ok
 }
 
@@ -137,8 +145,10 @@ func (s *TicketStore) deleteUnlocked(ticketID string) bool {
 			s.backfillTicketsByProfile[ticket.MatchProfileName], ticketID)
 	}
 
-	// Remove from party index
-	delete(s.ticketsByParty, ticket.PartyID)
+	// Remove from player index (all players in ticket)
+	for _, p := range ticket.Players {
+		delete(s.ticketsByPlayer, p.PlayerID)
+	}
 
 	return true
 }
@@ -243,7 +253,7 @@ func (s *TicketStore) Clear() {
 	s.ticketsByID = make(map[string]*types.Ticket)
 	s.ticketsByProfile = make(map[string][]*types.Ticket)
 	s.backfillTicketsByProfile = make(map[string][]*types.Ticket)
-	s.ticketsByParty = make(map[string]*types.Ticket)
+	s.ticketsByPlayer = make(map[string]*types.Ticket)
 }
 
 // Restore adds a ticket directly (for snapshot restore).
@@ -258,7 +268,9 @@ func (s *TicketStore) Restore(ticket *types.Ticket) {
 		s.backfillTicketsByProfile[ticket.MatchProfileName] = insertTicketSorted(
 			s.backfillTicketsByProfile[ticket.MatchProfileName], ticket)
 	}
-	s.ticketsByParty[ticket.PartyID] = ticket
+	for _, p := range ticket.Players {
+		s.ticketsByPlayer[p.PlayerID] = ticket
+	}
 }
 
 // insertTicketSorted inserts a ticket into a slice maintaining sorted order by CreatedAt.

@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package worldengine.lobby.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "worldengine/micro/v1/service.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Lobby.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/lobby/v1;lobbyv1";
+
+// =============================================================================
+// Lobby -> Game Shard Messages
+// =============================================================================
+
+// TeamInfo represents a team with its players in the start-game message.
+message TeamInfo {
+  string name = 1;
+  repeated string player_ids = 2;
+}
+
+// StartGameRequest is sent from Lobby to Game Shard when all players are ready.
+// This is the handoff message (Q1).
+// Note: match_id is the primary identifier - there is no separate lobby_id.
+message StartGameRequest {
+  // Unique match identifier (also used as lobby key).
+  string match_id = 1 [(buf.validate.field).required = true];
+
+  // Which match profile was used.
+  string profile_name = 2 [(buf.validate.field).required = true];
+
+  // Teams with their player lists.
+  repeated TeamInfo teams = 3 [(buf.validate.field).repeated.min_items = 1];
+
+  // Arbitrary config from MatchProfile.
+  google.protobuf.Struct config = 4;
+
+  // Lobby Shard's address (for Game Shard to send heartbeats, status updates, end-match).
+  micro.v1.ServiceAddress lobby_address = 5 [(buf.validate.field).required = true];
+}
+
+// StartGameResponse is returned by Game Shard after receiving start-game.
+message StartGameResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// BackfillNotification is sent from Lobby to Game Shard when backfill players are matched.
+// This answers Q3: How backfilled players are notified.
+message BackfillNotification {
+  // Links back to original backfill request.
+  string backfill_request_id = 1 [(buf.validate.field).required = true];
+
+  // Which match these players join (also used as lobby key).
+  string match_id = 2 [(buf.validate.field).required = true];
+
+  // Which team the backfilled players join.
+  string team_name = 3 [(buf.validate.field).required = true];
+
+  // New player IDs that joined via backfill.
+  repeated string player_ids = 4 [(buf.validate.field).repeated.min_items = 1];
+
+  // Lobby Shard's address.
+  micro.v1.ServiceAddress lobby_address = 5 [(buf.validate.field).required = true];
+}
+
+// BackfillNotificationResponse is returned by Game Shard.
+message BackfillNotificationResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// =============================================================================
+// Game Shard -> Lobby Messages (Q4 & Q5)
+// =============================================================================
+
+// HeartbeatRequest is sent from Game Shard to keep the lobby alive.
+message HeartbeatRequest {
+  string match_id = 1 [(buf.validate.field).required = true];
+}
+
+// HeartbeatResponse confirms heartbeat received.
+message HeartbeatResponse {
+  bool success = 1;
+}
+
+// PlayerStatusRequest is sent from Game Shard when player connection status changes.
+// This answers Q5: Player disconnect handling.
+message PlayerStatusRequest {
+  string match_id = 1 [(buf.validate.field).required = true];
+  string player_id = 2 [(buf.validate.field).required = true];
+  PlayerStatus status = 3;
+}
+
+// PlayerStatus represents connection states.
+enum PlayerStatus {
+  PLAYER_STATUS_UNSPECIFIED = 0;
+  PLAYER_STATUS_CONNECTED = 1;
+  PLAYER_STATUS_DISCONNECTED = 2;
+  PLAYER_STATUS_RECONNECTED = 3;
+}
+
+// PlayerStatusResponse confirms status update received.
+message PlayerStatusResponse {
+  bool success = 1;
+}
+
+// EndMatchRequest is sent from Game Shard when the game is over.
+message EndMatchRequest {
+  string match_id = 1 [(buf.validate.field).required = true];
+  MatchResult result = 2;
+}
+
+// MatchResult indicates how the match ended.
+enum MatchResult {
+  MATCH_RESULT_UNSPECIFIED = 0;
+  MATCH_RESULT_COMPLETED = 1;
+  MATCH_RESULT_CANCELLED = 2;
+  MATCH_RESULT_ABANDONED = 3;
+}
+
+// EndMatchResponse confirms match end processed.
+message EndMatchResponse {
+  bool success = 1;
+}
+
+// =============================================================================
+// Backfill Request (Game Shard -> Lobby -> Matchmaking)
+// =============================================================================
+
+// BackfillSlotNeeded specifies a slot to fill.
+message BackfillSlotNeeded {
+  string pool_name = 1 [(buf.validate.field).required = true];
+  int32 count = 2 [(buf.validate.field).int32.gt = 0];
+}
+
+// RequestBackfillRequest is sent from Game Shard to request backfill.
+message RequestBackfillRequest {
+  string match_id = 1 [(buf.validate.field).required = true];
+  string profile_name = 2 [(buf.validate.field).required = true];
+  string team_name = 3 [(buf.validate.field).required = true];
+  repeated BackfillSlotNeeded slots_needed = 4 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// RequestBackfillResponse returns the backfill request ID.
+message RequestBackfillResponse {
+  bool success = 1;
+  string backfill_request_id = 2;
+  string error_message = 3;
+}
+
+// CancelBackfillRequest is sent to cancel a pending backfill.
+message CancelBackfillRequest {
+  string backfill_request_id = 1 [(buf.validate.field).required = true];
+}
+
+// CancelBackfillResponse confirms cancellation.
+message CancelBackfillResponse {
+  bool success = 1;
+}

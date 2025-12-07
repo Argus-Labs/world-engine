@@ -15,7 +15,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/matchmaking/v1/matchmaking.proto.
  */
 export const file_worldengine_matchmaking_v1_matchmaking: GenFile = /*@__PURE__*/
-  fileDesc("Cix3b3JsZGVuZ2luZS9tYXRjaG1ha2luZy92MS9tYXRjaG1ha2luZy5wcm90bxIad29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEiQgoSU3RyaW5nRXF1YWxzRmlsdGVyEhUKBWZpZWxkGAEgASgJQga6SAPIAQESFQoFdmFsdWUYAiABKAlCBrpIA8gBASJEChFEb3VibGVSYW5nZUZpbHRlchIVCgVmaWVsZBgBIAEoCUIGukgDyAEBEgsKA21pbhgCIAEoARILCgNtYXgYAyABKAEiJwoQVGFnUHJlc2VudEZpbHRlchITCgN0YWcYASABKAlCBrpIA8gBASKDAgoEUG9vbBIUCgRuYW1lGAEgASgJQga6SAPIAQESTQoVc3RyaW5nX2VxdWFsc19maWx0ZXJzGAIgAygLMi4ud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU3RyaW5nRXF1YWxzRmlsdGVyEksKFGRvdWJsZV9yYW5nZV9maWx0ZXJzGAMgAygLMi0ud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuRG91YmxlUmFuZ2VGaWx0ZXISSQoTdGFnX3ByZXNlbnRfZmlsdGVycxgEIAMoCzIsLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRhZ1ByZXNlbnRGaWx0ZXIiPwoPUG9vbFJlcXVpcmVtZW50EhQKBHBvb2wYASABKAlCBrpIA8gBARIWCgVjb3VudBgCIAEoBUIHukgEGgIgACJ/Cg5UZWFtRGVmaW5pdGlvbhIUCgRuYW1lGAEgASgJQga6SAPIAQESFQoEc2l6ZRgCIAEoBUIHukgEGgIgABJACgtjb21wb3NpdGlvbhgDIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBvb2xSZXF1aXJlbWVudCK+AwoMTWF0Y2hQcm9maWxlEhQKBG5hbWUYASABKAlCBrpIA8gBARI5CgVwb29scxgCIAMoCzIgLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBvb2xCCLpIBZIBAggBEhIKCnRlYW1fY291bnQYAyABKAUSEQoJdGVhbV9zaXplGAQgASgFEhUKDXRlYW1fbWluX3NpemUYBSABKAUSRQoQdGVhbV9jb21wb3NpdGlvbhgGIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBvb2xSZXF1aXJlbWVudBI5CgV0ZWFtcxgHIAMoCzIqLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRlYW1EZWZpbml0aW9uEhcKD2VuYWJsZV9iYWNrZmlsbBgIIAEoCBIVCg1hdXRvX2JhY2tmaWxsGAkgASgIEicKBmNvbmZpZxgKIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSRAoOdGFyZ2V0X2FkZHJlc3MYCyABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBIqACCgxTZWFyY2hGaWVsZHMSTQoLc3RyaW5nX2FyZ3MYASADKAsyOC53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5TZWFyY2hGaWVsZHMuU3RyaW5nQXJnc0VudHJ5Ek0KC2RvdWJsZV9hcmdzGAIgAygLMjgud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU2VhcmNoRmllbGRzLkRvdWJsZUFyZ3NFbnRyeRIMCgR0YWdzGAMgAygJGjEKD1N0cmluZ0FyZ3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGjEKD0RvdWJsZUFyZ3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAE6AjgBImgKClBsYXllckluZm8SGQoJcGxheWVyX2lkGAEgASgJQga6SAPIAQESPwoNc2VhcmNoX2ZpZWxkcxgCIAEoCzIoLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlNlYXJjaEZpZWxkcyKlAgoGVGlja2V0EhIKAmlkGAEgASgJQga6SAPIAQESGAoIcGFydHlfaWQYAiABKAlCBrpIA8gBARIiChJtYXRjaF9wcm9maWxlX25hbWUYAyABKAlCBrpIA8gBARIWCg5hbGxvd19iYWNrZmlsbBgEIAEoCBJBCgdwbGF5ZXJzGAUgAygLMiYud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuUGxheWVySW5mb0IIukgFkgECCAESNgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI2CgpleHBpcmVzX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBIkMKD1RpY2tldFJlZmVyZW5jZRIKCgJpZBgBIAEoCRIQCghwYXJ0eV9pZBgCIAEoCRISCgpwbGF5ZXJfaWRzGAMgAygJIlIKBFRlYW0SDAoEbmFtZRgBIAEoCRI8Cgd0aWNrZXRzGAIgAygLMisud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGlja2V0UmVmZXJlbmNlItYCCgVNYXRjaBISCgJpZBgBIAEoCUIGukgDyAEBEjkKBXRlYW1zGAIgAygLMiAud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGVhbUIIukgFkgECCAESIgoSbWF0Y2hfcHJvZmlsZV9uYW1lGAMgASgJQga6SAPIAQESFwoPZW5hYmxlX2JhY2tmaWxsGAQgASgIEhUKDWF1dG9fYmFja2ZpbGwYBSABKAgSJwoGY29uZmlnGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJJChNtYXRjaG1ha2luZ19hZGRyZXNzGAcgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBARI2CgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBIj8KClNsb3ROZWVkZWQSGQoJcG9vbF9uYW1lGAEgASgJQga6SAPIAQESFgoFY291bnQYAiABKAVCB7pIBBoCIAAi+wIKD0JhY2tmaWxsUmVxdWVzdBISCgJpZBgBIAEoCUIGukgDyAEBEhgKCG1hdGNoX2lkGAIgASgJQga6SAPIAQESIgoSbWF0Y2hfcHJvZmlsZV9uYW1lGAMgASgJQga6SAPIAQESGQoJdGVhbV9uYW1lGAQgASgJQga6SAPIAQESRgoMc2xvdHNfbmVlZGVkGAUgAygLMiYud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU2xvdE5lZWRlZEIIukgFkgECCAESQwoNbG9iYnlfYWRkcmVzcxgGIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESNgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI2CgpleHBpcmVzX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBIv0BCg1CYWNrZmlsbE1hdGNoEhIKAmlkGAEgASgJQga6SAPIAQESIwoTYmFja2ZpbGxfcmVxdWVzdF9pZBgCIAEoCUIGukgDyAEBEhgKCG1hdGNoX2lkGAMgASgJQga6SAPIAQESGQoJdGVhbV9uYW1lGAQgASgJQga6SAPIAQESRgoHdGlja2V0cxgFIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRpY2tldFJlZmVyZW5jZUIIukgFkgECCAESNgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBASKuAQoTQ3JlYXRlVGlja2V0UmVxdWVzdBIYCghwYXJ0eV9pZBgBIAEoCUIGukgDyAEBEiIKEm1hdGNoX3Byb2ZpbGVfbmFtZRgCIAEoCUIGukgDyAEBEhYKDmFsbG93X2JhY2tmaWxsGAMgASgIEkEKB3BsYXllcnMYBCADKAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5QbGF5ZXJJbmZvQgi6SAWSAQIIASJKChRDcmVhdGVUaWNrZXRSZXNwb25zZRIyCgZ0aWNrZXQYASABKAsyIi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNrZXQiLQoQR2V0VGlja2V0UmVxdWVzdBIZCgl0aWNrZXRfaWQYASABKAlCBrpIA8gBASJHChFHZXRUaWNrZXRSZXNwb25zZRIyCgZ0aWNrZXQYASABKAsyIi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNrZXQiSgoTQ2FuY2VsVGlja2V0UmVxdWVzdBIZCgl0aWNrZXRfaWQYASABKAlCBrpIA8gBARIYCghwYXJ0eV9pZBgCIAEoCUIGukgDyAEBIicKFENhbmNlbFRpY2tldFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgihAIKHENyZWF0ZUJhY2tmaWxsUmVxdWVzdFJlcXVlc3QSGAoIbWF0Y2hfaWQYASABKAlCBrpIA8gBARIiChJtYXRjaF9wcm9maWxlX25hbWUYAiABKAlCBrpIA8gBARIZCgl0ZWFtX25hbWUYAyABKAlCBrpIA8gBARJGCgxzbG90c19uZWVkZWQYBCADKAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5TbG90TmVlZGVkQgi6SAWSAQIIARJDCg1sb2JieV9hZGRyZXNzGAUgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBASJmCh1DcmVhdGVCYWNrZmlsbFJlcXVlc3RSZXNwb25zZRJFChBiYWNrZmlsbF9yZXF1ZXN0GAEgASgLMisud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuQmFja2ZpbGxSZXF1ZXN0IogBChxDYW5jZWxCYWNrZmlsbFJlcXVlc3RSZXF1ZXN0EiMKE2JhY2tmaWxsX3JlcXVlc3RfaWQYASABKAlCBrpIA8gBARJDCg1sb2JieV9hZGRyZXNzGAIgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBASIwCh1DYW5jZWxCYWNrZmlsbFJlcXVlc3RSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIIhEKD0dldFN0YXRzUmVxdWVzdCL6AQoQR2V0U3RhdHNSZXNwb25zZRIVCg10b3RhbF90aWNrZXRzGAEgASgDEh8KF3RvdGFsX2JhY2tmaWxsX3JlcXVlc3RzGAIgASgDEhUKDW1hdGNoX2NvdW50ZXIYAyABKAQSXgoSdGlja2V0c19ieV9wcm9maWxlGAQgAygLMkIud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuR2V0U3RhdHNSZXNwb25zZS5UaWNrZXRzQnlQcm9maWxlRW50cnkaNwoVVGlja2V0c0J5UHJvZmlsZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAzoCOAEi2wEKE01hdGNobWFraW5nU25hcHNob3QSMwoHdGlja2V0cxgBIAMoCzIiLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRpY2tldBJGChFiYWNrZmlsbF9yZXF1ZXN0cxgCIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLkJhY2tmaWxsUmVxdWVzdBIWCg50aWNrZXRfY291bnRlchgDIAEoBBIVCg1tYXRjaF9jb3VudGVyGAQgASgEEhgKEGJhY2tmaWxsX2NvdW50ZXIYBSABKARCfVpYZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvbWF0Y2htYWtpbmcvdjE7bWF0Y2htYWtpbmd2MaoCIFdvcmxkRW5naW5lLlByb3RvLk1hdGNobWFraW5nLlYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp, file_worldengine_micro_v1_service]);
+  fileDesc("Cix3b3JsZGVuZ2luZS9tYXRjaG1ha2luZy92MS9tYXRjaG1ha2luZy5wcm90bxIad29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEiQgoSU3RyaW5nRXF1YWxzRmlsdGVyEhUKBWZpZWxkGAEgASgJQga6SAPIAQESFQoFdmFsdWUYAiABKAlCBrpIA8gBASJEChFEb3VibGVSYW5nZUZpbHRlchIVCgVmaWVsZBgBIAEoCUIGukgDyAEBEgsKA21pbhgCIAEoARILCgNtYXgYAyABKAEiJwoQVGFnUHJlc2VudEZpbHRlchITCgN0YWcYASABKAlCBrpIA8gBASKDAgoEUG9vbBIUCgRuYW1lGAEgASgJQga6SAPIAQESTQoVc3RyaW5nX2VxdWFsc19maWx0ZXJzGAIgAygLMi4ud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU3RyaW5nRXF1YWxzRmlsdGVyEksKFGRvdWJsZV9yYW5nZV9maWx0ZXJzGAMgAygLMi0ud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuRG91YmxlUmFuZ2VGaWx0ZXISSQoTdGFnX3ByZXNlbnRfZmlsdGVycxgEIAMoCzIsLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRhZ1ByZXNlbnRGaWx0ZXIiPwoPUG9vbFJlcXVpcmVtZW50EhQKBHBvb2wYASABKAlCBrpIA8gBARIWCgVjb3VudBgCIAEoBUIHukgEGgIgACJ/Cg5UZWFtRGVmaW5pdGlvbhIUCgRuYW1lGAEgASgJQga6SAPIAQESFQoEc2l6ZRgCIAEoBUIHukgEGgIgABJACgtjb21wb3NpdGlvbhgDIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBvb2xSZXF1aXJlbWVudCLTAwoMTWF0Y2hQcm9maWxlEhQKBG5hbWUYASABKAlCBrpIA8gBARI5CgVwb29scxgCIAMoCzIgLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBvb2xCCLpIBZIBAggBEhIKCnRlYW1fY291bnQYAyABKAUSEQoJdGVhbV9zaXplGAQgASgFEhUKDXRlYW1fbWluX3NpemUYBSABKAUSRQoQdGVhbV9jb21wb3NpdGlvbhgGIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBvb2xSZXF1aXJlbWVudBI5CgV0ZWFtcxgHIAMoCzIqLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRlYW1EZWZpbml0aW9uEicKBmNvbmZpZxgKIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSQwoNbG9iYnlfYWRkcmVzcxgLIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESRAoOdGFyZ2V0X2FkZHJlc3MYDCABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBIqACCgxTZWFyY2hGaWVsZHMSTQoLc3RyaW5nX2FyZ3MYASADKAsyOC53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5TZWFyY2hGaWVsZHMuU3RyaW5nQXJnc0VudHJ5Ek0KC2RvdWJsZV9hcmdzGAIgAygLMjgud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU2VhcmNoRmllbGRzLkRvdWJsZUFyZ3NFbnRyeRIMCgR0YWdzGAMgAygJGjEKD1N0cmluZ0FyZ3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGjEKD0RvdWJsZUFyZ3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAE6AjgBImgKClBsYXllckluZm8SGQoJcGxheWVyX2lkGAEgASgJQga6SAPIAQESPwoNc2VhcmNoX2ZpZWxkcxgCIAEoCzIoLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlNlYXJjaEZpZWxkcyLLAgoGVGlja2V0EhIKAmlkGAEgASgJQga6SAPIAQESIgoSbWF0Y2hfcHJvZmlsZV9uYW1lGAIgASgJQga6SAPIAQESFgoOYWxsb3dfYmFja2ZpbGwYAyABKAgSQQoHcGxheWVycxgEIAMoCzImLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlBsYXllckluZm9CCLpIBZIBAggBEjYKCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESNgoKZXhwaXJlc19hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBARI+ChBjYWxsYmFja19hZGRyZXNzGAcgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3MicQoPVGlja2V0UmVmZXJlbmNlEgoKAmlkGAEgASgJEhIKCnBsYXllcl9pZHMYAiADKAkSPgoQY2FsbGJhY2tfYWRkcmVzcxgDIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzIlIKBFRlYW0SDAoEbmFtZRgBIAEoCRI8Cgd0aWNrZXRzGAIgAygLMisud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGlja2V0UmVmZXJlbmNlIuQCCgVNYXRjaBISCgJpZBgBIAEoCUIGukgDyAEBEjkKBXRlYW1zGAIgAygLMiAud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGVhbUIIukgFkgECCAESIgoSbWF0Y2hfcHJvZmlsZV9uYW1lGAMgASgJQga6SAPIAQESJwoGY29uZmlnGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJJChNtYXRjaG1ha2luZ19hZGRyZXNzGAcgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBARI2CgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBEjwKDnRhcmdldF9hZGRyZXNzGAkgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3MiPwoKU2xvdE5lZWRlZBIZCglwb29sX25hbWUYASABKAlCBrpIA8gBARIWCgVjb3VudBgCIAEoBUIHukgEGgIgACL7AgoPQmFja2ZpbGxSZXF1ZXN0EhIKAmlkGAEgASgJQga6SAPIAQESGAoIbWF0Y2hfaWQYAiABKAlCBrpIA8gBARIiChJtYXRjaF9wcm9maWxlX25hbWUYAyABKAlCBrpIA8gBARIZCgl0ZWFtX25hbWUYBCABKAlCBrpIA8gBARJGCgxzbG90c19uZWVkZWQYBSADKAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5TbG90TmVlZGVkQgi6SAWSAQIIARJDCg1sb2JieV9hZGRyZXNzGAYgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBARI2CgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBEjYKCmV4cGlyZXNfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQEi/QEKDUJhY2tmaWxsTWF0Y2gSEgoCaWQYASABKAlCBrpIA8gBARIjChNiYWNrZmlsbF9yZXF1ZXN0X2lkGAIgASgJQga6SAPIAQESGAoIbWF0Y2hfaWQYAyABKAlCBrpIA8gBARIZCgl0ZWFtX25hbWUYBCABKAlCBrpIA8gBARJGCgd0aWNrZXRzGAUgAygLMisud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGlja2V0UmVmZXJlbmNlQgi6SAWSAQIIARI2CgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBIkwKFVRpY2tldENyZWF0ZWRDYWxsYmFjaxIYCghwYXJ0eV9pZBgBIAEoCUIGukgDyAEBEhkKCXRpY2tldF9pZBgCIAEoCUIGukgDyAEBIkYKE1RpY2tldEVycm9yQ2FsbGJhY2sSGAoIcGFydHlfaWQYASABKAlCBrpIA8gBARIVCgVlcnJvchgCIAEoCUIGukgDyAEBItQBChNDcmVhdGVUaWNrZXRSZXF1ZXN0EiIKEm1hdGNoX3Byb2ZpbGVfbmFtZRgBIAEoCUIGukgDyAEBEhYKDmFsbG93X2JhY2tmaWxsGAIgASgIEkEKB3BsYXllcnMYAyADKAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5QbGF5ZXJJbmZvQgi6SAWSAQIIARI+ChBjYWxsYmFja19hZGRyZXNzGAQgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3MiSgoUQ3JlYXRlVGlja2V0UmVzcG9uc2USMgoGdGlja2V0GAEgASgLMiIud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGlja2V0Ii0KEEdldFRpY2tldFJlcXVlc3QSGQoJdGlja2V0X2lkGAEgASgJQga6SAPIAQEiRwoRR2V0VGlja2V0UmVzcG9uc2USMgoGdGlja2V0GAEgASgLMiIud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuVGlja2V0IjAKE0NhbmNlbFRpY2tldFJlcXVlc3QSGQoJdGlja2V0X2lkGAEgASgJQga6SAPIAQEiJwoUQ2FuY2VsVGlja2V0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCL9AQoVQ3JlYXRlQmFja2ZpbGxSZXF1ZXN0EhgKCG1hdGNoX2lkGAEgASgJQga6SAPIAQESIgoSbWF0Y2hfcHJvZmlsZV9uYW1lGAIgASgJQga6SAPIAQESGQoJdGVhbV9uYW1lGAMgASgJQga6SAPIAQESRgoMc2xvdHNfbmVlZGVkGAQgAygLMiYud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU2xvdE5lZWRlZEIIukgFkgECCAESQwoNbG9iYnlfYWRkcmVzcxgFIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQEiXwoWQ3JlYXRlQmFja2ZpbGxSZXNwb25zZRJFChBiYWNrZmlsbF9yZXF1ZXN0GAEgASgLMisud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuQmFja2ZpbGxSZXF1ZXN0IoEBChVDYW5jZWxCYWNrZmlsbFJlcXVlc3QSIwoTYmFja2ZpbGxfcmVxdWVzdF9pZBgBIAEoCUIGukgDyAEBEkMKDWxvYmJ5X2FkZHJlc3MYAiABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBIikKFkNhbmNlbEJhY2tmaWxsUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIRCg9HZXRTdGF0c1JlcXVlc3Qi+gEKEEdldFN0YXRzUmVzcG9uc2USFQoNdG90YWxfdGlja2V0cxgBIAEoAxIfChd0b3RhbF9iYWNrZmlsbF9yZXF1ZXN0cxgCIAEoAxIVCg1tYXRjaF9jb3VudGVyGAMgASgEEl4KEnRpY2tldHNfYnlfcHJvZmlsZRgEIAMoCzJCLndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLkdldFN0YXRzUmVzcG9uc2UuVGlja2V0c0J5UHJvZmlsZUVudHJ5GjcKFVRpY2tldHNCeVByb2ZpbGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAM6AjgBItsBChNNYXRjaG1ha2luZ1NuYXBzaG90EjMKB3RpY2tldHMYASADKAsyIi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNrZXQSRgoRYmFja2ZpbGxfcmVxdWVzdHMYAiADKAsyKy53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5CYWNrZmlsbFJlcXVlc3QSFgoOdGlja2V0X2NvdW50ZXIYAyABKAQSFQoNbWF0Y2hfY291bnRlchgEIAEoBBIYChBiYWNrZmlsbF9jb3VudGVyGAUgASgEQn1aWGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL21hdGNobWFraW5nL3YxO21hdGNobWFraW5ndjGqAiBXb3JsZEVuZ2luZS5Qcm90by5NYXRjaG1ha2luZy5WMWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp, file_worldengine_micro_v1_service]);
 
 /**
  * StringEqualsFilter matches when a field exactly equals a value.
@@ -232,20 +232,6 @@ export type MatchProfile = Message<"worldengine.matchmaking.v1.MatchProfile"> & 
   teams: TeamDefinition[];
 
   /**
-   * Whether backfill is allowed for this profile.
-   *
-   * @generated from field: bool enable_backfill = 8;
-   */
-  enableBackfill: boolean;
-
-  /**
-   * Whether to auto-trigger backfill on disconnect.
-   *
-   * @generated from field: bool auto_backfill = 9;
-   */
-  autoBackfill: boolean;
-
-  /**
    * Arbitrary data passed through to Lobby (not interpreted by Matchmaking).
    *
    * @generated from field: google.protobuf.Struct config = 10;
@@ -253,9 +239,16 @@ export type MatchProfile = Message<"worldengine.matchmaking.v1.MatchProfile"> & 
   config?: JsonObject;
 
   /**
-   * ServiceAddress of destination Lobby Shard.
+   * ServiceAddress of destination Lobby Shard (where to send Match).
    *
-   * @generated from field: worldengine.micro.v1.ServiceAddress target_address = 11;
+   * @generated from field: worldengine.micro.v1.ServiceAddress lobby_address = 11;
+   */
+  lobbyAddress?: ServiceAddress;
+
+  /**
+   * ServiceAddress of destination Game Shard (where Lobby sends game-start).
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress target_address = 12;
    */
   targetAddress?: ServiceAddress;
 };
@@ -321,7 +314,7 @@ export const PlayerInfoSchema: GenMessage<PlayerInfo> = /*@__PURE__*/
   messageDesc(file_worldengine_matchmaking_v1_matchmaking, 8);
 
 /**
- * Ticket represents a matchmaking request for a party.
+ * Ticket represents a matchmaking request for a group of players.
  *
  * @generated from message worldengine.matchmaking.v1.Ticket
  */
@@ -334,46 +327,47 @@ export type Ticket = Message<"worldengine.matchmaking.v1.Ticket"> & {
   id: string;
 
   /**
-   * Links players together (solo = unique party ID).
-   *
-   * @generated from field: string party_id = 2;
-   */
-  partyId: string;
-
-  /**
    * Which MatchProfile this ticket targets.
    *
-   * @generated from field: string match_profile_name = 3;
+   * @generated from field: string match_profile_name = 2;
    */
   matchProfileName: string;
 
   /**
    * If true, ticket can be matched to backfill requests.
    *
-   * @generated from field: bool allow_backfill = 4;
+   * @generated from field: bool allow_backfill = 3;
    */
   allowBackfill: boolean;
 
   /**
    * Array of players with their search fields.
    *
-   * @generated from field: repeated worldengine.matchmaking.v1.PlayerInfo players = 5;
+   * @generated from field: repeated worldengine.matchmaking.v1.PlayerInfo players = 4;
    */
   players: PlayerInfo[];
 
   /**
    * When the ticket was created (for wait time priority).
    *
-   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
    */
   createdAt?: Timestamp;
 
   /**
    * When the ticket expires.
    *
-   * @generated from field: google.protobuf.Timestamp expires_at = 7;
+   * @generated from field: google.protobuf.Timestamp expires_at = 6;
    */
   expiresAt?: Timestamp;
+
+  /**
+   * Where to send notifications when this ticket is matched.
+   * This is typically the Game Shard address that created the ticket.
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress callback_address = 7;
+   */
+  callbackAddress?: ServiceAddress;
 };
 
 /**
@@ -395,14 +389,16 @@ export type TicketReference = Message<"worldengine.matchmaking.v1.TicketReferenc
   id: string;
 
   /**
-   * @generated from field: string party_id = 2;
-   */
-  partyId: string;
-
-  /**
-   * @generated from field: repeated string player_ids = 3;
+   * @generated from field: repeated string player_ids = 2;
    */
   playerIds: string[];
+
+  /**
+   * Callback address from the original ticket (for notifying parties).
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress callback_address = 3;
+   */
+  callbackAddress?: ServiceAddress;
 };
 
 /**
@@ -464,20 +460,6 @@ export type Match = Message<"worldengine.matchmaking.v1.Match"> & {
   matchProfileName: string;
 
   /**
-   * Whether backfill is allowed (from MatchProfile).
-   *
-   * @generated from field: bool enable_backfill = 4;
-   */
-  enableBackfill: boolean;
-
-  /**
-   * Whether auto-backfill on disconnect (from MatchProfile).
-   *
-   * @generated from field: bool auto_backfill = 5;
-   */
-  autoBackfill: boolean;
-
-  /**
    * Passed through from MatchProfile (for Lobby to interpret).
    *
    * @generated from field: google.protobuf.Struct config = 6;
@@ -497,6 +479,13 @@ export type Match = Message<"worldengine.matchmaking.v1.Match"> & {
    * @generated from field: google.protobuf.Timestamp created_at = 8;
    */
   createdAt?: Timestamp;
+
+  /**
+   * Game Shard's address (where Lobby sends start-game).
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress target_address = 9;
+   */
+  targetAddress?: ServiceAddress;
 };
 
 /**
@@ -657,30 +646,90 @@ export const BackfillMatchSchema: GenMessage<BackfillMatch> = /*@__PURE__*/
   messageDesc(file_worldengine_matchmaking_v1_matchmaking, 15);
 
 /**
- * CreateTicketRequest is sent by clients to join matchmaking.
+ * TicketCreatedCallback is sent to Game Shard after ticket is created.
+ * Endpoint: <callback_address>.matchmaking.ticket-created
  *
- * @generated from message worldengine.matchmaking.v1.CreateTicketRequest
+ * @generated from message worldengine.matchmaking.v1.TicketCreatedCallback
  */
-export type CreateTicketRequest = Message<"worldengine.matchmaking.v1.CreateTicketRequest"> & {
+export type TicketCreatedCallback = Message<"worldengine.matchmaking.v1.TicketCreatedCallback"> & {
   /**
+   * Correlation ID from the original request.
+   *
    * @generated from field: string party_id = 1;
    */
   partyId: string;
 
   /**
-   * @generated from field: string match_profile_name = 2;
+   * The assigned ticket ID.
+   *
+   * @generated from field: string ticket_id = 2;
+   */
+  ticketId: string;
+};
+
+/**
+ * Describes the message worldengine.matchmaking.v1.TicketCreatedCallback.
+ * Use `create(TicketCreatedCallbackSchema)` to create a new message.
+ */
+export const TicketCreatedCallbackSchema: GenMessage<TicketCreatedCallback> = /*@__PURE__*/
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 16);
+
+/**
+ * TicketErrorCallback is sent to Game Shard when ticket creation fails.
+ * Endpoint: <callback_address>.matchmaking.ticket-error
+ *
+ * @generated from message worldengine.matchmaking.v1.TicketErrorCallback
+ */
+export type TicketErrorCallback = Message<"worldengine.matchmaking.v1.TicketErrorCallback"> & {
+  /**
+   * Correlation ID from the original request.
+   *
+   * @generated from field: string party_id = 1;
+   */
+  partyId: string;
+
+  /**
+   * Error message describing the failure.
+   *
+   * @generated from field: string error = 2;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message worldengine.matchmaking.v1.TicketErrorCallback.
+ * Use `create(TicketErrorCallbackSchema)` to create a new message.
+ */
+export const TicketErrorCallbackSchema: GenMessage<TicketErrorCallback> = /*@__PURE__*/
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 17);
+
+/**
+ * CreateTicketRequest is sent by game shards to join matchmaking.
+ *
+ * @generated from message worldengine.matchmaking.v1.CreateTicketRequest
+ */
+export type CreateTicketRequest = Message<"worldengine.matchmaking.v1.CreateTicketRequest"> & {
+  /**
+   * @generated from field: string match_profile_name = 1;
    */
   matchProfileName: string;
 
   /**
-   * @generated from field: bool allow_backfill = 3;
+   * @generated from field: bool allow_backfill = 2;
    */
   allowBackfill: boolean;
 
   /**
-   * @generated from field: repeated worldengine.matchmaking.v1.PlayerInfo players = 4;
+   * @generated from field: repeated worldengine.matchmaking.v1.PlayerInfo players = 3;
    */
   players: PlayerInfo[];
+
+  /**
+   * Where to send notifications when matched (typically the creating Game Shard).
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress callback_address = 4;
+   */
+  callbackAddress?: ServiceAddress;
 };
 
 /**
@@ -688,7 +737,7 @@ export type CreateTicketRequest = Message<"worldengine.matchmaking.v1.CreateTick
  * Use `create(CreateTicketRequestSchema)` to create a new message.
  */
 export const CreateTicketRequestSchema: GenMessage<CreateTicketRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 16);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 18);
 
 /**
  * CreateTicketResponse is returned after ticket creation.
@@ -707,7 +756,7 @@ export type CreateTicketResponse = Message<"worldengine.matchmaking.v1.CreateTic
  * Use `create(CreateTicketResponseSchema)` to create a new message.
  */
 export const CreateTicketResponseSchema: GenMessage<CreateTicketResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 17);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 19);
 
 /**
  * GetTicketRequest is sent to retrieve ticket status.
@@ -726,7 +775,7 @@ export type GetTicketRequest = Message<"worldengine.matchmaking.v1.GetTicketRequ
  * Use `create(GetTicketRequestSchema)` to create a new message.
  */
 export const GetTicketRequestSchema: GenMessage<GetTicketRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 18);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 20);
 
 /**
  * GetTicketResponse returns ticket data.
@@ -745,7 +794,7 @@ export type GetTicketResponse = Message<"worldengine.matchmaking.v1.GetTicketRes
  * Use `create(GetTicketResponseSchema)` to create a new message.
  */
 export const GetTicketResponseSchema: GenMessage<GetTicketResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 19);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 21);
 
 /**
  * CancelTicketRequest is sent to cancel a ticket.
@@ -757,11 +806,6 @@ export type CancelTicketRequest = Message<"worldengine.matchmaking.v1.CancelTick
    * @generated from field: string ticket_id = 1;
    */
   ticketId: string;
-
-  /**
-   * @generated from field: string party_id = 2;
-   */
-  partyId: string;
 };
 
 /**
@@ -769,7 +813,7 @@ export type CancelTicketRequest = Message<"worldengine.matchmaking.v1.CancelTick
  * Use `create(CancelTicketRequestSchema)` to create a new message.
  */
 export const CancelTicketRequestSchema: GenMessage<CancelTicketRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 20);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 22);
 
 /**
  * CancelTicketResponse confirms cancellation.
@@ -788,14 +832,14 @@ export type CancelTicketResponse = Message<"worldengine.matchmaking.v1.CancelTic
  * Use `create(CancelTicketResponseSchema)` to create a new message.
  */
 export const CancelTicketResponseSchema: GenMessage<CancelTicketResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 21);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 23);
 
 /**
  * CreateBackfillRequest is sent by Lobby Shard to request backfill.
  *
- * @generated from message worldengine.matchmaking.v1.CreateBackfillRequestRequest
+ * @generated from message worldengine.matchmaking.v1.CreateBackfillRequest
  */
-export type CreateBackfillRequestRequest = Message<"worldengine.matchmaking.v1.CreateBackfillRequestRequest"> & {
+export type CreateBackfillRequest = Message<"worldengine.matchmaking.v1.CreateBackfillRequest"> & {
   /**
    * @generated from field: string match_id = 1;
    */
@@ -823,18 +867,18 @@ export type CreateBackfillRequestRequest = Message<"worldengine.matchmaking.v1.C
 };
 
 /**
- * Describes the message worldengine.matchmaking.v1.CreateBackfillRequestRequest.
- * Use `create(CreateBackfillRequestRequestSchema)` to create a new message.
+ * Describes the message worldengine.matchmaking.v1.CreateBackfillRequest.
+ * Use `create(CreateBackfillRequestSchema)` to create a new message.
  */
-export const CreateBackfillRequestRequestSchema: GenMessage<CreateBackfillRequestRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 22);
+export const CreateBackfillRequestSchema: GenMessage<CreateBackfillRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 24);
 
 /**
- * CreateBackfillRequestResponse returns the created backfill request.
+ * CreateBackfillResponse returns the created backfill request.
  *
- * @generated from message worldengine.matchmaking.v1.CreateBackfillRequestResponse
+ * @generated from message worldengine.matchmaking.v1.CreateBackfillResponse
  */
-export type CreateBackfillRequestResponse = Message<"worldengine.matchmaking.v1.CreateBackfillRequestResponse"> & {
+export type CreateBackfillResponse = Message<"worldengine.matchmaking.v1.CreateBackfillResponse"> & {
   /**
    * @generated from field: worldengine.matchmaking.v1.BackfillRequest backfill_request = 1;
    */
@@ -842,18 +886,18 @@ export type CreateBackfillRequestResponse = Message<"worldengine.matchmaking.v1.
 };
 
 /**
- * Describes the message worldengine.matchmaking.v1.CreateBackfillRequestResponse.
- * Use `create(CreateBackfillRequestResponseSchema)` to create a new message.
+ * Describes the message worldengine.matchmaking.v1.CreateBackfillResponse.
+ * Use `create(CreateBackfillResponseSchema)` to create a new message.
  */
-export const CreateBackfillRequestResponseSchema: GenMessage<CreateBackfillRequestResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 23);
+export const CreateBackfillResponseSchema: GenMessage<CreateBackfillResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 25);
 
 /**
  * CancelBackfillRequest is sent to cancel a backfill request.
  *
- * @generated from message worldengine.matchmaking.v1.CancelBackfillRequestRequest
+ * @generated from message worldengine.matchmaking.v1.CancelBackfillRequest
  */
-export type CancelBackfillRequestRequest = Message<"worldengine.matchmaking.v1.CancelBackfillRequestRequest"> & {
+export type CancelBackfillRequest = Message<"worldengine.matchmaking.v1.CancelBackfillRequest"> & {
   /**
    * @generated from field: string backfill_request_id = 1;
    */
@@ -866,18 +910,18 @@ export type CancelBackfillRequestRequest = Message<"worldengine.matchmaking.v1.C
 };
 
 /**
- * Describes the message worldengine.matchmaking.v1.CancelBackfillRequestRequest.
- * Use `create(CancelBackfillRequestRequestSchema)` to create a new message.
+ * Describes the message worldengine.matchmaking.v1.CancelBackfillRequest.
+ * Use `create(CancelBackfillRequestSchema)` to create a new message.
  */
-export const CancelBackfillRequestRequestSchema: GenMessage<CancelBackfillRequestRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 24);
+export const CancelBackfillRequestSchema: GenMessage<CancelBackfillRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 26);
 
 /**
- * CancelBackfillRequestResponse confirms cancellation.
+ * CancelBackfillResponse confirms cancellation.
  *
- * @generated from message worldengine.matchmaking.v1.CancelBackfillRequestResponse
+ * @generated from message worldengine.matchmaking.v1.CancelBackfillResponse
  */
-export type CancelBackfillRequestResponse = Message<"worldengine.matchmaking.v1.CancelBackfillRequestResponse"> & {
+export type CancelBackfillResponse = Message<"worldengine.matchmaking.v1.CancelBackfillResponse"> & {
   /**
    * @generated from field: bool success = 1;
    */
@@ -885,11 +929,11 @@ export type CancelBackfillRequestResponse = Message<"worldengine.matchmaking.v1.
 };
 
 /**
- * Describes the message worldengine.matchmaking.v1.CancelBackfillRequestResponse.
- * Use `create(CancelBackfillRequestResponseSchema)` to create a new message.
+ * Describes the message worldengine.matchmaking.v1.CancelBackfillResponse.
+ * Use `create(CancelBackfillResponseSchema)` to create a new message.
  */
-export const CancelBackfillRequestResponseSchema: GenMessage<CancelBackfillRequestResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 25);
+export const CancelBackfillResponseSchema: GenMessage<CancelBackfillResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 27);
 
 /**
  * GetStatsRequest is sent to retrieve matchmaking stats.
@@ -904,7 +948,7 @@ export type GetStatsRequest = Message<"worldengine.matchmaking.v1.GetStatsReques
  * Use `create(GetStatsRequestSchema)` to create a new message.
  */
 export const GetStatsRequestSchema: GenMessage<GetStatsRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 26);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 28);
 
 /**
  * GetStatsResponse returns matchmaking statistics.
@@ -938,7 +982,7 @@ export type GetStatsResponse = Message<"worldengine.matchmaking.v1.GetStatsRespo
  * Use `create(GetStatsResponseSchema)` to create a new message.
  */
 export const GetStatsResponseSchema: GenMessage<GetStatsResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 27);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 29);
 
 /**
  * MatchmakingSnapshot contains the complete state for serialization.
@@ -977,5 +1021,5 @@ export type MatchmakingSnapshot = Message<"worldengine.matchmaking.v1.Matchmakin
  * Use `create(MatchmakingSnapshotSchema)` to create a new message.
  */
 export const MatchmakingSnapshotSchema: GenMessage<MatchmakingSnapshot> = /*@__PURE__*/
-  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 28);
+  messageDesc(file_worldengine_matchmaking_v1_matchmaking, 30);
 

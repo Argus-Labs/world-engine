@@ -384,14 +384,12 @@ type MatchProfile struct {
 	TeamComposition []*PoolRequirement `protobuf:"bytes,6,rep,name=team_composition,json=teamComposition,proto3" json:"team_composition,omitempty"`
 	// For asymmetric games: explicit team definitions.
 	Teams []*TeamDefinition `protobuf:"bytes,7,rep,name=teams,proto3" json:"teams,omitempty"`
-	// Whether backfill is allowed for this profile.
-	EnableBackfill bool `protobuf:"varint,8,opt,name=enable_backfill,json=enableBackfill,proto3" json:"enable_backfill,omitempty"`
-	// Whether to auto-trigger backfill on disconnect.
-	AutoBackfill bool `protobuf:"varint,9,opt,name=auto_backfill,json=autoBackfill,proto3" json:"auto_backfill,omitempty"`
 	// Arbitrary data passed through to Lobby (not interpreted by Matchmaking).
 	Config *structpb.Struct `protobuf:"bytes,10,opt,name=config,proto3" json:"config,omitempty"`
-	// ServiceAddress of destination Lobby Shard.
-	TargetAddress *v1.ServiceAddress `protobuf:"bytes,11,opt,name=target_address,json=targetAddress,proto3" json:"target_address,omitempty"`
+	// ServiceAddress of destination Lobby Shard (where to send Match).
+	LobbyAddress *v1.ServiceAddress `protobuf:"bytes,11,opt,name=lobby_address,json=lobbyAddress,proto3" json:"lobby_address,omitempty"`
+	// ServiceAddress of destination Game Shard (where Lobby sends game-start).
+	TargetAddress *v1.ServiceAddress `protobuf:"bytes,12,opt,name=target_address,json=targetAddress,proto3" json:"target_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -475,23 +473,16 @@ func (x *MatchProfile) GetTeams() []*TeamDefinition {
 	return nil
 }
 
-func (x *MatchProfile) GetEnableBackfill() bool {
-	if x != nil {
-		return x.EnableBackfill
-	}
-	return false
-}
-
-func (x *MatchProfile) GetAutoBackfill() bool {
-	if x != nil {
-		return x.AutoBackfill
-	}
-	return false
-}
-
 func (x *MatchProfile) GetConfig() *structpb.Struct {
 	if x != nil {
 		return x.Config
+	}
+	return nil
+}
+
+func (x *MatchProfile) GetLobbyAddress() *v1.ServiceAddress {
+	if x != nil {
+		return x.LobbyAddress
 	}
 	return nil
 }
@@ -617,25 +608,26 @@ func (x *PlayerInfo) GetSearchFields() *SearchFields {
 	return nil
 }
 
-// Ticket represents a matchmaking request for a party.
+// Ticket represents a matchmaking request for a group of players.
 type Ticket struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Auto-generated unique identifier.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Links players together (solo = unique party ID).
-	PartyId string `protobuf:"bytes,2,opt,name=party_id,json=partyId,proto3" json:"party_id,omitempty"`
 	// Which MatchProfile this ticket targets.
-	MatchProfileName string `protobuf:"bytes,3,opt,name=match_profile_name,json=matchProfileName,proto3" json:"match_profile_name,omitempty"`
+	MatchProfileName string `protobuf:"bytes,2,opt,name=match_profile_name,json=matchProfileName,proto3" json:"match_profile_name,omitempty"`
 	// If true, ticket can be matched to backfill requests.
-	AllowBackfill bool `protobuf:"varint,4,opt,name=allow_backfill,json=allowBackfill,proto3" json:"allow_backfill,omitempty"`
+	AllowBackfill bool `protobuf:"varint,3,opt,name=allow_backfill,json=allowBackfill,proto3" json:"allow_backfill,omitempty"`
 	// Array of players with their search fields.
-	Players []*PlayerInfo `protobuf:"bytes,5,rep,name=players,proto3" json:"players,omitempty"`
+	Players []*PlayerInfo `protobuf:"bytes,4,rep,name=players,proto3" json:"players,omitempty"`
 	// When the ticket was created (for wait time priority).
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the ticket expires.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Where to send notifications when this ticket is matched.
+	// This is typically the Game Shard address that created the ticket.
+	CallbackAddress *v1.ServiceAddress `protobuf:"bytes,7,opt,name=callback_address,json=callbackAddress,proto3" json:"callback_address,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Ticket) Reset() {
@@ -675,13 +667,6 @@ func (x *Ticket) GetId() string {
 	return ""
 }
 
-func (x *Ticket) GetPartyId() string {
-	if x != nil {
-		return x.PartyId
-	}
-	return ""
-}
-
 func (x *Ticket) GetMatchProfileName() string {
 	if x != nil {
 		return x.MatchProfileName
@@ -717,14 +702,22 @@ func (x *Ticket) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Ticket) GetCallbackAddress() *v1.ServiceAddress {
+	if x != nil {
+		return x.CallbackAddress
+	}
+	return nil
+}
+
 // TicketReference is a simplified ticket reference in a match.
 type TicketReference struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	PartyId       string                 `protobuf:"bytes,2,opt,name=party_id,json=partyId,proto3" json:"party_id,omitempty"`
-	PlayerIds     []string               `protobuf:"bytes,3,rep,name=player_ids,json=playerIds,proto3" json:"player_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PlayerIds []string               `protobuf:"bytes,2,rep,name=player_ids,json=playerIds,proto3" json:"player_ids,omitempty"`
+	// Callback address from the original ticket (for notifying parties).
+	CallbackAddress *v1.ServiceAddress `protobuf:"bytes,3,opt,name=callback_address,json=callbackAddress,proto3" json:"callback_address,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TicketReference) Reset() {
@@ -764,16 +757,16 @@ func (x *TicketReference) GetId() string {
 	return ""
 }
 
-func (x *TicketReference) GetPartyId() string {
-	if x != nil {
-		return x.PartyId
-	}
-	return ""
-}
-
 func (x *TicketReference) GetPlayerIds() []string {
 	if x != nil {
 		return x.PlayerIds
+	}
+	return nil
+}
+
+func (x *TicketReference) GetCallbackAddress() *v1.ServiceAddress {
+	if x != nil {
+		return x.CallbackAddress
 	}
 	return nil
 }
@@ -840,16 +833,14 @@ type Match struct {
 	Teams []*Team `protobuf:"bytes,2,rep,name=teams,proto3" json:"teams,omitempty"`
 	// Which MatchProfile was used.
 	MatchProfileName string `protobuf:"bytes,3,opt,name=match_profile_name,json=matchProfileName,proto3" json:"match_profile_name,omitempty"`
-	// Whether backfill is allowed (from MatchProfile).
-	EnableBackfill bool `protobuf:"varint,4,opt,name=enable_backfill,json=enableBackfill,proto3" json:"enable_backfill,omitempty"`
-	// Whether auto-backfill on disconnect (from MatchProfile).
-	AutoBackfill bool `protobuf:"varint,5,opt,name=auto_backfill,json=autoBackfill,proto3" json:"auto_backfill,omitempty"`
 	// Passed through from MatchProfile (for Lobby to interpret).
 	Config *structpb.Struct `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
 	// This shard's address (for Lobby to send BackfillRequests).
 	MatchmakingAddress *v1.ServiceAddress `protobuf:"bytes,7,opt,name=matchmaking_address,json=matchmakingAddress,proto3" json:"matchmaking_address,omitempty"`
 	// When match was formed.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Game Shard's address (where Lobby sends start-game).
+	TargetAddress *v1.ServiceAddress `protobuf:"bytes,9,opt,name=target_address,json=targetAddress,proto3" json:"target_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -905,20 +896,6 @@ func (x *Match) GetMatchProfileName() string {
 	return ""
 }
 
-func (x *Match) GetEnableBackfill() bool {
-	if x != nil {
-		return x.EnableBackfill
-	}
-	return false
-}
-
-func (x *Match) GetAutoBackfill() bool {
-	if x != nil {
-		return x.AutoBackfill
-	}
-	return false
-}
-
 func (x *Match) GetConfig() *structpb.Struct {
 	if x != nil {
 		return x.Config
@@ -936,6 +913,13 @@ func (x *Match) GetMatchmakingAddress() *v1.ServiceAddress {
 func (x *Match) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Match) GetTargetAddress() *v1.ServiceAddress {
+	if x != nil {
+		return x.TargetAddress
 	}
 	return nil
 }
@@ -1193,20 +1177,133 @@ func (x *BackfillMatch) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// CreateTicketRequest is sent by clients to join matchmaking.
+// TicketCreatedCallback is sent to Game Shard after ticket is created.
+// Endpoint: <callback_address>.matchmaking.ticket-created
+type TicketCreatedCallback struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Correlation ID from the original request.
+	PartyId string `protobuf:"bytes,1,opt,name=party_id,json=partyId,proto3" json:"party_id,omitempty"`
+	// The assigned ticket ID.
+	TicketId      string `protobuf:"bytes,2,opt,name=ticket_id,json=ticketId,proto3" json:"ticket_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TicketCreatedCallback) Reset() {
+	*x = TicketCreatedCallback{}
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TicketCreatedCallback) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TicketCreatedCallback) ProtoMessage() {}
+
+func (x *TicketCreatedCallback) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TicketCreatedCallback.ProtoReflect.Descriptor instead.
+func (*TicketCreatedCallback) Descriptor() ([]byte, []int) {
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *TicketCreatedCallback) GetPartyId() string {
+	if x != nil {
+		return x.PartyId
+	}
+	return ""
+}
+
+func (x *TicketCreatedCallback) GetTicketId() string {
+	if x != nil {
+		return x.TicketId
+	}
+	return ""
+}
+
+// TicketErrorCallback is sent to Game Shard when ticket creation fails.
+// Endpoint: <callback_address>.matchmaking.ticket-error
+type TicketErrorCallback struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Correlation ID from the original request.
+	PartyId string `protobuf:"bytes,1,opt,name=party_id,json=partyId,proto3" json:"party_id,omitempty"`
+	// Error message describing the failure.
+	Error         string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TicketErrorCallback) Reset() {
+	*x = TicketErrorCallback{}
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TicketErrorCallback) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TicketErrorCallback) ProtoMessage() {}
+
+func (x *TicketErrorCallback) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TicketErrorCallback.ProtoReflect.Descriptor instead.
+func (*TicketErrorCallback) Descriptor() ([]byte, []int) {
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TicketErrorCallback) GetPartyId() string {
+	if x != nil {
+		return x.PartyId
+	}
+	return ""
+}
+
+func (x *TicketErrorCallback) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+// CreateTicketRequest is sent by game shards to join matchmaking.
 type CreateTicketRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	PartyId          string                 `protobuf:"bytes,1,opt,name=party_id,json=partyId,proto3" json:"party_id,omitempty"`
-	MatchProfileName string                 `protobuf:"bytes,2,opt,name=match_profile_name,json=matchProfileName,proto3" json:"match_profile_name,omitempty"`
-	AllowBackfill    bool                   `protobuf:"varint,3,opt,name=allow_backfill,json=allowBackfill,proto3" json:"allow_backfill,omitempty"`
-	Players          []*PlayerInfo          `protobuf:"bytes,4,rep,name=players,proto3" json:"players,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	MatchProfileName string                 `protobuf:"bytes,1,opt,name=match_profile_name,json=matchProfileName,proto3" json:"match_profile_name,omitempty"`
+	AllowBackfill    bool                   `protobuf:"varint,2,opt,name=allow_backfill,json=allowBackfill,proto3" json:"allow_backfill,omitempty"`
+	Players          []*PlayerInfo          `protobuf:"bytes,3,rep,name=players,proto3" json:"players,omitempty"`
+	// Where to send notifications when matched (typically the creating Game Shard).
+	CallbackAddress *v1.ServiceAddress `protobuf:"bytes,4,opt,name=callback_address,json=callbackAddress,proto3" json:"callback_address,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CreateTicketRequest) Reset() {
 	*x = CreateTicketRequest{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[16]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1218,7 +1315,7 @@ func (x *CreateTicketRequest) String() string {
 func (*CreateTicketRequest) ProtoMessage() {}
 
 func (x *CreateTicketRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[16]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1231,14 +1328,7 @@ func (x *CreateTicketRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTicketRequest.ProtoReflect.Descriptor instead.
 func (*CreateTicketRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *CreateTicketRequest) GetPartyId() string {
-	if x != nil {
-		return x.PartyId
-	}
-	return ""
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateTicketRequest) GetMatchProfileName() string {
@@ -1262,6 +1352,13 @@ func (x *CreateTicketRequest) GetPlayers() []*PlayerInfo {
 	return nil
 }
 
+func (x *CreateTicketRequest) GetCallbackAddress() *v1.ServiceAddress {
+	if x != nil {
+		return x.CallbackAddress
+	}
+	return nil
+}
+
 // CreateTicketResponse is returned after ticket creation.
 type CreateTicketResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1272,7 +1369,7 @@ type CreateTicketResponse struct {
 
 func (x *CreateTicketResponse) Reset() {
 	*x = CreateTicketResponse{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[17]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1284,7 +1381,7 @@ func (x *CreateTicketResponse) String() string {
 func (*CreateTicketResponse) ProtoMessage() {}
 
 func (x *CreateTicketResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[17]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1297,7 +1394,7 @@ func (x *CreateTicketResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTicketResponse.ProtoReflect.Descriptor instead.
 func (*CreateTicketResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{17}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CreateTicketResponse) GetTicket() *Ticket {
@@ -1317,7 +1414,7 @@ type GetTicketRequest struct {
 
 func (x *GetTicketRequest) Reset() {
 	*x = GetTicketRequest{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[18]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1329,7 +1426,7 @@ func (x *GetTicketRequest) String() string {
 func (*GetTicketRequest) ProtoMessage() {}
 
 func (x *GetTicketRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[18]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1342,7 +1439,7 @@ func (x *GetTicketRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTicketRequest.ProtoReflect.Descriptor instead.
 func (*GetTicketRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{18}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetTicketRequest) GetTicketId() string {
@@ -1362,7 +1459,7 @@ type GetTicketResponse struct {
 
 func (x *GetTicketResponse) Reset() {
 	*x = GetTicketResponse{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[19]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1374,7 +1471,7 @@ func (x *GetTicketResponse) String() string {
 func (*GetTicketResponse) ProtoMessage() {}
 
 func (x *GetTicketResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[19]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1387,7 +1484,7 @@ func (x *GetTicketResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTicketResponse.ProtoReflect.Descriptor instead.
 func (*GetTicketResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{19}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetTicketResponse) GetTicket() *Ticket {
@@ -1401,14 +1498,13 @@ func (x *GetTicketResponse) GetTicket() *Ticket {
 type CancelTicketRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TicketId      string                 `protobuf:"bytes,1,opt,name=ticket_id,json=ticketId,proto3" json:"ticket_id,omitempty"`
-	PartyId       string                 `protobuf:"bytes,2,opt,name=party_id,json=partyId,proto3" json:"party_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CancelTicketRequest) Reset() {
 	*x = CancelTicketRequest{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[20]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1420,7 +1516,7 @@ func (x *CancelTicketRequest) String() string {
 func (*CancelTicketRequest) ProtoMessage() {}
 
 func (x *CancelTicketRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[20]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1433,19 +1529,12 @@ func (x *CancelTicketRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTicketRequest.ProtoReflect.Descriptor instead.
 func (*CancelTicketRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{20}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CancelTicketRequest) GetTicketId() string {
 	if x != nil {
 		return x.TicketId
-	}
-	return ""
-}
-
-func (x *CancelTicketRequest) GetPartyId() string {
-	if x != nil {
-		return x.PartyId
 	}
 	return ""
 }
@@ -1460,7 +1549,7 @@ type CancelTicketResponse struct {
 
 func (x *CancelTicketResponse) Reset() {
 	*x = CancelTicketResponse{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[21]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1472,7 +1561,7 @@ func (x *CancelTicketResponse) String() string {
 func (*CancelTicketResponse) ProtoMessage() {}
 
 func (x *CancelTicketResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[21]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1485,7 +1574,7 @@ func (x *CancelTicketResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTicketResponse.ProtoReflect.Descriptor instead.
 func (*CancelTicketResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{21}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CancelTicketResponse) GetSuccess() bool {
@@ -1496,7 +1585,7 @@ func (x *CancelTicketResponse) GetSuccess() bool {
 }
 
 // CreateBackfillRequest is sent by Lobby Shard to request backfill.
-type CreateBackfillRequestRequest struct {
+type CreateBackfillRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	MatchId          string                 `protobuf:"bytes,1,opt,name=match_id,json=matchId,proto3" json:"match_id,omitempty"`
 	MatchProfileName string                 `protobuf:"bytes,2,opt,name=match_profile_name,json=matchProfileName,proto3" json:"match_profile_name,omitempty"`
@@ -1507,21 +1596,21 @@ type CreateBackfillRequestRequest struct {
 	sizeCache        protoimpl.SizeCache
 }
 
-func (x *CreateBackfillRequestRequest) Reset() {
-	*x = CreateBackfillRequestRequest{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[22]
+func (x *CreateBackfillRequest) Reset() {
+	*x = CreateBackfillRequest{}
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateBackfillRequestRequest) String() string {
+func (x *CreateBackfillRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateBackfillRequestRequest) ProtoMessage() {}
+func (*CreateBackfillRequest) ProtoMessage() {}
 
-func (x *CreateBackfillRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[22]
+func (x *CreateBackfillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1532,69 +1621,69 @@ func (x *CreateBackfillRequestRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateBackfillRequestRequest.ProtoReflect.Descriptor instead.
-func (*CreateBackfillRequestRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{22}
+// Deprecated: Use CreateBackfillRequest.ProtoReflect.Descriptor instead.
+func (*CreateBackfillRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *CreateBackfillRequestRequest) GetMatchId() string {
+func (x *CreateBackfillRequest) GetMatchId() string {
 	if x != nil {
 		return x.MatchId
 	}
 	return ""
 }
 
-func (x *CreateBackfillRequestRequest) GetMatchProfileName() string {
+func (x *CreateBackfillRequest) GetMatchProfileName() string {
 	if x != nil {
 		return x.MatchProfileName
 	}
 	return ""
 }
 
-func (x *CreateBackfillRequestRequest) GetTeamName() string {
+func (x *CreateBackfillRequest) GetTeamName() string {
 	if x != nil {
 		return x.TeamName
 	}
 	return ""
 }
 
-func (x *CreateBackfillRequestRequest) GetSlotsNeeded() []*SlotNeeded {
+func (x *CreateBackfillRequest) GetSlotsNeeded() []*SlotNeeded {
 	if x != nil {
 		return x.SlotsNeeded
 	}
 	return nil
 }
 
-func (x *CreateBackfillRequestRequest) GetLobbyAddress() *v1.ServiceAddress {
+func (x *CreateBackfillRequest) GetLobbyAddress() *v1.ServiceAddress {
 	if x != nil {
 		return x.LobbyAddress
 	}
 	return nil
 }
 
-// CreateBackfillRequestResponse returns the created backfill request.
-type CreateBackfillRequestResponse struct {
+// CreateBackfillResponse returns the created backfill request.
+type CreateBackfillResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	BackfillRequest *BackfillRequest       `protobuf:"bytes,1,opt,name=backfill_request,json=backfillRequest,proto3" json:"backfill_request,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *CreateBackfillRequestResponse) Reset() {
-	*x = CreateBackfillRequestResponse{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[23]
+func (x *CreateBackfillResponse) Reset() {
+	*x = CreateBackfillResponse{}
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CreateBackfillRequestResponse) String() string {
+func (x *CreateBackfillResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CreateBackfillRequestResponse) ProtoMessage() {}
+func (*CreateBackfillResponse) ProtoMessage() {}
 
-func (x *CreateBackfillRequestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[23]
+func (x *CreateBackfillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1605,12 +1694,12 @@ func (x *CreateBackfillRequestResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CreateBackfillRequestResponse.ProtoReflect.Descriptor instead.
-func (*CreateBackfillRequestResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{23}
+// Deprecated: Use CreateBackfillResponse.ProtoReflect.Descriptor instead.
+func (*CreateBackfillResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *CreateBackfillRequestResponse) GetBackfillRequest() *BackfillRequest {
+func (x *CreateBackfillResponse) GetBackfillRequest() *BackfillRequest {
 	if x != nil {
 		return x.BackfillRequest
 	}
@@ -1618,7 +1707,7 @@ func (x *CreateBackfillRequestResponse) GetBackfillRequest() *BackfillRequest {
 }
 
 // CancelBackfillRequest is sent to cancel a backfill request.
-type CancelBackfillRequestRequest struct {
+type CancelBackfillRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	BackfillRequestId string                 `protobuf:"bytes,1,opt,name=backfill_request_id,json=backfillRequestId,proto3" json:"backfill_request_id,omitempty"`
 	LobbyAddress      *v1.ServiceAddress     `protobuf:"bytes,2,opt,name=lobby_address,json=lobbyAddress,proto3" json:"lobby_address,omitempty"`
@@ -1626,21 +1715,21 @@ type CancelBackfillRequestRequest struct {
 	sizeCache         protoimpl.SizeCache
 }
 
-func (x *CancelBackfillRequestRequest) Reset() {
-	*x = CancelBackfillRequestRequest{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[24]
+func (x *CancelBackfillRequest) Reset() {
+	*x = CancelBackfillRequest{}
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CancelBackfillRequestRequest) String() string {
+func (x *CancelBackfillRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CancelBackfillRequestRequest) ProtoMessage() {}
+func (*CancelBackfillRequest) ProtoMessage() {}
 
-func (x *CancelBackfillRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[24]
+func (x *CancelBackfillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,48 +1740,48 @@ func (x *CancelBackfillRequestRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CancelBackfillRequestRequest.ProtoReflect.Descriptor instead.
-func (*CancelBackfillRequestRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{24}
+// Deprecated: Use CancelBackfillRequest.ProtoReflect.Descriptor instead.
+func (*CancelBackfillRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *CancelBackfillRequestRequest) GetBackfillRequestId() string {
+func (x *CancelBackfillRequest) GetBackfillRequestId() string {
 	if x != nil {
 		return x.BackfillRequestId
 	}
 	return ""
 }
 
-func (x *CancelBackfillRequestRequest) GetLobbyAddress() *v1.ServiceAddress {
+func (x *CancelBackfillRequest) GetLobbyAddress() *v1.ServiceAddress {
 	if x != nil {
 		return x.LobbyAddress
 	}
 	return nil
 }
 
-// CancelBackfillRequestResponse confirms cancellation.
-type CancelBackfillRequestResponse struct {
+// CancelBackfillResponse confirms cancellation.
+type CancelBackfillResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CancelBackfillRequestResponse) Reset() {
-	*x = CancelBackfillRequestResponse{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[25]
+func (x *CancelBackfillResponse) Reset() {
+	*x = CancelBackfillResponse{}
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CancelBackfillRequestResponse) String() string {
+func (x *CancelBackfillResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CancelBackfillRequestResponse) ProtoMessage() {}
+func (*CancelBackfillResponse) ProtoMessage() {}
 
-func (x *CancelBackfillRequestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[25]
+func (x *CancelBackfillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1703,12 +1792,12 @@ func (x *CancelBackfillRequestResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CancelBackfillRequestResponse.ProtoReflect.Descriptor instead.
-func (*CancelBackfillRequestResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{25}
+// Deprecated: Use CancelBackfillResponse.ProtoReflect.Descriptor instead.
+func (*CancelBackfillResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *CancelBackfillRequestResponse) GetSuccess() bool {
+func (x *CancelBackfillResponse) GetSuccess() bool {
 	if x != nil {
 		return x.Success
 	}
@@ -1724,7 +1813,7 @@ type GetStatsRequest struct {
 
 func (x *GetStatsRequest) Reset() {
 	*x = GetStatsRequest{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[26]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1736,7 +1825,7 @@ func (x *GetStatsRequest) String() string {
 func (*GetStatsRequest) ProtoMessage() {}
 
 func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[26]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1749,7 +1838,7 @@ func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetStatsRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{26}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{28}
 }
 
 // GetStatsResponse returns matchmaking statistics.
@@ -1765,7 +1854,7 @@ type GetStatsResponse struct {
 
 func (x *GetStatsResponse) Reset() {
 	*x = GetStatsResponse{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[27]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1777,7 +1866,7 @@ func (x *GetStatsResponse) String() string {
 func (*GetStatsResponse) ProtoMessage() {}
 
 func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[27]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1790,7 +1879,7 @@ func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetStatsResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{27}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetStatsResponse) GetTotalTickets() int64 {
@@ -1835,7 +1924,7 @@ type MatchmakingSnapshot struct {
 
 func (x *MatchmakingSnapshot) Reset() {
 	*x = MatchmakingSnapshot{}
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[28]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1847,7 +1936,7 @@ func (x *MatchmakingSnapshot) String() string {
 func (*MatchmakingSnapshot) ProtoMessage() {}
 
 func (x *MatchmakingSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[28]
+	mi := &file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1860,7 +1949,7 @@ func (x *MatchmakingSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchmakingSnapshot.ProtoReflect.Descriptor instead.
 func (*MatchmakingSnapshot) Descriptor() ([]byte, []int) {
-	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{28}
+	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *MatchmakingSnapshot) GetTickets() []*Ticket {
@@ -1923,7 +2012,7 @@ const file_worldengine_matchmaking_v1_matchmaking_proto_rawDesc = "" +
 	"\x0eTeamDefinition\x12\x1a\n" +
 	"\x04name\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x04name\x12\x1b\n" +
 	"\x04size\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\x04size\x12M\n" +
-	"\vcomposition\x18\x03 \x03(\v2+.worldengine.matchmaking.v1.PoolRequirementR\vcomposition\"\xba\x04\n" +
+	"\vcomposition\x18\x03 \x03(\v2+.worldengine.matchmaking.v1.PoolRequirementR\vcomposition\"\xbf\x04\n" +
 	"\fMatchProfile\x12\x1a\n" +
 	"\x04name\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x04name\x12@\n" +
 	"\x05pools\x18\x02 \x03(\v2 .worldengine.matchmaking.v1.PoolB\b\xbaH\x05\x92\x01\x02\b\x01R\x05pools\x12\x1d\n" +
@@ -1932,12 +2021,11 @@ const file_worldengine_matchmaking_v1_matchmaking_proto_rawDesc = "" +
 	"\tteam_size\x18\x04 \x01(\x05R\bteamSize\x12\"\n" +
 	"\rteam_min_size\x18\x05 \x01(\x05R\vteamMinSize\x12V\n" +
 	"\x10team_composition\x18\x06 \x03(\v2+.worldengine.matchmaking.v1.PoolRequirementR\x0fteamComposition\x12@\n" +
-	"\x05teams\x18\a \x03(\v2*.worldengine.matchmaking.v1.TeamDefinitionR\x05teams\x12'\n" +
-	"\x0fenable_backfill\x18\b \x01(\bR\x0eenableBackfill\x12#\n" +
-	"\rauto_backfill\x18\t \x01(\bR\fautoBackfill\x12/\n" +
+	"\x05teams\x18\a \x03(\v2*.worldengine.matchmaking.v1.TeamDefinitionR\x05teams\x12/\n" +
 	"\x06config\x18\n" +
-	" \x01(\v2\x17.google.protobuf.StructR\x06config\x12S\n" +
-	"\x0etarget_address\x18\v \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\rtargetAddress\"\xd6\x02\n" +
+	" \x01(\v2\x17.google.protobuf.StructR\x06config\x12Q\n" +
+	"\rlobby_address\x18\v \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\flobbyAddress\x12S\n" +
+	"\x0etarget_address\x18\f \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\rtargetAddress\"\xd6\x02\n" +
 	"\fSearchFields\x12Y\n" +
 	"\vstring_args\x18\x01 \x03(\v28.worldengine.matchmaking.v1.SearchFields.StringArgsEntryR\n" +
 	"stringArgs\x12Y\n" +
@@ -1953,35 +2041,34 @@ const file_worldengine_matchmaking_v1_matchmaking_proto_rawDesc = "" +
 	"\n" +
 	"PlayerInfo\x12#\n" +
 	"\tplayer_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bplayerId\x12M\n" +
-	"\rsearch_fields\x18\x02 \x01(\v2(.worldengine.matchmaking.v1.SearchFieldsR\fsearchFields\"\xf2\x02\n" +
+	"\rsearch_fields\x18\x02 \x01(\v2(.worldengine.matchmaking.v1.SearchFieldsR\fsearchFields\"\xa0\x03\n" +
 	"\x06Ticket\x12\x16\n" +
-	"\x02id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x02id\x12!\n" +
-	"\bparty_id\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\apartyId\x124\n" +
-	"\x12match_profile_name\x18\x03 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12%\n" +
-	"\x0eallow_backfill\x18\x04 \x01(\bR\rallowBackfill\x12J\n" +
-	"\aplayers\x18\x05 \x03(\v2&.worldengine.matchmaking.v1.PlayerInfoB\b\xbaH\x05\x92\x01\x02\b\x01R\aplayers\x12A\n" +
+	"\x02id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x02id\x124\n" +
+	"\x12match_profile_name\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12%\n" +
+	"\x0eallow_backfill\x18\x03 \x01(\bR\rallowBackfill\x12J\n" +
+	"\aplayers\x18\x04 \x03(\v2&.worldengine.matchmaking.v1.PlayerInfoB\b\xbaH\x05\x92\x01\x02\b\x01R\aplayers\x12A\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tcreatedAt\x12A\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tcreatedAt\x12A\n" +
 	"\n" +
-	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\texpiresAt\"[\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\texpiresAt\x12O\n" +
+	"\x10callback_address\x18\a \x01(\v2$.worldengine.micro.v1.ServiceAddressR\x0fcallbackAddress\"\x91\x01\n" +
 	"\x0fTicketReference\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
-	"\bparty_id\x18\x02 \x01(\tR\apartyId\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
-	"player_ids\x18\x03 \x03(\tR\tplayerIds\"a\n" +
+	"player_ids\x18\x02 \x03(\tR\tplayerIds\x12O\n" +
+	"\x10callback_address\x18\x03 \x01(\v2$.worldengine.micro.v1.ServiceAddressR\x0fcallbackAddress\"a\n" +
 	"\x04Team\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12E\n" +
-	"\atickets\x18\x02 \x03(\v2+.worldengine.matchmaking.v1.TicketReferenceR\atickets\"\xb8\x03\n" +
+	"\atickets\x18\x02 \x03(\v2+.worldengine.matchmaking.v1.TicketReferenceR\atickets\"\xb7\x03\n" +
 	"\x05Match\x12\x16\n" +
 	"\x02id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x02id\x12@\n" +
 	"\x05teams\x18\x02 \x03(\v2 .worldengine.matchmaking.v1.TeamB\b\xbaH\x05\x92\x01\x02\b\x01R\x05teams\x124\n" +
-	"\x12match_profile_name\x18\x03 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12'\n" +
-	"\x0fenable_backfill\x18\x04 \x01(\bR\x0eenableBackfill\x12#\n" +
-	"\rauto_backfill\x18\x05 \x01(\bR\fautoBackfill\x12/\n" +
+	"\x12match_profile_name\x18\x03 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12/\n" +
 	"\x06config\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06config\x12]\n" +
 	"\x13matchmaking_address\x18\a \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\x12matchmakingAddress\x12A\n" +
 	"\n" +
-	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tcreatedAt\"P\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tcreatedAt\x12K\n" +
+	"\x0etarget_address\x18\t \x01(\v2$.worldengine.micro.v1.ServiceAddressR\rtargetAddress\"P\n" +
 	"\n" +
 	"SlotNeeded\x12#\n" +
 	"\tpool_name\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bpoolName\x12\x1d\n" +
@@ -2004,35 +2091,40 @@ const file_worldengine_matchmaking_v1_matchmaking_proto_rawDesc = "" +
 	"\tteam_name\x18\x04 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bteamName\x12O\n" +
 	"\atickets\x18\x05 \x03(\v2+.worldengine.matchmaking.v1.TicketReferenceB\b\xbaH\x05\x92\x01\x02\b\x01R\atickets\x12A\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tcreatedAt\"\xe1\x01\n" +
-	"\x13CreateTicketRequest\x12!\n" +
-	"\bparty_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\apartyId\x124\n" +
-	"\x12match_profile_name\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12%\n" +
-	"\x0eallow_backfill\x18\x03 \x01(\bR\rallowBackfill\x12J\n" +
-	"\aplayers\x18\x04 \x03(\v2&.worldengine.matchmaking.v1.PlayerInfoB\b\xbaH\x05\x92\x01\x02\b\x01R\aplayers\"R\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tcreatedAt\"_\n" +
+	"\x15TicketCreatedCallback\x12!\n" +
+	"\bparty_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\apartyId\x12#\n" +
+	"\tticket_id\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bticketId\"V\n" +
+	"\x13TicketErrorCallback\x12!\n" +
+	"\bparty_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\apartyId\x12\x1c\n" +
+	"\x05error\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x05error\"\x8f\x02\n" +
+	"\x13CreateTicketRequest\x124\n" +
+	"\x12match_profile_name\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12%\n" +
+	"\x0eallow_backfill\x18\x02 \x01(\bR\rallowBackfill\x12J\n" +
+	"\aplayers\x18\x03 \x03(\v2&.worldengine.matchmaking.v1.PlayerInfoB\b\xbaH\x05\x92\x01\x02\b\x01R\aplayers\x12O\n" +
+	"\x10callback_address\x18\x04 \x01(\v2$.worldengine.micro.v1.ServiceAddressR\x0fcallbackAddress\"R\n" +
 	"\x14CreateTicketResponse\x12:\n" +
 	"\x06ticket\x18\x01 \x01(\v2\".worldengine.matchmaking.v1.TicketR\x06ticket\"7\n" +
 	"\x10GetTicketRequest\x12#\n" +
 	"\tticket_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bticketId\"O\n" +
 	"\x11GetTicketResponse\x12:\n" +
-	"\x06ticket\x18\x01 \x01(\v2\".worldengine.matchmaking.v1.TicketR\x06ticket\"]\n" +
+	"\x06ticket\x18\x01 \x01(\v2\".worldengine.matchmaking.v1.TicketR\x06ticket\":\n" +
 	"\x13CancelTicketRequest\x12#\n" +
-	"\tticket_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bticketId\x12!\n" +
-	"\bparty_id\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\apartyId\"0\n" +
+	"\tticket_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bticketId\"0\n" +
 	"\x14CancelTicketResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xc4\x02\n" +
-	"\x1cCreateBackfillRequestRequest\x12!\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xbd\x02\n" +
+	"\x15CreateBackfillRequest\x12!\n" +
 	"\bmatch_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\amatchId\x124\n" +
 	"\x12match_profile_name\x18\x02 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x10matchProfileName\x12#\n" +
 	"\tteam_name\x18\x03 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\bteamName\x12S\n" +
 	"\fslots_needed\x18\x04 \x03(\v2&.worldengine.matchmaking.v1.SlotNeededB\b\xbaH\x05\x92\x01\x02\b\x01R\vslotsNeeded\x12Q\n" +
-	"\rlobby_address\x18\x05 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\flobbyAddress\"w\n" +
-	"\x1dCreateBackfillRequestResponse\x12V\n" +
-	"\x10backfill_request\x18\x01 \x01(\v2+.worldengine.matchmaking.v1.BackfillRequestR\x0fbackfillRequest\"\xa9\x01\n" +
-	"\x1cCancelBackfillRequestRequest\x126\n" +
+	"\rlobby_address\x18\x05 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\flobbyAddress\"p\n" +
+	"\x16CreateBackfillResponse\x12V\n" +
+	"\x10backfill_request\x18\x01 \x01(\v2+.worldengine.matchmaking.v1.BackfillRequestR\x0fbackfillRequest\"\xa2\x01\n" +
+	"\x15CancelBackfillRequest\x126\n" +
 	"\x13backfill_request_id\x18\x01 \x01(\tB\x06\xbaH\x03\xc8\x01\x01R\x11backfillRequestId\x12Q\n" +
-	"\rlobby_address\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\flobbyAddress\"9\n" +
-	"\x1dCancelBackfillRequestResponse\x12\x18\n" +
+	"\rlobby_address\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\flobbyAddress\"2\n" +
+	"\x16CancelBackfillResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x11\n" +
 	"\x0fGetStatsRequest\"\xcb\x02\n" +
 	"\x10GetStatsResponse\x12#\n" +
@@ -2062,43 +2154,45 @@ func file_worldengine_matchmaking_v1_matchmaking_proto_rawDescGZIP() []byte {
 	return file_worldengine_matchmaking_v1_matchmaking_proto_rawDescData
 }
 
-var file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_worldengine_matchmaking_v1_matchmaking_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_worldengine_matchmaking_v1_matchmaking_proto_goTypes = []any{
-	(*StringEqualsFilter)(nil),            // 0: worldengine.matchmaking.v1.StringEqualsFilter
-	(*DoubleRangeFilter)(nil),             // 1: worldengine.matchmaking.v1.DoubleRangeFilter
-	(*TagPresentFilter)(nil),              // 2: worldengine.matchmaking.v1.TagPresentFilter
-	(*Pool)(nil),                          // 3: worldengine.matchmaking.v1.Pool
-	(*PoolRequirement)(nil),               // 4: worldengine.matchmaking.v1.PoolRequirement
-	(*TeamDefinition)(nil),                // 5: worldengine.matchmaking.v1.TeamDefinition
-	(*MatchProfile)(nil),                  // 6: worldengine.matchmaking.v1.MatchProfile
-	(*SearchFields)(nil),                  // 7: worldengine.matchmaking.v1.SearchFields
-	(*PlayerInfo)(nil),                    // 8: worldengine.matchmaking.v1.PlayerInfo
-	(*Ticket)(nil),                        // 9: worldengine.matchmaking.v1.Ticket
-	(*TicketReference)(nil),               // 10: worldengine.matchmaking.v1.TicketReference
-	(*Team)(nil),                          // 11: worldengine.matchmaking.v1.Team
-	(*Match)(nil),                         // 12: worldengine.matchmaking.v1.Match
-	(*SlotNeeded)(nil),                    // 13: worldengine.matchmaking.v1.SlotNeeded
-	(*BackfillRequest)(nil),               // 14: worldengine.matchmaking.v1.BackfillRequest
-	(*BackfillMatch)(nil),                 // 15: worldengine.matchmaking.v1.BackfillMatch
-	(*CreateTicketRequest)(nil),           // 16: worldengine.matchmaking.v1.CreateTicketRequest
-	(*CreateTicketResponse)(nil),          // 17: worldengine.matchmaking.v1.CreateTicketResponse
-	(*GetTicketRequest)(nil),              // 18: worldengine.matchmaking.v1.GetTicketRequest
-	(*GetTicketResponse)(nil),             // 19: worldengine.matchmaking.v1.GetTicketResponse
-	(*CancelTicketRequest)(nil),           // 20: worldengine.matchmaking.v1.CancelTicketRequest
-	(*CancelTicketResponse)(nil),          // 21: worldengine.matchmaking.v1.CancelTicketResponse
-	(*CreateBackfillRequestRequest)(nil),  // 22: worldengine.matchmaking.v1.CreateBackfillRequestRequest
-	(*CreateBackfillRequestResponse)(nil), // 23: worldengine.matchmaking.v1.CreateBackfillRequestResponse
-	(*CancelBackfillRequestRequest)(nil),  // 24: worldengine.matchmaking.v1.CancelBackfillRequestRequest
-	(*CancelBackfillRequestResponse)(nil), // 25: worldengine.matchmaking.v1.CancelBackfillRequestResponse
-	(*GetStatsRequest)(nil),               // 26: worldengine.matchmaking.v1.GetStatsRequest
-	(*GetStatsResponse)(nil),              // 27: worldengine.matchmaking.v1.GetStatsResponse
-	(*MatchmakingSnapshot)(nil),           // 28: worldengine.matchmaking.v1.MatchmakingSnapshot
-	nil,                                   // 29: worldengine.matchmaking.v1.SearchFields.StringArgsEntry
-	nil,                                   // 30: worldengine.matchmaking.v1.SearchFields.DoubleArgsEntry
-	nil,                                   // 31: worldengine.matchmaking.v1.GetStatsResponse.TicketsByProfileEntry
-	(*structpb.Struct)(nil),               // 32: google.protobuf.Struct
-	(*v1.ServiceAddress)(nil),             // 33: worldengine.micro.v1.ServiceAddress
-	(*timestamppb.Timestamp)(nil),         // 34: google.protobuf.Timestamp
+	(*StringEqualsFilter)(nil),     // 0: worldengine.matchmaking.v1.StringEqualsFilter
+	(*DoubleRangeFilter)(nil),      // 1: worldengine.matchmaking.v1.DoubleRangeFilter
+	(*TagPresentFilter)(nil),       // 2: worldengine.matchmaking.v1.TagPresentFilter
+	(*Pool)(nil),                   // 3: worldengine.matchmaking.v1.Pool
+	(*PoolRequirement)(nil),        // 4: worldengine.matchmaking.v1.PoolRequirement
+	(*TeamDefinition)(nil),         // 5: worldengine.matchmaking.v1.TeamDefinition
+	(*MatchProfile)(nil),           // 6: worldengine.matchmaking.v1.MatchProfile
+	(*SearchFields)(nil),           // 7: worldengine.matchmaking.v1.SearchFields
+	(*PlayerInfo)(nil),             // 8: worldengine.matchmaking.v1.PlayerInfo
+	(*Ticket)(nil),                 // 9: worldengine.matchmaking.v1.Ticket
+	(*TicketReference)(nil),        // 10: worldengine.matchmaking.v1.TicketReference
+	(*Team)(nil),                   // 11: worldengine.matchmaking.v1.Team
+	(*Match)(nil),                  // 12: worldengine.matchmaking.v1.Match
+	(*SlotNeeded)(nil),             // 13: worldengine.matchmaking.v1.SlotNeeded
+	(*BackfillRequest)(nil),        // 14: worldengine.matchmaking.v1.BackfillRequest
+	(*BackfillMatch)(nil),          // 15: worldengine.matchmaking.v1.BackfillMatch
+	(*TicketCreatedCallback)(nil),  // 16: worldengine.matchmaking.v1.TicketCreatedCallback
+	(*TicketErrorCallback)(nil),    // 17: worldengine.matchmaking.v1.TicketErrorCallback
+	(*CreateTicketRequest)(nil),    // 18: worldengine.matchmaking.v1.CreateTicketRequest
+	(*CreateTicketResponse)(nil),   // 19: worldengine.matchmaking.v1.CreateTicketResponse
+	(*GetTicketRequest)(nil),       // 20: worldengine.matchmaking.v1.GetTicketRequest
+	(*GetTicketResponse)(nil),      // 21: worldengine.matchmaking.v1.GetTicketResponse
+	(*CancelTicketRequest)(nil),    // 22: worldengine.matchmaking.v1.CancelTicketRequest
+	(*CancelTicketResponse)(nil),   // 23: worldengine.matchmaking.v1.CancelTicketResponse
+	(*CreateBackfillRequest)(nil),  // 24: worldengine.matchmaking.v1.CreateBackfillRequest
+	(*CreateBackfillResponse)(nil), // 25: worldengine.matchmaking.v1.CreateBackfillResponse
+	(*CancelBackfillRequest)(nil),  // 26: worldengine.matchmaking.v1.CancelBackfillRequest
+	(*CancelBackfillResponse)(nil), // 27: worldengine.matchmaking.v1.CancelBackfillResponse
+	(*GetStatsRequest)(nil),        // 28: worldengine.matchmaking.v1.GetStatsRequest
+	(*GetStatsResponse)(nil),       // 29: worldengine.matchmaking.v1.GetStatsResponse
+	(*MatchmakingSnapshot)(nil),    // 30: worldengine.matchmaking.v1.MatchmakingSnapshot
+	nil,                            // 31: worldengine.matchmaking.v1.SearchFields.StringArgsEntry
+	nil,                            // 32: worldengine.matchmaking.v1.SearchFields.DoubleArgsEntry
+	nil,                            // 33: worldengine.matchmaking.v1.GetStatsResponse.TicketsByProfileEntry
+	(*structpb.Struct)(nil),        // 34: google.protobuf.Struct
+	(*v1.ServiceAddress)(nil),      // 35: worldengine.micro.v1.ServiceAddress
+	(*timestamppb.Timestamp)(nil),  // 36: google.protobuf.Timestamp
 }
 var file_worldengine_matchmaking_v1_matchmaking_proto_depIdxs = []int32{
 	0,  // 0: worldengine.matchmaking.v1.Pool.string_equals_filters:type_name -> worldengine.matchmaking.v1.StringEqualsFilter
@@ -2108,40 +2202,45 @@ var file_worldengine_matchmaking_v1_matchmaking_proto_depIdxs = []int32{
 	3,  // 4: worldengine.matchmaking.v1.MatchProfile.pools:type_name -> worldengine.matchmaking.v1.Pool
 	4,  // 5: worldengine.matchmaking.v1.MatchProfile.team_composition:type_name -> worldengine.matchmaking.v1.PoolRequirement
 	5,  // 6: worldengine.matchmaking.v1.MatchProfile.teams:type_name -> worldengine.matchmaking.v1.TeamDefinition
-	32, // 7: worldengine.matchmaking.v1.MatchProfile.config:type_name -> google.protobuf.Struct
-	33, // 8: worldengine.matchmaking.v1.MatchProfile.target_address:type_name -> worldengine.micro.v1.ServiceAddress
-	29, // 9: worldengine.matchmaking.v1.SearchFields.string_args:type_name -> worldengine.matchmaking.v1.SearchFields.StringArgsEntry
-	30, // 10: worldengine.matchmaking.v1.SearchFields.double_args:type_name -> worldengine.matchmaking.v1.SearchFields.DoubleArgsEntry
-	7,  // 11: worldengine.matchmaking.v1.PlayerInfo.search_fields:type_name -> worldengine.matchmaking.v1.SearchFields
-	8,  // 12: worldengine.matchmaking.v1.Ticket.players:type_name -> worldengine.matchmaking.v1.PlayerInfo
-	34, // 13: worldengine.matchmaking.v1.Ticket.created_at:type_name -> google.protobuf.Timestamp
-	34, // 14: worldengine.matchmaking.v1.Ticket.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 15: worldengine.matchmaking.v1.Team.tickets:type_name -> worldengine.matchmaking.v1.TicketReference
-	11, // 16: worldengine.matchmaking.v1.Match.teams:type_name -> worldengine.matchmaking.v1.Team
-	32, // 17: worldengine.matchmaking.v1.Match.config:type_name -> google.protobuf.Struct
-	33, // 18: worldengine.matchmaking.v1.Match.matchmaking_address:type_name -> worldengine.micro.v1.ServiceAddress
-	34, // 19: worldengine.matchmaking.v1.Match.created_at:type_name -> google.protobuf.Timestamp
-	13, // 20: worldengine.matchmaking.v1.BackfillRequest.slots_needed:type_name -> worldengine.matchmaking.v1.SlotNeeded
-	33, // 21: worldengine.matchmaking.v1.BackfillRequest.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
-	34, // 22: worldengine.matchmaking.v1.BackfillRequest.created_at:type_name -> google.protobuf.Timestamp
-	34, // 23: worldengine.matchmaking.v1.BackfillRequest.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 24: worldengine.matchmaking.v1.BackfillMatch.tickets:type_name -> worldengine.matchmaking.v1.TicketReference
-	34, // 25: worldengine.matchmaking.v1.BackfillMatch.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 26: worldengine.matchmaking.v1.CreateTicketRequest.players:type_name -> worldengine.matchmaking.v1.PlayerInfo
-	9,  // 27: worldengine.matchmaking.v1.CreateTicketResponse.ticket:type_name -> worldengine.matchmaking.v1.Ticket
-	9,  // 28: worldengine.matchmaking.v1.GetTicketResponse.ticket:type_name -> worldengine.matchmaking.v1.Ticket
-	13, // 29: worldengine.matchmaking.v1.CreateBackfillRequestRequest.slots_needed:type_name -> worldengine.matchmaking.v1.SlotNeeded
-	33, // 30: worldengine.matchmaking.v1.CreateBackfillRequestRequest.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
-	14, // 31: worldengine.matchmaking.v1.CreateBackfillRequestResponse.backfill_request:type_name -> worldengine.matchmaking.v1.BackfillRequest
-	33, // 32: worldengine.matchmaking.v1.CancelBackfillRequestRequest.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
-	31, // 33: worldengine.matchmaking.v1.GetStatsResponse.tickets_by_profile:type_name -> worldengine.matchmaking.v1.GetStatsResponse.TicketsByProfileEntry
-	9,  // 34: worldengine.matchmaking.v1.MatchmakingSnapshot.tickets:type_name -> worldengine.matchmaking.v1.Ticket
-	14, // 35: worldengine.matchmaking.v1.MatchmakingSnapshot.backfill_requests:type_name -> worldengine.matchmaking.v1.BackfillRequest
-	36, // [36:36] is the sub-list for method output_type
-	36, // [36:36] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	34, // 7: worldengine.matchmaking.v1.MatchProfile.config:type_name -> google.protobuf.Struct
+	35, // 8: worldengine.matchmaking.v1.MatchProfile.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
+	35, // 9: worldengine.matchmaking.v1.MatchProfile.target_address:type_name -> worldengine.micro.v1.ServiceAddress
+	31, // 10: worldengine.matchmaking.v1.SearchFields.string_args:type_name -> worldengine.matchmaking.v1.SearchFields.StringArgsEntry
+	32, // 11: worldengine.matchmaking.v1.SearchFields.double_args:type_name -> worldengine.matchmaking.v1.SearchFields.DoubleArgsEntry
+	7,  // 12: worldengine.matchmaking.v1.PlayerInfo.search_fields:type_name -> worldengine.matchmaking.v1.SearchFields
+	8,  // 13: worldengine.matchmaking.v1.Ticket.players:type_name -> worldengine.matchmaking.v1.PlayerInfo
+	36, // 14: worldengine.matchmaking.v1.Ticket.created_at:type_name -> google.protobuf.Timestamp
+	36, // 15: worldengine.matchmaking.v1.Ticket.expires_at:type_name -> google.protobuf.Timestamp
+	35, // 16: worldengine.matchmaking.v1.Ticket.callback_address:type_name -> worldengine.micro.v1.ServiceAddress
+	35, // 17: worldengine.matchmaking.v1.TicketReference.callback_address:type_name -> worldengine.micro.v1.ServiceAddress
+	10, // 18: worldengine.matchmaking.v1.Team.tickets:type_name -> worldengine.matchmaking.v1.TicketReference
+	11, // 19: worldengine.matchmaking.v1.Match.teams:type_name -> worldengine.matchmaking.v1.Team
+	34, // 20: worldengine.matchmaking.v1.Match.config:type_name -> google.protobuf.Struct
+	35, // 21: worldengine.matchmaking.v1.Match.matchmaking_address:type_name -> worldengine.micro.v1.ServiceAddress
+	36, // 22: worldengine.matchmaking.v1.Match.created_at:type_name -> google.protobuf.Timestamp
+	35, // 23: worldengine.matchmaking.v1.Match.target_address:type_name -> worldengine.micro.v1.ServiceAddress
+	13, // 24: worldengine.matchmaking.v1.BackfillRequest.slots_needed:type_name -> worldengine.matchmaking.v1.SlotNeeded
+	35, // 25: worldengine.matchmaking.v1.BackfillRequest.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
+	36, // 26: worldengine.matchmaking.v1.BackfillRequest.created_at:type_name -> google.protobuf.Timestamp
+	36, // 27: worldengine.matchmaking.v1.BackfillRequest.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 28: worldengine.matchmaking.v1.BackfillMatch.tickets:type_name -> worldengine.matchmaking.v1.TicketReference
+	36, // 29: worldengine.matchmaking.v1.BackfillMatch.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 30: worldengine.matchmaking.v1.CreateTicketRequest.players:type_name -> worldengine.matchmaking.v1.PlayerInfo
+	35, // 31: worldengine.matchmaking.v1.CreateTicketRequest.callback_address:type_name -> worldengine.micro.v1.ServiceAddress
+	9,  // 32: worldengine.matchmaking.v1.CreateTicketResponse.ticket:type_name -> worldengine.matchmaking.v1.Ticket
+	9,  // 33: worldengine.matchmaking.v1.GetTicketResponse.ticket:type_name -> worldengine.matchmaking.v1.Ticket
+	13, // 34: worldengine.matchmaking.v1.CreateBackfillRequest.slots_needed:type_name -> worldengine.matchmaking.v1.SlotNeeded
+	35, // 35: worldengine.matchmaking.v1.CreateBackfillRequest.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
+	14, // 36: worldengine.matchmaking.v1.CreateBackfillResponse.backfill_request:type_name -> worldengine.matchmaking.v1.BackfillRequest
+	35, // 37: worldengine.matchmaking.v1.CancelBackfillRequest.lobby_address:type_name -> worldengine.micro.v1.ServiceAddress
+	33, // 38: worldengine.matchmaking.v1.GetStatsResponse.tickets_by_profile:type_name -> worldengine.matchmaking.v1.GetStatsResponse.TicketsByProfileEntry
+	9,  // 39: worldengine.matchmaking.v1.MatchmakingSnapshot.tickets:type_name -> worldengine.matchmaking.v1.Ticket
+	14, // 40: worldengine.matchmaking.v1.MatchmakingSnapshot.backfill_requests:type_name -> worldengine.matchmaking.v1.BackfillRequest
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_matchmaking_v1_matchmaking_proto_init() }
@@ -2155,7 +2254,7 @@ func file_worldengine_matchmaking_v1_matchmaking_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_matchmaking_v1_matchmaking_proto_rawDesc), len(file_worldengine_matchmaking_v1_matchmaking_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

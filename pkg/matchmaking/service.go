@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/argus-labs/world-engine/pkg/matchmaking/types"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -47,15 +46,6 @@ func NewMatchmakingService(
 		return nil, eris.Wrap(err, "failed to add stats endpoint")
 	}
 
-	// Register backfill endpoints (internal, called by Lobby Shard)
-	backfillGroup := svc.AddGroup("backfill")
-	if err := backfillGroup.AddEndpoint("create", ms.handleCreateBackfillRequest); err != nil {
-		return nil, eris.Wrap(err, "failed to add create-backfill endpoint")
-	}
-	if err := backfillGroup.AddEndpoint("cancel", ms.handleCancelBackfillRequest); err != nil {
-		return nil, eris.Wrap(err, "failed to add cancel-backfill endpoint")
-	}
-
 	return ms, nil
 }
 
@@ -95,68 +85,20 @@ func (ms *MatchmakingService) handleGetStats(_ context.Context, req *micro.Reque
 	return micro.NewSuccessResponse(req, resp)
 }
 
-// handleCreateBackfillRequest handles backfill creation requests from Lobby Shard.
-func (ms *MatchmakingService) handleCreateBackfillRequest(_ context.Context, req *micro.Request) *micro.Response {
-	var createReq matchmakingv1.CreateBackfillRequestRequest
-	if err := req.Payload.UnmarshalTo(&createReq); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to unmarshal request"), 3)
-	}
-
-	// Validate profile exists
-	_, ok := ms.mm.profiles.Get(createReq.MatchProfileName)
-	if !ok {
-		return micro.NewErrorResponse(req, eris.Errorf("unknown match profile: %s", createReq.MatchProfileName), 3)
-	}
-
-	// Note: The actual backfill creation happens via commands for deterministic replay.
-	// This endpoint just acknowledges the request and queues a command.
-	// For now, we return success - the command will be processed in the next tick.
-
-	resp := &matchmakingv1.CreateBackfillRequestResponse{
-		BackfillRequest: &matchmakingv1.BackfillRequest{
-			MatchId:          createReq.MatchId,
-			MatchProfileName: createReq.MatchProfileName,
-			TeamName:         createReq.TeamName,
-			LobbyAddress:     createReq.LobbyAddress,
-		},
-	}
-	return micro.NewSuccessResponse(req, resp)
-}
-
-// handleCancelBackfillRequest handles backfill cancellation requests.
-func (ms *MatchmakingService) handleCancelBackfillRequest(_ context.Context, req *micro.Request) *micro.Response {
-	var cancelReq matchmakingv1.CancelBackfillRequestRequest
-	if err := req.Payload.UnmarshalTo(&cancelReq); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to unmarshal request"), 3)
-	}
-
-	// Note: Similar to create, actual cancellation happens via commands.
-	resp := &matchmakingv1.CancelBackfillRequestResponse{
-		Success: true,
-	}
-	return micro.NewSuccessResponse(req, resp)
-}
-
 // PublishMatch publishes a match to the target Lobby Shard.
 func (ms *MatchmakingService) PublishMatch(match *types.Match) error {
-	if match.TargetAddress == nil {
-		return eris.New("match has no target address")
+	if match.LobbyAddress == nil {
+		return eris.New("match has no lobby address")
 	}
 
 	protoMatch := match.ToProto()
-	data, err := proto.Marshal(protoMatch)
-	if err != nil {
-		return eris.Wrap(err, "failed to marshal match")
-	}
-
-	subject := micro.Endpoint(match.TargetAddress, "matchmaking.match")
-	if err := ms.NATS().Publish(subject, data); err != nil {
+	if err := ms.NATS().Publish(match.LobbyAddress, "matchmaking.match", protoMatch); err != nil {
 		return eris.Wrap(err, "failed to publish match")
 	}
 
 	ms.tel.Logger.Debug().
 		Str("match_id", match.ID).
-		Str("subject", subject).
+		Str("lobby", micro.String(match.LobbyAddress)).
 		Msg("Published match to lobby")
 
 	return nil
@@ -180,19 +122,13 @@ func (ms *MatchmakingService) PublishBackfillMatch(bm *types.BackfillMatch) erro
 	}
 
 	protoMatch := bm.ToProto()
-	data, err := proto.Marshal(protoMatch)
-	if err != nil {
-		return eris.Wrap(err, "failed to marshal backfill match")
-	}
-
-	subject := micro.Endpoint(req.LobbyAddress, "matchmaking.backfill-match")
-	if err := ms.NATS().Publish(subject, data); err != nil {
+	if err := ms.NATS().Publish(req.LobbyAddress, "matchmaking.backfill-match", protoMatch); err != nil {
 		return eris.Wrap(err, "failed to publish backfill match")
 	}
 
 	ms.tel.Logger.Debug().
 		Str("backfill_id", bm.ID).
-		Str("subject", subject).
+		Str("lobby", micro.String(req.LobbyAddress)).
 		Msg("Published backfill match to lobby")
 
 	return nil

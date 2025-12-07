@@ -34,10 +34,15 @@ func (b *BoundedDP) Run(input Input) Output {
 	}
 
 	// Sort candidates by created_at (oldest first) for priority
+	// Use first player ID as tiebreaker for deterministic ordering when timestamps are equal
 	sortedCandidates := make([]Ticket, len(candidates))
 	copy(sortedCandidates, candidates)
 	sort.Slice(sortedCandidates, func(i, j int) bool {
-		return sortedCandidates[i].GetCreatedAt().Before(sortedCandidates[j].GetCreatedAt())
+		ti, tj := sortedCandidates[i].GetCreatedAt(), sortedCandidates[j].GetCreatedAt()
+		if ti.Equal(tj) {
+			return sortedCandidates[i].GetFirstPlayerID() < sortedCandidates[j].GetFirstPlayerID()
+		}
+		return ti.Before(tj)
 	})
 
 	// Convert input to dpConfig based on type
@@ -265,13 +270,13 @@ func solve(candidates []Ticket, config *dpConfig, now time.Time, debug bool) *dp
 
 				// Check if this is a complete assignment
 				if isComplete(newState, config) {
-					if bestComplete == nil || newState.totalWaitMS > bestComplete.totalWaitMS {
+					if bestComplete == nil || isBetterState(newState, bestComplete) {
 						bestComplete = newState
 					}
 				}
 
 				// Update DP table if better
-				if existing, ok := dp[newKey]; !ok || newState.totalWaitMS > existing.totalWaitMS {
+				if existing, ok := dp[newKey]; !ok || isBetterState(newState, existing) {
 					dp[newKey] = newState
 				}
 			}
@@ -291,6 +296,94 @@ func solve(candidates []Ticket, config *dpConfig, now time.Time, debug bool) *dp
 		success:        true,
 		assignments:    bestComplete.assignments,
 		totalWait:      time.Duration(bestComplete.totalWaitMS) * time.Millisecond,
+		statesExplored: statesExplored,
+	}
+}
+
+// solveGreedy uses simple greedy assignment when all tickets have equal timestamps.
+// Each ticket is assigned to the first valid team, ensuring deterministic results.
+func solveGreedy(candidates []Ticket, config *dpConfig, now time.Time, debug bool) *dpResult {
+	teamCount := len(config.teams)
+
+	// Track current state
+	teamSizes := make([]int, teamCount)
+	teamCounts := make([]map[string]int, teamCount)
+	for i := 0; i < teamCount; i++ {
+		teamCounts[i] = make(map[string]int)
+	}
+
+	var assignments []Assignment
+	var totalWaitMS int64
+	var statesExplored int
+
+	// Process each ticket in sorted order
+	for _, ticket := range candidates {
+		playerCount := ticket.PlayerCount()
+		poolCounts := ticket.GetPoolCounts()
+		waitMS := WaitTime(ticket, now).Milliseconds()
+
+		if debug {
+			statesExplored++
+		}
+
+		// Try assigning to each team (first valid wins)
+		for teamIdx := 0; teamIdx < teamCount; teamIdx++ {
+			team := &config.teams[teamIdx]
+
+			// Check size constraint
+			newSize := teamSizes[teamIdx] + playerCount
+			if newSize > team.maxSize {
+				continue
+			}
+
+			// Check role constraints
+			if !canAssign(teamCounts[teamIdx], poolCounts, team.composition) {
+				continue
+			}
+
+			// Assign to this team
+			teamSizes[teamIdx] = newSize
+			for poolName, count := range poolCounts {
+				teamCounts[teamIdx][poolName] += count
+			}
+			totalWaitMS += waitMS
+			assignments = append(assignments, Assignment{
+				Ticket:    ticket,
+				TeamIndex: teamIdx,
+				TeamName:  team.name,
+			})
+			break // First valid team wins
+		}
+	}
+
+	// Check if complete
+	complete := true
+	for i, team := range config.teams {
+		if teamSizes[i] < team.minSize {
+			complete = false
+			break
+		}
+		if len(team.composition) > 0 {
+			for poolName, required := range team.composition {
+				if teamCounts[i][poolName] < required {
+					complete = false
+					break
+				}
+			}
+		}
+		if !complete {
+			break
+		}
+	}
+
+	if !complete {
+		return &dpResult{success: false, statesExplored: statesExplored}
+	}
+
+	return &dpResult{
+		success:        true,
+		assignments:    assignments,
+		totalWait:      time.Duration(totalWaitMS) * time.Millisecond,
 		statesExplored: statesExplored,
 	}
 }
@@ -336,3 +429,57 @@ func isComplete(state *dpState, config *dpConfig) bool {
 	}
 	return true
 }
+
+// isBetterState compares two states and returns true if newState is better than existing.
+// Primary: higher totalWaitMS is better (prioritizes older tickets).
+// Tiebreaker: when equal, prefer state where team_1 has alphabetically earlier players
+// (ensures deterministic results when tickets have equal timestamps).
+func isBetterState(newState, existing *dpState) bool {
+	if newState.totalWaitMS != existing.totalWaitMS {
+		return newState.totalWaitMS > existing.totalWaitMS
+	}
+	// Tiebreaker: prefer state where earlier teams have alphabetically earlier players
+	// Compare by (teamIndex, playerID) pairs
+	newPairs := assignmentPairs(newState.assignments)
+	existingPairs := assignmentPairs(existing.assignments)
+
+	minLen := len(newPairs)
+	if len(existingPairs) < minLen {
+		minLen = len(existingPairs)
+	}
+	for i := 0; i < minLen; i++ {
+		// Compare team index first (prefer lower team index)
+		if newPairs[i].teamIdx != existingPairs[i].teamIdx {
+			return newPairs[i].teamIdx < existingPairs[i].teamIdx
+		}
+		// Then compare player ID
+		if newPairs[i].playerID != existingPairs[i].playerID {
+			return newPairs[i].playerID < existingPairs[i].playerID
+		}
+	}
+	return len(newState.assignments) < len(existing.assignments)
+}
+
+type assignmentPair struct {
+	teamIdx  int
+	playerID string
+}
+
+func assignmentPairs(assignments []Assignment) []assignmentPair {
+	pairs := make([]assignmentPair, len(assignments))
+	for i, a := range assignments {
+		pairs[i] = assignmentPair{
+			teamIdx:  a.TeamIndex,
+			playerID: a.Ticket.GetFirstPlayerID(),
+		}
+	}
+	// Sort by teamIdx, then playerID for consistent comparison
+	sort.Slice(pairs, func(i, j int) bool {
+		if pairs[i].teamIdx != pairs[j].teamIdx {
+			return pairs[i].teamIdx < pairs[j].teamIdx
+		}
+		return pairs[i].playerID < pairs[j].playerID
+	})
+	return pairs
+}
+

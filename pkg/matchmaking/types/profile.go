@@ -15,10 +15,9 @@ type Profile struct {
 	TeamMinSize     int
 	TeamComposition []PoolRequirement
 	Teams           []TeamDefinition
-	EnableBackfill  bool
-	AutoBackfill    bool
 	Config          map[string]any
-	TargetAddress   *microv1.ServiceAddress
+	LobbyAddress    *microv1.ServiceAddress // Lobby Shard address (where to send Match)
+	TargetAddress   *microv1.ServiceAddress // Game Shard address (where Lobby sends game-start)
 }
 
 // Pool defines filtering criteria to categorize tickets.
@@ -164,13 +163,12 @@ func teamName(index int) string {
 // ToProto converts a Profile to its protobuf representation.
 func (p *Profile) ToProto() *matchmakingv1.MatchProfile {
 	proto := &matchmakingv1.MatchProfile{
-		Name:           p.Name,
-		TeamCount:      int32(p.TeamCount),
-		TeamSize:       int32(p.TeamSize),
-		TeamMinSize:    int32(p.TeamMinSize),
-		EnableBackfill: p.EnableBackfill,
-		AutoBackfill:   p.AutoBackfill,
-		TargetAddress:  p.TargetAddress,
+		Name:          p.Name,
+		TeamCount:     int32(p.TeamCount),
+		TeamSize:      int32(p.TeamSize),
+		TeamMinSize:   int32(p.TeamMinSize),
+		LobbyAddress:  p.LobbyAddress,
+		TargetAddress: p.TargetAddress,
 	}
 
 	for _, pool := range p.Pools {

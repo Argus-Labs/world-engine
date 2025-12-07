@@ -89,10 +89,9 @@ type profileJSON struct {
 	TeamMinSize     int                   `json:"team_min_size,omitempty"`
 	TeamComposition []poolRequirementJSON `json:"team_composition,omitempty"`
 	Teams           []teamDefinitionJSON  `json:"teams,omitempty"`
-	EnableBackfill  bool                  `json:"enable_backfill,omitempty"`
-	AutoBackfill    bool                  `json:"auto_backfill,omitempty"`
 	Config          map[string]any        `json:"config,omitempty"`
-	TargetAddress   serviceAddressJSON    `json:"target_address"`
+	LobbyAddress    serviceAddressJSON    `json:"lobby_address"`  // Lobby Shard address
+	TargetAddress   serviceAddressJSON    `json:"target_address"` // Game Shard address
 }
 
 type poolJSON struct {
@@ -151,13 +150,11 @@ func (r *profileJSON) toProfile() (*types.Profile, error) {
 	}
 
 	p := &types.Profile{
-		Name:           r.Name,
-		TeamCount:      r.TeamCount,
-		TeamSize:       r.TeamSize,
-		TeamMinSize:    r.TeamMinSize,
-		EnableBackfill: r.EnableBackfill,
-		AutoBackfill:   r.AutoBackfill,
-		Config:         r.Config,
+		Name:        r.Name,
+		TeamCount:   r.TeamCount,
+		TeamSize:    r.TeamSize,
+		TeamMinSize: r.TeamMinSize,
+		Config:      r.Config,
 	}
 
 	// Convert pools
@@ -205,21 +202,29 @@ func (r *profileJSON) toProfile() (*types.Profile, error) {
 		p.Teams = append(p.Teams, team)
 	}
 
-	// Convert target address
+	// Convert lobby address (Lobby Shard)
+	p.LobbyAddress = convertServiceAddress(r.LobbyAddress)
+
+	// Convert target address (Game Shard)
+	p.TargetAddress = convertServiceAddress(r.TargetAddress)
+
+	return p, nil
+}
+
+// convertServiceAddress converts a JSON service address to protobuf.
+func convertServiceAddress(addr serviceAddressJSON) *microv1.ServiceAddress {
 	realm := microv1.ServiceAddress_REALM_WORLD
-	switch r.TargetAddress.Realm {
+	switch addr.Realm {
 	case "internal":
 		realm = microv1.ServiceAddress_REALM_INTERNAL
 	case "world":
 		realm = microv1.ServiceAddress_REALM_WORLD
 	}
-	p.TargetAddress = &microv1.ServiceAddress{
-		Region:       r.TargetAddress.Region,
+	return &microv1.ServiceAddress{
+		Region:       addr.Region,
 		Realm:        realm,
-		Organization: r.TargetAddress.Organization,
-		Project:      r.TargetAddress.Project,
-		ServiceId:    r.TargetAddress.ServiceID,
+		Organization: addr.Organization,
+		Project:      addr.Project,
+		ServiceId:    addr.ServiceID,
 	}
-
-	return p, nil
 }

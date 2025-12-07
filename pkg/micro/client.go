@@ -130,6 +130,35 @@ func NewTestClient(natsURL string) (*Client, error) {
 	return c, nil
 }
 
+// Publish sends a fire-and-forget message to a subject (no reply expected).
+// Use this for async communication where no immediate response is needed.
+func (c *Client) Publish(
+	address *ServiceAddress,
+	endpoint string,
+	payload proto.Message,
+) error {
+	anyPayload, err := anypb.New(payload)
+	if err != nil {
+		return eris.Wrap(err, "failed to create Any payload")
+	}
+
+	req := &microv1.Request{
+		ServiceAddress: address,
+		Payload:        anyPayload,
+	}
+
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		return eris.Wrap(err, "failed to marshal request")
+	}
+
+	if err := c.Conn.Publish(Endpoint(address, endpoint), reqBytes); err != nil {
+		return eris.Wrap(err, "failed to publish message")
+	}
+
+	return nil
+}
+
 // Request sends a request to a subject and waits for a response (request-reply pattern).
 // The timeout should be set in ctx.
 func (c *Client) Request(
@@ -287,3 +316,4 @@ func WithNATSConfig(cfg NATSConfig) ClientOption {
 		c.natsConfig = cfg
 	}
 }
+

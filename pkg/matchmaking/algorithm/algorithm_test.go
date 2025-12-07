@@ -7,16 +7,18 @@ import (
 
 // mockTicket implements Ticket interface for testing.
 type mockTicket struct {
-	id         string
-	createdAt  time.Time
-	poolCounts map[string]int
-	players    int
+	id            string
+	createdAt     time.Time
+	poolCounts    map[string]int
+	players       int
+	firstPlayerID string
 }
 
-func (t *mockTicket) GetID() string              { return t.id }
-func (t *mockTicket) GetCreatedAt() time.Time    { return t.createdAt }
+func (t *mockTicket) GetID() string                 { return t.id }
+func (t *mockTicket) GetCreatedAt() time.Time       { return t.createdAt }
 func (t *mockTicket) GetPoolCounts() map[string]int { return t.poolCounts }
-func (t *mockTicket) PlayerCount() int           { return t.players }
+func (t *mockTicket) PlayerCount() int              { return t.players }
+func (t *mockTicket) GetFirstPlayerID() string      { return t.firstPlayerID }
 
 // mockProfile implements Profile interface for testing.
 type mockProfile struct {
@@ -63,10 +65,11 @@ func (p *asymmetricProfile) HasRoles() bool {
 // helper to create tickets
 func ticket(id string, createdAt time.Time, pools map[string]int, players int) *mockTicket {
 	return &mockTicket{
-		id:         id,
-		createdAt:  createdAt,
-		poolCounts: pools,
-		players:    players,
+		id:            id,
+		createdAt:     createdAt,
+		poolCounts:    pools,
+		players:       players,
+		firstPlayerID: "player-" + id, // use ticket ID as player ID for deterministic sorting
 	}
 }
 
@@ -528,5 +531,99 @@ func TestDebug(t *testing.T) {
 				t.Errorf("Stats zero = %v, want %v. Stats: %+v", statsIsZero, tt.wantStatsZero, got.Stats)
 			}
 		})
+	}
+}
+
+func TestDeterministic5v5Roles(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	// Create 10 tickets with same timestamp (simulating same tick)
+	// Sorted alphabetically by player ID
+	candidates := tickets(
+		ticket("dps-daisy", now, map[string]int{"dps": 1}, 1),
+		ticket("dps-dan", now, map[string]int{"dps": 1}, 1),
+		ticket("dps-dave", now, map[string]int{"dps": 1}, 1),
+		ticket("dps-derek", now, map[string]int{"dps": 1}, 1),
+		ticket("dps-diana", now, map[string]int{"dps": 1}, 1),
+		ticket("dps-dora", now, map[string]int{"dps": 1}, 1),
+		ticket("healer-hank", now, map[string]int{"support": 1}, 1),
+		ticket("healer-helen", now, map[string]int{"support": 1}, 1),
+		ticket("tank-tina", now, map[string]int{"tank": 1}, 1),
+		ticket("tank-tom", now, map[string]int{"tank": 1}, 1),
+	)
+
+	profile := &mockProfile{
+		teamCount:   2,
+		teamSize:    5,
+		teamMinSize: 5,
+		teamNames:   []string{"team_1", "team_2"},
+		composition: map[string]int{"tank": 1, "dps": 3, "support": 1},
+	}
+
+	// Run multiple times to verify determinism
+	var firstResult []Assignment
+	for i := 0; i < 5; i++ {
+		input := NewInput(candidates, profile, now)
+		got := Run(input)
+
+		if !got.Success {
+			t.Fatalf("Run %d: expected Success = true", i)
+		}
+
+		if len(got.Assignments) != 10 {
+			t.Fatalf("Run %d: expected 10 assignments, got %d", i, len(got.Assignments))
+		}
+
+		if i == 0 {
+			firstResult = got.Assignments
+			t.Logf("First run assignments:")
+			for _, a := range got.Assignments {
+				t.Logf("  %s -> %s", a.Ticket.GetFirstPlayerID(), a.TeamName)
+			}
+		} else {
+			// Compare with first run
+			for j, a := range got.Assignments {
+				if a.Ticket.GetID() != firstResult[j].Ticket.GetID() ||
+					a.TeamIndex != firstResult[j].TeamIndex {
+					t.Errorf("Run %d: assignment %d differs from first run", i, j)
+					t.Errorf("  First: %s -> team_%d", firstResult[j].Ticket.GetFirstPlayerID(), firstResult[j].TeamIndex)
+					t.Errorf("  This:  %s -> team_%d", a.Ticket.GetFirstPlayerID(), a.TeamIndex)
+				}
+			}
+		}
+	}
+
+	// Check expected team assignments
+	// With alphabetical sorting and greedy-like assignment:
+	// team_1 should get: daisy, dan, dave (first 3 dps), hank (first support), tina (first tank)
+	// team_2 should get: derek, diana, dora (next 3 dps), helen (next support), tom (next tank)
+	expectedTeam1 := map[string]bool{
+		"player-dps-daisy":    true,
+		"player-dps-dan":      true,
+		"player-dps-dave":     true,
+		"player-healer-hank":  true,
+		"player-tank-tina":    true,
+	}
+	expectedTeam2 := map[string]bool{
+		"player-dps-derek":    true,
+		"player-dps-diana":    true,
+		"player-dps-dora":     true,
+		"player-healer-helen": true,
+		"player-tank-tom":     true,
+	}
+
+	for _, a := range firstResult {
+		playerID := a.Ticket.GetFirstPlayerID()
+		if a.TeamIndex == 0 {
+			if !expectedTeam1[playerID] {
+				t.Errorf("Unexpected player %s in team_1, expected in team_2", playerID)
+			}
+		} else {
+			if !expectedTeam2[playerID] {
+				t.Errorf("Unexpected player %s in team_2, expected in team_1", playerID)
+			}
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"sort"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -14,11 +15,10 @@ type Match struct {
 	ID                 string
 	Teams              []MatchTeam
 	MatchProfileName   string
-	EnableBackfill     bool
-	AutoBackfill       bool
 	Config             map[string]any
 	MatchmakingAddress *microv1.ServiceAddress
-	TargetAddress      *microv1.ServiceAddress
+	TargetAddress      *microv1.ServiceAddress // Game Shard address (for connection_info)
+	LobbyAddress       *microv1.ServiceAddress // Lobby Shard address (where to send Match)
 	CreatedAt          time.Time
 }
 
@@ -57,9 +57,8 @@ func (m *Match) ToProto() *matchmakingv1.Match {
 		Id:                 m.ID,
 		Teams:              teams,
 		MatchProfileName:   m.MatchProfileName,
-		EnableBackfill:     m.EnableBackfill,
-		AutoBackfill:       m.AutoBackfill,
 		MatchmakingAddress: m.MatchmakingAddress,
+		TargetAddress:      m.TargetAddress,
 		CreatedAt:          timestamppb.New(m.CreatedAt),
 	}
 }
@@ -122,12 +121,17 @@ func (mr *MatchResult) ToMatch(
 		teamTickets[a.TeamIndex] = append(teamTickets[a.TeamIndex], a.Ticket)
 	}
 
-	// Build teams
+	// Build teams with sorted tickets for deterministic output
 	teams := make([]MatchTeam, prof.GetTeamCount())
 	for i := range teams {
+		tickets := teamTickets[i]
+		// Sort tickets by first player ID for deterministic ordering
+		sort.Slice(tickets, func(a, b int) bool {
+			return tickets[a].GetFirstPlayerID() < tickets[b].GetFirstPlayerID()
+		})
 		teams[i] = MatchTeam{
 			Name:    prof.GetTeamName(i),
-			Tickets: teamTickets[i],
+			Tickets: tickets,
 		}
 	}
 
@@ -135,11 +139,10 @@ func (mr *MatchResult) ToMatch(
 		ID:                 id,
 		Teams:              teams,
 		MatchProfileName:   prof.Name,
-		EnableBackfill:     prof.EnableBackfill,
-		AutoBackfill:       prof.AutoBackfill,
 		Config:             prof.Config,
 		MatchmakingAddress: matchmakingAddress,
 		TargetAddress:      prof.TargetAddress,
+		LobbyAddress:       prof.LobbyAddress,
 		CreatedAt:          createdAt,
 	}
 }

@@ -80,17 +80,14 @@ message MatchProfile {
   // For asymmetric games: explicit team definitions.
   repeated TeamDefinition teams = 7;
 
-  // Whether backfill is allowed for this profile.
-  bool enable_backfill = 8;
-
-  // Whether to auto-trigger backfill on disconnect.
-  bool auto_backfill = 9;
-
   // Arbitrary data passed through to Lobby (not interpreted by Matchmaking).
   google.protobuf.Struct config = 10;
 
-  // ServiceAddress of destination Lobby Shard.
-  micro.v1.ServiceAddress target_address = 11 [(buf.validate.field).required = true];
+  // ServiceAddress of destination Lobby Shard (where to send Match).
+  micro.v1.ServiceAddress lobby_address = 11 [(buf.validate.field).required = true];
+
+  // ServiceAddress of destination Game Shard (where Lobby sends game-start).
+  micro.v1.ServiceAddress target_address = 12 [(buf.validate.field).required = true];
 }
 
 // =============================================================================
@@ -110,28 +107,29 @@ message PlayerInfo {
   SearchFields search_fields = 2;
 }
 
-// Ticket represents a matchmaking request for a party.
+// Ticket represents a matchmaking request for a group of players.
 message Ticket {
   // Auto-generated unique identifier.
   string id = 1 [(buf.validate.field).required = true];
 
-  // Links players together (solo = unique party ID).
-  string party_id = 2 [(buf.validate.field).required = true];
-
   // Which MatchProfile this ticket targets.
-  string match_profile_name = 3 [(buf.validate.field).required = true];
+  string match_profile_name = 2 [(buf.validate.field).required = true];
 
   // If true, ticket can be matched to backfill requests.
-  bool allow_backfill = 4;
+  bool allow_backfill = 3;
 
   // Array of players with their search fields.
-  repeated PlayerInfo players = 5 [(buf.validate.field).repeated.min_items = 1];
+  repeated PlayerInfo players = 4 [(buf.validate.field).repeated.min_items = 1];
 
   // When the ticket was created (for wait time priority).
-  google.protobuf.Timestamp created_at = 6 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp created_at = 5 [(buf.validate.field).required = true];
 
   // When the ticket expires.
-  google.protobuf.Timestamp expires_at = 7 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp expires_at = 6 [(buf.validate.field).required = true];
+
+  // Where to send notifications when this ticket is matched.
+  // This is typically the Game Shard address that created the ticket.
+  micro.v1.ServiceAddress callback_address = 7;
 }
 
 // =============================================================================
@@ -141,8 +139,9 @@ message Ticket {
 // TicketReference is a simplified ticket reference in a match.
 message TicketReference {
   string id = 1;
-  string party_id = 2;
-  repeated string player_ids = 3;
+  repeated string player_ids = 2;
+  // Callback address from the original ticket (for notifying parties).
+  micro.v1.ServiceAddress callback_address = 3;
 }
 
 // Team represents a group of tickets assigned to the same team.
@@ -162,12 +161,6 @@ message Match {
   // Which MatchProfile was used.
   string match_profile_name = 3 [(buf.validate.field).required = true];
 
-  // Whether backfill is allowed (from MatchProfile).
-  bool enable_backfill = 4;
-
-  // Whether auto-backfill on disconnect (from MatchProfile).
-  bool auto_backfill = 5;
-
   // Passed through from MatchProfile (for Lobby to interpret).
   google.protobuf.Struct config = 6;
 
@@ -176,6 +169,9 @@ message Match {
 
   // When match was formed.
   google.protobuf.Timestamp created_at = 8 [(buf.validate.field).required = true];
+
+  // Game Shard's address (where Lobby sends start-game).
+  micro.v1.ServiceAddress target_address = 9;
 }
 
 // =============================================================================
@@ -237,15 +233,38 @@ message BackfillMatch {
 }
 
 // =============================================================================
+// Callbacks (Matchmaking → Game Shard)
+// =============================================================================
+
+// TicketCreatedCallback is sent to Game Shard after ticket is created.
+// Endpoint: <callback_address>.matchmaking.ticket-created
+message TicketCreatedCallback {
+  // Correlation ID from the original request.
+  string party_id = 1 [(buf.validate.field).required = true];
+  // The assigned ticket ID.
+  string ticket_id = 2 [(buf.validate.field).required = true];
+}
+
+// TicketErrorCallback is sent to Game Shard when ticket creation fails.
+// Endpoint: <callback_address>.matchmaking.ticket-error
+message TicketErrorCallback {
+  // Correlation ID from the original request.
+  string party_id = 1 [(buf.validate.field).required = true];
+  // Error message describing the failure.
+  string error = 2 [(buf.validate.field).required = true];
+}
+
+// =============================================================================
 // Commands
 // =============================================================================
 
-// CreateTicketRequest is sent by clients to join matchmaking.
+// CreateTicketRequest is sent by game shards to join matchmaking.
 message CreateTicketRequest {
-  string party_id = 1 [(buf.validate.field).required = true];
-  string match_profile_name = 2 [(buf.validate.field).required = true];
-  bool allow_backfill = 3;
-  repeated PlayerInfo players = 4 [(buf.validate.field).repeated.min_items = 1];
+  string match_profile_name = 1 [(buf.validate.field).required = true];
+  bool allow_backfill = 2;
+  repeated PlayerInfo players = 3 [(buf.validate.field).repeated.min_items = 1];
+  // Where to send notifications when matched (typically the creating Game Shard).
+  micro.v1.ServiceAddress callback_address = 4;
 }
 
 // CreateTicketResponse is returned after ticket creation.
@@ -266,7 +285,6 @@ message GetTicketResponse {
 // CancelTicketRequest is sent to cancel a ticket.
 message CancelTicketRequest {
   string ticket_id = 1 [(buf.validate.field).required = true];
-  string party_id = 2 [(buf.validate.field).required = true];
 }
 
 // CancelTicketResponse confirms cancellation.
@@ -275,7 +293,7 @@ message CancelTicketResponse {
 }
 
 // CreateBackfillRequest is sent by Lobby Shard to request backfill.
-message CreateBackfillRequestRequest {
+message CreateBackfillRequest {
   string match_id = 1 [(buf.validate.field).required = true];
   string match_profile_name = 2 [(buf.validate.field).required = true];
   string team_name = 3 [(buf.validate.field).required = true];
@@ -283,19 +301,19 @@ message CreateBackfillRequestRequest {
   micro.v1.ServiceAddress lobby_address = 5 [(buf.validate.field).required = true];
 }
 
-// CreateBackfillRequestResponse returns the created backfill request.
-message CreateBackfillRequestResponse {
+// CreateBackfillResponse returns the created backfill request.
+message CreateBackfillResponse {
   BackfillRequest backfill_request = 1;
 }
 
 // CancelBackfillRequest is sent to cancel a backfill request.
-message CancelBackfillRequestRequest {
+message CancelBackfillRequest {
   string backfill_request_id = 1 [(buf.validate.field).required = true];
   micro.v1.ServiceAddress lobby_address = 2 [(buf.validate.field).required = true];
 }
 
-// CancelBackfillRequestResponse confirms cancellation.
-message CancelBackfillRequestResponse {
+// CancelBackfillResponse confirms cancellation.
+message CancelBackfillResponse {
   bool success = 1;
 }
 

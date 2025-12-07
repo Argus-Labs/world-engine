@@ -44,12 +44,9 @@ type WorldOptions struct {
 	// Used when profiles are provided programmatically.
 	MatchProfilesJSON []byte
 
-	// TicketTTL is the default time-to-live for tickets.
-	// If zero, defaults to 5 minutes.
-	TicketTTL time.Duration
-
 	// BackfillTTL is the default time-to-live for backfill requests.
 	// If zero, defaults to 5 minutes.
+	// Note: Ticket TTL is specified per-ticket by the Game Shard (defaults to 1 hour).
 	BackfillTTL time.Duration
 }
 
@@ -64,7 +61,6 @@ type worldOptionsInternal struct {
 	SnapshotStorageType    micro.SnapshotStorageType
 	SnapshotStorageOptions micro.SnapshotStorageOptions
 	MatchProfiles          *store.ProfileStore
-	TicketTTL              time.Duration
 	BackfillTTL            time.Duration
 }
 
@@ -79,7 +75,6 @@ func newDefaultWorldOptions() worldOptionsInternal {
 		EpochFrequency:      100,
 		SnapshotStorageType: micro.SnapshotStorageNop,
 		MatchProfiles:       store.NewProfileStore(),
-		TicketTTL:           5 * time.Minute,
 		BackfillTTL:         5 * time.Minute,
 	}
 }
@@ -110,9 +105,6 @@ func (o *worldOptionsInternal) apply(opts WorldOptions) {
 	if opts.SnapshotStorageOptions != nil {
 		o.SnapshotStorageOptions = opts.SnapshotStorageOptions
 	}
-	if opts.TicketTTL > 0 {
-		o.TicketTTL = opts.TicketTTL
-	}
 	if opts.BackfillTTL > 0 {
 		o.BackfillTTL = opts.BackfillTTL
 	}
@@ -120,9 +112,6 @@ func (o *worldOptionsInternal) apply(opts WorldOptions) {
 
 // applyConfig applies environment-based config to the options.
 func (o *worldOptionsInternal) applyConfig(cfg config) error {
-	if cfg.TicketTTLSeconds > 0 {
-		o.TicketTTL = cfg.TicketTTL()
-	}
 	if cfg.BackfillTTLSeconds > 0 {
 		o.BackfillTTL = cfg.BackfillTTL()
 	}
@@ -186,9 +175,6 @@ func (o *worldOptionsInternal) validate() error {
 	}
 	if o.EpochFrequency == 0 {
 		return eris.New("epoch_frequency must be positive")
-	}
-	if o.TicketTTL <= 0 {
-		return eris.New("ticket_ttl must be positive")
 	}
 	if o.BackfillTTL <= 0 {
 		return eris.New("backfill_ttl must be positive")

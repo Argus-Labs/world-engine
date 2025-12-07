@@ -45,7 +45,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             "SAQaAiAAUgVjb3VudCKYAQoOVGVhbURlZmluaXRpb24SGgoEbmFtZRgBIAEo",
             "CUIGukgDyAEBUgRuYW1lEhsKBHNpemUYAiABKAVCB7pIBBoCIABSBHNpemUS",
             "TQoLY29tcG9zaXRpb24YAyADKAsyKy53b3JsZGVuZ2luZS5tYXRjaG1ha2lu",
-            "Zy52MS5Qb29sUmVxdWlyZW1lbnRSC2NvbXBvc2l0aW9uIroECgxNYXRjaFBy",
+            "Zy52MS5Qb29sUmVxdWlyZW1lbnRSC2NvbXBvc2l0aW9uIr8ECgxNYXRjaFBy",
             "b2ZpbGUSGgoEbmFtZRgBIAEoCUIGukgDyAEBUgRuYW1lEkAKBXBvb2xzGAIg",
             "AygLMiAud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuUG9vbEIIukgFkgEC",
             "CAFSBXBvb2xzEh0KCnRlYW1fY291bnQYAyABKAVSCXRlYW1Db3VudBIbCgl0",
@@ -53,110 +53,116 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             "KAVSC3RlYW1NaW5TaXplElYKEHRlYW1fY29tcG9zaXRpb24YBiADKAsyKy53",
             "b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5Qb29sUmVxdWlyZW1lbnRSD3Rl",
             "YW1Db21wb3NpdGlvbhJACgV0ZWFtcxgHIAMoCzIqLndvcmxkZW5naW5lLm1h",
-            "dGNobWFraW5nLnYxLlRlYW1EZWZpbml0aW9uUgV0ZWFtcxInCg9lbmFibGVf",
-            "YmFja2ZpbGwYCCABKAhSDmVuYWJsZUJhY2tmaWxsEiMKDWF1dG9fYmFja2Zp",
-            "bGwYCSABKAhSDGF1dG9CYWNrZmlsbBIvCgZjb25maWcYCiABKAsyFy5nb29n",
-            "bGUucHJvdG9idWYuU3RydWN0UgZjb25maWcSUwoOdGFyZ2V0X2FkZHJlc3MY",
-            "CyABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IG",
-            "ukgDyAEBUg10YXJnZXRBZGRyZXNzItYCCgxTZWFyY2hGaWVsZHMSWQoLc3Ry",
-            "aW5nX2FyZ3MYASADKAsyOC53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5T",
-            "ZWFyY2hGaWVsZHMuU3RyaW5nQXJnc0VudHJ5UgpzdHJpbmdBcmdzElkKC2Rv",
-            "dWJsZV9hcmdzGAIgAygLMjgud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEu",
-            "U2VhcmNoRmllbGRzLkRvdWJsZUFyZ3NFbnRyeVIKZG91YmxlQXJncxISCgR0",
-            "YWdzGAMgAygJUgR0YWdzGj0KD1N0cmluZ0FyZ3NFbnRyeRIQCgNrZXkYASAB",
-            "KAlSA2tleRIUCgV2YWx1ZRgCIAEoCVIFdmFsdWU6AjgBGj0KD0RvdWJsZUFy",
-            "Z3NFbnRyeRIQCgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgCIAEoAVIFdmFs",
-            "dWU6AjgBIoABCgpQbGF5ZXJJbmZvEiMKCXBsYXllcl9pZBgBIAEoCUIGukgD",
-            "yAEBUghwbGF5ZXJJZBJNCg1zZWFyY2hfZmllbGRzGAIgASgLMigud29ybGRl",
-            "bmdpbmUubWF0Y2htYWtpbmcudjEuU2VhcmNoRmllbGRzUgxzZWFyY2hGaWVs",
-            "ZHMi8gIKBlRpY2tldBIWCgJpZBgBIAEoCUIGukgDyAEBUgJpZBIhCghwYXJ0",
-            "eV9pZBgCIAEoCUIGukgDyAEBUgdwYXJ0eUlkEjQKEm1hdGNoX3Byb2ZpbGVf",
-            "bmFtZRgDIAEoCUIGukgDyAEBUhBtYXRjaFByb2ZpbGVOYW1lEiUKDmFsbG93",
-            "X2JhY2tmaWxsGAQgASgIUg1hbGxvd0JhY2tmaWxsEkoKB3BsYXllcnMYBSAD",
-            "KAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5QbGF5ZXJJbmZvQgi6",
-            "SAWSAQIIAVIHcGxheWVycxJBCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xl",
-            "LnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBUgljcmVhdGVkQXQSQQoKZXhw",
-            "aXJlc19hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpI",
-            "A8gBAVIJZXhwaXJlc0F0IlsKD1RpY2tldFJlZmVyZW5jZRIOCgJpZBgBIAEo",
-            "CVICaWQSGQoIcGFydHlfaWQYAiABKAlSB3BhcnR5SWQSHQoKcGxheWVyX2lk",
-            "cxgDIAMoCVIJcGxheWVySWRzImEKBFRlYW0SEgoEbmFtZRgBIAEoCVIEbmFt",
-            "ZRJFCgd0aWNrZXRzGAIgAygLMisud29ybGRlbmdpbmUubWF0Y2htYWtpbmcu",
-            "djEuVGlja2V0UmVmZXJlbmNlUgd0aWNrZXRzIrgDCgVNYXRjaBIWCgJpZBgB",
-            "IAEoCUIGukgDyAEBUgJpZBJACgV0ZWFtcxgCIAMoCzIgLndvcmxkZW5naW5l",
-            "Lm1hdGNobWFraW5nLnYxLlRlYW1CCLpIBZIBAggBUgV0ZWFtcxI0ChJtYXRj",
-            "aF9wcm9maWxlX25hbWUYAyABKAlCBrpIA8gBAVIQbWF0Y2hQcm9maWxlTmFt",
-            "ZRInCg9lbmFibGVfYmFja2ZpbGwYBCABKAhSDmVuYWJsZUJhY2tmaWxsEiMK",
-            "DWF1dG9fYmFja2ZpbGwYBSABKAhSDGF1dG9CYWNrZmlsbBIvCgZjb25maWcY",
-            "BiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0UgZjb25maWcSXQoTbWF0",
-            "Y2htYWtpbmdfYWRkcmVzcxgHIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYx",
-            "LlNlcnZpY2VBZGRyZXNzQga6SAPIAQFSEm1hdGNobWFraW5nQWRkcmVzcxJB",
-            "CgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFt",
-            "cEIGukgDyAEBUgljcmVhdGVkQXQiUAoKU2xvdE5lZWRlZBIjCglwb29sX25h",
-            "bWUYASABKAlCBrpIA8gBAVIIcG9vbE5hbWUSHQoFY291bnQYAiABKAVCB7pI",
-            "BBoCIABSBWNvdW50ItUDCg9CYWNrZmlsbFJlcXVlc3QSFgoCaWQYASABKAlC",
-            "BrpIA8gBAVICaWQSIQoIbWF0Y2hfaWQYAiABKAlCBrpIA8gBAVIHbWF0Y2hJ",
-            "ZBI0ChJtYXRjaF9wcm9maWxlX25hbWUYAyABKAlCBrpIA8gBAVIQbWF0Y2hQ",
-            "cm9maWxlTmFtZRIjCgl0ZWFtX25hbWUYBCABKAlCBrpIA8gBAVIIdGVhbU5h",
-            "bWUSUwoMc2xvdHNfbmVlZGVkGAUgAygLMiYud29ybGRlbmdpbmUubWF0Y2ht",
-            "YWtpbmcudjEuU2xvdE5lZWRlZEIIukgFkgECCAFSC3Nsb3RzTmVlZGVkElEK",
-            "DWxvYmJ5X2FkZHJlc3MYBiABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5T",
-            "ZXJ2aWNlQWRkcmVzc0IGukgDyAEBUgxsb2JieUFkZHJlc3MSQQoKY3JlYXRl",
-            "ZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gB",
-            "AVIJY3JlYXRlZEF0EkEKCmV4cGlyZXNfYXQYCCABKAsyGi5nb29nbGUucHJv",
-            "dG9idWYuVGltZXN0YW1wQga6SAPIAQFSCWV4cGlyZXNBdCK7AgoNQmFja2Zp",
-            "bGxNYXRjaBIWCgJpZBgBIAEoCUIGukgDyAEBUgJpZBI2ChNiYWNrZmlsbF9y",
-            "ZXF1ZXN0X2lkGAIgASgJQga6SAPIAQFSEWJhY2tmaWxsUmVxdWVzdElkEiEK",
-            "CG1hdGNoX2lkGAMgASgJQga6SAPIAQFSB21hdGNoSWQSIwoJdGVhbV9uYW1l",
-            "GAQgASgJQga6SAPIAQFSCHRlYW1OYW1lEk8KB3RpY2tldHMYBSADKAsyKy53",
-            "b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNrZXRSZWZlcmVuY2VCCLpI",
-            "BZIBAggBUgd0aWNrZXRzEkEKCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUu",
-            "cHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQFSCWNyZWF0ZWRBdCLhAQoTQ3Jl",
-            "YXRlVGlja2V0UmVxdWVzdBIhCghwYXJ0eV9pZBgBIAEoCUIGukgDyAEBUgdw",
-            "YXJ0eUlkEjQKEm1hdGNoX3Byb2ZpbGVfbmFtZRgCIAEoCUIGukgDyAEBUhBt",
-            "YXRjaFByb2ZpbGVOYW1lEiUKDmFsbG93X2JhY2tmaWxsGAMgASgIUg1hbGxv",
-            "d0JhY2tmaWxsEkoKB3BsYXllcnMYBCADKAsyJi53b3JsZGVuZ2luZS5tYXRj",
-            "aG1ha2luZy52MS5QbGF5ZXJJbmZvQgi6SAWSAQIIAVIHcGxheWVycyJSChRD",
-            "cmVhdGVUaWNrZXRSZXNwb25zZRI6CgZ0aWNrZXQYASABKAsyIi53b3JsZGVu",
-            "Z2luZS5tYXRjaG1ha2luZy52MS5UaWNrZXRSBnRpY2tldCI3ChBHZXRUaWNr",
-            "ZXRSZXF1ZXN0EiMKCXRpY2tldF9pZBgBIAEoCUIGukgDyAEBUgh0aWNrZXRJ",
-            "ZCJPChFHZXRUaWNrZXRSZXNwb25zZRI6CgZ0aWNrZXQYASABKAsyIi53b3Js",
-            "ZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNrZXRSBnRpY2tldCJdChNDYW5j",
-            "ZWxUaWNrZXRSZXF1ZXN0EiMKCXRpY2tldF9pZBgBIAEoCUIGukgDyAEBUgh0",
-            "aWNrZXRJZBIhCghwYXJ0eV9pZBgCIAEoCUIGukgDyAEBUgdwYXJ0eUlkIjAK",
-            "FENhbmNlbFRpY2tldFJlc3BvbnNlEhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nl",
-            "c3MixAIKHENyZWF0ZUJhY2tmaWxsUmVxdWVzdFJlcXVlc3QSIQoIbWF0Y2hf",
-            "aWQYASABKAlCBrpIA8gBAVIHbWF0Y2hJZBI0ChJtYXRjaF9wcm9maWxlX25h",
-            "bWUYAiABKAlCBrpIA8gBAVIQbWF0Y2hQcm9maWxlTmFtZRIjCgl0ZWFtX25h",
-            "bWUYAyABKAlCBrpIA8gBAVIIdGVhbU5hbWUSUwoMc2xvdHNfbmVlZGVkGAQg",
-            "AygLMiYud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU2xvdE5lZWRlZEII",
-            "ukgFkgECCAFSC3Nsb3RzTmVlZGVkElEKDWxvYmJ5X2FkZHJlc3MYBSABKAsy",
-            "JC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEB",
-            "Ugxsb2JieUFkZHJlc3MidwodQ3JlYXRlQmFja2ZpbGxSZXF1ZXN0UmVzcG9u",
-            "c2USVgoQYmFja2ZpbGxfcmVxdWVzdBgBIAEoCzIrLndvcmxkZW5naW5lLm1h",
-            "dGNobWFraW5nLnYxLkJhY2tmaWxsUmVxdWVzdFIPYmFja2ZpbGxSZXF1ZXN0",
-            "IqkBChxDYW5jZWxCYWNrZmlsbFJlcXVlc3RSZXF1ZXN0EjYKE2JhY2tmaWxs",
-            "X3JlcXVlc3RfaWQYASABKAlCBrpIA8gBAVIRYmFja2ZpbGxSZXF1ZXN0SWQS",
-            "UQoNbG9iYnlfYWRkcmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYx",
-            "LlNlcnZpY2VBZGRyZXNzQga6SAPIAQFSDGxvYmJ5QWRkcmVzcyI5Ch1DYW5j",
-            "ZWxCYWNrZmlsbFJlcXVlc3RSZXNwb25zZRIYCgdzdWNjZXNzGAEgASgIUgdz",
-            "dWNjZXNzIhEKD0dldFN0YXRzUmVxdWVzdCLLAgoQR2V0U3RhdHNSZXNwb25z",
-            "ZRIjCg10b3RhbF90aWNrZXRzGAEgASgDUgx0b3RhbFRpY2tldHMSNgoXdG90",
-            "YWxfYmFja2ZpbGxfcmVxdWVzdHMYAiABKANSFXRvdGFsQmFja2ZpbGxSZXF1",
-            "ZXN0cxIjCg1tYXRjaF9jb3VudGVyGAMgASgEUgxtYXRjaENvdW50ZXIScAoS",
-            "dGlja2V0c19ieV9wcm9maWxlGAQgAygLMkIud29ybGRlbmdpbmUubWF0Y2ht",
-            "YWtpbmcudjEuR2V0U3RhdHNSZXNwb25zZS5UaWNrZXRzQnlQcm9maWxlRW50",
-            "cnlSEHRpY2tldHNCeVByb2ZpbGUaQwoVVGlja2V0c0J5UHJvZmlsZUVudHJ5",
-            "EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgDUgV2YWx1ZToCOAEi",
-            "pAIKE01hdGNobWFraW5nU25hcHNob3QSPAoHdGlja2V0cxgBIAMoCzIiLndv",
-            "cmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRpY2tldFIHdGlja2V0cxJYChFi",
-            "YWNrZmlsbF9yZXF1ZXN0cxgCIAMoCzIrLndvcmxkZW5naW5lLm1hdGNobWFr",
-            "aW5nLnYxLkJhY2tmaWxsUmVxdWVzdFIQYmFja2ZpbGxSZXF1ZXN0cxIlCg50",
-            "aWNrZXRfY291bnRlchgDIAEoBFINdGlja2V0Q291bnRlchIjCg1tYXRjaF9j",
-            "b3VudGVyGAQgASgEUgxtYXRjaENvdW50ZXISKQoQYmFja2ZpbGxfY291bnRl",
-            "chgFIAEoBFIPYmFja2ZpbGxDb3VudGVyQn1aWGdpdGh1Yi5jb20vYXJndXMt",
-            "bGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL21h",
-            "dGNobWFraW5nL3YxO21hdGNobWFraW5ndjGqAiBXb3JsZEVuZ2luZS5Qcm90",
-            "by5NYXRjaG1ha2luZy5WMWIGcHJvdG8z"));
+            "dGNobWFraW5nLnYxLlRlYW1EZWZpbml0aW9uUgV0ZWFtcxIvCgZjb25maWcY",
+            "CiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0UgZjb25maWcSUQoNbG9i",
+            "YnlfYWRkcmVzcxgLIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZp",
+            "Y2VBZGRyZXNzQga6SAPIAQFSDGxvYmJ5QWRkcmVzcxJTCg50YXJnZXRfYWRk",
+            "cmVzcxgMIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRy",
+            "ZXNzQga6SAPIAQFSDXRhcmdldEFkZHJlc3Mi1gIKDFNlYXJjaEZpZWxkcxJZ",
+            "CgtzdHJpbmdfYXJncxgBIAMoCzI4LndvcmxkZW5naW5lLm1hdGNobWFraW5n",
+            "LnYxLlNlYXJjaEZpZWxkcy5TdHJpbmdBcmdzRW50cnlSCnN0cmluZ0FyZ3MS",
+            "WQoLZG91YmxlX2FyZ3MYAiADKAsyOC53b3JsZGVuZ2luZS5tYXRjaG1ha2lu",
+            "Zy52MS5TZWFyY2hGaWVsZHMuRG91YmxlQXJnc0VudHJ5Ugpkb3VibGVBcmdz",
+            "EhIKBHRhZ3MYAyADKAlSBHRhZ3MaPQoPU3RyaW5nQXJnc0VudHJ5EhAKA2tl",
+            "eRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgJUgV2YWx1ZToCOAEaPQoPRG91",
+            "YmxlQXJnc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgB",
+            "UgV2YWx1ZToCOAEigAEKClBsYXllckluZm8SIwoJcGxheWVyX2lkGAEgASgJ",
+            "Qga6SAPIAQFSCHBsYXllcklkEk0KDXNlYXJjaF9maWVsZHMYAiABKAsyKC53",
+            "b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5TZWFyY2hGaWVsZHNSDHNlYXJj",
+            "aEZpZWxkcyKgAwoGVGlja2V0EhYKAmlkGAEgASgJQga6SAPIAQFSAmlkEjQK",
+            "Em1hdGNoX3Byb2ZpbGVfbmFtZRgCIAEoCUIGukgDyAEBUhBtYXRjaFByb2Zp",
+            "bGVOYW1lEiUKDmFsbG93X2JhY2tmaWxsGAMgASgIUg1hbGxvd0JhY2tmaWxs",
+            "EkoKB3BsYXllcnMYBCADKAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52",
+            "MS5QbGF5ZXJJbmZvQgi6SAWSAQIIAVIHcGxheWVycxJBCgpjcmVhdGVkX2F0",
+            "GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBUglj",
+            "cmVhdGVkQXQSQQoKZXhwaXJlc19hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1",
+            "Zi5UaW1lc3RhbXBCBrpIA8gBAVIJZXhwaXJlc0F0Ek8KEGNhbGxiYWNrX2Fk",
+            "ZHJlc3MYByABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRk",
+            "cmVzc1IPY2FsbGJhY2tBZGRyZXNzIpEBCg9UaWNrZXRSZWZlcmVuY2USDgoC",
+            "aWQYASABKAlSAmlkEh0KCnBsYXllcl9pZHMYAiADKAlSCXBsYXllcklkcxJP",
+            "ChBjYWxsYmFja19hZGRyZXNzGAMgASgLMiQud29ybGRlbmdpbmUubWljcm8u",
+            "djEuU2VydmljZUFkZHJlc3NSD2NhbGxiYWNrQWRkcmVzcyJhCgRUZWFtEhIK",
+            "BG5hbWUYASABKAlSBG5hbWUSRQoHdGlja2V0cxgCIAMoCzIrLndvcmxkZW5n",
+            "aW5lLm1hdGNobWFraW5nLnYxLlRpY2tldFJlZmVyZW5jZVIHdGlja2V0cyK3",
+            "AwoFTWF0Y2gSFgoCaWQYASABKAlCBrpIA8gBAVICaWQSQAoFdGVhbXMYAiAD",
+            "KAsyIC53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UZWFtQgi6SAWSAQII",
+            "AVIFdGVhbXMSNAoSbWF0Y2hfcHJvZmlsZV9uYW1lGAMgASgJQga6SAPIAQFS",
+            "EG1hdGNoUHJvZmlsZU5hbWUSLwoGY29uZmlnGAYgASgLMhcuZ29vZ2xlLnBy",
+            "b3RvYnVmLlN0cnVjdFIGY29uZmlnEl0KE21hdGNobWFraW5nX2FkZHJlc3MY",
+            "ByABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IG",
+            "ukgDyAEBUhJtYXRjaG1ha2luZ0FkZHJlc3MSQQoKY3JlYXRlZF9hdBgIIAEo",
+            "CzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBAVIJY3JlYXRl",
+            "ZEF0EksKDnRhcmdldF9hZGRyZXNzGAkgASgLMiQud29ybGRlbmdpbmUubWlj",
+            "cm8udjEuU2VydmljZUFkZHJlc3NSDXRhcmdldEFkZHJlc3MiUAoKU2xvdE5l",
+            "ZWRlZBIjCglwb29sX25hbWUYASABKAlCBrpIA8gBAVIIcG9vbE5hbWUSHQoF",
+            "Y291bnQYAiABKAVCB7pIBBoCIABSBWNvdW50ItUDCg9CYWNrZmlsbFJlcXVl",
+            "c3QSFgoCaWQYASABKAlCBrpIA8gBAVICaWQSIQoIbWF0Y2hfaWQYAiABKAlC",
+            "BrpIA8gBAVIHbWF0Y2hJZBI0ChJtYXRjaF9wcm9maWxlX25hbWUYAyABKAlC",
+            "BrpIA8gBAVIQbWF0Y2hQcm9maWxlTmFtZRIjCgl0ZWFtX25hbWUYBCABKAlC",
+            "BrpIA8gBAVIIdGVhbU5hbWUSUwoMc2xvdHNfbmVlZGVkGAUgAygLMiYud29y",
+            "bGRlbmdpbmUubWF0Y2htYWtpbmcudjEuU2xvdE5lZWRlZEIIukgFkgECCAFS",
+            "C3Nsb3RzTmVlZGVkElEKDWxvYmJ5X2FkZHJlc3MYBiABKAsyJC53b3JsZGVu",
+            "Z2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBUgxsb2JieUFk",
+            "ZHJlc3MSQQoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5U",
+            "aW1lc3RhbXBCBrpIA8gBAVIJY3JlYXRlZEF0EkEKCmV4cGlyZXNfYXQYCCAB",
+            "KAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQFSCWV4cGly",
+            "ZXNBdCK7AgoNQmFja2ZpbGxNYXRjaBIWCgJpZBgBIAEoCUIGukgDyAEBUgJp",
+            "ZBI2ChNiYWNrZmlsbF9yZXF1ZXN0X2lkGAIgASgJQga6SAPIAQFSEWJhY2tm",
+            "aWxsUmVxdWVzdElkEiEKCG1hdGNoX2lkGAMgASgJQga6SAPIAQFSB21hdGNo",
+            "SWQSIwoJdGVhbV9uYW1lGAQgASgJQga6SAPIAQFSCHRlYW1OYW1lEk8KB3Rp",
+            "Y2tldHMYBSADKAsyKy53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNr",
+            "ZXRSZWZlcmVuY2VCCLpIBZIBAggBUgd0aWNrZXRzEkEKCmNyZWF0ZWRfYXQY",
+            "BiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQFSCWNy",
+            "ZWF0ZWRBdCJfChVUaWNrZXRDcmVhdGVkQ2FsbGJhY2sSIQoIcGFydHlfaWQY",
+            "ASABKAlCBrpIA8gBAVIHcGFydHlJZBIjCgl0aWNrZXRfaWQYAiABKAlCBrpI",
+            "A8gBAVIIdGlja2V0SWQiVgoTVGlja2V0RXJyb3JDYWxsYmFjaxIhCghwYXJ0",
+            "eV9pZBgBIAEoCUIGukgDyAEBUgdwYXJ0eUlkEhwKBWVycm9yGAIgASgJQga6",
+            "SAPIAQFSBWVycm9yIo8CChNDcmVhdGVUaWNrZXRSZXF1ZXN0EjQKEm1hdGNo",
+            "X3Byb2ZpbGVfbmFtZRgBIAEoCUIGukgDyAEBUhBtYXRjaFByb2ZpbGVOYW1l",
+            "EiUKDmFsbG93X2JhY2tmaWxsGAIgASgIUg1hbGxvd0JhY2tmaWxsEkoKB3Bs",
+            "YXllcnMYAyADKAsyJi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5QbGF5",
+            "ZXJJbmZvQgi6SAWSAQIIAVIHcGxheWVycxJPChBjYWxsYmFja19hZGRyZXNz",
+            "GAQgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NS",
+            "D2NhbGxiYWNrQWRkcmVzcyJSChRDcmVhdGVUaWNrZXRSZXNwb25zZRI6CgZ0",
+            "aWNrZXQYASABKAsyIi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5UaWNr",
+            "ZXRSBnRpY2tldCI3ChBHZXRUaWNrZXRSZXF1ZXN0EiMKCXRpY2tldF9pZBgB",
+            "IAEoCUIGukgDyAEBUgh0aWNrZXRJZCJPChFHZXRUaWNrZXRSZXNwb25zZRI6",
+            "CgZ0aWNrZXQYASABKAsyIi53b3JsZGVuZ2luZS5tYXRjaG1ha2luZy52MS5U",
+            "aWNrZXRSBnRpY2tldCI6ChNDYW5jZWxUaWNrZXRSZXF1ZXN0EiMKCXRpY2tl",
+            "dF9pZBgBIAEoCUIGukgDyAEBUgh0aWNrZXRJZCIwChRDYW5jZWxUaWNrZXRS",
+            "ZXNwb25zZRIYCgdzdWNjZXNzGAEgASgIUgdzdWNjZXNzIr0CChVDcmVhdGVC",
+            "YWNrZmlsbFJlcXVlc3QSIQoIbWF0Y2hfaWQYASABKAlCBrpIA8gBAVIHbWF0",
+            "Y2hJZBI0ChJtYXRjaF9wcm9maWxlX25hbWUYAiABKAlCBrpIA8gBAVIQbWF0",
+            "Y2hQcm9maWxlTmFtZRIjCgl0ZWFtX25hbWUYAyABKAlCBrpIA8gBAVIIdGVh",
+            "bU5hbWUSUwoMc2xvdHNfbmVlZGVkGAQgAygLMiYud29ybGRlbmdpbmUubWF0",
+            "Y2htYWtpbmcudjEuU2xvdE5lZWRlZEIIukgFkgECCAFSC3Nsb3RzTmVlZGVk",
+            "ElEKDWxvYmJ5X2FkZHJlc3MYBSABKAsyJC53b3JsZGVuZ2luZS5taWNyby52",
+            "MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBUgxsb2JieUFkZHJlc3MicAoWQ3Jl",
+            "YXRlQmFja2ZpbGxSZXNwb25zZRJWChBiYWNrZmlsbF9yZXF1ZXN0GAEgASgL",
+            "Misud29ybGRlbmdpbmUubWF0Y2htYWtpbmcudjEuQmFja2ZpbGxSZXF1ZXN0",
+            "Ug9iYWNrZmlsbFJlcXVlc3QiogEKFUNhbmNlbEJhY2tmaWxsUmVxdWVzdBI2",
+            "ChNiYWNrZmlsbF9yZXF1ZXN0X2lkGAEgASgJQga6SAPIAQFSEWJhY2tmaWxs",
+            "UmVxdWVzdElkElEKDWxvYmJ5X2FkZHJlc3MYAiABKAsyJC53b3JsZGVuZ2lu",
+            "ZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBUgxsb2JieUFkZHJl",
+            "c3MiMgoWQ2FuY2VsQmFja2ZpbGxSZXNwb25zZRIYCgdzdWNjZXNzGAEgASgI",
+            "UgdzdWNjZXNzIhEKD0dldFN0YXRzUmVxdWVzdCLLAgoQR2V0U3RhdHNSZXNw",
+            "b25zZRIjCg10b3RhbF90aWNrZXRzGAEgASgDUgx0b3RhbFRpY2tldHMSNgoX",
+            "dG90YWxfYmFja2ZpbGxfcmVxdWVzdHMYAiABKANSFXRvdGFsQmFja2ZpbGxS",
+            "ZXF1ZXN0cxIjCg1tYXRjaF9jb3VudGVyGAMgASgEUgxtYXRjaENvdW50ZXIS",
+            "cAoSdGlja2V0c19ieV9wcm9maWxlGAQgAygLMkIud29ybGRlbmdpbmUubWF0",
+            "Y2htYWtpbmcudjEuR2V0U3RhdHNSZXNwb25zZS5UaWNrZXRzQnlQcm9maWxl",
+            "RW50cnlSEHRpY2tldHNCeVByb2ZpbGUaQwoVVGlja2V0c0J5UHJvZmlsZUVu",
+            "dHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgDUgV2YWx1ZToC",
+            "OAEipAIKE01hdGNobWFraW5nU25hcHNob3QSPAoHdGlja2V0cxgBIAMoCzIi",
+            "LndvcmxkZW5naW5lLm1hdGNobWFraW5nLnYxLlRpY2tldFIHdGlja2V0cxJY",
+            "ChFiYWNrZmlsbF9yZXF1ZXN0cxgCIAMoCzIrLndvcmxkZW5naW5lLm1hdGNo",
+            "bWFraW5nLnYxLkJhY2tmaWxsUmVxdWVzdFIQYmFja2ZpbGxSZXF1ZXN0cxIl",
+            "Cg50aWNrZXRfY291bnRlchgDIAEoBFINdGlja2V0Q291bnRlchIjCg1tYXRj",
+            "aF9jb3VudGVyGAQgASgEUgxtYXRjaENvdW50ZXISKQoQYmFja2ZpbGxfY291",
+            "bnRlchgFIAEoBFIPYmFja2ZpbGxDb3VudGVyQn1aWGdpdGh1Yi5jb20vYXJn",
+            "dXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5l",
+            "L21hdGNobWFraW5nL3YxO21hdGNobWFraW5ndjGqAiBXb3JsZEVuZ2luZS5Q",
+            "cm90by5NYXRjaG1ha2luZy5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -166,26 +172,28 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.Pool), global::WorldEngine.Proto.Matchmaking.V1.Pool.Parser, new[]{ "Name", "StringEqualsFilters", "DoubleRangeFilters", "TagPresentFilters" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.PoolRequirement), global::WorldEngine.Proto.Matchmaking.V1.PoolRequirement.Parser, new[]{ "Pool", "Count" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.TeamDefinition), global::WorldEngine.Proto.Matchmaking.V1.TeamDefinition.Parser, new[]{ "Name", "Size", "Composition" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.MatchProfile), global::WorldEngine.Proto.Matchmaking.V1.MatchProfile.Parser, new[]{ "Name", "Pools", "TeamCount", "TeamSize", "TeamMinSize", "TeamComposition", "Teams", "EnableBackfill", "AutoBackfill", "Config", "TargetAddress" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.MatchProfile), global::WorldEngine.Proto.Matchmaking.V1.MatchProfile.Parser, new[]{ "Name", "Pools", "TeamCount", "TeamSize", "TeamMinSize", "TeamComposition", "Teams", "Config", "LobbyAddress", "TargetAddress" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.SearchFields), global::WorldEngine.Proto.Matchmaking.V1.SearchFields.Parser, new[]{ "StringArgs", "DoubleArgs", "Tags" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, null, }),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo), global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo.Parser, new[]{ "PlayerId", "SearchFields" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.Ticket), global::WorldEngine.Proto.Matchmaking.V1.Ticket.Parser, new[]{ "Id", "PartyId", "MatchProfileName", "AllowBackfill", "Players", "CreatedAt", "ExpiresAt" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.TicketReference), global::WorldEngine.Proto.Matchmaking.V1.TicketReference.Parser, new[]{ "Id", "PartyId", "PlayerIds" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.Ticket), global::WorldEngine.Proto.Matchmaking.V1.Ticket.Parser, new[]{ "Id", "MatchProfileName", "AllowBackfill", "Players", "CreatedAt", "ExpiresAt", "CallbackAddress" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.TicketReference), global::WorldEngine.Proto.Matchmaking.V1.TicketReference.Parser, new[]{ "Id", "PlayerIds", "CallbackAddress" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.Team), global::WorldEngine.Proto.Matchmaking.V1.Team.Parser, new[]{ "Name", "Tickets" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.Match), global::WorldEngine.Proto.Matchmaking.V1.Match.Parser, new[]{ "Id", "Teams", "MatchProfileName", "EnableBackfill", "AutoBackfill", "Config", "MatchmakingAddress", "CreatedAt" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.Match), global::WorldEngine.Proto.Matchmaking.V1.Match.Parser, new[]{ "Id", "Teams", "MatchProfileName", "Config", "MatchmakingAddress", "CreatedAt", "TargetAddress" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.SlotNeeded), global::WorldEngine.Proto.Matchmaking.V1.SlotNeeded.Parser, new[]{ "PoolName", "Count" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.BackfillRequest), global::WorldEngine.Proto.Matchmaking.V1.BackfillRequest.Parser, new[]{ "Id", "MatchId", "MatchProfileName", "TeamName", "SlotsNeeded", "LobbyAddress", "CreatedAt", "ExpiresAt" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.BackfillMatch), global::WorldEngine.Proto.Matchmaking.V1.BackfillMatch.Parser, new[]{ "Id", "BackfillRequestId", "MatchId", "TeamName", "Tickets", "CreatedAt" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateTicketRequest), global::WorldEngine.Proto.Matchmaking.V1.CreateTicketRequest.Parser, new[]{ "PartyId", "MatchProfileName", "AllowBackfill", "Players" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.TicketCreatedCallback), global::WorldEngine.Proto.Matchmaking.V1.TicketCreatedCallback.Parser, new[]{ "PartyId", "TicketId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.TicketErrorCallback), global::WorldEngine.Proto.Matchmaking.V1.TicketErrorCallback.Parser, new[]{ "PartyId", "Error" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateTicketRequest), global::WorldEngine.Proto.Matchmaking.V1.CreateTicketRequest.Parser, new[]{ "MatchProfileName", "AllowBackfill", "Players", "CallbackAddress" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateTicketResponse), global::WorldEngine.Proto.Matchmaking.V1.CreateTicketResponse.Parser, new[]{ "Ticket" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.GetTicketRequest), global::WorldEngine.Proto.Matchmaking.V1.GetTicketRequest.Parser, new[]{ "TicketId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.GetTicketResponse), global::WorldEngine.Proto.Matchmaking.V1.GetTicketResponse.Parser, new[]{ "Ticket" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelTicketRequest), global::WorldEngine.Proto.Matchmaking.V1.CancelTicketRequest.Parser, new[]{ "TicketId", "PartyId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelTicketRequest), global::WorldEngine.Proto.Matchmaking.V1.CancelTicketRequest.Parser, new[]{ "TicketId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelTicketResponse), global::WorldEngine.Proto.Matchmaking.V1.CancelTicketResponse.Parser, new[]{ "Success" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillRequestRequest), global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillRequestRequest.Parser, new[]{ "MatchId", "MatchProfileName", "TeamName", "SlotsNeeded", "LobbyAddress" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillRequestResponse), global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillRequestResponse.Parser, new[]{ "BackfillRequest" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillRequestRequest), global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillRequestRequest.Parser, new[]{ "BackfillRequestId", "LobbyAddress" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillRequestResponse), global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillRequestResponse.Parser, new[]{ "Success" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillRequest), global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillRequest.Parser, new[]{ "MatchId", "MatchProfileName", "TeamName", "SlotsNeeded", "LobbyAddress" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillResponse), global::WorldEngine.Proto.Matchmaking.V1.CreateBackfillResponse.Parser, new[]{ "BackfillRequest" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillRequest), global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillRequest.Parser, new[]{ "BackfillRequestId", "LobbyAddress" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillResponse), global::WorldEngine.Proto.Matchmaking.V1.CancelBackfillResponse.Parser, new[]{ "Success" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.GetStatsRequest), global::WorldEngine.Proto.Matchmaking.V1.GetStatsRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.GetStatsResponse), global::WorldEngine.Proto.Matchmaking.V1.GetStatsResponse.Parser, new[]{ "TotalTickets", "TotalBackfillRequests", "MatchCounter", "TicketsByProfile" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, }),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Matchmaking.V1.MatchmakingSnapshot), global::WorldEngine.Proto.Matchmaking.V1.MatchmakingSnapshot.Parser, new[]{ "Tickets", "BackfillRequests", "TicketCounter", "MatchCounter", "BackfillCounter" }, null, null, null, null)
@@ -1735,9 +1743,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       teamMinSize_ = other.teamMinSize_;
       teamComposition_ = other.teamComposition_.Clone();
       teams_ = other.teams_.Clone();
-      enableBackfill_ = other.enableBackfill_;
-      autoBackfill_ = other.autoBackfill_;
       config_ = other.config_ != null ? other.config_.Clone() : null;
+      lobbyAddress_ = other.lobbyAddress_ != null ? other.lobbyAddress_.Clone() : null;
       targetAddress_ = other.targetAddress_ != null ? other.targetAddress_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -1850,36 +1857,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       get { return teams_; }
     }
 
-    /// <summary>Field number for the "enable_backfill" field.</summary>
-    public const int EnableBackfillFieldNumber = 8;
-    private bool enableBackfill_;
-    /// <summary>
-    /// Whether backfill is allowed for this profile.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool EnableBackfill {
-      get { return enableBackfill_; }
-      set {
-        enableBackfill_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "auto_backfill" field.</summary>
-    public const int AutoBackfillFieldNumber = 9;
-    private bool autoBackfill_;
-    /// <summary>
-    /// Whether to auto-trigger backfill on disconnect.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool AutoBackfill {
-      get { return autoBackfill_; }
-      set {
-        autoBackfill_ = value;
-      }
-    }
-
     /// <summary>Field number for the "config" field.</summary>
     public const int ConfigFieldNumber = 10;
     private global::Google.Protobuf.WellKnownTypes.Struct config_;
@@ -1895,11 +1872,26 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
+    /// <summary>Field number for the "lobby_address" field.</summary>
+    public const int LobbyAddressFieldNumber = 11;
+    private global::WorldEngine.Proto.Micro.V1.ServiceAddress lobbyAddress_;
+    /// <summary>
+    /// ServiceAddress of destination Lobby Shard (where to send Match).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Micro.V1.ServiceAddress LobbyAddress {
+      get { return lobbyAddress_; }
+      set {
+        lobbyAddress_ = value;
+      }
+    }
+
     /// <summary>Field number for the "target_address" field.</summary>
-    public const int TargetAddressFieldNumber = 11;
+    public const int TargetAddressFieldNumber = 12;
     private global::WorldEngine.Proto.Micro.V1.ServiceAddress targetAddress_;
     /// <summary>
-    /// ServiceAddress of destination Lobby Shard.
+    /// ServiceAddress of destination Game Shard (where Lobby sends game-start).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1932,9 +1924,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (TeamMinSize != other.TeamMinSize) return false;
       if(!teamComposition_.Equals(other.teamComposition_)) return false;
       if(!teams_.Equals(other.teams_)) return false;
-      if (EnableBackfill != other.EnableBackfill) return false;
-      if (AutoBackfill != other.AutoBackfill) return false;
       if (!object.Equals(Config, other.Config)) return false;
+      if (!object.Equals(LobbyAddress, other.LobbyAddress)) return false;
       if (!object.Equals(TargetAddress, other.TargetAddress)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -1950,9 +1941,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (TeamMinSize != 0) hash ^= TeamMinSize.GetHashCode();
       hash ^= teamComposition_.GetHashCode();
       hash ^= teams_.GetHashCode();
-      if (EnableBackfill != false) hash ^= EnableBackfill.GetHashCode();
-      if (AutoBackfill != false) hash ^= AutoBackfill.GetHashCode();
       if (config_ != null) hash ^= Config.GetHashCode();
+      if (lobbyAddress_ != null) hash ^= LobbyAddress.GetHashCode();
       if (targetAddress_ != null) hash ^= TargetAddress.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -1991,20 +1981,16 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       teamComposition_.WriteTo(output, _repeated_teamComposition_codec);
       teams_.WriteTo(output, _repeated_teams_codec);
-      if (EnableBackfill != false) {
-        output.WriteRawTag(64);
-        output.WriteBool(EnableBackfill);
-      }
-      if (AutoBackfill != false) {
-        output.WriteRawTag(72);
-        output.WriteBool(AutoBackfill);
-      }
       if (config_ != null) {
         output.WriteRawTag(82);
         output.WriteMessage(Config);
       }
-      if (targetAddress_ != null) {
+      if (lobbyAddress_ != null) {
         output.WriteRawTag(90);
+        output.WriteMessage(LobbyAddress);
+      }
+      if (targetAddress_ != null) {
+        output.WriteRawTag(98);
         output.WriteMessage(TargetAddress);
       }
       if (_unknownFields != null) {
@@ -2036,20 +2022,16 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       teamComposition_.WriteTo(ref output, _repeated_teamComposition_codec);
       teams_.WriteTo(ref output, _repeated_teams_codec);
-      if (EnableBackfill != false) {
-        output.WriteRawTag(64);
-        output.WriteBool(EnableBackfill);
-      }
-      if (AutoBackfill != false) {
-        output.WriteRawTag(72);
-        output.WriteBool(AutoBackfill);
-      }
       if (config_ != null) {
         output.WriteRawTag(82);
         output.WriteMessage(Config);
       }
-      if (targetAddress_ != null) {
+      if (lobbyAddress_ != null) {
         output.WriteRawTag(90);
+        output.WriteMessage(LobbyAddress);
+      }
+      if (targetAddress_ != null) {
+        output.WriteRawTag(98);
         output.WriteMessage(TargetAddress);
       }
       if (_unknownFields != null) {
@@ -2077,14 +2059,11 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       size += teamComposition_.CalculateSize(_repeated_teamComposition_codec);
       size += teams_.CalculateSize(_repeated_teams_codec);
-      if (EnableBackfill != false) {
-        size += 1 + 1;
-      }
-      if (AutoBackfill != false) {
-        size += 1 + 1;
-      }
       if (config_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Config);
+      }
+      if (lobbyAddress_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(LobbyAddress);
       }
       if (targetAddress_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(TargetAddress);
@@ -2116,17 +2095,17 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       teamComposition_.Add(other.teamComposition_);
       teams_.Add(other.teams_);
-      if (other.EnableBackfill != false) {
-        EnableBackfill = other.EnableBackfill;
-      }
-      if (other.AutoBackfill != false) {
-        AutoBackfill = other.AutoBackfill;
-      }
       if (other.config_ != null) {
         if (config_ == null) {
           Config = new global::Google.Protobuf.WellKnownTypes.Struct();
         }
         Config.MergeFrom(other.Config);
+      }
+      if (other.lobbyAddress_ != null) {
+        if (lobbyAddress_ == null) {
+          LobbyAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+        }
+        LobbyAddress.MergeFrom(other.LobbyAddress);
       }
       if (other.targetAddress_ != null) {
         if (targetAddress_ == null) {
@@ -2181,14 +2160,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             teams_.AddEntriesFrom(input, _repeated_teams_codec);
             break;
           }
-          case 64: {
-            EnableBackfill = input.ReadBool();
-            break;
-          }
-          case 72: {
-            AutoBackfill = input.ReadBool();
-            break;
-          }
           case 82: {
             if (config_ == null) {
               Config = new global::Google.Protobuf.WellKnownTypes.Struct();
@@ -2197,6 +2168,13 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 90: {
+            if (lobbyAddress_ == null) {
+              LobbyAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(LobbyAddress);
+            break;
+          }
+          case 98: {
             if (targetAddress_ == null) {
               TargetAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
             }
@@ -2250,14 +2228,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             teams_.AddEntriesFrom(ref input, _repeated_teams_codec);
             break;
           }
-          case 64: {
-            EnableBackfill = input.ReadBool();
-            break;
-          }
-          case 72: {
-            AutoBackfill = input.ReadBool();
-            break;
-          }
           case 82: {
             if (config_ == null) {
               Config = new global::Google.Protobuf.WellKnownTypes.Struct();
@@ -2266,6 +2236,13 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 90: {
+            if (lobbyAddress_ == null) {
+              LobbyAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(LobbyAddress);
+            break;
+          }
+          case 98: {
             if (targetAddress_ == null) {
               TargetAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
             }
@@ -2769,7 +2746,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
   }
 
   /// <summary>
-  /// Ticket represents a matchmaking request for a party.
+  /// Ticket represents a matchmaking request for a group of players.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class Ticket : pb::IMessage<Ticket>
@@ -2807,12 +2784,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public Ticket(Ticket other) : this() {
       id_ = other.id_;
-      partyId_ = other.partyId_;
       matchProfileName_ = other.matchProfileName_;
       allowBackfill_ = other.allowBackfill_;
       players_ = other.players_.Clone();
       createdAt_ = other.createdAt_ != null ? other.createdAt_.Clone() : null;
       expiresAt_ = other.expiresAt_ != null ? other.expiresAt_.Clone() : null;
+      callbackAddress_ = other.callbackAddress_ != null ? other.callbackAddress_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -2837,23 +2814,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
-    /// <summary>Field number for the "party_id" field.</summary>
-    public const int PartyIdFieldNumber = 2;
-    private string partyId_ = "";
-    /// <summary>
-    /// Links players together (solo = unique party ID).
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string PartyId {
-      get { return partyId_; }
-      set {
-        partyId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
     /// <summary>Field number for the "match_profile_name" field.</summary>
-    public const int MatchProfileNameFieldNumber = 3;
+    public const int MatchProfileNameFieldNumber = 2;
     private string matchProfileName_ = "";
     /// <summary>
     /// Which MatchProfile this ticket targets.
@@ -2868,7 +2830,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     }
 
     /// <summary>Field number for the "allow_backfill" field.</summary>
-    public const int AllowBackfillFieldNumber = 4;
+    public const int AllowBackfillFieldNumber = 3;
     private bool allowBackfill_;
     /// <summary>
     /// If true, ticket can be matched to backfill requests.
@@ -2883,9 +2845,9 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     }
 
     /// <summary>Field number for the "players" field.</summary>
-    public const int PlayersFieldNumber = 5;
+    public const int PlayersFieldNumber = 4;
     private static readonly pb::FieldCodec<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> _repeated_players_codec
-        = pb::FieldCodec.ForMessage(42, global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo.Parser);
+        = pb::FieldCodec.ForMessage(34, global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> players_ = new pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo>();
     /// <summary>
     /// Array of players with their search fields.
@@ -2897,7 +2859,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     }
 
     /// <summary>Field number for the "created_at" field.</summary>
-    public const int CreatedAtFieldNumber = 6;
+    public const int CreatedAtFieldNumber = 5;
     private global::Google.Protobuf.WellKnownTypes.Timestamp createdAt_;
     /// <summary>
     /// When the ticket was created (for wait time priority).
@@ -2912,7 +2874,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     }
 
     /// <summary>Field number for the "expires_at" field.</summary>
-    public const int ExpiresAtFieldNumber = 7;
+    public const int ExpiresAtFieldNumber = 6;
     private global::Google.Protobuf.WellKnownTypes.Timestamp expiresAt_;
     /// <summary>
     /// When the ticket expires.
@@ -2923,6 +2885,22 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       get { return expiresAt_; }
       set {
         expiresAt_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "callback_address" field.</summary>
+    public const int CallbackAddressFieldNumber = 7;
+    private global::WorldEngine.Proto.Micro.V1.ServiceAddress callbackAddress_;
+    /// <summary>
+    /// Where to send notifications when this ticket is matched.
+    /// This is typically the Game Shard address that created the ticket.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Micro.V1.ServiceAddress CallbackAddress {
+      get { return callbackAddress_; }
+      set {
+        callbackAddress_ = value;
       }
     }
 
@@ -2942,12 +2920,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         return true;
       }
       if (Id != other.Id) return false;
-      if (PartyId != other.PartyId) return false;
       if (MatchProfileName != other.MatchProfileName) return false;
       if (AllowBackfill != other.AllowBackfill) return false;
       if(!players_.Equals(other.players_)) return false;
       if (!object.Equals(CreatedAt, other.CreatedAt)) return false;
       if (!object.Equals(ExpiresAt, other.ExpiresAt)) return false;
+      if (!object.Equals(CallbackAddress, other.CallbackAddress)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -2956,12 +2934,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (Id.Length != 0) hash ^= Id.GetHashCode();
-      if (PartyId.Length != 0) hash ^= PartyId.GetHashCode();
       if (MatchProfileName.Length != 0) hash ^= MatchProfileName.GetHashCode();
       if (AllowBackfill != false) hash ^= AllowBackfill.GetHashCode();
       hash ^= players_.GetHashCode();
       if (createdAt_ != null) hash ^= CreatedAt.GetHashCode();
       if (expiresAt_ != null) hash ^= ExpiresAt.GetHashCode();
+      if (callbackAddress_ != null) hash ^= CallbackAddress.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2984,26 +2962,26 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(Id);
       }
-      if (PartyId.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteString(PartyId);
-      }
       if (MatchProfileName.Length != 0) {
-        output.WriteRawTag(26);
+        output.WriteRawTag(18);
         output.WriteString(MatchProfileName);
       }
       if (AllowBackfill != false) {
-        output.WriteRawTag(32);
+        output.WriteRawTag(24);
         output.WriteBool(AllowBackfill);
       }
       players_.WriteTo(output, _repeated_players_codec);
       if (createdAt_ != null) {
-        output.WriteRawTag(50);
+        output.WriteRawTag(42);
         output.WriteMessage(CreatedAt);
       }
       if (expiresAt_ != null) {
-        output.WriteRawTag(58);
+        output.WriteRawTag(50);
         output.WriteMessage(ExpiresAt);
+      }
+      if (callbackAddress_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(CallbackAddress);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -3019,26 +2997,26 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(Id);
       }
-      if (PartyId.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteString(PartyId);
-      }
       if (MatchProfileName.Length != 0) {
-        output.WriteRawTag(26);
+        output.WriteRawTag(18);
         output.WriteString(MatchProfileName);
       }
       if (AllowBackfill != false) {
-        output.WriteRawTag(32);
+        output.WriteRawTag(24);
         output.WriteBool(AllowBackfill);
       }
       players_.WriteTo(ref output, _repeated_players_codec);
       if (createdAt_ != null) {
-        output.WriteRawTag(50);
+        output.WriteRawTag(42);
         output.WriteMessage(CreatedAt);
       }
       if (expiresAt_ != null) {
-        output.WriteRawTag(58);
+        output.WriteRawTag(50);
         output.WriteMessage(ExpiresAt);
+      }
+      if (callbackAddress_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(CallbackAddress);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -3053,9 +3031,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (Id.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Id);
       }
-      if (PartyId.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(PartyId);
-      }
       if (MatchProfileName.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(MatchProfileName);
       }
@@ -3068,6 +3043,9 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       if (expiresAt_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(ExpiresAt);
+      }
+      if (callbackAddress_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(CallbackAddress);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3083,9 +3061,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       if (other.Id.Length != 0) {
         Id = other.Id;
-      }
-      if (other.PartyId.Length != 0) {
-        PartyId = other.PartyId;
       }
       if (other.MatchProfileName.Length != 0) {
         MatchProfileName = other.MatchProfileName;
@@ -3105,6 +3080,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
           ExpiresAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
         }
         ExpiresAt.MergeFrom(other.ExpiresAt);
+      }
+      if (other.callbackAddress_ != null) {
+        if (callbackAddress_ == null) {
+          CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+        }
+        CallbackAddress.MergeFrom(other.CallbackAddress);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -3130,33 +3111,36 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 18: {
-            PartyId = input.ReadString();
-            break;
-          }
-          case 26: {
             MatchProfileName = input.ReadString();
             break;
           }
-          case 32: {
+          case 24: {
             AllowBackfill = input.ReadBool();
             break;
           }
-          case 42: {
+          case 34: {
             players_.AddEntriesFrom(input, _repeated_players_codec);
             break;
           }
-          case 50: {
+          case 42: {
             if (createdAt_ == null) {
               CreatedAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
             }
             input.ReadMessage(CreatedAt);
             break;
           }
-          case 58: {
+          case 50: {
             if (expiresAt_ == null) {
               ExpiresAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
             }
             input.ReadMessage(ExpiresAt);
+            break;
+          }
+          case 58: {
+            if (callbackAddress_ == null) {
+              CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(CallbackAddress);
             break;
           }
         }
@@ -3183,33 +3167,36 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 18: {
-            PartyId = input.ReadString();
-            break;
-          }
-          case 26: {
             MatchProfileName = input.ReadString();
             break;
           }
-          case 32: {
+          case 24: {
             AllowBackfill = input.ReadBool();
             break;
           }
-          case 42: {
+          case 34: {
             players_.AddEntriesFrom(ref input, _repeated_players_codec);
             break;
           }
-          case 50: {
+          case 42: {
             if (createdAt_ == null) {
               CreatedAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
             }
             input.ReadMessage(CreatedAt);
             break;
           }
-          case 58: {
+          case 50: {
             if (expiresAt_ == null) {
               ExpiresAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
             }
             input.ReadMessage(ExpiresAt);
+            break;
+          }
+          case 58: {
+            if (callbackAddress_ == null) {
+              CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(CallbackAddress);
             break;
           }
         }
@@ -3258,8 +3245,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public TicketReference(TicketReference other) : this() {
       id_ = other.id_;
-      partyId_ = other.partyId_;
       playerIds_ = other.playerIds_.Clone();
+      callbackAddress_ = other.callbackAddress_ != null ? other.callbackAddress_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3281,27 +3268,30 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
-    /// <summary>Field number for the "party_id" field.</summary>
-    public const int PartyIdFieldNumber = 2;
-    private string partyId_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string PartyId {
-      get { return partyId_; }
-      set {
-        partyId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
     /// <summary>Field number for the "player_ids" field.</summary>
-    public const int PlayerIdsFieldNumber = 3;
+    public const int PlayerIdsFieldNumber = 2;
     private static readonly pb::FieldCodec<string> _repeated_playerIds_codec
-        = pb::FieldCodec.ForString(26);
+        = pb::FieldCodec.ForString(18);
     private readonly pbc::RepeatedField<string> playerIds_ = new pbc::RepeatedField<string>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public pbc::RepeatedField<string> PlayerIds {
       get { return playerIds_; }
+    }
+
+    /// <summary>Field number for the "callback_address" field.</summary>
+    public const int CallbackAddressFieldNumber = 3;
+    private global::WorldEngine.Proto.Micro.V1.ServiceAddress callbackAddress_;
+    /// <summary>
+    /// Callback address from the original ticket (for notifying parties).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Micro.V1.ServiceAddress CallbackAddress {
+      get { return callbackAddress_; }
+      set {
+        callbackAddress_ = value;
+      }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3320,8 +3310,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         return true;
       }
       if (Id != other.Id) return false;
-      if (PartyId != other.PartyId) return false;
       if(!playerIds_.Equals(other.playerIds_)) return false;
+      if (!object.Equals(CallbackAddress, other.CallbackAddress)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3330,8 +3320,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (Id.Length != 0) hash ^= Id.GetHashCode();
-      if (PartyId.Length != 0) hash ^= PartyId.GetHashCode();
       hash ^= playerIds_.GetHashCode();
+      if (callbackAddress_ != null) hash ^= CallbackAddress.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3354,11 +3344,11 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(Id);
       }
-      if (PartyId.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteString(PartyId);
-      }
       playerIds_.WriteTo(output, _repeated_playerIds_codec);
+      if (callbackAddress_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(CallbackAddress);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3373,11 +3363,11 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(Id);
       }
-      if (PartyId.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteString(PartyId);
-      }
       playerIds_.WriteTo(ref output, _repeated_playerIds_codec);
+      if (callbackAddress_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(CallbackAddress);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3391,10 +3381,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (Id.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Id);
       }
-      if (PartyId.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(PartyId);
-      }
       size += playerIds_.CalculateSize(_repeated_playerIds_codec);
+      if (callbackAddress_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(CallbackAddress);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -3410,10 +3400,13 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (other.Id.Length != 0) {
         Id = other.Id;
       }
-      if (other.PartyId.Length != 0) {
-        PartyId = other.PartyId;
-      }
       playerIds_.Add(other.playerIds_);
+      if (other.callbackAddress_ != null) {
+        if (callbackAddress_ == null) {
+          CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+        }
+        CallbackAddress.MergeFrom(other.CallbackAddress);
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -3438,11 +3431,14 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 18: {
-            PartyId = input.ReadString();
+            playerIds_.AddEntriesFrom(input, _repeated_playerIds_codec);
             break;
           }
           case 26: {
-            playerIds_.AddEntriesFrom(input, _repeated_playerIds_codec);
+            if (callbackAddress_ == null) {
+              CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(CallbackAddress);
             break;
           }
         }
@@ -3469,11 +3465,14 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 18: {
-            PartyId = input.ReadString();
+            playerIds_.AddEntriesFrom(ref input, _repeated_playerIds_codec);
             break;
           }
           case 26: {
-            playerIds_.AddEntriesFrom(ref input, _repeated_playerIds_codec);
+            if (callbackAddress_ == null) {
+              CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(CallbackAddress);
             break;
           }
         }
@@ -3751,11 +3750,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       id_ = other.id_;
       teams_ = other.teams_.Clone();
       matchProfileName_ = other.matchProfileName_;
-      enableBackfill_ = other.enableBackfill_;
-      autoBackfill_ = other.autoBackfill_;
       config_ = other.config_ != null ? other.config_.Clone() : null;
       matchmakingAddress_ = other.matchmakingAddress_ != null ? other.matchmakingAddress_.Clone() : null;
       createdAt_ = other.createdAt_ != null ? other.createdAt_.Clone() : null;
+      targetAddress_ = other.targetAddress_ != null ? other.targetAddress_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3809,36 +3807,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
-    /// <summary>Field number for the "enable_backfill" field.</summary>
-    public const int EnableBackfillFieldNumber = 4;
-    private bool enableBackfill_;
-    /// <summary>
-    /// Whether backfill is allowed (from MatchProfile).
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool EnableBackfill {
-      get { return enableBackfill_; }
-      set {
-        enableBackfill_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "auto_backfill" field.</summary>
-    public const int AutoBackfillFieldNumber = 5;
-    private bool autoBackfill_;
-    /// <summary>
-    /// Whether auto-backfill on disconnect (from MatchProfile).
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool AutoBackfill {
-      get { return autoBackfill_; }
-      set {
-        autoBackfill_ = value;
-      }
-    }
-
     /// <summary>Field number for the "config" field.</summary>
     public const int ConfigFieldNumber = 6;
     private global::Google.Protobuf.WellKnownTypes.Struct config_;
@@ -3884,6 +3852,21 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
+    /// <summary>Field number for the "target_address" field.</summary>
+    public const int TargetAddressFieldNumber = 9;
+    private global::WorldEngine.Proto.Micro.V1.ServiceAddress targetAddress_;
+    /// <summary>
+    /// Game Shard's address (where Lobby sends start-game).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Micro.V1.ServiceAddress TargetAddress {
+      get { return targetAddress_; }
+      set {
+        targetAddress_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3902,11 +3885,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (Id != other.Id) return false;
       if(!teams_.Equals(other.teams_)) return false;
       if (MatchProfileName != other.MatchProfileName) return false;
-      if (EnableBackfill != other.EnableBackfill) return false;
-      if (AutoBackfill != other.AutoBackfill) return false;
       if (!object.Equals(Config, other.Config)) return false;
       if (!object.Equals(MatchmakingAddress, other.MatchmakingAddress)) return false;
       if (!object.Equals(CreatedAt, other.CreatedAt)) return false;
+      if (!object.Equals(TargetAddress, other.TargetAddress)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3917,11 +3899,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (Id.Length != 0) hash ^= Id.GetHashCode();
       hash ^= teams_.GetHashCode();
       if (MatchProfileName.Length != 0) hash ^= MatchProfileName.GetHashCode();
-      if (EnableBackfill != false) hash ^= EnableBackfill.GetHashCode();
-      if (AutoBackfill != false) hash ^= AutoBackfill.GetHashCode();
       if (config_ != null) hash ^= Config.GetHashCode();
       if (matchmakingAddress_ != null) hash ^= MatchmakingAddress.GetHashCode();
       if (createdAt_ != null) hash ^= CreatedAt.GetHashCode();
+      if (targetAddress_ != null) hash ^= TargetAddress.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3949,14 +3930,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(26);
         output.WriteString(MatchProfileName);
       }
-      if (EnableBackfill != false) {
-        output.WriteRawTag(32);
-        output.WriteBool(EnableBackfill);
-      }
-      if (AutoBackfill != false) {
-        output.WriteRawTag(40);
-        output.WriteBool(AutoBackfill);
-      }
       if (config_ != null) {
         output.WriteRawTag(50);
         output.WriteMessage(Config);
@@ -3968,6 +3941,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (createdAt_ != null) {
         output.WriteRawTag(66);
         output.WriteMessage(CreatedAt);
+      }
+      if (targetAddress_ != null) {
+        output.WriteRawTag(74);
+        output.WriteMessage(TargetAddress);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -3988,14 +3965,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(26);
         output.WriteString(MatchProfileName);
       }
-      if (EnableBackfill != false) {
-        output.WriteRawTag(32);
-        output.WriteBool(EnableBackfill);
-      }
-      if (AutoBackfill != false) {
-        output.WriteRawTag(40);
-        output.WriteBool(AutoBackfill);
-      }
       if (config_ != null) {
         output.WriteRawTag(50);
         output.WriteMessage(Config);
@@ -4007,6 +3976,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (createdAt_ != null) {
         output.WriteRawTag(66);
         output.WriteMessage(CreatedAt);
+      }
+      if (targetAddress_ != null) {
+        output.WriteRawTag(74);
+        output.WriteMessage(TargetAddress);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -4025,12 +3998,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (MatchProfileName.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(MatchProfileName);
       }
-      if (EnableBackfill != false) {
-        size += 1 + 1;
-      }
-      if (AutoBackfill != false) {
-        size += 1 + 1;
-      }
       if (config_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Config);
       }
@@ -4039,6 +4006,9 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       if (createdAt_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(CreatedAt);
+      }
+      if (targetAddress_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(TargetAddress);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4059,12 +4029,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (other.MatchProfileName.Length != 0) {
         MatchProfileName = other.MatchProfileName;
       }
-      if (other.EnableBackfill != false) {
-        EnableBackfill = other.EnableBackfill;
-      }
-      if (other.AutoBackfill != false) {
-        AutoBackfill = other.AutoBackfill;
-      }
       if (other.config_ != null) {
         if (config_ == null) {
           Config = new global::Google.Protobuf.WellKnownTypes.Struct();
@@ -4082,6 +4046,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
           CreatedAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
         }
         CreatedAt.MergeFrom(other.CreatedAt);
+      }
+      if (other.targetAddress_ != null) {
+        if (targetAddress_ == null) {
+          TargetAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+        }
+        TargetAddress.MergeFrom(other.TargetAddress);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4114,14 +4084,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             MatchProfileName = input.ReadString();
             break;
           }
-          case 32: {
-            EnableBackfill = input.ReadBool();
-            break;
-          }
-          case 40: {
-            AutoBackfill = input.ReadBool();
-            break;
-          }
           case 50: {
             if (config_ == null) {
               Config = new global::Google.Protobuf.WellKnownTypes.Struct();
@@ -4141,6 +4103,13 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
               CreatedAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
             }
             input.ReadMessage(CreatedAt);
+            break;
+          }
+          case 74: {
+            if (targetAddress_ == null) {
+              TargetAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(TargetAddress);
             break;
           }
         }
@@ -4174,14 +4143,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             MatchProfileName = input.ReadString();
             break;
           }
-          case 32: {
-            EnableBackfill = input.ReadBool();
-            break;
-          }
-          case 40: {
-            AutoBackfill = input.ReadBool();
-            break;
-          }
           case 50: {
             if (config_ == null) {
               Config = new global::Google.Protobuf.WellKnownTypes.Struct();
@@ -4201,6 +4162,13 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
               CreatedAt = new global::Google.Protobuf.WellKnownTypes.Timestamp();
             }
             input.ReadMessage(CreatedAt);
+            break;
+          }
+          case 74: {
+            if (targetAddress_ == null) {
+              TargetAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(TargetAddress);
             break;
           }
         }
@@ -5351,19 +5319,20 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
   }
 
   /// <summary>
-  /// CreateTicketRequest is sent by clients to join matchmaking.
+  /// TicketCreatedCallback is sent to Game Shard after ticket is created.
+  /// Endpoint: &lt;callback_address>.matchmaking.ticket-created
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CreateTicketRequest : pb::IMessage<CreateTicketRequest>
+  public sealed partial class TicketCreatedCallback : pb::IMessage<TicketCreatedCallback>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CreateTicketRequest> _parser = new pb::MessageParser<CreateTicketRequest>(() => new CreateTicketRequest());
+    private static readonly pb::MessageParser<TicketCreatedCallback> _parser = new pb::MessageParser<TicketCreatedCallback>(() => new TicketCreatedCallback());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CreateTicketRequest> Parser { get { return _parser; } }
+    public static pb::MessageParser<TicketCreatedCallback> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -5379,7 +5348,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateTicketRequest() {
+    public TicketCreatedCallback() {
       OnConstruction();
     }
 
@@ -5387,23 +5356,24 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateTicketRequest(CreateTicketRequest other) : this() {
+    public TicketCreatedCallback(TicketCreatedCallback other) : this() {
       partyId_ = other.partyId_;
-      matchProfileName_ = other.matchProfileName_;
-      allowBackfill_ = other.allowBackfill_;
-      players_ = other.players_.Clone();
+      ticketId_ = other.ticketId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateTicketRequest Clone() {
-      return new CreateTicketRequest(this);
+    public TicketCreatedCallback Clone() {
+      return new TicketCreatedCallback(this);
     }
 
     /// <summary>Field number for the "party_id" field.</summary>
     public const int PartyIdFieldNumber = 1;
     private string partyId_ = "";
+    /// <summary>
+    /// Correlation ID from the original request.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string PartyId {
@@ -5413,50 +5383,30 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
-    /// <summary>Field number for the "match_profile_name" field.</summary>
-    public const int MatchProfileNameFieldNumber = 2;
-    private string matchProfileName_ = "";
+    /// <summary>Field number for the "ticket_id" field.</summary>
+    public const int TicketIdFieldNumber = 2;
+    private string ticketId_ = "";
+    /// <summary>
+    /// The assigned ticket ID.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string MatchProfileName {
-      get { return matchProfileName_; }
+    public string TicketId {
+      get { return ticketId_; }
       set {
-        matchProfileName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        ticketId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
-    }
-
-    /// <summary>Field number for the "allow_backfill" field.</summary>
-    public const int AllowBackfillFieldNumber = 3;
-    private bool allowBackfill_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool AllowBackfill {
-      get { return allowBackfill_; }
-      set {
-        allowBackfill_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "players" field.</summary>
-    public const int PlayersFieldNumber = 4;
-    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> _repeated_players_codec
-        = pb::FieldCodec.ForMessage(34, global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo.Parser);
-    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> players_ = new pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo>();
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> Players {
-      get { return players_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CreateTicketRequest);
+      return Equals(other as TicketCreatedCallback);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CreateTicketRequest other) {
+    public bool Equals(TicketCreatedCallback other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -5464,9 +5414,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         return true;
       }
       if (PartyId != other.PartyId) return false;
-      if (MatchProfileName != other.MatchProfileName) return false;
-      if (AllowBackfill != other.AllowBackfill) return false;
-      if(!players_.Equals(other.players_)) return false;
+      if (TicketId != other.TicketId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -5475,9 +5423,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (PartyId.Length != 0) hash ^= PartyId.GetHashCode();
-      if (MatchProfileName.Length != 0) hash ^= MatchProfileName.GetHashCode();
-      if (AllowBackfill != false) hash ^= AllowBackfill.GetHashCode();
-      hash ^= players_.GetHashCode();
+      if (TicketId.Length != 0) hash ^= TicketId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -5500,15 +5446,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(PartyId);
       }
-      if (MatchProfileName.Length != 0) {
+      if (TicketId.Length != 0) {
         output.WriteRawTag(18);
-        output.WriteString(MatchProfileName);
+        output.WriteString(TicketId);
       }
-      if (AllowBackfill != false) {
-        output.WriteRawTag(24);
-        output.WriteBool(AllowBackfill);
-      }
-      players_.WriteTo(output, _repeated_players_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -5523,15 +5464,10 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(PartyId);
       }
-      if (MatchProfileName.Length != 0) {
+      if (TicketId.Length != 0) {
         output.WriteRawTag(18);
-        output.WriteString(MatchProfileName);
+        output.WriteString(TicketId);
       }
-      if (AllowBackfill != false) {
-        output.WriteRawTag(24);
-        output.WriteBool(AllowBackfill);
-      }
-      players_.WriteTo(ref output, _repeated_players_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -5545,13 +5481,9 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       if (PartyId.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(PartyId);
       }
-      if (MatchProfileName.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(MatchProfileName);
+      if (TicketId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TicketId);
       }
-      if (AllowBackfill != false) {
-        size += 1 + 1;
-      }
-      size += players_.CalculateSize(_repeated_players_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -5560,20 +5492,16 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CreateTicketRequest other) {
+    public void MergeFrom(TicketCreatedCallback other) {
       if (other == null) {
         return;
       }
       if (other.PartyId.Length != 0) {
         PartyId = other.PartyId;
       }
-      if (other.MatchProfileName.Length != 0) {
-        MatchProfileName = other.MatchProfileName;
+      if (other.TicketId.Length != 0) {
+        TicketId = other.TicketId;
       }
-      if (other.AllowBackfill != false) {
-        AllowBackfill = other.AllowBackfill;
-      }
-      players_.Add(other.players_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -5598,15 +5526,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 18: {
-            MatchProfileName = input.ReadString();
-            break;
-          }
-          case 24: {
-            AllowBackfill = input.ReadBool();
-            break;
-          }
-          case 34: {
-            players_.AddEntriesFrom(input, _repeated_players_codec);
+            TicketId = input.ReadString();
             break;
           }
         }
@@ -5633,15 +5553,565 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           }
           case 18: {
+            TicketId = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// TicketErrorCallback is sent to Game Shard when ticket creation fails.
+  /// Endpoint: &lt;callback_address>.matchmaking.ticket-error
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class TicketErrorCallback : pb::IMessage<TicketErrorCallback>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<TicketErrorCallback> _parser = new pb::MessageParser<TicketErrorCallback>(() => new TicketErrorCallback());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<TicketErrorCallback> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[17]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TicketErrorCallback() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TicketErrorCallback(TicketErrorCallback other) : this() {
+      partyId_ = other.partyId_;
+      error_ = other.error_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TicketErrorCallback Clone() {
+      return new TicketErrorCallback(this);
+    }
+
+    /// <summary>Field number for the "party_id" field.</summary>
+    public const int PartyIdFieldNumber = 1;
+    private string partyId_ = "";
+    /// <summary>
+    /// Correlation ID from the original request.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string PartyId {
+      get { return partyId_; }
+      set {
+        partyId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "error" field.</summary>
+    public const int ErrorFieldNumber = 2;
+    private string error_ = "";
+    /// <summary>
+    /// Error message describing the failure.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Error {
+      get { return error_; }
+      set {
+        error_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as TicketErrorCallback);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(TicketErrorCallback other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (PartyId != other.PartyId) return false;
+      if (Error != other.Error) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (PartyId.Length != 0) hash ^= PartyId.GetHashCode();
+      if (Error.Length != 0) hash ^= Error.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (PartyId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(PartyId);
+      }
+      if (Error.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(Error);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (PartyId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(PartyId);
+      }
+      if (Error.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(Error);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (PartyId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(PartyId);
+      }
+      if (Error.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Error);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(TicketErrorCallback other) {
+      if (other == null) {
+        return;
+      }
+      if (other.PartyId.Length != 0) {
+        PartyId = other.PartyId;
+      }
+      if (other.Error.Length != 0) {
+        Error = other.Error;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            PartyId = input.ReadString();
+            break;
+          }
+          case 18: {
+            Error = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            PartyId = input.ReadString();
+            break;
+          }
+          case 18: {
+            Error = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// CreateTicketRequest is sent by game shards to join matchmaking.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CreateTicketRequest : pb::IMessage<CreateTicketRequest>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CreateTicketRequest> _parser = new pb::MessageParser<CreateTicketRequest>(() => new CreateTicketRequest());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CreateTicketRequest> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[18]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CreateTicketRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CreateTicketRequest(CreateTicketRequest other) : this() {
+      matchProfileName_ = other.matchProfileName_;
+      allowBackfill_ = other.allowBackfill_;
+      players_ = other.players_.Clone();
+      callbackAddress_ = other.callbackAddress_ != null ? other.callbackAddress_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CreateTicketRequest Clone() {
+      return new CreateTicketRequest(this);
+    }
+
+    /// <summary>Field number for the "match_profile_name" field.</summary>
+    public const int MatchProfileNameFieldNumber = 1;
+    private string matchProfileName_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string MatchProfileName {
+      get { return matchProfileName_; }
+      set {
+        matchProfileName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "allow_backfill" field.</summary>
+    public const int AllowBackfillFieldNumber = 2;
+    private bool allowBackfill_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool AllowBackfill {
+      get { return allowBackfill_; }
+      set {
+        allowBackfill_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "players" field.</summary>
+    public const int PlayersFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> _repeated_players_codec
+        = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo.Parser);
+    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> players_ = new pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::WorldEngine.Proto.Matchmaking.V1.PlayerInfo> Players {
+      get { return players_; }
+    }
+
+    /// <summary>Field number for the "callback_address" field.</summary>
+    public const int CallbackAddressFieldNumber = 4;
+    private global::WorldEngine.Proto.Micro.V1.ServiceAddress callbackAddress_;
+    /// <summary>
+    /// Where to send notifications when matched (typically the creating Game Shard).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Micro.V1.ServiceAddress CallbackAddress {
+      get { return callbackAddress_; }
+      set {
+        callbackAddress_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CreateTicketRequest);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CreateTicketRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (MatchProfileName != other.MatchProfileName) return false;
+      if (AllowBackfill != other.AllowBackfill) return false;
+      if(!players_.Equals(other.players_)) return false;
+      if (!object.Equals(CallbackAddress, other.CallbackAddress)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (MatchProfileName.Length != 0) hash ^= MatchProfileName.GetHashCode();
+      if (AllowBackfill != false) hash ^= AllowBackfill.GetHashCode();
+      hash ^= players_.GetHashCode();
+      if (callbackAddress_ != null) hash ^= CallbackAddress.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (MatchProfileName.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(MatchProfileName);
+      }
+      if (AllowBackfill != false) {
+        output.WriteRawTag(16);
+        output.WriteBool(AllowBackfill);
+      }
+      players_.WriteTo(output, _repeated_players_codec);
+      if (callbackAddress_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(CallbackAddress);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (MatchProfileName.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(MatchProfileName);
+      }
+      if (AllowBackfill != false) {
+        output.WriteRawTag(16);
+        output.WriteBool(AllowBackfill);
+      }
+      players_.WriteTo(ref output, _repeated_players_codec);
+      if (callbackAddress_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(CallbackAddress);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (MatchProfileName.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(MatchProfileName);
+      }
+      if (AllowBackfill != false) {
+        size += 1 + 1;
+      }
+      size += players_.CalculateSize(_repeated_players_codec);
+      if (callbackAddress_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(CallbackAddress);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CreateTicketRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.MatchProfileName.Length != 0) {
+        MatchProfileName = other.MatchProfileName;
+      }
+      if (other.AllowBackfill != false) {
+        AllowBackfill = other.AllowBackfill;
+      }
+      players_.Add(other.players_);
+      if (other.callbackAddress_ != null) {
+        if (callbackAddress_ == null) {
+          CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+        }
+        CallbackAddress.MergeFrom(other.CallbackAddress);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
             MatchProfileName = input.ReadString();
             break;
           }
-          case 24: {
+          case 16: {
             AllowBackfill = input.ReadBool();
             break;
           }
+          case 26: {
+            players_.AddEntriesFrom(input, _repeated_players_codec);
+            break;
+          }
           case 34: {
+            if (callbackAddress_ == null) {
+              CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(CallbackAddress);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            MatchProfileName = input.ReadString();
+            break;
+          }
+          case 16: {
+            AllowBackfill = input.ReadBool();
+            break;
+          }
+          case 26: {
             players_.AddEntriesFrom(ref input, _repeated_players_codec);
+            break;
+          }
+          case 34: {
+            if (callbackAddress_ == null) {
+              CallbackAddress = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(CallbackAddress);
             break;
           }
         }
@@ -5669,7 +6139,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[17]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[19]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5879,7 +6349,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[18]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[20]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6080,7 +6550,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[19]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[21]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6290,7 +6760,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[20]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[22]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6311,7 +6781,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public CancelTicketRequest(CancelTicketRequest other) : this() {
       ticketId_ = other.ticketId_;
-      partyId_ = other.partyId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -6333,18 +6802,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
     }
 
-    /// <summary>Field number for the "party_id" field.</summary>
-    public const int PartyIdFieldNumber = 2;
-    private string partyId_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string PartyId {
-      get { return partyId_; }
-      set {
-        partyId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -6361,7 +6818,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         return true;
       }
       if (TicketId != other.TicketId) return false;
-      if (PartyId != other.PartyId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -6370,7 +6826,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (TicketId.Length != 0) hash ^= TicketId.GetHashCode();
-      if (PartyId.Length != 0) hash ^= PartyId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -6393,10 +6848,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(TicketId);
       }
-      if (PartyId.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteString(PartyId);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -6411,10 +6862,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
         output.WriteRawTag(10);
         output.WriteString(TicketId);
       }
-      if (PartyId.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteString(PartyId);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -6427,9 +6874,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       int size = 0;
       if (TicketId.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(TicketId);
-      }
-      if (PartyId.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(PartyId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -6445,9 +6889,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
       }
       if (other.TicketId.Length != 0) {
         TicketId = other.TicketId;
-      }
-      if (other.PartyId.Length != 0) {
-        PartyId = other.PartyId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -6472,10 +6913,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             TicketId = input.ReadString();
             break;
           }
-          case 18: {
-            PartyId = input.ReadString();
-            break;
-          }
         }
       }
     #endif
@@ -6497,10 +6934,6 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
             break;
           case 10: {
             TicketId = input.ReadString();
-            break;
-          }
-          case 18: {
-            PartyId = input.ReadString();
             break;
           }
         }
@@ -6528,7 +6961,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[21]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[23]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6715,21 +7148,21 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
   /// CreateBackfillRequest is sent by Lobby Shard to request backfill.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CreateBackfillRequestRequest : pb::IMessage<CreateBackfillRequestRequest>
+  public sealed partial class CreateBackfillRequest : pb::IMessage<CreateBackfillRequest>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CreateBackfillRequestRequest> _parser = new pb::MessageParser<CreateBackfillRequestRequest>(() => new CreateBackfillRequestRequest());
+    private static readonly pb::MessageParser<CreateBackfillRequest> _parser = new pb::MessageParser<CreateBackfillRequest>(() => new CreateBackfillRequest());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CreateBackfillRequestRequest> Parser { get { return _parser; } }
+    public static pb::MessageParser<CreateBackfillRequest> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[22]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[24]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6740,7 +7173,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateBackfillRequestRequest() {
+    public CreateBackfillRequest() {
       OnConstruction();
     }
 
@@ -6748,7 +7181,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateBackfillRequestRequest(CreateBackfillRequestRequest other) : this() {
+    public CreateBackfillRequest(CreateBackfillRequest other) : this() {
       matchId_ = other.matchId_;
       matchProfileName_ = other.matchProfileName_;
       teamName_ = other.teamName_;
@@ -6759,8 +7192,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateBackfillRequestRequest Clone() {
-      return new CreateBackfillRequestRequest(this);
+    public CreateBackfillRequest Clone() {
+      return new CreateBackfillRequest(this);
     }
 
     /// <summary>Field number for the "match_id" field.</summary>
@@ -6825,12 +7258,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CreateBackfillRequestRequest);
+      return Equals(other as CreateBackfillRequest);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CreateBackfillRequestRequest other) {
+    public bool Equals(CreateBackfillRequest other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -6947,7 +7380,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CreateBackfillRequestRequest other) {
+    public void MergeFrom(CreateBackfillRequest other) {
       if (other == null) {
         return;
       }
@@ -7059,24 +7492,24 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
   }
 
   /// <summary>
-  /// CreateBackfillRequestResponse returns the created backfill request.
+  /// CreateBackfillResponse returns the created backfill request.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CreateBackfillRequestResponse : pb::IMessage<CreateBackfillRequestResponse>
+  public sealed partial class CreateBackfillResponse : pb::IMessage<CreateBackfillResponse>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CreateBackfillRequestResponse> _parser = new pb::MessageParser<CreateBackfillRequestResponse>(() => new CreateBackfillRequestResponse());
+    private static readonly pb::MessageParser<CreateBackfillResponse> _parser = new pb::MessageParser<CreateBackfillResponse>(() => new CreateBackfillResponse());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CreateBackfillRequestResponse> Parser { get { return _parser; } }
+    public static pb::MessageParser<CreateBackfillResponse> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[23]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[25]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7087,7 +7520,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateBackfillRequestResponse() {
+    public CreateBackfillResponse() {
       OnConstruction();
     }
 
@@ -7095,15 +7528,15 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateBackfillRequestResponse(CreateBackfillRequestResponse other) : this() {
+    public CreateBackfillResponse(CreateBackfillResponse other) : this() {
       backfillRequest_ = other.backfillRequest_ != null ? other.backfillRequest_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CreateBackfillRequestResponse Clone() {
-      return new CreateBackfillRequestResponse(this);
+    public CreateBackfillResponse Clone() {
+      return new CreateBackfillResponse(this);
     }
 
     /// <summary>Field number for the "backfill_request" field.</summary>
@@ -7121,12 +7554,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CreateBackfillRequestResponse);
+      return Equals(other as CreateBackfillResponse);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CreateBackfillRequestResponse other) {
+    public bool Equals(CreateBackfillResponse other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -7199,7 +7632,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CreateBackfillRequestResponse other) {
+    public void MergeFrom(CreateBackfillResponse other) {
       if (other == null) {
         return;
       }
@@ -7272,21 +7705,21 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
   /// CancelBackfillRequest is sent to cancel a backfill request.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CancelBackfillRequestRequest : pb::IMessage<CancelBackfillRequestRequest>
+  public sealed partial class CancelBackfillRequest : pb::IMessage<CancelBackfillRequest>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CancelBackfillRequestRequest> _parser = new pb::MessageParser<CancelBackfillRequestRequest>(() => new CancelBackfillRequestRequest());
+    private static readonly pb::MessageParser<CancelBackfillRequest> _parser = new pb::MessageParser<CancelBackfillRequest>(() => new CancelBackfillRequest());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CancelBackfillRequestRequest> Parser { get { return _parser; } }
+    public static pb::MessageParser<CancelBackfillRequest> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[24]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[26]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7297,7 +7730,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CancelBackfillRequestRequest() {
+    public CancelBackfillRequest() {
       OnConstruction();
     }
 
@@ -7305,7 +7738,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CancelBackfillRequestRequest(CancelBackfillRequestRequest other) : this() {
+    public CancelBackfillRequest(CancelBackfillRequest other) : this() {
       backfillRequestId_ = other.backfillRequestId_;
       lobbyAddress_ = other.lobbyAddress_ != null ? other.lobbyAddress_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -7313,8 +7746,8 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CancelBackfillRequestRequest Clone() {
-      return new CancelBackfillRequestRequest(this);
+    public CancelBackfillRequest Clone() {
+      return new CancelBackfillRequest(this);
     }
 
     /// <summary>Field number for the "backfill_request_id" field.</summary>
@@ -7344,12 +7777,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CancelBackfillRequestRequest);
+      return Equals(other as CancelBackfillRequest);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CancelBackfillRequestRequest other) {
+    public bool Equals(CancelBackfillRequest other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -7435,7 +7868,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CancelBackfillRequestRequest other) {
+    public void MergeFrom(CancelBackfillRequest other) {
       if (other == null) {
         return;
       }
@@ -7516,24 +7949,24 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
   }
 
   /// <summary>
-  /// CancelBackfillRequestResponse confirms cancellation.
+  /// CancelBackfillResponse confirms cancellation.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CancelBackfillRequestResponse : pb::IMessage<CancelBackfillRequestResponse>
+  public sealed partial class CancelBackfillResponse : pb::IMessage<CancelBackfillResponse>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CancelBackfillRequestResponse> _parser = new pb::MessageParser<CancelBackfillRequestResponse>(() => new CancelBackfillRequestResponse());
+    private static readonly pb::MessageParser<CancelBackfillResponse> _parser = new pb::MessageParser<CancelBackfillResponse>(() => new CancelBackfillResponse());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CancelBackfillRequestResponse> Parser { get { return _parser; } }
+    public static pb::MessageParser<CancelBackfillResponse> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[25]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[27]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7544,7 +7977,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CancelBackfillRequestResponse() {
+    public CancelBackfillResponse() {
       OnConstruction();
     }
 
@@ -7552,15 +7985,15 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CancelBackfillRequestResponse(CancelBackfillRequestResponse other) : this() {
+    public CancelBackfillResponse(CancelBackfillResponse other) : this() {
       success_ = other.success_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CancelBackfillRequestResponse Clone() {
-      return new CancelBackfillRequestResponse(this);
+    public CancelBackfillResponse Clone() {
+      return new CancelBackfillResponse(this);
     }
 
     /// <summary>Field number for the "success" field.</summary>
@@ -7578,12 +8011,12 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CancelBackfillRequestResponse);
+      return Equals(other as CancelBackfillResponse);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CancelBackfillRequestResponse other) {
+    public bool Equals(CancelBackfillResponse other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -7656,7 +8089,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CancelBackfillRequestResponse other) {
+    public void MergeFrom(CancelBackfillResponse other) {
       if (other == null) {
         return;
       }
@@ -7734,7 +8167,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[26]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[28]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7898,7 +8331,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[27]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[29]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -8199,7 +8632,7 @@ namespace WorldEngine.Proto.Matchmaking.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[28]; }
+      get { return global::WorldEngine.Proto.Matchmaking.V1.MatchmakingReflection.Descriptor.MessageTypes[30]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

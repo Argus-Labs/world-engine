@@ -19,6 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
+	matchmakingv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/matchmaking/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 )
 
@@ -162,7 +163,6 @@ type matchmaking struct {
 
 	// Configuration
 	profiles    *store.ProfileStore
-	ticketTTL   time.Duration
 	backfillTTL time.Duration
 
 	// State
@@ -194,7 +194,6 @@ var _ micro.ShardEngine = &matchmaking{}
 func newMatchmaking(opts worldOptionsInternal, tel *telemetry.Telemetry) *matchmaking {
 	return &matchmaking{
 		profiles:    opts.MatchProfiles,
-		ticketTTL:   opts.TicketTTL,
 		backfillTTL: opts.BackfillTTL,
 		tickets:     store.NewTicketStore(),
 		backfills:   store.NewBackfillStore(),
@@ -370,6 +369,8 @@ func (m *matchmaking) processCommands(commands []micro.Command, now time.Time) e
 }
 
 // handleCreateTicket processes a create ticket command.
+// Note: Basic validation (required fields, format) is done at enqueue time via Validate().
+// This handler focuses on business logic that requires state access.
 func (m *matchmaking) handleCreateTicket(cmd micro.Command, now time.Time) error {
 	// Get typed payload
 	payload, ok := cmd.Command.Body.Payload.(CreateTicketCommand)
@@ -377,23 +378,36 @@ func (m *matchmaking) handleCreateTicket(cmd micro.Command, now time.Time) error
 		return eris.New("invalid payload type for create-ticket command")
 	}
 
-	// Validate profile exists
+	// Parse callback address (already validated in Validate(), safe to parse)
+	callbackAddr, _ := micro.ParseAddress(payload.CallbackAddress)
+
+	// Validate profile exists (requires state access, can't be done in Validate())
 	prof, ok := m.profiles.Get(payload.MatchProfileName)
 	if !ok {
-		return eris.Errorf("unknown match profile: %s", payload.MatchProfileName)
+		// Send error callback
+		m.publishTicketError(callbackAddr, payload.PartyID, "unknown match profile: "+payload.MatchProfileName)
+		return nil // Not a fatal error, we've notified the caller
 	}
 
 	// Compute pool counts
 	tempTicket := &types.Ticket{Players: payload.Players}
 	poolCounts := DerivePoolCounts(tempTicket, prof)
 
+	// TTL already validated in Validate()
+	ttl := time.Duration(payload.TTLSeconds) * time.Second
+
 	// Create ticket
-	_, err := m.tickets.Create(payload.PartyID, payload.MatchProfileName, payload.AllowBackfill, payload.Players, now, m.ticketTTL, poolCounts)
+	ticket, err := m.tickets.Create(payload.PartyID, payload.MatchProfileName, payload.AllowBackfill, payload.Players, now, ttl, poolCounts, callbackAddr)
 	if err != nil {
-		return eris.Wrap(err, "failed to create ticket")
+		// Send error callback
+		m.publishTicketError(callbackAddr, payload.PartyID, err.Error())
+		return nil // Not a fatal error, we've notified the caller
 	}
 
-	m.tel.Logger.Debug().Str("party_id", payload.PartyID).Str("profile", payload.MatchProfileName).Msg("Created ticket")
+	// Send success callback with ticket_id
+	m.publishTicketCreated(callbackAddr, payload.PartyID, ticket.ID)
+
+	m.tel.Logger.Debug().Str("ticket_id", ticket.ID).Str("party_id", payload.PartyID).Str("profile", payload.MatchProfileName).Msg("Created ticket")
 	return nil
 }
 
@@ -404,12 +418,9 @@ func (m *matchmaking) handleCancelTicket(cmd micro.Command) error {
 		return eris.New("invalid payload type for cancel-ticket command")
 	}
 
-	t, ok := m.tickets.Get(payload.TicketID)
+	_, ok = m.tickets.Get(payload.TicketID)
 	if !ok {
 		return eris.Errorf("ticket not found: %s", payload.TicketID)
-	}
-	if t.PartyID != payload.PartyID {
-		return eris.New("party does not own this ticket")
 	}
 
 	m.tickets.Delete(payload.TicketID)
@@ -426,17 +437,11 @@ func (m *matchmaking) handleCreateBackfill(cmd micro.Command, now time.Time) err
 
 	// Parse lobby address
 	var lobbyAddr *microv1.ServiceAddress
-	if payload.LobbyAddress != nil {
-		realm := microv1.ServiceAddress_REALM_WORLD
-		if payload.LobbyAddress.Realm == "internal" {
-			realm = microv1.ServiceAddress_REALM_INTERNAL
-		}
-		lobbyAddr = &microv1.ServiceAddress{
-			Region:       payload.LobbyAddress.Region,
-			Organization: payload.LobbyAddress.Organization,
-			Project:      payload.LobbyAddress.Project,
-			ServiceId:    payload.LobbyAddress.ServiceID,
-			Realm:        realm,
+	if payload.LobbyAddress != "" {
+		var err error
+		lobbyAddr, err = micro.ParseAddress(payload.LobbyAddress)
+		if err != nil {
+			return eris.Wrapf(err, "invalid lobby address: %s", payload.LobbyAddress)
 		}
 	}
 
@@ -610,4 +615,54 @@ func (m *matchmaking) initService(client *micro.Client, address *microv1.Service
 	}
 	m.service = service
 	return nil
+}
+
+// publishTicketCreated publishes a ticket-created callback to the Game Shard.
+// Endpoint: <callback_address>.matchmaking.ticket-created
+func (m *matchmaking) publishTicketCreated(callbackAddr *microv1.ServiceAddress, partyID, ticketID string) {
+	if m.service == nil || callbackAddr == nil {
+		return
+	}
+
+	resp := &matchmakingv1.TicketCreatedCallback{
+		PartyId:  partyID,
+		TicketId: ticketID,
+	}
+
+	if err := m.service.NATS().Publish(callbackAddr, "matchmaking.ticket-created", resp); err != nil {
+		m.tel.Logger.Error().Err(err).
+			Str("party_id", partyID).
+			Str("ticket_id", ticketID).
+			Msg("Failed to publish ticket-created callback")
+	} else {
+		m.tel.Logger.Debug().
+			Str("party_id", partyID).
+			Str("ticket_id", ticketID).
+			Msg("Published ticket-created callback")
+	}
+}
+
+// publishTicketError publishes a ticket-error callback to the Game Shard.
+// Endpoint: <callback_address>.matchmaking.ticket-error
+func (m *matchmaking) publishTicketError(callbackAddr *microv1.ServiceAddress, partyID, errorMsg string) {
+	if m.service == nil || callbackAddr == nil {
+		return
+	}
+
+	resp := &matchmakingv1.TicketErrorCallback{
+		PartyId: partyID,
+		Error:   errorMsg,
+	}
+
+	if err := m.service.NATS().Publish(callbackAddr, "matchmaking.ticket-error", resp); err != nil {
+		m.tel.Logger.Error().Err(err).
+			Str("party_id", partyID).
+			Str("error", errorMsg).
+			Msg("Failed to publish ticket-error callback")
+	} else {
+		m.tel.Logger.Debug().
+			Str("party_id", partyID).
+			Str("error", errorMsg).
+			Msg("Published ticket-error callback")
+	}
 }

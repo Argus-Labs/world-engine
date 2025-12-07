@@ -177,6 +177,13 @@ func (c Channel[T]) enqueue(cmd *iscv1.Command, commandRaw *iscv1.CommandRaw) er
 		return eris.Wrap(err, "failed to unmarshal to command")
 	}
 
+	// If command implements ValidatableCommand, call Validate() for early validation.
+	if validatable, ok := any(zero).(ValidatableCommand); ok {
+		if err := validatable.Validate(); err != nil {
+			return eris.Wrap(err, "command validation failed")
+		}
+	}
+
 	c <- Command{
 		Signature: cmd.GetSignature(),
 		AuthInfo: AuthInfo{
