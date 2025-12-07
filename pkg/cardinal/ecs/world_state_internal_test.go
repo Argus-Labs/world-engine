@@ -12,7 +12,7 @@ import (
 
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing world state operations
-//
+// -------------------------------------------------------------------------------------------------
 // This test verifies the worldState implementation correctness using model-based testing. It
 // compares our implementation against a map[EntityID]map[string]Component as the model by applying
 // random sequences of entity and component operations to both and asserting equivalence.
@@ -72,7 +72,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			name := testutils.RandMapKey(prng, existingComponents)
 			c := randComponentByName(prng, name)
 			aidBefore, ok := impl.entityArch.get(eid)
-			assert.True(t, ok, "<TODO FILL ME IN>")
+			assert.True(t, ok, "entity %d should exist before update", eid)
 
 			setComponentAbstract(t, impl, eid, c)
 			model[eid][c.Name()] = c
@@ -284,6 +284,107 @@ func randComponentByName(prng *rand.Rand, name string) Component {
 	}
 }
 
+// -------------------------------------------------------------------------------------------------
+// Entity ID generator fuzz
+// -------------------------------------------------------------------------------------------------
+// This test runs random sequences of newEntity/removeEntity operations and verifies that the
+// entity ID generator invariants hold: nextID monotonicity, live/free disjointness, all IDs
+// bounded by nextID, and no duplicate live entities.
+// -------------------------------------------------------------------------------------------------
+
+func TestWorldState_EntityIDFuzz(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const opsMax = 1 << 15 // 32_768 iterations
+
+	impl := newTestWorldState(t)
+	prevNextID := impl.nextID
+
+	for range opsMax {
+		op := testutils.RandWeightedOp(prng, entityIDOps)
+		switch op {
+		case eid_new:
+			impl.newEntity()
+
+		case eid_remove:
+			if impl.nextID == 0 {
+				continue
+			}
+			eid := EntityID(prng.IntN(int(impl.nextID)))
+			impl.removeEntity(eid) // May return false if already removed.
+
+		default:
+			panic("unreachable")
+		}
+
+		// Property: nextID is monotonically non-decreasing.
+		assert.GreaterOrEqual(t, impl.nextID, prevNextID, "nextID decreased")
+		prevNextID = impl.nextID
+	}
+
+	// Property: live and free are disjoint.
+	liveSet := make(map[EntityID]struct{})
+	for i, idx := range impl.entityArch {
+		if idx != sparseTombstone {
+			liveSet[EntityID(i)] = struct{}{}
+		}
+	}
+	for _, freeID := range impl.free {
+		_, isLive := liveSet[freeID]
+		assert.False(t, isLive, "entity %d is both live and free", freeID)
+	}
+
+	// Property: all live and free IDs are < nextID.
+	for liveID := range liveSet {
+		assert.Less(t, liveID, impl.nextID, "live entity %d >= nextID %d", liveID, impl.nextID)
+	}
+	for _, freeID := range impl.free {
+		assert.Less(t, freeID, impl.nextID, "free entity %d >= nextID %d", freeID, impl.nextID)
+	}
+
+	// Property: free list has no duplicates.
+	freeSet := make(map[EntityID]struct{}, len(impl.free))
+	for _, freeID := range impl.free {
+		_, exists := freeSet[freeID]
+		assert.False(t, exists, "duplicate in free list: %d", freeID)
+		freeSet[freeID] = struct{}{}
+	}
+}
+
+type entityIDOp uint8
+
+const (
+	eid_new    entityIDOp = 60
+	eid_remove entityIDOp = 40
+)
+
+var entityIDOps = []entityIDOp{eid_new, eid_remove}
+
+// -------------------------------------------------------------------------------------------------
+// Entity ID reuse FIFO
+// -------------------------------------------------------------------------------------------------
+// Simple test to verify FIFO property of entity ID reuse.
+// -------------------------------------------------------------------------------------------------
+
+func TestWorldState_EntityID_FIFO(t *testing.T) {
+	t.Parallel()
+
+	ws := newTestWorldState(t)
+
+	e0 := ws.newEntity()
+	e1 := ws.newEntity()
+	e2 := ws.newEntity()
+
+	ws.removeEntity(e0)
+	ws.removeEntity(e1)
+	ws.removeEntity(e2)
+
+	assert.Equal(t, e0, ws.newEntity())
+	assert.Equal(t, e1, ws.newEntity())
+	assert.Equal(t, e2, ws.newEntity())
+}
+
 func newTestWorldState(t *testing.T) *worldState {
 	t.Helper()
 	ws := newWorldState()
@@ -298,9 +399,9 @@ func newTestWorldState(t *testing.T) *worldState {
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
-//
+// -------------------------------------------------------------------------------------------------
 // We don't extensively test serialize/deserialize because:
-// 1. The implementation delegates to archetype and sparse set serialization (tested separately).
+// 1. The implementation delegates to archetype serialization (tested separately).
 // 2. The remaining logic is straightforward type conversion loops.
 // 3. Heavy property-based testing would mostly exercise the underlying serialization, not our code.
 // -------------------------------------------------------------------------------------------------

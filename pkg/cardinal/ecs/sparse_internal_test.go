@@ -9,7 +9,7 @@ import (
 
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing sparse set operations
-//
+// -------------------------------------------------------------------------------------------------
 // This test verifies the sparseSet implementation correctness using model-based testing. It
 // compares our implementation against a Go's map as the model by applying random sequences of
 // set/get/remove operations to both and asserting equivalence.
@@ -102,7 +102,7 @@ var sparseSetOps = []sparseSetOp{s_set, s_remove, s_get}
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
-//
+// -------------------------------------------------------------------------------------------------
 // We don't extensively test toInt64Slice/fromInt64Slice because:
 // 1. The implementation is a trivial type conversion loop (int -> int64 and back).
 // 2. There's no complex branching or error handling.
@@ -131,8 +131,5 @@ func TestSparseSet_SerializationSmoke(t *testing.T) {
 	impl2.fromInt64Slice(data)
 
 	// Property: deserialize(serialize(x)) == x.
-	assert.Len(t, impl2, len(impl1))
-	for i := range impl1 {
-		assert.Equal(t, impl1[i], impl2[i])
-	}
+	assert.Equal(t, impl1, impl2) // assert.Equal uses reflect.DeepEqual
 }

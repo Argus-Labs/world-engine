@@ -10,7 +10,7 @@ import (
 
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing column operations
-//
+// -------------------------------------------------------------------------------------------------
 // This test verifies the column implementation correctness using model-based testing. It compares
 // our implementation against Go's slice with swap-remove semantics as the model by applying random
 // sequences of extend/set/get/remove operations to both and asserting equivalence.
@@ -107,7 +107,7 @@ var columnOps = []columnOp{c_extend, c_set, c_remove, c_get}
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
-//
+// -------------------------------------------------------------------------------------------------
 // We don't extensively test toProto/fromProto because:
 // 1. The implementation is a thin wrapper around json.Marshal/Unmarshal (well-tested stdlib).
 // 2. The loop logic is trivial with no complex branching.
@@ -134,8 +134,5 @@ func TestColumn_SerializationSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, col1.len(), col2.len())
-	for i := range col1.len() {
-		assert.Equal(t, col1.get(i), col2.get(i))
-	}
+	assert.Equal(t, col1, col2) // assert.Equal uses reflect.DeepEqual
 }
