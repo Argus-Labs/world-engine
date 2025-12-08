@@ -136,3 +136,35 @@ func TestColumn_SerializationSmoke(t *testing.T) {
 	// Property: deserialize(serialize(x)) == x.
 	assert.Equal(t, col1, col2) // assert.Equal uses reflect.DeepEqual
 }
+
+// -------------------------------------------------------------------------------------------------
+// Deserialization edge cases
+// -------------------------------------------------------------------------------------------------
+// Examples of some edge cases of fromProto we care about.
+// -------------------------------------------------------------------------------------------------
+
+func TestColumn_FromProto(t *testing.T) {
+	t.Parallel()
+
+	t.Run("rejects nil", func(t *testing.T) {
+		t.Parallel()
+		col := newColumn[testutils.SimpleComponent]()
+		err := col.fromProto(nil)
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects component name mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		colA := newColumn[testutils.ComponentA]()
+		colA.extend()
+		colA.set(0, testutils.ComponentA{X: 1, Y: 2, Z: 3})
+
+		pb, err := colA.toProto()
+		require.NoError(t, err)
+
+		colB := newColumn[testutils.ComponentB]()
+		err = colB.fromProto(pb)
+		assert.Error(t, err)
+	})
+}
