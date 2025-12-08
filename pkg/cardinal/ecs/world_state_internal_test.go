@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -222,12 +223,11 @@ func getComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name str
 		panic("unreachable")
 	}
 
-	// Possible errors here are:
+	// We can ignore these errors, as the tests randomly select eid and component:
 	// - ErrEntityNotFound: entity doesn't exist
 	// - "entity doesn't contain component": entity exists but lacks this component
-	// - ErrComponentNotFound (unregistered component) can't happen since all components are
-	// So we can safely return nil here as these errors are recoverable.
 	if err != nil {
+		assert.False(t, eris.Is(err, ErrComponentNotFound), "component isn't registered")
 		return nil, false
 	}
 	return res, true
@@ -454,7 +454,7 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 	assert.Equal(t, ws1.nextID, ws2.nextID)
 	assert.Equal(t, ws1.free, ws2.free)
-	assert.Equal(t, sparseSet(ws1.entityArch), sparseSet(ws2.entityArch))
+	assert.Equal(t, ws1.entityArch, ws2.entityArch)
 
 	assert.Len(t, ws2.archetypes, len(ws1.archetypes))
 	for i := range ws1.archetypes {

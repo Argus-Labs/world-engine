@@ -380,7 +380,7 @@ func assertArchetypeEqual(t *testing.T, a1, a2 *archetype) {
 	assert.Equal(t, a1.id, a2.id)
 	assert.Equal(t, a1.components.ToBytes(), a2.components.ToBytes())
 	assert.Equal(t, a1.entities, a2.entities)
-	assert.Equal(t, sparseSet(a1.rows), sparseSet(a2.rows))
+	assert.Equal(t, a1.rows, a2.rows)
 
 	assert.Len(t, a2.columns, len(a1.columns))
 	for i := range a1.columns {
