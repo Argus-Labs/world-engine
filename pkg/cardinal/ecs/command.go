@@ -23,7 +23,7 @@ type Command interface { //nolint:iface // ecs.Command must be a subset of micro
 // commandManager manages the registration and storage of commands.
 type commandManager struct {
 	nextID   CommandID            // The next command ID
-	registry map[string]CommandID // Command name -> Command ID
+	catalog  map[string]CommandID // Command name -> Command ID
 	commands [][]micro.Command    // Command ID -> command
 }
 
@@ -31,7 +31,7 @@ type commandManager struct {
 func newCommandManager() commandManager {
 	return commandManager{
 		nextID:   0,
-		registry: make(map[string]CommandID),
+		catalog:  make(map[string]CommandID),
 		commands: make([][]micro.Command, 0),
 	}
 }
@@ -44,7 +44,7 @@ func (c *commandManager) register(name string) (CommandID, error) {
 	}
 
 	// If the command is already registered, return the existing ID.
-	if id, exists := c.registry[name]; exists {
+	if id, exists := c.catalog[name]; exists {
 		return id, nil
 	}
 
@@ -53,7 +53,7 @@ func (c *commandManager) register(name string) (CommandID, error) {
 	}
 
 	const initialCommandBufferCapacity = 128
-	c.registry[name] = c.nextID
+	c.catalog[name] = c.nextID
 	c.commands = append(c.commands, make([]micro.Command, 0, initialCommandBufferCapacity))
 	c.nextID++
 	assert.That(int(c.nextID) == len(c.commands), "command id doesn't match number of commands")
@@ -63,7 +63,7 @@ func (c *commandManager) register(name string) (CommandID, error) {
 
 // get retrieves a list of commands for a given command name.
 func (c *commandManager) get(name string) ([]micro.Command, error) {
-	id, exists := c.registry[name]
+	id, exists := c.catalog[name]
 	if !exists {
 		return nil, eris.Errorf("command %s is not registered", name)
 	}
@@ -79,13 +79,14 @@ func (c *commandManager) clear() {
 }
 
 // receiveCommands receives a list of commands and stores them in the commandManager.
-func (c *commandManager) receiveCommands(commands []micro.Command) error {
+// All commands are assumed to be pre-validated by the micro layer (micro.commandManager.Enqueue),
+// which rejects unregistered commands before they reach ECS. An unknown command name here indicates
+// a mismatch between micro and ECS command registration, which is a programming error, so we should
+// fail fast (and loudly) instead of silently ignoring it.
+func (c *commandManager) receiveCommands(commands []micro.Command) {
 	for _, command := range commands {
-		id, exists := c.registry[command.Command.Body.Name]
-		if !exists {
-			return eris.Errorf("command %s is not registered", command.Command.Body.Name)
-		}
+		id, exists := c.catalog[command.Command.Body.Name]
+		assert.That(exists, "command %s is not registered", command.Command.Body.Name)
 		c.commands[id] = append(c.commands[id], command)
 	}
-	return nil
 }

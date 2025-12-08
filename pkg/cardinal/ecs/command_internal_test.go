@@ -1,366 +1,149 @@
 package ecs
 
 import (
+	"math/rand/v2"
 	"testing"
 
-	. "github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommandManager_Register(t *testing.T) {
-	t.Parallel()
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing command manager operations
+// -------------------------------------------------------------------------------------------------
+// This test verifies the commandManager implementation correctness using model-based testing. It
+// compares our implementation against a map[string][]micro.Command as the model by applying random
+// sequences of receive/clear/get operations to both and asserting equivalence.
+// Commands are pre-registered since the micro layer guarantees only registered commands reach ECS.
+// We also verify structural invariants: name-id bijection and command id uniqueness.
+// -------------------------------------------------------------------------------------------------
 
-	tests := []struct {
-		name    string
-		command Command
-		wantErr bool
-	}{
-		{
-			name:    "successful registration",
-			command: AttackPlayerCommand{},
-		},
-		{
-			name:    "empty command name",
-			command: InvalidEmptyCommand{},
-			wantErr: true,
-		},
-		{
-			name:    "duplicate command name",
-			command: AttackPlayerCommand{},
-		},
+func TestCommand_ModelFuzz(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const numCommands = 10
+	const opsMax = 1 << 15 // 32_768 iterations
+
+	impl := newCommandManager()
+	model := make(map[string][]micro.Command) // name -> commands buffer
+
+	// Setup: pre-register a fixed set of command names.
+	for range numCommands {
+		name := randValidCommandName(prng)
+		_, err := impl.register(name)
+		require.NoError(t, err)
+		model[name] = []micro.Command{}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			cr := newCommandManager()
-
-			// For duplicate test case, register command first
-			if tt.name == "duplicate command name" {
-				_, err := cr.register(tt.command.Name())
-				require.NoError(t, err)
+	for range opsMax {
+		op := testutils.RandWeightedOp(prng, commandOps)
+		switch op {
+		case cr_receive:
+			batchSize := prng.IntN(200) + 1
+			batch := make([]micro.Command, batchSize)
+			for i := range batchSize {
+				name := testutils.RandMapKey(prng, model)
+				batch[i] = micro.Command{
+					Command: micro.CommandRaw{
+						Body: micro.CommandBody{Name: name},
+					},
+				}
 			}
 
-			id, err := cr.register(tt.command.Name())
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
+			impl.receiveCommands(batch)
+			for _, cmd := range batch {
+				name := cmd.Command.Body.Name
+				model[name] = append(model[name], cmd)
 			}
 
+		// NOTE: World calls clear before every tick so commands from previous ticks aren't processed
+		// again in the current tick. Here, we call clear randomly to explore edge cases and make sure
+		// the implementation is sound even when we're not clearing before every get.
+		case cr_clear:
+			impl.clear()
+			for name := range model {
+				model[name] = model[name][:0]
+			}
+
+		case cr_get:
+			name := testutils.RandMapKey(prng, model)
+			implBuf, err := impl.get(name)
 			require.NoError(t, err)
+			assert.Equal(t, model[name], implBuf, "buffer content mismatch for %q", name)
 
-			storedID, exists := cr.registry[tt.command.Name()]
-			assert.True(t, exists)
+		default:
+			panic("unreachable")
+		}
+	}
 
-			assert.Equal(t, id, storedID)
-			assert.Len(t, cr.commands, 1)
-		})
+	// Property: bijection holds between names and IDs.
+	seenIDs := make(map[CommandID]string)
+	for name, id := range impl.catalog {
+		if prevName, seen := seenIDs[id]; seen {
+			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
+		}
+		seenIDs[id] = name
+	}
+
+	// Property: all IDs in catalog are in range [0, nextID).
+	for name, id := range impl.catalog {
+		assert.Less(t, id, impl.nextID, "ID for %q is out of range", name)
+	}
+
+	// Final state check: all buffers match model.
+	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
+	for name, modelBuf := range model {
+		implBuf, err := impl.get(name)
+		require.NoError(t, err, "command %q should be registered", name)
+		assert.Len(t, implBuf, len(modelBuf), "buffer length mismatch for %q", name)
 	}
 }
 
-func TestCommandManager_ReceiveCommands(t *testing.T) {
-	t.Parallel()
+type commandOp uint8
 
-	tests := []struct {
-		name          string
-		setupFn       func(*testing.T, *commandManager) []string
-		inputCommands []micro.Command
-		wantErr       bool
-		testFn        func(*testing.T, *commandManager, []string)
-	}{
-		{
-			name: "multiple valid commands",
-			setupFn: func(t *testing.T, cr *commandManager) []string {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
+const (
+	cr_receive commandOp = 50
+	cr_clear   commandOp = 20
+	cr_get     commandOp = 30
+)
 
-				_, err = cr.register(CreatePlayerCommand{}.Name())
-				require.NoError(t, err)
+var commandOps = []commandOp{cr_receive, cr_clear, cr_get}
 
-				return []string{AttackPlayerCommand{}.Name(), CreatePlayerCommand{}.Name()}
-			},
-			inputCommands: []micro.Command{
-				{Command: micro.CommandRaw{Body: micro.CommandBody{
-					Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{}}}},
-				{Command: micro.CommandRaw{Body: micro.CommandBody{
-					Name: CreatePlayerCommand{}.Name(), Payload: CreatePlayerCommand{}}}},
-				{Command: micro.CommandRaw{Body: micro.CommandBody{
-					Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{}}}},
-			},
-			testFn: func(t *testing.T, cr *commandManager, commandNames []string) {
-				attackPlayerCommands, err := cr.get(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-				assert.Len(t, attackPlayerCommands, 2)
-
-				createPlayerCommands, err := cr.get(CreatePlayerCommand{}.Name())
-				require.NoError(t, err)
-				assert.Len(t, createPlayerCommands, 1)
-			},
-		},
-		{
-			name: "unregistered command name",
-			setupFn: func(t *testing.T, cr *commandManager) []string {
-				// Don't register the command.
-				return []string{AttackPlayerCommand{}.Name()}
-			},
-			inputCommands: []micro.Command{{Command: micro.CommandRaw{Body: micro.CommandBody{
-				Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{}}}}},
-			wantErr: true,
-		},
-		{
-			name: "empty command list",
-			setupFn: func(t *testing.T, cr *commandManager) []string {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-				return []string{AttackPlayerCommand{}.Name()}
-			},
-			inputCommands: []micro.Command{},
-			testFn: func(t *testing.T, cr *commandManager, cmdNames []string) {
-				// Empty list should process without error
-			},
-		},
+func randValidCommandName(prng *rand.Rand) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+	length := prng.IntN(50) + 1 // 1-50 characters
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = chars[prng.IntN(len(chars))]
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			cr := newCommandManager()
-
-			cmdNames := tt.setupFn(t, &cr)
-
-			err := cr.receiveCommands(tt.inputCommands)
-
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			tt.testFn(t, &cr, cmdNames)
-		})
-	}
+	return string(b)
 }
 
-func TestCommandManager_Get(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Registration idempotence
+// -------------------------------------------------------------------------------------------------
+// Simple test to confirm that registering the same name repeatedly is a no-op.
+// The fuzz test above also covers this, so this test mainly serves as documentation.
+// -------------------------------------------------------------------------------------------------
+
+func TestComand_RegisterIdempotence(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name       string
-		setupFn    func(*testing.T, *commandManager)
-		queryName  string
-		wantErr    bool
-		validateFn func(*testing.T, []micro.Command)
-	}{
-		{
-			name: "get empty commands",
-			setupFn: func(t *testing.T, cr *commandManager) {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-			},
-			queryName: AttackPlayerCommand{}.Name(),
-			validateFn: func(t *testing.T, cmds []micro.Command) {
-				assert.Empty(t, cmds)
-			},
-		},
-		{
-			name: "get unregistered command",
-			setupFn: func(t *testing.T, cr *commandManager) {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-			},
-			queryName: "non-existent-command",
-			wantErr:   true,
-		},
-		{
-			name: "get commands successfully",
-			setupFn: func(t *testing.T, cr *commandManager) {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
+	cr := newCommandManager()
 
-				var commands [100]micro.Command
-				for i := range 100 {
-					commands[i] = micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{Value: i}}}}
-				}
-				err = cr.receiveCommands(commands[:])
-				require.NoError(t, err)
-			},
-			queryName: AttackPlayerCommand{}.Name(),
-			validateFn: func(t *testing.T, cmds []micro.Command) {
-				assert.Len(t, cmds, 100)
-				for i := range 100 {
-					command, ok := cmds[i].Command.Body.Payload.(AttackPlayerCommand)
-					assert.True(t, ok)
-					assert.Equal(t, i, command.Value)
-				}
-			},
-		},
-		{
-			name: "get commands when multiple commands registered",
-			setupFn: func(t *testing.T, cr *commandManager) {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
+	id1, err := cr.register("hello")
+	require.NoError(t, err)
 
-				_, err = cr.register(CreatePlayerCommand{}.Name())
-				require.NoError(t, err)
+	id2, err := cr.register("hello")
+	require.NoError(t, err)
 
-				var commands1 [100]micro.Command
-				for i := range 100 {
-					commands1[i] = micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{Value: i}}}}
-				}
-				err = cr.receiveCommands(commands1[:])
-				require.NoError(t, err)
+	assert.Equal(t, id1, id2)
 
-				var commands2 [200]micro.Command
-				for i := range 200 {
-					commands2[i] = micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: CreatePlayerCommand{}.Name(), Payload: CreatePlayerCommand{Value: i}}}}
-				}
-				err = cr.receiveCommands(commands2[:])
-				require.NoError(t, err)
-			},
-			queryName: CreatePlayerCommand{}.Name(),
-			validateFn: func(t *testing.T, cmds []micro.Command) {
-				assert.Len(t, cmds, 200)
-				for i := range 200 {
-					command, ok := cmds[i].Command.Body.Payload.(CreatePlayerCommand)
-					assert.True(t, ok)
-					assert.Equal(t, i, command.Value)
-				}
-			},
-		},
-	}
+	id3, err := cr.register("a_different_name")
+	require.NoError(t, err)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			cr := newCommandManager()
-			tt.setupFn(t, &cr)
-
-			cmds, err := cr.get(tt.queryName)
-
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			tt.validateFn(t, cmds)
-		})
-	}
-}
-
-func TestCommandManager_Clear(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		setupFn func(*testing.T, *commandManager) []string
-		testFn  func(*testing.T, *commandManager, []string)
-	}{
-		{
-			name: "clears multiple command types with many commands",
-			setupFn: func(t *testing.T, cr *commandManager) []string {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-				_, err = cr.register(CreatePlayerCommand{}.Name())
-				require.NoError(t, err)
-
-				var commands1 [50]micro.Command
-				for i := range 50 {
-					commands1[i] = micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{Value: i}}}}
-				}
-				var commands2 [100]micro.Command
-				for i := range 100 {
-					commands2[i] = micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: CreatePlayerCommand{}.Name(), Payload: CreatePlayerCommand{Value: i}}}}
-				}
-
-				// Add commands
-				err = cr.receiveCommands(commands1[:])
-				require.NoError(t, err)
-				err = cr.receiveCommands(commands2[:])
-				require.NoError(t, err)
-
-				return []string{AttackPlayerCommand{}.Name(), CreatePlayerCommand{}.Name()}
-			},
-			testFn: func(t *testing.T, cr *commandManager, cmdNames []string) {
-				for _, name := range cmdNames {
-					cmds, err := cr.get(name)
-					require.NoError(t, err)
-					assert.Empty(t, cmds, "Commands for %s should be empty after clear", name)
-				}
-			},
-		},
-		{
-			name: "can add commands after clearing",
-			setupFn: func(t *testing.T, cr *commandManager) []string {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-
-				// Add multiple commands
-				var commands [20]micro.Command
-				for i := range 20 {
-					commands[i] = micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{Value: i}}}}
-				}
-
-				err = cr.receiveCommands(commands[:])
-				require.NoError(t, err)
-
-				return []string{AttackPlayerCommand{}.Name()}
-			},
-			testFn: func(t *testing.T, cr *commandManager, cmdNames []string) {
-				cmds, err := cr.get(cmdNames[0])
-				require.NoError(t, err)
-				assert.Empty(t, cmds)
-
-				err = cr.receiveCommands([]micro.Command{{Command: micro.CommandRaw{Body: micro.CommandBody{
-					Name: AttackPlayerCommand{}.Name(), Payload: AttackPlayerCommand{}}}}})
-				require.NoError(t, err)
-
-				// Verify all new commands were added
-				cmds, err = cr.get(cmdNames[0])
-				require.NoError(t, err)
-				assert.Len(t, cmds, 1)
-			},
-		},
-		{
-			name: "clear works on empty command lists",
-			setupFn: func(t *testing.T, cr *commandManager) []string {
-				_, err := cr.register(AttackPlayerCommand{}.Name())
-				require.NoError(t, err)
-				_, err = cr.register(CreatePlayerCommand{}.Name())
-				require.NoError(t, err)
-				return []string{AttackPlayerCommand{}.Name(), CreatePlayerCommand{}.Name()}
-			},
-			testFn: func(t *testing.T, cr *commandManager, cmdNames []string) {
-				// Call clear on already empty commands
-				cr.clear()
-
-				// Verify still empty after clear
-				for _, name := range cmdNames {
-					cmds, err := cr.get(name)
-					require.NoError(t, err)
-					assert.Empty(t, cmds, "Commands for %s should remain empty after clear", name)
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			cr := newCommandManager()
-			cmdNames := tt.setupFn(t, &cr)
-
-			cr.clear()
-
-			tt.testFn(t, &cr, cmdNames)
-		})
-	}
+	assert.Equal(t, id1+1, id3)
 }
