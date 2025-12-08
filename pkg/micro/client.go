@@ -197,10 +197,6 @@ func (c *Client) RequestAndSubscribe(
 		}
 	}()
 
-	if err := sub.AutoUnsubscribe(1); err != nil {
-		return nil, eris.Wrap(err, "failed to set auto-unsubscribe")
-	}
-
 	// Send request. If it fails, return early without waiting for response.
 	_, err = c.Request(ctx, sendAddress, sendEndpoint, payload)
 	if err != nil {
