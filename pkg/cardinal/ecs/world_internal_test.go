@@ -148,3 +148,8 @@ func newRandomizedTestWorld(t *testing.T, prng *rand.Rand) *World {
 
 	return w
 }
+
+// TODO: fix.
+// to reproduce: TEST_SEED=0x187f45843d5f9288
+// --- FAIL: TestWorld_DeserializeNegative (0.90s)
+// panic: bitmap: buffer length expected to be multiple of 8, was 71 [recovered, repanicked]
