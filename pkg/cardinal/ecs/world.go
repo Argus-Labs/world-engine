@@ -65,9 +65,7 @@ func (w *World) Tick(commands []micro.Command) ([]RawEvent, error) {
 	}
 
 	// Receive commands from external sources and clear buffers.
-	if err := w.commands.receiveCommands(commands); err != nil {
-		return []RawEvent{}, err
-	}
+	w.commands.receiveCommands(commands)
 	defer w.clearBuffers()
 
 	// Run the systems.

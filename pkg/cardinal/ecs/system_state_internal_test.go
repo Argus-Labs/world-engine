@@ -42,7 +42,7 @@ func TestWithCommand_Init(t *testing.T) {
 
 			// Before: check that command is not already registered
 			commandName := AttackPlayerCommand{}.Name()
-			_, exists := w.commands.registry[commandName]
+			_, exists := w.commands.catalog[commandName]
 			assert.False(t, exists, "Command should not be registered initially")
 
 			// Register command through init
@@ -51,7 +51,7 @@ func TestWithCommand_Init(t *testing.T) {
 
 			// Check results
 			require.NoError(t, err, "Should automatically register the command")
-			_, exists = w.commands.registry[commandName]
+			_, exists = w.commands.catalog[commandName]
 			assert.True(t, exists, "Command should be registered after init")
 		})
 
@@ -70,7 +70,7 @@ func TestWithCommand_Init(t *testing.T) {
 
 			// Verify results
 			require.NoError(t, err, "Second registration should not error")
-			_, exists := w.commands.registry[AttackPlayerCommand{}.Name()]
+			_, exists := w.commands.catalog[AttackPlayerCommand{}.Name()]
 			assert.True(t, exists, "Command should still be registered")
 		})
 	})
@@ -100,8 +100,7 @@ func TestWithCommand_Iter(t *testing.T) {
 					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
 						Name: cmd.Name(), Payload: cmd}}})
 				}
-				err := w.commands.receiveCommands(commands)
-				require.NoError(t, err)
+				w.commands.receiveCommands(commands)
 			},
 			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
 				require.Len(t, results, 5, "Should iterate all commands")
@@ -129,8 +128,7 @@ func TestWithCommand_Iter(t *testing.T) {
 					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
 						Name: cmd.Name(), Payload: cmd}}})
 				}
-				err = w.commands.receiveCommands(commands)
-				require.NoError(t, err)
+				w.commands.receiveCommands(commands)
 			},
 			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
 				require.Len(t, results, 10, "Should only get the correct command type")
@@ -148,8 +146,7 @@ func TestWithCommand_Iter(t *testing.T) {
 					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
 						Name: cmd.Name(), Payload: cmd}}})
 				}
-				err := w.commands.receiveCommands(commands)
-				require.NoError(t, err)
+				w.commands.receiveCommands(commands)
 			},
 			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
 				require.Len(t, results, 3, "Should only get first 3 commands")

@@ -141,7 +141,6 @@ func TestComponent_NameValidationFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	const opsMax = 1 << 15 // 32_768 iterations
-	const nameMax = 100
 
 	valid, invalid := 0, 0
 
@@ -183,13 +182,13 @@ func assertNameProperties(name string) bool {
 	}
 	// Property: name must start with a letter or underscore.
 	first := name[0]
-	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_') {
+	if (first < 'a' || first > 'z') && (first < 'A' || first > 'Z') && first != '_' {
 		return false
 	}
 	// Property: name can only contain alphanumeric characters and underscore.
 	for i := 1; i < len(name); i++ {
 		c := name[i]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_' {
 			return false
 		}
 	}
