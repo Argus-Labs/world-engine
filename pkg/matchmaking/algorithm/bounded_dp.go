@@ -482,4 +482,3 @@ func assignmentPairs(assignments []Assignment) []assignmentPair {
 	})
 	return pairs
 }
-

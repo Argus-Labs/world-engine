@@ -29,12 +29,12 @@ type mockProfile struct {
 	composition map[string]int
 }
 
-func (p *mockProfile) GetTeamCount() int                        { return p.teamCount }
-func (p *mockProfile) GetTeamSize(teamIndex int) int            { return p.teamSize }
-func (p *mockProfile) GetTeamMinSize(teamIndex int) int         { return p.teamMinSize }
-func (p *mockProfile) GetTeamName(teamIndex int) string         { return p.teamNames[teamIndex] }
+func (p *mockProfile) GetTeamCount() int                                  { return p.teamCount }
+func (p *mockProfile) GetTeamSize(teamIndex int) int                      { return p.teamSize }
+func (p *mockProfile) GetTeamMinSize(teamIndex int) int                   { return p.teamMinSize }
+func (p *mockProfile) GetTeamName(teamIndex int) string                   { return p.teamNames[teamIndex] }
 func (p *mockProfile) GetTeamCompositionMap(teamIndex int) map[string]int { return p.composition }
-func (p *mockProfile) HasRoles() bool                           { return len(p.composition) > 0 }
+func (p *mockProfile) HasRoles() bool                                     { return len(p.composition) > 0 }
 
 // asymmetricProfile implements Profile for asymmetric team tests.
 type asymmetricProfile struct {
@@ -48,11 +48,13 @@ type teamDef struct {
 	composition map[string]int
 }
 
-func (p *asymmetricProfile) GetTeamCount() int                { return len(p.teams) }
-func (p *asymmetricProfile) GetTeamSize(i int) int            { return p.teams[i].size }
-func (p *asymmetricProfile) GetTeamMinSize(i int) int         { return p.teams[i].minSize }
-func (p *asymmetricProfile) GetTeamName(i int) string         { return p.teams[i].name }
-func (p *asymmetricProfile) GetTeamCompositionMap(i int) map[string]int { return p.teams[i].composition }
+func (p *asymmetricProfile) GetTeamCount() int        { return len(p.teams) }
+func (p *asymmetricProfile) GetTeamSize(i int) int    { return p.teams[i].size }
+func (p *asymmetricProfile) GetTeamMinSize(i int) int { return p.teams[i].minSize }
+func (p *asymmetricProfile) GetTeamName(i int) string { return p.teams[i].name }
+func (p *asymmetricProfile) GetTeamCompositionMap(i int) map[string]int {
+	return p.teams[i].composition
+}
 func (p *asymmetricProfile) HasRoles() bool {
 	for _, t := range p.teams {
 		if len(t.composition) > 0 {
@@ -492,9 +494,9 @@ func TestDebug(t *testing.T) {
 	profile := &mockProfile{teamCount: 1, teamSize: 2, teamMinSize: 2, teamNames: []string{"team_1"}}
 
 	tests := []struct {
-		name           string
-		debug          bool
-		wantStatsZero  bool
+		name          string
+		debug         bool
+		wantStatsZero bool
 	}{
 		{
 			name:          "debug off",
@@ -600,11 +602,11 @@ func TestDeterministic5v5Roles(t *testing.T) {
 	// team_1 should get: daisy, dan, dave (first 3 dps), hank (first support), tina (first tank)
 	// team_2 should get: derek, diana, dora (next 3 dps), helen (next support), tom (next tank)
 	expectedTeam1 := map[string]bool{
-		"player-dps-daisy":    true,
-		"player-dps-dan":      true,
-		"player-dps-dave":     true,
-		"player-healer-hank":  true,
-		"player-tank-tina":    true,
+		"player-dps-daisy":   true,
+		"player-dps-dan":     true,
+		"player-dps-dave":    true,
+		"player-healer-hank": true,
+		"player-tank-tina":   true,
 	}
 	expectedTeam2 := map[string]bool{
 		"player-dps-derek":    true,

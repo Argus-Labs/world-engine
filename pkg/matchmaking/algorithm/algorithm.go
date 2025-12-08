@@ -43,12 +43,12 @@ func (i Input) WithDebug() Input {
 }
 
 // Getters for internal use by algorithms
-func (i Input) GetCandidates() []Ticket       { return i.candidates }
-func (i Input) GetProfile() Profile           { return i.profile }
-func (i Input) GetSlotsNeeded() []SlotNeeded  { return i.slotsNeeded }
-func (i Input) GetNow() time.Time             { return i.now }
-func (i Input) GetDebug() bool                { return i.debug }
-func (i Input) IsBackfill() bool              { return len(i.slotsNeeded) > 0 }
+func (i Input) GetCandidates() []Ticket      { return i.candidates }
+func (i Input) GetProfile() Profile          { return i.profile }
+func (i Input) GetSlotsNeeded() []SlotNeeded { return i.slotsNeeded }
+func (i Input) GetNow() time.Time            { return i.now }
+func (i Input) GetDebug() bool               { return i.debug }
+func (i Input) IsBackfill() bool             { return len(i.slotsNeeded) > 0 }
 
 // Output represents the result of an assignment algorithm.
 type Output struct {
