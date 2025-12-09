@@ -471,8 +471,7 @@ func TestWithSystemEventEmitter_Emit(t *testing.T) {
 		see.Emit(PlayerDeathSystemEvent{Value: i})
 	}
 
-	events, err := w.systemEvents.get(PlayerDeathSystemEvent{}.Name())
-	require.NoError(t, err)
+	events := w.systemEvents.get(PlayerDeathSystemEvent{}.Name())
 	require.Len(t, events, 5)
 
 	for i, event := range events {

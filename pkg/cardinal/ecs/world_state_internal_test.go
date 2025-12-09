@@ -295,7 +295,7 @@ func randComponentByName(prng *rand.Rand, name string) Component {
 // bounded by nextID, and no duplicate live entities.
 // -------------------------------------------------------------------------------------------------
 
-func TestWorldState_EntityIDFuzz(t *testing.T) {
+func TestWorldState_EntityFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
@@ -336,7 +336,7 @@ func TestWorldState_EntityIDFuzz(t *testing.T) {
 // done concurrently in multiple systems.
 // -------------------------------------------------------------------------------------------------
 
-func TestWorldState_EntityID_Concurrent(t *testing.T) {
+func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 	t.Parallel()
 
 	const (
