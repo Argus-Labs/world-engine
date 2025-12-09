@@ -1,8 +1,6 @@
 package system
 
 import (
-	"github.com/google/uuid"
-
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/lobby/component"
@@ -11,60 +9,6 @@ import (
 // -----------------------------------------------------------------------------
 // Lobby Commands
 // -----------------------------------------------------------------------------
-
-// CreateLobbyCommand creates a new lobby (usually from matchmaking result).
-type CreateLobbyCommand struct {
-	cardinal.BaseCommand
-	MatchID          string                `json:"match_id,omitempty"` // From matchmaking; if empty, auto-generated
-	HostPartyID      string                `json:"host_party_id"`
-	Teams            []component.LobbyTeam `json:"teams,omitempty"`
-	MatchProfileName string                `json:"match_profile_name,omitempty"`
-	MinPlayers       int                   `json:"min_players"`
-	MaxPlayers       int                   `json:"max_players"`
-	Config           map[string]string     `json:"config,omitempty"`
-}
-
-// Name returns the command name.
-func (CreateLobbyCommand) Name() string { return "lobby_create" }
-
-// JoinLobbyCommand adds a party to a lobby.
-type JoinLobbyCommand struct {
-	cardinal.BaseCommand
-	PartyID string `json:"party_id"`
-	MatchID string `json:"match_id"`
-}
-
-// Name returns the command name.
-func (JoinLobbyCommand) Name() string { return "lobby_join" }
-
-// LeaveLobbyCommand removes a party from a lobby.
-type LeaveLobbyCommand struct {
-	cardinal.BaseCommand
-	PartyID string `json:"party_id"`
-}
-
-// Name returns the command name.
-func (LeaveLobbyCommand) Name() string { return "lobby_leave" }
-
-// SetReadyCommand sets a party's ready status.
-type SetReadyCommand struct {
-	cardinal.BaseCommand
-	PartyID string `json:"party_id"`
-	IsReady bool   `json:"is_ready"`
-}
-
-// Name returns the command name.
-func (SetReadyCommand) Name() string { return "lobby_set_ready" }
-
-// StartGameCommand starts the game (lobby host only).
-type StartGameCommand struct {
-	cardinal.BaseCommand
-	PartyID string `json:"party_id"` // Must be host
-	MatchID string `json:"match_id"`
-}
-
-// Name returns the command name.
-func (StartGameCommand) Name() string { return "lobby_start_game" }
 
 // EndGameCommand ends the game and transitions lobby to ended state.
 type EndGameCommand struct {
@@ -89,44 +33,15 @@ func (HeartbeatCommand) Name() string { return "lobby_heartbeat" }
 // Lobby Events
 // -----------------------------------------------------------------------------
 
-// LobbyCreatedEvent is emitted when a lobby is created.
+// LobbyCreatedEvent is emitted when a lobby is created from matchmaking.
 type LobbyCreatedEvent struct {
 	cardinal.BaseEvent
-	MatchID     string `json:"match_id"`
-	HostPartyID string `json:"host_party_id"`
+	MatchID          string `json:"match_id"`
+	MatchProfileName string `json:"match_profile_name"`
 }
 
 // Name returns the event name.
 func (LobbyCreatedEvent) Name() string { return "lobby_created" }
-
-// PartyJoinedLobbyEvent is emitted when a party joins a lobby.
-type PartyJoinedLobbyEvent struct {
-	cardinal.BaseEvent
-	MatchID string `json:"match_id"`
-	PartyID string `json:"party_id"`
-}
-
-// Name returns the event name.
-func (PartyJoinedLobbyEvent) Name() string { return "lobby_party_joined" }
-
-// PartyLeftLobbyEvent is emitted when a party leaves a lobby.
-type PartyLeftLobbyEvent struct {
-	cardinal.BaseEvent
-	MatchID string `json:"match_id"`
-	PartyID string `json:"party_id"`
-}
-
-// Name returns the event name.
-func (PartyLeftLobbyEvent) Name() string { return "lobby_party_left" }
-
-// LobbyReadyEvent is emitted when all parties are ready.
-type LobbyReadyEvent struct {
-	cardinal.BaseEvent
-	MatchID string `json:"match_id"`
-}
-
-// Name returns the event name.
-func (LobbyReadyEvent) Name() string { return "lobby_ready" }
 
 // GameStartedEvent is emitted when the game starts.
 type GameStartedEvent struct {
@@ -150,20 +65,9 @@ type GameEndedEvent struct {
 // Name returns the event name.
 func (GameEndedEvent) Name() string { return "lobby_game_ended" }
 
-// LobbyDisbandedEvent is emitted when a lobby is disbanded.
-type LobbyDisbandedEvent struct {
-	cardinal.BaseEvent
-	MatchID string `json:"match_id"`
-	Reason  string `json:"reason"`
-}
-
-// Name returns the event name.
-func (LobbyDisbandedEvent) Name() string { return "lobby_disbanded" }
-
 // LobbyErrorEvent is emitted when a lobby operation fails.
 type LobbyErrorEvent struct {
 	cardinal.BaseEvent
-	PartyID string `json:"party_id,omitempty"`
 	MatchID string `json:"match_id,omitempty"`
 	Error   string `json:"error"`
 }
@@ -171,14 +75,27 @@ type LobbyErrorEvent struct {
 // Name returns the event name.
 func (LobbyErrorEvent) Name() string { return "lobby_error" }
 
+// PlayerDisconnectedEvent is emitted when a player is marked as disconnected.
+type PlayerDisconnectedEvent struct {
+	cardinal.BaseEvent
+	MatchID   string   `json:"match_id"`
+	PartyID   string   `json:"party_id"`
+	TeamName  string   `json:"team_name"`
+	PlayerIDs []string `json:"player_ids"`
+}
+
+// Name returns the event name.
+func (PlayerDisconnectedEvent) Name() string { return "lobby_player_disconnected" }
+
 // -----------------------------------------------------------------------------
 // Cross-Shard Communication Types
 // -----------------------------------------------------------------------------
 
-// LobbyTeamInfo represents a team for lobby creation (from matchmaking).
+// LobbyTeamInfo represents a team in lobby info (used for cross-shard communication).
 type LobbyTeamInfo struct {
-	TeamName string   `json:"team_name"`
-	PartyIDs []string `json:"party_ids"`
+	TeamName  string   `json:"team_name"`
+	PartyIDs  []string `json:"party_ids"`
+	PlayerIDs []string `json:"player_ids"`
 }
 
 // CreateLobbyFromMatchEvent is received from matchmaking system (same shard).
@@ -225,6 +142,30 @@ type NotifyGameStartEvent struct {
 // Name returns the system event name.
 func (NotifyGameStartEvent) Name() string { return "lobby_notify_game_start" }
 
+// NotifyGameEndCommand is received from game shard when game ends (cross-shard).
+type NotifyGameEndCommand struct {
+	cardinal.BaseCommand
+	MatchID string            `json:"match_id"`
+	Results map[string]string `json:"results,omitempty"`
+}
+
+// Name returns the command name.
+func (NotifyGameEndCommand) Name() string { return "game_notify_lobby_end" }
+
+// PlayerDisconnectedCommand is received from game shard when a player disconnects.
+// This marks the party as disconnected in the lobby (state tracking only).
+// Game shard is responsible for deciding whether to request backfill from matchmaking.
+type PlayerDisconnectedCommand struct {
+	cardinal.BaseCommand
+	MatchID   string   `json:"match_id"`
+	PartyID   string   `json:"party_id"`
+	TeamName  string   `json:"team_name"`
+	PlayerIDs []string `json:"player_ids"`
+}
+
+// Name returns the command name.
+func (PlayerDisconnectedCommand) Name() string { return "game_player_disconnected" }
+
 // -----------------------------------------------------------------------------
 // Lobby System State
 // -----------------------------------------------------------------------------
@@ -234,29 +175,16 @@ type LobbySystemState struct {
 	cardinal.BaseSystemState
 
 	// Commands
-	CreateLobbyCmds cardinal.WithCommand[CreateLobbyCommand]
-	JoinLobbyCmds   cardinal.WithCommand[JoinLobbyCommand]
-	LeaveLobbyCmds  cardinal.WithCommand[LeaveLobbyCommand]
-	SetReadyCmds    cardinal.WithCommand[SetReadyCommand]
-	StartGameCmds   cardinal.WithCommand[StartGameCommand]
-	EndGameCmds     cardinal.WithCommand[EndGameCommand]
-	HeartbeatCmds   cardinal.WithCommand[HeartbeatCommand]
+	EndGameCmds   cardinal.WithCommand[EndGameCommand]
+	HeartbeatCmds cardinal.WithCommand[HeartbeatCommand]
 
 	// Entities
 	Lobbies cardinal.Contains[struct {
 		Lobby cardinal.Ref[component.LobbyComponent]
 	}]
 
-	Parties cardinal.Contains[struct {
-		Party cardinal.Ref[component.PartyComponent]
-	}]
-
 	LobbyIndexes cardinal.Contains[struct {
 		Index cardinal.Ref[component.LobbyIndexComponent]
-	}]
-
-	PartyIndexes cardinal.Contains[struct {
-		Index cardinal.Ref[component.PartyIndexComponent]
 	}]
 
 	Configs cardinal.Contains[struct {
@@ -264,17 +192,20 @@ type LobbySystemState struct {
 	}]
 
 	// Events (client-facing)
-	LobbyCreatedEvents     cardinal.WithEvent[LobbyCreatedEvent]
-	PartyJoinedLobbyEvents cardinal.WithEvent[PartyJoinedLobbyEvent]
-	PartyLeftLobbyEvents   cardinal.WithEvent[PartyLeftLobbyEvent]
-	LobbyReadyEvents       cardinal.WithEvent[LobbyReadyEvent]
-	GameStartedEvents      cardinal.WithEvent[GameStartedEvent]
-	GameEndedEvents        cardinal.WithEvent[GameEndedEvent]
-	LobbyDisbandedEvents   cardinal.WithEvent[LobbyDisbandedEvent]
-	LobbyErrorEvents       cardinal.WithEvent[LobbyErrorEvent]
+	LobbyCreatedEvents cardinal.WithEvent[LobbyCreatedEvent]
+	GameStartedEvents  cardinal.WithEvent[GameStartedEvent]
+	GameEndedEvents    cardinal.WithEvent[GameEndedEvent]
+	LobbyErrorEvents   cardinal.WithEvent[LobbyErrorEvent]
 
 	// Cross-shard Commands (from matchmaking shard)
 	CreateLobbyFromMatchCmds cardinal.WithCommand[CreateLobbyFromMatchCommand]
+
+	// Cross-shard Commands (from game shard)
+	NotifyGameEndCmds      cardinal.WithCommand[NotifyGameEndCommand]
+	PlayerDisconnectedCmds cardinal.WithCommand[PlayerDisconnectedCommand]
+
+	// Events (client-facing) - disconnect
+	PlayerDisconnectedEvents cardinal.WithEvent[PlayerDisconnectedEvent]
 
 	// System Events (same-shard communication)
 	CreateLobbyFromMatchEvents cardinal.WithSystemEventReceiver[CreateLobbyFromMatchEvent]
@@ -294,15 +225,6 @@ func LobbySystem(state *LobbySystemState) error {
 		break
 	}
 
-	// Get party index
-	var partyIndex component.PartyIndexComponent
-	var partyIndexEntityID ecs.EntityID
-	for eid, idx := range state.PartyIndexes.Iter() {
-		partyIndex = idx.Index.Get()
-		partyIndexEntityID = eid
-		break
-	}
-
 	// Get config
 	var config component.ConfigComponent
 	for _, cfg := range state.Configs.Iter() {
@@ -313,407 +235,17 @@ func LobbySystem(state *LobbySystemState) error {
 	// Process CreateLobbyFromMatch commands (cross-shard from matchmaking)
 	for cmd := range state.CreateLobbyFromMatchCmds.Iter() {
 		payload := cmd.Payload()
-		createLobbyFromMatch(state, &lobbyIndex, &partyIndex, payload.MatchID, payload.ProfileName, payload.Teams, now)
+		state.Logger().Info().
+			Str("match_id", payload.MatchID).
+			Str("profile", payload.ProfileName).
+			Int("teams", len(payload.Teams)).
+			Msg("[CROSS-SHARD] Received CreateLobbyFromMatch command from matchmaking shard")
+		createLobbyFromMatch(state, &lobbyIndex, &config, payload.MatchID, payload.ProfileName, payload.Teams, now)
 	}
 
 	// Process CreateLobbyFromMatch events (same-shard from matchmaking)
 	for event := range state.CreateLobbyFromMatchEvents.Iter() {
-		createLobbyFromMatch(state, &lobbyIndex, &partyIndex, event.MatchID, event.ProfileName, event.Teams, now)
-	}
-
-	// Process create lobby commands
-	for cmd := range state.CreateLobbyCmds.Iter() {
-		payload := cmd.Payload()
-
-		matchID := payload.MatchID
-		if matchID == "" {
-			matchID = uuid.New().String()
-		}
-
-		// Check if lobby already exists
-		if _, exists := lobbyIndex.GetEntityID(matchID); exists {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				MatchID: matchID,
-				Error:   "lobby already exists",
-			})
-			continue
-		}
-
-		// Create lobby
-		eid, lobbyEntity := state.Lobbies.Create()
-		lobby := component.LobbyComponent{
-			MatchID:          matchID,
-			HostPartyID:      payload.HostPartyID,
-			Parties:          []string{payload.HostPartyID},
-			Teams:            payload.Teams,
-			State:            component.LobbyStateWaiting,
-			MatchProfileName: payload.MatchProfileName,
-			GameShardID:      config.GameShardID,
-			Config:           payload.Config,
-			MinPlayers:       payload.MinPlayers,
-			MaxPlayers:       payload.MaxPlayers,
-			CreatedAt:        now,
-		}
-
-		// If teams are provided, add all parties from teams
-		if len(payload.Teams) > 0 {
-			lobby.Parties = []string{}
-			for _, team := range payload.Teams {
-				lobby.Parties = append(lobby.Parties, team.PartyIDs...)
-			}
-		}
-
-		lobbyEntity.Lobby.Set(lobby)
-
-		// Update lobby index
-		lobbyIndex.AddLobby(matchID, uint32(eid), component.LobbyStateWaiting)
-
-		// Update party index and party lobby references
-		for _, partyID := range lobby.Parties {
-			partyIndex.SetPartyLobby(partyID, matchID)
-
-			// Update party's LobbyID
-			if partyEntityID, exists := partyIndex.GetEntityID(partyID); exists {
-				if partyEntity, ok := state.Parties.GetByID(ecs.EntityID(partyEntityID)); ok {
-					party := partyEntity.Party.Get()
-					party.LobbyID = matchID
-					partyEntity.Party.Set(party)
-				}
-			}
-		}
-
-		// Emit event
-		state.LobbyCreatedEvents.Emit(LobbyCreatedEvent{
-			MatchID:     matchID,
-			HostPartyID: payload.HostPartyID,
-		})
-
-		state.Logger().Info().
-			Str("match_id", matchID).
-			Str("host", payload.HostPartyID).
-			Int("parties", len(lobby.Parties)).
-			Msg("Created lobby")
-	}
-
-	// Process join lobby commands
-	for cmd := range state.JoinLobbyCmds.Iter() {
-		payload := cmd.Payload()
-
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.MatchID)
-		if !exists {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: payload.MatchID,
-				Error:   "lobby not found",
-			})
-			continue
-		}
-
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
-
-		// Check if lobby can accept joins
-		if !lobby.CanJoin() {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: payload.MatchID,
-				Error:   "lobby is not accepting joins",
-			})
-			continue
-		}
-
-		// Check if party already in lobby
-		if lobby.HasParty(payload.PartyID) {
-			continue
-		}
-
-		// Check if party is in another lobby
-		if existingLobbyID, _ := partyIndex.GetPartyByPlayer(payload.PartyID); existingLobbyID != "" {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: payload.MatchID,
-				Error:   "party already in another lobby",
-			})
-			continue
-		}
-
-		// Add party to lobby
-		lobby.AddParty(payload.PartyID)
-		lobbyEntity.Lobby.Set(lobby)
-
-		// Update indexes
-		partyIndex.SetPartyLobby(payload.PartyID, payload.MatchID)
-
-		// Update party's LobbyID
-		if partyEntityID, exists := partyIndex.GetEntityID(payload.PartyID); exists {
-			if partyEntity, ok := state.Parties.GetByID(ecs.EntityID(partyEntityID)); ok {
-				party := partyEntity.Party.Get()
-				party.LobbyID = payload.MatchID
-				partyEntity.Party.Set(party)
-			}
-		}
-
-		// Emit event
-		state.PartyJoinedLobbyEvents.Emit(PartyJoinedLobbyEvent{
-			MatchID: payload.MatchID,
-			PartyID: payload.PartyID,
-		})
-
-		state.Logger().Debug().
-			Str("match_id", payload.MatchID).
-			Str("party", payload.PartyID).
-			Msg("Party joined lobby")
-	}
-
-	// Process leave lobby commands
-	for cmd := range state.LeaveLobbyCmds.Iter() {
-		payload := cmd.Payload()
-
-		// Get party's current lobby
-		partyEntityID, exists := partyIndex.GetEntityID(payload.PartyID)
-		if !exists {
-			continue
-		}
-
-		partyEntity, ok := state.Parties.GetByID(ecs.EntityID(partyEntityID))
-		if !ok {
-			continue
-		}
-
-		party := partyEntity.Party.Get()
-		if party.LobbyID == "" {
-			continue
-		}
-
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(party.LobbyID)
-		if !exists {
-			continue
-		}
-
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
-
-		// Check if can leave
-		if !lobby.CanLeave() {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: lobby.MatchID,
-				Error:   "cannot leave lobby during game",
-			})
-			continue
-		}
-
-		matchID := lobby.MatchID
-
-		// Remove party from lobby
-		lobby.RemoveParty(payload.PartyID)
-		lobbyEntity.Lobby.Set(lobby)
-
-		// Update indexes
-		partyIndex.SetPartyLobby(payload.PartyID, "")
-		party.LobbyID = ""
-		party.IsReady = false
-		partyEntity.Party.Set(party)
-
-		// Emit event
-		state.PartyLeftLobbyEvents.Emit(PartyLeftLobbyEvent{
-			MatchID: matchID,
-			PartyID: payload.PartyID,
-		})
-
-		state.Logger().Debug().
-			Str("match_id", matchID).
-			Str("party", payload.PartyID).
-			Msg("Party left lobby")
-
-		// If lobby is empty, disband it
-		if lobby.PartyCount() == 0 {
-			lobbyIndex.RemoveLobby(matchID)
-			state.Lobbies.Destroy(ecs.EntityID(lobbyEntityID))
-			state.LobbyDisbandedEvents.Emit(LobbyDisbandedEvent{
-				MatchID: matchID,
-				Reason:  "all parties left",
-			})
-		} else if lobby.HostPartyID == payload.PartyID && len(lobby.Parties) > 0 {
-			// If host left, assign new host
-			lobby.HostPartyID = lobby.Parties[0]
-			lobbyEntity.Lobby.Set(lobby)
-		}
-	}
-
-	// Process set ready commands
-	for cmd := range state.SetReadyCmds.Iter() {
-		payload := cmd.Payload()
-
-		partyEntityID, exists := partyIndex.GetEntityID(payload.PartyID)
-		if !exists {
-			continue
-		}
-
-		partyEntity, ok := state.Parties.GetByID(ecs.EntityID(partyEntityID))
-		if !ok {
-			continue
-		}
-
-		party := partyEntity.Party.Get()
-		if party.LobbyID == "" {
-			continue
-		}
-
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(party.LobbyID)
-		if !exists {
-			continue
-		}
-
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
-
-		// Can only set ready in waiting state
-		if lobby.State != component.LobbyStateWaiting {
-			continue
-		}
-
-		party.IsReady = payload.IsReady
-		partyEntity.Party.Set(party)
-
-		state.Logger().Debug().
-			Str("match_id", lobby.MatchID).
-			Str("party", payload.PartyID).
-			Bool("ready", payload.IsReady).
-			Msg("Party ready status changed")
-
-		// Check if all parties are ready
-		if payload.IsReady {
-			allReady := true
-			for _, partyID := range lobby.Parties {
-				if peid, exists := partyIndex.GetEntityID(partyID); exists {
-					if pe, ok := state.Parties.GetByID(ecs.EntityID(peid)); ok {
-						if !pe.Party.Get().IsReady {
-							allReady = false
-							break
-						}
-					}
-				}
-			}
-
-			if allReady {
-				lobby.State = component.LobbyStateReady
-				lobbyEntity.Lobby.Set(lobby)
-				lobbyIndex.UpdateLobbyState(lobby.MatchID, component.LobbyStateWaiting, component.LobbyStateReady)
-
-				state.LobbyReadyEvents.Emit(LobbyReadyEvent{
-					MatchID: lobby.MatchID,
-				})
-
-				state.Logger().Info().
-					Str("match_id", lobby.MatchID).
-					Msg("All parties ready")
-			}
-		}
-	}
-
-	// Process start game commands
-	for cmd := range state.StartGameCmds.Iter() {
-		payload := cmd.Payload()
-
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.MatchID)
-		if !exists {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: payload.MatchID,
-				Error:   "lobby not found",
-			})
-			continue
-		}
-
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
-
-		// Check if party is host
-		if !lobby.IsHost(payload.PartyID) {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: payload.MatchID,
-				Error:   "only host can start game",
-			})
-			continue
-		}
-
-		// Check if can start
-		if !lobby.CanStart() {
-			state.LobbyErrorEvents.Emit(LobbyErrorEvent{
-				PartyID: payload.PartyID,
-				MatchID: payload.MatchID,
-				Error:   "lobby is not ready to start",
-			})
-			continue
-		}
-
-		// Transition to in_game
-		oldState := lobby.State
-		lobby.State = component.LobbyStateInGame
-		lobby.StartedAt = now
-		lobbyEntity.Lobby.Set(lobby)
-
-		lobbyIndex.UpdateLobbyState(lobby.MatchID, oldState, component.LobbyStateInGame)
-
-		// Emit client-facing event
-		state.GameStartedEvents.Emit(GameStartedEvent{
-			MatchID:          lobby.MatchID,
-			Teams:            lobby.Teams,
-			MatchProfileName: lobby.MatchProfileName,
-			Config:           lobby.Config,
-		})
-
-		// Notify game shard (same-shard or cross-shard)
-		if config.GameShardID != "" {
-			// Cross-shard: send command to game shard
-			gameWorld := cardinal.OtherWorld{
-				ShardID: config.GameShardID,
-			}
-			gameWorld.Send(&state.BaseSystemState, NotifyGameStartCommand{
-				MatchID:          lobby.MatchID,
-				Teams:            lobby.Teams,
-				MatchProfileName: lobby.MatchProfileName,
-				Config:           lobby.Config,
-			})
-			state.Logger().Debug().
-				Str("match_id", lobby.MatchID).
-				Str("game_shard", config.GameShardID).
-				Msg("Sent NotifyGameStartCommand to game shard")
-		} else {
-			// Same-shard: emit system event for game system to receive
-			state.NotifyGameStartEvents.Emit(NotifyGameStartEvent{
-				MatchID:          lobby.MatchID,
-				Teams:            lobby.Teams,
-				MatchProfileName: lobby.MatchProfileName,
-				Config:           lobby.Config,
-			})
-			state.Logger().Debug().
-				Str("match_id", lobby.MatchID).
-				Msg("Emitted NotifyGameStartEvent (same-shard)")
-		}
-
-		state.Logger().Info().
-			Str("match_id", lobby.MatchID).
-			Int("parties", lobby.PartyCount()).
-			Msg("Game started")
+		createLobbyFromMatch(state, &lobbyIndex, &config, event.MatchID, event.ProfileName, event.Teams, now)
 	}
 
 	// Process end game commands
@@ -737,24 +269,8 @@ func LobbySystem(state *LobbySystemState) error {
 			continue
 		}
 
-		oldState := lobby.State
 		lobby.State = component.LobbyStateEnded
 		lobbyEntity.Lobby.Set(lobby)
-
-		lobbyIndex.UpdateLobbyState(lobby.MatchID, oldState, component.LobbyStateEnded)
-
-		// Clear party lobby references
-		for _, partyID := range lobby.Parties {
-			partyIndex.SetPartyLobby(partyID, "")
-			if peid, exists := partyIndex.GetEntityID(partyID); exists {
-				if pe, ok := state.Parties.GetByID(ecs.EntityID(peid)); ok {
-					p := pe.Party.Get()
-					p.LobbyID = ""
-					p.IsReady = false
-					pe.Party.Set(p)
-				}
-			}
-		}
 
 		// Emit event
 		state.GameEndedEvents.Emit(GameEndedEvent{
@@ -769,6 +285,96 @@ func LobbySystem(state *LobbySystemState) error {
 		// Remove lobby after game ends
 		lobbyIndex.RemoveLobby(lobby.MatchID)
 		state.Lobbies.Destroy(ecs.EntityID(lobbyEntityID))
+	}
+
+	// Process NotifyGameEnd commands (cross-shard from game shard)
+	for cmd := range state.NotifyGameEndCmds.Iter() {
+		payload := cmd.Payload()
+		state.Logger().Info().
+			Str("match_id", payload.MatchID).
+			Msg("[CROSS-SHARD] Received NotifyGameEnd command from game shard")
+
+		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.MatchID)
+		if !exists {
+			continue
+		}
+
+		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+		if !ok {
+			continue
+		}
+
+		lobby := lobbyEntity.Lobby.Get()
+		if lobby.State != component.LobbyStateInGame {
+			continue
+		}
+
+		lobby.State = component.LobbyStateEnded
+		lobbyEntity.Lobby.Set(lobby)
+
+		state.Logger().Info().
+			Str("match_id", lobby.MatchID).
+			Msg("Lobby state transition: game ended")
+
+		state.GameEndedEvents.Emit(GameEndedEvent{
+			MatchID: lobby.MatchID,
+			Results: payload.Results,
+		})
+
+		lobbyIndex.RemoveLobby(lobby.MatchID)
+		state.Lobbies.Destroy(ecs.EntityID(lobbyEntityID))
+	}
+
+	// Process PlayerDisconnected commands (cross-shard from game shard)
+	for cmd := range state.PlayerDisconnectedCmds.Iter() {
+		payload := cmd.Payload()
+		state.Logger().Info().
+			Str("match_id", payload.MatchID).
+			Str("party_id", payload.PartyID).
+			Str("team_name", payload.TeamName).
+			Strs("player_ids", payload.PlayerIDs).
+			Msg("[CROSS-SHARD] Received PlayerDisconnected command from game shard")
+
+		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.MatchID)
+		if !exists {
+			state.Logger().Warn().
+				Str("match_id", payload.MatchID).
+				Msg("PlayerDisconnected: lobby not found")
+			continue
+		}
+
+		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+		if !ok {
+			continue
+		}
+
+		lobby := lobbyEntity.Lobby.Get()
+
+		// Only process if lobby is in_game
+		if lobby.State != component.LobbyStateInGame {
+			state.Logger().Warn().
+				Str("match_id", payload.MatchID).
+				Str("state", string(lobby.State)).
+				Msg("PlayerDisconnected: lobby not in_game")
+			continue
+		}
+
+		// Mark party as disconnected
+		lobby.MarkDisconnected(payload.PartyID)
+		lobbyEntity.Lobby.Set(lobby)
+
+		// Emit event - game shard can listen for this and decide whether to request backfill
+		state.PlayerDisconnectedEvents.Emit(PlayerDisconnectedEvent{
+			MatchID:   payload.MatchID,
+			PartyID:   payload.PartyID,
+			TeamName:  payload.TeamName,
+			PlayerIDs: payload.PlayerIDs,
+		})
+
+		state.Logger().Info().
+			Str("match_id", payload.MatchID).
+			Str("party_id", payload.PartyID).
+			Msg("Party marked as disconnected - game shard should request backfill if needed")
 	}
 
 	// Process heartbeat commands
@@ -817,32 +423,15 @@ func LobbySystem(state *LobbySystemState) error {
 					Results: map[string]string{"reason": "heartbeat_timeout"},
 				})
 
-				// Clean up
-				for _, partyID := range lobby.Parties {
-					partyIndex.SetPartyLobby(partyID, "")
-					if peid, exists := partyIndex.GetEntityID(partyID); exists {
-						if pe, ok := state.Parties.GetByID(ecs.EntityID(peid)); ok {
-							p := pe.Party.Get()
-							p.LobbyID = ""
-							p.IsReady = false
-							pe.Party.Set(p)
-						}
-					}
-				}
-
 				lobbyIndex.RemoveLobby(matchID)
 				state.Lobbies.Destroy(ecs.EntityID(lobbyEntityID))
 			}
 		}
 	}
 
-	// Save indexes back
+	// Save lobby index
 	if lobbyIndexEntity, ok := state.LobbyIndexes.GetByID(lobbyIndexEntityID); ok {
 		lobbyIndexEntity.Index.Set(lobbyIndex)
-	}
-
-	if partyIndexEntity, ok := state.PartyIndexes.GetByID(partyIndexEntityID); ok {
-		partyIndexEntity.Index.Set(partyIndex)
 	}
 
 	return nil
@@ -850,10 +439,11 @@ func LobbySystem(state *LobbySystemState) error {
 
 // createLobbyFromMatch creates a lobby from a matchmaking result.
 // This is called for both same-shard (SystemEvent) and cross-shard (Command) scenarios.
+// Lobby immediately transitions to in_game state.
 func createLobbyFromMatch(
 	state *LobbySystemState,
 	lobbyIndex *component.LobbyIndexComponent,
-	partyIndex *component.PartyIndexComponent,
+	config *component.ConfigComponent,
 	matchID string,
 	profileName string,
 	teams []LobbyTeamInfo,
@@ -871,54 +461,37 @@ func createLobbyFromMatch(
 	// Convert LobbyTeamInfo to component.LobbyTeam
 	componentTeams := make([]component.LobbyTeam, len(teams))
 	var allParties []string
-	var hostPartyID string
 
 	for i, team := range teams {
 		componentTeams[i] = component.LobbyTeam{
-			TeamName: team.TeamName,
-			PartyIDs: team.PartyIDs,
+			TeamName:  team.TeamName,
+			PartyIDs:  team.PartyIDs,
+			PlayerIDs: team.PlayerIDs,
 		}
 		allParties = append(allParties, team.PartyIDs...)
-		// First party in first team is the host
-		if hostPartyID == "" && len(team.PartyIDs) > 0 {
-			hostPartyID = team.PartyIDs[0]
-		}
 	}
 
-	// Create lobby
+	// Create lobby - immediately in_game state
 	eid, lobbyEntity := state.Lobbies.Create()
 	lobby := component.LobbyComponent{
 		MatchID:          matchID,
-		HostPartyID:      hostPartyID,
 		Parties:          allParties,
 		Teams:            componentTeams,
-		State:            component.LobbyStateWaiting,
+		State:            component.LobbyStateInGame,
 		MatchProfileName: profileName,
 		CreatedAt:        now,
+		StartedAt:        now,
+		LastHeartbeat:    now,
 	}
 	lobbyEntity.Lobby.Set(lobby)
 
 	// Update lobby index
-	lobbyIndex.AddLobby(matchID, uint32(eid), component.LobbyStateWaiting)
+	lobbyIndex.AddLobby(matchID, uint32(eid))
 
-	// Update party index and party lobby references
-	for _, partyID := range allParties {
-		partyIndex.SetPartyLobby(partyID, matchID)
-
-		// Update party's LobbyID if party entity exists
-		if partyEntityID, exists := partyIndex.GetEntityID(partyID); exists {
-			if partyEntity, ok := state.Parties.GetByID(ecs.EntityID(partyEntityID)); ok {
-				party := partyEntity.Party.Get()
-				party.LobbyID = matchID
-				partyEntity.Party.Set(party)
-			}
-		}
-	}
-
-	// Emit event
+	// Emit lobby created event
 	state.LobbyCreatedEvents.Emit(LobbyCreatedEvent{
-		MatchID:     matchID,
-		HostPartyID: hostPartyID,
+		MatchID:          matchID,
+		MatchProfileName: profileName,
 	})
 
 	state.Logger().Info().
@@ -926,5 +499,53 @@ func createLobbyFromMatch(
 		Str("profile", profileName).
 		Int("parties", len(allParties)).
 		Int("teams", len(teams)).
-		Msg("Created lobby from match")
+		Str("state", "in_game").
+		Msg("Lobby created from match - game started")
+
+	// Log team distribution for determinism verification
+	for i, team := range componentTeams {
+		state.Logger().Info().
+			Str("match_id", matchID).
+			Int("team_index", i).
+			Str("team_name", team.TeamName).
+			Strs("party_ids", team.PartyIDs).
+			Msg("Team distribution")
+	}
+
+	// Emit game started event
+	state.GameStartedEvents.Emit(GameStartedEvent{
+		MatchID:          matchID,
+		Teams:            componentTeams,
+		MatchProfileName: profileName,
+	})
+
+	// Notify game shard (same-shard or cross-shard)
+	if config.GameShardID != "" {
+		// Cross-shard: send command to game shard
+		gameWorld := cardinal.OtherWorld{
+			Region:       config.GameRegion,
+			Organization: config.GameOrganization,
+			Project:      config.GameProject,
+			ShardID:      config.GameShardID,
+		}
+		gameWorld.Send(&state.BaseSystemState, NotifyGameStartCommand{
+			MatchID:          matchID,
+			Teams:            componentTeams,
+			MatchProfileName: profileName,
+		})
+		state.Logger().Info().
+			Str("match_id", matchID).
+			Str("game_shard", config.GameShardID).
+			Msg("[CROSS-SHARD] Sent NotifyGameStartCommand to game shard")
+	} else {
+		// Same-shard: emit system event for game system to receive
+		state.NotifyGameStartEvents.Emit(NotifyGameStartEvent{
+			MatchID:          matchID,
+			Teams:            componentTeams,
+			MatchProfileName: profileName,
+		})
+		state.Logger().Info().
+			Str("match_id", matchID).
+			Msg("Emitted NotifyGameStartEvent (same-shard)")
+	}
 }

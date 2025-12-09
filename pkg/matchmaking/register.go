@@ -77,6 +77,18 @@ type Config struct {
 	// LobbyShardID is the shard ID for cross-shard lobby communication.
 	// If empty, same-shard communication via SystemEvents is used.
 	LobbyShardID string
+
+	// LobbyRegion is the region for the lobby shard (for cross-shard).
+	// Required when LobbyShardID is set.
+	LobbyRegion string
+
+	// LobbyOrganization is the organization for the lobby shard (for cross-shard).
+	// Required when LobbyShardID is set.
+	LobbyOrganization string
+
+	// LobbyProject is the project for the lobby shard (for cross-shard).
+	// Required when LobbyShardID is set.
+	LobbyProject string
 }
 
 // Register registers the matchmaking systems with the given world.
@@ -93,6 +105,9 @@ func Register(world *cardinal.World, config Config) {
 	// Store config for init system to use
 	system.SetConfig(component.ConfigComponent{
 		LobbyShardID:       config.LobbyShardID,
+		LobbyRegion:        config.LobbyRegion,
+		LobbyOrganization:  config.LobbyOrganization,
+		LobbyProject:       config.LobbyProject,
 		DefaultTTLSeconds:  config.DefaultTTLSeconds,
 		BackfillTTLSeconds: config.BackfillTTLSeconds,
 	})

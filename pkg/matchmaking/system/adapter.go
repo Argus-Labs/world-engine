@@ -82,13 +82,15 @@ func (p *profileAdapter) GetTeamCompositionMap(teamIndex int) map[string]int {
 	}
 	team := p.profile.Teams[teamIndex]
 
-	// Build composition from pools
+	// Build composition by counting pool occurrences in team.Pools
+	// e.g., ["tank", "dps", "dps", "dps", "support"] -> {tank: 1, dps: 3, support: 1}
+	if len(team.Pools) == 0 {
+		return nil
+	}
+
 	composition := make(map[string]int)
 	for _, poolName := range team.Pools {
-		pool, found := p.profile.GetPool(poolName)
-		if found {
-			composition[poolName] = pool.MaxPlayers
-		}
+		composition[poolName]++
 	}
 	return composition
 }

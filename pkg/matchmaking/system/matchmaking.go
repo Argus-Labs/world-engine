@@ -41,11 +41,12 @@ func (CancelTicketCommand) Name() string { return "matchmaking_cancel_ticket" }
 // CreateBackfillCommand creates a backfill request.
 type CreateBackfillCommand struct {
 	cardinal.BaseCommand
-	MatchID     string `json:"match_id"`
-	ProfileName string `json:"profile_name"`
-	TeamName    string `json:"team_name"`
-	SlotsNeeded int    `json:"slots_needed"`
-	TTLSeconds  int64  `json:"ttl_seconds,omitempty"`
+	MatchID          string                `json:"match_id"`
+	ProfileName      string                `json:"profile_name"`
+	TeamName         string                `json:"team_name"`
+	SlotsNeeded      int                   `json:"slots_needed"`                         // Simple slot count (for non-role-based backfill)
+	SlotsNeededByRole []RequestBackfillSlot `json:"slots_needed_by_role,omitempty"` // Role-specific slots (for role-based backfill)
+	TTLSeconds       int64                 `json:"ttl_seconds,omitempty"`
 }
 
 // Name returns the command name.
@@ -59,6 +60,25 @@ type CancelBackfillCommand struct {
 
 // Name returns the command name.
 func (CancelBackfillCommand) Name() string { return "matchmaking_cancel_backfill" }
+
+// RequestBackfillSlot represents a slot needed for a specific pool/role.
+type RequestBackfillSlot struct {
+	PoolName string `json:"pool_name"`
+	Count    int    `json:"count"`
+}
+
+// RequestBackfillCommand is received from lobby shard when backfill is needed.
+// This is used for role-based backfill where specific slots are needed.
+type RequestBackfillCommand struct {
+	cardinal.BaseCommand
+	MatchID     string                `json:"match_id"`
+	ProfileName string                `json:"profile_name"`
+	TeamName    string                `json:"team_name"`
+	Slots       []RequestBackfillSlot `json:"slots"` // Role-specific slots needed
+}
+
+// Name returns the command name.
+func (RequestBackfillCommand) Name() string { return "lobby_request_backfill" }
 
 // -----------------------------------------------------------------------------
 // Events
@@ -97,6 +117,7 @@ func (TicketErrorEvent) Name() string { return "matchmaking_ticket_error" }
 type MatchTeam struct {
 	TeamName  string   `json:"team_name"`
 	TicketIDs []string `json:"ticket_ids"`
+	PlayerIDs []string `json:"player_ids"` // Actual player IDs for display/logging
 }
 
 // MatchFoundEvent is emitted when a match is found.
@@ -117,6 +138,7 @@ type BackfillMatchEvent struct {
 	MatchID    string   `json:"match_id"`
 	TeamName   string   `json:"team_name"`
 	TicketIDs  []string `json:"ticket_ids"`
+	PlayerIDs  []string `json:"player_ids"` // Actual player IDs for display/logging
 }
 
 // Name returns the event name.
@@ -128,8 +150,9 @@ func (BackfillMatchEvent) Name() string { return "matchmaking_backfill_match" }
 
 // LobbyTeamInfo represents a team for lobby creation.
 type LobbyTeamInfo struct {
-	TeamName string   `json:"team_name"`
-	PartyIDs []string `json:"party_ids"` // PartyIDs are the same as TicketIDs for matchmaking
+	TeamName  string     `json:"team_name"`
+	PartyIDs  []string   `json:"party_ids"`  // PartyIDs are the same as TicketIDs for matchmaking
+	PlayerIDs []string   `json:"player_ids"` // Actual player IDs for display/logging
 }
 
 // CreateLobbyFromMatchEvent is a system event sent to lobby system (same shard).
@@ -164,10 +187,11 @@ type MatchmakingSystemState struct {
 	cardinal.BaseSystemState
 
 	// Commands
-	CreateTicketCmds   cardinal.WithCommand[CreateTicketCommand]
-	CancelTicketCmds   cardinal.WithCommand[CancelTicketCommand]
-	CreateBackfillCmds cardinal.WithCommand[CreateBackfillCommand]
-	CancelBackfillCmds cardinal.WithCommand[CancelBackfillCommand]
+	CreateTicketCmds    cardinal.WithCommand[CreateTicketCommand]
+	CancelTicketCmds    cardinal.WithCommand[CancelTicketCommand]
+	CreateBackfillCmds  cardinal.WithCommand[CreateBackfillCommand]
+	CancelBackfillCmds  cardinal.WithCommand[CancelBackfillCommand]
+	RequestBackfillCmds cardinal.WithCommand[RequestBackfillCommand]
 
 	// Entities
 	Tickets cardinal.Contains[struct {
@@ -262,13 +286,20 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 			continue
 		}
 
-		// Validate: check if profile exists
-		if _, exists := profileIndex.GetEntityID(payload.ProfileName); !exists {
+		// Validate: check if profile exists and get it for pool matching
+		profileEntityID, profileExists := profileIndex.GetEntityID(payload.ProfileName)
+		if !profileExists {
 			state.TicketErrorEvents.Emit(TicketErrorEvent{
 				PartyID: payload.PartyID,
 				Error:   "unknown profile: " + payload.ProfileName,
 			})
 			continue
+		}
+
+		// Get profile to compute pool counts
+		var profile component.ProfileComponent
+		if profileEntity, ok := state.Profiles.GetByID(ecs.EntityID(profileEntityID)); ok {
+			profile = profileEntity.Profile.Get()
 		}
 
 		// Calculate TTL
@@ -283,7 +314,7 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 		// Create ticket
 		ticketID := uuid.New().String()
 		eid, ticketEntity := state.Tickets.Create()
-		ticketEntity.Ticket.Set(component.TicketComponent{
+		ticket := component.TicketComponent{
 			ID:            ticketID,
 			PartyID:       payload.PartyID,
 			ProfileName:   payload.ProfileName,
@@ -292,7 +323,10 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 			CreatedAt:     now,
 			ExpiresAt:     now + ttl,
 			Attributes:    payload.Attributes,
-		})
+		}
+		// Compute pool counts based on player search fields matching pool filters
+		ticket.PoolCounts = ticket.ComputePoolCounts(profile.Pools)
+		ticketEntity.Ticket.Set(ticket)
 
 		// Update index
 		playerIDs := make([]string, len(payload.Players))
@@ -359,6 +393,21 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 			ttl = 60 // fallback 1 minute
 		}
 
+		// Handle role-specific slots if provided
+		var slots []component.BackfillSlot
+		slotsNeeded := payload.SlotsNeeded
+		if len(payload.SlotsNeededByRole) > 0 {
+			slots = make([]component.BackfillSlot, len(payload.SlotsNeededByRole))
+			slotsNeeded = 0
+			for i, slot := range payload.SlotsNeededByRole {
+				slots[i] = component.BackfillSlot{
+					PoolName: slot.PoolName,
+					Count:    slot.Count,
+				}
+				slotsNeeded += slot.Count
+			}
+		}
+
 		// Create backfill request
 		backfillID := uuid.New().String()
 		eid, backfillEntity := state.Backfills.Create()
@@ -367,7 +416,8 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 			MatchID:     payload.MatchID,
 			ProfileName: payload.ProfileName,
 			TeamName:    payload.TeamName,
-			SlotsNeeded: payload.SlotsNeeded,
+			SlotsNeeded: slotsNeeded,
+			Slots:       slots,
 			CreatedAt:   now,
 			ExpiresAt:   now + ttl,
 		})
@@ -378,7 +428,7 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 		state.Logger().Debug().
 			Str("backfill_id", backfillID).
 			Str("match_id", payload.MatchID).
-			Int("slots", payload.SlotsNeeded).
+			Int("slots", slotsNeeded).
 			Msg("Created backfill request")
 	}
 
@@ -407,6 +457,58 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 		state.Logger().Debug().
 			Str("backfill_id", payload.BackfillID).
 			Msg("Cancelled backfill request")
+	}
+
+	// Process RequestBackfill commands (cross-shard from lobby shard)
+	for cmd := range state.RequestBackfillCmds.Iter() {
+		payload := cmd.Payload()
+		state.Logger().Info().
+			Str("match_id", payload.MatchID).
+			Str("profile", payload.ProfileName).
+			Str("team", payload.TeamName).
+			Int("slots", len(payload.Slots)).
+			Msg("[CROSS-SHARD] Received RequestBackfill command from lobby shard")
+
+		// Calculate TTL
+		ttl := config.BackfillTTLSeconds
+		if ttl <= 0 {
+			ttl = 60 // fallback 1 minute
+		}
+
+		// Convert slots
+		slots := make([]component.BackfillSlot, len(payload.Slots))
+		totalSlots := 0
+		for i, slot := range payload.Slots {
+			slots[i] = component.BackfillSlot{
+				PoolName: slot.PoolName,
+				Count:    slot.Count,
+			}
+			totalSlots += slot.Count
+		}
+
+		// Create backfill request
+		backfillID := uuid.New().String()
+		eid, backfillEntity := state.Backfills.Create()
+		backfillEntity.Backfill.Set(component.BackfillComponent{
+			ID:          backfillID,
+			MatchID:     payload.MatchID,
+			ProfileName: payload.ProfileName,
+			TeamName:    payload.TeamName,
+			SlotsNeeded: totalSlots,
+			Slots:       slots,
+			CreatedAt:   now,
+			ExpiresAt:   now + ttl,
+		})
+
+		// Update index
+		backfillIndex.AddBackfill(backfillID, uint32(eid), payload.MatchID, payload.ProfileName)
+
+		state.Logger().Info().
+			Str("backfill_id", backfillID).
+			Str("match_id", payload.MatchID).
+			Str("profile", payload.ProfileName).
+			Int("total_slots", totalSlots).
+			Msg("Created backfill request from lobby disconnect")
 	}
 
 	// Expire old tickets
@@ -541,6 +643,12 @@ func runMatching(
 			continue
 		}
 
+		state.Logger().Debug().
+			Str("profile", profileName).
+			Int("candidates", len(candidates)).
+			Int("team_count", len(profile.Teams)).
+			Msg("Running matching algorithm")
+
 		// Create profile adapter
 		profileAdapter := &profileAdapter{profile: profile}
 
@@ -549,6 +657,10 @@ func runMatching(
 		output := algorithm.Run(input)
 
 		if !output.Success {
+			state.Logger().Debug().
+				Str("profile", profileName).
+				Int("candidates", len(candidates)).
+				Msg("Matching failed - not enough candidates or constraints not met")
 			continue
 		}
 
@@ -559,16 +671,25 @@ func runMatching(
 			teams[i] = MatchTeam{
 				TeamName:  profile.Teams[i].Name,
 				TicketIDs: []string{},
+				PlayerIDs: []string{},
 			}
 		}
 
 		// Group assignments by team
 		for _, assignment := range output.Assignments {
 			if assignment.TeamIndex >= 0 && assignment.TeamIndex < len(teams) {
+				ticketID := assignment.Ticket.GetID()
 				teams[assignment.TeamIndex].TicketIDs = append(
 					teams[assignment.TeamIndex].TicketIDs,
-					assignment.Ticket.GetID(),
+					ticketID,
 				)
+				// Get player IDs from the ticket
+				if adapter, ok := ticketMap[ticketID]; ok {
+					teams[assignment.TeamIndex].PlayerIDs = append(
+						teams[assignment.TeamIndex].PlayerIDs,
+						adapter.ticket.GetPlayerIDs()...,
+					)
+				}
 			}
 		}
 
@@ -604,8 +725,9 @@ func runMatching(
 		lobbyTeams := make([]LobbyTeamInfo, len(teams))
 		for i, team := range teams {
 			lobbyTeams[i] = LobbyTeamInfo{
-				TeamName: team.TeamName,
-				PartyIDs: team.TicketIDs, // In matchmaking context, ticket IDs are party IDs
+				TeamName:  team.TeamName,
+				PartyIDs:  team.TicketIDs, // In matchmaking context, ticket IDs are party IDs
+				PlayerIDs: team.PlayerIDs,
 			}
 		}
 
@@ -613,8 +735,10 @@ func runMatching(
 		if config.LobbyShardID != "" {
 			// Cross-shard: send command to lobby shard
 			lobbyWorld := cardinal.OtherWorld{
-				ShardID: config.LobbyShardID,
-				// Region, Organization, Project will use defaults from the shard
+				Region:       config.LobbyRegion,
+				Organization: config.LobbyOrganization,
+				Project:      config.LobbyProject,
+				ShardID:      config.LobbyShardID,
 			}
 			lobbyWorld.Send(&state.BaseSystemState, CreateLobbyFromMatchCommand{
 				MatchID:     matchID,
@@ -644,6 +768,168 @@ func runMatching(
 			Msg("Match found")
 	}
 
-	// TODO: Handle backfill matching
-	// This would match waiting tickets to active backfill requests
+	// Handle backfill matching
+	// Match waiting tickets (that allow backfill) to active backfill requests
+	runBackfillMatching(state, ticketIndex, backfillIndex, now)
+}
+
+// runBackfillMatching matches tickets to backfill requests.
+func runBackfillMatching(
+	state *MatchmakingSystemState,
+	ticketIndex *component.TicketIndexComponent,
+	backfillIndex *component.BackfillIndexComponent,
+	now time.Time,
+) {
+	// Get all profiles that have backfill requests
+	profiles := make(map[string]bool)
+	for _, profileEntity := range state.Profiles.Iter() {
+		profile := profileEntity.Profile.Get()
+		profiles[profile.ProfileName] = true
+	}
+
+	for profileName := range profiles {
+		// Get backfill requests for this profile
+		backfillIDs := backfillIndex.GetBackfillsByProfile(profileName)
+		if len(backfillIDs) == 0 {
+			continue
+		}
+
+		// Get backfill-eligible tickets for this profile
+		ticketIDs := ticketIndex.GetBackfillEligible(profileName)
+		if len(ticketIDs) == 0 {
+			continue
+		}
+
+		// Process each backfill request
+		for _, backfillID := range backfillIDs {
+			backfillEntityID, exists := backfillIndex.GetEntityID(backfillID)
+			if !exists {
+				continue
+			}
+
+			backfillEntity, ok := state.Backfills.GetByID(ecs.EntityID(backfillEntityID))
+			if !ok {
+				continue
+			}
+
+			backfill := backfillEntity.Backfill.Get()
+			slotsNeeded := backfill.TotalSlotsNeeded()
+
+			state.Logger().Debug().
+				Str("backfill_id", backfillID).
+				Str("match_id", backfill.MatchID).
+				Int("slots_needed", slotsNeeded).
+				Int("available_tickets", len(ticketIDs)).
+				Msg("Processing backfill request")
+
+			// Collect candidates for this backfill
+			var candidates []algorithm.Ticket
+			ticketMap := make(map[string]*ticketAdapter)
+
+			for _, ticketID := range ticketIDs {
+				entityID, exists := ticketIndex.GetEntityID(ticketID)
+				if !exists {
+					continue
+				}
+				ticketEntity, ok := state.Tickets.GetByID(ecs.EntityID(entityID))
+				if !ok {
+					continue
+				}
+				ticket := ticketEntity.Ticket.Get()
+				adapter := &ticketAdapter{ticket: ticket, entityID: entityID}
+				candidates = append(candidates, adapter)
+				ticketMap[ticketID] = adapter
+			}
+
+			if len(candidates) == 0 {
+				continue
+			}
+
+			// Build slots needed for algorithm
+			var slotsNeededForAlgo []algorithm.SlotNeeded
+			if len(backfill.Slots) > 0 {
+				// Role-based backfill
+				for _, slot := range backfill.Slots {
+					slotsNeededForAlgo = append(slotsNeededForAlgo, algorithm.SlotNeeded{
+						PoolName: slot.PoolName,
+						Count:    slot.Count,
+					})
+				}
+			} else {
+				// Simple backfill - use "default" pool
+				slotsNeededForAlgo = []algorithm.SlotNeeded{
+					{PoolName: "default", Count: slotsNeeded},
+				}
+			}
+
+			// Run backfill algorithm
+			input := algorithm.NewBackfillInput(candidates, slotsNeededForAlgo, now)
+			output := algorithm.Run(input)
+
+			if !output.Success {
+				state.Logger().Debug().
+					Str("backfill_id", backfillID).
+					Int("candidates", len(candidates)).
+					Msg("Backfill matching failed - not enough candidates")
+				continue
+			}
+
+			// Collect matched ticket IDs and player IDs
+			var matchedTicketIDs []string
+			var matchedPlayerIDs []string
+
+			for _, assignment := range output.Assignments {
+				ticketID := assignment.Ticket.GetID()
+				matchedTicketIDs = append(matchedTicketIDs, ticketID)
+
+				if adapter, ok := ticketMap[ticketID]; ok {
+					matchedPlayerIDs = append(matchedPlayerIDs, adapter.ticket.GetPlayerIDs()...)
+
+					// Remove ticket from index
+					ticketIndex.RemoveTicket(
+						adapter.ticket.ID,
+						adapter.ticket.ProfileName,
+						adapter.ticket.GetPlayerIDs(),
+						adapter.ticket.AllowBackfill,
+					)
+
+					// Destroy ticket entity
+					state.Tickets.Destroy(ecs.EntityID(adapter.entityID))
+				}
+			}
+
+			// Remove from ticketIDs slice so they're not reused for other backfills
+			newTicketIDs := make([]string, 0, len(ticketIDs))
+			matchedSet := make(map[string]bool)
+			for _, tid := range matchedTicketIDs {
+				matchedSet[tid] = true
+			}
+			for _, tid := range ticketIDs {
+				if !matchedSet[tid] {
+					newTicketIDs = append(newTicketIDs, tid)
+				}
+			}
+			ticketIDs = newTicketIDs
+
+			// Emit backfill match event
+			state.BackfillMatchEvents.Emit(BackfillMatchEvent{
+				BackfillID: backfillID,
+				MatchID:    backfill.MatchID,
+				TeamName:   backfill.TeamName,
+				TicketIDs:  matchedTicketIDs,
+				PlayerIDs:  matchedPlayerIDs,
+			})
+
+			state.Logger().Info().
+				Str("backfill_id", backfillID).
+				Str("match_id", backfill.MatchID).
+				Strs("ticket_ids", matchedTicketIDs).
+				Strs("player_ids", matchedPlayerIDs).
+				Msg("Backfill match found")
+
+			// Remove backfill request
+			backfillIndex.RemoveBackfill(backfillID, backfill.MatchID, backfill.ProfileName)
+			state.Backfills.Destroy(ecs.EntityID(backfillEntityID))
+		}
+	}
 }

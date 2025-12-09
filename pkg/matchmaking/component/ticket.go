@@ -1,9 +1,16 @@
 package component
 
+// SearchFields contains properties for filter matching.
+type SearchFields struct {
+	StringArgs map[string]string  `json:"string_args,omitempty"`
+	DoubleArgs map[string]float64 `json:"double_args,omitempty"`
+	Tags       []string           `json:"tags,omitempty"`
+}
+
 // PlayerInfo represents a player in a ticket.
 type PlayerInfo struct {
-	PlayerID   string            `json:"player_id"`
-	Attributes map[string]string `json:"attributes,omitempty"`
+	PlayerID     string       `json:"player_id"`
+	SearchFields SearchFields `json:"search_fields"`
 }
 
 // TicketComponent represents a matchmaking ticket.
@@ -39,4 +46,57 @@ func (t *TicketComponent) GetPlayerIDs() []string {
 		ids[i] = p.PlayerID
 	}
 	return ids
+}
+
+// MatchesPool checks if a player's search fields match a pool's filters.
+func (p *PlayerInfo) MatchesPool(pool PoolConfig) bool {
+	// Check all string equals filters must match
+	for _, f := range pool.StringEqualsFilters {
+		playerValue, exists := p.SearchFields.StringArgs[f.Field]
+		if !exists || playerValue != f.Value {
+			return false
+		}
+	}
+
+	// Check all double range filters must match
+	for _, f := range pool.DoubleRangeFilters {
+		playerValue, exists := p.SearchFields.DoubleArgs[f.Field]
+		if !exists || playerValue < f.Min || playerValue > f.Max {
+			return false
+		}
+	}
+
+	// Check all tag present filters must match
+	for _, f := range pool.TagPresentFilters {
+		found := false
+		for _, tag := range p.SearchFields.Tags {
+			if tag == f.Tag {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+// ComputePoolCounts determines which pools each player in the ticket matches.
+func (t *TicketComponent) ComputePoolCounts(pools []PoolConfig) map[string]int {
+	counts := make(map[string]int)
+	for _, player := range t.Players {
+		for _, pool := range pools {
+			if player.MatchesPool(pool) {
+				counts[pool.Name]++
+				break // Each player matches at most one pool
+			}
+		}
+	}
+	// If no specific pool matched but we have players, use "default"
+	if len(counts) == 0 && len(t.Players) > 0 {
+		counts["default"] = len(t.Players)
+	}
+	return counts
 }

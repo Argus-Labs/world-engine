@@ -178,11 +178,25 @@ func (idx *BackfillIndexComponent) RemoveBackfill(backfillID string, matchID str
 	idx.ProfileToBackfills[profileName] = removeFromSlice(idx.ProfileToBackfills[profileName], backfillID)
 }
 
+// GetBackfillsByProfile returns all backfill IDs for a profile.
+func (idx *BackfillIndexComponent) GetBackfillsByProfile(profileName string) []string {
+	return idx.ProfileToBackfills[profileName]
+}
+
 // ConfigComponent stores matchmaking configuration.
 type ConfigComponent struct {
-	// LobbyTarget is the target shard for lobby commands.
-	// If nil, same-shard communication via SystemEvents is used.
+	// LobbyShardID is the shard ID for cross-shard lobby communication.
+	// If empty, same-shard communication via SystemEvents is used.
 	LobbyShardID string `json:"lobby_shard_id,omitempty"`
+
+	// LobbyRegion is the region for the lobby shard (for cross-shard).
+	LobbyRegion string `json:"lobby_region,omitempty"`
+
+	// LobbyOrganization is the organization for the lobby shard (for cross-shard).
+	LobbyOrganization string `json:"lobby_organization,omitempty"`
+
+	// LobbyProject is the project for the lobby shard (for cross-shard).
+	LobbyProject string `json:"lobby_project,omitempty"`
 
 	// DefaultTTLSeconds is the default ticket TTL.
 	DefaultTTLSeconds int64 `json:"default_ttl_seconds"`

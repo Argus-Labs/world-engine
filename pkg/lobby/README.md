@@ -1,58 +1,64 @@
 # Lobby Package
 
-A party and lobby management system for Cardinal worlds, handling pre-game coordination and game lifecycle.
+A matchmaking lobby system for Cardinal worlds, handling game lifecycle for matches created by the matchmaking package.
+
+> **NOTICE: Matchmaking Lobbies Only**
+>
+> This package handles **matchmaking-created lobbies only**. When matchmaking finds a match, it sends a `CreateLobbyFromMatch` command/event to create a lobby that immediately transitions to `in_game` state.
+>
+> Future improvement: Manual lobby features (create, join, leave, ready-up, kick, lobby browser).
+
+> **NOTICE: Party Management**
+>
+> Parties are **not** managed by the lobby shard. The `party_id` field on tickets and lobbies is simply a grouping identifier - there is no party entity or lifecycle management in this package.
+>
+> Party management should live in a dedicated **Social Shard** that handles:
+>
+> - **Party Management** - Create/join/leave party, invites, leader promotion, kick members
+> - **Friends System** - Friend requests, friend list, block list, online/offline status
+> - **Chat** - Party chat, whispers/DMs, lobby chat
+> - **Presence** - Player online status, activity status ("In Game", "In Queue", "In Lobby"), last seen
 
 ## Architecture Overview
 
-This package implements an ECS-based lobby system with party management, ready-up coordination, and cross-shard game communication.
+This package implements an ECS-based lobby system for matchmaking-created games.
 
 ```text
 World
-├── PartyIndexComponent (singleton)
-│   ├── PartyIDToEntity (map[string]uint32)
-│   ├── PlayerToParty (map[string]string)
-│   └── LobbyToParties (map[string][]string)
-│
 ├── LobbyIndexComponent (singleton)
 │   ├── MatchIDToEntity (map[string]uint32)
-│   ├── ActiveLobbies ([]string)
 │   └── InGameLobbies ([]string)
 │
 ├── ConfigComponent (singleton)
-│   ├── DefaultMaxPartySize
 │   ├── HeartbeatTimeoutSeconds
+│   ├── MatchmakingShardID
 │   └── GameShardID
 │
-├── Parties ([]PartyComponent)
-│   ├── ID, LeaderID, Members
-│   ├── IsOpen, MaxSize
-│   └── LobbyID, IsReady
-│
 ├── Lobbies ([]LobbyComponent)
-│   ├── MatchID, HostPartyID, Parties
+│   ├── MatchID, Parties
 │   ├── Teams []LobbyTeam
-│   ├── State (waiting/ready/in_game/ended)
-│   └── Config, Timestamps
+│   ├── State (in_game/ended)
+│   ├── DisconnectedParties
+│   └── Timestamps
 │
 └── Systems
     ├── InitSystem (Init hook) - creates singletons
-    ├── PartySystem (Update hook) - party commands
-    └── LobbySystem (Update hook) - lobby commands, game lifecycle
+    └── LobbySystem (Update hook) - processes commands, heartbeat timeout
 ```
 
 ### Core Components
 
-1. **PartyComponent**: Group of players who queue and play together (never split)
-2. **LobbyComponent**: Pre-game room with state machine (waiting → ready → in_game → ended)
-3. **PartyIndexComponent**: Singleton for O(1) party lookups by ID/player/lobby
-4. **LobbyIndexComponent**: Singleton for O(1) lobby lookups by match ID
+1. **LobbyComponent**: Game session container with state machine (in_game → ended)
+2. **LobbyIndexComponent**: Singleton for O(1) lobby lookups by match ID
 
 ### Key Design Features
 
-1. **State Machine**: Lobbies transition through waiting → ready → in_game → ended
-2. **Cross-Shard Support**: Receives matches from matchmaking, notifies game shard on start
-3. **Heartbeat Timeout**: Stale lobbies are cleaned up automatically
-4. **Extensible**: Users can add custom systems alongside lobby
+1. **Matchmaking Integration**: Receives matches from matchmaking, creates lobbies automatically
+2. **Simple State Machine**: Lobbies are created in `in_game` state, transition to `ended` when game completes
+3. **Cross-Shard Support**: Receives matches from matchmaking shard, notifies game shard on start
+4. **Disconnect Tracking**: Tracks disconnected parties for backfill decisions
+5. **Heartbeat Timeout**: Stale lobbies are cleaned up automatically
+6. **Extensible**: Users can add custom systems alongside lobby
 
 ## Installation
 
@@ -76,9 +82,12 @@ func main() {
     })
 
     lobby.Register(world, lobby.Config{
-        DefaultMaxPartySize:     4,
         HeartbeatTimeoutSeconds: 60,
-        GameShardID:             "game-1", // empty for same-shard
+        MatchmakingShardID:      "matchmaking-1", // empty for same-shard
+        GameShardID:             "game-1",        // empty for same-shard
+        GameRegion:              "local",
+        GameOrganization:        "demo",
+        GameProject:             "my-game",
     })
 
     world.StartGame()
@@ -87,37 +96,127 @@ func main() {
 
 ## API Reference
 
-### Party Commands
+### Commands
 
 | Command | Description |
 |---------|-------------|
-| `lobby_create_party` | Create a new party |
-| `lobby_join_party` | Join existing party |
-| `lobby_leave_party` | Leave current party |
-| `lobby_set_party_open` | Toggle open/closed |
-| `lobby_promote_leader` | Transfer leadership |
-| `lobby_kick_from_party` | Kick member (leader only) |
+| `lobby_end_game` | End the game and transition lobby to ended state |
+| `lobby_heartbeat` | Keep lobby alive during gameplay |
 
-### Lobby Commands
+### Cross-Shard Commands
 
-| Command | Description |
-|---------|-------------|
-| `lobby_create` | Create a new lobby |
-| `lobby_join` | Join existing lobby |
-| `lobby_leave` | Leave current lobby |
-| `lobby_set_ready` | Set ready status |
-| `lobby_start_game` | Start game (host only) |
-| `lobby_end_game` | End game |
-| `lobby_heartbeat` | Keep lobby alive during game |
+| Command | Direction | Description |
+|---------|-----------|-------------|
+| `matchmaking_create_lobby_from_match` | Matchmaking → Lobby | Create lobby from match result |
+| `lobby_notify_game_start` | Lobby → Game | Notify game shard to start |
+| `game_notify_lobby_end` | Game → Lobby | Notify lobby that game ended |
+| `game_player_disconnected` | Game → Lobby | Report player disconnect |
+
+### Events
+
+| Event | Description |
+|-------|-------------|
+| `lobby_created` | Lobby created from match |
+| `lobby_game_started` | Game started (emitted immediately after creation) |
+| `lobby_game_ended` | Game ended |
+| `lobby_player_disconnected` | Player disconnected during game |
+| `lobby_error` | Lobby operation failed |
 
 ## Configuration
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `DefaultMaxPartySize` | int | 4 | Maximum players per party |
 | `HeartbeatTimeoutSeconds` | int64 | 60 | Lobby timeout without heartbeat |
 | `MatchmakingShardID` | string | "" | Source matchmaking shard (empty for same-shard) |
 | `GameShardID` | string | "" | Target game shard (empty for same-shard) |
+| `GameRegion` | string | "" | Region for cross-shard game communication |
+| `GameOrganization` | string | "" | Organization for cross-shard game communication |
+| `GameProject` | string | "" | Project for cross-shard game communication |
+
+## Extending with Custom Systems
+
+You can add custom systems alongside the lobby package using `cardinal.RegisterSystem`. Custom systems can query lobby entities and react to lobby state changes.
+
+```go
+package main
+
+import (
+    "github.com/argus-labs/world-engine/pkg/cardinal"
+    "github.com/argus-labs/world-engine/pkg/lobby"
+    lobbyComponent "github.com/argus-labs/world-engine/pkg/lobby/component"
+)
+
+func main() {
+    world, _ := cardinal.NewWorld(cardinal.WorldOptions{TickRate: 10})
+
+    // Register lobby package first
+    lobby.Register(world, lobby.Config{
+        HeartbeatTimeoutSeconds: 60,
+    })
+
+    // Register custom systems after lobby
+    cardinal.RegisterSystem(world, MyCustomInitSystem, cardinal.WithHook(cardinal.Init))
+    cardinal.RegisterSystem(world, MyCustomSystem)
+
+    world.StartGame()
+}
+
+// Custom system state - can query lobby entities
+type MyCustomSystemState struct {
+    cardinal.BaseSystemState
+
+    // Query lobby entities created by the lobby package
+    Lobbies cardinal.Contains[struct {
+        Lobby cardinal.Ref[lobbyComponent.LobbyComponent]
+    }]
+}
+
+// Custom system runs every tick alongside lobby system
+func MyCustomSystem(state *MyCustomSystemState) error {
+    // Count active lobbies
+    activeCount := 0
+    for _, lobbyEntity := range state.Lobbies.Iter() {
+        lobby := lobbyEntity.Lobby.Get()
+        if lobby.State == lobbyComponent.LobbyStateInGame {
+            activeCount++
+        }
+    }
+
+    // Log periodically
+    if state.Tick()%100 == 0 {
+        state.Logger().Info().Int("active_lobbies", activeCount).Msg("Lobby stats")
+    }
+
+    return nil
+}
+```
+
+## Lobby Lifecycle
+
+```
+Matchmaking finds match
+        │
+        ▼
+┌───────────────────┐
+│ CreateLobbyFromMatch │
+│ (from matchmaking)   │
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│     in_game       │ ◄─── Lobby created, game starts immediately
+│                   │      NotifyGameStart sent to game shard
+└─────────┬─────────┘
+          │
+          │ EndGameCommand or
+          │ NotifyGameEndCommand or
+          │ HeartbeatTimeout
+          │
+          ▼
+┌───────────────────┐
+│      ended        │ ◄─── Lobby destroyed
+└───────────────────┘
+```
 
 ## Contributing
 

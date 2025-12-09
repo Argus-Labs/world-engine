@@ -72,6 +72,9 @@ func main() {
         DefaultTTLSeconds:  300,
         BackfillTTLSeconds: 60,
         LobbyShardID:       "lobby-1", // empty for same-shard
+        LobbyRegion:        "local",
+        LobbyOrganization:  "demo",
+        LobbyProject:       "my-game",
     })
 
     world.StartGame()
@@ -88,6 +91,12 @@ func main() {
 | `matchmaking_cancel_ticket` | Cancel a ticket |
 | `matchmaking_create_backfill` | Request backfill for ongoing match |
 | `matchmaking_cancel_backfill` | Cancel backfill request |
+
+### Cross-Shard Commands
+
+| Command | Direction | Description |
+|---------|-----------|-------------|
+| `matchmaking_create_lobby_from_match` | Matchmaking → Lobby | Send match result to lobby shard |
 
 ### Events
 
@@ -106,6 +115,9 @@ func main() {
 | `DefaultTTLSeconds` | int64 | 300 | Ticket time-to-live in seconds |
 | `BackfillTTLSeconds` | int64 | 60 | Backfill request TTL in seconds |
 | `LobbyShardID` | string | "" | Target lobby shard (empty for same-shard) |
+| `LobbyRegion` | string | "" | Region for cross-shard lobby communication |
+| `LobbyOrganization` | string | "" | Organization for cross-shard lobby communication |
+| `LobbyProject` | string | "" | Project for cross-shard lobby communication |
 
 ## Match Profiles
 
@@ -203,6 +215,172 @@ ProfileComponent{
         {Name: "team_4", Pools: []string{"default"}, MinPlayers: 2, MaxPlayers: 3},
     },
     MinPlayers: 8, MaxPlayers: 12,
+}
+```
+
+## Backfill
+
+Backfill allows filling empty slots in ongoing matches when players disconnect.
+
+### How Backfill Works
+
+1. Game shard detects player disconnect
+2. Game shard sends `matchmaking_create_backfill` command with slot requirements
+3. Matchmaking finds tickets matching the backfill criteria
+4. Matchmaking emits `matchmaking_backfill_match` event with assigned tickets
+5. Game shard adds backfill players to the match
+
+### Backfill Request
+
+```go
+// Create backfill request
+CreateBackfillCommand{
+    MatchID:     "match-123",
+    ProfileName: "5v5-roles",
+    OpenSlots: []BackfillSlot{
+        {TeamName: "team_1", PoolName: "support", Count: 1},
+    },
+}
+```
+
+## Extending with Custom Systems
+
+You can add custom systems alongside the matchmaking package using `cardinal.RegisterSystem`. Custom systems can query ticket entities, track statistics, or add custom matching logic.
+
+```go
+package main
+
+import (
+    "github.com/argus-labs/world-engine/pkg/cardinal"
+    "github.com/argus-labs/world-engine/pkg/matchmaking"
+    mmComponent "github.com/argus-labs/world-engine/pkg/matchmaking/component"
+)
+
+func main() {
+    world, _ := cardinal.NewWorld(cardinal.WorldOptions{TickRate: 10})
+
+    // Register matchmaking package first
+    matchmaking.Register(world, matchmaking.Config{
+        DefaultTTLSeconds: 300,
+    })
+
+    // Register custom systems after matchmaking
+    cardinal.RegisterSystem(world, StatsInitSystem, cardinal.WithHook(cardinal.Init))
+    cardinal.RegisterSystem(world, StatsSystem)
+
+    world.StartGame()
+}
+
+// Custom system state - can query matchmaking entities
+type StatsSystemState struct {
+    cardinal.BaseSystemState
+
+    // Query ticket entities created by matchmaking
+    Tickets cardinal.Contains[struct {
+        Ticket cardinal.Ref[mmComponent.TicketComponent]
+    }]
+}
+
+// Custom system runs every tick alongside matchmaking
+func StatsSystem(state *StatsSystemState) error {
+    // Count tickets by profile
+    ticketsByProfile := make(map[string]int)
+    for _, ticketEntity := range state.Tickets.Iter() {
+        ticket := ticketEntity.Ticket.Get()
+        ticketsByProfile[ticket.MatchProfileName]++
+    }
+
+    // Log periodically
+    if state.Tick()%100 == 0 {
+        for profile, count := range ticketsByProfile {
+            state.Logger().Info().
+                Str("profile", profile).
+                Int("tickets", count).
+                Msg("Queue stats")
+        }
+    }
+
+    return nil
+}
+```
+
+### Example: Custom Profile Loader
+
+The demo project shows how to load match profiles from a custom init system:
+
+```go
+// ProfileLoaderSystemState loads match profiles on initialization
+type ProfileLoaderSystemState struct {
+    cardinal.BaseSystemState
+    Profiles cardinal.Contains[struct {
+        Profile cardinal.Ref[mmComponent.ProfileComponent]
+    }]
+}
+
+func ProfileLoaderSystem(state *ProfileLoaderSystemState) error {
+    profiles := []mmComponent.ProfileComponent{
+        // 1v1 Ranked
+        {
+            ProfileName: "1v1-ranked",
+            Pools: []mmComponent.PoolConfig{
+                {Name: "default", MinPlayers: 1, MaxPlayers: 1},
+            },
+            Teams: []mmComponent.TeamConfig{
+                {Name: "team_1", Pools: []string{"default"}, MinPlayers: 1, MaxPlayers: 1},
+                {Name: "team_2", Pools: []string{"default"}, MinPlayers: 1, MaxPlayers: 1},
+            },
+            MinPlayers: 2,
+            MaxPlayers: 2,
+        },
+        // 2v2 Competitive
+        {
+            ProfileName: "2v2-competitive",
+            Pools: []mmComponent.PoolConfig{
+                {Name: "default", MinPlayers: 1, MaxPlayers: 2},
+            },
+            Teams: []mmComponent.TeamConfig{
+                {Name: "team_1", Pools: []string{"default"}, MinPlayers: 2, MaxPlayers: 2},
+                {Name: "team_2", Pools: []string{"default"}, MinPlayers: 2, MaxPlayers: 2},
+            },
+            MinPlayers: 4,
+            MaxPlayers: 4,
+        },
+        // 5v5 with Roles (1 tank, 3 dps, 1 support per team)
+        {
+            ProfileName: "5v5-roles",
+            Pools: []mmComponent.PoolConfig{
+                {Name: "tank", Filters: map[string]string{"role": "tank"}, MinPlayers: 1, MaxPlayers: 1},
+                {Name: "dps", Filters: map[string]string{"role": "dps"}, MinPlayers: 1, MaxPlayers: 1},
+                {Name: "support", Filters: map[string]string{"role": "support"}, MinPlayers: 1, MaxPlayers: 1},
+            },
+            Teams: []mmComponent.TeamConfig{
+                {Name: "team_1", Pools: []string{"tank", "dps", "dps", "dps", "support"}, MinPlayers: 5, MaxPlayers: 5},
+                {Name: "team_2", Pools: []string{"tank", "dps", "dps", "dps", "support"}, MinPlayers: 5, MaxPlayers: 5},
+            },
+            MinPlayers: 10,
+            MaxPlayers: 10,
+        },
+    }
+
+    for _, profile := range profiles {
+        _, e := state.Profiles.Create()
+        e.Profile.Set(profile)
+        state.Logger().Info().Str("profile", profile.ProfileName).Msg("Loaded match profile")
+    }
+
+    return nil
+}
+
+// Register in main
+func main() {
+    world, _ := cardinal.NewWorld(cardinal.WorldOptions{TickRate: 10})
+
+    matchmaking.Register(world, matchmaking.Config{DefaultTTLSeconds: 300})
+
+    // Load profiles on init
+    cardinal.RegisterSystem(world, ProfileLoaderSystem, cardinal.WithHook(cardinal.Init))
+
+    world.StartGame()
 }
 ```
 

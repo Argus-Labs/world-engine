@@ -1,11 +1,31 @@
 package component
 
+// StringEqualsFilter matches when a field exactly equals a value.
+type StringEqualsFilter struct {
+	Field string `json:"field"`
+	Value string `json:"value"`
+}
+
+// DoubleRangeFilter matches when a field is within a range [min, max].
+type DoubleRangeFilter struct {
+	Field string  `json:"field"`
+	Min   float64 `json:"min"`
+	Max   float64 `json:"max"`
+}
+
+// TagPresentFilter matches when a tag is present in the tags list.
+type TagPresentFilter struct {
+	Tag string `json:"tag"`
+}
+
 // PoolConfig defines a pool within a match profile.
 type PoolConfig struct {
-	Name       string            `json:"name"`
-	Filters    map[string]string `json:"filters,omitempty"`
-	MinPlayers int               `json:"min_players"`
-	MaxPlayers int               `json:"max_players"`
+	Name                string               `json:"name"`
+	StringEqualsFilters []StringEqualsFilter `json:"string_equals_filters,omitempty"`
+	DoubleRangeFilters  []DoubleRangeFilter  `json:"double_range_filters,omitempty"`
+	TagPresentFilters   []TagPresentFilter   `json:"tag_present_filters,omitempty"`
+	MinPlayers          int                  `json:"min_players"`
+	MaxPlayers          int                  `json:"max_players"`
 }
 
 // TeamConfig defines a team within a match profile.
