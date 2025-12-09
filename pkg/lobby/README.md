@@ -96,31 +96,37 @@ func main() {
 
 ## API Reference
 
-### Commands
+### Commands Received (Inputs)
 
-| Command | Description |
-|---------|-------------|
-| `lobby_end_game` | End the game and transition lobby to ended state |
-| `lobby_heartbeat` | Keep lobby alive during gameplay |
+Commands that lobby shard receives from other shards or clients:
 
-### Cross-Shard Commands
+| Command | From | Description |
+|---------|------|-------------|
+| `matchmaking_create_lobby_from_match` | Matchmaking Shard | Create lobby from match result |
+| `game_notify_lobby_end` | Game Shard | Game ended, close lobby |
+| `game_player_disconnected` | Game Shard | Player disconnected (state tracking) |
+| `lobby_end_game` | Client / Game | End game with results |
+| `lobby_heartbeat` | Client / Game | Keep lobby alive during gameplay |
 
-| Command | Direction | Description |
-|---------|-----------|-------------|
-| `matchmaking_create_lobby_from_match` | Matchmaking → Lobby | Create lobby from match result |
-| `lobby_notify_game_start` | Lobby → Game | Notify game shard to start |
-| `game_notify_lobby_end` | Game → Lobby | Notify lobby that game ended |
-| `game_player_disconnected` | Game → Lobby | Report player disconnect |
+### Commands Sent (Outputs)
 
-### Events
+Commands that lobby shard sends to other shards:
+
+| Command | To | Description |
+|---------|-----|-------------|
+| `lobby_notify_game_start` | Game Shard | Notify game to start with match/team info |
+
+### Events Emitted (Outputs)
+
+Events emitted to clients subscribed to lobby shard:
 
 | Event | Description |
 |-------|-------------|
 | `lobby_created` | Lobby created from match |
 | `lobby_game_started` | Game started (emitted immediately after creation) |
 | `lobby_game_ended` | Game ended |
-| `lobby_player_disconnected` | Player disconnected during game |
-| `lobby_error` | Lobby operation failed |
+| `lobby_player_disconnected` | Player marked as disconnected |
+| `lobby_error` | Operation failed |
 
 ## Configuration
 

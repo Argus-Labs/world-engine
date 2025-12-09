@@ -83,30 +83,36 @@ func main() {
 
 ## API Reference
 
-### Commands
+### Commands Received (Inputs)
 
-| Command | Description |
-|---------|-------------|
-| `matchmaking_create_ticket` | Create a matchmaking ticket |
-| `matchmaking_cancel_ticket` | Cancel a ticket |
-| `matchmaking_create_backfill` | Request backfill for ongoing match |
-| `matchmaking_cancel_backfill` | Cancel backfill request |
+Commands that matchmaking shard receives from clients or other shards:
 
-### Cross-Shard Commands
+| Command | From | Description |
+|---------|------|-------------|
+| `matchmaking_create_ticket` | Client | Create a matchmaking ticket |
+| `matchmaking_cancel_ticket` | Client | Cancel a ticket |
+| `matchmaking_create_backfill` | Game Shard | Request backfill for ongoing match |
+| `matchmaking_cancel_backfill` | Game Shard | Cancel backfill request |
 
-| Command | Direction | Description |
-|---------|-----------|-------------|
-| `matchmaking_create_lobby_from_match` | Matchmaking → Lobby | Send match result to lobby shard |
+### Commands Sent (Outputs)
 
-### Events
+Commands that matchmaking shard sends to other shards:
+
+| Command | To | Description |
+|---------|-----|-------------|
+| `matchmaking_create_lobby_from_match` | Lobby Shard | Send match result to create lobby |
+
+### Events Emitted (Outputs)
+
+Events emitted to clients subscribed to matchmaking shard:
 
 | Event | Description |
 |-------|-------------|
 | `matchmaking_ticket_created` | Ticket created successfully |
 | `matchmaking_ticket_cancelled` | Ticket was cancelled |
 | `matchmaking_ticket_error` | Ticket operation failed |
-| `matchmaking_match_found` | Match found, sent to players |
-| `matchmaking_backfill_match` | Backfill tickets assigned |
+| `matchmaking_match_found` | Match found, sent to matched players |
+| `matchmaking_backfill_match` | Backfill tickets assigned to match |
 
 ## Configuration
 
