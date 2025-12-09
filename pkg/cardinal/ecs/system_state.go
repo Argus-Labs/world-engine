@@ -295,8 +295,7 @@ func (s *WithSystemEventReceiver[T]) tag() systemStateFieldType {
 //	}
 func (s *WithSystemEventReceiver[T]) Iter() iter.Seq[T] {
 	var zero T
-	systemEvents, err := s.world.systemEvents.get(zero.Name())
-	assert.That(err == nil, "system event not automatically registered %s", zero.Name())
+	systemEvents := s.world.systemEvents.get(zero.Name())
 
 	return func(yield func(T) bool) {
 		for _, systemEvent := range systemEvents {
@@ -361,8 +360,7 @@ func (s *WithSystemEventEmitter[T]) tag() systemStateFieldType {
 //	state.PlayerDeathEvents.Emit(PlayerDeath{Nickname: "Player1"})
 func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
 	var zero T
-	err := s.world.systemEvents.enqueue(zero.Name(), systemEvent)
-	assert.That(err == nil, "system event not automatically registered %s", zero.Name())
+	s.world.systemEvents.enqueue(zero.Name(), systemEvent)
 }
 
 // -------------------------------------------------------------------------------------------------

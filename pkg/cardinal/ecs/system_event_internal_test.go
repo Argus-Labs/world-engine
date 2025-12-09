@@ -1,248 +1,183 @@
 package ecs
 
 import (
+	"math/rand/v2"
 	"testing"
 
-	. "github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSystemEventManager_Register(t *testing.T) {
-	t.Parallel()
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing system-event manager operations
+// -------------------------------------------------------------------------------------------------
+// This test verifies the systemEventManager implementation correctness using model-based testing.
+// It compares our implementation against a map[string][]SystemEvent as the model by applying random
+// sequences of enqueue/get/clear operations to both and asserting equivalence. System events are
+// pre-registered since WithSystemEventEmitter/Receiver.init guarantees registration before use.
+// -------------------------------------------------------------------------------------------------
 
-	tests := []struct {
-		name        string
-		systemEvent SystemEvent
-		wantErr     bool
-	}{
-		{
-			name:        "successful registration",
-			systemEvent: PlayerDeathSystemEvent{},
-		},
-		{
-			name:        "empty system event name",
-			systemEvent: InvalidEmptyCommand{}, // Reusing this for empty Name() implementation
-			wantErr:     true,
-		},
-		{
-			name:        "duplicate system event name returns same ID",
-			systemEvent: PlayerDeathSystemEvent{},
-		},
+func TestSystemEvent_ModelFuzz(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const opsMax = 1 << 15 // 32_768 iterations
+
+	impl := newSystemEventManager()
+	model := make(map[string][]SystemEvent) // name -> system-event buffer
+
+	// Setup: pre-register a fixed set of system event names.
+	for _, name := range allSystemEventNames {
+		_, err := impl.register(name)
+		require.NoError(t, err)
+		model[name] = []SystemEvent{}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	for range opsMax {
+		op := testutils.RandWeightedOp(prng, systemEventOps)
+		switch op {
+		case sem_enqueue:
+			name := testutils.RandMapKey(prng, model)
+			event := randSystemEventByName(prng, name)
 
-			sem := newSystemEventManager()
+			impl.enqueue(name, event)
+			model[name] = append(model[name], event)
 
-			if tt.name == "duplicate system event name returns same ID" {
-				_, err := sem.register(tt.systemEvent.Name())
-				require.NoError(t, err)
+		case sem_get:
+			name := testutils.RandMapKey(prng, model)
+
+			implSysEvents := impl.get(name)
+			modelSysEvents := model[name]
+
+			// Property: get returns system-events in same order as enqueued.
+			assert.Len(t, implSysEvents, len(modelSysEvents), "get(%s) length mismatch", name)
+			for i := range modelSysEvents {
+				assert.Equal(t, modelSysEvents[i], implSysEvents[i], "get(%s)[%d] mismatch", name, i)
 			}
 
-			firstID, err := sem.register(tt.systemEvent.Name())
-			if tt.wantErr {
-				require.Error(t, err)
-				return
+		case sem_clear:
+			impl.clear()
+			for name := range model {
+				model[name] = []SystemEvent{}
 			}
 
-			require.NoError(t, err)
-			storedID, exists := sem.registry[tt.systemEvent.Name()]
+			// Property: all buffers should be empty after clear.
+			for name := range model {
+				implSysEvents := impl.get(name)
+				assert.Empty(t, implSysEvents, "clear() should empty buffer for %s", name)
+			}
 
-			assert.True(t, exists, "Event should be registered")
-			assert.Equal(t, firstID, storedID, "ID in registry should match returned ID")
-			assert.Len(t, sem.events, int(sem.nextID), "Events slice should match nextID")
-		})
+		default:
+			panic("unreachable")
+		}
+	}
+
+	// Final state check: verify all system-events match between impl and model.
+	assert.Len(t, impl.registry, len(model), "registry length mismatch")
+	for name, modelEvents := range model {
+		implEvents := impl.get(name)
+		assert.Len(t, implEvents, len(modelEvents), "final state: %s length mismatch", name)
+		for i := range modelEvents {
+			assert.Equal(t, modelEvents[i], implEvents[i], "final state: %s[%d] mismatch", name, i)
+		}
 	}
 }
 
-func TestSystemEventManager_EnqueueAndGet(t *testing.T) {
-	t.Parallel()
+type systemEventOp uint8
 
-	tests := []struct {
-		name       string
-		setupFn    func(*testing.T, *systemEventManager)
-		names      []string
-		validateFn func(*testing.T, []any)
-		wantErr    bool
-	}{
-		{
-			name: "enqueue and get single event type",
-			setupFn: func(t *testing.T, sem *systemEventManager) {
-				_, err := sem.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
+const (
+	sem_enqueue systemEventOp = 46
+	sem_get     systemEventOp = 44
+	sem_clear   systemEventOp = 10
+)
 
-				for i := range 10 {
-					err := sem.enqueue(PlayerDeathSystemEvent{}.Name(), PlayerDeathSystemEvent{Value: i})
-					require.NoError(t, err)
-				}
-			},
-			names: []string{PlayerDeathSystemEvent{}.Name()},
-			validateFn: func(t *testing.T, events []any) {
-				require.Len(t, events, 10)
-				for i, evt := range events {
-					event, ok := evt.(PlayerDeathSystemEvent)
-					assert.True(t, ok)
-					assert.Equal(t, i, event.Value)
-				}
-			},
-		},
-		{
-			name: "enqueue and get multiple event types",
-			setupFn: func(t *testing.T, sem *systemEventManager) {
-				_, err := sem.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
+var systemEventOps = []systemEventOp{sem_enqueue, sem_get, sem_clear}
 
-				_, err = sem.register(ItemDropSystemEvent{}.Name())
-				require.NoError(t, err)
+var allSystemEventNames = []string{
+	testutils.SystemEventA{}.Name(), testutils.SystemEventB{}.Name(), testutils.SystemEventC{}.Name(),
+}
 
-				for i := range 10 {
-					err := sem.enqueue(PlayerDeathSystemEvent{}.Name(), PlayerDeathSystemEvent{Value: i})
-					require.NoError(t, err)
-
-					err = sem.enqueue(ItemDropSystemEvent{}.Name(), ItemDropSystemEvent{Value: i + 100})
-					require.NoError(t, err)
-				}
-			},
-			names: []string{PlayerDeathSystemEvent{}.Name(), ItemDropSystemEvent{}.Name()},
-			validateFn: func(t *testing.T, events []any) {
-				require.Len(t, events, 20)
-				for i, evt := range events[:10] {
-					event, ok := evt.(PlayerDeathSystemEvent)
-					assert.True(t, ok)
-					assert.Equal(t, i, event.Value)
-				}
-				for i, evt := range events[10:] {
-					event, ok := evt.(ItemDropSystemEvent)
-					assert.True(t, ok)
-					assert.Equal(t, i+100, event.Value)
-				}
-			},
-		},
-		{
-			name: "get unregistered event returns error",
-			setupFn: func(t *testing.T, sem *systemEventManager) {
-				// Don't register anything
-			},
-			names:   []string{PlayerDeathSystemEvent{}.Name()},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			sem := newSystemEventManager()
-			tt.setupFn(t, &sem)
-
-			var events []any
-			for _, name := range tt.names {
-				evts, err := sem.get(name)
-				if tt.wantErr {
-					assert.Error(t, err)
-					return
-				}
-				events = append(events, evts...)
-			}
-
-			tt.validateFn(t, events)
-		})
+func randSystemEventByName(prng *rand.Rand, name string) SystemEvent {
+	switch name {
+	case testutils.SystemEventA{}.Name():
+		return testutils.SystemEventA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
+	case testutils.SystemEventB{}.Name():
+		return testutils.SystemEventB{ID: prng.Uint64(), Label: "test", Enabled: prng.Float64() < 0.5}
+	case testutils.SystemEventC{}.Name():
+		return testutils.SystemEventC{Counter: uint16(prng.IntN(65536))}
+	default:
+		panic("unknown system event: " + name)
 	}
 }
 
-func TestSystemEventManager_Clear(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing system-event registration
+// -------------------------------------------------------------------------------------------------
+// This test verifies the systemEventManager registration correctness using model-based testing. It
+// compares our implementation against a map[string]systemEventID as the model by applying random
+// register operations and asserting equivalence. We also verify structural invariants:
+// name-id bijection and ID uniqueness.
+// -------------------------------------------------------------------------------------------------
+
+func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	tests := []struct {
-		name    string
-		setupFn func(*testing.T, *systemEventManager) []string
-		testFn  func(*testing.T, *systemEventManager, []string)
-	}{
-		{
-			name: "clears multiple event types",
-			setupFn: func(t *testing.T, sem *systemEventManager) []string {
-				_, err := sem.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
+	const opsMax = 1 << 15 // 32_768 iterations
 
-				_, err = sem.register(ItemDropSystemEvent{}.Name())
-				require.NoError(t, err)
+	impl := newSystemEventManager()
+	model := make(map[string]systemEventID) // name -> ID
 
-				for i := range 20 {
-					err := sem.enqueue(PlayerDeathSystemEvent{}.Name(), PlayerDeathSystemEvent{Value: i})
-					require.NoError(t, err)
+	for range opsMax {
+		name := randValidCommandName(prng) // Reuse the command name generator as they're identical
+		implID, err := impl.register(name)
+		require.NoError(t, err)
 
-					err = sem.enqueue(ItemDropSystemEvent{}.Name(), ItemDropSystemEvent{Value: i})
-					require.NoError(t, err)
-				}
-
-				return []string{
-					PlayerDeathSystemEvent{}.Name(),
-					ItemDropSystemEvent{}.Name(),
-				}
-			},
-			testFn: func(t *testing.T, sem *systemEventManager, eventNames []string) {
-				for _, name := range eventNames {
-					events, err := sem.get(name)
-					require.NoError(t, err)
-					assert.Empty(t, events, "Events for %s should be empty after clear", name)
-				}
-			},
-		},
-		{
-			name: "can add events after clearing",
-			setupFn: func(t *testing.T, sem *systemEventManager) []string {
-				_, err := sem.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
-
-				for i := range 10 {
-					err := sem.enqueue(PlayerDeathSystemEvent{}.Name(), PlayerDeathSystemEvent{Value: i})
-					require.NoError(t, err)
-				}
-
-				return []string{PlayerDeathSystemEvent{}.Name()}
-			},
-			testFn: func(t *testing.T, sem *systemEventManager, eventNames []string) {
-				// Add new events after clear
-				err := sem.enqueue(eventNames[0], PlayerDeathSystemEvent{Value: 100})
-				require.NoError(t, err)
-
-				// Verify new events were added
-				events, err := sem.get(eventNames[0])
-				require.NoError(t, err)
-				require.Len(t, events, 1)
-
-				event, ok := events[0].(PlayerDeathSystemEvent)
-				assert.True(t, ok)
-				assert.Equal(t, 100, event.Value)
-			},
-		},
-		{
-			name: "clear works on empty event lists",
-			setupFn: func(t *testing.T, sem *systemEventManager) []string {
-				_, err := sem.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
-				return []string{PlayerDeathSystemEvent{}.Name()}
-			},
-			testFn: func(t *testing.T, sem *systemEventManager, eventNames []string) {
-				events, err := sem.get(eventNames[0])
-				require.NoError(t, err)
-				assert.Empty(t, events)
-			},
-		},
+		if modelID, exists := model[name]; exists {
+			assert.Equal(t, modelID, implID, "ID mismatch for re-registered %q", name)
+		} else {
+			model[name] = implID
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			sem := newSystemEventManager()
-			eventNames := tt.setupFn(t, &sem)
-
-			sem.clear()
-
-			tt.testFn(t, &sem, eventNames)
-		})
+	// Property: bijection holds between names and IDs.
+	seenIDs := make(map[systemEventID]string)
+	for name, id := range impl.registry {
+		if prevName, seen := seenIDs[id]; seen {
+			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
+		}
+		seenIDs[id] = name
 	}
+
+	// Property: all IDs in registry are in range [0, nextID).
+	for name, id := range impl.registry {
+		assert.Less(t, id, impl.nextID, "ID for %q is out of range", name)
+	}
+
+	// Final state check: registry matches model.
+	assert.Len(t, impl.registry, len(model), "registry length mismatch")
+	for name, modelID := range model {
+		implID, exists := impl.registry[name]
+		require.True(t, exists, "system event %q should be registered", name)
+		assert.Equal(t, modelID, implID, "ID mismatch for %q", name)
+	}
+
+	// Simple test to confirm that registering the same name repeatedly is a no-op.
+	t.Run("registration idempotence", func(t *testing.T) {
+		t.Parallel()
+
+		id1, err := impl.register("hello")
+		require.NoError(t, err)
+
+		id2, err := impl.register("hello")
+		require.NoError(t, err)
+
+		assert.Equal(t, id1, id2)
+
+		id3, err := impl.register("a_different_name")
+		require.NoError(t, err)
+
+		assert.Equal(t, id1+1, id3)
+	})
 }
