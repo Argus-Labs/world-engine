@@ -57,6 +57,7 @@ func newEventManager() eventManager {
 }
 
 // register registers an event type and returns its ID. If already registered, returns existing ID.
+// This is used just to check for duplicate WithEvent handlers in a system.
 func (e *eventManager) register(name string) (uint32, error) {
 	if name == "" {
 		return 0, eris.New("event name cannot be empty")
