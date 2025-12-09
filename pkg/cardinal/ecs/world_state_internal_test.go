@@ -3,7 +3,10 @@ package ecs
 import (
 	"math/rand/v2"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/rotisserie/eris"
@@ -296,26 +299,23 @@ func TestWorldState_EntityIDFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax            = 1 << 15 // 32_768 iterations
+		createRemoveRatio = 0.6
+	)
 
 	impl := newTestWorldState(t)
 	prevNextID := impl.nextID
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, entityIDOps)
-		switch op {
-		case eid_new:
+		if prng.Float64() < createRemoveRatio {
 			impl.newEntity()
-
-		case eid_remove:
+		} else {
 			if impl.nextID == 0 {
 				continue
 			}
 			eid := EntityID(prng.IntN(int(impl.nextID)))
 			impl.removeEntity(eid) // May return false if already removed.
-
-		default:
-			panic("unreachable")
 		}
 
 		// Property: nextID is monotonically non-decreasing.
@@ -323,43 +323,100 @@ func TestWorldState_EntityIDFuzz(t *testing.T) {
 		prevNextID = impl.nextID
 	}
 
+	assertEntityIDInvariants(t, impl)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Concurrent entity operations fuzz
+// -------------------------------------------------------------------------------------------------
+// This test verifies that the newEntity/removeEntity operations maintain the same invariants tested
+// by the entity id generator test, but under concurrent operations using Go 1.25 testing/synctest.
+// We only test entity operations concurrently because component operations (get/set/remove) are not
+// concurrent-safe. The system scheduler ensures operations on the same component type are never
+// done concurrently in multiple systems.
+// -------------------------------------------------------------------------------------------------
+
+func TestWorldState_EntityID_Concurrent(t *testing.T) {
+	t.Parallel()
+
+	const (
+		numGoroutines     = 10
+		opsPerGoroutine   = 1000
+		createRemoveRatio = 0.6
+	)
+
+	synctest.Test(t, func(t *testing.T) {
+		ws := newTestWorldState(t)
+
+		var createCount, removeCount atomic.Int64
+		var wg sync.WaitGroup
+
+		for range numGoroutines {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
+				prng := testutils.NewRand(t)
+
+				for range opsPerGoroutine {
+					if prng.Float64() < createRemoveRatio {
+						ws.newEntity()
+						createCount.Add(1)
+					} else {
+						if ws.nextID > 0 {
+							eid := EntityID(prng.IntN(int(ws.nextID))) // prng.IntN will fail if nextID is 0
+							ws.removeEntity(eid)
+						}
+						// Increment regardless of whether we removed any entities.
+						removeCount.Add(1)
+					}
+				}
+			}()
+		}
+		wg.Wait()
+
+		// Property: total operations equals expected count.
+		totalOps := createCount.Load() + removeCount.Load()
+		assert.Equal(t, int64(numGoroutines*opsPerGoroutine), totalOps,
+			"total operations mismatch: creates=%d, removes=%d", createCount.Load(), removeCount.Load())
+
+		assertEntityIDInvariants(t, ws)
+	})
+}
+
+// assertEntityIDInvariants checks entity ID generator properties hold. Normally I'd hardcode this
+// into the test, but this is used in both tests above so extracting this out.
+func assertEntityIDInvariants(t *testing.T, ws *worldState) {
+	t.Helper()
+
 	// Property: live and free are disjoint.
 	liveSet := make(map[EntityID]struct{})
-	for i, idx := range impl.entityArch {
+	for i, idx := range ws.entityArch {
 		if idx != sparseTombstone {
 			liveSet[EntityID(i)] = struct{}{}
 		}
 	}
-	for _, freeID := range impl.free {
+	for _, freeID := range ws.free {
 		_, isLive := liveSet[freeID]
 		assert.False(t, isLive, "entity %d is both live and free", freeID)
 	}
 
 	// Property: all live and free IDs are < nextID.
 	for liveID := range liveSet {
-		assert.Less(t, liveID, impl.nextID, "live entity %d >= nextID %d", liveID, impl.nextID)
+		assert.Less(t, liveID, ws.nextID, "live entity %d >= nextID %d", liveID, ws.nextID)
 	}
-	for _, freeID := range impl.free {
-		assert.Less(t, freeID, impl.nextID, "free entity %d >= nextID %d", freeID, impl.nextID)
+	for _, freeID := range ws.free {
+		assert.Less(t, freeID, ws.nextID, "free entity %d >= nextID %d", freeID, ws.nextID)
 	}
 
 	// Property: free list has no duplicates.
-	freeSet := make(map[EntityID]struct{}, len(impl.free))
-	for _, freeID := range impl.free {
+	freeSet := make(map[EntityID]struct{}, len(ws.free))
+	for _, freeID := range ws.free {
 		_, exists := freeSet[freeID]
 		assert.False(t, exists, "duplicate in free list: %d", freeID)
 		freeSet[freeID] = struct{}{}
 	}
 }
-
-type entityIDOp uint8
-
-const (
-	eid_new    entityIDOp = 60
-	eid_remove entityIDOp = 40
-)
-
-var entityIDOps = []entityIDOp{eid_new, eid_remove}
 
 // -------------------------------------------------------------------------------------------------
 // Entity ID reuse FIFO
