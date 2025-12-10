@@ -138,6 +138,10 @@ func buildDependencyGraph(systems []systemMetadata) (map[int][]int, map[int]int)
 	graph := make(map[int][]int, len(systems))
 	indegree := make(map[int]int, len(systems))
 
+	for i := range systems {
+		graph[i] = nil
+	}
+
 	for systemA := range len(systems) - 1 {
 		for systemB := systemA + 1; systemB < len(systems); systemB++ {
 			depsA := systems[systemA].deps
