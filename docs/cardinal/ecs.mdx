@@ -5,9 +5,10 @@ title: ECS
 Cardinal uses the Entity Component System (ECS) architecture to structure game code. ECS separates data from logic and encourages a data-driven design that scales well with complexity and performance demands.
 
 In ECS:
+
 - **Entities** are plain identifiers that represent "objects" in your game, e.g. players, projectiles, mobs, etc.
-- **Components** contain the data of properties of your entities, for example: a projectile entity contains the position and velocity components.
-- **Systems** are the game logic that operate on your entities, for example: a physics system acts on all entities that have a mass and position component, or a regeneration system acts on all entities that have a health component 
+- **Components** contain the data of the properties of your entities, for example: a projectile entity contains the position and velocity components.
+- **Systems** are the game logic that operates on your entities, for example: a physics system acts on all entities that have mass and position components, or a regeneration system acts on all entities that have a health component.
 
 ## The World
 
@@ -16,7 +17,11 @@ Before getting into how to use ECS, we'll briefly cover the `World` type. This i
 ```go main.go
 package main
 
-import "github.com/argus-labs/world-engine/pkg/cardinal"
+import (
+	"my-game/shards/game/system"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+)
 
 func main() {
 	world, err := cardinal.NewWorld(cardinal.WorldOptions{
@@ -28,15 +33,15 @@ func main() {
 	}
 
 	// Register systems.
-	cardinal.RegisterSystem(world, MovementSystem)
-	cardinal.RegisterSystem(world, CombatSystem)
+	cardinal.RegisterSystem(world, system.MovementSystem)
+	cardinal.RegisterSystem(world, system.CombatSystem)
 
 	// Start the game loop.
 	world.StartGame()
 }
 ```
 
-Above we also pass several options to configure the behavior of Cardinal:
+Above, we also pass several options to configure the behavior of Cardinal:
 
 1. `TickRate` sets how many times per second the game loop runs. A **tick** represents a single state change in Cardinal.
 2. `EpochFrequency` sets how many ticks to include in an epoch. An **epoch** is a group of ticks that will be persisted to a blockchain.
@@ -59,7 +64,8 @@ func (Position) Name() string {
 ```
 
 <Note>
-  Component names must start with a letter or underscore, and contain only letters, digits, and underscores (e.g. `Health`, `player_health`).
+  Component names must start with a letter or underscore, and contain only letters, digits, and
+  underscores (e.g. `Health`, `player_health`).
 </Note>
 
 ### Tag Components
@@ -78,7 +84,7 @@ This is useful for filtering entities without storing additional data, e.g. find
 
 ## Systems
 
-Systems are plain functions that takes a single parameter and returns an error. The parameter is a pointer to a user-defined struct type that embeds `BaseSystemState`. This struct defines a system's dependencies and what it can access, e.g. components, commands, events, etc. (We'll cover these in more detail soon.)
+Systems are plain functions that take a single parameter and return an error. The parameter is a pointer to a user-defined struct type that embeds `BaseSystemState`. This struct defines a system's dependencies and what it can access, e.g. components, commands, events, etc. (We'll cover these in more detail soon.)
 
 This is the simplest possible system:
 
@@ -86,12 +92,12 @@ This is the simplest possible system:
 import "github.com/argus-labs/world-engine/pkg/cardinal"
 
 type MySystemState struct {
-    cardinal.BaseSystemState // Required
+	cardinal.BaseSystemState // Required
 }
 
 func MySystem(state *MySystemState) error {
-    // Your game logic here.
-    return nil
+	// Your game logic here.
+	return nil
 }
 ```
 
@@ -101,7 +107,7 @@ You must register systems with the world to run them:
 cardinal.RegisterSystem(world, MySystem)
 ```
 
-Registered systems run once every tick, in registration order. Cardinal's scheduler automatically runs systems without shared dependencies in parallel. A system's dependencies includes the components and [system events](/cardinal/system-events) it accesses.
+Registered systems run once every tick, in registration order. Cardinal's scheduler automatically runs systems without shared dependencies in parallel. A system's dependencies include the components and [system events](/cardinal/system-events) it accesses.
 
 ### System Hooks
 
@@ -114,15 +120,14 @@ cardinal.RegisterSystem(world, SetupSystem, cardinal.WithHook(cardinal.PreUpdate
 
 By default, systems run on the update phase. Here are the different hooks you can use:
 
-| Hook | When it runs |
-|------|--------------|
-| `Init` | Once during world initialization (only once at tick 0), before any game loop starts |
-| `PreUpdate` | Every tick, before the main update phase |
-| `Update` | Every tick, during the main update phase (this is the default if no hook is specified) |
-| `PostUpdate` | Every tick, after the main update phase |
+| Hook         | When it runs                                                                           |
+| ------------ | -------------------------------------------------------------------------------------- |
+| `Init`       | Once during world initialization (only once at tick 0), before any game loop starts    |
+| `PreUpdate`  | Every tick, before the main update phase                                               |
+| `Update`     | Every tick, during the main update phase (this is the default if no hook is specified) |
+| `PostUpdate` | Every tick, after the main update phase                                                |
 
-
-Each of these correspond to a tick phase, except `Init`, which runs only once in the first tick.
+Each of these corresponds to a tick phase, except `Init`, which runs only once in the first tick.
 
 ## Searches
 
@@ -130,8 +135,8 @@ To work with entities and their components in your systems, you need to define a
 
 Add a search field to your system state struct using one of these types:
 
-- `Exact[T]`: Finds entities that have exactly the specified components, nothing more.
-- `Contains[T]`: Finds entities that have at least the specified components, but may have others.
+- `Exact[T]`: finds entities that have exactly the specified components, nothing more.
+- `Contains[T]`: finds entities that have at least the specified components, but may have others.
 
 For example, say you have player and enemy entities that both have a `Health` component, but only enemies have an `AIBehavior` component. Using `Contains` with just `Health` would match both players and enemies. Using `Exact` with `Health` and `AIBehavior` would match only enemies.
 
@@ -141,15 +146,15 @@ The type parameter `T` is a struct that lists the components you want to search 
 import "github.com/argus-labs/world-engine/pkg/cardinal"
 
 type MobSystemState struct {
-    cardinal.BaseSystemState
-    Mobs cardinal.Contains[struct {
-        Health   cardinal.Ref[Health]
-        Position cardinal.Ref[Position]
-    }]
+	cardinal.BaseSystemState
+	Mobs cardinal.Contains[struct {
+		Health   cardinal.Ref[Health]
+		Position cardinal.Ref[Position]
+	}]
 }
 ```
 
-This defines a search called `Mobs` that matches all entities with at least a `Health` and `Position` component. We'll use it to demonstrate entity operations below.
+This defines a search called `Mobs` that matches all entities with at least `Health` and `Position` components. We'll use it to demonstrate entity operations below.
 
 ### Creating an Entity
 
@@ -157,19 +162,21 @@ Use `Create` to spawn a new entity with the components defined in your search. I
 
 ```go
 func MobSystem(state *MobSystemState) error {
-    // Create a new entity.
-    entityID, mob := state.Mobs.Create()
+	// Create a new entity.
+	entityID, mob := state.Mobs.Create()
 
-    // Set the entity's component values. Any fields unset remain at their zero values.
-    mob.Health.Set(Health{Value: 100})
-    mob.Position.Set(Position{X: 0, Y: 0})
+	// Set the entity's component values. Any fields unset remain at their zero values.
+	mob.Health.Set(Health{Value: 100})
+	mob.Position.Set(Position{X: 0, Y: 0})
 
-    return nil
+	return nil
 }
 ```
 
 <Note>
-  `Create` always creates an entity with exactly the components in your search, even if you're using `Contains`. The difference between `Contains` and `Exact` only affects which entities are matched when iterating or querying.
+  `Create` always creates an entity with exactly the components in your search, even if you're using
+  `Contains`. The difference between `Contains` and `Exact` only affects which entities are matched
+  when iterating or querying.
 </Note>
 
 ### Destroying an Entity
@@ -178,11 +185,11 @@ Use `Destroy` to remove an entity and all its components from the world. Returns
 
 ```go
 func MobSystem(state *MobSystemState) error {
-    ok := state.Mobs.Destroy(entityID)
-    if !ok {
-        // Entity doesn't exist or was already destroyed.
-    }
-    return nil
+	ok := state.Mobs.Destroy(entityID)
+	if !ok {
+		// Entity doesn't exist or was already destroyed.
+	}
+	return nil
 }
 ```
 
@@ -192,10 +199,10 @@ Use `Iter` to loop through all entities matching the search. It yields both the 
 
 ```go
 func MobSystem(state *MobSystemState) error {
-    for entityID, mob := range state.Mobs.Iter() {
-      // Use entity...
-    }
-    return nil
+	for entityID, mob := range state.Mobs.Iter() {
+	  // Use entity...
+	}
+	return nil
 }
 ```
 
@@ -205,14 +212,14 @@ Use `GetByID` to retrieve a specific entity's handle. Returns `false` if the ent
 
 ```go
 func MobSystem(state *MobSystemState) error {
-    mob, ok := state.Mobs.GetByID(entityID)
-    if !ok {
-        // Entity not found.
-        return nil
-    }
-    health := mob.Health.Get()
-    // ...
-    return nil
+	mob, ok := state.Mobs.GetByID(entityID)
+	if !ok {
+		// Entity not found.
+		return nil
+	}
+	health := mob.Health.Get()
+	// ...
+	return nil
 }
 ```
 
@@ -222,14 +229,14 @@ Use `Get` and `Set` on component references to read and write component data:
 
 ```go
 func MobSystem(state *MobSystemState) error {
-    for _, mob := range state.Mobs.Iter() {
-        // Read current health.
-        health := mob.Health.Get()
-        
-        // Write new health.
-        mob.Health.Set(Health{Value: health.Value - 10})
-    }
-    return nil
+	for _, mob := range state.Mobs.Iter() {
+		// Read current health.
+		health := mob.Health.Get()
+
+		// Write new health.
+		mob.Health.Set(Health{Value: health.Value - 10})
+	}
+	return nil
 }
 ```
 
@@ -243,25 +250,27 @@ Define a `Contains[T]` search with both the entity's existing components and the
 import "github.com/argus-labs/world-engine/pkg/cardinal"
 
 type MobSystemState struct {
-    cardinal.BaseSystemState
-    Mobs cardinal.Contains[struct {
-        Health   cardinal.Ref[Health]
-        Position cardinal.Ref[Position]
-        Poisoned cardinal.Ref[Poisoned] // Add the component to add
-    }]
+	cardinal.BaseSystemState
+	Mobs cardinal.Contains[struct {
+		Health   cardinal.Ref[Health]
+		Position cardinal.Ref[Position]
+		Poisoned cardinal.Ref[Poisoned] // Add the component
+	}]
 }
 
 func MobSystem(state *MobSystemState) error {
-    for _, mob := range state.Mobs.Iter() {
-        // Set will add the component to the entity if it doesn't exist.
-        mob.Poisoned.Set(Poisoned{Duration: 10})
-    }
-    return nil
+	for _, mob := range state.Mobs.Iter() {
+		// Set will add the component to the entity if it doesn't exist.
+		mob.Poisoned.Set(Poisoned{Duration: 10})
+	}
+	return nil
 }
 ```
 
 <Note>
-  Because you're using a `Contains` search, it may match entities you don't intend to modify. To avoid this, add a [tag component](#tag-components) so you can distinguish your target entities from the rest.
+  Because you're using a `Contains` search, it may match entities you don't intend to modify. To
+  avoid this, add a [tag component](#tag-components) so you can distinguish your target entities
+  from the rest.
 </Note>
 
 ### Removing a Component
@@ -270,10 +279,10 @@ Use `Remove` to detach a component from an entity:
 
 ```go
 func MobSystem(state *MobSystemState) error {
-    for _, mob := range state.Mobs.Iter() {
-        // Remove the health component from this entity.
-        mob.Health.Remove()
-    }
-    return nil
+	for _, mob := range state.Mobs.Iter() {
+		// Remove the health component from this entity.
+		mob.Health.Remove()
+	}
+	return nil
 }
 ```

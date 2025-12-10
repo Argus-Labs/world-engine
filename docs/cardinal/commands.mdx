@@ -38,7 +38,9 @@ type AttackSystemState struct {
 ```
 
 <Note>
-  A system cannot have multiple `WithCommand[T]` fields with the same command type. However, different systems can handle the same command type. This is useful for when you want a single command to trigger multiple game logic and/or side effects.
+  A system cannot have multiple `WithCommand[T]` fields with the same command type. However,
+  different systems can handle the same command type. This is useful for when you want a single
+  command to trigger multiple game logic and/or side effects.
 </Note>
 
 ### Iterating Over Commands
@@ -91,7 +93,8 @@ func AttackSystem(state *AttackSystemState) error {
 Use the client SDK to send commands to the server:
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
+    {/* TODO: link to C# SDK documentation */}
     ```csharp
     await shard.SendCommandAsync("attack", new Dictionary<string, object>
     {
@@ -109,12 +112,12 @@ Use the client SDK to send commands to the server:
 
 ### Command-Reply Pattern
 
-Commands are asynchronous by design—when you send a command, you receive an acknowledgment, but not the result of the command's execution. If you need a result, you typically emit an event from the system that processes the command and subscribe to it from the client.
+Commands are asynchronous by design. When you send a command, you receive an acknowledgment, but not the result of the command's execution. If you need a result, you typically emit an event from the system that processes the command and subscribe to it from the client.
 
 Some command types are more synchronous in nature, like updating game config, where every command has a corresponding result event. For these cases, use the synchronous command method, which handles the temporary event subscription for you and returns the result event directly:
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     var result = await shard.SendCommandWithReplyAsync<PurchaseResult>("buy-item", new Dictionary<string, object>
     {
@@ -137,6 +140,8 @@ In a multi-shard setup, you can send commands from within a system to another sh
 ### Defining Shard Targets
 
 To send an inter-shard command, you must first define an `OtherWorld` variable for each shard you want to communicate with:
+
+<Note>The convention is to place this in `pkg/other_worlds/other_world.go`.</Note>
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/cardinal"
@@ -175,5 +180,6 @@ func GameEndSystem(state *GameEndSystemState) error {
 The receiving shard processes inter-shard commands like any other command, using `WithCommand` in its system state.
 
 <Note>
-  The target shard must have a system that handles the command type you're sending. If no system handles the command, it will be discarded.
+  The target shard must have a system that handles the command type you're sending. If no system
+  handles the command, it will be discarded.
 </Note>
