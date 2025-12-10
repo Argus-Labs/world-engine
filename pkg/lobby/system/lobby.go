@@ -78,10 +78,9 @@ func (LobbyErrorEvent) Name() string { return "lobby_error" }
 // PlayerDisconnectedEvent is emitted when a player is marked as disconnected.
 type PlayerDisconnectedEvent struct {
 	cardinal.BaseEvent
-	MatchID   string   `json:"match_id"`
-	PartyID   string   `json:"party_id"`
-	TeamName  string   `json:"team_name"`
-	PlayerIDs []string `json:"player_ids"`
+	MatchID  string `json:"match_id"`
+	PartyID  string `json:"party_id"`
+	TeamName string `json:"team_name"`
 }
 
 // Name returns the event name.
@@ -93,9 +92,8 @@ func (PlayerDisconnectedEvent) Name() string { return "lobby_player_disconnected
 
 // LobbyTeamInfo represents a team in lobby info (used for cross-shard communication).
 type LobbyTeamInfo struct {
-	TeamName  string   `json:"team_name"`
-	PartyIDs  []string `json:"party_ids"`
-	PlayerIDs []string `json:"player_ids"`
+	TeamName string   `json:"team_name"`
+	PartyIDs []string `json:"party_ids"`
 }
 
 // CreateLobbyFromMatchEvent is received from matchmaking system (same shard).
@@ -157,10 +155,9 @@ func (NotifyGameEndCommand) Name() string { return "game_notify_lobby_end" }
 // Game shard is responsible for deciding whether to request backfill from matchmaking.
 type PlayerDisconnectedCommand struct {
 	cardinal.BaseCommand
-	MatchID   string   `json:"match_id"`
-	PartyID   string   `json:"party_id"`
-	TeamName  string   `json:"team_name"`
-	PlayerIDs []string `json:"player_ids"`
+	MatchID  string `json:"match_id"`
+	PartyID  string `json:"party_id"`
+	TeamName string `json:"team_name"`
 }
 
 // Name returns the command name.
@@ -332,7 +329,6 @@ func LobbySystem(state *LobbySystemState) error {
 			Str("match_id", payload.MatchID).
 			Str("party_id", payload.PartyID).
 			Str("team_name", payload.TeamName).
-			Strs("player_ids", payload.PlayerIDs).
 			Msg("[CROSS-SHARD] Received PlayerDisconnected command from game shard")
 
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.MatchID)
@@ -365,10 +361,9 @@ func LobbySystem(state *LobbySystemState) error {
 
 		// Emit event - game shard can listen for this and decide whether to request backfill
 		state.PlayerDisconnectedEvents.Emit(PlayerDisconnectedEvent{
-			MatchID:   payload.MatchID,
-			PartyID:   payload.PartyID,
-			TeamName:  payload.TeamName,
-			PlayerIDs: payload.PlayerIDs,
+			MatchID:  payload.MatchID,
+			PartyID:  payload.PartyID,
+			TeamName: payload.TeamName,
 		})
 
 		state.Logger().Info().
@@ -464,9 +459,8 @@ func createLobbyFromMatch(
 
 	for i, team := range teams {
 		componentTeams[i] = component.LobbyTeam{
-			TeamName:  team.TeamName,
-			PartyIDs:  team.PartyIDs,
-			PlayerIDs: team.PlayerIDs,
+			TeamName: team.TeamName,
+			PartyIDs: team.PartyIDs,
 		}
 		allParties = append(allParties, team.PartyIDs...)
 	}

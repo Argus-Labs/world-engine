@@ -10,9 +10,8 @@ const (
 
 // LobbyTeam represents a team in a matchmade lobby.
 type LobbyTeam struct {
-	TeamName  string   `json:"team_name"`
-	PartyIDs  []string `json:"party_ids"`
-	PlayerIDs []string `json:"player_ids"` // Actual player IDs for display/logging
+	TeamName string   `json:"team_name"`
+	PartyIDs []string `json:"party_ids"`
 }
 
 // LobbyComponent is a container for parties throughout the game lifecycle.

@@ -117,7 +117,6 @@ func (TicketErrorEvent) Name() string { return "matchmaking_ticket_error" }
 type MatchTeam struct {
 	TeamName  string   `json:"team_name"`
 	TicketIDs []string `json:"ticket_ids"`
-	PlayerIDs []string `json:"player_ids"` // Actual player IDs for display/logging
 }
 
 // MatchFoundEvent is emitted when a match is found.
@@ -138,7 +137,6 @@ type BackfillMatchEvent struct {
 	MatchID    string   `json:"match_id"`
 	TeamName   string   `json:"team_name"`
 	TicketIDs  []string `json:"ticket_ids"`
-	PlayerIDs  []string `json:"player_ids"` // Actual player IDs for display/logging
 }
 
 // Name returns the event name.
@@ -150,9 +148,8 @@ func (BackfillMatchEvent) Name() string { return "matchmaking_backfill_match" }
 
 // LobbyTeamInfo represents a team for lobby creation.
 type LobbyTeamInfo struct {
-	TeamName  string     `json:"team_name"`
-	PartyIDs  []string   `json:"party_ids"`  // PartyIDs are the same as TicketIDs for matchmaking
-	PlayerIDs []string   `json:"player_ids"` // Actual player IDs for display/logging
+	TeamName string   `json:"team_name"`
+	PartyIDs []string `json:"party_ids"` // PartyIDs are the same as TicketIDs for matchmaking
 }
 
 // CreateLobbyFromMatchEvent is a system event sent to lobby system (same shard).
@@ -671,7 +668,6 @@ func runMatching(
 			teams[i] = MatchTeam{
 				TeamName:  profile.Teams[i].Name,
 				TicketIDs: []string{},
-				PlayerIDs: []string{},
 			}
 		}
 
@@ -683,13 +679,6 @@ func runMatching(
 					teams[assignment.TeamIndex].TicketIDs,
 					ticketID,
 				)
-				// Get player IDs from the ticket
-				if adapter, ok := ticketMap[ticketID]; ok {
-					teams[assignment.TeamIndex].PlayerIDs = append(
-						teams[assignment.TeamIndex].PlayerIDs,
-						adapter.ticket.GetPlayerIDs()...,
-					)
-				}
 			}
 		}
 
@@ -725,9 +714,8 @@ func runMatching(
 		lobbyTeams := make([]LobbyTeamInfo, len(teams))
 		for i, team := range teams {
 			lobbyTeams[i] = LobbyTeamInfo{
-				TeamName:  team.TeamName,
-				PartyIDs:  team.TicketIDs, // In matchmaking context, ticket IDs are party IDs
-				PlayerIDs: team.PlayerIDs,
+				TeamName: team.TeamName,
+				PartyIDs: team.TicketIDs, // In matchmaking context, ticket IDs are party IDs
 			}
 		}
 
@@ -874,17 +862,14 @@ func runBackfillMatching(
 				continue
 			}
 
-			// Collect matched ticket IDs and player IDs
+			// Collect matched ticket IDs
 			var matchedTicketIDs []string
-			var matchedPlayerIDs []string
 
 			for _, assignment := range output.Assignments {
 				ticketID := assignment.Ticket.GetID()
 				matchedTicketIDs = append(matchedTicketIDs, ticketID)
 
 				if adapter, ok := ticketMap[ticketID]; ok {
-					matchedPlayerIDs = append(matchedPlayerIDs, adapter.ticket.GetPlayerIDs()...)
-
 					// Remove ticket from index
 					ticketIndex.RemoveTicket(
 						adapter.ticket.ID,
@@ -917,14 +902,12 @@ func runBackfillMatching(
 				MatchID:    backfill.MatchID,
 				TeamName:   backfill.TeamName,
 				TicketIDs:  matchedTicketIDs,
-				PlayerIDs:  matchedPlayerIDs,
 			})
 
 			state.Logger().Info().
 				Str("backfill_id", backfillID).
 				Str("match_id", backfill.MatchID).
 				Strs("ticket_ids", matchedTicketIDs).
-				Strs("player_ids", matchedPlayerIDs).
 				Msg("Backfill match found")
 
 			// Remove backfill request
