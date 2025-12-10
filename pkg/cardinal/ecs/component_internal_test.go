@@ -10,15 +10,15 @@ import (
 )
 
 // -------------------------------------------------------------------------------------------------
-// Model-based fuzzing component manager operations
+// Model-based fuzzing component registration
 // -------------------------------------------------------------------------------------------------
-// This test verifies the componentManager implementation correctness using model-based testing. It
+// This test verifies the componentManager registration correctness using model-based testing. It
 // compares our implementation against a map[string]componentID as the model by applying random
 // sequences of register/getID operations to both and asserting equivalence.
 // We also verify structural invariants: name-id bijection and component id uniqueness.
 // -------------------------------------------------------------------------------------------------
 
-func TestComponent_ModelFuzz(t *testing.T) {
+func TestComponent_RegisterModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
@@ -28,9 +28,8 @@ func TestComponent_ModelFuzz(t *testing.T) {
 	model := make(map[string]componentID) // name -> cid
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, componentOps)
-		switch op {
-		case cm_register:
+		// 70% register, 30% getID
+		if prng.Float64() < 0.7 { //nolint:nestif // it's not bad
 			name := randValidComponentName(prng)
 
 			implID, implErr := impl.register(name, nil) // we don't use the columnFactory so it's ok
@@ -45,8 +44,7 @@ func TestComponent_ModelFuzz(t *testing.T) {
 				require.NoError(t, implErr)
 				model[name] = implID
 			}
-
-		case cm_get:
+		} else {
 			// Bias toward registered names (80%) to test retrieval path.
 			var name string
 			if len(model) > 0 && prng.Float64() < 0.8 {
@@ -63,9 +61,6 @@ func TestComponent_ModelFuzz(t *testing.T) {
 			if modelExists {
 				assert.Equal(t, modelID, implID, "getID(%s) ID mismatch", name)
 			}
-
-		default:
-			panic("unreachable")
 		}
 	}
 
@@ -92,41 +87,26 @@ func TestComponent_ModelFuzz(t *testing.T) {
 		require.NoError(t, err, "component %q in model but not in impl", name)
 		assert.Equal(t, modelID, implID, "component %q ID mismatch", name)
 	}
-}
 
-type componentOp uint8
+	// Simple test to confirm that registering the same name repeatedly is a no-op.
+	t.Run("registration idempotence", func(t *testing.T) {
+		t.Parallel()
 
-const (
-	cm_register componentOp = 70
-	cm_get      componentOp = 30
-)
+		cm := newComponentManager()
 
-var componentOps = []componentOp{cm_register, cm_get}
+		id1, err := cm.register("hello", nil)
+		require.NoError(t, err)
 
-// -------------------------------------------------------------------------------------------------
-// Registration idempotence
-// -------------------------------------------------------------------------------------------------
-// Simple test to confirm that registering the same name repeatedly is a no-op.
-// The fuzz test above also covers this, so this test mainly serves as documentation.
-// -------------------------------------------------------------------------------------------------
+		id2, err := cm.register("hello", nil)
+		require.NoError(t, err)
 
-func TestComponent_RegisterIdempotence(t *testing.T) {
-	t.Parallel()
+		assert.Equal(t, id1, id2)
 
-	cm := newComponentManager()
+		id3, err := cm.register("a_different_name", nil)
+		require.NoError(t, err)
 
-	id1, err := cm.register("hello", nil)
-	require.NoError(t, err)
-
-	id2, err := cm.register("hello", nil)
-	require.NoError(t, err)
-
-	assert.Equal(t, id1, id2)
-
-	id3, err := cm.register("a_different_name", nil)
-	require.NoError(t, err)
-
-	assert.Equal(t, id1+1, id3)
+		assert.Equal(t, id1+1, id3)
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -171,8 +151,6 @@ func TestComponent_NameValidationFuzz(t *testing.T) {
 		}
 	}
 	assert.Equal(t, opsMax, valid+invalid)
-	// Uncomment to see stats.
-	// t.Logf("total=%d valid=%d invalid=%d", opsMax, valid, invalid)
 }
 
 func assertNameProperties(name string) bool {
