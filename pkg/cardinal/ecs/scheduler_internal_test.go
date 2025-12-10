@@ -1,643 +1,411 @@
 package ecs
 
 import (
+	"math/rand/v2"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
-	. "github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestScheduler_RunExecutionOrder(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Concurrent systems fuzz
+// -------------------------------------------------------------------------------------------------
+// This test verifies that the scheduler's Run method maintains correct concurrent execution
+// behavior. We generate random system configurations with random component dependencies, instrument
+// each system with a logical clock to track execution ordering, and verify that all systems execute
+// exactly once and respect their dependency ordering across multiple ticks.
+// -------------------------------------------------------------------------------------------------
+
+func TestScheduler_RunFuzzConcurrent(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name    string
-		setupFn func(w *World, mu *sync.Mutex, executionOrder *[]string)
-		testFn  func(t *testing.T, executionOrder []string)
-	}{
-		{
-			name:    "zero systems",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Empty(t, executionOrder)
-			},
-		},
-		{
-			name: "single system",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-						Velocity Ref[Velocity]
-					}]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 1)
-				assert.Equal(t, "A", executionOrder[0])
-			},
-		},
-		{
-			name: "multiple independent systems",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateB struct {
-					Exact[struct{ Ref[Position] }]
-				}
-				type systemStateC struct {
-					Exact[struct{ Ref[Velocity] }]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateC) error {
-					appendSystem(mu, executionOrder, "C")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 3)
-				for _, s := range []string{"A", "B", "C"} {
-					assert.True(t, slices.Contains(executionOrder, s))
-				}
-			},
-		},
-		{
-			name: "two systems with shared dependency (A->B)",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateB struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-					}]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 2)
-				assert.Equal(t, []string{"A", "B"}, executionOrder)
-			},
-		},
-		{
-			name: "three systems with chain dependency (A->B->C)",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateB struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-					}]
-				}
-				type systemStateC struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-					}]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateC) error {
-					appendSystem(mu, executionOrder, "C")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 3)
-				assert.Equal(t, []string{"A", "B", "C"}, executionOrder)
-			},
-		},
-		{
-			name: "diamond dependencies (A->B | A->C | B->D | C->D)",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-					}]
-				}
-				type systemStateB struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Velocity Ref[Velocity]
-					}]
-				}
-				type systemStateC struct {
-					Exact[struct {
-						Position   Ref[Position]
-						Experience Ref[Experience]
-					}]
-				}
-				type systemStateD struct {
-					Exact[struct {
-						Velocity   Ref[Velocity]
-						Experience Ref[Experience]
-					}]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateC) error {
-					appendSystem(mu, executionOrder, "C")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateD) error {
-					appendSystem(mu, executionOrder, "D")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 4)
-				assert.Equal(t, "A", executionOrder[0])
-				assert.Equal(t, "D", executionOrder[3])
-				assert.True(t, slices.Contains(executionOrder, "B"))
-				assert.True(t, slices.Contains(executionOrder, "C"))
-			},
-		},
-		{
-			name: "two separate dependency chains (A->B->C | D->E)",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateB struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateC struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-					}]
-				}
-				type systemStateD struct {
-					Exact[struct {
-						Velocity   Ref[Velocity]
-						Experience Ref[Experience]
-					}]
-				}
-				type systemStateE struct {
-					Exact[struct{ Ref[Experience] }]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateC) error {
-					appendSystem(mu, executionOrder, "C")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateD) error {
-					appendSystem(mu, executionOrder, "D")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateE) error {
-					appendSystem(mu, executionOrder, "E")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 5)
-				for _, s := range []string{"A", "B", "C", "D", "E"} {
-					assert.True(t, slices.Contains(executionOrder, s))
-				}
-				assert.Less(t, slices.Index(executionOrder, "A"), slices.Index(executionOrder, "B"))
-				assert.Less(t, slices.Index(executionOrder, "B"), slices.Index(executionOrder, "C"))
-				assert.Less(t, slices.Index(executionOrder, "D"), slices.Index(executionOrder, "E"))
-			},
-		},
-		{
-			name: "merged separate dependency chains (A->B->C->F | D->E->F)",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateB struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateC struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-					}]
-				}
-				type systemStateD struct {
-					Exact[struct {
-						Velocity   Ref[Velocity]
-						Experience Ref[Experience]
-					}]
-				}
-				type systemStateE struct {
-					Exact[struct{ Ref[Experience] }]
-				}
-				type systemStateF struct {
-					Exact[struct {
-						Experience Ref[Experience]
-						Position   Ref[Position]
-					}]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateC) error {
-					appendSystem(mu, executionOrder, "C")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateD) error {
-					appendSystem(mu, executionOrder, "D")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateE) error {
-					appendSystem(mu, executionOrder, "E")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateF) error {
-					appendSystem(mu, executionOrder, "F")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 6)
-				for _, s := range []string{"A", "B", "C", "D", "E", "F"} {
-					assert.True(t, slices.Contains(executionOrder, s))
-				}
-				assert.Less(t, slices.Index(executionOrder, "A"), slices.Index(executionOrder, "B"))
-				assert.Less(t, slices.Index(executionOrder, "B"), slices.Index(executionOrder, "C"))
-				assert.Less(t, slices.Index(executionOrder, "D"), slices.Index(executionOrder, "E"))
-				assert.Equal(t, "F", executionOrder[5])
-			},
-		},
-		{
-			name: "system with multiple dependencies (A->D | B->D | C->D)",
-			setupFn: func(w *World, mu *sync.Mutex, executionOrder *[]string) {
-				type systemStateA struct{ Exact[struct{ Ref[Health] }] }
-				type systemStateB struct {
-					Exact[struct{ Ref[Position] }]
-				}
-				type systemStateC struct {
-					Exact[struct{ Ref[Velocity] }]
-				}
-				type systemStateD struct {
-					Exact[struct {
-						Health   Ref[Health]
-						Position Ref[Position]
-						Velocity Ref[Velocity]
-					}]
-				}
-				RegisterSystem(w, func(state *systemStateA) error {
-					appendSystem(mu, executionOrder, "A")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateB) error {
-					appendSystem(mu, executionOrder, "B")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateC) error {
-					appendSystem(mu, executionOrder, "C")
-					return nil
-				})
-				RegisterSystem(w, func(state *systemStateD) error {
-					appendSystem(mu, executionOrder, "D")
-					return nil
-				})
-			},
-			testFn: func(t *testing.T, executionOrder []string) {
-				assert.Len(t, executionOrder, 4)
-				for _, s := range []string{"A", "B", "C", "D"} {
-					assert.True(t, slices.Contains(executionOrder, s))
-				}
-				assert.Equal(t, "D", executionOrder[3])
-			},
-		},
-	}
+	const (
+		opsMax     = 1 << 10 // 1024 test cases
+		systemsMax = 100
+		ticksMax   = 10
+	)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		prng := testutils.NewRand(t)
 
-			w := NewWorld()
-			ws := w.state
-			_, err := registerComponent[Position](ws)
-			require.NoError(t, err)
-			_, err = registerComponent[Velocity](ws)
-			require.NoError(t, err)
-			_, err = registerComponent[Health](ws)
-			require.NoError(t, err)
-			_, err = registerComponent[PlayerTag](ws)
-			require.NoError(t, err)
-			_, err = registerComponent[Experience](ws)
-			require.NoError(t, err)
-			_, err = registerComponent[Level](ws)
-			require.NoError(t, err)
+		for range opsMax {
+			// Generate random systems with random dependencies.
+			numSystems := prng.IntN(systemsMax) + 1
+			systems := make([]systemMetadata, numSystems)
+			for i := range numSystems {
+				systems[i] = randSystem(prng)
+			}
 
+			// We use a logical clock (atomic counter) to track execution ordering, where each system
+			// records its start/end time by incrementing the clock. We compare the start/end times of the
+			// systems to check that they follow the correct schedule created from the dependency graph.
+			// For example, if A depends on B, then A's start time must be after B's end time.
+			var clock atomic.Int64
 			var mu sync.Mutex
-			var executionOrder []string
+			events := make([]struct{ start, end int64 }, numSystems)
 
-			tt.setupFn(w, &mu, &executionOrder)
-			w.scheduler[Update].createSchedule()
+			scheduler := newSystemScheduler()
+			for i, sys := range systems {
+				systemID := i
+				scheduler.register(sys.name, sys.deps, func() error {
+					start := clock.Add(2)
+					// We add a sleep here to simulate goroutine interleaving for a more realistic test
+					// scenario. In synctest.Test, the time package uses a fake clock, so this sleep doesn't
+					// actually run for 2 seconds, it returns immediately.
+					time.Sleep(2 * time.Second)
+					end := clock.Add(1)
 
-			// Make sure all properties hold after multiple ticks.
-			for range 100 {
-				executionOrder = executionOrder[:0]
-				w.CustomTick(func(_ *worldState) {
-					err := w.scheduler[Update].Run()
-					require.NoError(t, err)
-					tt.testFn(t, executionOrder)
+					mu.Lock()
+					// Assert system hasn't run yet this tick (exactly once check).
+					assert.Zero(t, events[systemID], "system %d executed more than once", systemID)
+					events[systemID] = struct{ start, end int64 }{start: start, end: end}
+					mu.Unlock()
+					return nil
 				})
 			}
-		})
-	}
+			scheduler.createSchedule()
+
+			// Run the scheduler multiple times to test double-buffer logic.
+			for range ticksMax {
+				// Reset tracking state for this run.
+				clock.Store(0)
+				for i := range events {
+					events[i] = struct{ start, end int64 }{}
+				}
+
+				err := scheduler.Run()
+				require.NoError(t, err)
+
+				// Property: All systems execute exactly once.
+				for i, ev := range events {
+					assert.NotZero(t, ev.start, "system %d did not execute", i)
+					assert.NotZero(t, ev.end, "system %d did not record end", i)
+					assert.Less(t, ev.start, ev.end, "system %d has invalid timing", i)
+				}
+
+				// Property: systems follow the dependency ordering.
+				for a, dependents := range scheduler.graph {
+					for _, b := range dependents {
+						assert.Less(t, events[a].end, events[b].start,
+							"dependency violated: system %d (end=%d) should complete before system %d (start=%d)",
+							a, events[a].end, b, events[b].start)
+					}
+				}
+			}
+		}
+	})
 }
 
-func appendSystem(mu *sync.Mutex, executionOrder *[]string, system string) {
-	mu.Lock()
-	*executionOrder = append(*executionOrder, system)
-	mu.Unlock()
-}
+// -------------------------------------------------------------------------------------------------
+// Schedule graph fuzz
+// -------------------------------------------------------------------------------------------------
+// This test verifies the buildDependencyGraph function by generating random system configurations
+// and checking that key invariants hold. Rather than comparing against a reference model, we
+// verify structural properties that any correct dependency graph must satisfy.
+// -------------------------------------------------------------------------------------------------
 
-func TestScheduler_BuildDependencyGraph(t *testing.T) {
+func TestScheduler_GraphFuzz(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	tests := []struct {
-		name         string
-		systems      []systemMetadata
-		wantGraph    map[int][]int
-		wantIndegree map[int]int
-	}{
-		{
-			name:         "zero systems",
-			systems:      []systemMetadata{},
-			wantGraph:    map[int][]int{},
-			wantIndegree: map[int]int{},
-		},
-		{
-			name: "single system",
-			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2, 3)},
-			},
-			wantGraph:    map[int][]int{},
-			wantIndegree: map[int]int{},
-		},
-		{
-			name: "multiple independent systems",
-			systems: []systemMetadata{
-				{name: "A", deps: createSystemDeps(1)},
-				{name: "B", deps: createSystemDeps(2)},
-				{name: "C", deps: createSystemDeps(3)},
-			},
-			wantGraph:    map[int][]int{},
-			wantIndegree: map[int]int{},
-		},
-		{
-			name: "two systems with shared dependency (A->B)",
-			systems: []systemMetadata{
-				{name: "A", deps: createSystemDeps(1, 2)},
-				{name: "B", deps: createSystemDeps(2, 3)},
-			},
-			wantGraph:    map[int][]int{0: {1}},
-			wantIndegree: map[int]int{1: 1},
-		},
-		{
-			name: "three systems with chain dependency (A->B->C)",
-			systems: []systemMetadata{
-				{name: "A", deps: createSystemDeps(1, 2)},
-				{name: "B", deps: createSystemDeps(2, 3)},
-				{name: "C", deps: createSystemDeps(3, 4)},
-			},
-			wantGraph: map[int][]int{
-				0: {1},
-				1: {2},
-			},
-			wantIndegree: map[int]int{
-				1: 1,
-				2: 1,
-			},
-		},
-		{
-			name: "diamond dependencies (A->B | A->C | B->D | C->D)",
-			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
+	const (
+		opsMax     = 1 << 12 // 4096 iterations
+		systemsMax = 100     // Maximum number of systems per test
+	)
 
-				{deps: createSystemDeps(1, 3)},
-				{deps: createSystemDeps(2, 4)},
+	for range opsMax {
+		// Generate random systems.
+		numSystems := prng.IntN(systemsMax) + 1
+		systems := make([]systemMetadata, numSystems)
+		for i := range numSystems {
+			systems[i] = randSystem(prng)
+		}
 
-				{deps: createSystemDeps(3, 4)},
-			},
-			wantGraph: map[int][]int{
-				0: {1, 2},
-				1: {3},
-				2: {3},
-			},
-			wantIndegree: map[int]int{
-				1: 1,
-				2: 1,
-				3: 2,
-			},
-		},
-		{
-			name: "two separate dependency chains (A->B->C | D->E)",
-			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-				{deps: createSystemDeps(2, 3)},
-				{deps: createSystemDeps(3, 4)},
+		graph, indegree := buildDependencyGraph(systems)
 
-				{deps: createSystemDeps(5, 6)},
-				{deps: createSystemDeps(6, 7)},
-			},
-			wantGraph: map[int][]int{
-				0: {1},
-				1: {2},
-				3: {4},
-			},
-			wantIndegree: map[int]int{
-				1: 1,
-				2: 1,
-				4: 1,
-			},
-		},
-		{
-			name: "merged separate dependency chains (A->B->C->F | D->E->F)",
-			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-				{deps: createSystemDeps(2, 3)},
-				{deps: createSystemDeps(3, 4)},
+		// Property: Idempotence - running buildDependencyGraph again produces the same result.
+		// The function should be deterministic for the same input.
+		graph2, indegree2 := buildDependencyGraph(systems)
+		assert.Equal(t, graph, graph2, "graph not idempotent")
+		assert.Equal(t, indegree, indegree2, "indegree not idempotent")
 
-				{deps: createSystemDeps(5, 6)},
-				{deps: createSystemDeps(6, 7)},
+		// -------------------------------------------------------------------------
+		// Graph properties
+		// -------------------------------------------------------------------------
 
-				{deps: createSystemDeps(4, 7)},
-			},
-			wantGraph: map[int][]int{
-				0: {1},
-				1: {2},
-				2: {5},
-				3: {4},
-				4: {5},
-			},
-			wantIndegree: map[int]int{
-				1: 1,
-				2: 1,
-				4: 1,
-				5: 2,
-			},
-		},
-		{
-			name: "system with multiple dependencies (A->D | B->D | C->D)",
-			systems: []systemMetadata{
-				{deps: createSystemDeps(1)},
-				{deps: createSystemDeps(2)},
-				{deps: createSystemDeps(3)},
+		// Property: Topological ordering - for all edges (u -> v), u < v.
+		for u, neighbors := range graph {
+			for _, v := range neighbors {
+				assert.Less(t, u, v, "edge %d -> %d violates topological order", u, v)
+			}
+		}
 
-				{deps: createSystemDeps(1, 2, 3)},
-			},
-			wantGraph: map[int][]int{
-				0: {3},
-				1: {3},
-				2: {3},
-			},
-			wantIndegree: map[int]int{
-				3: 3,
-			},
-		},
-	}
+		// Property: Graph is a permutation of the input nodes.
+		// This checks all nodes in the graph is a valid node from the input.
+		seenNodes := make(map[int]bool)
+		for u, neighbors := range graph {
+			assert.GreaterOrEqual(t, u, 0, "source node %d is negative", u)
+			assert.Less(t, u, len(systems), "source node %d out of bounds", u)
+			seenNodes[u] = true
+			for _, v := range neighbors {
+				assert.GreaterOrEqual(t, v, 0, "target node %d is negative", v)
+				assert.Less(t, v, len(systems), "target node %d out of bounds", v)
+				seenNodes[v] = true
+			}
+		}
+		// This checks all nodes 0..len(systems)-1 are present in the graph.
+		for i := range len(systems) {
+			assert.True(t, seenNodes[i], "node %d missing from graph", i)
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+		// Property: No duplicate edges. Each edge (u -> v) should appear exactly once in graph[u].
+		for u, neighbors := range graph {
+			seen := make(map[int]bool)
+			for _, v := range neighbors {
+				assert.False(t, seen[v], "duplicate edge %d -> %d", u, v)
+				seen[v] = true
+			}
+		}
 
-			graph, indegree := buildDependencyGraph(tt.systems)
-			assert.Equal(t, tt.wantGraph, graph)
-			assert.Equal(t, tt.wantIndegree, indegree)
-		})
+		// Property: The graph contains no cycles (acyclicity).
+		// This is implied by the topological ordering property (u < v), but we check it explicitly
+		// as extra safety in case we change the sorting algorithm in the future. Here, we use Kahn's
+		// algorithm: if we can process all nodes, the graph is acyclic.
+		tempIndegree := make(map[int]int)
+		for k, v := range indegree {
+			tempIndegree[k] = v
+		}
+		var queue []int
+		for i := range systems {
+			if tempIndegree[i] == 0 {
+				queue = append(queue, i)
+			}
+		}
+		processed := 0
+		for len(queue) > 0 {
+			node := queue[0]
+			queue = queue[1:]
+			processed++
+			for _, neighbor := range graph[node] {
+				tempIndegree[neighbor]--
+				if tempIndegree[neighbor] == 0 {
+					queue = append(queue, neighbor)
+				}
+			}
+		}
+		assert.Equal(t, len(systems), processed, "graph contains a cycle")
+
+		// -------------------------------------------------------------------------
+		// Indegree properties
+		// -------------------------------------------------------------------------
+
+		// Property: Indegree consistency. indegree[v] equals the number of incoming edges to v.
+		expectedIndegree := make(map[int]int)
+		for _, neighbors := range graph {
+			for _, v := range neighbors {
+				expectedIndegree[v]++
+			}
+		}
+		assert.Equal(t, expectedIndegree, indegree, "indegree mismatch")
+
+		// Property: Sum of indegrees equals total edge count.
+		// Each edge contributes exactly 1 to one node's indegree.
+		totalEdges := 0
+		for _, neighbors := range graph {
+			totalEdges += len(neighbors)
+		}
+		sumIndegrees := 0
+		for _, count := range indegree {
+			sumIndegrees += count
+		}
+		assert.Equal(t, totalEdges, sumIndegrees, "sum of indegrees != total edges")
+
+		// -------------------------------------------------------------------------
+		// First tier properties
+		// -------------------------------------------------------------------------
+
+		firstTier := getFirstTier(systems, indegree)
+
+		// Property: Non-empty. A DAG always has at least one node with zero indegree.
+		assert.NotEmpty(t, firstTier, "first tier is empty for non-empty systems")
+
+		// Property: Completeness. The first tier contains exactly nodes with indegree 0.
+		var expectedFirstTier []int
+		for i := range systems {
+			if indegree[i] == 0 {
+				expectedFirstTier = append(expectedFirstTier, i)
+			}
+		}
+		slices.Sort(expectedFirstTier)
+		slices.Sort(firstTier)
+		assert.Equal(t, expectedFirstTier, firstTier, "first tier mismatch")
 	}
 }
 
-func TestScheduler_CreateExecutionTiers(t *testing.T) {
+// randSystem creates a single systemMetadata with random component dependencies.
+// The name and fn fields are left empty as they are not used by buildDependencyGraph.
+func randSystem(prng *rand.Rand) systemMetadata {
+	const (
+		maxComponentDeps = 10  // Maximum component dependencies per system
+		maxComponentID   = 100 // Maximum component ID value
+	)
+	numDeps := prng.IntN(maxComponentDeps)
+	deps := bitmap.Bitmap{}
+	for range numDeps {
+		deps.Set(uint32(prng.IntN(maxComponentID)))
+	}
+	return systemMetadata{deps: deps}
+}
+
+// -------------------------------------------------------------------------------------------------
+// Schedule graph examples test
+// -------------------------------------------------------------------------------------------------
+// This test complements the fuzz test above with explicit, readable examples. These serve more as
+// documentation and as regression tests or known bugs.
+// -------------------------------------------------------------------------------------------------
+
+func TestScheduler_GraphExamples(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name      string
 		systems   []systemMetadata
-		wantTier0 []int
+		wantGraph map[string][]string
+		wantTier0 []string
 	}{
 		{
 			name:      "zero systems",
 			systems:   []systemMetadata{},
-			wantTier0: []int(nil),
+			wantGraph: map[string][]string{},
+			wantTier0: []string{},
 		},
 		{
 			name: "single system",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2, 3)},
+				{name: "A", deps: deps(1, 2, 3)},
 			},
-			wantTier0: []int{0},
+			wantGraph: map[string][]string{
+				"A": {},
+			},
+			wantTier0: []string{"A"},
 		},
 		{
 			name: "multiple independent systems",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1)},
-				{deps: createSystemDeps(2)},
-				{deps: createSystemDeps(3)},
+				{name: "A", deps: deps(1)},
+				{name: "B", deps: deps(2)},
+				{name: "C", deps: deps(3)},
 			},
-			wantTier0: []int{0, 1, 2},
+			wantGraph: map[string][]string{
+				"A": {},
+				"B": {},
+				"C": {},
+			},
+			wantTier0: []string{"A", "B", "C"},
 		},
 		{
 			name: "two systems with shared dependency (A->B)",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-				{deps: createSystemDeps(2, 3)},
+				{name: "A", deps: deps(1, 2)},
+				{name: "B", deps: deps(2, 3)},
 			},
-			wantTier0: []int{0},
+			wantGraph: map[string][]string{
+				"A": {"B"},
+				"B": {},
+			},
+			wantTier0: []string{"A"},
 		},
 		{
 			name: "three systems with chain dependency (A->B->C)",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-				{deps: createSystemDeps(2, 3)},
-				{deps: createSystemDeps(3, 4)},
+				{name: "A", deps: deps(1, 2)},
+				{name: "B", deps: deps(2, 3)},
+				{name: "C", deps: deps(3, 4)},
 			},
-			wantTier0: []int{0},
+			wantGraph: map[string][]string{
+				"A": {"B"},
+				"B": {"C"},
+				"C": {},
+			},
+			wantTier0: []string{"A"},
 		},
 		{
 			name: "diamond dependencies (A->B | A->C | B->D | C->D)",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-
-				{deps: createSystemDeps(1, 3)},
-				{deps: createSystemDeps(2, 4)},
-
-				{deps: createSystemDeps(3, 4)},
+				{name: "A", deps: deps(1, 2)},
+				{name: "B", deps: deps(1, 3)},
+				{name: "C", deps: deps(2, 4)},
+				{name: "D", deps: deps(3, 4)},
 			},
-			wantTier0: []int{0},
+			wantGraph: map[string][]string{
+				"A": {"B", "C"},
+				"B": {"D"},
+				"C": {"D"},
+				"D": {},
+			},
+			wantTier0: []string{"A"},
 		},
 		{
 			name: "two separate dependency chains (A->B->C | D->E)",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-				{deps: createSystemDeps(2, 3)},
-				{deps: createSystemDeps(3, 4)},
-
-				{deps: createSystemDeps(5, 6)},
-				{deps: createSystemDeps(6, 7)},
+				{name: "A", deps: deps(1, 2)},
+				{name: "B", deps: deps(2, 3)},
+				{name: "C", deps: deps(3, 4)},
+				{name: "D", deps: deps(5, 6)},
+				{name: "E", deps: deps(6, 7)},
 			},
-			wantTier0: []int{0, 3},
+			wantGraph: map[string][]string{
+				"A": {"B"},
+				"B": {"C"},
+				"C": {},
+				"D": {"E"},
+				"E": {},
+			},
+			wantTier0: []string{"A", "D"},
 		},
 		{
 			name: "merged separate dependency chains (A->B->C->F | D->E->F)",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1, 2)},
-				{deps: createSystemDeps(2, 3)},
-				{deps: createSystemDeps(3, 4)},
-
-				{deps: createSystemDeps(5, 6)},
-				{deps: createSystemDeps(6, 7)},
-
-				{deps: createSystemDeps(4, 7)},
+				{name: "A", deps: deps(1, 2)},
+				{name: "B", deps: deps(2, 3)},
+				{name: "C", deps: deps(3, 4)},
+				{name: "D", deps: deps(5, 6)},
+				{name: "E", deps: deps(6, 7)},
+				{name: "F", deps: deps(4, 7)},
 			},
-			wantTier0: []int{0, 3},
+			wantGraph: map[string][]string{
+				"A": {"B"},
+				"B": {"C"},
+				"C": {"F"},
+				"D": {"E"},
+				"E": {"F"},
+				"F": {},
+			},
+			wantTier0: []string{"A", "D"},
 		},
 		{
 			name: "system with multiple dependencies (A->D | B->D | C->D)",
 			systems: []systemMetadata{
-				{deps: createSystemDeps(1)},
-				{deps: createSystemDeps(2)},
-				{deps: createSystemDeps(3)},
-
-				{deps: createSystemDeps(1, 2, 3)},
+				{name: "A", deps: deps(1)},
+				{name: "B", deps: deps(2)},
+				{name: "C", deps: deps(3)},
+				{name: "D", deps: deps(1, 2, 3)},
 			},
-			wantTier0: []int{0, 1, 2},
+			wantGraph: map[string][]string{
+				"A": {"D"},
+				"B": {"D"},
+				"C": {"D"},
+				"D": {},
+			},
+			wantTier0: []string{"A", "B", "C"},
 		},
 	}
 
@@ -645,15 +413,41 @@ func TestScheduler_CreateExecutionTiers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, indegree := buildDependencyGraph(tt.systems)
-			tier0 := getFirstTier(tt.systems, indegree)
-			assert.Equal(t, tt.wantTier0, tier0)
+			graphActual, indegree := buildDependencyGraph(tt.systems)
+
+			// Build name-to-index mapping. All systems must have names set.
+			nameToIndex := make(map[string]int)
+			for i, sys := range tt.systems {
+				if sys.name == "" {
+					t.Fatalf("system at index %d has no name", i)
+				}
+				nameToIndex[sys.name] = i
+			}
+
+			// Convert string-keyed graph to int-keyed graph for comparison with buildDependencyGraph output.
+			graphExpected := make(map[int][]int)
+			for src, neighbors := range tt.wantGraph {
+				srcIdx := nameToIndex[src]
+				neighborIdxs := make([]int, len(neighbors))
+				for i, dst := range neighbors {
+					neighborIdxs[i] = nameToIndex[dst]
+				}
+				graphExpected[srcIdx] = neighborIdxs
+			}
+			assert.Equal(t, graphExpected, graphActual)
+
+			// Convert string tier0 slice to int slice.
+			tier0Expected := make([]int, len(tt.wantTier0))
+			for i, name := range tt.wantTier0 {
+				tier0Expected[i] = nameToIndex[name]
+			}
+			tier0Actual := getFirstTier(tt.systems, indegree)
+			assert.Equal(t, tier0Expected, tier0Actual)
 		})
 	}
 }
 
-// Helper function to create the component dependencies bitmap.
-func createSystemDeps(componentIDs ...uint32) bitmap.Bitmap {
+func deps(componentIDs ...uint32) bitmap.Bitmap {
 	deps := bitmap.Bitmap{}
 	for _, id := range componentIDs {
 		deps.Set(id)
