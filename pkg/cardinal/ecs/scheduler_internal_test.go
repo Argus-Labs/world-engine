@@ -428,18 +428,25 @@ func TestScheduler_GraphExamples(t *testing.T) {
 			graphExpected := make(map[int][]int)
 			for src, neighbors := range tt.wantGraph {
 				srcIdx := nameToIndex[src]
-				neighborIdxs := make([]int, len(neighbors))
-				for i, dst := range neighbors {
-					neighborIdxs[i] = nameToIndex[dst]
+				if len(neighbors) == 0 {
+					graphExpected[srcIdx] = nil
+				} else {
+					neighborIdxs := make([]int, len(neighbors))
+					for i, dst := range neighbors {
+						neighborIdxs[i] = nameToIndex[dst]
+					}
+					graphExpected[srcIdx] = neighborIdxs
 				}
-				graphExpected[srcIdx] = neighborIdxs
 			}
 			assert.Equal(t, graphExpected, graphActual)
 
 			// Convert string tier0 slice to int slice.
-			tier0Expected := make([]int, len(tt.wantTier0))
-			for i, name := range tt.wantTier0 {
-				tier0Expected[i] = nameToIndex[name]
+			var tier0Expected []int
+			if len(tt.wantTier0) > 0 {
+				tier0Expected = make([]int, len(tt.wantTier0))
+				for i, name := range tt.wantTier0 {
+					tier0Expected[i] = nameToIndex[name]
+				}
 			}
 			tier0Actual := getFirstTier(tt.systems, indegree)
 			assert.Equal(t, tier0Expected, tier0Actual)
