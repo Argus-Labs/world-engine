@@ -17,7 +17,6 @@ import (
 // compares our implementation against a map[string][]micro.Command as the model by applying random
 // sequences of receive/clear/get operations to both and asserting equivalence.
 // Commands are pre-registered since the micro layer guarantees only registered commands reach ECS.
-// We also verify structural invariants: name-id bijection and command id uniqueness.
 // -------------------------------------------------------------------------------------------------
 
 func TestCommand_ModelFuzz(t *testing.T) {
@@ -79,20 +78,6 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		}
 	}
 
-	// Property: bijection holds between names and IDs.
-	seenIDs := make(map[CommandID]string)
-	for name, id := range impl.catalog {
-		if prevName, seen := seenIDs[id]; seen {
-			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
-		}
-		seenIDs[id] = name
-	}
-
-	// Property: all IDs in catalog are in range [0, nextID).
-	for name, id := range impl.catalog {
-		assert.Less(t, id, impl.nextID, "ID for %q is out of range", name)
-	}
-
 	// Final state check: all buffers match model.
 	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
 	for name, modelBuf := range model {
@@ -123,27 +108,72 @@ func randValidCommandName(prng *rand.Rand) string {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Registration idempotence
+// Model-based fuzzing command registration
 // -------------------------------------------------------------------------------------------------
-// Simple test to confirm that registering the same name repeatedly is a no-op.
-// The fuzz test above also covers this, so this test mainly serves as documentation.
+// This test verifies the commandManager registration correctness using model-based testing. It
+// compares our implementation against a map[string]CommandID as the model by applying random
+// register operations and asserting equivalence. We also verify structural invariants:
+// name-id bijection and ID uniqueness.
 // -------------------------------------------------------------------------------------------------
 
-func TestComand_RegisterIdempotence(t *testing.T) {
+func TestCommand_RegisterModelFuzz(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	cr := newCommandManager()
+	const opsMax = 1 << 15 // 32_768 iterations
 
-	id1, err := cr.register("hello")
-	require.NoError(t, err)
+	impl := newCommandManager()
+	model := make(map[string]CommandID) // name -> ID
 
-	id2, err := cr.register("hello")
-	require.NoError(t, err)
+	for range opsMax {
+		name := randValidCommandName(prng)
+		implID, err := impl.register(name)
+		require.NoError(t, err)
 
-	assert.Equal(t, id1, id2)
+		if modelID, exists := model[name]; exists {
+			assert.Equal(t, modelID, implID, "ID mismatch for re-registered %q", name)
+		} else {
+			model[name] = implID
+		}
+	}
 
-	id3, err := cr.register("a_different_name")
-	require.NoError(t, err)
+	// Property: bijection holds between names and IDs.
+	seenIDs := make(map[CommandID]string)
+	for name, id := range impl.catalog {
+		if prevName, seen := seenIDs[id]; seen {
+			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
+		}
+		seenIDs[id] = name
+	}
 
-	assert.Equal(t, id1+1, id3)
+	// Property: all IDs in catalog are in range [0, nextID).
+	for name, id := range impl.catalog {
+		assert.Less(t, id, impl.nextID, "ID for %q is out of range", name)
+	}
+
+	// Final state check: catalog matches model.
+	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
+	for name, modelID := range model {
+		implID, exists := impl.catalog[name]
+		require.True(t, exists, "command %q should be registered", name)
+		assert.Equal(t, modelID, implID, "ID mismatch for %q", name)
+	}
+
+	// Simple test to confirm that registering the same name repeatedly is a no-op.
+	t.Run("registration idempotence", func(t *testing.T) {
+		t.Parallel()
+
+		id1, err := impl.register("hello")
+		require.NoError(t, err)
+
+		id2, err := impl.register("hello")
+		require.NoError(t, err)
+
+		assert.Equal(t, id1, id2)
+
+		id3, err := impl.register("a_different_name")
+		require.NoError(t, err)
+
+		assert.Equal(t, id1+1, id3)
+	})
 }
