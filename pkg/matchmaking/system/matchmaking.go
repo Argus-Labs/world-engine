@@ -504,7 +504,7 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 		// Update index
 		backfillIndex.AddBackfill(backfillID, uint32(eid), payload.MatchID, payload.ProfileName)
 
-		state.Logger().Debug().
+		state.Logger().Info().
 			Str("backfill_id", backfillID).
 			Str("match_id", payload.MatchID).
 			Int("slots", slotsNeeded).
@@ -533,7 +533,7 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 		// Destroy entity
 		state.Backfills.Destroy(ecs.EntityID(entityID))
 
-		state.Logger().Debug().
+		state.Logger().Info().
 			Str("backfill_id", payload.BackfillID).
 			Msg("Cancelled backfill request")
 	}
@@ -897,7 +897,7 @@ func runBackfillMatching(
 			backfill := backfillEntity.Backfill.Get()
 			slotsNeeded := backfill.TotalSlotsNeeded()
 
-			state.Logger().Debug().
+			state.Logger().Info().
 				Str("backfill_id", backfillID).
 				Str("match_id", backfill.MatchID).
 				Int("slots_needed", slotsNeeded).
@@ -949,7 +949,7 @@ func runBackfillMatching(
 			output := algorithm.Run(input)
 
 			if !output.Success {
-				state.Logger().Debug().
+				state.Logger().Info().
 					Str("backfill_id", backfillID).
 					Int("candidates", len(candidates)).
 					Msg("Backfill matching failed - not enough candidates")
