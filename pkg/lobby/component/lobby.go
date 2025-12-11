@@ -8,10 +8,29 @@ const (
 	LobbyStateEnded  LobbyState = "ended"   // Game finished
 )
 
+// LobbySearchFields contains search fields for a player.
+type LobbySearchFields struct {
+	StringArgs map[string]string `json:"string_args,omitempty"`
+	DoubleArgs map[string]any    `json:"double_args,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+}
+
+// LobbyPlayer represents a player in a lobby.
+type LobbyPlayer struct {
+	PlayerID     string            `json:"player_id"`
+	SearchFields LobbySearchFields `json:"search_fields"`
+}
+
+// LobbyParty represents a party in a lobby.
+type LobbyParty struct {
+	PartyID string        `json:"party_id"`
+	Players []LobbyPlayer `json:"players"`
+}
+
 // LobbyTeam represents a team in a matchmade lobby.
 type LobbyTeam struct {
-	TeamName string   `json:"team_name"`
-	PartyIDs []string `json:"party_ids"`
+	TeamName string       `json:"team_name"`
+	Parties  []LobbyParty `json:"parties"`
 }
 
 // LobbyComponent is a container for parties throughout the game lifecycle.
@@ -37,8 +56,8 @@ type LobbyComponent struct {
 	// Game configuration
 	Config map[string]string `json:"config,omitempty"`
 
-	// Disconnected parties (tracked during in_game, reported by Game Shard)
-	DisconnectedParties []string `json:"disconnected_parties,omitempty"`
+	// Disconnected players (tracked during in_game, reported by Game Shard)
+	DisconnectedPlayers []string `json:"disconnected_players,omitempty"`
 
 	// Timestamps (Unix seconds)
 	CreatedAt     int64 `json:"created_at"`
@@ -72,8 +91,8 @@ func (l *LobbyComponent) HasParty(partyID string) bool {
 // GetTeamForParty returns the team name for a given party, or empty string if not found.
 func (l *LobbyComponent) GetTeamForParty(partyID string) string {
 	for _, team := range l.Teams {
-		for _, pid := range team.PartyIDs {
-			if pid == partyID {
+		for _, party := range team.Parties {
+			if party.PartyID == partyID {
 				return team.TeamName
 			}
 		}
@@ -81,28 +100,28 @@ func (l *LobbyComponent) GetTeamForParty(partyID string) string {
 	return ""
 }
 
-// IsDisconnected returns true if the party is marked as disconnected.
-func (l *LobbyComponent) IsDisconnected(partyID string) bool {
-	for _, p := range l.DisconnectedParties {
-		if p == partyID {
+// IsPlayerDisconnected returns true if the player is marked as disconnected.
+func (l *LobbyComponent) IsPlayerDisconnected(playerID string) bool {
+	for _, p := range l.DisconnectedPlayers {
+		if p == playerID {
 			return true
 		}
 	}
 	return false
 }
 
-// MarkDisconnected marks a party as disconnected.
-func (l *LobbyComponent) MarkDisconnected(partyID string) {
-	if !l.IsDisconnected(partyID) {
-		l.DisconnectedParties = append(l.DisconnectedParties, partyID)
+// MarkPlayerDisconnected marks a player as disconnected.
+func (l *LobbyComponent) MarkPlayerDisconnected(playerID string) {
+	if !l.IsPlayerDisconnected(playerID) {
+		l.DisconnectedPlayers = append(l.DisconnectedPlayers, playerID)
 	}
 }
 
-// MarkConnected removes a party from the disconnected list.
-func (l *LobbyComponent) MarkConnected(partyID string) {
-	for i, p := range l.DisconnectedParties {
-		if p == partyID {
-			l.DisconnectedParties = append(l.DisconnectedParties[:i], l.DisconnectedParties[i+1:]...)
+// MarkPlayerConnected removes a player from the disconnected list.
+func (l *LobbyComponent) MarkPlayerConnected(playerID string) {
+	for i, p := range l.DisconnectedPlayers {
+		if p == playerID {
+			l.DisconnectedPlayers = append(l.DisconnectedPlayers[:i], l.DisconnectedPlayers[i+1:]...)
 			return
 		}
 	}

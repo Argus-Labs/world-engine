@@ -1,7 +1,6 @@
 package system
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,6 +80,37 @@ type RequestBackfillCommand struct {
 // Name returns the command name.
 func (RequestBackfillCommand) Name() string { return "lobby_request_backfill" }
 
+// GetTicketsCommand queries all tickets in the matchmaking queue.
+// Used by game shards to get ticket list.
+type GetTicketsCommand struct {
+	cardinal.BaseCommand
+	ProfileName   string              `json:"profile_name,omitempty"` // Optional filter by profile
+	SendbackWorld cardinal.OtherWorld `json:"sendback_world"`         // Where to send the response
+}
+
+// Name returns the command name.
+func (GetTicketsCommand) Name() string { return "matchmaking_get_tickets" }
+
+// TicketsListResponse is sent back to the requesting shard with ticket list.
+type TicketsListResponse struct {
+	cardinal.BaseCommand
+	Tickets []TicketInfo `json:"tickets"`
+	Total   int          `json:"total"`
+}
+
+// Name returns the command name.
+func (TicketsListResponse) Name() string { return "matchmaking_tickets_list" }
+
+// TicketInfo represents a ticket in the response.
+type TicketInfo struct {
+	TicketID    string            `json:"ticket_id"`
+	PartyID     string            `json:"party_id"`
+	ProfileName string            `json:"profile_name"`
+	Players     []MatchedPlayer   `json:"players"`
+	CreatedAt   int64             `json:"created_at"`
+	PoolCounts  map[string]int    `json:"pool_counts,omitempty"`
+}
+
 // -----------------------------------------------------------------------------
 // Events
 // -----------------------------------------------------------------------------
@@ -114,10 +144,11 @@ type TicketErrorEvent struct {
 // Name returns the event name.
 func (TicketErrorEvent) Name() string { return "matchmaking_ticket_error" }
 
-// MatchedSearchFields contains search fields with float64 converted to string.
+// MatchedSearchFields contains search fields for event serialization.
+// Uses map[string]any for DoubleArgs to ensure proper JSON/protobuf serialization.
 type MatchedSearchFields struct {
 	StringArgs map[string]string `json:"string_args,omitempty"`
-	DoubleArgs map[string]string `json:"double_args,omitempty"`
+	DoubleArgs map[string]any    `json:"double_args,omitempty"`
 	Tags       []string          `json:"tags,omitempty"`
 }
 
@@ -139,9 +170,10 @@ type MatchedTicket struct {
 func toMatchedPlayers(players []component.PlayerInfo) []MatchedPlayer {
 	result := make([]MatchedPlayer, len(players))
 	for i, p := range players {
-		doubleArgs := make(map[string]string, len(p.SearchFields.DoubleArgs))
+		// Convert map[string]float64 to map[string]any for proper serialization
+		doubleArgs := make(map[string]any, len(p.SearchFields.DoubleArgs))
 		for k, v := range p.SearchFields.DoubleArgs {
-			doubleArgs[k] = strconv.FormatFloat(v, 'f', -1, 64)
+			doubleArgs[k] = v
 		}
 		result[i] = MatchedPlayer{
 			PlayerID: p.PlayerID,
@@ -188,10 +220,22 @@ func (BackfillMatchEvent) Name() string { return "matchmaking_backfill_match" }
 // System Events (for same-shard communication)
 // -----------------------------------------------------------------------------
 
+// LobbyPlayerInfo represents a player for lobby creation.
+type LobbyPlayerInfo struct {
+	PlayerID     string            `json:"player_id"`
+	SearchFields MatchedSearchFields `json:"search_fields"`
+}
+
+// LobbyPartyInfo represents a party for lobby creation.
+type LobbyPartyInfo struct {
+	PartyID string            `json:"party_id"`
+	Players []LobbyPlayerInfo `json:"players"`
+}
+
 // LobbyTeamInfo represents a team for lobby creation.
 type LobbyTeamInfo struct {
-	TeamName string   `json:"team_name"`
-	PartyIDs []string `json:"party_ids"` // PartyIDs are the same as TicketIDs for matchmaking
+	TeamName string           `json:"team_name"`
+	Parties  []LobbyPartyInfo `json:"parties"`
 }
 
 // CreateLobbyFromMatchEvent is a system event sent to lobby system (same shard).
@@ -308,7 +352,6 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 	// Process create ticket commands
 	for cmd := range state.CreateTicketCmds.Iter() {
 		payload := cmd.Payload()
-		state.Logger().Info().Str("party_id", payload.PartyID).Str("profile", payload.ProfileName).Msg("[DEBUG] Processing CreateTicketCommand")
 
 		// Validate: check if any player already has a ticket
 		hasExisting := false
@@ -381,11 +424,6 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 			PartyID:  payload.PartyID,
 		})
 
-		state.Logger().Info().
-			Str("ticket_id", ticketID).
-			Str("party_id", payload.PartyID).
-			Str("profile", payload.ProfileName).
-			Msg("[DEBUG] Created ticket")
 	}
 
 
@@ -684,25 +722,14 @@ func runMatching(
 			continue
 		}
 
-		state.Logger().Info().
-			Str("profile", profileName).
-			Int("candidates", len(candidates)).
-			Int("team_count", len(profile.Teams)).
-			Msg("[DEBUG] Running matching algorithm")
-
 		// Create profile adapter
 		profileAdapter := &profileAdapter{profile: profile}
 
 		// Run the algorithm
 		input := algorithm.NewInput(candidates, profileAdapter, now)
 		output := algorithm.Run(input)
-		state.Logger().Info().Bool("success", output.Success).Msg("[DEBUG] Algorithm finished")
 
 		if !output.Success {
-			state.Logger().Info().
-				Str("profile", profileName).
-				Int("candidates", len(candidates)).
-				Msg("[DEBUG] Matching failed - not enough candidates or constraints not met")
 			continue
 		}
 
@@ -763,16 +790,26 @@ func runMatching(
 			Teams:       teams,
 		})
 
-		// Convert teams to LobbyTeamInfo format
+		// Convert teams to LobbyTeamInfo format with full player info
 		lobbyTeams := make([]LobbyTeamInfo, len(teams))
 		for i, team := range teams {
-			partyIDs := make([]string, len(team.Tickets))
+			parties := make([]LobbyPartyInfo, len(team.Tickets))
 			for j, ticket := range team.Tickets {
-				partyIDs[j] = ticket.PartyID
+				players := make([]LobbyPlayerInfo, len(ticket.Players))
+				for k, player := range ticket.Players {
+					players[k] = LobbyPlayerInfo{
+						PlayerID:     player.PlayerID,
+						SearchFields: player.SearchFields,
+					}
+				}
+				parties[j] = LobbyPartyInfo{
+					PartyID: ticket.PartyID,
+					Players: players,
+				}
 			}
 			lobbyTeams[i] = LobbyTeamInfo{
 				TeamName: team.TeamName,
-				PartyIDs: partyIDs,
+				Parties:  parties,
 			}
 		}
 

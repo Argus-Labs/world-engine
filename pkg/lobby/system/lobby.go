@@ -43,18 +43,6 @@ type LobbyCreatedEvent struct {
 // Name returns the event name.
 func (LobbyCreatedEvent) Name() string { return "lobby_created" }
 
-// GameStartedEvent is emitted when the game starts.
-type GameStartedEvent struct {
-	cardinal.BaseEvent
-	MatchID          string                `json:"match_id"`
-	Teams            []component.LobbyTeam `json:"teams,omitempty"`
-	MatchProfileName string                `json:"match_profile_name,omitempty"`
-	Config           map[string]string     `json:"config,omitempty"`
-}
-
-// Name returns the event name.
-func (GameStartedEvent) Name() string { return "lobby_game_started" }
-
 // GameEndedEvent is emitted when the game ends.
 type GameEndedEvent struct {
 	cardinal.BaseEvent
@@ -75,12 +63,12 @@ type LobbyErrorEvent struct {
 // Name returns the event name.
 func (LobbyErrorEvent) Name() string { return "lobby_error" }
 
-// PlayerDisconnectedEvent is emitted when a player is marked as disconnected.
+// PlayerDisconnectedEvent is emitted when players are marked as disconnected.
 type PlayerDisconnectedEvent struct {
 	cardinal.BaseEvent
-	MatchID  string `json:"match_id"`
-	PartyID  string `json:"party_id"`
-	TeamName string `json:"team_name"`
+	MatchID string                  `json:"match_id"`
+	TeamName string                  `json:"team_name"`
+	Players []component.LobbyPlayer `json:"players"`
 }
 
 // Name returns the event name.
@@ -90,10 +78,22 @@ func (PlayerDisconnectedEvent) Name() string { return "lobby_player_disconnected
 // Cross-Shard Communication Types
 // -----------------------------------------------------------------------------
 
+// LobbyPlayerInfo represents a player in lobby info (used for cross-shard communication).
+type LobbyPlayerInfo struct {
+	PlayerID     string                      `json:"player_id"`
+	SearchFields component.LobbySearchFields `json:"search_fields"`
+}
+
+// LobbyPartyInfo represents a party in lobby info (used for cross-shard communication).
+type LobbyPartyInfo struct {
+	PartyID string            `json:"party_id"`
+	Players []LobbyPlayerInfo `json:"players"`
+}
+
 // LobbyTeamInfo represents a team in lobby info (used for cross-shard communication).
 type LobbyTeamInfo struct {
-	TeamName string   `json:"team_name"`
-	PartyIDs []string `json:"party_ids"`
+	TeamName string           `json:"team_name"`
+	Parties  []LobbyPartyInfo `json:"parties"`
 }
 
 // CreateLobbyFromMatchEvent is received from matchmaking system (same shard).
@@ -150,14 +150,14 @@ type NotifyGameEndCommand struct {
 // Name returns the command name.
 func (NotifyGameEndCommand) Name() string { return "game_notify_lobby_end" }
 
-// PlayerDisconnectedCommand is received from game shard when a player disconnects.
-// This marks the party as disconnected in the lobby (state tracking only).
+// PlayerDisconnectedCommand is received from game shard when players disconnect.
+// This marks players as disconnected in the lobby (state tracking only).
 // Game shard is responsible for deciding whether to request backfill from matchmaking.
 type PlayerDisconnectedCommand struct {
 	cardinal.BaseCommand
-	MatchID  string `json:"match_id"`
-	PartyID  string `json:"party_id"`
-	TeamName string `json:"team_name"`
+	MatchID  string                  `json:"match_id"`
+	TeamName string                  `json:"team_name"`
+	Players  []component.LobbyPlayer `json:"players"`
 }
 
 // Name returns the command name.
@@ -190,7 +190,6 @@ type LobbySystemState struct {
 
 	// Events (client-facing)
 	LobbyCreatedEvents cardinal.WithEvent[LobbyCreatedEvent]
-	GameStartedEvents  cardinal.WithEvent[GameStartedEvent]
 	GameEndedEvents    cardinal.WithEvent[GameEndedEvent]
 	LobbyErrorEvents   cardinal.WithEvent[LobbyErrorEvent]
 
@@ -325,9 +324,15 @@ func LobbySystem(state *LobbySystemState) error {
 	// Process PlayerDisconnected commands (cross-shard from game shard)
 	for cmd := range state.PlayerDisconnectedCmds.Iter() {
 		payload := cmd.Payload()
+
+		var playerIDs []string
+		for _, p := range payload.Players {
+			playerIDs = append(playerIDs, p.PlayerID)
+		}
+
 		state.Logger().Info().
 			Str("match_id", payload.MatchID).
-			Str("party_id", payload.PartyID).
+			Strs("player_ids", playerIDs).
 			Str("team_name", payload.TeamName).
 			Msg("[CROSS-SHARD] Received PlayerDisconnected command from game shard")
 
@@ -355,21 +360,23 @@ func LobbySystem(state *LobbySystemState) error {
 			continue
 		}
 
-		// Mark party as disconnected
-		lobby.MarkDisconnected(payload.PartyID)
+		// Mark players as disconnected
+		for _, player := range payload.Players {
+			lobby.MarkPlayerDisconnected(player.PlayerID)
+		}
 		lobbyEntity.Lobby.Set(lobby)
 
-		// Emit event - game shard can listen for this and decide whether to request backfill
+		// Emit event with full player info
 		state.PlayerDisconnectedEvents.Emit(PlayerDisconnectedEvent{
 			MatchID:  payload.MatchID,
-			PartyID:  payload.PartyID,
 			TeamName: payload.TeamName,
+			Players:  payload.Players,
 		})
 
 		state.Logger().Info().
 			Str("match_id", payload.MatchID).
-			Str("party_id", payload.PartyID).
-			Msg("Party marked as disconnected - game shard should request backfill if needed")
+			Strs("player_ids", playerIDs).
+			Msg("Players marked as disconnected")
 	}
 
 	// Process heartbeat commands
@@ -458,11 +465,25 @@ func createLobbyFromMatch(
 	var allParties []string
 
 	for i, team := range teams {
+		parties := make([]component.LobbyParty, len(team.Parties))
+		for j, party := range team.Parties {
+			players := make([]component.LobbyPlayer, len(party.Players))
+			for k, player := range party.Players {
+				players[k] = component.LobbyPlayer{
+					PlayerID:     player.PlayerID,
+					SearchFields: player.SearchFields,
+				}
+			}
+			parties[j] = component.LobbyParty{
+				PartyID: party.PartyID,
+				Players: players,
+			}
+			allParties = append(allParties, party.PartyID)
+		}
 		componentTeams[i] = component.LobbyTeam{
 			TeamName: team.TeamName,
-			PartyIDs: team.PartyIDs,
+			Parties:  parties,
 		}
-		allParties = append(allParties, team.PartyIDs...)
 	}
 
 	// Create lobby - immediately in_game state
@@ -498,20 +519,17 @@ func createLobbyFromMatch(
 
 	// Log team distribution for determinism verification
 	for i, team := range componentTeams {
+		partyIDs := make([]string, len(team.Parties))
+		for j, party := range team.Parties {
+			partyIDs[j] = party.PartyID
+		}
 		state.Logger().Info().
 			Str("match_id", matchID).
 			Int("team_index", i).
 			Str("team_name", team.TeamName).
-			Strs("party_ids", team.PartyIDs).
+			Strs("party_ids", partyIDs).
 			Msg("Team distribution")
 	}
-
-	// Emit game started event
-	state.GameStartedEvents.Emit(GameStartedEvent{
-		MatchID:          matchID,
-		Teams:            componentTeams,
-		MatchProfileName: profileName,
-	})
 
 	// Notify game shard (same-shard or cross-shard)
 	if config.GameShardID != "" {

@@ -41,7 +41,6 @@ type (
 
 	// Lobby Events
 	LobbyCreatedEvent       = system.LobbyCreatedEvent
-	GameStartedEvent        = system.GameStartedEvent
 	GameEndedEvent          = system.GameEndedEvent
 	LobbyErrorEvent         = system.LobbyErrorEvent
 	PlayerDisconnectedEvent = system.PlayerDisconnectedEvent

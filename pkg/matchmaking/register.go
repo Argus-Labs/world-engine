@@ -40,6 +40,11 @@ type (
 	CancelTicketCommand   = system.CancelTicketCommand
 	CreateBackfillCommand = system.CreateBackfillCommand
 	CancelBackfillCommand = system.CancelBackfillCommand
+	GetTicketsCommand     = system.GetTicketsCommand
+
+	// Response Commands (cross-shard)
+	TicketsListResponse = system.TicketsListResponse
+	TicketInfo          = system.TicketInfo
 
 	// Events (client-facing)
 	TicketCreatedEvent   = system.TicketCreatedEvent
@@ -117,4 +122,7 @@ func Register(world *cardinal.World, config Config) {
 
 	// Register main matchmaking system (runs every tick)
 	cardinal.RegisterSystem(world, system.MatchmakingSystem)
+
+	// Register GetTickets system (handles ticket list queries)
+	cardinal.RegisterSystem(world, system.GetTicketsSystem)
 }
