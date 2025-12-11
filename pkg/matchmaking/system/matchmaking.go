@@ -1,6 +1,7 @@
 package system
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -113,10 +114,51 @@ type TicketErrorEvent struct {
 // Name returns the event name.
 func (TicketErrorEvent) Name() string { return "matchmaking_ticket_error" }
 
+// MatchedSearchFields contains search fields with float64 converted to string.
+type MatchedSearchFields struct {
+	StringArgs map[string]string `json:"string_args,omitempty"`
+	DoubleArgs map[string]string `json:"double_args,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+}
+
+// MatchedPlayer contains player info for event serialization.
+type MatchedPlayer struct {
+	PlayerID     string              `json:"player_id"`
+	SearchFields MatchedSearchFields `json:"search_fields"`
+}
+
+// MatchedTicket contains the full ticket info for a matched ticket.
+type MatchedTicket struct {
+	TicketID  string          `json:"ticket_id"`
+	PartyID   string          `json:"party_id"`
+	Players   []MatchedPlayer `json:"players"`
+	CreatedAt int64           `json:"created_at"`
+}
+
+// toMatchedPlayers converts []component.PlayerInfo to []MatchedPlayer.
+func toMatchedPlayers(players []component.PlayerInfo) []MatchedPlayer {
+	result := make([]MatchedPlayer, len(players))
+	for i, p := range players {
+		doubleArgs := make(map[string]string, len(p.SearchFields.DoubleArgs))
+		for k, v := range p.SearchFields.DoubleArgs {
+			doubleArgs[k] = strconv.FormatFloat(v, 'f', -1, 64)
+		}
+		result[i] = MatchedPlayer{
+			PlayerID: p.PlayerID,
+			SearchFields: MatchedSearchFields{
+				StringArgs: p.SearchFields.StringArgs,
+				DoubleArgs: doubleArgs,
+				Tags:       p.SearchFields.Tags,
+			},
+		}
+	}
+	return result
+}
+
 // MatchTeam represents a team in a match.
 type MatchTeam struct {
-	TeamName  string   `json:"team_name"`
-	TicketIDs []string `json:"ticket_ids"`
+	TeamName string          `json:"team_name"`
+	Tickets  []MatchedTicket `json:"tickets"`
 }
 
 // MatchFoundEvent is emitted when a match is found.
@@ -133,10 +175,10 @@ func (MatchFoundEvent) Name() string { return "matchmaking_match_found" }
 // BackfillMatchEvent is emitted when backfill tickets are matched.
 type BackfillMatchEvent struct {
 	cardinal.BaseEvent
-	BackfillID string   `json:"backfill_id"`
-	MatchID    string   `json:"match_id"`
-	TeamName   string   `json:"team_name"`
-	TicketIDs  []string `json:"ticket_ids"`
+	BackfillID string          `json:"backfill_id"`
+	MatchID    string          `json:"match_id"`
+	TeamName   string          `json:"team_name"`
+	Tickets    []MatchedTicket `json:"tickets"`
 }
 
 // Name returns the event name.
@@ -266,6 +308,7 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 	// Process create ticket commands
 	for cmd := range state.CreateTicketCmds.Iter() {
 		payload := cmd.Payload()
+		state.Logger().Info().Str("party_id", payload.PartyID).Str("profile", payload.ProfileName).Msg("[DEBUG] Processing CreateTicketCommand")
 
 		// Validate: check if any player already has a ticket
 		hasExisting := false
@@ -338,12 +381,13 @@ func MatchmakingSystem(state *MatchmakingSystemState) error {
 			PartyID:  payload.PartyID,
 		})
 
-		state.Logger().Debug().
+		state.Logger().Info().
 			Str("ticket_id", ticketID).
 			Str("party_id", payload.PartyID).
 			Str("profile", payload.ProfileName).
-			Msg("Created ticket")
+			Msg("[DEBUG] Created ticket")
 	}
+
 
 	// Process cancel ticket commands
 	for cmd := range state.CancelTicketCmds.Iter() {
@@ -640,11 +684,11 @@ func runMatching(
 			continue
 		}
 
-		state.Logger().Debug().
+		state.Logger().Info().
 			Str("profile", profileName).
 			Int("candidates", len(candidates)).
 			Int("team_count", len(profile.Teams)).
-			Msg("Running matching algorithm")
+			Msg("[DEBUG] Running matching algorithm")
 
 		// Create profile adapter
 		profileAdapter := &profileAdapter{profile: profile}
@@ -652,12 +696,13 @@ func runMatching(
 		// Run the algorithm
 		input := algorithm.NewInput(candidates, profileAdapter, now)
 		output := algorithm.Run(input)
+		state.Logger().Info().Bool("success", output.Success).Msg("[DEBUG] Algorithm finished")
 
 		if !output.Success {
-			state.Logger().Debug().
+			state.Logger().Info().
 				Str("profile", profileName).
 				Int("candidates", len(candidates)).
-				Msg("Matching failed - not enough candidates or constraints not met")
+				Msg("[DEBUG] Matching failed - not enough candidates or constraints not met")
 			continue
 		}
 
@@ -666,19 +711,27 @@ func runMatching(
 		teams := make([]MatchTeam, len(profile.Teams))
 		for i := range teams {
 			teams[i] = MatchTeam{
-				TeamName:  profile.Teams[i].Name,
-				TicketIDs: []string{},
+				TeamName: profile.Teams[i].Name,
+				Tickets:  []MatchedTicket{},
 			}
 		}
 
-		// Group assignments by team
+		// Group assignments by team with full ticket info
 		for _, assignment := range output.Assignments {
 			if assignment.TeamIndex >= 0 && assignment.TeamIndex < len(teams) {
 				ticketID := assignment.Ticket.GetID()
-				teams[assignment.TeamIndex].TicketIDs = append(
-					teams[assignment.TeamIndex].TicketIDs,
-					ticketID,
-				)
+				adapter := ticketMap[ticketID]
+				if adapter != nil {
+					teams[assignment.TeamIndex].Tickets = append(
+						teams[assignment.TeamIndex].Tickets,
+						MatchedTicket{
+							TicketID:  adapter.ticket.ID,
+							PartyID:   adapter.ticket.PartyID,
+							Players:   toMatchedPlayers(adapter.ticket.Players),
+							CreatedAt: adapter.ticket.CreatedAt,
+						},
+					)
+				}
 			}
 		}
 
@@ -713,9 +766,13 @@ func runMatching(
 		// Convert teams to LobbyTeamInfo format
 		lobbyTeams := make([]LobbyTeamInfo, len(teams))
 		for i, team := range teams {
+			partyIDs := make([]string, len(team.Tickets))
+			for j, ticket := range team.Tickets {
+				partyIDs[j] = ticket.PartyID
+			}
 			lobbyTeams[i] = LobbyTeamInfo{
 				TeamName: team.TeamName,
-				PartyIDs: team.TicketIDs, // In matchmaking context, ticket IDs are party IDs
+				PartyIDs: partyIDs,
 			}
 		}
 
@@ -862,7 +919,8 @@ func runBackfillMatching(
 				continue
 			}
 
-			// Collect matched ticket IDs
+			// Collect matched tickets with full info
+			var matchedTickets []MatchedTicket
 			var matchedTicketIDs []string
 
 			for _, assignment := range output.Assignments {
@@ -870,6 +928,13 @@ func runBackfillMatching(
 				matchedTicketIDs = append(matchedTicketIDs, ticketID)
 
 				if adapter, ok := ticketMap[ticketID]; ok {
+					matchedTickets = append(matchedTickets, MatchedTicket{
+						TicketID:  adapter.ticket.ID,
+						PartyID:   adapter.ticket.PartyID,
+						Players:   toMatchedPlayers(adapter.ticket.Players),
+						CreatedAt: adapter.ticket.CreatedAt,
+					})
+
 					// Remove ticket from index
 					ticketIndex.RemoveTicket(
 						adapter.ticket.ID,
@@ -901,7 +966,7 @@ func runBackfillMatching(
 				BackfillID: backfillID,
 				MatchID:    backfill.MatchID,
 				TeamName:   backfill.TeamName,
-				TicketIDs:  matchedTicketIDs,
+				Tickets:    matchedTickets,
 			})
 
 			state.Logger().Info().

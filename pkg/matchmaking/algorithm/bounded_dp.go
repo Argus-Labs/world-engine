@@ -168,6 +168,8 @@ func (s *dpState) clone() *dpState {
 }
 
 // stateKey generates a string key for the state (for deduplication).
+// Only includes team sizes and pool counts - NOT ticket IDs.
+// This ensures polynomial state space (bounded by team sizes * pool counts).
 func (s *dpState) stateKey() string {
 	var key string
 	for i, tc := range s.teamCounts {
@@ -186,16 +188,6 @@ func (s *dpState) stateKey() string {
 			key += poolName + ":" + string(rune('0'+count)) + ";"
 		}
 		key += "|"
-	}
-
-	// Include assigned ticket IDs to distinguish states with same team config but different tickets
-	ticketIDs := make([]string, len(s.assignments))
-	for i, a := range s.assignments {
-		ticketIDs[i] = a.Ticket.GetID()
-	}
-	slices.Sort(ticketIDs)
-	for _, id := range ticketIDs {
-		key += id + ","
 	}
 
 	return key
