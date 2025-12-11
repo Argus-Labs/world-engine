@@ -63,7 +63,8 @@ Events emitted during a tick are collected and broadcast to subscribers at the e
 Subscribe to an event by passing the event name and a handler function:
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
+    {/* TODO: link to C# SDK documentation */}
     ```csharp
     var handler = evt =>
     {
@@ -82,7 +83,7 @@ Subscribe to an event by passing the event name and a handler function:
 Unsubscribe from an event when you no longer need to receive updates:
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     await shard.UnsubscribeEventAsync("new-player", handler);
     ```

@@ -17,12 +17,12 @@ Here is the minimal structure for a Cardinal project:
 └── world.toml
 ```
 
-| File / Directory | Description |
-| ---------------- | ----------- |
-| `shards/`        | Source code for your game shards. |
-| `shards/<shard-id>/main.go` | The entry point for the shard. |
-| `world.toml`     | Project configuration. |
-| `go.mod`         | Go dependency definition. |
+| File / Directory            | Description                       |
+| --------------------------- | --------------------------------- |
+| `shards/`                   | Source code for your game shards. |
+| `shards/<shard-id>/main.go` | The entry point for the shard.    |
+| `world.toml`                | Project configuration.            |
+| `go.mod`                    | Go dependency definition.         |
 
 ## Registering Shards
 
@@ -32,16 +32,14 @@ By default, the framework looks for a shard's source code in `shards/<shard-id>`
 
 ```toml world.toml
 [[shards]]
-id = "matchmaking" # Defaults to: shards/matchmaking
+id = "gameplay" # Defaults to: shards/gameplay/
 
 [[shards]]
-id = "gameplay"
-path = "custom/path/to/your/shard"
+id = "matchmaking"
+path = "./custom-path/to-your-shard" # Override default shards/matchmaking/ location, instead looks in: shards/custom-path/to-your-shard/
 ```
 
-<Danger>
-  TODO: Fix the link below. 
-</Danger>
+<Danger>TODO: Fix the link below.</Danger>
 
 For a complete reference of available configuration options, see the [Configuration Reference](#).
 
@@ -78,8 +76,8 @@ For larger, more complex projects, you may prefer a domain-driven approach where
 │   ├── gameplay/          # Gameplay shard
 │   │    ├── types/        # - Public type aliases
 │   │    ├── internal/     # - Private implementation logic
-│   │    │   ├── combat/
-│   │    │   └── movement/
+│   │    │    ├── combat/
+│   │    │    └── movement/
 │   │    └── main.go
 │   └── matchmaking/       # Matchmaking shard
 ├── go.mod

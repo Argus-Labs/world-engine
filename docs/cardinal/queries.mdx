@@ -24,9 +24,9 @@ The `find` field is an array of component name strings (the value returned by `C
 
 The `match` field controls how components are matched:
 
-| Value | Description |
-|-------|-------------|
-| `"exact"` | Finds entities that have exactly the specified components, nothing more |
+| Value        | Description                                                                     |
+| ------------ | ------------------------------------------------------------------------------- |
+| `"exact"`    | Finds entities that have exactly the specified components, nothing more         |
 | `"contains"` | Finds entities that have at least the specified components, but may have others |
 
 These have the same behavior as [ECS searches](/cardinal/ecs#searches).
@@ -36,6 +36,7 @@ These have the same behavior as [ECS searches](/cardinal/ecs#searches).
 The `where` field is an optional [expr-lang](https://expr-lang.org/) expression that filters entities. The expression is evaluated per entity and must return a boolean. Access components by name and fields by dot notation. The entity ID is available as `_id`.
 
 Examples:
+
 - Comparisons: `health.HP > 100`
 - Logic: `playertag.Level >= 10 && health.HP > 50`
 - String Operations: `playertag.Nickname contains "admin"`
@@ -47,7 +48,8 @@ See the [expr-lang documentation](https://expr-lang.org/docs/getting-started) fo
 Use the client SDK to query entities from the server:
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
+    {/* TODO: link to C# SDK documentation */}
     ```csharp
     // Find all entities with player and position components
     var results = await shard.QueryAsync(new QueryRequest
@@ -79,4 +81,3 @@ The response contains an `entities` array. Each entity includes `_id` (the entit
   ]
 }
 ```
-

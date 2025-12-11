@@ -4,17 +4,17 @@ title: Client Integration
 
 High-level overview of integrating game clients with Cardinal using the client SDKs.
 
-For full SDK reference documentation, see:
+For the full SDK reference documentation, see:
 
 - [JavaScript/TypeScript](/javascript/introduction)
-- [C#](/csharp/introduction) (Unity)
+- [Unity C#](/csharp/introduction)
 
 ## Initializing the Client
 
 Create a client with a configuration object that specifies the auth URL and region configs. For local development, use dev auth to bypass the normal authentication flow.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     using WorldEngine.SDK;
     using WorldEngine.SDK.Client;
@@ -48,7 +48,7 @@ Create a client with a configuration object that specifies the auth URL and regi
 Sign in to authenticate the user. You can retrieve the current user's information and persona after signing in.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     var result = await client.SignInAsync();
     if (result.Error == null)
@@ -71,7 +71,7 @@ Sign in to authenticate the user. You can retrieve the current user's informatio
 Sign out when the user logs out of your game.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     await client.SignOutAsync();
     ```
@@ -90,7 +90,7 @@ A shard is a single instance of your game world running on the server. The shard
 To connect, specify the shard's address (region, organization, project, and shard ID) and call connect to get a shard client.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     var addr = new ShardAddress
     {
@@ -113,7 +113,7 @@ To connect, specify the shard's address (region, organization, project, and shar
 Disconnect from the shard when you no longer need it.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     client.DisconnectShard(addr);
     ```
@@ -130,7 +130,7 @@ Disconnect from the shard when you no longer need it.
 To query entities, define client-side classes with field mappings that correspond to component field names on the server. Build queries to specify which components to find and how to match them. See [Queries](/cardinal/queries) for more details.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     // Define entity classes with Field attribute mapping
     public class PlayerTag
@@ -180,7 +180,7 @@ To query entities, define client-side classes with field mappings that correspon
 Build a command payload and send it to the shard. See [Commands](/cardinal/commands) for more details.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     var payload = new Dictionary<string, object>
     {
@@ -200,10 +200,10 @@ Build a command payload and send it to the shard. See [Commands](/cardinal/comma
 
 ## Subscribing to Events
 
-Subscribe toe events with handler callbacks. See [Events](/cardinal/events) for more details.
+Subscribe to events with handler callbacks. See [Events](/cardinal/events) for more details.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     var handler = evt =>
     {
@@ -222,7 +222,7 @@ Subscribe toe events with handler callbacks. See [Events](/cardinal/events) for 
 Unsubscribe when you no longer need to receive events.
 
 <Tabs>
-  <Tab title="C#">
+  <Tab title="Unity C#">
     ```csharp
     await shard.UnsubscribeEventAsync("player-death", handler);
     ```
@@ -233,4 +233,3 @@ Unsubscribe when you no longer need to receive events.
     ```
   </Tab>
 </Tabs>
-
