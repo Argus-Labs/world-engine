@@ -2,10 +2,12 @@ package micro
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/nats-io/nats.go"
@@ -13,10 +15,10 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
+	otelcodes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	grpccodes "google.golang.org/grpc/codes"
+	codes "google.golang.org/grpc/codes"
 )
 
 var (
@@ -116,35 +118,31 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 		start := time.Now()
 
 		// Process the request.
-		replyBz, err := HandleNATSMessage(ctx, msg, handler, s.ProtoAddress, s.tel.Tracer, requestLogger)
+		replyBz, err := handleNATSMessage(ctx, msg, handler, s.ProtoAddress, s.tel.Tracer, requestLogger)
 
 		// Calculate duration and add to span.
 		duration := time.Since(start)
 		span.SetAttributes(attribute.Int64("handler.duration_ms", duration.Milliseconds()))
 		durationLogger := requestLogger.With().Int("duration_ms", int(duration.Milliseconds())).Logger()
 
-		// If HandleNATSMessage returns an error, it means we failed to marshal the response. Here, we
-		// create a generic internal server error response in place of the unmarshaleable response.
+		// If handleNATSMessage returns an error, create a generic internal server error response.
 		if err != nil {
 			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			span.SetStatus(otelcodes.Error, err.Error())
 			durationLogger.Error().Err(err).Msg("failed to marshal response payload")
 
-			// Create a dummy request for error handling.
 			errResp := NewErrorResponse(&Request{
 				Raw:            msg,
 				ServiceAddress: s.ProtoAddress,
-			}, err, grpccodes.Internal)
+			}, err, codes.Internal)
 
+			// The raw msg is validated in handleNATSMessage, so if we ever reach this error, something
+			// is definitely wrong. This marshal should not fail.
 			errRespBz, err := errResp.Bytes()
-			if err != nil {
-				durationLogger.Error().Err(err).Msg("failed to marshal error response")
-				return
-			}
-
-			replyBz = errRespBz // Set response payload to the generic error response
+			assert.That(err == nil, "failed to marshal error response")
+			replyBz = errRespBz // Set response payload to the error response
 		} else {
-			span.SetStatus(codes.Ok, "")
+			span.SetStatus(otelcodes.Ok, "")
 		}
 
 		// Respond to the message.
@@ -160,8 +158,63 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 	}
 
 	s.endpoints[name] = sub
-
 	return nil
+}
+
+// handleNATSMessage converts a NATS message to a Request, calls the handler, and converts
+// the Response back to bytes for NATS. This is used internally by the Service.
+func handleNATSMessage(
+	ctx context.Context,
+	msg *nats.Msg,
+	handler Handler,
+	serviceAddr *microv1.ServiceAddress,
+	tracer trace.Tracer,
+	logger zerolog.Logger,
+) ([]byte, error) {
+	// Create child span for handler execution
+	ctx, span := tracer.Start(ctx, "handler.execute",
+		trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	req, err := NewRequestFromNATSMsg(msg, serviceAddr)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, err.Error())
+		return nil, eris.Wrap(err, "failed to parse request")
+	}
+	span.SetAttributes(attribute.String("request.id", req.RequestID))
+
+	// Enhanced request logging with more context.
+	reqLogger := logger.With().Str("request_id", req.RequestID).Logger()
+	reqLogger.Debug().Msg("request received")
+
+	// Call the handler to get a response.
+	resp := handler(ctx, req)
+
+	// Log based on response status to catch application-level errors.
+	statusCode := resp.Status.GetCode()
+	statusMessage := resp.Status.GetMessage()
+
+	// Record application status in span.
+	span.SetAttributes(attribute.Int("status.code", int(statusCode)))
+	if statusCode != int32(codes.OK) {
+		span.RecordError(eris.New(statusMessage))
+		span.SetStatus(otelcodes.Error, statusMessage)
+		reqLogger.Error().Int32("code", statusCode).Str("message", statusMessage).Msg("request failed")
+	} else {
+		span.SetStatus(otelcodes.Ok, "")
+		reqLogger.Debug().Msg("request processed successfully")
+	}
+
+	// Convert response to bytes.
+	respBytes, err := resp.Bytes()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, err.Error())
+		return nil, eris.Wrap(err, "failed to marshal response")
+	}
+
+	return respBytes, nil
 }
 
 // Close closes all the endpoints registered with the service.
@@ -175,15 +228,12 @@ func (s *Service) Close() error {
 			}
 		}
 	}
-	if len(errs) > 0 {
-		return eris.New("one or more endpoints failed to unsubscribe")
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 // Endpoint groups
-// ---------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 
 // ServiceEndpointGroup is a helper struct that allows registering a group of endpoints with a common prefix.
 type ServiceEndpointGroup struct {

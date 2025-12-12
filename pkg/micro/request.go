@@ -4,13 +4,10 @@ import (
 	"context"
 
 	"buf.build/go/protovalidate"
+	"github.com/argus-labs/world-engine/pkg/assert"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
-	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -52,6 +49,21 @@ type Response struct {
 	Payload *anypb.Any
 }
 
+// Bytes returns the response as a byte slice ready to be sent over NATS.
+func (r *Response) Bytes() ([]byte, error) {
+	resp := &microv1.Response{
+		Status:         r.Status,
+		ServiceAddress: r.ServiceAddress,
+		Payload:        r.Payload,
+	}
+
+	if r.RequestID != "" {
+		resp.RequestId = &r.RequestID
+	}
+
+	return proto.Marshal(resp)
+}
+
 // NewRequestFromNATSMsg converts a nats.Msg to a Request, parsing the payload if present.
 func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (*Request, error) {
 	req := &Request{
@@ -76,77 +88,6 @@ func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (
 	return req, nil
 }
 
-// Bytes returns the response as a byte slice ready to be sent over NATS.
-func (r *Response) Bytes() ([]byte, error) {
-	resp := &microv1.Response{
-		Status:         r.Status,
-		ServiceAddress: r.ServiceAddress,
-		Payload:        r.Payload,
-	}
-
-	if r.RequestID != "" {
-		resp.RequestId = &r.RequestID
-	}
-
-	return proto.Marshal(resp)
-}
-
-// HandleNATSMessage converts a NATS message to a Request, calls the handler, and converts
-// the Response back to bytes for NATS. This is used internally by the Service.
-func HandleNATSMessage(
-	ctx context.Context,
-	msg *nats.Msg,
-	handler Handler,
-	serviceAddr *microv1.ServiceAddress,
-	tracer trace.Tracer,
-	logger zerolog.Logger,
-) ([]byte, error) {
-	// Create child span for handler execution
-	ctx, span := tracer.Start(ctx, "handler.execute",
-		trace.WithSpanKind(trace.SpanKindInternal))
-	defer span.End()
-
-	req, err := NewRequestFromNATSMsg(msg, serviceAddr)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(otelcodes.Error, err.Error())
-		return nil, eris.Wrap(err, "failed to parse request")
-	}
-	span.SetAttributes(attribute.String("request.id", req.RequestID))
-
-	// Enhanced request logging with more context.
-	reqLogger := logger.With().Str("request_id", req.RequestID).Logger()
-	reqLogger.Debug().Msg("request received")
-
-	// Call the handler to get a response.
-	resp := handler(ctx, req)
-
-	// Log based on response status to catch application-level errors.
-	statusCode := resp.Status.GetCode()
-	statusMessage := resp.Status.GetMessage()
-
-	// Record application status in span
-	span.SetAttributes(attribute.Int("status.code", int(statusCode)))
-	if statusCode != 0 {
-		span.RecordError(eris.New(statusMessage))
-		span.SetStatus(otelcodes.Error, statusMessage)
-		reqLogger.Error().Int32("code", statusCode).Str("message", statusMessage).Msg("request failed")
-	} else {
-		span.SetStatus(otelcodes.Ok, "")
-		reqLogger.Debug().Msg("request processed successfully")
-	}
-
-	// Convert response to bytes.
-	respBytes, err := resp.Bytes()
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(otelcodes.Error, err.Error())
-		return nil, eris.Wrap(err, "failed to marshal response")
-	}
-
-	return respBytes, nil
-}
-
 // NewSuccessResponse creates a successful response with optional payload.
 func NewSuccessResponse(req *Request, payload proto.Message) *Response {
 	var payloadAny *anypb.Any
@@ -169,17 +110,15 @@ func NewSuccessResponse(req *Request, payload proto.Message) *Response {
 }
 
 // NewErrorResponse creates an error response with the given error.
+// The code parameter must not be codes.OK, as this function is only for error responses.
 func NewErrorResponse(req *Request, err error, code codes.Code) *Response {
+	assert.That(code != codes.OK, "NewErrorResponse called with codes.OK")
+
 	var message string
 	if err != nil {
 		message = err.Error()
 	} else {
 		message = "Unknown error"
-	}
-
-	// If code is not provided, use internal error code
-	if code == codes.OK {
-		code = codes.Internal
 	}
 
 	return &Response{
