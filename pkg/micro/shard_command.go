@@ -8,6 +8,7 @@ import (
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -108,25 +109,25 @@ func registerCommand[T ShardCommand](c *commandManager) error {
 		// Check if shard is shutting down.
 		select {
 		case <-ctx.Done():
-			return NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), 0)
+			return NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
 		default:
 			// Continue processing.
 		}
 
 		command := &iscv1.Command{}
 		if err := req.Payload.UnmarshalTo(command); err != nil {
-			return NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), 0)
+			return NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
 		}
 		if err := protovalidate.Validate(command); err != nil {
-			return NewErrorResponse(req, eris.Wrap(err, "failed to validate payload"), 0)
+			return NewErrorResponse(req, eris.Wrap(err, "failed to validate payload"), codes.InvalidArgument)
 		}
 
 		if err := c.auth.VerifyCommand(command); err != nil {
-			return NewErrorResponse(req, eris.Wrap(err, "failed to verify command"), 0)
+			return NewErrorResponse(req, eris.Wrap(err, "failed to verify command"), codes.Unauthenticated)
 		}
 
 		if err := c.Enqueue(command); err != nil {
-			return NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), 0)
+			return NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.Internal)
 		}
 
 		return NewSuccessResponse(req, nil)

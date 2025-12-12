@@ -3,14 +3,17 @@ package micro
 import (
 	"context"
 
+	"buf.build/go/protovalidate"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
+	otelcodes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/genproto/googleapis/rpc/status"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -43,10 +46,34 @@ type Response struct {
 	ServiceAddress *microv1.ServiceAddress
 
 	// Status contains the response status information.
-	Status *status.Status
+	Status *spb.Status
 
 	// Payload contains the response payload, if any.
 	Payload *anypb.Any
+}
+
+// NewRequestFromNATSMsg converts a nats.Msg to a Request, parsing the payload if present.
+func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (*Request, error) {
+	req := &Request{
+		Raw:            msg,
+		ServiceAddress: serviceAddr,
+	}
+
+	if len(msg.Data) > 0 {
+		var request microv1.Request
+		if err := proto.Unmarshal(msg.Data, &request); err != nil {
+			return nil, eris.Wrap(err, "failed to unmarshal request")
+		}
+		if err := protovalidate.Validate(&request); err != nil {
+			return nil, eris.Wrap(err, "request validation failed")
+		}
+		if request.RequestId != nil {
+			req.RequestID = request.GetRequestId()
+		}
+		req.Payload = request.GetPayload()
+	}
+
+	return req, nil
 }
 
 // Bytes returns the response as a byte slice ready to be sent over NATS.
@@ -78,21 +105,12 @@ func HandleNATSMessage(
 	ctx, span := tracer.Start(ctx, "handler.execute",
 		trace.WithSpanKind(trace.SpanKindInternal))
 	defer span.End()
-	// Create a request from the incoming NATS message.
-	req := &Request{
-		Raw:            msg,
-		ServiceAddress: serviceAddr,
-	}
 
-	// Attempt to decode the request payload if it exists.
-	if len(msg.Data) > 0 {
-		var request microv1.Request
-		if err := proto.Unmarshal(msg.Data, &request); err == nil {
-			if request.RequestId != nil {
-				req.RequestID = request.GetRequestId()
-			}
-			req.Payload = request.GetPayload()
-		}
+	req, err := NewRequestFromNATSMsg(msg, serviceAddr)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, err.Error())
+		return nil, eris.Wrap(err, "failed to parse request")
 	}
 	span.SetAttributes(attribute.String("request.id", req.RequestID))
 
@@ -111,10 +129,10 @@ func HandleNATSMessage(
 	span.SetAttributes(attribute.Int("status.code", int(statusCode)))
 	if statusCode != 0 {
 		span.RecordError(eris.New(statusMessage))
-		span.SetStatus(codes.Error, statusMessage)
+		span.SetStatus(otelcodes.Error, statusMessage)
 		reqLogger.Error().Int32("code", statusCode).Str("message", statusMessage).Msg("request failed")
 	} else {
-		span.SetStatus(codes.Ok, "")
+		span.SetStatus(otelcodes.Ok, "")
 		reqLogger.Debug().Msg("request processed successfully")
 	}
 
@@ -122,7 +140,7 @@ func HandleNATSMessage(
 	respBytes, err := resp.Bytes()
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(otelcodes.Error, err.Error())
 		return nil, eris.Wrap(err, "failed to marshal response")
 	}
 
@@ -138,22 +156,20 @@ func NewSuccessResponse(req *Request, payload proto.Message) *Response {
 		payloadAny, err = anypb.New(payload)
 		if err != nil {
 			// If we fail to create the Any payload, return an error response instead
-			return NewErrorResponse(req, eris.New("failed to marshal payload"), 0)
+			return NewErrorResponse(req, eris.New("failed to marshal payload"), codes.Internal)
 		}
 	}
 
 	return &Response{
 		RequestID:      req.RequestID,
 		ServiceAddress: req.ServiceAddress,
-		Status: &status.Status{
-			Code: 0, // OK
-		},
-		Payload: payloadAny,
+		Status:         status.New(codes.OK, "").Proto(),
+		Payload:        payloadAny,
 	}
 }
 
 // NewErrorResponse creates an error response with the given error.
-func NewErrorResponse(req *Request, err error, code int32) *Response {
+func NewErrorResponse(req *Request, err error, code codes.Code) *Response {
 	var message string
 	if err != nil {
 		message = err.Error()
@@ -162,16 +178,13 @@ func NewErrorResponse(req *Request, err error, code int32) *Response {
 	}
 
 	// If code is not provided, use internal error code
-	if code == 0 {
-		code = 13 // Internal error
+	if code == codes.OK {
+		code = codes.Internal
 	}
 
 	return &Response{
 		RequestID:      req.RequestID,
 		ServiceAddress: req.ServiceAddress,
-		Status: &status.Status{
-			Code:    code,
-			Message: message,
-		},
+		Status:         status.New(code, message).Proto(),
 	}
 }

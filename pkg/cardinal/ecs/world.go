@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// World represents the root ECS state with double buffering support.
+// World represents the root ECS state.
 type World struct {
 	state *worldState
 
