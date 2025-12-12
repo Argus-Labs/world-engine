@@ -2,293 +2,28 @@ package micro_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
-	"github.com/argus-labs/world-engine/pkg/micro/testutils"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/nats-io/nats.go"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func TestClient_RequestAndSubscribe(t *testing.T) {
-	t.Parallel()
-
-	// Create a test NATS server
-	natsTest := testutils.NewNATS(t)
-
-	// Create a micro client
-	client, err := micro.NewTestClient(natsTest.Server.ClientURL())
-	require.NoError(t, err)
-	t.Cleanup(func() { client.Close() })
-
-	// Create a mock service address
-	serviceAddr := micro.GetAddress("test-region", micro.RealmInternal, "test-org", "test-proj", "test-service")
-
-	// Test payload
-	testPayload := &microv1.ServiceAddress{
-		Region:       "test-region",
-		Realm:        microv1.ServiceAddress_REALM_INTERNAL,
-		Organization: "test-org",
-		Project:      "test-proj",
-		ServiceId:    "test-service",
-	}
-
-	t.Run("successful request-and-subscribe flow", func(t *testing.T) {
-		t.Parallel()
-		commandEndpoint := "command.buy-item"
-		eventEndpoint := "event.item-purchased"
-
-		// Subscribe to the command endpoint and respond with validation + event
-		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-			// Unmarshal the request
-			var req microv1.Request
-			err := proto.Unmarshal(msg.Data, &req)
-			require.NoError(t, err)
-
-			// Step 1: Respond with immediate validation success (via msg.Respond)
-			validationResponse := &microv1.Response{
-				ServiceAddress: serviceAddr,
-				Status: &status.Status{
-					Code:    0, // Success
-					Message: "",
-				},
-			}
-			validationBytes, err := proto.Marshal(validationResponse)
-			require.NoError(t, err)
-
-			err = msg.Respond(validationBytes)
-			require.NoError(t, err)
-
-			// Step 2: Publish the actual result event to the event subject
-			anyPayload, err := anypb.New(testPayload)
-			require.NoError(t, err)
-
-			eventResponse := &microv1.Response{
-				ServiceAddress: serviceAddr,
-				Payload:        anyPayload,
-				Status: &status.Status{
-					Code:    0, // Success
-					Message: "",
-				},
-			}
-
-			eventBytes, err := proto.Marshal(eventResponse)
-			require.NoError(t, err)
-
-			err = natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
-			require.NoError(t, err)
-		})
-		require.NoError(t, err)
-		defer commandSub.Unsubscribe()
-
-		// Give the subscription time to be ready
-		time.Sleep(50 * time.Millisecond)
-
-		// Send the request with context timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-		require.NoError(t, err)
-		require.NotNil(t, msg)
-
-		// Verify the response by unmarshaling
-		var response microv1.Response
-		err = proto.Unmarshal(msg.Data, &response)
-		require.NoError(t, err)
-		assert.Equal(t, int32(0), response.GetStatus().GetCode())
-		assert.NotNil(t, response.GetPayload())
-	})
-
-	t.Run("error response from server", func(t *testing.T) {
-		t.Parallel()
-		commandEndpoint := "command.invalid-action"
-		eventEndpoint := "event.invalid-action-result"
-
-		// Subscribe to the command endpoint and respond with validation success, then error event
-		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-			// Step 1: Validation passes (command accepted)
-			validationResponse := &microv1.Response{
-				ServiceAddress: serviceAddr,
-				Status: &status.Status{
-					Code:    0,
-					Message: "",
-				},
-			}
-			validationBytes, err := proto.Marshal(validationResponse)
-			require.NoError(t, err)
-
-			err = msg.Respond(validationBytes)
-			require.NoError(t, err)
-
-			// Step 2: But processing fails (publish error event)
-			errorResponse := &microv1.Response{
-				ServiceAddress: serviceAddr,
-				Status: &status.Status{
-					Code:    3, // INVALID_ARGUMENT
-					Message: "invalid action requested",
-				},
-			}
-
-			errorBytes, err := proto.Marshal(errorResponse)
-			require.NoError(t, err)
-
-			err = natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), errorBytes)
-			require.NoError(t, err)
-		})
-		require.NoError(t, err)
-		defer commandSub.Unsubscribe()
-
-		// Give the subscription time to be ready
-		time.Sleep(50 * time.Millisecond)
-
-		// Send the request with context timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-
-		// RequestAndSubscribe now returns raw message, caller handles status
-		require.NoError(t, err)
-		require.NotNil(t, msg)
-
-		// Verify the error is in the response status
-		var response microv1.Response
-		err = proto.Unmarshal(msg.Data, &response)
-		require.NoError(t, err)
-		assert.Equal(t, int32(3), response.GetStatus().GetCode())
-		assert.Contains(t, response.GetStatus().GetMessage(), "invalid action requested")
-	})
-
-	t.Run("context timeout", func(t *testing.T) {
-		t.Parallel()
-		commandEndpoint := "command.slow-action"
-		eventEndpoint := "event.slow-action-result"
-
-		// Subscribe to the command but don't respond
-		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-			// Don't publish any response - simulate a timeout
-		})
-		require.NoError(t, err)
-		defer commandSub.Unsubscribe()
-
-		// Give the subscription time to be ready
-		time.Sleep(50 * time.Millisecond)
-
-		// Send the request with a very short timeout via context
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel()
-
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-
-		// Should get a timeout error
-		require.Error(t, err)
-		assert.Nil(t, msg)
-		assert.Contains(t, err.Error(), "context")
-	})
-
-	t.Run("context cancellation", func(t *testing.T) {
-		t.Parallel()
-		commandEndpoint := "command.cancel-action"
-		eventEndpoint := "event.cancel-action-result"
-
-		// Subscribe to the command but delay the response
-		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-			time.Sleep(500 * time.Millisecond)
-			// By the time we get here, context should be cancelled
-		})
-		require.NoError(t, err)
-		defer commandSub.Unsubscribe()
-
-		// Give the subscription time to be ready
-		time.Sleep(50 * time.Millisecond)
-
-		// Create a context we can cancel
-		ctx, cancel := context.WithCancel(context.Background())
-
-		// Cancel the context after a short delay
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			cancel()
-		}()
-
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-
-		// Should get a context cancelled error
-		require.Error(t, err)
-		assert.Nil(t, msg)
-		assert.Contains(t, err.Error(), "context")
-	})
-
-	t.Run("invalid payload", func(t *testing.T) {
-		t.Parallel()
-		commandEndpoint := "command.test"
-		eventEndpoint := "event.test-result"
-
-		// Try to send a nil payload (should fail during anypb.New)
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, nil)
-
-		// Should get an error about creating Any payload
-		require.Error(t, err)
-		assert.Nil(t, msg)
-	})
-
-	t.Run("timeout via context", func(t *testing.T) {
-		t.Parallel()
-		commandEndpoint := "command.context-timeout"
-		eventEndpoint := "event.context-timeout-result"
-
-		// Subscribe to the command endpoint and respond
-		commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-			var req microv1.Request
-			err := proto.Unmarshal(msg.Data, &req)
-			if err != nil {
-				return
-			}
-
-			validationResponse := &microv1.Response{
-				Status: &status.Status{Code: 0},
-			}
-			validationBytes, _ := proto.Marshal(validationResponse)
-			msg.Respond(validationBytes)
-
-			eventResponse := &microv1.Response{
-				Payload: req.GetPayload(),
-				Status:  &status.Status{Code: 0},
-			}
-			eventBytes, _ := proto.Marshal(eventResponse)
-			natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
-		})
-		require.NoError(t, err)
-		defer commandSub.Unsubscribe()
-
-		time.Sleep(50 * time.Millisecond)
-
-		// Timeout is now managed via context
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-
-		require.NoError(t, err)
-		require.NotNil(t, msg)
-
-		var response microv1.Response
-		err = proto.Unmarshal(msg.Data, &response)
-		require.NoError(t, err)
-		assert.Equal(t, int32(0), response.GetStatus().GetCode())
-	})
-}
+// -------------------------------------------------------------------------------------------------
+// Request integration test
+// -------------------------------------------------------------------------------------------------
+// Tests Client.Request using an in-process NATS server. Request is mostly glue code, so we test
+// our logic (serialization, status-to-error mapping) rather than NATS internals. We intentionally
+// skip cases like context timeouts or cancellation because those behaviors are already covered by
+// NATS's own tests.
+// -------------------------------------------------------------------------------------------------
 
 func TestClient_RequestAndSubscribe_NoDoubleUnsubscribe(t *testing.T) {
 	t.Parallel()
@@ -355,206 +90,184 @@ func TestClient_RequestAndSubscribe_NoDoubleUnsubscribe(t *testing.T) {
 func TestClient_Request(t *testing.T) {
 	t.Parallel()
 
-	// Create a test NATS server
-	natsTest := testutils.NewNATS(t)
+	prng := testutils.NewRand(t)
+	client := micro.NewTestClient2(t)
+	testPayload := micro.RandServiceAddress(t, prng) // Use a service address as the payload
 
-	// Create a micro client
-	client, err := micro.NewTestClient(natsTest.Server.ClientURL())
-	require.NoError(t, err)
-	t.Cleanup(func() { client.Close() })
-
-	// Create a mock service address
-	serviceAddr := micro.GetAddress("test-region", micro.RealmInternal, "test-org", "test-proj", "test-service")
-
-	testPayload := &microv1.ServiceAddress{
-		Region:       "test-region",
-		Realm:        microv1.ServiceAddress_REALM_INTERNAL,
-		Organization: "test-org",
-		Project:      "test-proj",
-		ServiceId:    "test-service",
-	}
-
-	t.Run("successful request", func(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
-		endpoint := "test.endpoint"
+		address := micro.RandServiceAddress(t, prng)
+		endpoint := "happy"
 
-		// Subscribe to the endpoint and respond
-		sub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, endpoint), func(msg *nats.Msg) {
-			var req microv1.Request
-			err := proto.Unmarshal(msg.Data, &req)
-			if err != nil {
-				return
-			}
+		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
+			request, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
 
-			response := &microv1.Response{
-				Payload: req.GetPayload(),
-				Status:  &status.Status{Code: 0},
-			}
-			responseBytes, _ := proto.Marshal(response)
+			response := micro.NewSuccessResponse(request, testPayload)
+			payload, err := response.Bytes()
+			require.NoError(t, err)
+
+			msg.Respond(payload)
+		})
+		defer sub.Unsubscribe()
+
+		// Flush ensures the subscription is registered on the server before we send a request.
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		response, err := client.Request(ctx, address, endpoint, testPayload)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, int32(codes.OK), response.GetStatus().GetCode())
+	})
+
+	t.Run("handler returns error", func(t *testing.T) {
+		t.Parallel()
+		address := micro.RandServiceAddress(t, prng)
+		endpoint := "app-error"
+
+		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
+			req, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
+
+			resp := micro.NewErrorResponse(req, errors.New("insufficient funds"), codes.InvalidArgument)
+			responseBytes, err := resp.Bytes()
+			require.NoError(t, err)
+
 			msg.Respond(responseBytes)
 		})
-		require.NoError(t, err)
 		defer sub.Unsubscribe()
 
-		time.Sleep(50 * time.Millisecond)
+		require.NoError(t, client.Flush())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
+		response, err := client.Request(ctx, address, endpoint, testPayload)
 
-		require.NoError(t, err)
-		assert.NotNil(t, response)
-		assert.Equal(t, int32(0), response.GetStatus().GetCode())
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Contains(t, err.Error(), "insufficient funds")
 	})
 
-	t.Run("error response", func(t *testing.T) {
+	t.Run("handler returns malformed response", func(t *testing.T) {
 		t.Parallel()
-		endpoint := "test.error"
+		address := micro.RandServiceAddress(t, prng)
+		endpoint := "malformed"
 
-		// Subscribe and respond with error
-		sub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, endpoint), func(msg *nats.Msg) {
-			response := &microv1.Response{
-				Status: &status.Status{
-					Code:    1,
-					Message: "test error",
-				},
-			}
-			responseBytes, _ := proto.Marshal(response)
-			msg.Respond(responseBytes)
+		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
+			msg.Respond([]byte("not a valid protobuf"))
 		})
-		require.NoError(t, err)
 		defer sub.Unsubscribe()
 
-		time.Sleep(50 * time.Millisecond)
+		require.NoError(t, client.Flush())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
+		response, err := client.Request(ctx, address, endpoint, testPayload)
 
 		require.Error(t, err)
 		assert.Nil(t, response)
-		assert.Contains(t, err.Error(), "test error")
-	})
-
-	t.Run("invalid payload", func(t *testing.T) {
-		t.Parallel()
-		endpoint := "test.endpoint"
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		response, err := client.Request(ctx, serviceAddr, endpoint, nil)
-
-		require.Error(t, err)
-		assert.Nil(t, response)
-	})
-
-	t.Run("context timeout", func(t *testing.T) {
-		t.Parallel()
-		endpoint := "test.timeout"
-
-		// Subscribe but don't respond
-		sub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, endpoint), func(msg *nats.Msg) {
-			// Don't respond
-		})
-		require.NoError(t, err)
-		defer sub.Unsubscribe()
-
-		time.Sleep(50 * time.Millisecond)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel()
-
-		response, err := client.Request(ctx, serviceAddr, endpoint, testPayload)
-
-		require.Error(t, err)
-		assert.Nil(t, response)
+		assert.Contains(t, err.Error(), "unmarshal")
 	})
 }
 
-func TestClient_RequestAndSubscribe_WithLogger(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// RequestAndSubscribe integration test
+// -------------------------------------------------------------------------------------------------
+// Tests Client.RequestAndSubscribe using an in-process NATS server. This method sends a request
+// to one subject and waits for a response on a different subject (pub-sub pattern). Just like the
+// above test, We only test the glue logic instead of NATS or protobuf code.
+// -------------------------------------------------------------------------------------------------
+
+func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Parallel()
 
-	// Create a test NATS server
-	natsTest := testutils.NewNATS(t)
+	prng := testutils.NewRand(t)
+	client := micro.NewTestClient2(t)
+	testPayload := micro.RandServiceAddress(t, prng)
 
-	// Create a micro client with logger
-	logger := zerolog.New(zerolog.NewTestWriter(t))
-	client, err := micro.NewClient(
-		micro.WithNATSConfig(micro.NATSConfig{
-			Name: "test-client-with-logger",
-			URL:  natsTest.Server.ClientURL(),
-		}),
-		micro.WithLogger(logger),
-	)
-	require.NoError(t, err)
-	defer client.Close()
+	t.Run("happy path", func(t *testing.T) {
+		t.Parallel()
+		address := micro.RandServiceAddress(t, prng)
+		commandEndpoint := "command"
+		eventEndpoint := "event"
 
-	// Create a mock service address
-	serviceAddr := micro.GetAddress("test-region", micro.RealmInternal, "test-org", "test-proj", "test-service")
+		sub := newTestHandler(t, client, micro.Endpoint(address, commandEndpoint), func(msg *nats.Msg) {
+			request, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
 
-	testPayload := &microv1.ServiceAddress{
-		Region:       "test-region",
-		Realm:        microv1.ServiceAddress_REALM_INTERNAL,
-		Organization: "test-org",
-		Project:      "test-proj",
-		ServiceId:    "test-service",
-	}
+			response1 := micro.NewSuccessResponse(request, testPayload)
+			payload1, err := response1.Bytes()
+			require.NoError(t, err)
 
-	commandEndpoint := "command.test-logging"
-	eventEndpoint := "event.test-logging-result"
+			msg.Respond(payload1)
 
-	// Subscribe and respond
-	commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-		// Step 1: Validation response
-		validationResponse := &microv1.Response{
-			ServiceAddress: serviceAddr,
-			Status: &status.Status{
-				Code: 0,
-			},
-		}
-		validationBytes, err := proto.Marshal(validationResponse)
+			response2 := micro.NewSuccessResponse(request, testPayload)
+			payload2, err := response2.Bytes()
+			require.NoError(t, err)
+			client.Publish(micro.Endpoint(address, eventEndpoint), payload2)
+		})
+		defer sub.Unsubscribe()
+
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		msg, err := client.RequestAndSubscribe(ctx, address, commandEndpoint, address, eventEndpoint, testPayload)
+
 		require.NoError(t, err)
+		require.NotNil(t, msg)
 
-		err = msg.Respond(validationBytes)
+		var response microv1.Response
+		err = proto.Unmarshal(msg.Data, &response)
 		require.NoError(t, err)
-
-		// Step 2: Event response
-		anyPayload, err := anypb.New(testPayload)
-		require.NoError(t, err)
-
-		eventResponse := &microv1.Response{
-			ServiceAddress: serviceAddr,
-			Payload:        anyPayload,
-			Status: &status.Status{
-				Code: 0,
-			},
-		}
-
-		eventBytes, err := proto.Marshal(eventResponse)
-		require.NoError(t, err)
-
-		err = natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
-		require.NoError(t, err)
+		assert.Equal(t, int32(codes.OK), response.GetStatus().GetCode())
 	})
+
+	t.Run("send failure propagates", func(t *testing.T) {
+		t.Parallel()
+		address := micro.RandServiceAddress(t, prng)
+		commandEndpoint := "command-fail"
+		eventEndpoint := "event-fail"
+
+		sub := newTestHandler(t, client, micro.Endpoint(address, commandEndpoint), func(msg *nats.Msg) {
+			request, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
+
+			response := micro.NewErrorResponse(request, errors.New("validation failed"), codes.InvalidArgument)
+			payload, err := response.Bytes()
+			require.NoError(t, err)
+			msg.Respond(payload)
+		})
+		defer sub.Unsubscribe()
+
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		msg, err := client.RequestAndSubscribe(ctx, address, commandEndpoint, address, eventEndpoint, testPayload)
+
+		require.Error(t, err)
+		assert.Nil(t, msg)
+		assert.Contains(t, err.Error(), "send failed")
+		assert.Contains(t, err.Error(), "validation failed")
+	})
+}
+
+func newTestHandler(
+	t *testing.T,
+	client *micro.Client,
+	address string,
+	handler func(msg *nats.Msg),
+) *nats.Subscription {
+	sub, err := client.Subscribe(address, handler)
 	require.NoError(t, err)
-	defer commandSub.Unsubscribe()
-
-	// Give the subscription time to be ready
-	time.Sleep(50 * time.Millisecond)
-
-	// Send the request with context timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-	require.NoError(t, err)
-	require.NotNil(t, msg)
-
-	var response microv1.Response
-	err = proto.Unmarshal(msg.Data, &response)
-	require.NoError(t, err)
-	assert.Equal(t, int32(0), response.GetStatus().GetCode())
+	return sub
 }

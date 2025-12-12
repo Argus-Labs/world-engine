@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -31,7 +32,7 @@ func TestMicro_Handler(t *testing.T) {
 	// Create a handler that returns an error response
 	errorHandler := func(ctx context.Context, req *micro.Request) *micro.Response {
 		// Return an error response
-		return micro.NewErrorResponse(req, eris.New("test error"), 3) // 3 = INVALID_ARGUMENT
+		return micro.NewErrorResponse(req, eris.New("test error"), codes.InvalidArgument)
 	}
 
 	// Test cases

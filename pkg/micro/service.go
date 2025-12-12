@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+	grpccodes "google.golang.org/grpc/codes"
 )
 
 var (
@@ -133,7 +134,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			errResp := NewErrorResponse(&Request{
 				Raw:            msg,
 				ServiceAddress: s.ProtoAddress,
-			}, err, 13) // 13 = INTERNAL
+			}, err, grpccodes.Internal)
 
 			errRespBz, err := errResp.Bytes()
 			if err != nil {
