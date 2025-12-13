@@ -146,12 +146,15 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			span.SetStatus(codes.Ok, "")
 		}
 
-		// Respond to the message.
-		if err := msg.Respond(replyBz); err != nil {
-			durationLogger.Error().Err(err).Msg("failed to send response over NATS")
-		} else {
-			// Log successful network transmission (application success/failure already logged in HandleNATSMessage)
-			durationLogger.Debug().Msg("response sent successfully")
+		// Respond to the message only if it expects a reply (has a reply subject).
+		// Fire-and-forget messages (Publish) don't have a reply subject, so skip responding.
+		if msg.Reply != "" {
+			if err := msg.Respond(replyBz); err != nil {
+				durationLogger.Error().Err(err).Msg("failed to send response over NATS")
+			} else {
+				// Log successful network transmission (application success/failure already logged in HandleNATSMessage)
+				durationLogger.Debug().Msg("response sent successfully")
+			}
 		}
 	})
 	if err != nil {

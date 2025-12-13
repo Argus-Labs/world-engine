@@ -54,3 +54,11 @@ type AuthInfo struct {
 type ShardCommand interface {
 	Name() string
 }
+
+// ValidatableCommand is an optional interface that commands can implement
+// to provide early validation before being enqueued.
+// If validation fails, the error is returned to the caller immediately.
+type ValidatableCommand interface {
+	ShardCommand
+	Validate() error
+}
