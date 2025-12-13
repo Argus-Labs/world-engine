@@ -27,29 +27,22 @@ var (
 
 // Service represents a micro service that can serve requests.
 type Service struct {
-	tel    *telemetry.Telemetry
-	client *Client
-
+	tel       *telemetry.Telemetry
+	client    *Client
 	endpoints map[string]*nats.Subscription
 
-	// Service address information
-	Address      *ServiceAddress
-	ProtoAddress *microv1.ServiceAddress
-	Version      string // Version represents the service version.
+	Address *ServiceAddress // This service's address
+	Version string          // Version represents the service version.
 }
 
 // NewService creates a new service with the given NATS client, service address, and telemetry.
 func NewService(client *Client, address *ServiceAddress, tel *telemetry.Telemetry) (*Service, error) {
-	// Create protobuf service address - it's the same type now, so just use it directly
-	protoAddress := address
-
 	s := &Service{
-		tel:          tel,
-		client:       client,
-		endpoints:    make(map[string]*nats.Subscription),
-		Address:      address,
-		ProtoAddress: protoAddress,
-		Version:      runtime.Version(),
+		tel:       tel,
+		client:    client,
+		endpoints: make(map[string]*nats.Subscription),
+		Address:   address,
+		Version:   runtime.Version(),
 	}
 
 	return s, nil
@@ -64,13 +57,6 @@ func (s *Service) Logger() *zerolog.Logger {
 		Str("service_id", s.Address.ServiceId).
 		Logger()
 	return &logger
-}
-
-// NATS returns the underlying NATS client.
-// While it is possible to use the NATS client directly to publish and subscribe to endpoints,
-// it is recommended to use the Service methods to handle messages received from NATS.
-func (s *Service) NATS() *Client {
-	return s.client
 }
 
 // AddGroup returns a helper struct that allows registering a group of endpoints with a common prefix.
@@ -118,7 +104,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 		start := time.Now()
 
 		// Process the request.
-		replyBz, err := handleNATSMessage(ctx, msg, handler, s.ProtoAddress, s.tel.Tracer, requestLogger)
+		replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, s.tel.Tracer, requestLogger)
 
 		// Calculate duration and add to span.
 		duration := time.Since(start)
@@ -133,7 +119,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 
 			errResp := NewErrorResponse(&Request{
 				Raw:            msg,
-				ServiceAddress: s.ProtoAddress,
+				ServiceAddress: s.Address,
 			}, err, codes.Internal)
 
 			// The raw msg is validated in handleNATSMessage, so if we ever reach this error, something
