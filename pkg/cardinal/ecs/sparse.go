@@ -4,34 +4,35 @@ import "github.com/argus-labs/world-engine/pkg/assert"
 
 type sparseSet []int
 
-const tombstone = -1
+const sparseCapacity = 128
+const sparseTombstone = -1
 
+// newSparseSet creates a new sparse set.
 func newSparseSet() sparseSet {
-	const capacity = 128
-
-	s := make(sparseSet, capacity)
-	for i := range capacity {
-		s[i] = tombstone
+	s := make(sparseSet, sparseCapacity)
+	for i := range sparseCapacity {
+		s[i] = sparseTombstone
 	}
-
 	return s
 }
 
+// get returns the value for a key and whether it exists.
 func (s *sparseSet) get(key EntityID) (int, bool) {
 	if int(key) >= len(*s) {
 		return 0, false
 	}
 
 	value := (*s)[key]
-	if value == tombstone {
+	if value == sparseTombstone {
 		return 0, false
 	}
 
 	return value, true
 }
 
+// set stores a value for a key, growing the backing slice if needed.
 func (s *sparseSet) set(key EntityID, value int) {
-	assert.That(value != tombstone, "value cannot be tombstone")
+	assert.That(value >= 0, "value must be a non-negative row index")
 
 	if int(key) >= len(*s) { // Grow slice if needed
 		// Grow by doubling or to key+1, whichever is larger.
@@ -41,7 +42,7 @@ func (s *sparseSet) set(key EntityID, value int) {
 		newSlice := make(sparseSet, newLen)
 		copy(newSlice, *s)
 		for i := oldLen; i < newLen; i++ {
-			newSlice[i] = tombstone
+			newSlice[i] = sparseTombstone
 		}
 		*s = newSlice
 	}
@@ -49,21 +50,22 @@ func (s *sparseSet) set(key EntityID, value int) {
 	(*s)[key] = value
 }
 
+// remove sets a key's value to tombstone. Returns true if the key existed.
 func (s *sparseSet) remove(key EntityID) bool {
 	if int(key) >= len(*s) {
 		return false
 	}
 
-	if (*s)[key] == tombstone {
+	if (*s)[key] == sparseTombstone {
 		return false
 	}
 
-	(*s)[key] = tombstone
+	(*s)[key] = sparseTombstone
 	return true
 }
 
-// serialize converts the sparseSet to a slice of int64 for protobuf serialization.
-func (s *sparseSet) serialize() []int64 {
+// toInt64Slice converts the sparseSet to a []int64 for protobuf serialization.
+func (s *sparseSet) toInt64Slice() []int64 {
 	result := make([]int64, len(*s))
 	for i, value := range *s {
 		result[i] = int64(value)
@@ -71,8 +73,8 @@ func (s *sparseSet) serialize() []int64 {
 	return result
 }
 
-// deserialize populates the sparseSet from a slice of int64 from protobuf.
-func (s *sparseSet) deserialize(data []int64) {
+// fromInt64Slice populates the sparseSet from a []int64.
+func (s *sparseSet) fromInt64Slice(data []int64) {
 	*s = make(sparseSet, len(data))
 	for i, value := range data {
 		(*s)[i] = int(value)
