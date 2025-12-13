@@ -17,7 +17,7 @@ import (
 )
 
 // -------------------------------------------------------------------------------------------------
-// Request integration test
+// Request integration smoke test
 // -------------------------------------------------------------------------------------------------
 // Tests Client.Request using an in-process NATS server. Request is mostly glue code, so we test
 // our logic (serialization, status-to-error mapping) rather than NATS internals. We intentionally
@@ -177,7 +177,7 @@ func TestClient_Request(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// RequestAndSubscribe integration test
+// RequestAndSubscribe integration smoke test
 // -------------------------------------------------------------------------------------------------
 // Tests Client.RequestAndSubscribe using an in-process NATS server. This method sends a request
 // to one subject and waits for a response on a different subject (pub-sub pattern). Just like the
