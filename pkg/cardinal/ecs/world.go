@@ -18,7 +18,7 @@ type World struct {
 
 	// Commands, events, system events.
 	commands     commandManager     // Receives commands from external sources
-	events       eventManager       // Stores events to be emitted to external sources
+	events       *eventManager      // Stores events to be emitted to external sources
 	systemEvents systemEventManager // Manages system events
 }
 

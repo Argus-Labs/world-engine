@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"testing"
+	"testing/synctest"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -69,6 +70,54 @@ const (
 )
 
 var eventOps = []eventOp{em_enqueue, em_get, em_clear}
+
+// -------------------------------------------------------------------------------------------------
+// Channel overflow regression test
+// -------------------------------------------------------------------------------------------------
+// This test verifies that enqueue does not block when the channel is full. Before the fix,
+// enqueue would block indefinitely when the channel capacity (1024) was exceeded, causing
+// a deadlock. After the fix, enqueue should flush the channel to the buffer when full.
+// -------------------------------------------------------------------------------------------------
+
+func TestEvent_EnqueueChannelFull(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		const channelCapacity = 16
+		const totalEvents = channelCapacity * 3 // Well beyond channel capacity
+
+		impl := newEventManager(withChannelCapacity(channelCapacity))
+
+		// Enqueue more events than channel capacity.
+		// Before fix: this blocks forever after 16 events, causing deadlock.
+		// After fix: this completes without blocking.
+		done := false
+		go func() {
+			for i := range totalEvents {
+				impl.enqueue(EventKindDefault, i)
+			}
+			done = true
+		}()
+
+		// Wait for all goroutines to complete or durably block.
+		// If enqueue blocks, synctest.Test will detect deadlock and fail.
+		synctest.Wait()
+
+		if !done {
+			t.Fatal("enqueue blocked: channel overflow not handled")
+		}
+
+		// Verify all events are captured.
+		events := impl.getEvents()
+		assert.Len(t, events, totalEvents, "expected all %d events to be captured", totalEvents)
+
+		// Verify data integrity.
+		for i, event := range events {
+			assert.Equal(t, EventKindDefault, event.Kind, "event kind mismatch at index %d", i)
+			assert.Equal(t, i, event.Payload, "payload mismatch at index %d", i)
+		}
+	})
+}
 
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing event registration
