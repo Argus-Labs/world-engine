@@ -43,6 +43,14 @@ func (ComponentC) Name() string {
 // System events
 // -------------------------------------------------------------------------------------------------
 
+type SimpleSystemEvent struct {
+	Value int
+}
+
+func (SimpleSystemEvent) Name() string {
+	return "simple_system_event"
+}
+
 type SystemEventA struct {
 	X, Y, Z float64
 }
@@ -68,4 +76,36 @@ type SystemEventC struct {
 
 func (SystemEventC) Name() string {
 	return "system_event_c"
+}
+
+// -------------------------------------------------------------------------------------------------
+// Commands
+// -------------------------------------------------------------------------------------------------
+
+type SimpleCommand struct {
+	Value int
+}
+
+func (SimpleCommand) Name() string {
+	return "simple_command"
+}
+
+// -------------------------------------------------------------------------------------------------
+// Events
+// -------------------------------------------------------------------------------------------------
+
+type SimpleEvent struct {
+	Value int
+}
+
+func (SimpleEvent) Name() string {
+	return "simple_event"
+}
+
+type AnotherEvent struct {
+	Data string
+}
+
+func (AnotherEvent) Name() string {
+	return "another_event"
 }
