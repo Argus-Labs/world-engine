@@ -25,68 +25,6 @@ import (
 // NATS's own tests.
 // -------------------------------------------------------------------------------------------------
 
-func TestClient_RequestAndSubscribe_NoDoubleUnsubscribe(t *testing.T) {
-	t.Parallel()
-
-	// Create a test NATS server
-	natsTest := testutils.NewNATS(t)
-
-	// Create a micro client with logger to capture warnings
-	logger := zerolog.New(zerolog.NewTestWriter(t))
-	client, err := micro.NewClient(
-		micro.WithNATSConfig(micro.NATSConfig{
-			Name: "test-double-unsub",
-			URL:  natsTest.Server.ClientURL(),
-		}),
-		micro.WithLogger(logger),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { client.Close() })
-
-	serviceAddr := micro.GetAddress("test-region", micro.RealmInternal, "test-org", "test-proj", "test-service")
-
-	testPayload := &microv1.ServiceAddress{
-		Region:       "test-region",
-		Realm:        microv1.ServiceAddress_REALM_INTERNAL,
-		Organization: "test-org",
-		Project:      "test-proj",
-		ServiceId:    "test-service",
-	}
-
-	commandEndpoint := "command.double-unsub-test"
-	eventEndpoint := "event.double-unsub-test"
-
-	// Subscribe to the command endpoint and respond
-	commandSub, err := natsTest.Client.Subscribe(micro.Endpoint(serviceAddr, commandEndpoint), func(msg *nats.Msg) {
-		validationResponse := &microv1.Response{
-			Status: &status.Status{Code: 0},
-		}
-		validationBytes, _ := proto.Marshal(validationResponse)
-		msg.Respond(validationBytes)
-
-		eventResponse := &microv1.Response{
-			Status: &status.Status{Code: 0},
-		}
-		eventBytes, _ := proto.Marshal(eventResponse)
-		natsTest.Client.Publish(micro.Endpoint(serviceAddr, eventEndpoint), eventBytes)
-	})
-	require.NoError(t, err)
-	defer commandSub.Unsubscribe()
-
-	time.Sleep(50 * time.Millisecond)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Call multiple times to ensure no subscription leaks or errors
-	// If double unsubscribe bug exists, we'd see "Failed to unsubscribe" warnings in logs
-	for i := 0; i < 10; i++ {
-		msg, err := client.RequestAndSubscribe(ctx, serviceAddr, commandEndpoint, serviceAddr, eventEndpoint, testPayload)
-		require.NoError(t, err)
-		require.NotNil(t, msg)
-	}
-}
-
 func TestClient_Request(t *testing.T) {
 	t.Parallel()
 
@@ -258,6 +196,41 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		assert.Nil(t, msg)
 		assert.Contains(t, err.Error(), "send failed")
 		assert.Contains(t, err.Error(), "validation failed")
+	})
+
+	t.Run("no double unsubscribe errors", func(t *testing.T) {
+		t.Parallel()
+		address := micro.RandServiceAddress(t, prng)
+		commandEndpoint := "command-double-unsub"
+		eventEndpoint := "event-double-unsub"
+
+		sub := newTestHandler(t, client, micro.Endpoint(address, commandEndpoint), func(msg *nats.Msg) {
+			request, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
+
+			response1 := micro.NewSuccessResponse(request, testPayload)
+			payload1, err := response1.Bytes()
+			require.NoError(t, err)
+
+			msg.Respond(payload1)
+
+			response2 := micro.NewSuccessResponse(request, testPayload)
+			payload2, err := response2.Bytes()
+			require.NoError(t, err)
+			client.Publish(micro.Endpoint(address, eventEndpoint), payload2)
+		})
+		defer sub.Unsubscribe()
+
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		for range prng.IntN(9) + 2 {
+			msg, err := client.RequestAndSubscribe(ctx, address, commandEndpoint, address, eventEndpoint, testPayload)
+			require.NoError(t, err)
+			require.NotNil(t, msg)
+		}
 	})
 }
 
