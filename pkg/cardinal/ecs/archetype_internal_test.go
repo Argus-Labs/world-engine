@@ -372,6 +372,38 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	assertArchetypeEqual(t, arch, arch2)
 }
 
+// -------------------------------------------------------------------------------------------------
+// Deserialization edge case regression test
+// -------------------------------------------------------------------------------------------------
+// This guards against the case where fromProto panics if a bitmap's length isn't a multiple of 8.
+// To reproduce, run TestWorld_DeserializeNegative with:
+// - Seed: 0x187f45843d5f9288
+// - Commit: f79096323ed10ae364e6cab6a7fffd430885443c
+// -------------------------------------------------------------------------------------------------
+
+func TestArchetype_DeserializationNegative(t *testing.T) {
+	t.Parallel()
+
+	cm := newComponentManager()
+	cid1, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
+	require.NoError(t, err)
+
+	arch := newTestArchetype(0, []uint32{cid1})
+	arch.newEntity(0)
+
+	pb, err := arch.toProto()
+	require.NoError(t, err)
+
+	// Corrupt the bitmap by truncating to an invalid length (not a multiple of 8).
+	pb.ComponentsBitmap = pb.ComponentsBitmap[:len(pb.ComponentsBitmap)-1]
+
+	arch2 := &archetype{}
+	err = arch2.fromProto(pb, &cm)
+
+	// Property: corrupted bitmap should return an error, not panic.
+	assert.Error(t, err)
+}
+
 // assertArchetypeEqual checks if two archetypes are struturally equal. This function is extracted
 // so it can be reused in serialization tests "above" this layer.
 func assertArchetypeEqual(t *testing.T, a1, a2 *archetype) {

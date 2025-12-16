@@ -179,7 +179,16 @@ func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) er
 	}
 
 	a.id = archetypeID(pb.GetId())
-	a.components = bitmap.FromBytes(pb.GetComponentsBitmap())
+
+	// If a serialized snapshot is corrupted in such a way that the length of the bitmap is not a
+	// multiple of 8, bitmap.FromBytes will panic. We'll explicitly handle this here and return an
+	// error so we don't just crash.
+	bitmapBytes := pb.GetComponentsBitmap()
+	if len(bitmapBytes)%8 != 0 {
+		return eris.Errorf("invalid bitmap length %d (must be multiple of 8)", len(bitmapBytes))
+	}
+	a.components = bitmap.FromBytes(bitmapBytes)
+
 	a.rows.fromInt64Slice(pb.GetRows())
 
 	a.entities = make([]EntityID, len(pb.GetEntities()))
