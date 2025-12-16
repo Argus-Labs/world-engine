@@ -3,441 +3,133 @@ package ecs
 import (
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestNewSparseSet(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing sparse set operations
+// -------------------------------------------------------------------------------------------------
+// This test verifies the sparseSet implementation correctness using model-based testing. It
+// compares our implementation against a Go's map as the model by applying random sequences of
+// set/get/remove operations to both and asserting equivalence.
+// -------------------------------------------------------------------------------------------------
+
+func TestSparseSet_ModelFuzz(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	s := newSparseSet()
+	const (
+		opsMax = 1 << 15 // 32_768 iterations
+		eidMax = 10_000
+	)
 
-	assert.Len(t, s, 128)
-	for i := range s {
-		assert.Equal(t, tombstone, s[i], "index %d should be tombstone", i)
-	}
-}
+	impl := newSparseSet()
+	model := make(map[EntityID]int, sparseCapacity)
 
-func TestSparseSet_Get(t *testing.T) {
-	t.Parallel()
+	// Check the impl against the model by running the same operations on both.
+	for range opsMax {
+		key := EntityID(prng.IntN(eidMax))
 
-	testCases := []struct {
-		name          string
-		setup         func() sparseSet
-		key           EntityID
-		expectedValue int
-		expectedFound bool
-	}{
-		{
-			name: "existing value",
-			setup: func() sparseSet {
-				s := newSparseSet()
-				s.set(EntityID(10), 42)
-				return s
-			},
-			key:           EntityID(10),
-			expectedValue: 42,
-			expectedFound: true,
-		},
-		{
-			name:          "tombstone value",
-			setup:         newSparseSet,
-			key:           EntityID(10),
-			expectedValue: 0,
-			expectedFound: false,
-		},
-		{
-			name:          "out of bounds",
-			setup:         newSparseSet,
-			key:           EntityID(200), // > 128
-			expectedValue: 0,
-			expectedFound: false,
-		},
-		{
-			name: "boundary index",
-			setup: func() sparseSet {
-				s := newSparseSet()
-				s.set(EntityID(127), 99)
-				return s
-			},
-			key:           EntityID(127),
-			expectedValue: 99,
-			expectedFound: true,
-		},
-		{
-			name: "index zero",
-			setup: func() sparseSet {
-				s := newSparseSet()
-				s.set(EntityID(0), 123)
-				return s
-			},
-			key:           EntityID(0),
-			expectedValue: 123,
-			expectedFound: true,
-		},
-	}
+		op := testutils.RandWeightedOp(prng, sparseSetOps)
+		switch op {
+		case s_set:
+			value := prng.Int()
+			impl.set(key, value)
+			model[key] = value
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			// Property: get(k) after set(k) must exist and return the same value.
+			got, ok := impl.get(key)
+			assert.True(t, ok, "set(%d) then get should exist", key)
+			assert.Equal(t, value, got, "set(%d) then get value mismatch", key)
 
-			s := tc.setup()
-			value, found := s.get(tc.key)
-
-			assert.Equal(t, tc.expectedValue, value)
-			assert.Equal(t, tc.expectedFound, found)
-		})
-	}
-}
-
-func TestSparseSet_Set(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name           string
-		key            EntityID
-		value          int
-		expectedLength int
-		validateGrowth func(*testing.T, sparseSet)
-	}{
-		{
-			name:           "within bounds",
-			key:            EntityID(10),
-			value:          42,
-			expectedLength: 128,
-		},
-		{
-			name:           "at index zero",
-			key:            EntityID(0),
-			value:          999,
-			expectedLength: 128,
-		},
-		{
-			name:           "growth by doubling",
-			key:            EntityID(150), // > 128, < 256
-			value:          77,
-			expectedLength: 256,
-			validateGrowth: func(t *testing.T, s sparseSet) {
-				for i := 128; i < 256; i++ {
-					if i != 150 {
-						assert.Equal(t, tombstone, s[i])
-					}
-				}
-			},
-		},
-		{
-			name:           "growth beyond doubling",
-			key:            EntityID(300), // > 256
-			value:          88,
-			expectedLength: 301, // key+1
-			validateGrowth: func(t *testing.T, s sparseSet) {
-				for i := 128; i < 301; i++ {
-					if i != 300 {
-						assert.Equal(t, tombstone, s[i])
-					}
-				}
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := newSparseSet()
-			s.set(tc.key, tc.value)
-
-			assert.Len(t, s, tc.expectedLength)
-			value, found := s.get(tc.key)
-			assert.True(t, found)
-			assert.Equal(t, tc.value, value)
-
-			if tc.validateGrowth != nil {
-				tc.validateGrowth(t, s)
+		case s_get:
+			// Bias toward existing keys (80%) to test value retrieval path.
+			if len(model) > 0 && prng.Float64() < 0.8 {
+				key = testutils.RandMapKey(prng, model)
 			}
-		})
-	}
+			implValue, implOk := impl.get(key)
+			modelValue, modelOk := model[key]
 
-	t.Run("overwrite value", func(t *testing.T) {
-		t.Parallel()
+			// Property: get(k) returns same existence and value as model.
+			assert.Equal(t, modelOk, implOk, "get(%d) existence mismatch", key)
+			if implOk {
+				assert.Equal(t, modelValue, implValue, "get(%d) value mismatch", key)
+			}
 
-		s := newSparseSet()
-		s.set(EntityID(10), 42)
-		s.set(EntityID(10), 84) // Overwrite
+			// Property: if key doesn't exist but is within bounds, internal value must be tombstone.
+			if !implOk && int(key) < len(impl) {
+				assert.Equal(t, sparseTombstone, impl[key], "get(%d) non-existent key should be tombstone", key)
+			}
 
-		value, found := s.get(EntityID(10))
-		assert.True(t, found)
-		assert.Equal(t, 84, value)
-		assert.Len(t, s, 128) // Length unchanged
-	})
-}
+		case s_remove:
+			implOk := impl.remove(key)
+			_, modelOk := model[key]
+			delete(model, key)
 
-func TestSparseSet_Remove(t *testing.T) {
-	t.Parallel()
+			// Property: remove(k) returns same existence as model.
+			assert.Equal(t, modelOk, implOk, "remove(%d) existence mismatch", key)
 
-	testCases := []struct {
-		name           string
-		setup          func() sparseSet
-		removeKey      EntityID
-		expectedResult bool
-		validateAfter  func(*testing.T, sparseSet, EntityID)
-	}{
-		{
-			name: "existing value",
-			setup: func() sparseSet {
-				s := newSparseSet()
-				s.set(EntityID(10), 42)
-				return s
-			},
-			removeKey:      EntityID(10),
-			expectedResult: true,
-			validateAfter: func(t *testing.T, s sparseSet, key EntityID) {
-				_, found := s.get(key)
-				assert.False(t, found)
-				assert.Equal(t, tombstone, s[key])
-			},
-		},
-		{
-			name:           "tombstone value",
-			setup:          newSparseSet,
-			removeKey:      EntityID(10),
-			expectedResult: false,
-			validateAfter: func(t *testing.T, s sparseSet, key EntityID) {
-				_, found := s.get(key)
-				assert.False(t, found)
-			},
-		},
-		{
-			name:           "out of bounds",
-			setup:          newSparseSet,
-			removeKey:      EntityID(200),
-			expectedResult: false,
-			validateAfter: func(t *testing.T, s sparseSet, key EntityID) {
-				assert.Len(t, s, 128) // Length unchanged
-			},
-		},
-	}
+			// Property: get(k) after remove(k) must not exist (value becomes tombstone).
+			_, ok := impl.get(key)
+			assert.False(t, ok, "remove(%d) then get should not exist", key)
+			if int(key) < len(impl) {
+				assert.Equal(t, sparseTombstone, impl[key], "remove(%d) internal value should be tombstone", key)
+			}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := tc.setup()
-			result := s.remove(tc.removeKey)
-
-			assert.Equal(t, tc.expectedResult, result)
-			tc.validateAfter(t, s, tc.removeKey)
-		})
-	}
-}
-
-func TestSparseSet_Serialize(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name     string
-		setup    func() sparseSet
-		expected []int64
-	}{
-		{
-			name:  "empty sparse set",
-			setup: newSparseSet,
-			expected: func() []int64 {
-				result := make([]int64, 128)
-				for i := range result {
-					result[i] = int64(tombstone)
-				}
-				return result
-			}(),
-		},
-		{
-			name: "with values",
-			setup: func() sparseSet {
-				s := newSparseSet()
-				s.set(EntityID(5), 55)
-				s.set(EntityID(10), 100)
-				return s
-			},
-			expected: func() []int64 {
-				result := make([]int64, 128)
-				for i := range result {
-					result[i] = int64(tombstone)
-				}
-				result[5] = 55
-				result[10] = 100
-				return result
-			}(),
-		},
-		{
-			name: "after growth",
-			setup: func() sparseSet {
-				s := newSparseSet()
-				s.set(EntityID(200), 2000) // Triggers growth
-				return s
-			},
-			expected: func() []int64 {
-				result := make([]int64, 256) // Doubled size
-				for i := range result {
-					result[i] = int64(tombstone)
-				}
-				result[200] = 2000
-				return result
-			}(),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := tc.setup()
-			result := s.serialize()
-
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestSparseSet_Deserialize(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name     string
-		input    []int64
-		validate func(*testing.T, sparseSet)
-	}{
-		{
-			name:  "empty slice",
-			input: []int64{},
-			validate: func(t *testing.T, s sparseSet) {
-				assert.Empty(t, s)
-			},
-		},
-		{
-			name: "with values",
-			input: func() []int64 {
-				result := make([]int64, 128)
-				for i := range result {
-					result[i] = int64(tombstone)
-				}
-				result[5] = 55
-				result[10] = 100
-				return result
-			}(),
-			validate: func(t *testing.T, s sparseSet) {
-				assert.Len(t, s, 128)
-
-				value, found := s.get(EntityID(5))
-				assert.True(t, found)
-				assert.Equal(t, 55, value)
-
-				value, found = s.get(EntityID(10))
-				assert.True(t, found)
-				assert.Equal(t, 100, value)
-
-				// Check tombstone value
-				_, found = s.get(EntityID(0))
-				assert.False(t, found)
-			},
-		},
-		{
-			name:  "replaces existing content",
-			input: []int64{10, 20, 30},
-			validate: func(t *testing.T, s sparseSet) {
-				assert.Len(t, s, 3)
-				for i, expected := range []int{10, 20, 30} {
-					value, found := s.get(EntityID(i))
-					assert.True(t, found)
-					assert.Equal(t, expected, value)
-				}
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			// Start with pre-populated sparse set to verify replacement
-			s := newSparseSet()
-			s.set(EntityID(99), 999)
-
-			s.deserialize(tc.input)
-			tc.validate(t, s)
-		})
-	}
-}
-
-func TestSparseSet_SerializeDeserialize_RoundTrip(t *testing.T) {
-	t.Parallel()
-
-	s := newSparseSet()
-	s.set(EntityID(1), 11)
-	s.set(EntityID(200), 2000) // triggers growth
-	s.set(EntityID(50), 500)
-	s.remove(EntityID(1)) // create tombstone
-
-	// Serialize and deserialize
-	serialized := s.serialize()
-	var restored sparseSet
-	restored.deserialize(serialized)
-
-	// Verify equivalence
-	require.Len(t, restored, len(s))
-	for i := range s {
-		origValue, origFound := s.get(EntityID(i))
-		restoredValue, restoredFound := restored.get(EntityID(i))
-
-		assert.Equal(t, origFound, restoredFound, "existence mismatch at index %d", i)
-		if origFound {
-			assert.Equal(t, origValue, restoredValue, "value mismatch at index %d", i)
+		default:
+			panic("unreachable")
 		}
 	}
+
+	// Final state check: verify all keys in model exist in impl with correct values.
+	for key, modelValue := range model {
+		implValue, ok := impl.get(key)
+		assert.True(t, ok, "key %d should exist in impl", key)
+		assert.Equal(t, modelValue, implValue, "key %d value mismatch", key)
+	}
 }
 
-func TestSparseSet_EdgeCases(t *testing.T) {
+type sparseSetOp uint8
+
+const (
+	s_set    sparseSetOp = 55
+	s_remove sparseSetOp = 35
+	s_get    sparseSetOp = 10
+)
+
+var sparseSetOps = []sparseSetOp{s_set, s_remove, s_get}
+
+// -------------------------------------------------------------------------------------------------
+// Serialization smoke test
+// -------------------------------------------------------------------------------------------------
+// We don't extensively test toInt64Slice/fromInt64Slice because:
+// 1. The implementation is a trivial type conversion loop (int -> int64 and back).
+// 2. There's no complex branching or error handling.
+// 3. Heavy property-based testing would mostly verify Go's type conversion, not our logic.
+// -------------------------------------------------------------------------------------------------
+
+func TestSparseSet_SerializationSmoke(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	t.Run("zero value handling", func(t *testing.T) {
-		t.Parallel()
+	const (
+		opsMax = 100
+		eidMax = 10_000
+	)
 
-		s := newSparseSet()
-		s.set(EntityID(10), 0) // Set zero (not tombstone)
+	impl1 := newSparseSet()
+	for range opsMax {
+		key := EntityID(prng.IntN(eidMax))
+		value := prng.Int()
+		impl1.set(key, value)
+	}
 
-		value, found := s.get(EntityID(10))
-		assert.True(t, found, "should find zero value")
-		assert.Equal(t, 0, value)
+	data := impl1.toInt64Slice()
 
-		// Remove it
-		removed := s.remove(EntityID(10))
-		assert.True(t, removed)
+	impl2 := newSparseSet()
+	impl2.fromInt64Slice(data)
 
-		// Should not be found now
-		_, found = s.get(EntityID(10))
-		assert.False(t, found)
-	})
-
-	t.Run("complex operation sequence", func(t *testing.T) {
-		t.Parallel()
-
-		s := newSparseSet()
-
-		// Set, remove, re-set same key
-		s.set(EntityID(15), 150)
-		removed := s.remove(EntityID(15))
-		assert.True(t, removed)
-
-		s.set(EntityID(15), 300)
-		value, found := s.get(EntityID(15))
-		assert.True(t, found)
-		assert.Equal(t, 300, value)
-
-		// Trigger growth and verify old values persist
-		s.set(EntityID(200), 2000)
-		assert.Len(t, s, 256)
-
-		value, found = s.get(EntityID(15))
-		assert.True(t, found)
-		assert.Equal(t, 300, value)
-	})
+	// Property: deserialize(serialize(x)) == x.
+	assert.Equal(t, impl1, impl2) // assert.Equal uses reflect.DeepEqual
 }

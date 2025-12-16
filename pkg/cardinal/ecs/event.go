@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"sync"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/rotisserie/eris"
 )
@@ -36,27 +38,36 @@ type RawEvent struct {
 	Payload any       // The payload of the event
 }
 
+const (
+	defaultEventChannelCapacity = 1024
+	defaultEventBufferCapacity  = 128
+)
+
 // eventManager manages the registration and storage of events.
 type eventManager struct {
 	events   chan RawEvent     // Channel for collecting events emitted by systems
 	buffer   []RawEvent        // Buffer for storing events to be outputted
+	mu       sync.Mutex        // Mutex for buffer access during flush
 	registry map[string]uint32 // Map from event name to event ID
 	nextID   uint32            // Next available event ID
 }
 
-// newEventManager creates a new eventManager.
-func newEventManager() eventManager {
-	const eventChannelCapacity = 1024
-	const initialEventBufferCapacity = 128
-	return eventManager{
-		events:   make(chan RawEvent, eventChannelCapacity),
-		buffer:   make([]RawEvent, 0, initialEventBufferCapacity),
+// newEventManager creates a new eventManager with optional configuration.
+func newEventManager(opts ...eventManagerOption) *eventManager {
+	em := &eventManager{
+		events:   make(chan RawEvent, defaultEventChannelCapacity),
+		buffer:   make([]RawEvent, 0, defaultEventBufferCapacity),
 		registry: make(map[string]uint32),
 		nextID:   0,
 	}
+	for _, opt := range opts {
+		opt(em)
+	}
+	return em
 }
 
 // register registers an event type and returns its ID. If already registered, returns existing ID.
+// This is used just to check for duplicate WithEvent handlers in a system.
 func (e *eventManager) register(name string) (uint32, error) {
 	if name == "" {
 		return 0, eris.New("event name cannot be empty")
@@ -76,25 +87,61 @@ func (e *eventManager) register(name string) (uint32, error) {
 }
 
 // enqueue enqueues an event into the eventManager.
+// If the channel is full, it flushes the channel to the buffer first.
 func (e *eventManager) enqueue(kind EventKind, payload any) {
-	e.events <- RawEvent{Kind: kind, Payload: payload}
+	event := RawEvent{Kind: kind, Payload: payload}
+	select {
+	case e.events <- event:
+		// Happy path: channel has capacity.
+	default:
+		// Channel full: flush to buffer, then send.
+		e.mu.Lock()
+		e.flush()
+		e.mu.Unlock()
+
+		e.events <- event
+	}
 }
 
 // getEvents retrieves all events from the eventManager.
 func (e *eventManager) getEvents() []RawEvent {
-	n := len(e.events)
-	for range n {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.flush()
+
+	return e.buffer
+}
+
+// flush drains the channel into the buffer. Called when channel is full.
+// TThis method expects the caller to hold tthe mutex lock.
+func (e *eventManager) flush() {
+	for {
 		select {
 		case event := <-e.events:
 			e.buffer = append(e.buffer, event)
 		default:
+			return
 		}
 	}
-	return e.buffer
 }
 
 // clear clears the event buffer.
 func (e *eventManager) clear() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.buffer = e.buffer[:0]
 	assert.That(len(e.buffer) == 0, "event buffer not cleared properly")
+}
+
+// -------------------------------------------------------------------------------------------------
+// Options
+// -------------------------------------------------------------------------------------------------
+
+type eventManagerOption func(*eventManager)
+
+func withChannelCapacity(capacity int) eventManagerOption {
+	return func(em *eventManager) {
+		em.events = make(chan RawEvent, capacity)
+	}
 }

@@ -64,7 +64,7 @@ func (s *ShardService) publishEvent(raw ecs.RawEvent) error {
 		return eris.Wrap(err, "failed to marshal iscv1.Event")
 	}
 
-	return s.NATS().Publish(target, payload)
+	return s.client.Publish(target, payload)
 }
 
 func (s *ShardService) publishInterShardCommand(raw ecs.RawEvent) error {

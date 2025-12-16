@@ -266,8 +266,8 @@ func registerComponent[T Component](ws *worldState) (componentID, error) {
 // Serialization
 // -------------------------------------------------------------------------------------------------
 
-// serialize converts the worldState to a protobuf message for serialization.
-func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
+// toProto converts the worldState to a protobuf message for serialization.
+func (ws *worldState) toProto() (*cardinalv1.CardinalSnapshot, error) {
 	freeIDs := make([]uint32, len(ws.free))
 	for i, entityID := range ws.free {
 		freeIDs[i] = uint32(entityID)
@@ -275,7 +275,7 @@ func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
 
 	pbArchetypes := make([]*cardinalv1.Archetype, len(ws.archetypes))
 	for i, arch := range ws.archetypes {
-		pbArch, err := arch.serialize()
+		pbArch, err := arch.toProto()
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to serialize archetype %d", i)
 		}
@@ -285,13 +285,13 @@ func (ws *worldState) serialize() (*cardinalv1.CardinalSnapshot, error) {
 	return &cardinalv1.CardinalSnapshot{
 		NextId:     uint32(ws.nextID),
 		FreeIds:    freeIDs,
-		EntityArch: ws.entityArch.serialize(),
+		EntityArch: ws.entityArch.toInt64Slice(),
 		Archetypes: pbArchetypes,
 	}, nil
 }
 
-// deserialize populates the worldState from a protobuf message.
-func (ws *worldState) deserialize(pb *cardinalv1.CardinalSnapshot) error {
+// fromProto populates the worldState from a protobuf message.
+func (ws *worldState) fromProto(pb *cardinalv1.CardinalSnapshot) error {
 	ws.nextID = EntityID(pb.GetNextId())
 
 	ws.free = make([]EntityID, len(pb.GetFreeIds()))
@@ -299,12 +299,12 @@ func (ws *worldState) deserialize(pb *cardinalv1.CardinalSnapshot) error {
 		ws.free[i] = EntityID(freeID)
 	}
 
-	ws.entityArch.deserialize(pb.GetEntityArch())
+	ws.entityArch.fromInt64Slice(pb.GetEntityArch())
 
 	ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
 	for i, pbArch := range pb.GetArchetypes() {
 		ws.archetypes[i] = &archetype{}
-		if err := ws.archetypes[i].deserialize(pbArch, &ws.components); err != nil {
+		if err := ws.archetypes[i].fromProto(pbArch, &ws.components); err != nil {
 			return eris.Wrapf(err, "failed to deserialize archetype %d", i)
 		}
 	}

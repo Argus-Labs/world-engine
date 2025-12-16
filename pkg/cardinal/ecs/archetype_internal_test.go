@@ -1,691 +1,425 @@
 package ecs
 
 import (
-	"math/rand"
+	"slices"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestArchetype_New(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing archetype operations
+// -------------------------------------------------------------------------------------------------
+// This test verifies the archetype implementation correctness using model-based testing. It
+// compares our implementation against Go's map tracking entity->archetype ownership by applying
+// random sequences of new/move/remove operations to both and asserting equivalence.
+// We also verify extra invariants such as bijection consistency and global entity uniqueness.
+// -------------------------------------------------------------------------------------------------
+
+func TestArchetype_ModelFuzz(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	testCases := []struct {
-		name           string
-		id             archetypeID
-		setupBitmap    func() bitmap.Bitmap
-		setupColumns   func() []abstractColumn
-		expectedID     archetypeID
-		expectedColLen int
-	}{
-		{
-			name: "empty archetype",
-			id:   0,
-			setupBitmap: func() bitmap.Bitmap {
-				return bitmap.Bitmap{}
-			},
-			setupColumns: func() []abstractColumn {
-				return []abstractColumn{}
-			},
-			expectedID:     0,
-			expectedColLen: 0,
-		},
-		{
-			name: "archetype with multiple components",
-			id:   42,
-			setupBitmap: func() bitmap.Bitmap {
-				components := bitmap.Bitmap{}
-				components.Set(0) // Health component.
-				components.Set(1) // Position component.
-				return components
-			},
-			setupColumns: func() []abstractColumn {
-				healthCol := newColumn[testutils.Health]()
-				posCol := newColumn[testutils.Position]()
-				return []abstractColumn{&healthCol, &posCol}
-			},
-			expectedID:     42,
-			expectedColLen: 2,
-		},
-	}
+	const opsMax = 1 << 15 // 32_768 iterations
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	pool := newArchetypePool()
+	model := make(map[EntityID]*archetype) // Just track archetype entity ownership
 
-			components := tc.setupBitmap()
-			columns := tc.setupColumns()
-			arch := newArchetype(tc.id, components, columns)
+	// List of live entities for random selection.
+	var entities []EntityID
+	var next EntityID
 
-			assert.Equal(t, tc.expectedID, arch.id)
-			assert.Equal(t, components, arch.components)
-			assert.Empty(t, arch.entities)
-			assert.Len(t, arch.columns, tc.expectedColLen)
-		})
-	}
-}
+	for range opsMax {
+		op := testutils.RandWeightedOp(prng, archetypeOps)
+		switch op {
+		case a_new:
+			eid := next
+			next++
+			entities = append(entities, eid)
+			arch := pool[prng.IntN(len(pool))]
 
-func TestArchetype_NewEntity(t *testing.T) {
-	t.Parallel()
+			arch.newEntity(eid)
+			model[eid] = arch
 
-	t.Run("allocates rows and returns correct indices", func(t *testing.T) {
-		t.Parallel()
-		components := bitmap.Bitmap{}
-		components.Set(0)
-		healthCol := newColumn[testutils.Health]()
-		columns := []abstractColumn{&healthCol}
-		arch := newArchetype(0, components, columns)
+			// Property: entity exists and bijection holds.
+			row, exists := arch.rows.get(eid)
+			assert.True(t, exists)
+			assert.Equal(t, eid, arch.entities[row])
 
-		// Verify initial state
-		assert.Equal(t, 0, healthCol.len())
-
-		// Add entities
-		arch.newEntity(EntityID(100))
-		arch.newEntity(EntityID(200))
-		arch.newEntity(EntityID(300))
-		assert.Len(t, arch.entities, 3)
-		assert.Equal(t, []EntityID{EntityID(100), EntityID(200), EntityID(300)}, arch.entities)
-
-		// Verify that columns were extended to match entity count
-		assert.Equal(t, 3, healthCol.len())
-		// Verify columns have zero values allocated
-		assert.Equal(t, testutils.Health{}, healthCol.get(0))
-		assert.Equal(t, testutils.Health{}, healthCol.get(1))
-		assert.Equal(t, testutils.Health{}, healthCol.get(2))
-	})
-
-	t.Run("allocates space in all columns for multi-component archetype", func(t *testing.T) {
-		t.Parallel()
-		components := bitmap.Bitmap{}
-		components.Set(0) // Health
-		components.Set(1) // Position
-		healthCol := newColumn[testutils.Health]()
-		posCol := newColumn[testutils.Position]()
-		columns := []abstractColumn{&healthCol, &posCol}
-		arch := newArchetype(1, components, columns)
-
-		// Verify initial state
-		assert.Equal(t, 0, healthCol.len())
-		assert.Equal(t, 0, posCol.len())
-
-		// Add an entity
-		arch.newEntity(EntityID(100))
-		assert.Len(t, arch.entities, 1)
-		assert.Equal(t, EntityID(100), arch.entities[0])
-
-		// Verify both columns were extended
-		assert.Equal(t, 1, healthCol.len())
-		assert.Equal(t, 1, posCol.len())
-		// Verify columns have zero values allocated
-		assert.Equal(t, testutils.Health{}, healthCol.get(0))
-		assert.Equal(t, testutils.Position{}, posCol.get(0))
-	})
-}
-
-func TestArchetype_RemoveEntity(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name                string
-		setup               func(*archetype, *column[testutils.Health])
-		removeEntityID      EntityID
-		expectedEntityCount int
-		validate            func(*testing.T, *archetype, *column[testutils.Health])
-	}{
-		{
-			name: "swap and pop middle entity",
-			setup: func(arch *archetype, healthCol *column[testutils.Health]) {
-				arch.newEntity(EntityID(100))
-				healthCol.set(0, testutils.Health{Value: 10})
-				arch.newEntity(EntityID(200))
-				healthCol.set(1, testutils.Health{Value: 20})
-				arch.newEntity(EntityID(300))
-				healthCol.set(2, testutils.Health{Value: 30})
-			},
-			removeEntityID:      EntityID(200),
-			expectedEntityCount: 2,
-			validate: func(t *testing.T, arch *archetype, healthCol *column[testutils.Health]) {
-				assert.Equal(t, EntityID(100), arch.entities[0])
-				assert.Equal(t, EntityID(300), arch.entities[1]) // Last entity moved to index 1.
-				assert.Equal(t, testutils.Health{Value: 10}, healthCol.get(0))
-				assert.Equal(t, testutils.Health{Value: 30}, healthCol.get(1)) // Last component moved to index 1.
-				assert.Equal(t, 2, healthCol.len())
-			},
-		},
-		{
-			name: "remove only entity",
-			setup: func(arch *archetype, healthCol *column[testutils.Health]) {
-				arch.newEntity(EntityID(100))
-				healthCol.set(0, testutils.Health{Value: 50})
-			},
-			removeEntityID:      EntityID(100),
-			expectedEntityCount: 0,
-			validate: func(t *testing.T, arch *archetype, healthCol *column[testutils.Health]) {
-				assert.Empty(t, arch.entities)
-				assert.Equal(t, 0, healthCol.len())
-			},
-		},
-		{
-			name: "remove last entity",
-			setup: func(arch *archetype, healthCol *column[testutils.Health]) {
-				arch.newEntity(EntityID(100))
-				healthCol.set(0, testutils.Health{Value: 10})
-				arch.newEntity(EntityID(200))
-				healthCol.set(1, testutils.Health{Value: 20})
-			},
-			removeEntityID:      EntityID(200),
-			expectedEntityCount: 1,
-			validate: func(t *testing.T, arch *archetype, healthCol *column[testutils.Health]) {
-				assert.Equal(t, EntityID(100), arch.entities[0])
-				assert.Equal(t, testutils.Health{Value: 10}, healthCol.get(0))
-				assert.Equal(t, 1, healthCol.len())
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			components := bitmap.Bitmap{}
-			components.Set(0)
-			healthCol := newColumn[testutils.Health]()
-			columns := []abstractColumn{&healthCol}
-			arch := newArchetype(0, components, columns)
-
-			tc.setup(&arch, &healthCol)
-
-			arch.removeEntity(tc.removeEntityID)
-
-			assert.Len(t, arch.entities, tc.expectedEntityCount)
-			tc.validate(t, &arch, &healthCol)
-		})
-	}
-}
-
-func TestArchetype_MoveEntity(t *testing.T) {
-	t.Parallel()
-
-	t.Run("move to archetype with additional component type", func(t *testing.T) {
-		t.Parallel()
-
-		// Source archetype: Health only.
-		srcComponents := bitmap.Bitmap{}
-		srcComponents.Set(0) // Health.
-		srcHealthCol := newColumn[testutils.Health]()
-		srcColumns := []abstractColumn{&srcHealthCol}
-		srcArch := newArchetype(0, srcComponents, srcColumns)
-
-		// Destination archetype: Health + Position (additional component).
-		dstComponents := bitmap.Bitmap{}
-		dstComponents.Set(0) // Health (shared).
-		dstComponents.Set(1) // Position (additional).
-		dstHealthCol := newColumn[testutils.Health]()
-		dstPosCol := newColumn[testutils.Position]()
-		dstColumns := []abstractColumn{&dstHealthCol, &dstPosCol}
-		dstArch := newArchetype(1, dstComponents, dstColumns)
-
-		// Setup entity.
-		srcArch.newEntity(EntityID(100))
-		srcHealthCol.set(0, testutils.Health{Value: 50})
-
-		// Move entity.
-		srcArch.moveEntity(&dstArch, EntityID(100))
-
-		// Verify entity ID is the same in destination.
-		assert.Len(t, dstArch.entities, 1)
-		assert.Equal(t, EntityID(100), dstArch.entities[0])
-
-		// Verify shared component (Health) was transferred correctly.
-		assert.Equal(t, testutils.Health{Value: 50}, dstHealthCol.get(0))
-
-		// Verify source is completely empty.
-		assert.Empty(t, srcArch.entities)
-		assert.Equal(t, 0, srcHealthCol.len())
-	})
-
-	t.Run("move to archetype with one less component type", func(t *testing.T) {
-		t.Parallel()
-
-		// Source archetype: Health + Position.
-		srcComponents := bitmap.Bitmap{}
-		srcComponents.Set(0) // Health.
-		srcComponents.Set(1) // Position.
-		srcHealthCol := newColumn[testutils.Health]()
-		srcPosCol := newColumn[testutils.Position]()
-		srcColumns := []abstractColumn{&srcHealthCol, &srcPosCol}
-		srcArch := newArchetype(0, srcComponents, srcColumns)
-
-		// Destination archetype: Health only (one less component).
-		dstComponents := bitmap.Bitmap{}
-		dstComponents.Set(0) // Health (shared).
-		dstHealthCol := newColumn[testutils.Health]()
-		dstColumns := []abstractColumn{&dstHealthCol}
-		dstArch := newArchetype(1, dstComponents, dstColumns)
-
-		// Setup entity.
-		srcArch.newEntity(EntityID(200))
-		srcHealthCol.set(0, testutils.Health{Value: 75})
-		srcPosCol.set(0, testutils.Position{X: 15, Y: 25})
-
-		// Move entity.
-		srcArch.moveEntity(&dstArch, EntityID(200))
-
-		// Verify entity ID is the same in destination.
-		assert.Len(t, dstArch.entities, 1)
-		assert.Equal(t, EntityID(200), dstArch.entities[0])
-
-		// Verify shared component (Health) was transferred correctly.
-		assert.Equal(t, testutils.Health{Value: 75}, dstHealthCol.get(0))
-
-		// Verify source is completely empty (both components and entity removed).
-		assert.Empty(t, srcArch.entities)
-		assert.Equal(t, 0, srcHealthCol.len())
-		assert.Equal(t, 0, srcPosCol.len())
-	})
-}
-
-// Property-based test for archetype entity lifecycle operations.
-func TestArchetype_EntityLifecycle_PropertyBased(t *testing.T) {
-	t.Parallel()
-
-	const numIterations = 20
-	const maxOps = 15
-
-	for range numIterations {
-		t.Run("iteration", func(t *testing.T) {
-			t.Parallel()
-
-			// Create two simple archetypes with different component counts.
-			// Archetype 1: Health only (1 component).
-			arch1Components := bitmap.Bitmap{}
-			arch1Components.Set(0)
-			arch1HealthCol := newColumn[testutils.Health]()
-			arch1 := newArchetype(0, arch1Components, []abstractColumn{&arch1HealthCol})
-
-			// Archetype 2: Health + Position (2 components).
-			arch2Components := bitmap.Bitmap{}
-			arch2Components.Set(0)
-			arch2Components.Set(1)
-			arch2HealthCol := newColumn[testutils.Health]()
-			arch2PosCol := newColumn[testutils.Position]()
-			arch2 := newArchetype(1, arch2Components, []abstractColumn{&arch2HealthCol, &arch2PosCol})
-
-			archetypes := []*archetype{&arch1, &arch2}
-			entityCounter := EntityID(1000)
-
-			numOps := rand.Intn(maxOps) + 1
-
-			for range numOps {
-				operation := rand.Intn(2) // 0=add, 1=remove (skip moves for simplicity).
-
-				switch operation {
-				case 0: // Add entity to random archetype.
-					archIdx := rand.Intn(len(archetypes))
-					arch := archetypes[archIdx]
-
-					entityCounter++
-					eid := entityCounter
-					arch.newEntity(eid)
-
-					// Add component data based on archetype.
-					// Get the row index for the entity we just added
-					row, exists := arch.rows.get(eid)
-					require.True(t, exists, "entity should exist in archetype")
-
-					if archIdx == 0 { // Health only.
-						arch1HealthCol.set(row, testutils.Health{Value: rand.Intn(100)})
-					} else { // Health + Position.
-						arch2HealthCol.set(row, testutils.Health{Value: rand.Intn(100)})
-						arch2PosCol.set(row, testutils.Position{X: rand.Intn(1000), Y: rand.Intn(1000)})
-					}
-
-				case 1: // Remove entity from random non-empty archetype.
-					var candidateArchs []int
-					for i, arch := range archetypes {
-						if len(arch.entities) > 0 {
-							candidateArchs = append(candidateArchs, i)
-						}
-					}
-
-					if len(candidateArchs) > 0 {
-						archIdx := candidateArchs[rand.Intn(len(candidateArchs))]
-						arch := archetypes[archIdx]
-						entityIdx := rand.Intn(len(arch.entities))
-						entityID := arch.entities[entityIdx]
-
-						arch.removeEntity(entityID)
-					}
-				}
-
-				// Verify invariants after each operation.
-				for i, arch := range archetypes {
-					// Entities and columns should have matching lengths.
-					if i == 0 { // Health only.
-						require.Equal(t, len(arch.entities), arch1HealthCol.len(), "archetype %d entity/column length mismatch", i)
-					} else { // Health + Position.
-						require.Equal(t, len(arch.entities), arch2HealthCol.len(), "archetype %d health column length mismatch", i)
-						require.Equal(t, len(arch.entities), arch2PosCol.len(), "archetype %d position column length mismatch", i)
-					}
-				}
+		case a_remove:
+			if len(entities) == 0 {
+				continue
 			}
-		})
+			idx := prng.IntN(len(entities))
+			eid := entities[idx]
+			arch := model[eid]
+
+			arch.removeEntity(eid)
+			delete(model, eid)
+			entities = slices.Delete(entities, idx, idx+1)
+
+			// Property: entity no longer exists.
+			_, exists := arch.rows.get(eid)
+			assert.False(t, exists)
+
+		case a_move:
+			if len(entities) == 0 {
+				continue
+			}
+			eid := entities[prng.IntN(len(entities))]
+			src := model[eid]
+			dst := pool[prng.IntN(len(pool))]
+			for dst == src { // Make sure dst != src
+				dst = pool[prng.IntN(len(pool))]
+			}
+
+			src.moveEntity(dst, eid)
+			model[eid] = dst
+
+			// Property: entity no longer exists in source.
+			_, exists := src.rows.get(eid)
+			assert.False(t, exists)
+
+			// Property: entity exists in destination and bijection holds.
+			row, exists := dst.rows.get(eid)
+			assert.True(t, exists)
+			assert.Equal(t, eid, dst.entities[row])
+
+		default:
+			panic("unreachable")
+		}
+	}
+
+	// Property: bijection holds for all archetypes.
+	// Bijection means there's a 1-1 mapping of entity->row. Every entity maps to a unique row, and
+	// every row comes from a unique entity.
+	for _, arch := range pool {
+		// Forward: entities[i] -> rows
+		// Property: rows.get(entities[i]) == i
+		for i, eid := range arch.entities {
+			row, exists := arch.rows.get(eid)
+			// Property: rows.get(entities[i]) must exist.
+			assert.True(t, exists, "entity %d at index %d not found in rows", eid, i)
+			assert.Equal(t, i, row, "entity %d at index %d has row %d", eid, i, row)
+		}
+		// Reverse: rows -> entities[row]. This catches stale entries in rows that forward check would miss.
+		// Property: entities[row] == eid.
+		for eid, row := range arch.rows {
+			if row == sparseTombstone {
+				continue
+			}
+			assert.Less(t, row, len(arch.entities), "row %d for entity %d out of bounds", row, eid)
+			assert.Equal(t, EntityID(eid), arch.entities[row], "entities[%d] != %d", row, eid)
+		}
+	}
+
+	// Property: entity IDs are globally unique (also catches duplicates within a single archetype).
+	seenGlobal := make(map[EntityID]bool)
+	for _, arch := range pool {
+		for _, eid := range arch.entities {
+			assert.False(t, seenGlobal[eid], "duplicate entity %d", eid)
+			seenGlobal[eid] = true
+		}
+	}
+
+	// Property: all entities in archetypes match the entities list.
+	assert.Len(t, seenGlobal, len(entities), "entity count mismatch")
+	for _, eid := range entities {
+		assert.True(t, seenGlobal[eid], "entity %d in list but not in any archetype", eid)
+	}
+
+	// Final state check: archetype entity ownership matches model.
+	for eid, expectedArch := range model {
+		row, exists := expectedArch.rows.get(eid)
+		assert.True(t, exists, "entity %d should exist in model's archetype", eid)
+		if exists {
+			assert.Equal(t, eid, expectedArch.entities[row], "entity %d mismatch in model's archetype", eid)
+		}
 	}
 }
 
-func TestArchetype_SerializeDeserialize_RoundTrip(t *testing.T) {
+type archetypeOp uint8
+
+const (
+	a_new    archetypeOp = 40
+	a_move   archetypeOp = 35
+	a_remove archetypeOp = 25
+)
+
+var archetypeOps = []archetypeOp{a_new, a_move, a_remove}
+
+// -------------------------------------------------------------------------------------------------
+// Exhaustive archetype move test
+// -------------------------------------------------------------------------------------------------
+// This test exhaustively enumerates all combinations of source/destination archetypes and entity
+// positions to verify moveEntity correctness. The archetype pool covers all component relationship
+// scenarios between source and destination:
+//
+//   | Scenario            | Examples                                  |
+//   | ------------------- |------------------------------------------ |
+//   | Empty -> non-empty  | {} -> {A}, {} -> {A,B}                    |
+//   | Non-empty -> empty  | {A} -> {}, {A,B} -> {}                    |
+//   | Subset -> superset  | {A} -> {A,B}                              |
+//   | Superset -> subset  | {A,B} -> {A}                              |
+//   | Partial overlap     | {A,B} -> {B,C}, {B,C} -> {A,B} (B shared) |
+//   | Disjoint            | {A} -> {B,C}, {B,C} -> {A} (no shared)    |
+//
+// For each src->dst pair, we also vary entity count (1-3) and move position (first/middle/last)
+// to exercise swap-remove edge cases: first and middle trigger a swap, last only truncates.
+// We also verify that shared component data is copied correctly to the destination.
+// -------------------------------------------------------------------------------------------------
+
+func TestArchetype_MoveExhaustive(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
-		name    string
-		setupFn func() (*archetype, *componentManager)
-	}{
-		{
-			name: "empty archetype",
-			setupFn: func() (*archetype, *componentManager) {
-				cm := newComponentManager()
-				arch := newArchetype(1, bitmap.Bitmap{}, []abstractColumn{})
-				return &arch, &cm
-			},
-		},
-		{
-			name: "single component archetype",
-			setupFn: func() (*archetype, *componentManager) {
-				cm := newComponentManager()
-				healthCol := newColumn[testutils.Health]()
-				_, err := cm.register("Health", newColumnFactory[testutils.Health]())
-				require.NoError(t, err)
+	// Exhaustively test combinations of source * destination * entity count * moved entity row.
+	gen := testutils.NewGen()
+	for !gen.Done() {
+		pool := newArchetypePool()
+		srcIdx := gen.Index(len(pool)) // Randomize source
+		dstIdx := gen.Index(len(pool)) // Randomize destination
+		if srcIdx == dstIdx {
+			// Skip moves to self, this is a nop
+			continue
+		}
+		src := pool[srcIdx]
+		dst := pool[dstIdx]
 
-				compBitmap := bitmap.Bitmap{}
-				compBitmap.Set(0)
-				arch := newArchetype(1, compBitmap, []abstractColumn{&healthCol})
-				return &arch, &cm
-			},
-		},
-		{
-			name: "multiple component archetype",
-			setupFn: func() (*archetype, *componentManager) {
-				cm := newComponentManager()
-				healthCol := newColumn[testutils.Health]()
-				posCol := newColumn[testutils.Position]()
-				_, err := cm.register("Health", newColumnFactory[testutils.Health]())
-				require.NoError(t, err)
-				_, err = cm.register("Position", newColumnFactory[testutils.Position]())
-				require.NoError(t, err)
-
-				compBitmap := bitmap.Bitmap{}
-				compBitmap.Set(0)
-				compBitmap.Set(1)
-				columns := []abstractColumn{&healthCol, &posCol}
-				arch := newArchetype(2, compBitmap, columns)
-				return &arch, &cm
-			},
-		},
-		{
-			name: "archetype with entities",
-			setupFn: func() (*archetype, *componentManager) {
-				cm := newComponentManager()
-				healthCol := newColumn[testutils.Health]()
-				posCol := newColumn[testutils.Position]()
-				_, err := cm.register("Health", newColumnFactory[testutils.Health]())
-				require.NoError(t, err)
-				_, err = cm.register("Position", newColumnFactory[testutils.Position]())
-				require.NoError(t, err)
-
-				compBitmap := bitmap.Bitmap{}
-				compBitmap.Set(0)
-				compBitmap.Set(1)
-				columns := []abstractColumn{&healthCol, &posCol}
-				arch := newArchetype(3, compBitmap, columns)
-
-				// Add some entities.
-				arch.newEntity(EntityID(1))
-				healthCol.set(0, testutils.Health{Value: 100})
-				posCol.set(0, testutils.Position{X: 10, Y: 20})
-				arch.newEntity(EntityID(5))
-				healthCol.set(1, testutils.Health{Value: 200})
-				posCol.set(1, testutils.Position{X: 30, Y: 40})
-
-				return &arch, &cm
-			},
-		},
-		{
-			name: "archetype after entity removal",
-			setupFn: func() (*archetype, *componentManager) {
-				cm := newComponentManager()
-				healthCol := newColumn[testutils.Health]()
-				_, err := cm.register("Health", newColumnFactory[testutils.Health]())
-				require.NoError(t, err)
-
-				compBitmap := bitmap.Bitmap{}
-				compBitmap.Set(0)
-				arch := newArchetype(4, compBitmap, []abstractColumn{&healthCol})
-
-				// Add and remove entity.
-				arch.newEntity(EntityID(1))
-				healthCol.set(0, testutils.Health{Value: 100})
-				arch.newEntity(EntityID(2))
-				healthCol.set(1, testutils.Health{Value: 200})
-				arch.removeEntity(EntityID(1))
-
-				return &arch, &cm
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			original, cm := tc.setupFn()
-
-			// Serialize.
-			serialized, err := original.serialize()
-			require.NoError(t, err)
-
-			// Deserialize into new archetype.
-			deserialized := &archetype{}
-			err = deserialized.deserialize(serialized, cm)
-			require.NoError(t, err)
-
-			// Verify round-trip property: deserialize(serialize(x)) == x.
-			assert.Equal(t, original.id, deserialized.id)
-			assert.Equal(t, original.compCount, deserialized.compCount)
-
-			// Compare bitmaps by converting to bytes for deterministic comparison.
-			assert.Equal(t, original.components.ToBytes(), deserialized.components.ToBytes())
-
-			// Verify entity lists match.
-			assert.Equal(t, original.entities, deserialized.entities)
-
-			// Verify column count matches.
-			assert.Len(t, deserialized.columns, len(original.columns))
-
-			// Verify each column is properly deserialized by checking component names.
-			for i, origCol := range original.columns {
-				deserializedCol := deserialized.columns[i]
-				assert.Equal(t, origCol.name(), deserializedCol.name())
-			}
-		})
-	}
-}
-
-func TestArchetype_SerializeDeserialize_Determinism(t *testing.T) {
-	t.Parallel()
-
-	// Setup archetype with multiple components and entities.
-	cm := newComponentManager()
-	healthCol := newColumn[testutils.Health]()
-	mapCol := newColumn[testutils.MapComponent]()
-	_, err := cm.register("Health", newColumnFactory[testutils.Health]())
-	require.NoError(t, err)
-	_, err = cm.register("MapComponent", newColumnFactory[testutils.MapComponent]())
-	require.NoError(t, err)
-
-	compBitmap := bitmap.Bitmap{}
-	compBitmap.Set(0)
-	compBitmap.Set(1)
-	columns := []abstractColumn{&healthCol, &mapCol}
-	arch := newArchetype(5, compBitmap, columns)
-
-	// Add entities with map components.
-	arch.newEntity(EntityID(1))
-	healthCol.set(0, testutils.Health{Value: 100})
-	mapCol.set(0, testutils.MapComponent{
-		Items: map[string]int{
-			"sword":  1,
-			"shield": 1,
-			"potion": 5,
-			"gold":   100,
-			"key":    3,
-		},
-	})
-	arch.newEntity(EntityID(2))
-	healthCol.set(1, testutils.Health{Value: 200})
-	mapCol.set(1, testutils.MapComponent{
-		Items: map[string]int{
-			"armor": 1,
-			"bow":   1,
-			"arrow": 50,
-		},
-	})
-
-	// Serialize the same archetype multiple times and verify determinism.
-	const iterations = 10
-	var prev *cardinalv1.Archetype
-
-	for i := range iterations {
-		current, err := arch.serialize()
-		require.NoError(t, err)
-
-		if prev != nil {
-			assert.Equal(t, prev.GetId(), current.GetId(),
-				"iteration %d: archetype ID differs", i)
-			assert.Equal(t, prev.GetComponentsBitmap(), current.GetComponentsBitmap(),
-				"iteration %d: components bitmap differs", i)
-			assert.Equal(t, prev.GetEntities(), current.GetEntities(),
-				"iteration %d: entities differ", i)
-			assert.Len(t, current.GetColumns(), len(prev.GetColumns()),
-				"iteration %d: column count differs", i)
-
-			// Compare each column.
-			for j, prevCol := range prev.GetColumns() {
-				currentCol := current.GetColumns()[j]
-				assert.Equal(t, prevCol.GetComponentName(), currentCol.GetComponentName(),
-					"iteration %d, column %d: component name differs", i, j)
-				assert.Equal(t, prevCol.GetComponents(), currentCol.GetComponents(),
-					"iteration %d, column %d: components differ", i, j)
-			}
+		// Populate source with 1-3 entities.
+		entityCount := gen.Range(1, 3) // Randomize entity count
+		for eid := range entityCount {
+			src.newEntity(EntityID(eid))
 		}
 
-		prev = current
+		// Pick which entity to move.
+		row := gen.Index(len(src.entities)) // Randomize moved entity row
+		eid := src.entities[row]
+
+		// Uncomment to see all cases checked.
+		// t.Logf("move: %s, index %d of %d", classifyMove(srcIdx, dstIdx), row, entityCount)
+
+		// Set non-zero values on the entity's components before the move.
+		for _, col := range src.columns {
+			col.setAbstract(row, testValueFor(col.name()))
+		}
+
+		// Record original state.
+		srcLenBefore := len(src.entities)
+		dstLenBefore := len(dst.entities)
+
+		src.moveEntity(dst, eid)
+
+		// Property: entity no longer exists in source.
+		_, exists := src.rows.get(eid)
+		assert.False(t, exists, "entity %d should not exist in source after move", eid)
+
+		// Property: entity exists in destination and bijection holds.
+		dstRow, exists := dst.rows.get(eid)
+		assert.True(t, exists, "entity %d should exist in destination after move", eid)
+		assert.Equal(t, eid, dst.entities[dstRow], "bijection broken: dst.entities[%d] != %d", dstRow, eid)
+
+		// Property: source entity count decreased by 1.
+		assert.Len(t, src.entities, srcLenBefore-1, "source entity count should decrease by 1")
+
+		// Property: destination entity count increased by 1.
+		assert.Len(t, dst.entities, dstLenBefore+1, "destination entity count should increase by 1")
+
+		// Property: bijection holds for all remaining entities in source.
+		for i, e := range src.entities {
+			r, ok := src.rows.get(e)
+			assert.True(t, ok, "entity %d should exist in source rows", e)
+			assert.Equal(t, i, r, "bijection broken in source: rows[%d] = %d, expected %d", e, r, i)
+		}
+
+		// Property: bijection holds for all entities in destination.
+		for i, e := range dst.entities {
+			r, ok := dst.rows.get(e)
+			assert.True(t, ok, "entity %d should exist in destination rows", e)
+			assert.Equal(t, i, r, "bijection broken in destination: rows[%d] = %d, expected %d", e, r, i)
+		}
+
+		// Property: shared components are copied correctly.
+		for _, dstCol := range dst.columns {
+			isShared := slices.ContainsFunc(src.columns, func(c abstractColumn) bool {
+				return c.name() == dstCol.name()
+			})
+			if isShared {
+				expected := testValueFor(dstCol.name())
+				actual := dstCol.getAbstract(dstRow)
+				assert.Equal(t, expected, actual, "shared component %s not copied", dstCol.name())
+			}
+		}
 	}
 }
 
-func TestArchetype_SerializeDeserialize_ErrorHandling(t *testing.T) {
-	t.Parallel()
+const (
+	cidA uint32 = 0
+	cidB uint32 = 1
+	cidC uint32 = 2
+)
 
-	testCases := []struct {
-		name          string
-		setupManager  func() *componentManager
-		setupProtobuf func() *cardinalv1.Archetype
-		errorContains string
-		expectPanic   bool
-		nilManager    bool
-	}{
-		{
-			name: "component not registered in manager",
-			setupManager: func() *componentManager {
-				cm := newComponentManager()
-				return &cm
-			},
-			setupProtobuf: func() *cardinalv1.Archetype {
-				return &cardinalv1.Archetype{
-					Id:               1,
-					ComponentsBitmap: []byte{},
-					Entities:         []uint32{},
-					Columns: []*cardinalv1.Column{
-						{
-							ComponentName: "Health",
-							Components:    [][]byte{},
-						},
-					},
-				}
-			},
-			errorContains: "failed to get component id",
-		},
-		{
-			name: "column deserialization failure",
-			setupManager: func() *componentManager {
-				cm := newComponentManager()
-				_, _ = cm.register("Health", newColumnFactory[testutils.Health]())
-				return &cm
-			},
-			setupProtobuf: func() *cardinalv1.Archetype {
-				return &cardinalv1.Archetype{
-					Id:               1,
-					ComponentsBitmap: []byte{},
-					Entities:         []uint32{},
-					Columns: []*cardinalv1.Column{
-						{
-							ComponentName: "Health",
-							Components:    [][]byte{[]byte("invalid json")},
-						},
-					},
-				}
-			},
-			errorContains: "failed to deserialize column",
-		},
-		{
-			name: "nil protobuf",
-			setupManager: func() *componentManager {
-				cm := newComponentManager()
-				return &cm
-			},
-			setupProtobuf: func() *cardinalv1.Archetype {
-				return nil
-			},
-			errorContains: "protobuf archetype is nil",
-		},
-		{
-			name: "nil component manager",
-			setupManager: func() *componentManager {
-				return nil
-			},
-			setupProtobuf: func() *cardinalv1.Archetype {
-				healthCol := newColumn[testutils.Health]()
-				compBitmap := bitmap.Bitmap{}
-				compBitmap.Set(0)
-				arch := newArchetype(1, compBitmap, []abstractColumn{&healthCol})
-				pb, _ := arch.serialize()
-				return pb
-			},
-			expectPanic: true,
-			nilManager:  true,
-		},
+func newArchetypePool() []*archetype {
+	return []*archetype{
+		newTestArchetype(0, []uint32{}),           // {}
+		newTestArchetype(1, []uint32{cidA}),       // {A}
+		newTestArchetype(2, []uint32{cidA, cidB}), // {A, B}
+		newTestArchetype(3, []uint32{cidB, cidC}), // {B, C}
+	}
+}
+
+func newTestArchetype(aid archetypeID, cids []uint32) *archetype {
+	components := bitmap.Bitmap{}
+	columns := make([]abstractColumn, len(cids))
+
+	for i, cid := range cids {
+		components.Set(cid)
+		switch cid {
+		case cidA:
+			columns[i] = newColumnFactory[testutils.ComponentA]()()
+		case cidB:
+			columns[i] = newColumnFactory[testutils.ComponentB]()()
+		case cidC:
+			columns[i] = newColumnFactory[testutils.ComponentC]()()
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	arch := newArchetype(aid, components, columns)
+	return &arch
+}
 
-			cm := tc.setupManager()
-			pb := tc.setupProtobuf()
-			arch := &archetype{}
+func testValueFor(name string) Component {
+	// We use fixed values rather than random because we're testing that moveEntity copies data
+	// correctly—a structural operation with no value-dependent logic. If copying works for one
+	// non-zero value, it works for all values.
+	switch name {
+	case "component_a":
+		return testutils.ComponentA{X: 1.1, Y: 2.2, Z: 3.3}
+	case "component_b":
+		return testutils.ComponentB{ID: 42, Label: "test", Enabled: true}
+	case "component_c":
+		return testutils.ComponentC{Values: [8]int32{1, 2, 3, 4, 5, 6, 7, 8}, Counter: 99}
+	default:
+		panic("unknown component: " + name)
+	}
+}
 
-			if tc.expectPanic {
-				assert.Panics(t, func() {
-					_ = arch.deserialize(pb, cm)
-				})
-			} else {
-				err := arch.deserialize(pb, cm)
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errorContains)
-			}
-		})
+// classifyMove returns a string describing the move scenario based on archetype indices.
+// This is a helper function to visualize the cases handled in the test above.
+func classifyMove(srcIdx, dstIdx int) string { //nolint:unused // useful for debugging test cases
+	names := []string{"{}", "{A}", "{A,B}", "{B,C}"}
+	label := names[srcIdx] + " -> " + names[dstIdx]
+
+	// Pool: 0={}, 1={A}, 2={A,B}, 3={B,C}
+	switch {
+	case srcIdx == 0:
+		return label + " (empty -> non-empty)"
+	case dstIdx == 0:
+		return label + " (non-empty -> empty)"
+	case srcIdx == 1 && dstIdx == 2:
+		return label + " (subset -> superset)"
+	case srcIdx == 2 && dstIdx == 1:
+		return label + " (superset -> subset)"
+	case (srcIdx == 2 && dstIdx == 3) || (srcIdx == 3 && dstIdx == 2):
+		return label + " (partial overlap)"
+	case (srcIdx == 1 && dstIdx == 3) || (srcIdx == 3 && dstIdx == 1):
+		return label + " (disjoint)"
+	default:
+		return label + " (unknown)"
+	}
+}
+
+// -------------------------------------------------------------------------------------------------
+// Serialization smoke test
+// -------------------------------------------------------------------------------------------------
+// We don't extensively test toProto/fromProto because:
+// 1. The implementation delegates to column and sparse set serialization (tested separately).
+// 2. The remaining logic is straightforward type conversion loops.
+// 3. Heavy property-based testing would mostly exercise the underlying serialization, not our code.
+// -------------------------------------------------------------------------------------------------
+
+func TestArchetype_SerializationSmoke(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const entityMax = 1000
+
+	cm := newComponentManager()
+	cid1, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
+	require.NoError(t, err)
+	cid2, err := cm.register(testutils.ComponentB{}.Name(), newColumnFactory[testutils.ComponentB]())
+	require.NoError(t, err)
+
+	arch := newTestArchetype(0, []uint32{cid1, cid2})
+	entityCount := prng.IntN(entityMax) + 1
+	for eid := range entityCount {
+		arch.newEntity(EntityID(eid))
+		for _, col := range arch.columns {
+			col.setAbstract(eid, testValueFor(col.name()))
+		}
+	}
+
+	pb, err := arch.toProto()
+	require.NoError(t, err)
+
+	arch2 := &archetype{}
+	err = arch2.fromProto(pb, &cm)
+	require.NoError(t, err)
+
+	// Property: deserialize(serialize(x)) == x.
+	assertArchetypeEqual(t, arch, arch2)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Deserialization edge case regression test
+// -------------------------------------------------------------------------------------------------
+// This guards against the case where fromProto panics if a bitmap's length isn't a multiple of 8.
+// To reproduce, run TestWorld_DeserializeNegative with:
+// - Seed: 0x187f45843d5f9288
+// - Commit: f79096323ed10ae364e6cab6a7fffd430885443c
+// -------------------------------------------------------------------------------------------------
+
+func TestArchetype_DeserializationNegative(t *testing.T) {
+	t.Parallel()
+
+	cm := newComponentManager()
+	cid1, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
+	require.NoError(t, err)
+
+	arch := newTestArchetype(0, []uint32{cid1})
+	arch.newEntity(0)
+
+	pb, err := arch.toProto()
+	require.NoError(t, err)
+
+	// Corrupt the bitmap by truncating to an invalid length (not a multiple of 8).
+	pb.ComponentsBitmap = pb.ComponentsBitmap[:len(pb.ComponentsBitmap)-1]
+
+	arch2 := &archetype{}
+	err = arch2.fromProto(pb, &cm)
+
+	// Property: corrupted bitmap should return an error, not panic.
+	assert.Error(t, err)
+}
+
+// assertArchetypeEqual checks if two archetypes are struturally equal. This function is extracted
+// so it can be reused in serialization tests "above" this layer.
+func assertArchetypeEqual(t *testing.T, a1, a2 *archetype) {
+	t.Helper()
+
+	assert.Equal(t, a1.id, a2.id)
+	assert.Equal(t, a1.components.ToBytes(), a2.components.ToBytes())
+	assert.Equal(t, a1.entities, a2.entities)
+	assert.Equal(t, a1.rows, a2.rows)
+
+	assert.Len(t, a2.columns, len(a1.columns))
+	for i := range a1.columns {
+		c1, c2 := a1.columns[i], a2.columns[i]
+		assert.Equal(t, c1.len(), c2.len())
+		for row := range c1.len() {
+			assert.Equal(t, c1.getAbstract(row), c2.getAbstract(row))
+		}
 	}
 }

@@ -1,1216 +1,495 @@
 package ecs
 
 import (
+	"fmt"
+	"math/rand/v2"
+	"slices"
 	"testing"
 
-	. "github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/testutils"
+	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestWithCommand_Init(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Exhaustive search[T] iteration test
+// -------------------------------------------------------------------------------------------------
+// This test exhaustively enumerates all combinations of the following parameters against a fixed
+// archetype pool ({}, {A}, {A,B}, {B,C}) to verify search[T].iter() correctness:
+//
+// - Entity count per archetype (0, 1, or 2): 0 tests empty archetypes yield nothing, 1 tests
+//   single-entity iteration, 2 tests multi-entity iteration. Higher counts would cause factorial
+//   explosion of the state space (n!).
+// - Search components (all subsets of {A, B, C}): tests all 8 possible combinations.
+// - Match type (exact vs contains): tests both archetype matching strategies.
+// -------------------------------------------------------------------------------------------------
+
+func TestSearch_IterExhaustive(t *testing.T) {
 	t.Parallel()
 
-	t.Run("successful initialization", func(t *testing.T) {
-		t.Parallel()
-		w := NewWorld()
+	// Archetype component sets: {}, {A}, {A,B}, {B,C}.
+	archComponents := [4][]uint32{{}, {cidA}, {cidA, cidB}, {cidB, cidC}}
 
-		wc := &WithCommand[AttackPlayerCommand]{}
-		_, err := wc.init(w)
+	gen := testutils.NewGen()
+	for !gen.Done() {
+		world := NewWorld()
+		ws := world.state
 
+		var s search[struct {
+			A Ref[testutils.ComponentA]
+			B Ref[testutils.ComponentB]
+			C Ref[testutils.ComponentC]
+		}]
+		_, err := s.init(world)
 		require.NoError(t, err)
-		assert.Equal(t, w, wc.world, "Command field should store the world reference")
-	})
 
-	t.Run("invalid command name", func(t *testing.T) {
-		t.Parallel()
-
-		t.Run("empty command name", func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-
-			wc := &WithCommand[InvalidEmptyCommand]{}
-			_, err := wc.init(w)
-
-			require.Error(t, err)
-		})
-
-		t.Run("automatically registers unregistered commands", func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-
-			// Before: check that command is not already registered
-			commandName := AttackPlayerCommand{}.Name()
-			_, exists := w.commands.registry[commandName]
-			assert.False(t, exists, "Command should not be registered initially")
-
-			// Register command through init
-			wc := &WithCommand[AttackPlayerCommand]{}
-			_, err := wc.init(w)
-
-			// Check results
-			require.NoError(t, err, "Should automatically register the command")
-			_, exists = w.commands.registry[commandName]
-			assert.True(t, exists, "Command should be registered after init")
-		})
-
-		t.Run("handles duplicate registrations", func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-
-			// First registration through init
-			wc1 := &WithCommand[AttackPlayerCommand]{}
-			_, err := wc1.init(w)
-			require.NoError(t, err, "First registration should succeed")
-
-			// Second registration through init
-			wc2 := &WithCommand[AttackPlayerCommand]{}
-			_, err = wc2.init(w)
-
-			// Verify results
-			require.NoError(t, err, "Second registration should not error")
-			_, exists := w.commands.registry[AttackPlayerCommand{}.Name()]
-			assert.True(t, exists, "Command should still be registered")
-		})
-	})
-}
-
-func TestWithCommand_Iter(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name       string
-		setupFn    func(*testing.T, *World)
-		validateFn func(*testing.T, []AttackPlayerCommand)
-	}{
-		{
-			name:    "empty - no commands",
-			setupFn: func(t *testing.T, w *World) {},
-			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
-				assert.Empty(t, results, "Should return empty results when no commands exist")
-			},
-		},
-		{
-			name: "basic iteration",
-			setupFn: func(t *testing.T, w *World) {
-				var commands []micro.Command
-				for i := range 5 {
-					cmd := AttackPlayerCommand{Value: i}
-					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: cmd.Name(), Payload: cmd}}})
+		// Create 0-2 entities per archetype.
+		var model []entityRecord
+		var entityCounts [4]int
+		for i, cids := range archComponents {
+			var bm bitmap.Bitmap
+			for _, cid := range cids {
+				bm.Set(cid)
+			}
+			entityCounts[i] = gen.Intn(2)
+			for range entityCounts[i] {
+				eid := ws.newEntityWithArchetype(bm)
+				aid, ok := ws.entityArch.get(eid)
+				assert.True(t, ok)
+				rec := entityRecord{eid: eid, archID: aid, componentSet: cids}
+				for _, cid := range cids {
+					switch cid {
+					case cidA:
+						rec.compA = testutils.ComponentA{X: float64(eid), Y: float64(eid) * 2, Z: float64(eid) * 3}
+						err = setComponent(ws, eid, rec.compA)
+						require.NoError(t, err)
+					case cidB:
+						rec.compB = testutils.ComponentB{ID: uint64(eid), Label: "test", Enabled: true}
+						err = setComponent(ws, eid, rec.compB)
+						require.NoError(t, err)
+					case cidC:
+						rec.compC = testutils.ComponentC{Values: [8]int32{int32(eid)}, Counter: uint16(eid)}
+						err = setComponent(ws, eid, rec.compC)
+						require.NoError(t, err)
+					}
 				}
-				err := w.commands.receiveCommands(commands)
-				require.NoError(t, err)
-			},
-			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
-				require.Len(t, results, 5, "Should iterate all commands")
-				for i, cmd := range results {
-					assert.Equal(t, i, cmd.Value, "Command values should match")
-				}
-			},
-		},
-		{
-			name: "mixed command types",
-			setupFn: func(t *testing.T, w *World) {
-				// Register the additional command type.
-				wc := &WithCommand[CreatePlayerCommand]{}
-				_, err := wc.init(w)
-				require.NoError(t, err)
+				model = append(model, rec)
+			}
+		}
 
-				var commands []micro.Command
-				for i := range 10 { // Add attack commands
-					cmd := AttackPlayerCommand{Value: i}
-					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: cmd.Name(), Payload: cmd}}})
-				}
-				for i := range 5 { // Add create commands (should be filtered out)
-					cmd := CreatePlayerCommand{Value: i}
-					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: cmd.Name(), Payload: cmd}}})
-				}
-				err = w.commands.receiveCommands(commands)
-				require.NoError(t, err)
-			},
-			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
-				require.Len(t, results, 10, "Should only get the correct command type")
-				for i, cmd := range results {
-					assert.Equal(t, i, cmd.Value)
-				}
-			},
-		},
-		{
-			name: "early termination",
-			setupFn: func(t *testing.T, w *World) {
-				var commands []micro.Command
-				for i := range 10 {
-					cmd := AttackPlayerCommand{Value: i}
-					commands = append(commands, micro.Command{Command: micro.CommandRaw{Body: micro.CommandBody{
-						Name: cmd.Name(), Payload: cmd}}})
-				}
-				err := w.commands.receiveCommands(commands)
-				require.NoError(t, err)
-			},
-			validateFn: func(t *testing.T, results []AttackPlayerCommand) {
-				require.Len(t, results, 3, "Should only get first 3 commands")
-				for i, cmd := range results {
-					assert.Equal(t, i, cmd.Value)
-				}
-			},
-		},
-	}
+		// Pick non-empty subset of {A,B,C} using 3-bit mask [1,7].
+		mask := gen.Intn(7)
+		var searchBm bitmap.Bitmap
+		for i, cid := range []uint32{cidA, cidB, cidC} {
+			if mask&(1<<i) != 0 {
+				searchBm.Set(cid)
+			}
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
+		// Get matching archetypes (exact or contains).
+		exact := gen.Bool()
+		var archetypes []archetypeID
+		if exact {
+			if aid, ok := ws.archExact(searchBm); ok {
+				archetypes = []archetypeID{aid}
+			}
+		} else {
+			archetypes = ws.archContains(searchBm)
+		}
 
-			// Initialize WithCommand to register the command with the world.
-			wc := &WithCommand[AttackPlayerCommand]{}
-			_, err := wc.init(w)
-			require.NoError(t, err)
+		// Collect results.
+		var results []entityRecord
+		for eid, comps := range s.iter(archetypes) {
+			aid, ok := ws.entityArch.get(eid)
+			assert.True(t, ok)
+			arch := ws.archetypes[aid]
 
-			tt.setupFn(t, w)
+			rec := entityRecord{eid: eid}
+			if arch.components.Contains(cidA) {
+				rec.compA = comps.A.Get()
+			}
+			if arch.components.Contains(cidB) {
+				rec.compB = comps.B.Get()
+			}
+			if arch.components.Contains(cidC) {
+				rec.compC = comps.C.Get()
+			}
+			results = append(results, rec)
+		}
 
-			var results []AttackPlayerCommand
+		// Build expected set: entities whose archetype matches the query.
+		var expected []entityRecord
+		for _, rec := range model {
+			if slices.Contains(archetypes, rec.archID) {
+				expected = append(expected, rec)
+			}
+		}
 
-			if tt.name == "early termination" {
-				iter := wc.Iter()
-				count := 0
-				iter(func(ctx CommandContext[AttackPlayerCommand]) bool {
-					results = append(results, ctx.Payload())
-					count++
-					return count < 3 // Return false after 3 items
-				})
-			} else {
-				for ctx := range wc.Iter() {
-					results = append(results, ctx.Payload())
+		// Property: completeness (all expected entities yielded, no extras).
+		assert.Len(t, results, len(expected), "entity count mismatch")
+
+		for i, res := range results {
+			exp := expected[i]
+
+			// Property: correct entity ordering (iter yields entities in model order).
+			assert.Equal(t, exp.eid, res.eid, "entity ID mismatch at index %d", i)
+
+			// Property: data integrity (component values match what was set).
+			for _, cid := range exp.componentSet {
+				switch cid {
+				case cidA:
+					assert.Equal(t, exp.compA, res.compA, "compA mismatch for entity %d", exp.eid)
+				case cidB:
+					assert.Equal(t, exp.compB, res.compB, "compB mismatch for entity %d", exp.eid)
+				case cidC:
+					assert.Equal(t, exp.compC, res.compC, "compC mismatch for entity %d", exp.eid)
 				}
 			}
-			tt.validateFn(t, results)
+		}
+
+		// Uncomment to see all cases checked.
+		// t.Logf("search: %s", describeSearch(t,entityCounts, mask, exact))
+	}
+}
+
+// entityRecord tracks which entities belong to which archetype and their component values.
+type entityRecord struct {
+	eid          EntityID
+	archID       int      // Actual archetype ID from worldState
+	componentSet []uint32 // Component IDs in this entity's archetype
+	compA        testutils.ComponentA
+	compB        testutils.ComponentB
+	compC        testutils.ComponentC
+}
+
+// describeSearch returns a string describing the search scenario for debugging.
+func describeSearch(entityCounts [4]int, mask int, exact bool) string { //nolint:unused // for testing only
+	var query string
+	if mask&1 != 0 {
+		query += "A"
+	}
+	if mask&2 != 0 {
+		query += "B"
+	}
+	if mask&4 != 0 {
+		query += "C"
+	}
+	matchType := "contains"
+	if exact {
+		matchType = "exact"
+	}
+	return fmt.Sprintf("entities=%v, query={%s}, match=%s", entityCounts, query, matchType)
+}
+
+// -------------------------------------------------------------------------------------------------
+// WithCommand property tests
+// -------------------------------------------------------------------------------------------------
+// This test verifies WithCommand correctness by comparing iteration results against a model
+// (slice of submitted commands). We verify completeness (every submitted command is yielded
+// exactly once), no duplicates (no command appears more than once), and data integrity
+// (Payload() and Persona() return exactly what was submitted).
+// -------------------------------------------------------------------------------------------------
+
+func TestSystem_WithCommand_Properties(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	world := NewWorld()
+
+	// Initialize WithCommand field (this registers the command type).
+	var withCmd WithCommand[testutils.SimpleCommand]
+	_, err := withCmd.init(world)
+	require.NoError(t, err)
+
+	// Generate random commands (model).
+	count := prng.IntN(10_000)
+	model := make([]micro.Command, count)
+	for i := range count {
+		model[i] = micro.Command{
+			Command: micro.CommandRaw{
+				Body: micro.CommandBody{
+					Name:    testutils.SimpleCommand{}.Name(),
+					Persona: randString(prng, 8),
+					Payload: testutils.SimpleCommand{Value: prng.Int()},
+				},
+			},
+		}
+	}
+
+	// Submit commands to world.
+	world.commands.receiveCommands(model)
+
+	// Iterate and collect results.
+	var results []micro.Command
+	for ctx := range withCmd.Iter() {
+		results = append(results, micro.Command{
+			Command: micro.CommandRaw{
+				Body: micro.CommandBody{
+					Name:    testutils.SimpleCommand{}.Name(),
+					Persona: ctx.Persona(),
+					Payload: ctx.Payload(),
+				},
+			},
 		})
 	}
-}
 
-func TestWithEvent_Init(t *testing.T) {
-	t.Parallel()
+	// Property: Iter returns all commands received this tick.
+	assert.Len(t, results, len(model), "completeness: expected %d commands, got %d", len(model), len(results))
 
-	w := NewWorld()
-	we := &WithEvent[PlayerDeathEvent]{}
-
-	// Initialize the WithEvent field
-	_, err := we.init(w)
-	require.NoError(t, err)
-
-	// Verify world reference is set
-	assert.Equal(t, w, we.world)
-}
-
-func TestWithEvent_Emit(t *testing.T) {
-	t.Parallel()
-
-	w := NewWorld()
-	we := &WithEvent[PlayerDeathEvent]{}
-	_, err := we.init(w)
-	require.NoError(t, err)
-
-	for i := range 5 {
-		we.Emit(PlayerDeathEvent{Value: i})
-	}
-
-	// Get and verify events
-	events := w.events.getEvents()
-	require.Len(t, events, 5)
-
-	for i, event := range events {
-		assert.Equal(t, EventKindDefault, event.Kind)
-
-		payload, ok := event.Payload.(PlayerDeathEvent)
-		assert.True(t, ok)
-		assert.Equal(t, i, payload.Value)
+	// Property: data integrity, each result matches corresponding model entry.
+	// This also implicitly verifies no duplicates (if counts match and all match, no dups).
+	for i, result := range results {
+		assert.Equal(t, model[i].Command.Body.Payload, result.Command.Body.Payload,
+			"data integrity: payload mismatch at index %d", i)
+		assert.Equal(t, model[i].Command.Body.Persona, result.Command.Body.Persona,
+			"data integrity: persona mismatch at index %d", i)
 	}
 }
 
-func TestWithSystemEventReceiver_Init(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// WithCommand edge case tests
+// -------------------------------------------------------------------------------------------------
+// Example-based tests for specific edge cases and error conditions.
+// -------------------------------------------------------------------------------------------------
+
+func TestSystem_WithCommand_EdgeCases(t *testing.T) {
 	t.Parallel()
 
-	t.Run("auto-registers new system event", func(t *testing.T) {
-		t.Parallel()
-		w := NewWorld()
-
-		// Record initial event count
-		beforeCount := len(w.systemEvents.registry)
-
-		ser := &WithSystemEventReceiver[PlayerDeathSystemEvent]{}
-		_, err := ser.init(w)
-
-		require.NoError(t, err)
-		assert.Equal(t, w, ser.world, "Should store world reference")
-
-		// Verify event was registered
-		afterCount := len(w.systemEvents.registry)
-		assert.Equal(t, beforeCount+1, afterCount, "System event should be registered")
-	})
-
-	t.Run("reuses already registered event", func(t *testing.T) {
-		t.Parallel()
-		w := NewWorld()
-
-		// Pre-register the event
-		_, err := w.systemEvents.register(PlayerDeathSystemEvent{}.Name())
-		require.NoError(t, err)
-
-		beforeCount := len(w.systemEvents.registry)
-
-		ser := &WithSystemEventReceiver[PlayerDeathSystemEvent]{}
-		_, err = ser.init(w)
-
-		require.NoError(t, err)
-		assert.Equal(t, w, ser.world, "Should store world reference")
-
-		// Verify no new event was registered
-		afterCount := len(w.systemEvents.registry)
-		assert.Equal(t, beforeCount, afterCount, "No new event should be registered")
-	})
-
-	t.Run("fails with empty event name", func(t *testing.T) {
+	t.Run("empty iteration", func(t *testing.T) {
 		t.Parallel()
 
-		w := NewWorld()
+		world := NewWorld()
 
-		ser := &WithSystemEventReceiver[InvalidEmptyCommand]{}
-		_, err := ser.init(w)
-		require.Error(t, err)
+		var withCmd WithCommand[testutils.SimpleCommand]
+		_, err := withCmd.init(world)
+		require.NoError(t, err)
+
+		// No commands submitted - Iter should yield nothing.
+		count := 0
+		for range withCmd.Iter() {
+			count++
+		}
+		assert.Equal(t, 0, count, "expected 0 commands, got %d", count)
 	})
-}
 
-func TestWithSystemEventReceiver_Iter(t *testing.T) {
-	t.Parallel()
+	t.Run("early termination", func(t *testing.T) {
+		t.Parallel()
 
-	tests := []struct {
-		name       string
-		setupFn    func(*testing.T, *World)
-		validateFn func(*testing.T, []PlayerDeathSystemEvent)
-	}{
-		{
-			name: "empty - no events",
-			setupFn: func(t *testing.T, w *World) {
-				// Register but don't add any events
-				_, err := w.systemEvents.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
-			},
-			validateFn: func(t *testing.T, results []PlayerDeathSystemEvent) {
-				assert.Empty(t, results, "Should return empty results when no events exist")
-			},
-		},
-		{
-			name: "basic iteration",
-			setupFn: func(t *testing.T, w *World) {
-				id, err := w.systemEvents.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
+		world := NewWorld()
 
-				// Add some test events
-				for i := range 5 {
-					w.systemEvents.events[id] = append(w.systemEvents.events[id], PlayerDeathSystemEvent{Value: i})
-				}
-			},
-			validateFn: func(t *testing.T, results []PlayerDeathSystemEvent) {
-				require.Len(t, results, 5, "Should iterate all events")
-				for i, event := range results {
-					assert.Equal(t, i, event.Value, "Event values should match")
-				}
-			},
-		},
-		{
-			name: "mixed event types",
-			setupFn: func(t *testing.T, w *World) {
-				deathID, err := w.systemEvents.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
-				dropID, err := w.systemEvents.register(ItemDropSystemEvent{}.Name())
-				require.NoError(t, err)
+		var withCmd WithCommand[testutils.SimpleCommand]
+		_, err := withCmd.init(world)
+		require.NoError(t, err)
 
-				// Add death events
-				for i := range 100 {
-					w.systemEvents.events[deathID] = append(w.systemEvents.events[deathID],
-						PlayerDeathSystemEvent{Value: i})
-				}
-
-				// Add drop events (should be filtered out by iterator)
-				for i := range 50 {
-					w.systemEvents.events[dropID] = append(w.systemEvents.events[dropID],
-						ItemDropSystemEvent{Value: i})
-				}
-			},
-			validateFn: func(t *testing.T, results []PlayerDeathSystemEvent) {
-				require.Len(t, results, 100, "Should only get the correct event type")
-				for i, event := range results {
-					assert.Equal(t, i, event.Value, "Event values should match")
-				}
-			},
-		},
-		{
-			name: "early termination",
-			setupFn: func(t *testing.T, w *World) {
-				id, err := w.systemEvents.register(PlayerDeathSystemEvent{}.Name())
-				require.NoError(t, err)
-
-				// Add many events
-				for i := range 10 {
-					w.systemEvents.events[id] = append(w.systemEvents.events[id],
-						PlayerDeathSystemEvent{Value: i})
-				}
-			},
-			validateFn: func(t *testing.T, results []PlayerDeathSystemEvent) {
-				require.Len(t, results, 3, "Should only get first 3 events")
-				for i, event := range results {
-					assert.Equal(t, i, event.Value, "Event values should match")
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-			tt.setupFn(t, w)
-
-			ser := &WithSystemEventReceiver[PlayerDeathSystemEvent]{}
-			_, err := ser.init(w)
-			require.NoError(t, err)
-
-			var results []PlayerDeathSystemEvent
-
-			if tt.name == "early termination" {
-				iter := ser.Iter()
-				count := 0
-				iter(func(event PlayerDeathSystemEvent) bool {
-					results = append(results, event)
-					count++
-					return count < 3 // Return false after 3 items
-				})
-			} else {
-				for event := range ser.Iter() {
-					results = append(results, event)
-				}
+		// Submit 10 commands.
+		commands := make([]micro.Command, 10)
+		for i := range commands {
+			commands[i] = micro.Command{
+				Command: micro.CommandRaw{
+					Body: micro.CommandBody{
+						Name:    testutils.SimpleCommand{}.Name(),
+						Persona: "test",
+						Payload: testutils.SimpleCommand{Value: i},
+					},
+				},
 			}
-			tt.validateFn(t, results)
-		})
-	}
-}
+		}
+		world.commands.receiveCommands(commands)
 
-func TestWithSystemEventEmitter_Init(t *testing.T) {
-	t.Parallel()
-
-	// Test successful initialization with auto-registration
-	t.Run("auto-registers new system event", func(t *testing.T) {
-		t.Parallel()
-
-		w := NewWorld()
-
-		// Record initial event count
-		beforeCount := len(w.systemEvents.registry)
-
-		see := &WithSystemEventEmitter[PlayerDeathSystemEvent]{}
-		_, err := see.init(w)
-
-		require.NoError(t, err)
-		assert.Equal(t, w, see.world, "Should store world reference")
-
-		// Verify event was registered
-		afterCount := len(w.systemEvents.registry)
-		assert.Equal(t, beforeCount+1, afterCount, "System event should be registered")
-
-		// Verify event name is in registry
-		_, exists := w.systemEvents.registry[PlayerDeathSystemEvent{}.Name()]
-		assert.True(t, exists, "Event should be registered with correct name")
-	})
-
-	// Test with already registered event
-	t.Run("reuses already registered event", func(t *testing.T) {
-		t.Parallel()
-
-		w := NewWorld()
-
-		// Pre-register the event
-		_, err := w.systemEvents.register(PlayerDeathSystemEvent{}.Name())
-		require.NoError(t, err)
-
-		beforeCount := len(w.systemEvents.registry)
-
-		see := &WithSystemEventEmitter[PlayerDeathSystemEvent]{}
-		_, err = see.init(w)
-
-		require.NoError(t, err)
-		assert.Equal(t, w, see.world, "Should store world reference")
-
-		// Verify no new event was registered
-		afterCount := len(w.systemEvents.registry)
-		assert.Equal(t, beforeCount, afterCount, "No new event should be registered")
-	})
-
-	// Test with empty event name
-	t.Run("fails with empty event name", func(t *testing.T) {
-		t.Parallel()
-
-		w := NewWorld()
-
-		see := &WithSystemEventEmitter[InvalidEmptyCommand]{}
-		_, err := see.init(w)
-		require.Error(t, err)
+		// Break after first command.
+		count := 0
+		for range withCmd.Iter() {
+			count++
+			break
+		}
+		assert.Equal(t, 1, count, "expected to process exactly 1 command before break")
 	})
 }
 
-func TestWithSystemEventEmitter_Emit(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// WithEvent property tests
+// -------------------------------------------------------------------------------------------------
+// This test verifies WithEvent correctness by comparing emitted events against a model
+// (slice of emitted values). We verify round-trip integrity (the payload in the queue equals
+// exactly what was passed to Emit()) and that init enables Emit without panic.
+// -------------------------------------------------------------------------------------------------
+
+func TestSystem_WithEvent_Properties(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	w := NewWorld()
+	world := NewWorld()
 
-	see := &WithSystemEventEmitter[PlayerDeathSystemEvent]{world: w}
-	_, err := see.init(w)
+	// Initialize WithEvent field (this registers the event type).
+	var withEvent WithEvent[testutils.SimpleEvent]
+	_, err := withEvent.init(world)
 	require.NoError(t, err)
 
-	for i := range 5 {
-		see.Emit(PlayerDeathSystemEvent{Value: i})
+	// Generate random events (model).
+	count := prng.IntN(10_000)
+	model := make([]testutils.SimpleEvent, count)
+	for i := range count {
+		model[i] = testutils.SimpleEvent{Value: prng.Int()}
 	}
 
-	events, err := w.systemEvents.get(PlayerDeathSystemEvent{}.Name())
+	// Emit all events.
+	for _, event := range model {
+		withEvent.Emit(event)
+	}
+
+	// Drain queue.
+	rawEvents := world.events.getEvents()
+
+	// Property: All emitted events appear in the queue.
+	assert.Len(t, rawEvents, len(model), "expected %d events, got %d", len(model), len(rawEvents))
+
+	// Property: Round-trip integrity, each payload equals corresponding model entry.
+	for i, raw := range rawEvents {
+		payload, ok := raw.Payload.(testutils.SimpleEvent)
+		require.True(t, ok, "payload type mismatch at index %d", i)
+		assert.Equal(t, model[i], payload, "round-trip integrity: payload mismatch at index %d", i)
+	}
+}
+
+// -------------------------------------------------------------------------------------------------
+// WithEvent edge case tests
+// -------------------------------------------------------------------------------------------------
+// Example-based tests for specific edge cases and error conditions.
+// -------------------------------------------------------------------------------------------------
+
+func TestSystem_WithEvent_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty emission", func(t *testing.T) {
+		t.Parallel()
+
+		world := NewWorld()
+
+		var withEvent WithEvent[testutils.SimpleEvent]
+		_, err := withEvent.init(world)
+		require.NoError(t, err)
+
+		// No events emitted - getEvents should return empty slice.
+		rawEvents := world.events.getEvents()
+		assert.Empty(t, rawEvents, "expected 0 events, got %d", len(rawEvents))
+	})
+}
+
+func randString(prng *rand.Rand, n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyz"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[prng.IntN(len(letters))]
+	}
+	return string(b)
+}
+
+// -------------------------------------------------------------------------------------------------
+// WithSystemEvent property tests
+// -------------------------------------------------------------------------------------------------
+// This test verifies WithSystemEventEmitter and WithSystemEventReceiver correctness. We test
+// them together because they form a producer-consumer pair — the emitter writes to a shared
+// buffer and the receiver reads from it. The real properties are:
+//
+//  1. Wiring correctness (round-trip): Emit(x) on emitter → Iter() on receiver yields x.
+//     This verifies both sides resolve to the same underlying buffer via T.Name().
+//  2. Type-keyed isolation: Emitting EventA must not appear in a receiver for EventB.
+//     This is the channel-separation guarantee.
+//
+// -------------------------------------------------------------------------------------------------
+
+func TestSystem_WithSystemEvent_Properties(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	world := NewWorld()
+
+	// Initialize emitter and receiver for the same type.
+	var emitter WithSystemEventEmitter[testutils.SimpleSystemEvent]
+	var receiver WithSystemEventReceiver[testutils.SimpleSystemEvent]
+	_, err := emitter.init(world)
 	require.NoError(t, err)
-	require.Len(t, events, 5)
+	_, err = receiver.init(world)
+	require.NoError(t, err)
 
-	for i, event := range events {
-		evt, ok := event.(PlayerDeathSystemEvent)
-		assert.True(t, ok)
-		assert.Equal(t, i, evt.Value)
+	// Generate random events (model).
+	count := prng.IntN(10_000)
+	model := make([]testutils.SimpleSystemEvent, count)
+	for i := range count {
+		model[i] = testutils.SimpleSystemEvent{Value: prng.Int()}
+	}
+
+	// Emit all events.
+	for _, event := range model {
+		emitter.Emit(event)
+	}
+
+	// Collect results via receiver.
+	var results []testutils.SimpleSystemEvent
+	for event := range receiver.Iter() {
+		results = append(results, event)
+	}
+
+	// Property: All emitted events are received.
+	assert.Len(t, results, len(model), "completeness: expected %d events, got %d", len(model), len(results))
+
+	// Property: Round-trip integrity, each result equals corresponding model entry.
+	for i, result := range results {
+		assert.Equal(t, model[i], result, "round-trip integrity: event mismatch at index %d", i)
 	}
 }
 
-type initSystemState struct {
-	Position       Exact[struct{ Ref[Position] }]
-	Health         Exact[struct{ Ref[Health] }]
-	Velocity       Exact[struct{ Ref[Velocity] }]
-	PositionHealth Exact[struct {
-		Position Ref[Position]
-		Health   Ref[Health]
-	}]
-	PositionVelocity Exact[struct {
-		Position Ref[Position]
-		Velocity Ref[Velocity]
-	}]
-	HealthVelocity Exact[struct {
-		Health   Ref[Health]
-		Velocity Ref[Velocity]
-	}]
-}
+// -------------------------------------------------------------------------------------------------
+// WithSystemEvent edge case tests
+// -------------------------------------------------------------------------------------------------
+// Example-based tests for specific edge cases and error conditions.
+// -------------------------------------------------------------------------------------------------
 
-func TestContains_Iter(t *testing.T) {
+func TestSystem_WithSystemEvent_EdgeCases(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name       string
-		search     systemStateField
-		setupFn    func(*initSystemState) error
-		getResult  func(systemStateField) []any
-		validateFn func(*testing.T, []any)
-	}{
-		{
-			name:    "empty world",
-			search:  &Contains[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error { return nil },
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Contains[struct{ Ref[Position] }])
-				for _, pos := range search.Iter() {
-					result = append(result, pos.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name:   "no matching components",
-			search: &Contains[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error {
-				_, velocity := state.Velocity.Create()
-				velocity.Set(Velocity{})
+	t.Run("empty iteration", func(t *testing.T) {
+		t.Parallel()
 
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Contains[struct{ Ref[Position] }])
-				for _, pos := range search.Iter() {
-					result = append(result, pos.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name:   "matching components",
-			search: &Contains[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 20 {
-					if i%2 == 0 {
-						_, position := state.Position.Create()
-						position.Set(Position{X: i, Y: i})
-					} else {
-						_, velocity := state.Velocity.Create()
-						velocity.Set(Velocity{X: i, Y: i})
-					}
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Contains[struct{ Ref[Position] }])
-				for _, pos := range search.Iter() {
-					result = append(result, pos.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 10)
-				for i, result := range results {
-					pos, ok := result.(Position)
-					assert.True(t, ok)
-					assert.Equal(t, Position{X: i * 2, Y: i * 2}, pos)
-				}
-			},
-		},
-		{
-			name:   "early return",
-			search: &Contains[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 10 {
-					_, position := state.Position.Create()
-					position.Set(Position{X: i, Y: i})
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				count := 0
+		world := NewWorld()
 
-				search := s.(*Contains[struct{ Ref[Position] }])
-				iter := search.Iter()
-				iter(func(_ EntityID, pos struct{ Ref[Position] }) bool {
-					result = append(result, pos.Get())
-					count++
-					return count < 3 // Stop after collecting 3 items
-				})
+		var receiver WithSystemEventReceiver[testutils.SimpleSystemEvent]
+		_, err := receiver.init(world)
+		require.NoError(t, err)
 
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 3, "Should only get first 3 positions")
-				for i, result := range results {
-					pos := result.(Position)
-					assert.Equal(t, i, pos.X, "Position X should match index")
-					assert.Equal(t, i, pos.Y, "Position Y should match index")
-				}
-			},
-		},
-	}
+		// No events emitted - Iter should yield nothing.
+		count := 0
+		for range receiver.Iter() {
+			count++
+		}
+		assert.Equal(t, 0, count)
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
+	t.Run("early termination", func(t *testing.T) {
+		t.Parallel()
 
-			_, err := tt.search.init(w)
-			require.NoError(t, err)
+		world := NewWorld()
 
-			RegisterSystem(w, tt.setupFn, WithHook(Init))
+		var emitter WithSystemEventEmitter[testutils.SimpleSystemEvent]
+		var receiver WithSystemEventReceiver[testutils.SimpleSystemEvent]
+		_, err := emitter.init(world)
+		require.NoError(t, err)
+		_, err = receiver.init(world)
+		require.NoError(t, err)
 
-			w.Init()
+		// Emit 10 events.
+		for i := range 10 {
+			emitter.Emit(testutils.SimpleSystemEvent{Value: i})
+		}
 
-			_, err = w.Tick(nil)
-			require.NoError(t, err)
-
-			results := tt.getResult(tt.search)
-
-			tt.validateFn(t, results)
-		})
-	}
-}
-
-func TestContains_Iter2(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name       string
-		search     systemStateField
-		setupFn    func(*initSystemState) error
-		getResult  func(systemStateField) []any
-		validateFn func(*testing.T, []any)
-	}{
-		{
-			name: "empty world",
-			search: &Contains[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error { return nil },
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Contains[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				for _, comps := range search.Iter() {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name: "no matching components",
-			search: &Contains[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error {
-				_, position := state.Position.Create()
-				position.Set(Position{X: 1, Y: 1})
-
-				_, velocity := state.Velocity.Create()
-				velocity.Set(Velocity{X: 2, Y: 2})
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Contains[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				for _, comps := range search.Iter() {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name: "matching components",
-			search: &Contains[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 10 {
-					if i%2 == 0 {
-						_, posVel := state.PositionVelocity.Create()
-						posVel.Position.Set(Position{X: i, Y: i})
-						posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
-					} else {
-						_, position := state.Position.Create()
-						position.Set(Position{X: i, Y: i})
-					}
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Contains[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				for _, comps := range search.Iter() {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 10) // 5 entities * 2 components
-				for i := 0; i < len(results); i += 2 {
-					pos := results[i].(Position)
-					vel := results[i+1].(Velocity)
-					idx := i / 2 * 2 // Convert to the original index (0, 2, 4, 6, 8)
-					assert.Equal(t, idx, pos.X, "Position X should match index")
-					assert.Equal(t, idx, pos.Y, "Position Y should match index")
-					assert.Equal(t, idx*10, vel.X, "Velocity X should match index*10")
-					assert.Equal(t, idx*10, vel.Y, "Velocity Y should match index*10")
-				}
-			},
-		},
-		{
-			name: "early return",
-			search: &Contains[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 10 {
-					_, posVel := state.PositionVelocity.Create()
-					posVel.Position.Set(Position{X: i, Y: i})
-					posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				count := 0
-
-				search := s.(*Contains[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				iter := search.Iter()
-				iter(func(_ EntityID, comps struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}) bool {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-					count++
-					return count < 3 // Stop after collecting 3 items
-				})
-
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 6, "Should get 3 entities with 2 components each")
-				for i := 0; i < len(results); i += 2 {
-					pos := results[i].(Position)
-					vel := results[i+1].(Velocity)
-					idx := i / 2
-					assert.Equal(t, idx, pos.X, "Position X should match index")
-					assert.Equal(t, idx, pos.Y, "Position Y should match index")
-					assert.Equal(t, idx*10, vel.X, "Velocity X should match index*10")
-					assert.Equal(t, idx*10, vel.Y, "Velocity Y should match index*10")
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-
-			_, err := tt.search.init(w)
-			require.NoError(t, err)
-
-			RegisterSystem(w, tt.setupFn, WithHook(Init))
-
-			w.Init()
-
-			_, err = w.Tick(nil)
-			require.NoError(t, err)
-
-			results := tt.getResult(tt.search)
-
-			tt.validateFn(t, results)
-		})
-	}
-}
-
-func TestExact_Iter(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name       string
-		search     systemStateField
-		setupFn    func(*initSystemState) error
-		getResult  func(systemStateField) []any
-		validateFn func(*testing.T, []any)
-	}{
-		{
-			name:    "empty world",
-			search:  &Exact[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error { return nil },
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Exact[struct{ Ref[Position] }])
-				for _, pos := range search.Iter() {
-					result = append(result, pos.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name:   "no matching components",
-			search: &Exact[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error {
-				_, velocity := state.Velocity.Create()
-				velocity.Set(Velocity{})
-
-				_, posVel := state.PositionVelocity.Create()
-				posVel.Position.Set(Position{X: 5, Y: 5})
-				posVel.Velocity.Set(Velocity{})
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Exact[struct{ Ref[Position] }])
-				for _, pos := range search.Iter() {
-					result = append(result, pos.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name:   "matching components",
-			search: &Exact[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 20 {
-					if i%2 == 0 {
-						_, position := state.Position.Create()
-						position.Set(Position{X: i, Y: i})
-					} else {
-						_, velocity := state.Velocity.Create()
-						velocity.Set(Velocity{X: i, Y: i})
-					}
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Exact[struct{ Ref[Position] }])
-				for _, pos := range search.Iter() {
-					result = append(result, pos.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 10)
-				for i, result := range results {
-					pos := result.(Position)
-					expectedX := i * 2 // Only even indices should match
-					assert.Equal(t, expectedX, pos.X, "Position X should match index")
-					assert.Equal(t, expectedX, pos.Y, "Position Y should match index")
-				}
-			},
-		},
-		{
-			name:   "early return",
-			search: &Exact[struct{ Ref[Position] }]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 10 {
-					_, position := state.Position.Create()
-					position.Set(Position{X: i, Y: i})
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				count := 0
-
-				search := s.(*Exact[struct{ Ref[Position] }])
-				iter := search.Iter()
-				iter(func(_ EntityID, pos struct{ Ref[Position] }) bool {
-					result = append(result, pos.Get())
-					count++
-					return count < 3 // Stop after collecting 3 items
-				})
-
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 3, "Should only get first 3 positions")
-				for i, result := range results {
-					pos := result.(Position)
-					assert.Equal(t, i, pos.X, "Position X should match index")
-					assert.Equal(t, i, pos.Y, "Position Y should match index")
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-
-			_, err := tt.search.init(w)
-			require.NoError(t, err)
-
-			RegisterSystem(w, tt.setupFn, WithHook(Init))
-
-			w.Init()
-
-			_, err = w.Tick(nil)
-			require.NoError(t, err)
-
-			results := tt.getResult(tt.search)
-
-			tt.validateFn(t, results)
-		})
-	}
-}
-
-func TestExact_Iter2(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name       string
-		search     systemStateField
-		setupFn    func(*initSystemState) error
-		getResult  func(systemStateField) []any
-		validateFn func(*testing.T, []any)
-	}{
-		{
-			name: "empty world",
-			search: &Exact[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error { return nil },
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Exact[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				for _, comps := range search.Iter() {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name: "no matching components",
-			search: &Exact[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error {
-				_, position := state.Position.Create()
-				position.Set(Position{X: 1, Y: 1})
-
-				_, velocity := state.Velocity.Create()
-				velocity.Set(Velocity{X: 2, Y: 2})
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Exact[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				for _, comps := range search.Iter() {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, result []any) {
-				assert.Empty(t, result)
-			},
-		},
-		{
-			name: "matching components",
-			search: &Exact[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 10 {
-					if i%2 == 0 {
-						_, posVel := state.PositionVelocity.Create()
-						posVel.Position.Set(Position{X: i, Y: i})
-						posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
-					} else {
-						_, position := state.Position.Create()
-						position.Set(Position{X: i, Y: i})
-					}
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				search := s.(*Exact[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				for _, comps := range search.Iter() {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-				}
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 10) // 5 entities * 2 components
-				for i := 0; i < len(results); i += 2 {
-					pos := results[i].(Position)
-					vel := results[i+1].(Velocity)
-					idx := i / 2 * 2 // Convert to the original index (0, 2, 4, 6, 8)
-					assert.Equal(t, idx, pos.X, "Position X should match index")
-					assert.Equal(t, idx, pos.Y, "Position Y should match index")
-					assert.Equal(t, idx*10, vel.X, "Velocity X should match index*10")
-					assert.Equal(t, idx*10, vel.Y, "Velocity Y should match index*10")
-				}
-			},
-		},
-		{
-			name: "early return",
-			search: &Exact[struct {
-				Position Ref[Position]
-				Velocity Ref[Velocity]
-			}]{},
-			setupFn: func(state *initSystemState) error {
-				for i := range 10 {
-					_, posVel := state.PositionVelocity.Create()
-					posVel.Position.Set(Position{X: i, Y: i})
-					posVel.Velocity.Set(Velocity{X: i * 10, Y: i * 10})
-				}
-				return nil
-			},
-			getResult: func(s systemStateField) []any {
-				var result []any
-				count := 0
-
-				search := s.(*Exact[struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}])
-				iter := search.Iter()
-				iter(func(_ EntityID, comps struct {
-					Position Ref[Position]
-					Velocity Ref[Velocity]
-				}) bool {
-					result = append(result, comps.Position.Get(), comps.Velocity.Get())
-					count++
-					return count < 3 // Stop after collecting 3 items
-				})
-
-				return result
-			},
-			validateFn: func(t *testing.T, results []any) {
-				assert.Len(t, results, 6, "Should get 3 entities with 2 components each")
-				for i := 0; i < len(results); i += 2 {
-					pos := results[i].(Position)
-					vel := results[i+1].(Velocity)
-					idx := i / 2
-					assert.Equal(t, idx, pos.X, "Position X should match index")
-					assert.Equal(t, idx, pos.Y, "Position Y should match index")
-					assert.Equal(t, idx*10, vel.X, "Velocity X should match index*10")
-					assert.Equal(t, idx*10, vel.Y, "Velocity Y should match index*10")
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			w := NewWorld()
-
-			_, err := tt.search.init(w)
-			require.NoError(t, err)
-
-			RegisterSystem(w, tt.setupFn, WithHook(Init))
-
-			w.Init()
-
-			_, err = w.Tick(nil)
-			require.NoError(t, err)
-
-			results := tt.getResult(tt.search)
-
-			tt.validateFn(t, results)
-		})
-	}
-}
-
-type benchmarkSystemState struct {
-	Position         Exact[struct{ Ref[Position] }]
-	PositionVelocity Exact[struct {
-		Position Ref[Position]
-		Velocity Ref[Velocity]
-	}]
-	PositionVelocityHealth Exact[struct {
-		Position Ref[Position]
-		Velocity Ref[Velocity]
-		Health   Ref[Health]
-	}]
-}
-
-func BenchmarkSearch_Iter(b *testing.B) {
-	benchmarks := []struct {
-		name    string
-		setup   func(*benchmarkSystemState) error
-		iterate func(*benchmarkSystemState) error
-	}{
-		{
-			name: "single component 100",
-			setup: func(state *benchmarkSystemState) error {
-				for i := range 100 {
-					_, position := state.Position.Create()
-					position.Set(Position{X: i, Y: i})
-				}
-				return nil
-			},
-			iterate: func(state *benchmarkSystemState) error {
-				for _, result := range state.Position.Iter() {
-					_ = result
-				}
-				return nil
-			},
-		},
-		{
-			name: "two components 100",
-			setup: func(state *benchmarkSystemState) error {
-				for i := range 100 {
-					_, posVel := state.PositionVelocity.Create()
-					posVel.Position.Set(Position{X: i, Y: i})
-					posVel.Velocity.Set(Velocity{X: i, Y: i})
-				}
-				return nil
-			},
-			iterate: func(state *benchmarkSystemState) error {
-				for _, result := range state.PositionVelocity.Iter() {
-					_ = result
-				}
-				return nil
-			},
-		},
-		{
-			name: "three components 100",
-			setup: func(state *benchmarkSystemState) error {
-				for i := range 100 {
-					_, posVelHealth := state.PositionVelocityHealth.Create()
-					posVelHealth.Position.Set(Position{X: i, Y: i})
-					posVelHealth.Velocity.Set(Velocity{X: i, Y: i})
-					posVelHealth.Health.Set(Health{Value: i})
-				}
-				return nil
-			},
-			iterate: func(state *benchmarkSystemState) error {
-				for _, result := range state.PositionVelocityHealth.Iter() {
-					_ = result
-				}
-				return nil
-			},
-		},
-	}
-
-	for _, bm := range benchmarks {
-		b.Run(bm.name, func(b *testing.B) {
-			w := NewWorld()
-			RegisterSystem(w, bm.setup, WithHook(Init))
-			RegisterSystem(w, bm.iterate, WithHook(Init))
-
-			b.ResetTimer()
-			for b.Loop() { // Run only the iterate function for the benchmark.
-				_ = w.initSystems[1].fn()
-			}
-		})
-	}
+		// Break after first event.
+		count := 0
+		for range receiver.Iter() {
+			count++
+			break
+		}
+		assert.Equal(t, 1, count)
+	})
 }

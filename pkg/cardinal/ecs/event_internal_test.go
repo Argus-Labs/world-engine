@@ -1,169 +1,191 @@
 package ecs
 
 import (
-	"sync"
 	"testing"
+	"testing/synctest"
 
-	. "github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestEventManager_EnqueueAndGet(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing event manager operations
+// -------------------------------------------------------------------------------------------------
+// This test verifies the eventManager implementation correctness using model-based testing. It
+// compares our implementation against two slices (inFlight and buffer) as the model by applying
+// random sequences of enqueue/getEvents/clear operations to both and asserting equivalence.
+// The model tracks events in two stages: inFlight (channel) and buffer (drained events).
+// -------------------------------------------------------------------------------------------------
+
+func TestEvent_ModelFuzz(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	tests := []struct {
-		name       string
-		setupFn    func(*testing.T, *eventManager)
-		validateFn func(*testing.T, []RawEvent)
-	}{
-		{
-			name:    "empty manager returns empty slice",
-			setupFn: func(t *testing.T, em *eventManager) {},
-			validateFn: func(t *testing.T, events []RawEvent) {
-				assert.Empty(t, events)
-				assert.NotNil(t, events)
-			},
-		},
-		{
-			name: "single event type",
-			setupFn: func(t *testing.T, em *eventManager) {
-				for i := range 100 {
-					em.enqueue(EventKindDefault, PlayerDeathEvent{Value: i})
-				}
-			},
-			validateFn: func(t *testing.T, events []RawEvent) {
-				require.Len(t, events, 100)
+	const opsMax = 1 << 15 // 32_768 iterations
 
-				for i := range 100 {
-					assert.Equal(t, EventKindDefault, events[i].Kind)
+	impl := newEventManager()
+	// Model: track in-flight (channel) and buffered events separately
+	inFlight := make([]RawEvent, 0) // events enqueued but not yet drained
+	buffer := make([]RawEvent, 0)   // events in the buffer after getEvents
 
-					event, ok := events[i].Payload.(PlayerDeathEvent)
-					assert.True(t, ok)
-					assert.Equal(t, i, event.Value)
-				}
-			},
-		},
-		{
-			name: "multiple event types",
-			setupFn: func(t *testing.T, em *eventManager) {
-				// Enqueue alternating event types
-				for i := range 50 {
-					em.enqueue(EventKindDefault, PlayerDeathEvent{Value: i})
-					em.enqueue(EventKindDefault, ItemDropEvent{Value: i + 100})
-				}
-			},
-			validateFn: func(t *testing.T, events []RawEvent) {
-				require.Len(t, events, 100)
+	for range opsMax {
+		op := testutils.RandWeightedOp(prng, eventOps)
+		switch op {
+		case em_enqueue:
+			n := prng.IntN(10) + 1
+			for range n {
+				kind := EventKind(prng.IntN(int(CustomEventKindStart)) + 1)
+				payload := prng.Int()
+				event := RawEvent{Kind: kind, Payload: payload}
 
-				for i := range 50 {
-					// Check PlayerDeathEvent
-					assert.Equal(t, EventKindDefault, events[i*2].Kind)
-					death, ok := events[i*2].Payload.(PlayerDeathEvent)
-					assert.True(t, ok)
-					assert.Equal(t, i, death.Value)
-
-					// Check ItemDropEvent
-					assert.Equal(t, EventKindDefault, events[i*2+1].Kind)
-					drop, ok := events[i*2+1].Payload.(ItemDropEvent)
-					assert.True(t, ok)
-					assert.Equal(t, i+100, drop.Value)
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			em := newEventManager()
-			tt.setupFn(t, &em)
-
-			events := em.getEvents()
-
-			tt.validateFn(t, events)
-		})
-	}
-}
-
-func TestEventManager_Clear(t *testing.T) {
-	t.Parallel()
-
-	em := newEventManager()
-
-	for i := range 50 {
-		em.enqueue(EventKindDefault, PlayerDeathEvent{Value: i})
-	}
-
-	// Verify events were enqueued
-	events := em.getEvents()
-	require.Len(t, events, 50)
-
-	// Clear and verify buffer is empty
-	em.clear()
-	assert.Empty(t, em.buffer)
-
-	// Verify empty channel returns empty slice
-	emptyEvents := em.getEvents()
-	assert.Empty(t, emptyEvents)
-
-	// Verify clear still works with empty event manager
-	em.clear()
-	assert.Empty(t, em.buffer)
-}
-
-func TestEventManager_ConcurrentAccess(t *testing.T) {
-	t.Parallel()
-
-	em := newEventManager()
-
-	// Test concurrent enqueueing of events
-	const numGoroutines = 10
-	const eventsPerGoroutine = 100
-	totalEvents := numGoroutines * eventsPerGoroutine
-
-	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
-
-	for i := range numGoroutines {
-		go func(id int) {
-			defer wg.Done()
-			for j := range eventsPerGoroutine {
-				if j%2 == 0 {
-					// Even indices: use PlayerDeathEvent
-					em.enqueue(EventKindDefault, PlayerDeathEvent{Value: id*1000 + j})
-				} else {
-					// Odd indices: use ItemDropEvent
-					em.enqueue(EventKindDefault, ItemDropEvent{Value: id*1000 + j})
-				}
+				impl.enqueue(kind, payload)
+				inFlight = append(inFlight, event)
 			}
-		}(i)
-	}
-	wg.Wait()
-
-	// Verify we got the expected number of events
-	events := em.getEvents()
-	assert.Len(t, events, totalEvents)
-
-	// Verify we have both event types
-	hasDeathEvent := false
-	hasDropEvent := false
-
-	for _, evt := range events {
-		switch evt.Payload.(type) {
-		case PlayerDeathEvent:
-			hasDeathEvent = true
-		case ItemDropEvent:
-			hasDropEvent = true
-		}
-
-		// Once we've found both types, we can break early
-		if hasDeathEvent && hasDropEvent {
-			break
+		case em_get:
+			implEvents := impl.getEvents()
+			buffer = append(buffer, inFlight...)
+			inFlight = inFlight[:0]
+			assert.Equal(t, buffer, implEvents, "getEvents mismatch")
+		case em_clear:
+			impl.clear()
+			buffer = buffer[:0]
+		default:
+			panic("unreachable")
 		}
 	}
 
-	assert.True(t, hasDeathEvent)
-	assert.True(t, hasDropEvent)
+	// Final state check: drain remaining and compare to model.
+	implEvents := impl.getEvents()
+	buffer = append(buffer, inFlight...)
+	assert.Equal(t, buffer, implEvents, "final buffer mismatch")
+}
+
+type eventOp uint8
+
+const (
+	em_enqueue eventOp = 75
+	em_get     eventOp = 20
+	em_clear   eventOp = 5
+)
+
+var eventOps = []eventOp{em_enqueue, em_get, em_clear}
+
+// -------------------------------------------------------------------------------------------------
+// Channel overflow regression test
+// -------------------------------------------------------------------------------------------------
+// This test verifies that enqueue does not block when the channel is full. Before the fix,
+// enqueue would block indefinitely when the channel capacity (1024) was exceeded, causing
+// a deadlock. After the fix, enqueue should flush the channel to the buffer when full.
+// -------------------------------------------------------------------------------------------------
+
+func TestEvent_EnqueueChannelFull(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		const channelCapacity = 16
+		const totalEvents = channelCapacity * 3 // Well beyond channel capacity
+
+		impl := newEventManager(withChannelCapacity(channelCapacity))
+
+		// Enqueue more events than channel capacity.
+		// Before fix: this blocks forever after 16 events, causing deadlock.
+		// After fix: this completes without blocking.
+		done := false
+		go func() {
+			for i := range totalEvents {
+				impl.enqueue(EventKindDefault, i)
+			}
+			done = true
+		}()
+
+		// Wait for all goroutines to complete or durably block.
+		// If enqueue blocks, synctest.Test will detect deadlock and fail.
+		synctest.Wait()
+
+		if !done {
+			t.Fatal("enqueue blocked: channel overflow not handled")
+		}
+
+		// Verify all events are captured.
+		events := impl.getEvents()
+		assert.Len(t, events, totalEvents, "expected all %d events to be captured", totalEvents)
+
+		// Verify data integrity.
+		for i, event := range events {
+			assert.Equal(t, EventKindDefault, event.Kind, "event kind mismatch at index %d", i)
+			assert.Equal(t, i, event.Payload, "payload mismatch at index %d", i)
+		}
+	})
+}
+
+// -------------------------------------------------------------------------------------------------
+// Model-based fuzzing event registration
+// -------------------------------------------------------------------------------------------------
+// This test verifies the eventManager registration correctness using model-based testing. It
+// compares our implementation against a map[string]uint32 as the model by applying random
+// register operations and asserting equivalence. We also verify structural invariants:
+// name-id bijection and ID uniqueness.
+// -------------------------------------------------------------------------------------------------
+
+func TestEvent_RegisterModelFuzz(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const opsMax = 1 << 15 // 32_768 iterations
+
+	impl := newEventManager()
+	model := make(map[string]uint32) // name -> ID
+
+	for range opsMax {
+		name := randValidCommandName(prng)
+		implID, err := impl.register(name)
+		require.NoError(t, err)
+
+		if modelID, exists := model[name]; exists {
+			assert.Equal(t, modelID, implID, "ID mismatch for re-registered %q", name)
+		} else {
+			model[name] = implID
+		}
+	}
+
+	// Property: bijection holds between names and IDs.
+	seenIDs := make(map[uint32]string)
+	for name, id := range impl.registry {
+		if prevName, seen := seenIDs[id]; seen {
+			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
+		}
+		seenIDs[id] = name
+	}
+
+	// Property: all IDs in registry are in range [0, nextID).
+	for name, id := range impl.registry {
+		assert.Less(t, id, impl.nextID, "ID for %q is out of range", name)
+	}
+
+	// Final state check: registry matches model.
+	assert.Len(t, impl.registry, len(model), "registry length mismatch")
+	for name, modelID := range model {
+		implID, exists := impl.registry[name]
+		require.True(t, exists, "event %q should be registered", name)
+		assert.Equal(t, modelID, implID, "ID mismatch for %q", name)
+	}
+
+	// Simple test to confirm that registering the same name repeatedly is a no-op.
+	t.Run("registration idempotence", func(t *testing.T) {
+		t.Parallel()
+
+		id1, err := impl.register("hello")
+		require.NoError(t, err)
+
+		id2, err := impl.register("hello")
+		require.NoError(t, err)
+
+		assert.Equal(t, id1, id2)
+
+		id3, err := impl.register("a_different_name")
+		require.NoError(t, err)
+
+		assert.Equal(t, id1+1, id3)
+	})
 }

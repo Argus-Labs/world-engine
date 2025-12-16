@@ -12,13 +12,13 @@ import (
 type archetypeID = int
 
 // archetype represents a collection of entities with the same component types.
-// NOTE: We store the compoCount instead of using Bitmap.Count() because counting bits is O(n). This
+// NOTE: We store the compCount instead of using Bitmap.Count() because counting bits is O(n). This
 // saves us around 10ns/op, which is 10x speed up in low # of components. We store columns in a
 // slice instead of a map because it's faster for small # of components.
 type archetype struct {
-	id         archetypeID   // Corresponds to the index in the archetypes array
-	components bitmap.Bitmap // Bitmap of components contained in this archetype
-	rows       sparseSet
+	id         archetypeID      // Corresponds to the index in the archetypes array
+	components bitmap.Bitmap    // Bitmap of components contained in this archetype
+	rows       sparseSet        // Maps entity ID -> row index in entities and columns
 	entities   []EntityID       // List of entities of this archetype
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
@@ -112,6 +112,12 @@ func (a *archetype) removeEntity(eid EntityID) {
 // entity in the current archetype. Returns the swapped entity ID from the remove operation and the
 // row in the destination archetype.
 func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
+	// Normally I'd assert(src != dst) here, but since we have newEntityWithArchetype({}) is valid,
+	// we'll just no-op instead of panic.
+	if a == destination {
+		return
+	}
+
 	row, exists := a.rows.get(eid)
 	assert.That(exists, "entity is not in archetype")
 
@@ -138,8 +144,8 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 // Serialization
 // -------------------------------------------------------------------------------------------------
 
-// serialize converts the archetype to a protobuf message for serialization.
-func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
+// toProto converts the archetype to a protobuf message for serialization.
+func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
 	componentsBitmap := a.components.ToBytes()
 
 	entities := make([]uint32, len(a.entities))
@@ -149,7 +155,7 @@ func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
 
 	columns := make([]*cardinalv1.Column, len(a.columns))
 	for i, column := range a.columns {
-		data, err := column.serialize()
+		data, err := column.toProto()
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to serialize column %d", i)
 		}
@@ -161,20 +167,29 @@ func (a *archetype) serialize() (*cardinalv1.Archetype, error) {
 		ComponentsBitmap: componentsBitmap,
 		Entities:         entities,
 		Columns:          columns,
-		Rows:             a.rows.serialize(),
+		Rows:             a.rows.toInt64Slice(),
 	}, nil
 }
 
-// deserialize populates the archetype from a protobuf message. We pass a reference to the component
+// fromProto populates the archetype from a protobuf message. We pass a reference to the component
 // manager to get the column factories needed to create the correct column[T].
-func (a *archetype) deserialize(pb *cardinalv1.Archetype, cm *componentManager) error {
+func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) error {
 	if pb == nil {
 		return eris.New("protobuf archetype is nil")
 	}
 
 	a.id = archetypeID(pb.GetId())
-	a.components = bitmap.FromBytes(pb.GetComponentsBitmap())
-	a.rows.deserialize(pb.GetRows())
+
+	// If a serialized snapshot is corrupted in such a way that the length of the bitmap is not a
+	// multiple of 8, bitmap.FromBytes will panic. We'll explicitly handle this here and return an
+	// error so we don't just crash.
+	bitmapBytes := pb.GetComponentsBitmap()
+	if len(bitmapBytes)%8 != 0 {
+		return eris.Errorf("invalid bitmap length %d (must be multiple of 8)", len(bitmapBytes))
+	}
+	a.components = bitmap.FromBytes(bitmapBytes)
+
+	a.rows.fromInt64Slice(pb.GetRows())
 
 	a.entities = make([]EntityID, len(pb.GetEntities()))
 	for i, eid := range pb.GetEntities() {
@@ -191,7 +206,7 @@ func (a *archetype) deserialize(pb *cardinalv1.Archetype, cm *componentManager) 
 		factory := cm.factories[cid]
 		column := factory()
 
-		if err := column.deserialize(pbCol); err != nil {
+		if err := column.fromProto(pbCol); err != nil {
 			return eris.Wrapf(err, "failed to deserialize column %d", i)
 		}
 		a.columns[i] = column
