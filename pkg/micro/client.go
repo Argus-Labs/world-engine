@@ -138,9 +138,14 @@ func (c *Client) Request(
 	endpoint string,
 	payload proto.Message,
 ) (*microv1.Response, error) {
-	anyPayload, err := anypb.New(payload)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create Any payload")
+	var anyPayload *anypb.Any
+	var err error
+
+	if payload != nil {
+		anyPayload, err = anypb.New(payload)
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create Any payload")
+		}
 	}
 
 	req := &microv1.Request{

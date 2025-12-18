@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"math/rand/v2"
+	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -32,7 +33,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 		if prng.Float64() < 0.7 { //nolint:nestif // it's not bad
 			name := randValidComponentName(prng)
 
-			implID, implErr := impl.register(name, nil) // we don't use the columnFactory so it's ok
+			implID, implErr := impl.register(name, nil, reflect.TypeOf(name)) // we don't use the columnFactory so it's ok
 			modelID, modelExists := model[name]
 
 			if modelExists {
@@ -94,15 +95,15 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 
 		cm := newComponentManager()
 
-		id1, err := cm.register("hello", nil)
+		id1, err := cm.register("hello", nil, reflect.TypeOf("hello"))
 		require.NoError(t, err)
 
-		id2, err := cm.register("hello", nil)
+		id2, err := cm.register("hello", nil, reflect.TypeOf("hello"))
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := cm.register("a_different_name", nil)
+		id3, err := cm.register("a_different_name", nil, reflect.TypeOf("a_different_name"))
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)

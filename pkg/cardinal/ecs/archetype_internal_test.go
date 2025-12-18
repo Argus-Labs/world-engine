@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -347,9 +348,17 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	const entityMax = 1000
 
 	cm := newComponentManager()
-	cid1, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
+	cid1, err := cm.register(
+		testutils.ComponentA{}.Name(),
+		newColumnFactory[testutils.ComponentA](),
+		reflect.TypeOf(testutils.ComponentA{}),
+	)
 	require.NoError(t, err)
-	cid2, err := cm.register(testutils.ComponentB{}.Name(), newColumnFactory[testutils.ComponentB]())
+	cid2, err := cm.register(
+		testutils.ComponentB{}.Name(),
+		newColumnFactory[testutils.ComponentB](),
+		reflect.TypeOf(testutils.ComponentB{}),
+	)
 	require.NoError(t, err)
 
 	arch := newTestArchetype(0, []uint32{cid1, cid2})
@@ -385,7 +394,11 @@ func TestArchetype_DeserializationNegative(t *testing.T) {
 	t.Parallel()
 
 	cm := newComponentManager()
-	cid1, err := cm.register(testutils.ComponentA{}.Name(), newColumnFactory[testutils.ComponentA]())
+	cid1, err := cm.register(
+		testutils.ComponentA{}.Name(),
+		newColumnFactory[testutils.ComponentA](),
+		reflect.TypeOf(testutils.ComponentA{}),
+	)
 	require.NoError(t, err)
 
 	arch := newTestArchetype(0, []uint32{cid1})
