@@ -23,6 +23,9 @@ type worldConfig struct {
 
 	// Hex-encoded Ed25519 private key used for signing (inter-shard) commands.
 	PrivateKey string `env:"CARDINAL_PRIVATE_KEY"`
+
+	// Path to persist the persona ID file.
+	PersonaFilePath string `env:"CARDINAL_PERSONA_FILE_PATH" envDefault:"/var/lib/cardinal/persona"`
 }
 
 // loadWorldConfig loads the world configuration from environment variables.
@@ -68,6 +71,7 @@ func (cfg *worldConfig) applyToOptions(opt *WorldOptions) {
 	opt.Project = cfg.Project
 	opt.ShardID = cfg.ShardID
 	opt.PrivateKey = cfg.PrivateKey
+	opt.PersonaFilePath = cfg.PersonaFilePath
 }
 
 type WorldOptions struct {
@@ -76,6 +80,7 @@ type WorldOptions struct {
 	Project                string                       // Name of the project within the organization
 	ShardID                string                       // Unique ID for of world's instance
 	PrivateKey             string                       // Hex-encoded Ed25519 private key for signing commands
+	PersonaFilePath        string                       // Path to persist the persona ID file
 	EpochFrequency         uint32                       // Number of ticks per epoch
 	TickRate               float64                      // Number of ticks per second
 	SnapshotStorageType    micro.SnapshotStorageType    // Snapshot storage type
@@ -91,6 +96,7 @@ func newDefaultWorldOptions() WorldOptions {
 		Project:                "",
 		ShardID:                "",
 		PrivateKey:             "",
+		PersonaFilePath:        "",
 		EpochFrequency:         0,
 		TickRate:               0,
 		SnapshotStorageType:    micro.SnapshotStorageNop, // Default to nop snapshot
@@ -114,6 +120,9 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.PrivateKey != "" {
 		opt.PrivateKey = newOpt.PrivateKey
+	}
+	if newOpt.PersonaFilePath != "" {
+		opt.PersonaFilePath = newOpt.PersonaFilePath
 	}
 	if newOpt.EpochFrequency != 0 {
 		opt.EpochFrequency = newOpt.EpochFrequency
