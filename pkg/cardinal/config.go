@@ -24,8 +24,8 @@ type worldConfig struct {
 	// Hex-encoded Ed25519 private key used for signing (inter-shard) commands.
 	PrivateKey string `env:"CARDINAL_PRIVATE_KEY"`
 
-	// Path to persist the persona ID file.
-	PersonaFilePath string `env:"CARDINAL_PERSONA_FILE_PATH" envDefault:"/var/lib/cardinal/persona"`
+	// Path to persist the persona ID file (e.g., /var/lib/cardinal/persona).
+	PersonaFilePath string `env:"CARDINAL_PERSONA_FILE_PATH"`
 }
 
 // loadWorldConfig loads the world configuration from environment variables.
@@ -59,6 +59,9 @@ func (cfg *worldConfig) validate() error {
 	}
 	if cfg.PrivateKey == "" {
 		return eris.New("private key cannot be empty")
+	}
+	if cfg.PersonaFilePath == "" {
+		return eris.New("persona file path cannot be empty")
 	}
 
 	return nil
