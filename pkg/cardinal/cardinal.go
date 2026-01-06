@@ -76,7 +76,9 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Initialize service only if we're in leader mode.
 	if cardinalShard.Mode() == micro.ModeLeader {
-		err := cardinal.initService(client, address, options.PrivateKey, options.PersonaFilePath, &tel, cardinalShard.IsDisablePersona())
+		err := cardinal.initService(
+			client, address, options.PrivateKey, options.PersonaFilePath, &tel, cardinalShard.IsDisablePersona(),
+		)
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to initialize cardinal service")
 		}
