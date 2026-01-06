@@ -24,8 +24,9 @@ type worldConfig struct {
 	// Hex-encoded Ed25519 private key used for signing (inter-shard) commands.
 	PrivateKey string `env:"CARDINAL_PRIVATE_KEY"`
 
-	// Path to persist the persona ID file (e.g., /var/lib/cardinal/persona).
-	PersonaFilePath string `env:"CARDINAL_PERSONA_FILE_PATH"`
+	// TODO: to be removed.
+	// Path to persist the persona ID file.
+	PersonaFilePath string `env:"CARDINAL_PERSONA_FILE_PATH" envDefault:"/etc/cardinal/persona"`
 }
 
 // loadWorldConfig loads the world configuration from environment variables.
