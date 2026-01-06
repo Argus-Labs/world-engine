@@ -456,28 +456,27 @@ func (s *search[T]) Destroy(eid EntityID) bool {
 	return Destroy(s.world.state, eid)
 }
 
-// GetByID retrieves an entity's components by its ID. Returns false if the entity doesn't exist.
-//
-// Example:
-//
-//	mob, ok := state.Mob.GetByID(entityID)
-//	if !ok {
-//	    state.Logger().Warn().Msg("Entity not found")
-//	    return
-//	}
-//	health := mob.Health.Get()
-func (s *search[T]) GetByID(eid EntityID) (T, bool) {
+// getByID retrieves an entity's components by its ID using the provided match function to validate
+// that the entity's archetype matches the search criteria.
+func (s *search[T]) getByID(eid EntityID, match func(*archetype) bool) (T, error) {
 	ws := s.world.state
 
-	if !Alive(ws, eid) {
+	aid, exists := ws.entityArch.get(eid)
+	if !exists {
 		var zero T
-		return zero, false
+		return zero, ErrEntityNotFound
+	}
+
+	arch := ws.archetypes[aid]
+	if !match(arch) {
+		var zero T
+		return zero, ErrArchetypeMismatch
 	}
 
 	for i := range s.fields {
 		s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
 	}
-	return s.result, true
+	return s.result, nil
 }
 
 // iter returns an iterator over all entities that match the given archetypes.
@@ -534,6 +533,23 @@ func (c *Contains[T]) Iter() iter.Seq2[EntityID, T] {
 	return c.iter(c.world.state.archContains(c.components))
 }
 
+// GetByID retrieves an entity's components by its ID. Returns ErrEntityNotFound if the entity
+// doesn't exist, or ErrArchetypeMismatch if the entity doesn't contain all the required components.
+//
+// Example:
+//
+//	mob, err := state.Mob.GetByID(entityID)
+//	if err != nil {
+//	    state.Logger().Warn().Err(err).Msg("Entity not found or doesn't match")
+//	    return err
+//	}
+//	health := mob.Health.Get()
+func (c *Contains[T]) GetByID(eid EntityID) (T, error) {
+	return c.getByID(eid, func(arch *archetype) bool {
+		return arch.contains(c.components)
+	})
+}
+
 // Exact provides a search that matches archetypes containing exactly the specified component types,
 // without any additional components.
 //
@@ -570,6 +586,23 @@ func (c *Exact[T]) Iter() iter.Seq2[EntityID, T] {
 		archetypes = append(archetypes, id)
 	}
 	return c.iter(archetypes)
+}
+
+// GetByID retrieves an entity's components by its ID. Returns ErrEntityNotFound if the entity
+// doesn't exist, or ErrArchetypeMismatch if the entity doesn't have exactly the required components.
+//
+// Example:
+//
+//	player, err := state.Players.GetByID(entityID)
+//	if err != nil {
+//	    state.Logger().Warn().Err(err).Msg("Entity not found or doesn't match")
+//	    return err
+//	}
+//	health := player.Health.Get()
+func (c *Exact[T]) GetByID(eid EntityID) (T, error) {
+	return c.getByID(eid, func(arch *archetype) bool {
+		return arch.exact(c.components)
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
