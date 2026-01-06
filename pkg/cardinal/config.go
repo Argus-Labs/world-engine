@@ -20,9 +20,6 @@ type worldConfig struct {
 
 	// Unique ID of this world's instance.
 	ShardID string `env:"CARDINAL_SHARD_ID" envDefault:"service"`
-
-	// Hex-encoded Ed25519 private key used for signing (inter-shard) commands.
-	PrivateKey string `env:"CARDINAL_PRIVATE_KEY"`
 }
 
 // loadWorldConfig loads the world configuration from environment variables.
@@ -54,9 +51,6 @@ func (cfg *worldConfig) validate() error {
 	if cfg.ShardID == "" {
 		return eris.New("shard ID cannot be empty")
 	}
-	if cfg.PrivateKey == "" {
-		return eris.New("private key cannot be empty")
-	}
 
 	return nil
 }
@@ -67,7 +61,6 @@ func (cfg *worldConfig) applyToOptions(opt *WorldOptions) {
 	opt.Organization = cfg.Organization
 	opt.Project = cfg.Project
 	opt.ShardID = cfg.ShardID
-	opt.PrivateKey = cfg.PrivateKey
 }
 
 type WorldOptions struct {
@@ -75,7 +68,6 @@ type WorldOptions struct {
 	Organization           string                       // The organization that owns this world
 	Project                string                       // Name of the project within the organization
 	ShardID                string                       // Unique ID for of world's instance
-	PrivateKey             string                       // Hex-encoded Ed25519 private key for signing commands
 	EpochFrequency         uint32                       // Number of ticks per epoch
 	TickRate               float64                      // Number of ticks per second
 	SnapshotStorageType    micro.SnapshotStorageType    // Snapshot storage type
@@ -90,7 +82,6 @@ func newDefaultWorldOptions() WorldOptions {
 		Organization:           "",
 		Project:                "",
 		ShardID:                "",
-		PrivateKey:             "",
 		EpochFrequency:         0,
 		TickRate:               0,
 		SnapshotStorageType:    micro.SnapshotStorageNop, // Default to nop snapshot
@@ -111,9 +102,6 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.ShardID != "" {
 		opt.ShardID = newOpt.ShardID
-	}
-	if newOpt.PrivateKey != "" {
-		opt.PrivateKey = newOpt.PrivateKey
 	}
 	if newOpt.EpochFrequency != 0 {
 		opt.EpochFrequency = newOpt.EpochFrequency
@@ -142,9 +130,6 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.ShardID == "" {
 		return eris.New("shard ID cannot be empty")
-	}
-	if opt.PrivateKey == "" {
-		return eris.New("private key cannot be empty")
 	}
 	if opt.EpochFrequency < micro.MinEpochFrequency {
 		return eris.Errorf("epoch frequency must be at least %d", micro.MinEpochFrequency)

@@ -5,7 +5,6 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	"github.com/argus-labs/world-engine/pkg/sign"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/rotisserie/eris"
 )
@@ -17,7 +16,6 @@ type ShardService struct {
 	client     *micro.Client        // NATS client
 	world      *ecs.World           // Reference to the ECS world
 	tel        *telemetry.Telemetry // Telemetry for logging and tracing
-	signer     sign.Signer          // Inter-shard command signer
 	queryPool  sync.Pool            // Pool for query objects
 	introspect Introspect           // Introspection metadata cache
 }
@@ -41,13 +39,6 @@ func NewShardService(opts ShardServiceOptions) (*ShardService, error) {
 			},
 		},
 	}
-
-	// TODO: make seed configurable
-	signer, err := sign.NewSigner(opts.PrivateKey, 42)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create signer from private key")
-	}
-	s.signer = signer
 
 	service, err := micro.NewService(opts.Client, opts.Address, opts.Telemetry)
 	if err != nil {
@@ -82,11 +73,10 @@ func (s *ShardService) registerEndpoints() error {
 
 // ShardServiceOptions contains the configuration for creating a new ShardService.
 type ShardServiceOptions struct {
-	Client     *micro.Client         // NATS client for inter-service communication
-	Address    *micro.ServiceAddress // This Cardinal shard's service address
-	World      *ecs.World            // Reference to the ECS world
-	Telemetry  *telemetry.Telemetry  // Telemetry for logging and tracing
-	PrivateKey string                // Private key for signing inter-shard commands
+	Client    *micro.Client         // NATS client for inter-service communication
+	Address   *micro.ServiceAddress // This Cardinal shard's service address
+	World     *ecs.World            // Reference to the ECS world
+	Telemetry *telemetry.Telemetry  // Telemetry for logging and tracing
 }
 
 // Validate checks that all required fields in ShardServiceOptions are not nil.
@@ -102,9 +92,6 @@ func (opts ShardServiceOptions) Validate() error {
 	}
 	if opts.Telemetry == nil {
 		return eris.New("telemetry cannot be nil")
-	}
-	if opts.PrivateKey == "" {
-		return eris.New("private key cannot be an empty string")
 	}
 	return nil
 }

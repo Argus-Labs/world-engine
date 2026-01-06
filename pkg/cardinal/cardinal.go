@@ -76,7 +76,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Initialize service only if we're in leader mode.
 	if cardinalShard.Mode() == micro.ModeLeader {
-		err := cardinal.initService(client, address, options.PrivateKey, &tel)
+		err := cardinal.initService(client, address, &tel)
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to initialize cardinal service")
 		}
@@ -250,15 +250,13 @@ func (c *cardinal) shutdown() error {
 func (c *cardinal) initService(
 	client *micro.Client,
 	address *micro.ServiceAddress,
-	privateKey string,
 	tel *telemetry.Telemetry,
 ) error {
 	microService, err := service.NewShardService(service.ShardServiceOptions{
-		Client:     client,
-		Address:    address,
-		World:      c.world,
-		Telemetry:  tel,
-		PrivateKey: privateKey,
+		Client:    client,
+		Address:   address,
+		World:     c.world,
+		Telemetry: tel,
 	})
 	if err != nil {
 		return eris.Wrap(err, "failed to create micro service")

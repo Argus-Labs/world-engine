@@ -208,13 +208,9 @@ func TestSystem_WithCommand_Properties(t *testing.T) {
 	model := make([]micro.Command, count)
 	for i := range count {
 		model[i] = micro.Command{
-			Command: micro.CommandRaw{
-				Body: micro.CommandBody{
-					Name:    testutils.SimpleCommand{}.Name(),
-					Persona: randString(prng, 8),
-					Payload: testutils.SimpleCommand{Value: prng.Int()},
-				},
-			},
+			Name:    testutils.SimpleCommand{}.Name(),
+			Persona: randString(prng, 8),
+			Payload: testutils.SimpleCommand{Value: prng.Int()},
 		}
 	}
 
@@ -225,13 +221,9 @@ func TestSystem_WithCommand_Properties(t *testing.T) {
 	var results []micro.Command
 	for ctx := range withCmd.Iter() {
 		results = append(results, micro.Command{
-			Command: micro.CommandRaw{
-				Body: micro.CommandBody{
-					Name:    testutils.SimpleCommand{}.Name(),
-					Persona: ctx.Persona(),
-					Payload: ctx.Payload(),
-				},
-			},
+			Name:    testutils.SimpleCommand{}.Name(),
+			Persona: ctx.Persona(),
+			Payload: ctx.Payload(),
 		})
 	}
 
@@ -241,9 +233,9 @@ func TestSystem_WithCommand_Properties(t *testing.T) {
 	// Property: data integrity, each result matches corresponding model entry.
 	// This also implicitly verifies no duplicates (if counts match and all match, no dups).
 	for i, result := range results {
-		assert.Equal(t, model[i].Command.Body.Payload, result.Command.Body.Payload,
+		assert.Equal(t, model[i].Payload, result.Payload,
 			"data integrity: payload mismatch at index %d", i)
-		assert.Equal(t, model[i].Command.Body.Persona, result.Command.Body.Persona,
+		assert.Equal(t, model[i].Persona, result.Persona,
 			"data integrity: persona mismatch at index %d", i)
 	}
 }
@@ -287,13 +279,9 @@ func TestSystem_WithCommand_EdgeCases(t *testing.T) {
 		commands := make([]micro.Command, 10)
 		for i := range commands {
 			commands[i] = micro.Command{
-				Command: micro.CommandRaw{
-					Body: micro.CommandBody{
-						Name:    testutils.SimpleCommand{}.Name(),
-						Persona: "test",
-						Payload: testutils.SimpleCommand{Value: i},
-					},
-				},
+				Name:    testutils.SimpleCommand{}.Name(),
+				Persona: "test",
+				Payload: testutils.SimpleCommand{Value: i},
 			}
 		}
 		world.commands.receiveCommands(commands)
