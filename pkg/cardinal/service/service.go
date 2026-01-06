@@ -25,12 +25,13 @@ import (
 type ShardService struct {
 	*micro.Service
 
-	client    *micro.Client        // NATS client
-	world     *ecs.World           // Reference to the ECS world
-	tel       *telemetry.Telemetry // Telemetry for logging and tracing
-	signer    sign.Signer          // Inter-shard command signer
-	queryPool sync.Pool            // Pool for query objects
-	personaID string               // Registered persona ID from registry
+	client          *micro.Client        // NATS client
+	world           *ecs.World           // Reference to the ECS world
+	tel             *telemetry.Telemetry // Telemetry for logging and tracing
+	signer          sign.Signer          // Inter-shard command signer
+	queryPool       sync.Pool            // Pool for query objects
+	personaID       string               // Registered persona ID from registry
+	personaFilePath string               // Path to persist the persona ID file
 }
 
 // NewShardService creates a new shard service.
@@ -40,9 +41,10 @@ func NewShardService(opts ShardServiceOptions) (*ShardService, error) {
 	}
 
 	s := &ShardService{
-		world:  opts.World,
-		client: opts.Client,
-		tel:    opts.Telemetry,
+		world:           opts.World,
+		client:          opts.Client,
+		tel:             opts.Telemetry,
+		personaFilePath: opts.PersonaFilePath,
 		queryPool: sync.Pool{
 			New: func() any {
 				return &Query{
@@ -72,7 +74,7 @@ func NewShardService(opts ShardServiceOptions) (*ShardService, error) {
 	}
 
 	// Try to load persisted persona ID first to avoid re-registration errors.
-	if personaID, err := loadPersistedPersonaID(); err == nil && personaID != "" {
+	if personaID, err := s.loadPersistedPersonaID(); err == nil && personaID != "" {
 		s.personaID = personaID
 		s.tel.Logger.Info().Str("personaID", personaID).Msg("loaded persisted persona ID")
 	} else {
@@ -141,7 +143,7 @@ func (s *ShardService) registerShard(address *micro.ServiceAddress, signerAddres
 	// Store persona ID in service.
 	s.personaID = personaID
 
-	return savePersistedPersonaID(personaID)
+	return s.savePersistedPersonaID(personaID)
 }
 
 func unmarshalResponse(msg *nats.Msg) (string, error) {
@@ -176,11 +178,9 @@ func unmarshalResponse(msg *nats.Msg) (string, error) {
 	return result.PersonaID, nil
 }
 
-const personaFilePath = "/etc/cardinal/persona"
-
 // loadPersistedPersonaID loads the persona ID from the file if it exists.
-func loadPersistedPersonaID() (string, error) {
-	data, err := os.ReadFile(personaFilePath)
+func (s *ShardService) loadPersistedPersonaID() (string, error) {
+	data, err := os.ReadFile(s.personaFilePath)
 	if err != nil {
 		return "", err
 	}
@@ -189,18 +189,18 @@ func loadPersistedPersonaID() (string, error) {
 }
 
 // savePersistedPersonaID saves the persona ID to the file atomically.
-func savePersistedPersonaID(personaID string) error {
+func (s *ShardService) savePersistedPersonaID(personaID string) error {
 	// Create directory if it doesn't exist.
-	if err := os.MkdirAll(filepath.Dir(personaFilePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.personaFilePath), 0755); err != nil {
 		return eris.Wrap(err, "failed to create persona directory")
 	}
 
-	tempPath := personaFilePath + ".tmp"
+	tempPath := s.personaFilePath + ".tmp"
 	if err := os.WriteFile(tempPath, []byte(personaID), 0600); err != nil {
 		return eris.Wrap(err, "failed to write temp persona file")
 	}
 
-	if err := os.Rename(tempPath, personaFilePath); err != nil {
+	if err := os.Rename(tempPath, s.personaFilePath); err != nil {
 		return eris.Wrap(err, "failed to rename persona file")
 	}
 
@@ -213,12 +213,13 @@ func savePersistedPersonaID(personaID string) error {
 
 // ShardServiceOptions contains the configuration for creating a new ShardService.
 type ShardServiceOptions struct {
-	Client         *micro.Client         // NATS client for inter-service communication
-	Address        *micro.ServiceAddress // This Cardinal shard's service address
-	World          *ecs.World            // Reference to the ECS world
-	Telemetry      *telemetry.Telemetry  // Telemetry for logging and tracing
-	PrivateKey     string                // Private key for signing inter-shard commands
-	DisablePersona bool
+	Client          *micro.Client         // NATS client for inter-service communication
+	Address         *micro.ServiceAddress // This Cardinal shard's service address
+	World           *ecs.World            // Reference to the ECS world
+	Telemetry       *telemetry.Telemetry  // Telemetry for logging and tracing
+	PrivateKey      string                // Private key for signing inter-shard commands
+	PersonaFilePath string                // Path to persist the persona ID file
+	DisablePersona  bool
 }
 
 // Validate checks that all required fields in ShardServiceOptions are not nil.
