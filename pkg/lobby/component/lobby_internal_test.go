@@ -165,7 +165,7 @@ func TestLobbyComponent_MovePlayerToTeam(t *testing.T) {
 	// Move player to another team
 	assert.True(t, lobby.MovePlayerToTeam("p1", "team2"))
 	assert.Empty(t, lobby.GetTeam("team1").PlayerIDs)
-	assert.Equal(t, 1, len(lobby.GetTeam("team2").PlayerIDs))
+	assert.Len(t, lobby.GetTeam("team2").PlayerIDs, 1)
 
 	// Move non-existent player
 	assert.False(t, lobby.MovePlayerToTeam("unknown", "team1"))
@@ -175,7 +175,7 @@ func TestLobbyComponent_MovePlayerToTeam(t *testing.T) {
 
 	// Move to same team (no-op, should succeed)
 	assert.True(t, lobby.MovePlayerToTeam("p1", "team2"))
-	assert.Equal(t, 1, len(lobby.GetTeam("team2").PlayerIDs))
+	assert.Len(t, lobby.GetTeam("team2").PlayerIDs, 1)
 
 	// Move to same team when at capacity (should succeed - player already there)
 	lobby2 := &LobbyComponent{
@@ -231,6 +231,7 @@ func TestTeam_IsFull(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.team.IsFull())
 		})
 	}

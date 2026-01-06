@@ -39,6 +39,10 @@ type Session struct {
 }
 
 // LobbyComponent represents a lobby where players gather.
+// Following rampage-backend pattern: Name() uses value receiver for ecs.Component interface,
+// helper methods use pointer receivers. This may change based on best practices.
+//
+//nolint:recvcheck // Name must be value receiver for ecs.Component; helpers use pointer receivers.
 type LobbyComponent struct {
 	// ID is the unique identifier for the lobby.
 	ID string `json:"id"`
@@ -143,7 +147,6 @@ func (l *LobbyComponent) AddPlayerToTeam(playerID, teamID string) bool {
 
 // RemovePlayer removes a player ID from their team.
 // Note: This only updates the lobby's team membership. PlayerComponent entity must be deleted separately.
-// Deprecated: Use RemovePlayerFromTeam with teamID for O(players in team) instead of O(teams × players).
 func (l *LobbyComponent) RemovePlayer(playerID string) {
 	for i := range l.Teams {
 		for j, pid := range l.Teams[i].PlayerIDs {
@@ -227,6 +230,10 @@ func (t *Team) IsFull() bool {
 
 // LobbyIndexComponent provides O(1) lookups for lobbies and players.
 // This is a singleton component - only one entity should have it.
+// Following rampage-backend pattern: Name() uses value receiver for ecs.Component interface,
+// helper methods use pointer receivers. This may change based on best practices.
+//
+//nolint:recvcheck // Name must be value receiver for ecs.Component; helpers use pointer receivers.
 type LobbyIndexComponent struct {
 	// LobbyIDToEntity maps LobbyID -> EntityID for O(1) lookup
 	LobbyIDToEntity map[string]uint32 `json:"lobby_id_to_entity"`
