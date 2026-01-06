@@ -73,7 +73,7 @@ func (s *ShardService) publishInterShardCommand(raw ecs.RawEvent) error {
 		return eris.Errorf("invalid inter shard command %v", isc)
 	}
 
-	pbCommand, err := protoutil.MarshalCommand(isc.Command, isc.Target, s.personaID)
+	pbCommand, err := protoutil.MarshalCommand(isc.Command, isc.Target, micro.String(s.Address))
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal command")
 	}
