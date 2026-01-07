@@ -46,16 +46,12 @@ func TestCommand_ModelFuzz(t *testing.T) {
 			batch := make([]micro.Command, batchSize)
 			for i := range batchSize {
 				name := testutils.RandMapKey(prng, model)
-				batch[i] = micro.Command{
-					Command: micro.CommandRaw{
-						Body: micro.CommandBody{Name: name},
-					},
-				}
+				batch[i] = micro.Command{Name: name}
 			}
 
 			impl.receiveCommands(batch)
 			for _, cmd := range batch {
-				name := cmd.Command.Body.Name
+				name := cmd.Name
 				model[name] = append(model[name], cmd)
 			}
 

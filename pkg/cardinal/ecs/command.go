@@ -89,8 +89,8 @@ func (c *commandManager) clear() {
 // fail fast (and loudly) instead of silently ignoring it.
 func (c *commandManager) receiveCommands(commands []micro.Command) {
 	for _, command := range commands {
-		id, exists := c.catalog[command.Command.Body.Name]
-		assert.That(exists, "command %s is not registered", command.Command.Body.Name)
+		id, exists := c.catalog[command.Name]
+		assert.That(exists, "command %s is not registered", command.Name)
 		c.commands[id] = append(c.commands[id], command)
 	}
 }

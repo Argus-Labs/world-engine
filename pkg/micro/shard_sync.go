@@ -232,10 +232,6 @@ func (s *Shard) replayTick(tick *iscv1.Tick) error {
 
 	// Enqueue to command manager so the command payloads get marshalled to their corresponding concrete type.
 	for _, command := range tick.GetData().GetCommands() {
-		if err := s.commands.auth.VerifyCommand(command); err != nil {
-			return eris.Wrap(err, "failed to verify command")
-		}
-
 		if err := s.commands.Enqueue(command); err != nil {
 			return eris.Wrap(err, "failed to enqueue command")
 		}

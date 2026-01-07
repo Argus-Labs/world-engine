@@ -26,37 +26,21 @@ namespace WorldEngine.Proto.Isc.V1 {
           string.Concat(
             "CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdp",
             "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aHGdvb2ds",
-            "ZS9wcm90b2J1Zi9zdHJ1Y3QucHJvdG8aH2dvb2dsZS9wcm90b2J1Zi90aW1l",
-            "c3RhbXAucHJvdG8aIHdvcmxkZW5naW5lL2lzYy92MS9wZXJzb25hLnByb3Rv",
-            "GiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnByb3RvIqMBCgdDb21t",
-            "YW5kEigKCXNpZ25hdHVyZRgBIAEoDEIKukgHegJoQMgBAVIJc2lnbmF0dXJl",
-            "EkEKCWF1dGhfaW5mbxgCIAEoCzIcLndvcmxkZW5naW5lLmlzYy52MS5BdXRo",
-            "SW5mb0IGukgDyAEBUghhdXRoSW5mbxIrCg1jb21tYW5kX2J5dGVzGAMgASgM",
-            "Qga6SAPIAQFSDGNvbW1hbmRCeXRlcyKjAQoKQ29tbWFuZFJhdxJACgl0aW1l",
-            "c3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPI",
-            "AQFSCXRpbWVzdGFtcBIeCgRzYWx0GAIgASgMQgq6SAd6AmgQyAEBUgRzYWx0",
-            "EjMKBGJvZHkYAyABKAsyHy53b3JsZGVuZ2luZS5pc2MudjEuQ29tbWFuZEJv",
-            "ZHlSBGJvZHkihAIKC0NvbW1hbmRCb2R5EjMKBG5hbWUYAiABKAlCH7pIHHIX",
-            "EAEYgAEyEF5bYS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRkcmVzcxgE",
-            "IAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6",
-            "SAPIAQFSB2FkZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5l",
-            "LmlzYy52MS5QZXJzb25hQga6SAPIAQFSB3BlcnNvbmESOQoHcGF5bG9hZBgB",
-            "IAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCBrpIA8gBAVIHcGF5bG9h",
-            "ZCLYAQoIQXV0aEluZm8SRQoEbW9kZRgBIAEoDjIlLndvcmxkZW5naW5lLmlz",
-            "Yy52MS5BdXRoSW5mby5BdXRoTW9kZUIKukgHggEEEAEgAFIEbW9kZRIxCg5z",
-            "aWduZXJfYWRkcmVzcxgCIAEoDEIKukgHegJoIMgBAVINc2lnbmVyQWRkcmVz",
-            "cyJSCghBdXRoTW9kZRIZChVBVVRIX01PREVfVU5TUEVDSUZJRUQQABIUChBB",
-            "VVRIX01PREVfRElSRUNUEAESFQoRQVVUSF9NT0RFX1BFUlNPTkEQAkJlWkhn",
-            "aXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9n",
-            "by93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90",
-            "by5Jc2MuVjFiBnByb3RvMw=="));
+            "ZS9wcm90b2J1Zi9zdHJ1Y3QucHJvdG8aIHdvcmxkZW5naW5lL2lzYy92MS9w",
+            "ZXJzb25hLnByb3RvGiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnBy",
+            "b3RvIoACCgdDb21tYW5kEjMKBG5hbWUYASABKAlCH7pIHHIXEAEYgAEyEF5b",
+            "YS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRkcmVzcxgCIAEoCzIkLndv",
+            "cmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQFSB2Fk",
+            "ZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5Q",
+            "ZXJzb25hQga6SAPIAQFSB3BlcnNvbmESOQoHcGF5bG9hZBgEIAEoCzIXLmdv",
+            "b2dsZS5wcm90b2J1Zi5TdHJ1Y3RCBrpIA8gBAVIHcGF5bG9hZEJlWkhnaXRo",
+            "dWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93",
+            "b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5J",
+            "c2MuVjFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Signature", "AuthInfo", "CommandBytes" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.CommandRaw), global::WorldEngine.Proto.Isc.V1.CommandRaw.Parser, new[]{ "Timestamp", "Salt", "Body" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.CommandBody), global::WorldEngine.Proto.Isc.V1.CommandBody.Parser, new[]{ "Name", "Address", "Persona", "Payload" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.AuthInfo), global::WorldEngine.Proto.Isc.V1.AuthInfo.Parser, new[]{ "Mode", "SignerAddress" }, null, new[]{ typeof(global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode) }, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Name", "Address", "Persona", "Payload" }, null, null, null, null)
           }));
     }
     #endregion
@@ -64,7 +48,7 @@ namespace WorldEngine.Proto.Isc.V1 {
   }
   #region Messages
   /// <summary>
-  /// SignedCommand is a wrapper around command data that carries a signature of the command payload.
+  /// Command represents the data payload of a command to trigger systems in a shard.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class Command : pb::IMessage<Command>
@@ -101,592 +85,6 @@ namespace WorldEngine.Proto.Isc.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public Command(Command other) : this() {
-      signature_ = other.signature_;
-      authInfo_ = other.authInfo_ != null ? other.authInfo_.Clone() : null;
-      commandBytes_ = other.commandBytes_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Command Clone() {
-      return new Command(this);
-    }
-
-    /// <summary>Field number for the "signature" field.</summary>
-    public const int SignatureFieldNumber = 1;
-    private pb::ByteString signature_ = pb::ByteString.Empty;
-    /// <summary>
-    /// The signature of the command.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString Signature {
-      get { return signature_; }
-      set {
-        signature_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "auth_info" field.</summary>
-    public const int AuthInfoFieldNumber = 2;
-    private global::WorldEngine.Proto.Isc.V1.AuthInfo authInfo_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Isc.V1.AuthInfo AuthInfo {
-      get { return authInfo_; }
-      set {
-        authInfo_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "command_bytes" field.</summary>
-    public const int CommandBytesFieldNumber = 3;
-    private pb::ByteString commandBytes_ = pb::ByteString.Empty;
-    /// <summary>
-    /// The command data itself.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString CommandBytes {
-      get { return commandBytes_; }
-      set {
-        commandBytes_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as Command);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(Command other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (Signature != other.Signature) return false;
-      if (!object.Equals(AuthInfo, other.AuthInfo)) return false;
-      if (CommandBytes != other.CommandBytes) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (Signature.Length != 0) hash ^= Signature.GetHashCode();
-      if (authInfo_ != null) hash ^= AuthInfo.GetHashCode();
-      if (CommandBytes.Length != 0) hash ^= CommandBytes.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (Signature.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteBytes(Signature);
-      }
-      if (authInfo_ != null) {
-        output.WriteRawTag(18);
-        output.WriteMessage(AuthInfo);
-      }
-      if (CommandBytes.Length != 0) {
-        output.WriteRawTag(26);
-        output.WriteBytes(CommandBytes);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (Signature.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteBytes(Signature);
-      }
-      if (authInfo_ != null) {
-        output.WriteRawTag(18);
-        output.WriteMessage(AuthInfo);
-      }
-      if (CommandBytes.Length != 0) {
-        output.WriteRawTag(26);
-        output.WriteBytes(CommandBytes);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (Signature.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Signature);
-      }
-      if (authInfo_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(AuthInfo);
-      }
-      if (CommandBytes.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(CommandBytes);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(Command other) {
-      if (other == null) {
-        return;
-      }
-      if (other.Signature.Length != 0) {
-        Signature = other.Signature;
-      }
-      if (other.authInfo_ != null) {
-        if (authInfo_ == null) {
-          AuthInfo = new global::WorldEngine.Proto.Isc.V1.AuthInfo();
-        }
-        AuthInfo.MergeFrom(other.AuthInfo);
-      }
-      if (other.CommandBytes.Length != 0) {
-        CommandBytes = other.CommandBytes;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            Signature = input.ReadBytes();
-            break;
-          }
-          case 18: {
-            if (authInfo_ == null) {
-              AuthInfo = new global::WorldEngine.Proto.Isc.V1.AuthInfo();
-            }
-            input.ReadMessage(AuthInfo);
-            break;
-          }
-          case 26: {
-            CommandBytes = input.ReadBytes();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            Signature = input.ReadBytes();
-            break;
-          }
-          case 18: {
-            if (authInfo_ == null) {
-              AuthInfo = new global::WorldEngine.Proto.Isc.V1.AuthInfo();
-            }
-            input.ReadMessage(AuthInfo);
-            break;
-          }
-          case 26: {
-            CommandBytes = input.ReadBytes();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  /// <summary>
-  /// Command represents the data payload of a command to trigger systems in a shard.
-  /// </summary>
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CommandRaw : pb::IMessage<CommandRaw>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<CommandRaw> _parser = new pb::MessageParser<CommandRaw>(() => new CommandRaw());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CommandRaw> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Isc.V1.CommandReflection.Descriptor.MessageTypes[1]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CommandRaw() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CommandRaw(CommandRaw other) : this() {
-      timestamp_ = other.timestamp_ != null ? other.timestamp_.Clone() : null;
-      salt_ = other.salt_;
-      body_ = other.body_ != null ? other.body_.Clone() : null;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CommandRaw Clone() {
-      return new CommandRaw(this);
-    }
-
-    /// <summary>Field number for the "timestamp" field.</summary>
-    public const int TimestampFieldNumber = 1;
-    private global::Google.Protobuf.WellKnownTypes.Timestamp timestamp_;
-    /// <summary>
-    /// The timestamp when the command was created for replay protection.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Google.Protobuf.WellKnownTypes.Timestamp Timestamp {
-      get { return timestamp_; }
-      set {
-        timestamp_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "salt" field.</summary>
-    public const int SaltFieldNumber = 2;
-    private pb::ByteString salt_ = pb::ByteString.Empty;
-    /// <summary>
-    /// Salt for additional uniqueness between commands.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString Salt {
-      get { return salt_; }
-      set {
-        salt_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "body" field.</summary>
-    public const int BodyFieldNumber = 3;
-    private global::WorldEngine.Proto.Isc.V1.CommandBody body_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Isc.V1.CommandBody Body {
-      get { return body_; }
-      set {
-        body_ = value;
-      }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as CommandRaw);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CommandRaw other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (!object.Equals(Timestamp, other.Timestamp)) return false;
-      if (Salt != other.Salt) return false;
-      if (!object.Equals(Body, other.Body)) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (timestamp_ != null) hash ^= Timestamp.GetHashCode();
-      if (Salt.Length != 0) hash ^= Salt.GetHashCode();
-      if (body_ != null) hash ^= Body.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (timestamp_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Timestamp);
-      }
-      if (Salt.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteBytes(Salt);
-      }
-      if (body_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Body);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (timestamp_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Timestamp);
-      }
-      if (Salt.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteBytes(Salt);
-      }
-      if (body_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Body);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (timestamp_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Timestamp);
-      }
-      if (Salt.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Salt);
-      }
-      if (body_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Body);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CommandRaw other) {
-      if (other == null) {
-        return;
-      }
-      if (other.timestamp_ != null) {
-        if (timestamp_ == null) {
-          Timestamp = new global::Google.Protobuf.WellKnownTypes.Timestamp();
-        }
-        Timestamp.MergeFrom(other.Timestamp);
-      }
-      if (other.Salt.Length != 0) {
-        Salt = other.Salt;
-      }
-      if (other.body_ != null) {
-        if (body_ == null) {
-          Body = new global::WorldEngine.Proto.Isc.V1.CommandBody();
-        }
-        Body.MergeFrom(other.Body);
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            if (timestamp_ == null) {
-              Timestamp = new global::Google.Protobuf.WellKnownTypes.Timestamp();
-            }
-            input.ReadMessage(Timestamp);
-            break;
-          }
-          case 18: {
-            Salt = input.ReadBytes();
-            break;
-          }
-          case 26: {
-            if (body_ == null) {
-              Body = new global::WorldEngine.Proto.Isc.V1.CommandBody();
-            }
-            input.ReadMessage(Body);
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            if (timestamp_ == null) {
-              Timestamp = new global::Google.Protobuf.WellKnownTypes.Timestamp();
-            }
-            input.ReadMessage(Timestamp);
-            break;
-          }
-          case 18: {
-            Salt = input.ReadBytes();
-            break;
-          }
-          case 26: {
-            if (body_ == null) {
-              Body = new global::WorldEngine.Proto.Isc.V1.CommandBody();
-            }
-            input.ReadMessage(Body);
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CommandBody : pb::IMessage<CommandBody>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<CommandBody> _parser = new pb::MessageParser<CommandBody>(() => new CommandBody());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CommandBody> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Isc.V1.CommandReflection.Descriptor.MessageTypes[2]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CommandBody() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CommandBody(CommandBody other) : this() {
       name_ = other.name_;
       address_ = other.address_ != null ? other.address_.Clone() : null;
       persona_ = other.persona_ != null ? other.persona_.Clone() : null;
@@ -696,13 +94,16 @@ namespace WorldEngine.Proto.Isc.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CommandBody Clone() {
-      return new CommandBody(this);
+    public Command Clone() {
+      return new Command(this);
     }
 
     /// <summary>Field number for the "name" field.</summary>
-    public const int NameFieldNumber = 2;
+    public const int NameFieldNumber = 1;
     private string name_ = "";
+    /// <summary>
+    /// The name of the command.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public string Name {
@@ -713,7 +114,7 @@ namespace WorldEngine.Proto.Isc.V1 {
     }
 
     /// <summary>Field number for the "address" field.</summary>
-    public const int AddressFieldNumber = 4;
+    public const int AddressFieldNumber = 2;
     private global::WorldEngine.Proto.Micro.V1.ServiceAddress address_;
     /// <summary>
     /// The address of the cardinal shard to send the command to.
@@ -730,6 +131,9 @@ namespace WorldEngine.Proto.Isc.V1 {
     /// <summary>Field number for the "persona" field.</summary>
     public const int PersonaFieldNumber = 3;
     private global::WorldEngine.Proto.Isc.V1.Persona persona_;
+    /// <summary>
+    /// The persona sending the command.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::WorldEngine.Proto.Isc.V1.Persona Persona {
@@ -740,8 +144,11 @@ namespace WorldEngine.Proto.Isc.V1 {
     }
 
     /// <summary>Field number for the "payload" field.</summary>
-    public const int PayloadFieldNumber = 1;
+    public const int PayloadFieldNumber = 4;
     private global::Google.Protobuf.WellKnownTypes.Struct payload_;
+    /// <summary>
+    /// The command payload.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::Google.Protobuf.WellKnownTypes.Struct Payload {
@@ -754,12 +161,12 @@ namespace WorldEngine.Proto.Isc.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CommandBody);
+      return Equals(other as Command);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CommandBody other) {
+    public bool Equals(Command other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -799,21 +206,21 @@ namespace WorldEngine.Proto.Isc.V1 {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (payload_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Payload);
-      }
       if (Name.Length != 0) {
-        output.WriteRawTag(18);
+        output.WriteRawTag(10);
         output.WriteString(Name);
+      }
+      if (address_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Address);
       }
       if (persona_ != null) {
         output.WriteRawTag(26);
         output.WriteMessage(Persona);
       }
-      if (address_ != null) {
+      if (payload_ != null) {
         output.WriteRawTag(34);
-        output.WriteMessage(Address);
+        output.WriteMessage(Payload);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -825,21 +232,21 @@ namespace WorldEngine.Proto.Isc.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (payload_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Payload);
-      }
       if (Name.Length != 0) {
-        output.WriteRawTag(18);
+        output.WriteRawTag(10);
         output.WriteString(Name);
+      }
+      if (address_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Address);
       }
       if (persona_ != null) {
         output.WriteRawTag(26);
         output.WriteMessage(Persona);
       }
-      if (address_ != null) {
+      if (payload_ != null) {
         output.WriteRawTag(34);
-        output.WriteMessage(Address);
+        output.WriteMessage(Payload);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -871,7 +278,7 @@ namespace WorldEngine.Proto.Isc.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CommandBody other) {
+    public void MergeFrom(Command other) {
       if (other == null) {
         return;
       }
@@ -916,14 +323,14 @@ namespace WorldEngine.Proto.Isc.V1 {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
           case 10: {
-            if (payload_ == null) {
-              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Payload);
+            Name = input.ReadString();
             break;
           }
           case 18: {
-            Name = input.ReadString();
+            if (address_ == null) {
+              Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(Address);
             break;
           }
           case 26: {
@@ -934,10 +341,10 @@ namespace WorldEngine.Proto.Isc.V1 {
             break;
           }
           case 34: {
-            if (address_ == null) {
-              Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            if (payload_ == null) {
+              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
             }
-            input.ReadMessage(Address);
+            input.ReadMessage(Payload);
             break;
           }
         }
@@ -960,14 +367,14 @@ namespace WorldEngine.Proto.Isc.V1 {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
           case 10: {
-            if (payload_ == null) {
-              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Payload);
+            Name = input.ReadString();
             break;
           }
           case 18: {
-            Name = input.ReadString();
+            if (address_ == null) {
+              Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(Address);
             break;
           }
           case 26: {
@@ -978,268 +385,16 @@ namespace WorldEngine.Proto.Isc.V1 {
             break;
           }
           case 34: {
-            if (address_ == null) {
-              Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            if (payload_ == null) {
+              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
             }
-            input.ReadMessage(Address);
+            input.ReadMessage(Payload);
             break;
           }
         }
       }
     }
     #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class AuthInfo : pb::IMessage<AuthInfo>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<AuthInfo> _parser = new pb::MessageParser<AuthInfo>(() => new AuthInfo());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<AuthInfo> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Isc.V1.CommandReflection.Descriptor.MessageTypes[3]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public AuthInfo() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public AuthInfo(AuthInfo other) : this() {
-      mode_ = other.mode_;
-      signerAddress_ = other.signerAddress_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public AuthInfo Clone() {
-      return new AuthInfo(this);
-    }
-
-    /// <summary>Field number for the "mode" field.</summary>
-    public const int ModeFieldNumber = 1;
-    private global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode mode_ = global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode.Unspecified;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode Mode {
-      get { return mode_; }
-      set {
-        mode_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "signer_address" field.</summary>
-    public const int SignerAddressFieldNumber = 2;
-    private pb::ByteString signerAddress_ = pb::ByteString.Empty;
-    /// <summary>
-    /// The address of the signer. Right now this is just the public key.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString SignerAddress {
-      get { return signerAddress_; }
-      set {
-        signerAddress_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as AuthInfo);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(AuthInfo other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (Mode != other.Mode) return false;
-      if (SignerAddress != other.SignerAddress) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (Mode != global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode.Unspecified) hash ^= Mode.GetHashCode();
-      if (SignerAddress.Length != 0) hash ^= SignerAddress.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (Mode != global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode.Unspecified) {
-        output.WriteRawTag(8);
-        output.WriteEnum((int) Mode);
-      }
-      if (SignerAddress.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteBytes(SignerAddress);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (Mode != global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode.Unspecified) {
-        output.WriteRawTag(8);
-        output.WriteEnum((int) Mode);
-      }
-      if (SignerAddress.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteBytes(SignerAddress);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (Mode != global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode.Unspecified) {
-        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Mode);
-      }
-      if (SignerAddress.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(SignerAddress);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(AuthInfo other) {
-      if (other == null) {
-        return;
-      }
-      if (other.Mode != global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode.Unspecified) {
-        Mode = other.Mode;
-      }
-      if (other.SignerAddress.Length != 0) {
-        SignerAddress = other.SignerAddress;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 8: {
-            Mode = (global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode) input.ReadEnum();
-            break;
-          }
-          case 18: {
-            SignerAddress = input.ReadBytes();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 8: {
-            Mode = (global::WorldEngine.Proto.Isc.V1.AuthInfo.Types.AuthMode) input.ReadEnum();
-            break;
-          }
-          case 18: {
-            SignerAddress = input.ReadBytes();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-    #region Nested types
-    /// <summary>Container for nested types declared in the AuthInfo message type.</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static partial class Types {
-      public enum AuthMode {
-        [pbr::OriginalName("AUTH_MODE_UNSPECIFIED")] Unspecified = 0,
-        [pbr::OriginalName("AUTH_MODE_DIRECT")] Direct = 1,
-        [pbr::OriginalName("AUTH_MODE_PERSONA")] Persona = 2,
-      }
-
-    }
-    #endregion
 
   }
 

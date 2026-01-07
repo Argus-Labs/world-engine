@@ -2,11 +2,10 @@
 // @generated from file worldengine/isc/v1/command.proto (package worldengine.isc.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import type { Persona } from "./persona_pb";
 import { file_worldengine_isc_v1_persona } from "./persona_pb";
 import type { ServiceAddress } from "../../micro/v1/service_pb";
@@ -17,32 +16,41 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/isc/v1/command.proto.
  */
 export const file_worldengine_isc_v1_command: GenFile = /*@__PURE__*/
-  fileDesc("CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdpbmUuaXNjLnYxIoABCgdDb21tYW5kEh0KCXNpZ25hdHVyZRgBIAEoDEIKukgHyAEBegJoQBI3CglhdXRoX2luZm8YAiABKAsyHC53b3JsZGVuZ2luZS5pc2MudjEuQXV0aEluZm9CBrpIA8gBARIdCg1jb21tYW5kX2J5dGVzGAMgASgMQga6SAPIAQEijAEKCkNvbW1hbmRSYXcSNQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIGukgDyAEBEhgKBHNhbHQYAiABKAxCCrpIB8gBAXoCaBASLQoEYm9keRgDIAEoCzIfLndvcmxkZW5naW5lLmlzYy52MS5Db21tYW5kQm9keSLjAQoLQ29tbWFuZEJvZHkSLQoEbmFtZRgCIAEoCUIfukgcyAEBchcQARiAATIQXlthLXpBLVowLTlfLV0rJBI9CgdhZGRyZXNzGAQgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBARI0CgdwZXJzb25hGAMgASgLMhsud29ybGRlbmdpbmUuaXNjLnYxLlBlcnNvbmFCBrpIA8gBARIwCgdwYXlsb2FkGAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEIGukgDyAEBIsMBCghBdXRoSW5mbxI/CgRtb2RlGAEgASgOMiUud29ybGRlbmdpbmUuaXNjLnYxLkF1dGhJbmZvLkF1dGhNb2RlQgq6SAeCAQQQASAAEiIKDnNpZ25lcl9hZGRyZXNzGAIgASgMQgq6SAfIAQF6AmggIlIKCEF1dGhNb2RlEhkKFUFVVEhfTU9ERV9VTlNQRUNJRklFRBAAEhQKEEFVVEhfTU9ERV9ESVJFQ1QQARIVChFBVVRIX01PREVfUEVSU09OQRACQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp, file_worldengine_isc_v1_persona, file_worldengine_micro_v1_service]);
+  fileDesc("CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdpbmUuaXNjLnYxIt8BCgdDb21tYW5kEi0KBG5hbWUYASABKAlCH7pIHMgBAXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyQSPQoHYWRkcmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESNAoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQESMAoHcGF5bG9hZBgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCBrpIA8gBAUJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_worldengine_isc_v1_persona, file_worldengine_micro_v1_service]);
 
 /**
- * SignedCommand is a wrapper around command data that carries a signature of the command payload.
+ * Command represents the data payload of a command to trigger systems in a shard.
  *
  * @generated from message worldengine.isc.v1.Command
  */
 export type Command = Message<"worldengine.isc.v1.Command"> & {
   /**
-   * The signature of the command.
+   * The name of the command.
    *
-   * @generated from field: bytes signature = 1;
+   * @generated from field: string name = 1;
    */
-  signature: Uint8Array;
+  name: string;
 
   /**
-   * @generated from field: worldengine.isc.v1.AuthInfo auth_info = 2;
+   * The address of the cardinal shard to send the command to.
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress address = 2;
    */
-  authInfo?: AuthInfo;
+  address?: ServiceAddress;
 
   /**
-   * The command data itself.
+   * The persona sending the command.
    *
-   * @generated from field: bytes command_bytes = 3;
+   * @generated from field: worldengine.isc.v1.Persona persona = 3;
    */
-  commandBytes: Uint8Array;
+  persona?: Persona;
+
+  /**
+   * The command payload.
+   *
+   * @generated from field: google.protobuf.Struct payload = 4;
+   */
+  payload?: JsonObject;
 };
 
 /**
@@ -51,121 +59,4 @@ export type Command = Message<"worldengine.isc.v1.Command"> & {
  */
 export const CommandSchema: GenMessage<Command> = /*@__PURE__*/
   messageDesc(file_worldengine_isc_v1_command, 0);
-
-/**
- * Command represents the data payload of a command to trigger systems in a shard.
- *
- * @generated from message worldengine.isc.v1.CommandRaw
- */
-export type CommandRaw = Message<"worldengine.isc.v1.CommandRaw"> & {
-  /**
-   * The timestamp when the command was created for replay protection.
-   *
-   * @generated from field: google.protobuf.Timestamp timestamp = 1;
-   */
-  timestamp?: Timestamp;
-
-  /**
-   * Salt for additional uniqueness between commands.
-   *
-   * @generated from field: bytes salt = 2;
-   */
-  salt: Uint8Array;
-
-  /**
-   * @generated from field: worldengine.isc.v1.CommandBody body = 3;
-   */
-  body?: CommandBody;
-};
-
-/**
- * Describes the message worldengine.isc.v1.CommandRaw.
- * Use `create(CommandRawSchema)` to create a new message.
- */
-export const CommandRawSchema: GenMessage<CommandRaw> = /*@__PURE__*/
-  messageDesc(file_worldengine_isc_v1_command, 1);
-
-/**
- * @generated from message worldengine.isc.v1.CommandBody
- */
-export type CommandBody = Message<"worldengine.isc.v1.CommandBody"> & {
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
-
-  /**
-   * The address of the cardinal shard to send the command to.
-   *
-   * @generated from field: worldengine.micro.v1.ServiceAddress address = 4;
-   */
-  address?: ServiceAddress;
-
-  /**
-   * @generated from field: worldengine.isc.v1.Persona persona = 3;
-   */
-  persona?: Persona;
-
-  /**
-   * @generated from field: google.protobuf.Struct payload = 1;
-   */
-  payload?: JsonObject;
-};
-
-/**
- * Describes the message worldengine.isc.v1.CommandBody.
- * Use `create(CommandBodySchema)` to create a new message.
- */
-export const CommandBodySchema: GenMessage<CommandBody> = /*@__PURE__*/
-  messageDesc(file_worldengine_isc_v1_command, 2);
-
-/**
- * @generated from message worldengine.isc.v1.AuthInfo
- */
-export type AuthInfo = Message<"worldengine.isc.v1.AuthInfo"> & {
-  /**
-   * @generated from field: worldengine.isc.v1.AuthInfo.AuthMode mode = 1;
-   */
-  mode: AuthInfo_AuthMode;
-
-  /**
-   * The address of the signer. Right now this is just the public key.
-   *
-   * @generated from field: bytes signer_address = 2;
-   */
-  signerAddress: Uint8Array;
-};
-
-/**
- * Describes the message worldengine.isc.v1.AuthInfo.
- * Use `create(AuthInfoSchema)` to create a new message.
- */
-export const AuthInfoSchema: GenMessage<AuthInfo> = /*@__PURE__*/
-  messageDesc(file_worldengine_isc_v1_command, 3);
-
-/**
- * @generated from enum worldengine.isc.v1.AuthInfo.AuthMode
- */
-export enum AuthInfo_AuthMode {
-  /**
-   * @generated from enum value: AUTH_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: AUTH_MODE_DIRECT = 1;
-   */
-  DIRECT = 1,
-
-  /**
-   * @generated from enum value: AUTH_MODE_PERSONA = 2;
-   */
-  PERSONA = 2,
-}
-
-/**
- * Describes the enum worldengine.isc.v1.AuthInfo.AuthMode.
- */
-export const AuthInfo_AuthModeSchema: GenEnum<AuthInfo_AuthMode> = /*@__PURE__*/
-  enumDesc(file_worldengine_isc_v1_command, 3, 0);
 

@@ -166,14 +166,14 @@ func newCommandContext[T Command](raw *micro.Command) CommandContext[T] {
 
 // Payload returns the strongly-typed command payload.
 func (c CommandContext[T]) Payload() T {
-	payload, ok := c.raw.Command.Body.Payload.(T)
+	payload, ok := c.raw.Payload.(T)
 	assert.That(ok, "mismatched command type passed to ecs")
 	return payload
 }
 
 // Persona returns the persona (sender) of the command.
 func (c CommandContext[T]) Persona() string {
-	return c.raw.Command.Body.Persona
+	return c.raw.Persona
 }
 
 // -------------------------------------------------------------------------------------------------
