@@ -10,4 +10,7 @@ var (
 	// ErrComponentNotFound is returned when attempting to operate on a component that isn't
 	// registered (used) in any systems.
 	ErrComponentNotFound = eris.New("component is not registered")
+
+	// ErrArchetypeMismatch is returned when an entity's archetype doesn't match the search criteria.
+	ErrArchetypeMismatch = eris.New("entity archetype does not match search")
 )
