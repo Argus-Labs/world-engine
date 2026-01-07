@@ -34,77 +34,77 @@ import (
 	"github.com/argus-labs/world-engine/pkg/lobby/system"
 )
 
-// Re-export types for easier user access
+// Re-export types for easier user access.
 type (
-	// Data structures
-	LobbyComponent      = component.LobbyComponent
-	PlayerComponent     = component.PlayerComponent
-	Team                = component.Team
-	Session             = component.Session
-	SessionState        = component.SessionState
-	GameWorld           = cardinal.OtherWorld
-	LobbyIndexComponent = component.LobbyIndexComponent
-	ConfigComponent     = component.ConfigComponent
+	// Data structures.
+	Component       = component.LobbyComponent
+	PlayerComponent = component.PlayerComponent
+	Team            = component.Team
+	Session         = component.Session
+	SessionState    = component.SessionState
+	GameWorld       = cardinal.OtherWorld
+	IndexComponent  = component.LobbyIndexComponent
+	ConfigComponent = component.ConfigComponent
 
-	// Commands
-	CreateLobbyCommand                = system.CreateLobbyCommand
-	TeamConfig                        = system.TeamConfig
-	JoinLobbyCommand                  = system.JoinLobbyCommand
-	JoinTeamCommand                   = system.JoinTeamCommand
-	LeaveLobbyCommand                 = system.LeaveLobbyCommand
-	SetReadyCommand                   = system.SetReadyCommand
-	KickPlayerCommand                 = system.KickPlayerCommand
-	TransferLeaderCommand             = system.TransferLeaderCommand
-	StartSessionCommand               = system.StartSessionCommand
-	GenerateInviteCodeCommand         = system.GenerateInviteCodeCommand
-	HeartbeatCommand                  = system.HeartbeatCommand
-	UpdateSessionPassthroughCommand   = system.UpdateSessionPassthroughCommand
-	UpdatePlayerPassthroughCommand    = system.UpdatePlayerPassthroughCommand
-	GetPlayerCommand                  = system.GetPlayerCommand
-	GetAllPlayersCommand              = system.GetAllPlayersCommand
+	// Commands.
+	CreateLobbyCommand              = system.CreateLobbyCommand
+	TeamConfig                      = system.TeamConfig
+	JoinLobbyCommand                = system.JoinLobbyCommand
+	JoinTeamCommand                 = system.JoinTeamCommand
+	LeaveLobbyCommand               = system.LeaveLobbyCommand
+	SetReadyCommand                 = system.SetReadyCommand
+	KickPlayerCommand               = system.KickPlayerCommand
+	TransferLeaderCommand           = system.TransferLeaderCommand
+	StartSessionCommand             = system.StartSessionCommand
+	GenerateInviteCodeCommand       = system.GenerateInviteCodeCommand
+	HeartbeatCommand                = system.HeartbeatCommand
+	UpdateSessionPassthroughCommand = system.UpdateSessionPassthroughCommand
+	UpdatePlayerPassthroughCommand  = system.UpdatePlayerPassthroughCommand
+	GetPlayerCommand                = system.GetPlayerCommand
+	GetAllPlayersCommand            = system.GetAllPlayersCommand
 
-	// Events (Broadcast)
-	LobbyCreatedEvent               = system.LobbyCreatedEvent
-	PlayerJoinedEvent               = system.PlayerJoinedEvent
-	PlayerLeftEvent                 = system.PlayerLeftEvent
-	PlayerKickedEvent               = system.PlayerKickedEvent
-	PlayerReadyEvent                = system.PlayerReadyEvent
-	PlayerChangedTeamEvent          = system.PlayerChangedTeamEvent
-	LeaderChangedEvent              = system.LeaderChangedEvent
-	SessionStartedEvent             = system.SessionStartedEvent
-	SessionEndedEvent               = system.SessionEndedEvent
-	InviteCodeGeneratedEvent        = system.InviteCodeGeneratedEvent
-	LobbyDeletedEvent               = system.LobbyDeletedEvent
-	PlayerTimedOutEvent             = system.PlayerTimedOutEvent
-	SessionPassthroughUpdatedEvent  = system.SessionPassthroughUpdatedEvent
-	PlayerPassthroughUpdatedEvent   = system.PlayerPassthroughUpdatedEvent
+	// Events (Broadcast).
+	CreatedEvent                   = system.LobbyCreatedEvent
+	PlayerJoinedEvent              = system.PlayerJoinedEvent
+	PlayerLeftEvent                = system.PlayerLeftEvent
+	PlayerKickedEvent              = system.PlayerKickedEvent
+	PlayerReadyEvent               = system.PlayerReadyEvent
+	PlayerChangedTeamEvent         = system.PlayerChangedTeamEvent
+	LeaderChangedEvent             = system.LeaderChangedEvent
+	SessionStartedEvent            = system.SessionStartedEvent
+	SessionEndedEvent              = system.SessionEndedEvent
+	InviteCodeGeneratedEvent       = system.InviteCodeGeneratedEvent
+	DeletedEvent                   = system.LobbyDeletedEvent
+	PlayerTimedOutEvent            = system.PlayerTimedOutEvent
+	SessionPassthroughUpdatedEvent = system.SessionPassthroughUpdatedEvent
+	PlayerPassthroughUpdatedEvent  = system.PlayerPassthroughUpdatedEvent
 
-	// CommandResult (persona-prefixed responses)
-	CreateLobbyResult                = system.CreateLobbyResult
-	JoinLobbyResult                  = system.JoinLobbyResult
-	JoinTeamResult                   = system.JoinTeamResult
-	LeaveLobbyResult                 = system.LeaveLobbyResult
-	SetReadyResult                   = system.SetReadyResult
-	KickPlayerResult                 = system.KickPlayerResult
-	TransferLeaderResult             = system.TransferLeaderResult
-	StartSessionResult               = system.StartSessionResult
-	GenerateInviteCodeResult         = system.GenerateInviteCodeResult
-	UpdateSessionPassthroughResult   = system.UpdateSessionPassthroughResult
-	UpdatePlayerPassthroughResult    = system.UpdatePlayerPassthroughResult
-	GetPlayerResult                  = system.GetPlayerResult
-	GetAllPlayersResult              = system.GetAllPlayersResult
+	// CommandResult (persona-prefixed responses).
+	CreateLobbyResult              = system.CreateLobbyResult
+	JoinLobbyResult                = system.JoinLobbyResult
+	JoinTeamResult                 = system.JoinTeamResult
+	LeaveLobbyResult               = system.LeaveLobbyResult
+	SetReadyResult                 = system.SetReadyResult
+	KickPlayerResult               = system.KickPlayerResult
+	TransferLeaderResult           = system.TransferLeaderResult
+	StartSessionResult             = system.StartSessionResult
+	GenerateInviteCodeResult       = system.GenerateInviteCodeResult
+	UpdateSessionPassthroughResult = system.UpdateSessionPassthroughResult
+	UpdatePlayerPassthroughResult  = system.UpdatePlayerPassthroughResult
+	GetPlayerResult                = system.GetPlayerResult
+	GetAllPlayersResult            = system.GetAllPlayersResult
 
-	// Cross-Shard Commands
+	// Cross-Shard Commands.
 	NotifySessionStartCommand = system.NotifySessionStartCommand
 	NotifySessionEndCommand   = system.NotifySessionEndCommand
 	StartSessionPayload       = system.StartSessionPayload // Alias for NotifySessionStartCommand
 
-	// Provider
-	LobbyProvider   = system.LobbyProvider
+	// Provider.
+	Provider        = system.LobbyProvider
 	DefaultProvider = system.DefaultProvider
 )
 
-// Session states
+// Session states.
 const (
 	SessionStateIdle      = component.SessionStateIdle
 	SessionStateInSession = component.SessionStateInSession
@@ -118,7 +118,7 @@ type Config struct {
 
 	// Provider is the customizable provider for the lobby system.
 	// If nil, DefaultProvider is used.
-	Provider LobbyProvider
+	Provider Provider
 
 	// HeartbeatTimeout is how long (in seconds) before a player is removed for not sending heartbeats.
 	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).

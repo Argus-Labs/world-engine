@@ -395,7 +395,7 @@ func TestArchetype_DeserializationNegative(t *testing.T) {
 	require.NoError(t, err)
 
 	// Corrupt the bitmap by truncating to an invalid length (not a multiple of 8).
-	pb.ComponentsBitmap = pb.ComponentsBitmap[:len(pb.ComponentsBitmap)-1]
+	pb.ComponentsBitmap = pb.GetComponentsBitmap()[:len(pb.GetComponentsBitmap())-1]
 
 	arch2 := &archetype{}
 	err = arch2.fromProto(pb, &cm)

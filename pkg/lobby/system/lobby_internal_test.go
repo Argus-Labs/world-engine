@@ -195,6 +195,7 @@ func TestCommandResultNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.result.Name())
 		})
 	}
@@ -233,9 +234,6 @@ func TestCommandResultFields(t *testing.T) {
 
 	// Test GenerateInviteCodeResult with InviteCode field
 	inviteResult := GenerateInviteCodeResult{
-		RequestID:  "req-456",
-		IsSuccess:  true,
-		Message:    "invite code generated",
 		InviteCode: "XYZ789",
 	}
 	assert.Equal(t, "XYZ789", inviteResult.InviteCode)
@@ -246,7 +244,6 @@ func TestCommandResultFailure(t *testing.T) {
 
 	// Test failure result
 	result := CreateLobbyResult{
-		RequestID: "req-123",
 		IsSuccess: false,
 		Message:   "player already in a lobby",
 	}
@@ -285,7 +282,7 @@ func TestNotifySessionStartCommand(t *testing.T) {
 	assert.Equal(t, "lobby-123", cmd.Lobby.ID)
 	assert.Equal(t, "player1", cmd.Lobby.LeaderID)
 	assert.Equal(t, "game-shard-1", cmd.Lobby.GameWorld.ShardID)
-	assert.Equal(t, 1, len(cmd.Lobby.Teams))
+	assert.Len(t, cmd.Lobby.Teams, 1)
 	assert.Equal(t, 2, cmd.Lobby.PlayerCount())
 }
 
@@ -334,7 +331,7 @@ func TestCreateLobbyCommand_WithGameWorld(t *testing.T) {
 	}
 
 	assert.Equal(t, "req-123", cmd.RequestID)
-	assert.Equal(t, 2, len(cmd.Teams))
+	assert.Len(t, cmd.Teams, 2)
 	assert.Equal(t, "game-shard-1", cmd.GameWorld.ShardID)
 	assert.Equal(t, "lobby_create", cmd.Name())
 }
@@ -343,14 +340,9 @@ func TestLobbyComponent_WithGameWorld(t *testing.T) {
 	t.Parallel()
 
 	lobby := component.LobbyComponent{
-		ID:         "lobby-1",
-		LeaderID:   "player1",
-		InviteCode: "ABC123",
 		GameWorld: cardinal.OtherWorld{
-			Region:       "eu-central",
-			Organization: "myorg",
-			Project:      "myproject",
-			ShardID:      "game-eu-1",
+			Region:  "eu-central",
+			ShardID: "game-eu-1",
 		},
 		Session: component.Session{
 			State: component.SessionStateIdle,
@@ -370,7 +362,7 @@ func TestStartSessionPayloadAlias(t *testing.T) {
 	payload.Lobby = component.LobbyComponent{ID: "lobby-1"}
 
 	// Should be assignable to NotifySessionStartCommand
-	var cmd NotifySessionStartCommand = payload
+	var cmd = payload
 	assert.Equal(t, "lobby-1", cmd.Lobby.ID)
 }
 
@@ -389,8 +381,7 @@ func TestGetPlayerCommand(t *testing.T) {
 
 	// Test GetPlayerCommand with empty PlayerID (self)
 	cmdSelf := GetPlayerCommand{
-		RequestID: "req-789",
-		PlayerID:  "",
+		PlayerID: "",
 	}
 	assert.Empty(t, cmdSelf.PlayerID)
 }
@@ -435,9 +426,7 @@ func TestGetPlayerResult(t *testing.T) {
 
 	// Test failure case
 	failResult := GetPlayerResult{
-		RequestID: "req-456",
 		IsSuccess: false,
-		Message:   "player not found",
 	}
 	assert.False(t, failResult.IsSuccess)
 	assert.Empty(t, failResult.Player.PlayerID)
@@ -476,9 +465,7 @@ func TestGetAllPlayersResult(t *testing.T) {
 
 	// Test failure case
 	failResult := GetAllPlayersResult{
-		RequestID: "req-456",
 		IsSuccess: false,
-		Message:   "player not in a lobby",
 	}
 	assert.False(t, failResult.IsSuccess)
 	assert.Nil(t, failResult.Players)
@@ -498,24 +485,16 @@ func TestResultsWithPlayerComponent(t *testing.T) {
 
 	// Test CreateLobbyResult includes Player
 	createResult := CreateLobbyResult{
-		RequestID: "req-1",
-		IsSuccess: true,
-		Message:   "lobby created",
-		Lobby:     component.LobbyComponent{ID: "lobby-456"},
-		Player:    player,
+		Player: player,
 	}
 	assert.Equal(t, "player-123", createResult.Player.PlayerID)
 	assert.Equal(t, "lobby-456", createResult.Player.LobbyID)
 
 	// Test JoinLobbyResult includes PlayersList
 	joinResult := JoinLobbyResult{
-		RequestID: "req-2",
-		IsSuccess: true,
-		Message:   "joined lobby",
-		Lobby:     component.LobbyComponent{ID: "lobby-456"},
 		PlayersList: []component.PlayerComponent{
 			player,
-			{PlayerID: "player-other", LobbyID: "lobby-456", TeamID: "team-2"},
+			{PlayerID: "player-other"},
 		},
 	}
 	assert.Len(t, joinResult.PlayersList, 2)
@@ -524,30 +503,21 @@ func TestResultsWithPlayerComponent(t *testing.T) {
 
 	// Test JoinTeamResult includes Player
 	joinTeamResult := JoinTeamResult{
-		RequestID: "req-3",
-		IsSuccess: true,
-		Message:   "changed team",
-		Player:    player,
+		Player: player,
 	}
 	assert.Equal(t, "player-123", joinTeamResult.Player.PlayerID)
 	assert.Equal(t, "team-1", joinTeamResult.Player.TeamID)
 
 	// Test SetReadyResult includes Player
 	setReadyResult := SetReadyResult{
-		RequestID: "req-4",
-		IsSuccess: true,
-		Message:   "ready status updated",
-		Player:    player,
+		Player: player,
 	}
 	assert.Equal(t, "player-123", setReadyResult.Player.PlayerID)
 	assert.True(t, setReadyResult.Player.IsReady)
 
 	// Test UpdatePlayerPassthroughResult includes Player
 	updateResult := UpdatePlayerPassthroughResult{
-		RequestID: "req-5",
-		IsSuccess: true,
-		Message:   "player passthrough data updated",
-		Player:    player,
+		Player: player,
 	}
 	assert.Equal(t, "player-123", updateResult.Player.PlayerID)
 	assert.Equal(t, "blue", updateResult.Player.PassthroughData["skin"])
@@ -567,7 +537,6 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 
 	// Test PlayerJoinedEvent includes Player
 	joinedEvent := PlayerJoinedEvent{
-		LobbyID:  "lobby-456",
 		TeamName: "Team Alpha",
 		Player:   player,
 	}
@@ -576,15 +545,13 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 
 	// Test PlayerReadyEvent includes Player
 	readyEvent := PlayerReadyEvent{
-		LobbyID: "lobby-456",
-		Player:  player,
+		Player: player,
 	}
 	assert.Equal(t, "player-123", readyEvent.Player.PlayerID)
 	assert.True(t, readyEvent.Player.IsReady)
 
 	// Test PlayerChangedTeamEvent includes Player
 	changedTeamEvent := PlayerChangedTeamEvent{
-		LobbyID:     "lobby-456",
 		OldTeamName: "Team Alpha",
 		NewTeamName: "Team Beta",
 		Player:      player,
@@ -595,9 +562,82 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 
 	// Test PlayerPassthroughUpdatedEvent includes Player
 	passthroughEvent := PlayerPassthroughUpdatedEvent{
-		LobbyID: "lobby-456",
-		Player:  player,
+		Player: player,
 	}
 	assert.Equal(t, "player-123", passthroughEvent.Player.PlayerID)
 	assert.Equal(t, 5, passthroughEvent.Player.PassthroughData["level"])
+}
+
+func TestFindTargetTeam(t *testing.T) {
+	t.Parallel()
+
+	lobby := &component.LobbyComponent{
+		Teams: []component.Team{
+			{TeamID: "team1", Name: "Alpha", MaxPlayers: 2, PlayerIDs: []string{"p1", "p2"}}, // full
+			{TeamID: "team2", Name: "Beta", MaxPlayers: 2, PlayerIDs: []string{"p3"}},        // has space
+			{TeamID: "team3", Name: "Gamma", MaxPlayers: 0, PlayerIDs: []string{}},           // unlimited
+		},
+	}
+
+	tests := []struct {
+		name       string
+		teamName   string
+		wantTeamID string
+		wantErrMsg string
+	}{
+		{
+			name:       "find by name - exists with space",
+			teamName:   "Beta",
+			wantTeamID: "team2",
+			wantErrMsg: "",
+		},
+		{
+			name:       "find by name - team not found",
+			teamName:   "NonExistent",
+			wantTeamID: "",
+			wantErrMsg: "team not found",
+		},
+		{
+			name:       "find by name - team is full",
+			teamName:   "Alpha",
+			wantTeamID: "",
+			wantErrMsg: "team is full",
+		},
+		{
+			name:       "auto-assign - finds first with space",
+			teamName:   "",
+			wantTeamID: "team2",
+			wantErrMsg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			team, errMsg := findTargetTeam(lobby, tt.teamName)
+			if tt.wantErrMsg != "" {
+				assert.Nil(t, team)
+				assert.Equal(t, tt.wantErrMsg, errMsg)
+			} else {
+				assert.NotNil(t, team)
+				assert.Equal(t, tt.wantTeamID, team.TeamID)
+				assert.Empty(t, errMsg)
+			}
+		})
+	}
+}
+
+func TestFindTargetTeam_AllTeamsFull(t *testing.T) {
+	t.Parallel()
+
+	lobby := &component.LobbyComponent{
+		Teams: []component.Team{
+			{TeamID: "team1", Name: "Alpha", MaxPlayers: 1, PlayerIDs: []string{"p1"}},
+			{TeamID: "team2", Name: "Beta", MaxPlayers: 1, PlayerIDs: []string{"p2"}},
+		},
+	}
+
+	team, errMsg := findTargetTeam(lobby, "")
+	assert.Nil(t, team)
+	assert.Equal(t, "all teams are full", errMsg)
 }

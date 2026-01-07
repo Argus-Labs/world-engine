@@ -530,7 +530,7 @@ func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent) strin
 
 	// Convert to 6-char code using our charset
 	code := make([]byte, 6)
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		// Use each hex byte to index into charset
 		idx := int(hexStr[i]) % len(inviteCodeCharset)
 		code[i] = inviteCodeCharset[idx]
@@ -539,6 +539,7 @@ func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent) strin
 }
 
 // storedProvider holds the provider set by the Register function.
+//
 //nolint:gochecknoglobals // set once at initialization, read-only thereafter
 var storedProvider LobbyProvider = DefaultProvider{}
 
@@ -550,6 +551,7 @@ func SetProvider(provider LobbyProvider) {
 }
 
 // storedConfig holds the configuration set by the Register function.
+//
 //nolint:gochecknoglobals // set once at initialization, read-only thereafter
 var storedConfig component.ConfigComponent
 
@@ -601,20 +603,20 @@ type LobbySystemState struct {
 	cardinal.BaseSystemState
 
 	// Commands
-	CreateLobbyCmds                cardinal.WithCommand[CreateLobbyCommand]
-	JoinLobbyCmds                  cardinal.WithCommand[JoinLobbyCommand]
-	JoinTeamCmds                   cardinal.WithCommand[JoinTeamCommand]
-	LeaveLobbyCmds                 cardinal.WithCommand[LeaveLobbyCommand]
-	SetReadyCmds                   cardinal.WithCommand[SetReadyCommand]
-	KickPlayerCmds                 cardinal.WithCommand[KickPlayerCommand]
-	TransferLeaderCmds             cardinal.WithCommand[TransferLeaderCommand]
-	StartSessionCmds               cardinal.WithCommand[StartSessionCommand]
-	NotifySessionEndCmds           cardinal.WithCommand[NotifySessionEndCommand]
-	GenerateInviteCodeCmds         cardinal.WithCommand[GenerateInviteCodeCommand]
-	UpdateSessionPassthroughCmds   cardinal.WithCommand[UpdateSessionPassthroughCommand]
-	UpdatePlayerPassthroughCmds    cardinal.WithCommand[UpdatePlayerPassthroughCommand]
-	GetPlayerCmds                  cardinal.WithCommand[GetPlayerCommand]
-	GetAllPlayersCmds              cardinal.WithCommand[GetAllPlayersCommand]
+	CreateLobbyCmds              cardinal.WithCommand[CreateLobbyCommand]
+	JoinLobbyCmds                cardinal.WithCommand[JoinLobbyCommand]
+	JoinTeamCmds                 cardinal.WithCommand[JoinTeamCommand]
+	LeaveLobbyCmds               cardinal.WithCommand[LeaveLobbyCommand]
+	SetReadyCmds                 cardinal.WithCommand[SetReadyCommand]
+	KickPlayerCmds               cardinal.WithCommand[KickPlayerCommand]
+	TransferLeaderCmds           cardinal.WithCommand[TransferLeaderCommand]
+	StartSessionCmds             cardinal.WithCommand[StartSessionCommand]
+	NotifySessionEndCmds         cardinal.WithCommand[NotifySessionEndCommand]
+	GenerateInviteCodeCmds       cardinal.WithCommand[GenerateInviteCodeCommand]
+	UpdateSessionPassthroughCmds cardinal.WithCommand[UpdateSessionPassthroughCommand]
+	UpdatePlayerPassthroughCmds  cardinal.WithCommand[UpdatePlayerPassthroughCommand]
+	GetPlayerCmds                cardinal.WithCommand[GetPlayerCommand]
+	GetAllPlayersCmds            cardinal.WithCommand[GetAllPlayersCommand]
 
 	// Entities
 	Lobbies cardinal.Contains[struct {
@@ -634,19 +636,19 @@ type LobbySystemState struct {
 	}]
 
 	// Events (Broadcast)
-	LobbyCreatedEvents               cardinal.WithEvent[LobbyCreatedEvent]
-	PlayerJoinedEvents               cardinal.WithEvent[PlayerJoinedEvent]
-	PlayerLeftEvents                 cardinal.WithEvent[PlayerLeftEvent]
-	PlayerKickedEvents               cardinal.WithEvent[PlayerKickedEvent]
-	PlayerReadyEvents                cardinal.WithEvent[PlayerReadyEvent]
-	PlayerChangedTeamEvents          cardinal.WithEvent[PlayerChangedTeamEvent]
-	LeaderChangedEvents              cardinal.WithEvent[LeaderChangedEvent]
-	SessionStartedEvents             cardinal.WithEvent[SessionStartedEvent]
-	SessionEndedEvents               cardinal.WithEvent[SessionEndedEvent]
-	InviteCodeGeneratedEvents        cardinal.WithEvent[InviteCodeGeneratedEvent]
-	LobbyDeletedEvents               cardinal.WithEvent[LobbyDeletedEvent]
-	SessionPassthroughUpdatedEvents  cardinal.WithEvent[SessionPassthroughUpdatedEvent]
-	PlayerPassthroughUpdatedEvents   cardinal.WithEvent[PlayerPassthroughUpdatedEvent]
+	LobbyCreatedEvents              cardinal.WithEvent[LobbyCreatedEvent]
+	PlayerJoinedEvents              cardinal.WithEvent[PlayerJoinedEvent]
+	PlayerLeftEvents                cardinal.WithEvent[PlayerLeftEvent]
+	PlayerKickedEvents              cardinal.WithEvent[PlayerKickedEvent]
+	PlayerReadyEvents               cardinal.WithEvent[PlayerReadyEvent]
+	PlayerChangedTeamEvents         cardinal.WithEvent[PlayerChangedTeamEvent]
+	LeaderChangedEvents             cardinal.WithEvent[LeaderChangedEvent]
+	SessionStartedEvents            cardinal.WithEvent[SessionStartedEvent]
+	SessionEndedEvents              cardinal.WithEvent[SessionEndedEvent]
+	InviteCodeGeneratedEvents       cardinal.WithEvent[InviteCodeGeneratedEvent]
+	LobbyDeletedEvents              cardinal.WithEvent[LobbyDeletedEvent]
+	SessionPassthroughUpdatedEvents cardinal.WithEvent[SessionPassthroughUpdatedEvent]
+	PlayerPassthroughUpdatedEvents  cardinal.WithEvent[PlayerPassthroughUpdatedEvent]
 
 	// CommandResult (request-prefixed responses)
 	CreateLobbyResults              cardinal.WithEvent[CreateLobbyResult]
@@ -666,10 +668,10 @@ type LobbySystemState struct {
 
 // lobbyLookupResult holds the result of looking up a player's lobby.
 type lobbyLookupResult struct {
-	lobbyID   string
-	entityID  ecs.EntityID
-	lobby     component.LobbyComponent
-	lobbyRef  cardinal.Ref[component.LobbyComponent]
+	lobbyID  string
+	entityID ecs.EntityID
+	lobby    component.LobbyComponent
+	lobbyRef cardinal.Ref[component.LobbyComponent]
 }
 
 // getPlayerLobby looks up the lobby for a player and returns all relevant data.
@@ -677,7 +679,9 @@ type lobbyLookupResult struct {
 func getPlayerLobby(
 	playerID string,
 	lobbyIndex *component.LobbyIndexComponent,
-	lobbies *cardinal.Contains[struct{ Lobby cardinal.Ref[component.LobbyComponent] }],
+	lobbies *cardinal.Contains[struct {
+		Lobby cardinal.Ref[component.LobbyComponent]
+	}],
 ) *lobbyLookupResult {
 	lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 	if !exists {
@@ -752,7 +756,288 @@ func LobbySystem(state *LobbySystemState) error {
 	return nil
 }
 
-func processCreateLobbyCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent, now int64, timeout int64) {
+// timedOutPlayer holds info about a player who missed heartbeat deadline.
+type timedOutPlayer struct {
+	playerID       string
+	lobbyID        string
+	teamID         string
+	playerEntityID uint32
+}
+
+// findTimedOutPlayers returns all players whose deadline has passed.
+func findTimedOutPlayers(lobbyIndex *component.LobbyIndexComponent, now int64) []timedOutPlayer {
+	var result []timedOutPlayer
+	for playerID, deadline := range lobbyIndex.PlayerDeadline {
+		if now >= deadline {
+			result = append(result, timedOutPlayer{
+				playerID:       playerID,
+				lobbyID:        lobbyIndex.PlayerToLobby[playerID],
+				teamID:         lobbyIndex.PlayerToTeam[playerID],
+				playerEntityID: lobbyIndex.PlayerToEntity[playerID],
+			})
+		}
+	}
+	return result
+}
+
+// groupPlayersByLobby groups timed out players by their lobby ID.
+func groupPlayersByLobby(players []timedOutPlayer) map[string][]timedOutPlayer {
+	result := make(map[string][]timedOutPlayer)
+	for _, p := range players {
+		result[p.lobbyID] = append(result[p.lobbyID], p)
+	}
+	return result
+}
+
+// findNewLeader finds the first remaining player in a lobby to be leader.
+// Returns empty string if no players remain.
+func findNewLeader(lobby *component.LobbyComponent) string {
+	for _, team := range lobby.Teams {
+		if len(team.PlayerIDs) > 0 {
+			return team.PlayerIDs[0]
+		}
+	}
+	return ""
+}
+
+// isLeaderInList checks if the lobby leader is in the timed out players list.
+func isLeaderInList(leaderID string, players []timedOutPlayer) bool {
+	for _, p := range players {
+		if p.playerID == leaderID {
+			return true
+		}
+	}
+	return false
+}
+
+// emitJoinLobbyFailure emits a failure result for JoinLobby command.
+func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
+	state.JoinLobbyResults.Emit(JoinLobbyResult{
+		RequestID: requestID,
+		IsSuccess: false,
+		Message:   message,
+	})
+}
+
+// createPlayerEntity creates a player entity and returns the component and entity ID.
+func createPlayerEntity(
+	state *LobbySystemState,
+	playerID, lobbyID, teamID string,
+	passthroughData map[string]any,
+	now int64,
+) (component.PlayerComponent, ecs.EntityID) {
+	playerComp := component.PlayerComponent{
+		PlayerID:        playerID,
+		LobbyID:         lobbyID,
+		TeamID:          teamID,
+		IsReady:         false,
+		PassthroughData: passthroughData,
+		JoinedAt:        now,
+	}
+	playerEntityID, playerEntity := state.Players.Create()
+	playerEntity.Player.Set(playerComp)
+	return playerComp, playerEntityID
+}
+
+// lobbyToDestroy holds info about a lobby to be destroyed.
+type lobbyToDestroy struct {
+	entityID ecs.EntityID
+	lobbyID  string
+}
+
+// processTimedOutLobby handles removing timed out players from a single lobby.
+// Returns player entity IDs to destroy and lobby to destroy (if empty).
+func processTimedOutLobby(
+	state *HeartbeatSystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	lobbyID string,
+	players []timedOutPlayer,
+) ([]ecs.EntityID, *lobbyToDestroy) {
+	var playerEntities []ecs.EntityID
+	lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
+	if !exists {
+		return nil, nil
+	}
+
+	lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+	if !ok {
+		return nil, nil
+	}
+
+	lobby := lobbyEntity.Lobby.Get()
+
+	// Remove each timed out player
+	for _, p := range players {
+		lobby.RemovePlayerFromTeam(p.playerID, p.teamID)
+		lobbyIndex.RemovePlayerFromLobby(p.playerID)
+		playerEntities = append(playerEntities, ecs.EntityID(p.playerEntityID))
+
+		state.Logger().Info().
+			Str("lobby_id", lobbyID).
+			Str("player_id", p.playerID).
+			Msg("Player timed out due to missed heartbeats")
+
+		state.PlayerTimedOutEvents.Emit(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
+		state.PlayerLeftEvents.Emit(PlayerLeftEvent{LobbyID: lobbyID, PlayerID: p.playerID})
+	}
+
+	// Check if lobby is empty
+	if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
+		lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
+		state.Logger().Info().Str("lobby_id", lobbyID).Msg("Lobby marked for deletion (empty after timeout)")
+		state.LobbyDeletedEvents.Emit(LobbyDeletedEvent{LobbyID: lobbyID})
+		return playerEntities, &lobbyToDestroy{entityID: ecs.EntityID(lobbyEntityID), lobbyID: lobbyID}
+	}
+
+	// Handle leader timeout
+	if isLeaderInList(lobby.LeaderID, players) {
+		oldLeaderID := lobby.LeaderID
+		lobby.LeaderID = findNewLeader(&lobby)
+		state.Logger().Info().
+			Str("lobby_id", lobbyID).
+			Str("old_leader", oldLeaderID).
+			Str("new_leader", lobby.LeaderID).
+			Msg("Leadership auto-transferred after timeout")
+		state.LeaderChangedEvents.Emit(LeaderChangedEvent{
+			LobbyID: lobbyID, OldLeaderID: oldLeaderID, NewLeaderID: lobby.LeaderID,
+		})
+	}
+
+	lobbyEntity.Lobby.Set(lobby)
+	return playerEntities, nil
+}
+
+// processHeartbeatCommands updates deadlines for players who sent heartbeats.
+func processHeartbeatCommands(
+	state *HeartbeatSystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	now, timeout int64,
+) {
+	for cmd := range state.HeartbeatCmds.Iter() {
+		playerID := cmd.Persona()
+		lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
+
+		state.Logger().Debug().
+			Str("player_id", playerID).
+			Str("lobby_id", lobbyID).
+			Bool("in_lobby", exists).
+			Msg("Heartbeat command received")
+
+		if exists {
+			lobbyIndex.UpdatePlayerDeadline(playerID, now+timeout)
+		}
+	}
+}
+
+// validateUniqueTeamNames checks for duplicate team names in config.
+// Returns the duplicate name if found, empty string otherwise.
+func validateUniqueTeamNames(teams []TeamConfig) string {
+	teamNames := make(map[string]bool)
+	for _, tc := range teams {
+		if teamNames[tc.Name] {
+			return tc.Name
+		}
+		teamNames[tc.Name] = true
+	}
+	return ""
+}
+
+// generateInviteCodeWithRetry generates an invite code with collision check.
+// Retries up to maxRetries times if collision detected.
+// Returns the code and whether generation succeeded.
+func generateInviteCodeWithRetry(
+	lobbyIndex *component.LobbyIndexComponent,
+	lobby *component.LobbyComponent,
+	maxRetries int,
+) (string, bool) {
+	for range maxRetries {
+		code := storedProvider.GenerateInviteCode(lobby)
+		if _, exists := lobbyIndex.GetLobbyByInviteCode(code); !exists {
+			return code, true
+		}
+	}
+	return "", false
+}
+
+// areAllPlayersReady checks if all players in a lobby are ready.
+// Returns false if lobby has no players or any player is not ready.
+func areAllPlayersReady(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	lobby *component.LobbyComponent,
+) bool {
+	playerIDs := lobby.GetAllPlayerIDs()
+	if len(playerIDs) == 0 {
+		return false
+	}
+	for _, pid := range playerIDs {
+		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(pid)
+		if !exists {
+			return false
+		}
+		playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		if !ok {
+			return false
+		}
+		if !playerEntity.Player.Get().IsReady {
+			return false
+		}
+	}
+	return true
+}
+
+// gatherLobbyPlayers collects all PlayerComponent data for players in a lobby.
+// Used to include player list in command results.
+func gatherLobbyPlayers(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	lobby *component.LobbyComponent,
+) []component.PlayerComponent {
+	var playersList []component.PlayerComponent
+	for _, pid := range lobby.GetAllPlayerIDs() {
+		pEntityID, pExists := lobbyIndex.GetPlayerEntityID(pid)
+		if !pExists {
+			continue
+		}
+		pEntity, pOK := state.Players.GetByID(ecs.EntityID(pEntityID))
+		if !pOK {
+			continue
+		}
+		playersList = append(playersList, pEntity.Player.Get())
+	}
+	return playersList
+}
+
+// findTargetTeam finds the team for a player to join.
+// If teamName is provided, it finds that specific team.
+// Otherwise, it finds the first team with available space.
+// Returns the team and an error message (empty string if successful).
+func findTargetTeam(lobby *component.LobbyComponent, teamName string) (*component.Team, string) {
+	if teamName != "" {
+		team := lobby.GetTeamByName(teamName)
+		if team == nil {
+			return nil, "team not found"
+		}
+		if team.IsFull() {
+			return nil, "team is full"
+		}
+		return team, ""
+	}
+
+	// Find first available team with space
+	for i := range lobby.Teams {
+		if !lobby.Teams[i].IsFull() {
+			return &lobby.Teams[i], ""
+		}
+	}
+	return nil, "all teams are full"
+}
+
+func processCreateLobbyCommands(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	now, timeout int64,
+) {
 	for cmd := range state.CreateLobbyCmds.Iter() {
 		playerID := cmd.Persona()
 		payload := cmd.Payload()
@@ -787,16 +1072,7 @@ func processCreateLobbyCommands(state *LobbySystemState, lobbyIndex *component.L
 		// Create teams from config or default single team
 		if len(payload.Teams) > 0 {
 			// Validate unique team names
-			teamNames := make(map[string]bool)
-			duplicateName := ""
-			for _, tc := range payload.Teams {
-				if teamNames[tc.Name] {
-					duplicateName = tc.Name
-					break
-				}
-				teamNames[tc.Name] = true
-			}
-			if duplicateName != "" {
+			if duplicateName := validateUniqueTeamNames(payload.Teams); duplicateName != "" {
 				state.Logger().Warn().Str("team_name", duplicateName).Msg("duplicate team name")
 				state.CreateLobbyResults.Emit(CreateLobbyResult{
 					RequestID: payload.RequestID,
@@ -822,17 +1098,9 @@ func processCreateLobbyCommands(state *LobbySystemState, lobbyIndex *component.L
 			}}
 		}
 
-		// Generate invite code with collision check (max 3 retries)
-		var inviteCode string
-		inviteCodeValid := false
-		for i := 0; i < 3; i++ {
-			inviteCode = storedProvider.GenerateInviteCode(&lobby)
-			if _, exists := lobbyIndex.GetLobbyByInviteCode(inviteCode); !exists {
-				inviteCodeValid = true
-				break
-			}
-		}
-		if !inviteCodeValid {
+		// Generate invite code with collision check
+		inviteCode, ok := generateInviteCodeWithRetry(lobbyIndex, &lobby, 3)
+		if !ok {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
 			state.CreateLobbyResults.Emit(CreateLobbyResult{
 				RequestID: payload.RequestID,
@@ -850,19 +1118,10 @@ func processCreateLobbyCommands(state *LobbySystemState, lobbyIndex *component.L
 		lobbyEntityID, lobbyEntity := state.Lobbies.Create()
 		lobbyEntity.Lobby.Set(lobby)
 
-		// Create player entity
-		playerComp := component.PlayerComponent{
-			PlayerID:        playerID,
-			LobbyID:         lobbyID,
-			TeamID:          lobby.Teams[0].TeamID,
-			IsReady:         false,
-			PassthroughData: payload.PlayerPassthroughData,
-			JoinedAt:        now,
-		}
-		playerEntityID, playerEntity := state.Players.Create()
-		playerEntity.Player.Set(playerComp)
-
-		// Update index
+		// Create player entity and update index
+		playerComp, playerEntityID := createPlayerEntity(
+			state, playerID, lobbyID, lobby.Teams[0].TeamID, payload.PlayerPassthroughData, now,
+		)
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
 
@@ -889,7 +1148,11 @@ func processCreateLobbyCommands(state *LobbySystemState, lobbyIndex *component.L
 	}
 }
 
-func processJoinLobbyCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent, now int64, timeout int64) {
+func processJoinLobbyCommands(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	now, timeout int64,
+) {
 	for cmd := range state.JoinLobbyCmds.Iter() {
 		playerID := cmd.Persona()
 		payload := cmd.Payload()
@@ -897,11 +1160,7 @@ func processJoinLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lob
 		// Check if player is already in a lobby
 		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
 			state.Logger().Warn().Str("player_id", playerID).Msg("player already in a lobby")
-			state.JoinLobbyResults.Emit(JoinLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "player already in a lobby",
-			})
+			emitJoinLobbyFailure(state, payload.RequestID, "player already in a lobby")
 			continue
 		}
 
@@ -909,31 +1168,19 @@ func processJoinLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lob
 		lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
 		if !exists {
 			state.Logger().Warn().Str("invite_code", payload.InviteCode).Msg("invalid invite code")
-			state.JoinLobbyResults.Emit(JoinLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "invalid invite code",
-			})
+			emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
 			continue
 		}
 
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
 		if !exists {
-			state.JoinLobbyResults.Emit(JoinLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "lobby not found",
-			})
+			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
 			continue
 		}
 
 		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
 		if !ok {
-			state.JoinLobbyResults.Emit(JoinLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "lobby not found",
-			})
+			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
 			continue
 		}
 
@@ -942,81 +1189,31 @@ func processJoinLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lob
 		// Check if lobby is in session
 		if lobby.Session.State == component.SessionStateInSession {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("lobby is in session")
-			state.JoinLobbyResults.Emit(JoinLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "lobby is in session",
-			})
+			emitJoinLobbyFailure(state, payload.RequestID, "lobby is in session")
 			continue
 		}
 
 		// Find target team
-		var targetTeam *component.Team
-		if payload.TeamName != "" {
-			// Find team by name
-			targetTeam = lobby.GetTeamByName(payload.TeamName)
-			if targetTeam == nil {
-				state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_name", payload.TeamName).Msg("team not found")
-				state.JoinLobbyResults.Emit(JoinLobbyResult{
-					RequestID: payload.RequestID,
-					IsSuccess: false,
-					Message:   "team not found",
-				})
-				continue
-			}
-			if targetTeam.IsFull() {
-				state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_name", payload.TeamName).Msg("team is full")
-				state.JoinLobbyResults.Emit(JoinLobbyResult{
-					RequestID: payload.RequestID,
-					IsSuccess: false,
-					Message:   "team is full",
-				})
-				continue
-			}
-		} else {
-			// Find first available team with space
-			for i := range lobby.Teams {
-				if !lobby.Teams[i].IsFull() {
-					targetTeam = &lobby.Teams[i]
-					break
-				}
-			}
-			if targetTeam == nil {
-				state.Logger().Warn().Str("lobby_id", lobbyID).Msg("all teams are full")
-				state.JoinLobbyResults.Emit(JoinLobbyResult{
-					RequestID: payload.RequestID,
-					IsSuccess: false,
-					Message:   "all teams are full",
-				})
-				continue
-			}
+		targetTeam, errMsg := findTargetTeam(&lobby, payload.TeamName)
+		if targetTeam == nil {
+			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_name", payload.TeamName).Msg(errMsg)
+			emitJoinLobbyFailure(state, payload.RequestID, errMsg)
+			continue
 		}
 
 		// Add player ID to team
 		if !lobby.AddPlayerToTeam(playerID, targetTeam.TeamID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("failed to join team")
-			state.JoinLobbyResults.Emit(JoinLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "failed to join team",
-			})
+			emitJoinLobbyFailure(state, payload.RequestID, "failed to join team")
 			continue
 		}
 
 		lobbyEntity.Lobby.Set(lobby)
 
 		// Create player entity
-		playerComp := component.PlayerComponent{
-			PlayerID:        playerID,
-			LobbyID:         lobbyID,
-			TeamID:          targetTeam.TeamID,
-			IsReady:         false,
-			PassthroughData: payload.PlayerPassthroughData,
-			JoinedAt:        now,
-		}
-		playerEntityID, playerEntity := state.Players.Create()
-		playerEntity.Player.Set(playerComp)
-
+		playerComp, playerEntityID := createPlayerEntity(
+			state, playerID, lobbyID, targetTeam.TeamID, payload.PlayerPassthroughData, now,
+		)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, targetTeam.TeamID, uint32(playerEntityID), now+timeout)
 
 		state.Logger().Info().
@@ -1033,18 +1230,7 @@ func processJoinLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lob
 		})
 
 		// Gather all players in the lobby for the result
-		var playersList []component.PlayerComponent
-		for _, pid := range lobby.GetAllPlayerIDs() {
-			pEntityID, exists := lobbyIndex.GetPlayerEntityID(pid)
-			if !exists {
-				continue
-			}
-			pEntity, ok := state.Players.GetByID(ecs.EntityID(pEntityID))
-			if !ok {
-				continue
-			}
-			playersList = append(playersList, pEntity.Player.Get())
-		}
+		playersList := gatherLobbyPlayers(state, lobbyIndex, &lobby)
 
 		// Emit success result
 		state.JoinLobbyResults.Emit(JoinLobbyResult{
@@ -1428,7 +1614,8 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 
 		// Check if target is in lobby
 		if !lobby.HasPlayer(payload.TargetPlayerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("target", payload.TargetPlayerID).Msg("target player not in lobby")
+			state.Logger().Warn().Str("lobby_id", lobbyID).Str("target", payload.TargetPlayerID).
+				Msg("target player not in lobby")
 			state.TransferLeaderResults.Emit(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -1462,7 +1649,11 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 	}
 }
 
-func processStartSessionCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent, config *component.ConfigComponent) {
+func processStartSessionCommands(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	config *component.ConfigComponent,
+) {
 	for cmd := range state.StartSessionCmds.Iter() {
 		playerID := cmd.Persona()
 		payload := cmd.Payload()
@@ -1500,27 +1691,8 @@ func processStartSessionCommands(state *LobbySystemState, lobbyIndex *component.
 			continue
 		}
 
-		// Check all ready (check player entities)
-		allReady := true
-		playerCount := 0
-		for _, pid := range lobby.GetAllPlayerIDs() {
-			playerCount++
-			playerEntityID, exists := lobbyIndex.GetPlayerEntityID(pid)
-			if !exists {
-				allReady = false
-				break
-			}
-			playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-			if !ok {
-				allReady = false
-				break
-			}
-			if !playerEntity.Player.Get().IsReady {
-				allReady = false
-				break
-			}
-		}
-		if playerCount == 0 || !allReady {
+		// Check all ready
+		if !areAllPlayersReady(state, lobbyIndex, &lobby) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("not all players are ready")
 			state.StartSessionResults.Emit(StartSessionResult{
 				RequestID: payload.RequestID,
@@ -1602,12 +1774,12 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 
 		// Reset ready status for all player entities
 		for _, pid := range lobby.GetAllPlayerIDs() {
-			playerEntityID, exists := lobbyIndex.GetPlayerEntityID(pid)
-			if !exists {
+			playerEntityID, pExists := lobbyIndex.GetPlayerEntityID(pid)
+			if !pExists {
 				continue
 			}
-			playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-			if !ok {
+			playerEntity, pOK := state.Players.GetByID(ecs.EntityID(playerEntityID))
+			if !pOK {
 				continue
 			}
 			playerComp := playerEntity.Player.Get()
@@ -1659,7 +1831,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 		// Generate new invite code with collision check (max 3 retries)
 		var newCode string
 		newCodeValid := false
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			newCode = storedProvider.GenerateInviteCode(&lobby)
 			// Check collision (but allow same code as current)
 			existingLobby, exists := lobbyIndex.GetLobbyByInviteCode(newCode)
@@ -1722,7 +1894,8 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 
 		// Only leader can update session passthrough data
 		if !lobby.IsLeader(playerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can update session passthrough data")
+			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).
+				Msg("only leader can update session passthrough data")
 			state.UpdateSessionPassthroughResults.Emit(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -1969,45 +2142,11 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 		timeout = 30 // default 30 seconds
 	}
 
-	// Process heartbeat commands - update deadline for senders (O(1) map update)
-	for cmd := range state.HeartbeatCmds.Iter() {
-		playerID := cmd.Persona()
-		lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
+	// Process heartbeat commands - update deadline for senders
+	processHeartbeatCommands(state, &lobbyIndex, now, timeout)
 
-		state.Logger().Debug().
-			Str("player_id", playerID).
-			Str("lobby_id", lobbyID).
-			Bool("in_lobby", exists).
-			Msg("Heartbeat command received")
-
-		if exists {
-			lobbyIndex.UpdatePlayerDeadline(playerID, now+timeout)
-		}
-	}
-
-	// Find timed out players by iterating PlayerDeadline directly - O(allPlayers)
-	// This avoids iterating all lobbies when no players have timed out
-	type timedOutPlayer struct {
-		playerID       string
-		lobbyID        string
-		teamID         string
-		playerEntityID uint32
-	}
-	timedOutPlayers := []timedOutPlayer{}
-
-	for playerID, deadline := range lobbyIndex.PlayerDeadline {
-		if now >= deadline {
-			lobbyID, _ := lobbyIndex.PlayerToLobby[playerID]
-			teamID, _ := lobbyIndex.PlayerToTeam[playerID]
-			playerEntityID, _ := lobbyIndex.PlayerToEntity[playerID]
-			timedOutPlayers = append(timedOutPlayers, timedOutPlayer{
-				playerID:       playerID,
-				lobbyID:        lobbyID,
-				teamID:         teamID,
-				playerEntityID: playerEntityID,
-			})
-		}
-	}
+	// Find timed out players - O(allPlayers)
+	timedOutPlayers := findTimedOutPlayers(&lobbyIndex, now)
 
 	// Early exit if no players timed out
 	if len(timedOutPlayers) == 0 {
@@ -2019,107 +2158,17 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 	}
 
 	// Group timed out players by lobby for efficient processing
-	timedOutByLobby := make(map[string][]timedOutPlayer)
-	for _, p := range timedOutPlayers {
-		timedOutByLobby[p.lobbyID] = append(timedOutByLobby[p.lobbyID], p)
-	}
-
-	// Collect entities to destroy after processing
-	type lobbyToDestroy struct {
-		entityID ecs.EntityID
-		lobbyID  string
-	}
-	lobbiesToDestroy := []lobbyToDestroy{}
-	playerEntitiesToDestroy := []ecs.EntityID{}
+	timedOutByLobby := groupPlayersByLobby(timedOutPlayers)
 
 	// Process each affected lobby
+	var lobbiesToDestroy []lobbyToDestroy
+	var playerEntitiesToDestroy []ecs.EntityID
 	for lobbyID, players := range timedOutByLobby {
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
-		if !exists {
-			continue
+		playerEntities, toDestroy := processTimedOutLobby(state, &lobbyIndex, lobbyID, players)
+		playerEntitiesToDestroy = append(playerEntitiesToDestroy, playerEntities...)
+		if toDestroy != nil {
+			lobbiesToDestroy = append(lobbiesToDestroy, *toDestroy)
 		}
-
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
-
-		// Remove each timed out player
-		for _, p := range players {
-			// Remove from team using teamID - O(players in team)
-			lobby.RemovePlayerFromTeam(p.playerID, p.teamID)
-			lobbyIndex.RemovePlayerFromLobby(p.playerID)
-			playerEntitiesToDestroy = append(playerEntitiesToDestroy, ecs.EntityID(p.playerEntityID))
-
-			state.Logger().Info().
-				Str("lobby_id", lobbyID).
-				Str("player_id", p.playerID).
-				Msg("Player timed out due to missed heartbeats")
-
-			// Emit events
-			state.PlayerTimedOutEvents.Emit(PlayerTimedOutEvent{
-				LobbyID:  lobbyID,
-				PlayerID: p.playerID,
-			})
-			state.PlayerLeftEvents.Emit(PlayerLeftEvent{
-				LobbyID:  lobbyID,
-				PlayerID: p.playerID,
-			})
-		}
-
-		// Check if lobby is empty using index - O(1)
-		if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
-			lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
-			lobbiesToDestroy = append(lobbiesToDestroy, lobbyToDestroy{
-				entityID: ecs.EntityID(lobbyEntityID),
-				lobbyID:  lobbyID,
-			})
-
-			state.Logger().Info().
-				Str("lobby_id", lobbyID).
-				Msg("Lobby marked for deletion (empty after timeout)")
-
-			state.LobbyDeletedEvents.Emit(LobbyDeletedEvent{
-				LobbyID: lobbyID,
-			})
-			continue
-		}
-
-		// Handle leader timeout - transfer to another player
-		leaderTimedOut := false
-		for _, p := range players {
-			if p.playerID == lobby.LeaderID {
-				leaderTimedOut = true
-				break
-			}
-		}
-
-		if leaderTimedOut {
-			oldLeaderID := lobby.LeaderID
-			// Find first remaining player ID - O(teams)
-			for _, team := range lobby.Teams {
-				if len(team.PlayerIDs) > 0 {
-					lobby.LeaderID = team.PlayerIDs[0]
-					break
-				}
-			}
-
-			state.Logger().Info().
-				Str("lobby_id", lobbyID).
-				Str("old_leader", oldLeaderID).
-				Str("new_leader", lobby.LeaderID).
-				Msg("Leadership auto-transferred after timeout")
-
-			state.LeaderChangedEvents.Emit(LeaderChangedEvent{
-				LobbyID:     lobbyID,
-				OldLeaderID: oldLeaderID,
-				NewLeaderID: lobby.LeaderID,
-			})
-		}
-
-		lobbyEntity.Lobby.Set(lobby)
 	}
 
 	// Destroy player entities
