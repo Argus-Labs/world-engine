@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"reflect"
 	"regexp"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -31,9 +32,10 @@ type componentID = uint32
 
 // componentManager manages component type registration and lookup.
 type componentManager struct {
-	nextID    componentID            // The next available component ID
-	catalog   map[string]componentID // Component name -> component ID
-	factories []columnFactory        // Component ID -> column factory
+	nextID    componentID             // The next available component ID
+	catalog   map[string]componentID  // Component name -> component ID
+	factories []columnFactory         // Component ID -> column factory
+	types     map[string]reflect.Type // Component name -> reflect.Type
 }
 
 // newComponentManager creates a new component manager.
@@ -42,6 +44,7 @@ func newComponentManager() componentManager {
 		nextID:    0,
 		catalog:   make(map[string]componentID),
 		factories: make([]columnFactory, 0),
+		types:     make(map[string]reflect.Type),
 	}
 }
 
@@ -67,7 +70,7 @@ func validateComponentName(name string) error {
 
 // register registers a new component type and returns its ID.
 // If the component is already registered, no-op.
-func (cm *componentManager) register(name string, factory columnFactory) (componentID, error) {
+func (cm *componentManager) register(name string, factory columnFactory, typ reflect.Type) (componentID, error) {
 	// Validate component name follows expr identifier rules
 	if err := validateComponentName(name); err != nil {
 		return 0, err
@@ -80,6 +83,7 @@ func (cm *componentManager) register(name string, factory columnFactory) (compon
 
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, factory)
+	cm.types[name] = typ
 	cm.nextID++
 	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 

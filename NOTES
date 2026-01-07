@@ -1,0 +1,24 @@
+FINDINGS:
+- incorrect assertion in sparse set(k, v)
+  * assert(value != tombstone) should've been assert(value >= 0)
+
+- archetype moveEntity not handling cases where src == dst
+
+- that stupid json deserialization quirk in @world_internal_test.go. if a snapshot is corrupted at a
+  JSON key, go json deser is case-insensitive, so the restored state when reserialized will produce
+  different state hashes.
+  * Go encoding/json/v2 fixes case-insensitive unmarshal
+
+- archetype.fromProto panics in bitmap.FromBytes if a corrupted bitmap bytes isn't divisible by 8.
+
+- event manager channel capacity is capped, which blocks new events from being enqueued when it is full.
+
+TODO:
+- [ ] update `search.go` unit tests
+- [ ] update `system_state.go` unit tests
+- [ ] update `world.go` unit tests
+
+cardinal: https://ampcode.com/threads/T-019b0d08-7cf1-73fd-9181-ad865acaa408
+
+NOTES:
+- NewErrorResponse breaking change not accepting 0 codes anymore

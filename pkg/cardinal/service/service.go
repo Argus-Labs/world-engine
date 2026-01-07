@@ -32,6 +32,7 @@ type ShardService struct {
 	queryPool       sync.Pool            // Pool for query objects
 	personaID       string               // Registered persona ID from registry
 	personaFilePath string               // Path to persist the persona ID file
+	introspect      Introspect           // Introspection metadata cache
 }
 
 // NewShardService creates a new shard service.
@@ -95,6 +96,10 @@ func (s *ShardService) registerEndpoints() error {
 	err := s.AddEndpoint("query", s.handleQuery)
 	if err != nil {
 		return eris.Wrap(err, "failed to register query handler")
+	}
+	err = s.AddEndpoint("introspect", s.handleIntrospect)
+	if err != nil {
+		return eris.Wrap(err, "failed to register introspect handler")
 	}
 	return nil
 }

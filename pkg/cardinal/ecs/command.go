@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"math"
+	"reflect"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -22,9 +23,10 @@ type Command interface { //nolint:iface // ecs.Command must be a subset of micro
 
 // commandManager manages the registration and storage of commands.
 type commandManager struct {
-	nextID   CommandID            // The next command ID
-	catalog  map[string]CommandID // Command name -> Command ID
-	commands [][]micro.Command    // Command ID -> command
+	nextID   CommandID               // The next command ID
+	catalog  map[string]CommandID    // Command name -> Command ID
+	commands [][]micro.Command       // Command ID -> command
+	types    map[string]reflect.Type // Command name -> reflect.Type
 }
 
 // newCommandManager creates a new commandManager.
@@ -33,12 +35,13 @@ func newCommandManager() commandManager {
 		nextID:   0,
 		catalog:  make(map[string]CommandID),
 		commands: make([][]micro.Command, 0),
+		types:    make(map[string]reflect.Type),
 	}
 }
 
 // register registers a new command type. If the command is already registered, the existing ID
 // is returned.
-func (c *commandManager) register(name string) (CommandID, error) {
+func (c *commandManager) register(name string, typ reflect.Type) (CommandID, error) {
 	if name == "" {
 		return 0, eris.New("command name cannot be empty")
 	}
@@ -55,6 +58,7 @@ func (c *commandManager) register(name string) (CommandID, error) {
 	const initialCommandBufferCapacity = 128
 	c.catalog[name] = c.nextID
 	c.commands = append(c.commands, make([]micro.Command, 0, initialCommandBufferCapacity))
+	c.types[name] = typ
 	c.nextID++
 	assert.That(int(c.nextID) == len(c.commands), "command id doesn't match number of commands")
 

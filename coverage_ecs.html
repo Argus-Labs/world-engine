@@ -1,0 +1,2821 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>ecs: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/argus-labs/world-engine/pkg/cardinal/ecs/archetype.go (97.2%)</option>
+				
+				<option value="file1">github.com/argus-labs/world-engine/pkg/cardinal/ecs/column.go (97.8%)</option>
+				
+				<option value="file2">github.com/argus-labs/world-engine/pkg/cardinal/ecs/command.go (87.5%)</option>
+				
+				<option value="file3">github.com/argus-labs/world-engine/pkg/cardinal/ecs/component.go (89.5%)</option>
+				
+				<option value="file4">github.com/argus-labs/world-engine/pkg/cardinal/ecs/ecs.go (36.4%)</option>
+				
+				<option value="file5">github.com/argus-labs/world-engine/pkg/cardinal/ecs/event.go (93.9%)</option>
+				
+				<option value="file6">github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils/commands.go (0.0%)</option>
+				
+				<option value="file7">github.com/argus-labs/world-engine/pkg/cardinal/ecs/internal/testutils/components.go (0.0%)</option>
+				
+				<option value="file8">github.com/argus-labs/world-engine/pkg/cardinal/ecs/scheduler.go (94.7%)</option>
+				
+				<option value="file9">github.com/argus-labs/world-engine/pkg/cardinal/ecs/search.go (93.5%)</option>
+				
+				<option value="file10">github.com/argus-labs/world-engine/pkg/cardinal/ecs/sparse.go (100.0%)</option>
+				
+				<option value="file11">github.com/argus-labs/world-engine/pkg/cardinal/ecs/system.go (73.7%)</option>
+				
+				<option value="file12">github.com/argus-labs/world-engine/pkg/cardinal/ecs/system_event.go (90.9%)</option>
+				
+				<option value="file13">github.com/argus-labs/world-engine/pkg/cardinal/ecs/system_state.go (67.5%)</option>
+				
+				<option value="file14">github.com/argus-labs/world-engine/pkg/cardinal/ecs/world.go (58.3%)</option>
+				
+				<option value="file15">github.com/argus-labs/world-engine/pkg/cardinal/ecs/world_state.go (94.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package ecs
+
+import (
+        "github.com/argus-labs/world-engine/pkg/assert"
+        cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+        "github.com/kelindar/bitmap"
+        "github.com/rotisserie/eris"
+)
+
+// archetypeID is the unique identifier for an archetype.
+// It is used internally to track and manage archetypes efficiently.
+type archetypeID = int
+
+// archetype represents a collection of entities with the same component types.
+// NOTE: We store the compCount instead of using Bitmap.Count() because counting bits is O(n). This
+// saves us around 10ns/op, which is 10x speed up in low # of components. We store columns in a
+// slice instead of a map because it's faster for small # of components.
+type archetype struct {
+        id         archetypeID      // Corresponds to the index in the archetypes array
+        components bitmap.Bitmap    // Bitmap of components contained in this archetype
+        rows       sparseSet        // Maps entity ID -&gt; row index in entities and columns
+        entities   []EntityID       // List of entities of this archetype
+        columns    []abstractColumn // List of columns containing component data
+        compCount  int              // Number of component types in the archetype
+}
+
+// newArchetype creates an archetype for the given component types.
+func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractColumn) archetype <span class="cov8" title="1">{
+        assert.That(components.Count() == len(columns), "mismatched number of columns and components")
+        return archetype{
+                id:         aid,
+                components: components,
+                rows:       newSparseSet(),
+                entities:   make([]EntityID, 0),
+                columns:    columns,
+                compCount:  len(columns),
+        }
+}</span>
+
+// exact returns true if the given components matches the archetype's exactly.
+func (a *archetype) exact(components bitmap.Bitmap) bool <span class="cov8" title="1">{
+        if a.compCount != components.Count() </span><span class="cov8" title="1">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return a.contains(components)</span>
+}
+
+// contains returns true if the archetype contains all of the components in the given components.
+func (a *archetype) contains(components bitmap.Bitmap) bool <span class="cov8" title="1">{
+        intersect := components.Clone(nil)
+        intersect.And(a.components)
+        return intersect.Count() == components.Count()
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Entity operations
+// -------------------------------------------------------------------------------------------------
+
+// newEntity adds the entity to the archetype. It initializes the entity's components with their
+// zero values. This is done to ensure the length of each column matches the length of the entities
+// slice.
+func (a *archetype) newEntity(eid EntityID) <span class="cov8" title="1">{
+        // Add to the entities slice.
+        a.entities = append(a.entities, eid)
+
+        // Extend the archetype's columns to make space for the new entity's components.
+        for _, column := range a.columns </span><span class="cov8" title="1">{
+                column.extend()
+                assert.That(column.len() == len(a.entities), "column components length doesn't match entities")
+        }</span>
+
+        // Map entity ID to its row.
+        <span class="cov8" title="1">a.rows.set(eid, len(a.entities)-1)</span>
+}
+
+// removeEntity removes an entity from the archetype. A remove swaps the last entity in the slice
+// with the entity to remove, and returns the swapped entity ID. If the entity is the
+// Expects the caller to check that the entity belongs to this archetype and is alive.
+func (a *archetype) removeEntity(eid EntityID) <span class="cov8" title="1">{
+        row, exists := a.rows.get(eid)
+        assert.That(exists, "entity is not in archetype")
+
+        lastIndex := len(a.entities) - 1
+
+        // Swap the entity to remove with the last entity in the array.
+        a.entities[row] = a.entities[lastIndex]
+        // Truncate the array to remove the last entity.
+        a.entities = a.entities[:lastIndex]
+
+        // Remove the components of the entity.
+        for _, column := range a.columns </span><span class="cov8" title="1">{
+                column.remove(row)
+                assert.That(column.len() == len(a.entities), "column components length doesn't match entities")
+        }</span>
+
+        // Remove the entity from the row mapping.
+        <span class="cov8" title="1">ok := a.rows.remove(eid)
+        assert.That(ok, "entity isn't removed from sparse set")
+
+        // If the entity is the last item in the slice, nothing is swapped so we can just return.
+        if row == lastIndex </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        // Else, we ppdate the swapped entity metadata to point to the correct row.
+        <span class="cov8" title="1">movedID := a.entities[row]
+        a.rows.set(movedID, row)</span>
+}
+
+// moveEntity moves an entity from one archetype to another. It creates a new entity in the
+// destination archetype, copies the component data from the current archetype, and removes the
+// entity in the current archetype. Returns the swapped entity ID from the remove operation and the
+// row in the destination archetype.
+func (a *archetype) moveEntity(destination *archetype, eid EntityID) <span class="cov8" title="1">{
+        // Normally I'd assert(src != dst) here, but since we have newEntityWithArchetype({}) is valid,
+        // we'll just no-op instead of panic.
+        if a == destination </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">row, exists := a.rows.get(eid)
+        assert.That(exists, "entity is not in archetype")
+
+        // Create a new entity in the destination archetype with the id.
+        destination.newEntity(eid)
+        newRow, exists := destination.rows.get(eid)
+        assert.That(exists, "new entity isn't created in the destination archetype")
+
+        // Move entity's components to the new archetype.
+        for _, dst := range destination.columns </span><span class="cov8" title="1">{
+                for _, src := range a.columns </span><span class="cov8" title="1">{
+                        if dst.name() == src.name() </span><span class="cov8" title="1">{
+                                value := src.getAbstract(row)
+                                dst.setAbstract(newRow, value)
+                        }</span>
+                }
+        }
+
+        // Remove the entity from the current archetype, which also updates the row mapping.
+        <span class="cov8" title="1">a.removeEntity(eid)</span>
+}
+
+// -------------------------------------------------------------------------------------------------
+// Serialization
+// -------------------------------------------------------------------------------------------------
+
+// toProto converts the archetype to a protobuf message for serialization.
+func (a *archetype) toProto() (*cardinalv1.Archetype, error) <span class="cov8" title="1">{
+        componentsBitmap := a.components.ToBytes()
+
+        entities := make([]uint32, len(a.entities))
+        for i, eid := range a.entities </span><span class="cov8" title="1">{
+                entities[i] = uint32(eid)
+        }</span>
+
+        <span class="cov8" title="1">columns := make([]*cardinalv1.Column, len(a.columns))
+        for i, column := range a.columns </span><span class="cov8" title="1">{
+                data, err := column.toProto()
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, eris.Wrapf(err, "failed to serialize column %d", i)
+                }</span>
+                <span class="cov8" title="1">columns[i] = data</span>
+        }
+
+        <span class="cov8" title="1">return &amp;cardinalv1.Archetype{
+                Id:               int32(a.id), //nolint:gosec // it's ok
+                ComponentsBitmap: componentsBitmap,
+                Entities:         entities,
+                Columns:          columns,
+                Rows:             a.rows.toInt64Slice(),
+        }, nil</span>
+}
+
+// fromProto populates the archetype from a protobuf message. We pass a reference to the component
+// manager to get the column factories needed to create the correct column[T].
+func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) error <span class="cov8" title="1">{
+        if pb == nil </span><span class="cov0" title="0">{
+                return eris.New("protobuf archetype is nil")
+        }</span>
+
+        <span class="cov8" title="1">a.id = archetypeID(pb.GetId())
+        a.components = bitmap.FromBytes(pb.GetComponentsBitmap())
+        a.rows.fromInt64Slice(pb.GetRows())
+
+        a.entities = make([]EntityID, len(pb.GetEntities()))
+        for i, eid := range pb.GetEntities() </span><span class="cov8" title="1">{
+                a.entities[i] = EntityID(eid)
+        }</span>
+
+        <span class="cov8" title="1">a.columns = make([]abstractColumn, len(pb.GetColumns()))
+        for i, pbCol := range pb.GetColumns() </span><span class="cov8" title="1">{
+                cid, err := cm.getID(pbCol.GetComponentName())
+                if err != nil </span><span class="cov8" title="1">{
+                        return eris.Wrap(err, "failed to get component id")
+                }</span>
+
+                <span class="cov8" title="1">factory := cm.factories[cid]
+                column := factory()
+
+                if err := column.fromProto(pbCol); err != nil </span><span class="cov8" title="1">{
+                        return eris.Wrapf(err, "failed to deserialize column %d", i)
+                }</span>
+                <span class="cov8" title="1">a.columns[i] = column</span>
+        }
+        <span class="cov8" title="1">a.compCount = len(a.columns)
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package ecs
+
+import (
+        "github.com/argus-labs/world-engine/pkg/assert"
+        cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+        "github.com/goccy/go-json"
+        "github.com/rotisserie/eris"
+)
+
+// columnFactory is a function that creates a new abstractColumn instance.
+type columnFactory func() abstractColumn
+
+// abstractColumn is an internal interface for generic column operations.
+type abstractColumn interface {
+        len() int
+        name() string
+        extend()
+
+        setAbstract(row int, component Component)
+        getAbstract(row int) Component
+        remove(row int)
+
+        toProto() (*cardinalv1.Column, error)
+        fromProto(*cardinalv1.Column) error
+}
+
+var _ abstractColumn = &amp;column[Component]{}
+
+// column stores the component data of entities in an archetype. The length of the components slice
+// must match the length of the entities slice in the archetype.
+type column[T Component] struct {
+        compName   string // The name of the component stored in this column
+        components []T    // Array containing the component data
+}
+
+const columnCapacity = 16
+
+// newColumn creates a new column with the specified type.
+func newColumn[T Component]() column[T] <span class="cov8" title="1">{
+        var zero T
+        return column[T]{
+                compName:   zero.Name(),
+                components: make([]T, 0, columnCapacity),
+        }
+}</span>
+
+// newColumnFactory returns a function that constructs a new column of type T.
+func newColumnFactory[T Component]() columnFactory <span class="cov8" title="1">{
+        return func() abstractColumn </span><span class="cov8" title="1">{
+                col := newColumn[T]()
+                return &amp;col
+        }</span>
+}
+
+// len returns the length of the components slice.
+func (c *column[T]) len() int <span class="cov8" title="1">{
+        return len(c.components)
+}</span>
+
+// name returns the name of the component type.
+func (c *column[T]) name() string <span class="cov8" title="1">{
+        return c.compName
+}</span>
+
+// extend adds a new row to the components slice and initializes them with the zero value.
+func (c *column[T]) extend() <span class="cov8" title="1">{
+        // Double the capacity when the capacity is reached.
+        if len(c.components) == cap(c.components) </span><span class="cov8" title="1">{
+                newCap := cap(c.components) * 2
+                newComponents := make([]T, len(c.components), newCap)
+                copy(newComponents, c.components)
+                c.components = newComponents
+        }</span>
+
+        <span class="cov8" title="1">var zero T
+        c.components = append(c.components, zero)</span>
+}
+
+// set sets the component in a given row. A row corresponds to a single entity. Whenever possible
+// prefer this method over setAbstract since it avoids the type assertion and avoids boxing the
+// component data, which does allocations.
+func (c *column[T]) set(row int, component T) <span class="cov8" title="1">{
+        assert.That(row &lt; len(c.components), "column isn't extended when entity is created")
+        c.components[row] = component
+}</span>
+
+// setAbstract sets the component in a given row. A row corresponds to a single entity. Use this
+// method only when you don't know the concrete type of the component.
+func (c *column[T]) setAbstract(row int, component Component) <span class="cov8" title="1">{
+        concrete, ok := component.(T)
+        assert.That(ok, "tried to set the wrong component type")
+        c.set(row, concrete)
+}</span>
+
+// get gets the value from a given row. A row corresponds to a single entity. Expects the caller
+// to make sure the row is inside the column. Whenever possible prefer this method over getAbstract
+// since it avoids the type assertion and avoids boxing the component data, which does allocations.
+func (c *column[T]) get(row int) T <span class="cov8" title="1">{
+        assert.That(row &lt; len(c.components), "component doesn't exist")
+        return c.components[row]
+}</span>
+
+// getAbstract gets the value from a given row. A row corresponds to a single entity. Expects the
+// caller to make sure the row is inside the column. Use this method only when you don't know the
+// concrete type of the component.
+func (c *column[T]) getAbstract(row int) Component <span class="cov8" title="1">{
+        return c.get(row)
+}</span>
+
+// remove removes a given row. A row corresponds to a single entity. Expects the caller to make sure
+// the row is inside the column. A remove swaps the last value in the slice with the row to remove.
+func (c *column[T]) remove(row int) <span class="cov8" title="1">{
+        assert.That(row &lt; len(c.components), "tried to remove component that doesn't exist")
+
+        lastIndex := len(c.components) - 1
+
+        // Removing a component is the same as moving the entity to another archetype.
+        // Swap the component to remove with the last component in the array.
+        c.components[row] = c.components[lastIndex]
+        // Truncate the array to remove the last component.
+        c.components = c.components[:lastIndex]
+}</span>
+
+// toProto converts the column to a protobuf message for serialization.
+func (c *column[T]) toProto() (*cardinalv1.Column, error) <span class="cov8" title="1">{
+        componentData := make([][]byte, len(c.components))
+        for i, component := range c.components </span><span class="cov8" title="1">{
+                data, err := json.Marshal(component)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, eris.Wrapf(err, "failed to serialize component at index %d", i)
+                }</span>
+                <span class="cov8" title="1">componentData[i] = data</span>
+        }
+
+        <span class="cov8" title="1">return &amp;cardinalv1.Column{
+                ComponentName: c.compName,
+                Components:    componentData,
+        }, nil</span>
+}
+
+// fromProto populates the column from a protobuf message.
+func (c *column[T]) fromProto(pb *cardinalv1.Column) error <span class="cov8" title="1">{
+        if pb == nil </span><span class="cov8" title="1">{
+                return eris.New("protobuf column is nil")
+        }</span>
+
+        <span class="cov8" title="1">if pb.GetComponentName() != c.compName </span><span class="cov8" title="1">{
+                return eris.Errorf("component name mismatch: expected %s, got %s", c.compName, pb.GetComponentName())
+        }</span>
+
+        <span class="cov8" title="1">components := make([]T, len(pb.GetComponents()))
+        for i, data := range pb.GetComponents() </span><span class="cov8" title="1">{
+                var component T
+                if err := json.Unmarshal(data, &amp;component); err != nil </span><span class="cov8" title="1">{
+                        return eris.Wrapf(err, "failed to deserialize component at index %d", i)
+                }</span>
+                <span class="cov8" title="1">components[i] = component</span>
+        }
+
+        <span class="cov8" title="1">c.components = components
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package ecs
+
+import (
+        "math"
+
+        "github.com/argus-labs/world-engine/pkg/assert"
+        "github.com/argus-labs/world-engine/pkg/micro"
+        "github.com/rotisserie/eris"
+)
+
+// CommandID is a unique identifier for a command type.
+type CommandID uint32
+
+// MaxCommandID is the maximum number of command types that can be registered.
+const MaxCommandID = math.MaxUint32 - 1
+
+// Command is the interface that all commands must implement.
+// Commands are predefined user actions that are handled by systems.
+type Command interface { //nolint:iface // ecs.Command must be a subset of micro.ShardCommand
+        micro.ShardCommand
+}
+
+// commandManager manages the registration and storage of commands.
+type commandManager struct {
+        nextID   CommandID            // The next command ID
+        catalog  map[string]CommandID // Command name -&gt; Command ID
+        commands [][]micro.Command    // Command ID -&gt; command
+}
+
+// newCommandManager creates a new commandManager.
+func newCommandManager() commandManager <span class="cov8" title="1">{
+        return commandManager{
+                nextID:   0,
+                catalog:  make(map[string]CommandID),
+                commands: make([][]micro.Command, 0),
+        }
+}</span>
+
+// register registers a new command type. If the command is already registered, the existing ID
+// is returned.
+func (c *commandManager) register(name string) (CommandID, error) <span class="cov8" title="1">{
+        if name == "" </span><span class="cov0" title="0">{
+                return 0, eris.New("command name cannot be empty")
+        }</span>
+
+        // If the command is already registered, return the existing ID.
+        <span class="cov8" title="1">if id, exists := c.catalog[name]; exists </span><span class="cov8" title="1">{
+                return id, nil
+        }</span>
+
+        <span class="cov8" title="1">if c.nextID &gt; MaxCommandID </span><span class="cov0" title="0">{
+                return 0, eris.New("max number of commands exceeded")
+        }</span>
+
+        <span class="cov8" title="1">const initialCommandBufferCapacity = 128
+        c.catalog[name] = c.nextID
+        c.commands = append(c.commands, make([]micro.Command, 0, initialCommandBufferCapacity))
+        c.nextID++
+        assert.That(int(c.nextID) == len(c.commands), "command id doesn't match number of commands")
+
+        return c.nextID - 1, nil</span>
+}
+
+// get retrieves a list of commands for a given command name.
+func (c *commandManager) get(name string) ([]micro.Command, error) <span class="cov8" title="1">{
+        id, exists := c.catalog[name]
+        if !exists </span><span class="cov0" title="0">{
+                return nil, eris.Errorf("command %s is not registered", name)
+        }</span>
+        <span class="cov8" title="1">return c.commands[id], nil</span>
+}
+
+// clear clears the command buffer.
+func (c *commandManager) clear() <span class="cov8" title="1">{
+        for id := range c.commands </span><span class="cov8" title="1">{
+                c.commands[id] = c.commands[id][:0]
+                assert.That(len(c.commands[id]) == 0, "commands not cleared properly")
+        }</span>
+}
+
+// receiveCommands receives a list of commands and stores them in the commandManager.
+// All commands are assumed to be pre-validated by the micro layer (micro.commandManager.Enqueue),
+// which rejects unregistered commands before they reach ECS. An unknown command name here indicates
+// a mismatch between micro and ECS command registration, which is a programming error, so we should
+// fail fast (and loudly) instead of silently ignoring it.
+func (c *commandManager) receiveCommands(commands []micro.Command) <span class="cov8" title="1">{
+        for _, command := range commands </span><span class="cov8" title="1">{
+                id, exists := c.catalog[command.Command.Body.Name]
+                assert.That(exists, "command %s is not registered", command.Command.Body.Name)
+                c.commands[id] = append(c.commands[id], command)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package ecs
+
+import (
+        "regexp"
+
+        "github.com/argus-labs/world-engine/pkg/assert"
+        "github.com/rotisserie/eris"
+)
+
+// Component is the interface that all components must implement.
+// Components are pure data containers that can be attached to entities.
+type Component interface { //nolint:iface // We may add more methods in the future.
+        // Name returns a unique string identifier for the component type.
+        // This should be consistent across program executions.
+        //
+        // Component names must follow these rules:
+        //   - Start with a letter (a-z, A-Z) or underscore (_)
+        //   - Contain only letters, digits (0-9), and underscores
+        //   - Cannot contain hyphens (-), spaces, dots (.), or other special characters
+        //
+        // Valid examples: "Health", "PlayerData", "player_health", "_internal", "Component123"
+        // Invalid examples: "player-data", "123Invalid", "my.component", "has space"
+        //
+        // These rules ensure component names work correctly in query expressions.
+        Name() string
+}
+
+// componentID is a unique identifier for a component type.
+// It is used internally to track and manage component types efficiently.
+type componentID = uint32
+
+// componentManager manages component type registration and lookup.
+type componentManager struct {
+        nextID    componentID            // The next available component ID
+        catalog   map[string]componentID // Component name -&gt; component ID
+        factories []columnFactory        // Component ID -&gt; column factory
+}
+
+// newComponentManager creates a new component manager.
+func newComponentManager() componentManager <span class="cov8" title="1">{
+        return componentManager{
+                nextID:    0,
+                catalog:   make(map[string]componentID),
+                factories: make([]columnFactory, 0),
+        }
+}</span>
+
+var componentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// validateComponentName validates that a component name follows expr identifier rules.
+// See: https://expr-lang.org/docs/language-definition#variables
+func validateComponentName(name string) error <span class="cov8" title="1">{
+        if name == "" </span><span class="cov0" title="0">{
+                return eris.New("component name cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if !componentNamePattern.MatchString(name) </span><span class="cov8" title="1">{
+                return eris.Errorf(
+                        "component name '%s' is invalid: must start with a letter or underscore, "+
+                                "and contain only letters, digits, and underscores",
+                        name,
+                )
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// register registers a new component type and returns its ID.
+// If the component is already registered, no-op.
+func (cm *componentManager) register(name string, factory columnFactory) (componentID, error) <span class="cov8" title="1">{
+        // Validate component name follows expr identifier rules
+        if err := validateComponentName(name); err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+
+        // If component already exists, no-op.
+        <span class="cov8" title="1">if cid, exists := cm.catalog[name]; exists </span><span class="cov8" title="1">{
+                return cid, nil
+        }</span>
+
+        <span class="cov8" title="1">cm.catalog[name] = cm.nextID
+        cm.factories = append(cm.factories, factory)
+        cm.nextID++
+        assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
+
+        return cm.nextID - 1, nil</span>
+}
+
+// getID returns a component's ID given a name.
+func (cm *componentManager) getID(name string) (componentID, error) <span class="cov8" title="1">{
+        id, exists := cm.catalog[name]
+
+        if !exists </span><span class="cov8" title="1">{
+                return 0, eris.Wrapf(ErrComponentNotFound, "component %s", name)
+        }</span>
+
+        <span class="cov8" title="1">return id, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package ecs
+
+import "github.com/rotisserie/eris"
+
+// Create creates an entity without any components.
+func Create(ws *worldState) EntityID <span class="cov8" title="1">{
+        return ws.newEntity()
+}</span>
+
+// Destroy deletes an entity and all its components from the world. Returns true if the entity is
+// deleted, false otherwise.
+func Destroy(ws *worldState, eid EntityID) bool <span class="cov8" title="1">{
+        return ws.removeEntity(eid)
+}</span>
+
+// Alive checks if an entity exists in the world.
+func Alive(ws *worldState, eid EntityID) bool <span class="cov0" title="0">{
+        _, exists := ws.entityArch.get(eid)
+        return exists
+}</span>
+
+// Set sets a component on an entity. If the entity contains the component type, it will update the
+// value. If it doesn't, it will add the component.
+func Set[T Component](ws *worldState, eid EntityID, component T) error <span class="cov8" title="1">{
+        return setComponent(ws, eid, component)
+}</span>
+
+// Get gets a component from an entity.
+// Returns an error if the entity doesn't exist or doesn't contain the component type.
+func Get[T Component](ws *worldState, eid EntityID) (T, error) <span class="cov8" title="1">{
+        return getComponent[T](ws, eid)
+}</span>
+
+// Remove removes a component from an entity.
+// Returns an error if the entity or the component to remove doesn't exist.
+func Remove[T Component](ws *worldState, eid EntityID) error <span class="cov0" title="0">{
+        return removeComponent[T](ws, eid)
+}</span>
+
+// Has checks if an entity has a specific component type.
+// Returns false if either the entity doesn't exist or doesn't have the component.
+func Has[T Component](ws *worldState, eid EntityID) bool <span class="cov0" title="0">{
+        _, err := Get[T](ws, eid)
+        if err == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov0" title="0">return eris.Is(err, ErrComponentNotFound)</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package ecs
+
+import (
+        "sync"
+
+        "github.com/argus-labs/world-engine/pkg/assert"
+        "github.com/rotisserie/eris"
+)
+
+// Event is an interface that all events must implement.
+// Events are packets of information that are sent from systems to the outside world.
+type Event = Command
+
+// EventKind is a type that represents the kind of event.
+type EventKind uint8
+
+const (
+        // EventKindDefault is the default event kind.
+        EventKindDefault EventKind = 1
+
+        // Reserve 0 for zero value / unspecified event kind in protobuf.
+        // Reserve 14 more values (2...15) for future ecs event kind.
+        // Users of the `ecs` package should start with CustomEventKindStart for their custom event kinds.
+        // Example:
+        //
+        //        const (
+        //    EventKindCustom = iota + ecs.CustomEventKindStart
+        //  )
+)
+
+const CustomEventKindStart = 16
+
+// RawEvent is the format of ECS output. It has a kind and a payload. The kind determines the type
+// of event contained in the payload. Users of ECS can define custom event kinds and handle them in
+// their own event handlers.
+type RawEvent struct {
+        Kind    EventKind // The kind of event
+        Payload any       // The payload of the event
+}
+
+const (
+        defaultEventChannelCapacity = 1024
+        defaultEventBufferCapacity  = 128
+)
+
+// eventManager manages the registration and storage of events.
+type eventManager struct {
+        events   chan RawEvent     // Channel for collecting events emitted by systems
+        buffer   []RawEvent        // Buffer for storing events to be outputted
+        mu       sync.Mutex        // Mutex for buffer access during flush
+        registry map[string]uint32 // Map from event name to event ID
+        nextID   uint32            // Next available event ID
+}
+
+// newEventManager creates a new eventManager with optional configuration.
+func newEventManager(opts ...eventManagerOption) *eventManager <span class="cov8" title="1">{
+        em := &amp;eventManager{
+                events:   make(chan RawEvent, defaultEventChannelCapacity),
+                buffer:   make([]RawEvent, 0, defaultEventBufferCapacity),
+                registry: make(map[string]uint32),
+                nextID:   0,
+        }
+        for _, opt := range opts </span><span class="cov8" title="1">{
+                opt(em)
+        }</span>
+        <span class="cov8" title="1">return em</span>
+}
+
+// register registers an event type and returns its ID. If already registered, returns existing ID.
+// This is used just to check for duplicate WithEvent handlers in a system.
+func (e *eventManager) register(name string) (uint32, error) <span class="cov8" title="1">{
+        if name == "" </span><span class="cov0" title="0">{
+                return 0, eris.New("event name cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if id, exists := e.registry[name]; exists </span><span class="cov8" title="1">{
+                return id, nil
+        }</span>
+
+        <span class="cov8" title="1">if e.nextID &gt; MaxCommandID </span><span class="cov0" title="0">{
+                return 0, eris.New("max number of events exceeded")
+        }</span>
+
+        <span class="cov8" title="1">e.registry[name] = e.nextID
+        e.nextID++
+        return e.nextID - 1, nil</span>
+}
+
+// enqueue enqueues an event into the eventManager.
+// If the channel is full, it flushes the channel to the buffer first.
+func (e *eventManager) enqueue(kind EventKind, payload any) <span class="cov8" title="1">{
+        event := RawEvent{Kind: kind, Payload: payload}
+        select </span>{
+        case e.events &lt;- event:<span class="cov8" title="1"></span>
+                // Happy path: channel has capacity.
+        default:<span class="cov8" title="1">
+                // Channel full: flush to buffer, then send.
+                e.mu.Lock()
+                e.flush()
+                e.mu.Unlock()
+
+                e.events &lt;- event</span>
+        }
+}
+
+// getEvents retrieves all events from the eventManager.
+func (e *eventManager) getEvents() []RawEvent <span class="cov8" title="1">{
+        e.mu.Lock()
+        defer e.mu.Unlock()
+
+        e.flush()
+
+        return e.buffer
+}</span>
+
+// flush drains the channel into the buffer. Called when channel is full.
+// TThis method expects the caller to hold tthe mutex lock.
+func (e *eventManager) flush() <span class="cov8" title="1">{
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case event := &lt;-e.events:<span class="cov8" title="1">
+                        e.buffer = append(e.buffer, event)</span>
+                default:<span class="cov8" title="1">
+                        return</span>
+                }
+        }
+}
+
+// clear clears the event buffer.
+func (e *eventManager) clear() <span class="cov8" title="1">{
+        e.mu.Lock()
+        defer e.mu.Unlock()
+        e.buffer = e.buffer[:0]
+        assert.That(len(e.buffer) == 0, "event buffer not cleared properly")
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Options
+// -------------------------------------------------------------------------------------------------
+
+type eventManagerOption func(*eventManager)
+
+func withChannelCapacity(capacity int) eventManagerOption <span class="cov8" title="1">{
+        return func(em *eventManager) </span><span class="cov8" title="1">{
+                em.events = make(chan RawEvent, capacity)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package testutils
+
+// Commands.
+
+type AttackPlayerCommand struct{ Value int }
+
+func (AttackPlayerCommand) Name() string <span class="cov0" title="0">{ return "attack-player" }</span>
+
+type InvalidEmptyCommand struct{}
+
+func (InvalidEmptyCommand) Name() string <span class="cov0" title="0">{ return "" }</span>
+
+type CreatePlayerCommand struct{ Value int }
+
+func (CreatePlayerCommand) Name() string <span class="cov0" title="0">{ return "create-player" }</span>
+
+// Events.
+
+type PlayerDeathEvent struct{ Value int }
+
+func (PlayerDeathEvent) Name() string <span class="cov0" title="0">{ return "player-death" }</span>
+
+type ItemDropEvent struct{ Value int }
+
+func (ItemDropEvent) Name() string <span class="cov0" title="0">{ return "item-drop" }</span>
+
+type EmptySubjectEvent struct{ Value int }
+
+func (EmptySubjectEvent) Name() string <span class="cov0" title="0">{ return "" }</span>
+
+// System events.
+
+type PlayerDeathSystemEvent struct{ Value int }
+
+func (PlayerDeathSystemEvent) Name() string <span class="cov0" title="0">{ return "player-death-system" }</span>
+
+type ItemDropSystemEvent struct{ Value int }
+
+func (ItemDropSystemEvent) Name() string <span class="cov0" title="0">{ return "item-drop-system" }</span>
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package testutils
+
+type Health struct {
+        Value int `json:"value"`
+}
+
+func (Health) Name() string <span class="cov0" title="0">{ return "Health" }</span>
+
+type Position struct{ X, Y int }
+
+func (Position) Name() string <span class="cov0" title="0">{ return "Position" }</span>
+
+type Velocity struct{ X, Y int }
+
+func (Velocity) Name() string <span class="cov0" title="0">{ return "Velocity" }</span>
+
+type Experience struct{ Value int }
+
+func (Experience) Name() string <span class="cov0" title="0">{ return "Experience" }</span>
+
+type PlayerTag struct{ Tag string }
+
+func (PlayerTag) Name() string <span class="cov0" title="0">{ return "PlayerTag" }</span>
+
+type Level struct{ Value int }
+
+func (Level) Name() string <span class="cov0" title="0">{ return "Level" }</span>
+
+type MapComponent struct {
+        Items map[string]int `json:"items"`
+}
+
+func (MapComponent) Name() string <span class="cov0" title="0">{ return "MapComponent" }</span>
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package ecs
+
+import (
+        "sync/atomic"
+
+        "slices"
+
+        "github.com/kelindar/bitmap"
+        "github.com/rotisserie/eris"
+        "golang.org/x/sync/errgroup"
+)
+
+// systemMetadata contains the metadata for a system.
+type systemMetadata struct {
+        name string        // The name of the system
+        deps bitmap.Bitmap // Bitmap of system dependencies (components + system events)
+        fn   func() error  // Function that wraps a System
+}
+
+// systemScheduler manages the execution of systems in a dependency-aware concurrent manner.
+// It orders systems based on their component and system event dependencies and is optimized to
+// maximize parallelism while maintaining correct order.
+type systemScheduler struct {
+        systems        []systemMetadata // The systems to run
+        tier0          []int            // The first execution tier
+        graph          map[int][]int    // Mapping of systems -&gt; systems that depend on it
+        activeIndegree uint8            // Determines which indegree is currently active (0 or 1)
+        // indegree0 and indegree1 are double-buffered counters tracking remaining dependencies
+        // for each system. They alternate between runs to avoid reinitialization.
+        indegree0 []atomic.Int32
+        indegree1 []atomic.Int32
+}
+
+// newSystemScheduler creates a new system scheduler.
+func newSystemScheduler() systemScheduler <span class="cov8" title="1">{
+        return systemScheduler{
+                systems:        make([]systemMetadata, 0),
+                tier0:          make([]int, 0),
+                graph:          make(map[int][]int),
+                activeIndegree: 0,
+        }
+}</span>
+
+// register registers a system with the scheduler.
+func (s *systemScheduler) register(name string, systemDep bitmap.Bitmap, systemFn func() error) <span class="cov8" title="1">{
+        s.systems = append(s.systems, systemMetadata{name: name, deps: systemDep, fn: systemFn})
+}</span>
+
+// Run executes the systems in the order of their dependencies. It returns an error if any system
+// returns an error. If multiple systems fail, all errors are wrapped in a single error.
+func (s *systemScheduler) Run() error <span class="cov8" title="1">{
+        // Fast path: no systems in hook.
+        if len(s.systems) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">executionQueue := make(chan int, len(s.systems))
+        defer close(executionQueue)
+
+        currentIndegree, nextIndegree := s.getCurrentAndNextIndegrees()
+        g := new(errgroup.Group)
+
+        // Schedule all tier 0 systems
+        for _, systemID := range s.tier0 </span><span class="cov8" title="1">{
+                executionQueue &lt;- systemID
+        }</span>
+
+        // Launch goroutines to execute systems
+        <span class="cov8" title="1">for range s.systems </span><span class="cov8" title="1">{
+                systemID := &lt;-executionQueue
+                g.Go(func() error </span><span class="cov8" title="1">{
+                        // Do not return the system error early here so that the dependent systems can be scheduled to
+                        // run first. If we return early then some systems might not run. We do this so that we can
+                        // guarantee all of the systems are executed (`for range s.systems`) instead of being
+                        // optimistic about it.
+                        var err error
+                        if err = s.systems[systemID].fn(); err != nil </span><span class="cov0" title="0">{ // The error assignment is intended here
+                                err = eris.Wrapf(err, "system %s failed", s.systems[systemID].name)
+                        }</span>
+
+                        // Process all systems that depend on this one.
+                        <span class="cov8" title="1">for _, dependent := range s.graph[systemID] </span><span class="cov8" title="1">{
+                                remainingDeps := currentIndegree[dependent].Add(-1)
+                                nextIndegree[dependent].Add(1)
+
+                                // If this was the last dependency, schedule it for execution.
+                                if remainingDeps == 0 </span><span class="cov8" title="1">{
+                                        executionQueue &lt;- dependent
+                                }</span>
+                        }
+
+                        <span class="cov8" title="1">return err</span>
+                })
+        }
+
+        <span class="cov8" title="1">if err := g.Wait(); err != nil </span><span class="cov0" title="0">{
+                return eris.Wrap(err, "system returned an error")
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// getCurrentAndNextIndegrees returns the current and next indegrees. It also switches the active
+// indegree buffer with the next one.
+func (s *systemScheduler) getCurrentAndNextIndegrees() ([]atomic.Int32, []atomic.Int32) <span class="cov8" title="1">{
+        isFirstBuffer := s.activeIndegree == 0  // Capture current state before toggle
+        s.activeIndegree = 1 - s.activeIndegree // Toggle between 0 and 1
+
+        if isFirstBuffer </span><span class="cov8" title="1">{
+                return s.indegree0, s.indegree1
+        }</span>
+
+        <span class="cov8" title="1">return s.indegree1, s.indegree0</span>
+}
+
+// createSchedule initializes the dependency graph and execution schedule for the systems.
+// Must be called after all systems are registered and before the first Run.
+func (s *systemScheduler) createSchedule() <span class="cov8" title="1">{
+        graph, indegree := buildDependencyGraph(s.systems)
+        s.graph = graph
+
+        // Initialize double-buffered atomic counters for tracking dependencies. These are used to avoid
+        // reallocation during system execution.
+        s.indegree0 = make([]atomic.Int32, len(s.systems))
+        s.indegree1 = make([]atomic.Int32, len(s.systems))
+
+        // Initialize the first buffer with the initial dependency counts.
+        for k, v := range indegree </span><span class="cov8" title="1">{
+                s.indegree0[k].Store(int32(v)) //nolint:gosec // Won't overflow
+        }</span>
+
+        <span class="cov8" title="1">s.tier0 = getFirstTier(s.systems, indegree)</span>
+}
+
+// buildDependencyGraph creates a directed acyclic graph (DAG) of system dependencies
+// based on their shared component access patterns. It returns the graph as an adjacency
+// list and a map of each system's dependency count.
+func buildDependencyGraph(systems []systemMetadata) (map[int][]int, map[int]int) <span class="cov8" title="1">{
+        graph := make(map[int][]int, len(systems))
+        indegree := make(map[int]int, len(systems))
+
+        for i := range systems </span><span class="cov8" title="1">{
+                graph[i] = nil
+        }</span>
+
+        <span class="cov8" title="1">for systemA := range len(systems) - 1 </span><span class="cov8" title="1">{
+                for systemB := systemA + 1; systemB &lt; len(systems); systemB++ </span><span class="cov8" title="1">{
+                        depsA := systems[systemA].deps
+                        depsB := systems[systemB].deps
+
+                        var deps []uint32
+                        depsA.Range(func(x uint32) </span><span class="cov8" title="1">{
+                                deps = append(deps, x)
+                        }</span>)
+
+                        // Check if systemB depends on systemA.
+                        <span class="cov8" title="1">if slices.ContainsFunc(deps, depsB.Contains) </span><span class="cov8" title="1">{
+                                graph[systemA] = append(graph[systemA], systemB)
+                                indegree[systemB]++
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">return graph, indegree</span>
+}
+
+// getFirstTier returns the list of systems without any dependencies. These will be the first
+// systems to be run.
+func getFirstTier(systems []systemMetadata, indegree map[int]int) []int <span class="cov8" title="1">{
+        var currentTier []int
+        for systemID := range systems </span><span class="cov8" title="1">{
+                if indegree[systemID] == 0 </span><span class="cov8" title="1">{
+                        currentTier = append(currentTier, systemID)
+                }</span>
+        }
+        <span class="cov8" title="1">return currentTier</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package ecs
+
+import (
+        "iter"
+
+        "github.com/expr-lang/expr"
+        "github.com/expr-lang/expr/vm"
+        "github.com/kelindar/bitmap"
+        "github.com/rotisserie/eris"
+)
+
+// SearchParam contains paramters for a search query.
+// We use expr lang for the where clause to filter the entities, please refer to its documentation
+// for more details: https://expr-lang.org/docs/getting-started.
+type SearchParam struct {
+        Find  []string    // List of component names to search for
+        Match SearchMatch // A match type to use for the search
+        Where string      // Optional expr language string to filter the results.
+}
+
+// validateAndGetFilter validates the search parameters and returns an expr VM program compiled
+// from the where clause.
+func (s *SearchParam) validateAndGetFilter() (*vm.Program, error) <span class="cov8" title="1">{
+        if len(s.Find) == 0 </span><span class="cov8" title="1">{
+                return nil, eris.New("component list cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if s.Match != MatchExact &amp;&amp; s.Match != MatchContains </span><span class="cov8" title="1">{
+                return nil, eris.Errorf("invalid `match` value: must be either '%s' or '%s'", MatchExact, MatchContains)
+        }</span>
+
+        <span class="cov8" title="1">var filter *vm.Program
+
+        // If no expression is provided, return a nil program
+        if len(s.Where) == 0 </span><span class="cov8" title="1">{
+                return filter, nil
+        }</span>
+
+        // Compile the expression and check that the return type is boolean.
+        <span class="cov8" title="1">filter, err := expr.Compile(s.Where, expr.AsBool())
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, eris.Wrap(err, "failed to parse where clause")
+        }</span>
+
+        <span class="cov8" title="1">return filter, nil</span>
+}
+
+// SearchMatch is the type of match to use for the search.
+type SearchMatch string
+
+const (
+        // MatchExact matches entities that have exactly the specified components.
+        MatchExact SearchMatch = "exact"
+        // MatchContains matches entities that contains the specified components, but may have other
+        // components as well.
+        MatchContains SearchMatch = "contains"
+)
+
+// NewSearch returns a map of entities that match the given search parameters.
+func (w *World) NewSearch(params SearchParam) ([]map[string]any, error) <span class="cov8" title="1">{
+        filter, err := params.validateAndGetFilter()
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, eris.Wrap(err, "invalid search params")
+        }</span>
+
+        <span class="cov8" title="1">archetypeIDs, err := findMatchingArchetypes(w, params.Find, params.Match)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, eris.Wrap(err, "failed to get archetypes from components")
+        }</span>
+
+        <span class="cov8" title="1">results := make([]map[string]any, 0)
+        for _, id := range archetypeIDs </span><span class="cov8" title="1">{
+                // Makes a copy of the arch.
+                arch := w.state.archetypes[id]
+
+                for eid, components := range archIter(arch) </span><span class="cov8" title="1">{
+                        // Create the payload map.
+                        result := make(map[string]any)
+                        // We have to cast id from EntityID to int here or else we can't query the data because for some
+                        // reason expr can't compare EntityID with integers in the expression.
+                        result["_id"] = uint32(eid)
+
+                        for _, component := range components </span><span class="cov8" title="1">{
+                                result[component.Name()] = component
+                        }</span>
+
+                        // If there's no filter, include all entities.
+                        <span class="cov8" title="1">if filter == nil </span><span class="cov8" title="1">{
+                                results = append(results, result)
+                                continue</span>
+                        }
+
+                        // Run the filter expression. We set the entity map as the environment for `Run` so the vm
+                        // program has access to the entity data to filter.
+                        <span class="cov8" title="1">output, innerErr := expr.Run(filter, result)
+                        if innerErr != nil </span><span class="cov0" title="0">{
+                                return nil, eris.Wrap(innerErr, "failed to run filter expression")
+                        }</span>
+
+                        <span class="cov8" title="1">isMatchFilter, ok := output.(bool)
+                        // Because we compile the expr once without passing in the environment, as it's only available
+                        // while iterating, expr.Compile can't fully check if the expression returns a bool,x
+                        // especially when we filter for a struct field e.g. health.hp &gt; 200, expr can't determine the
+                        // type of health.hp during compilation.
+                        if !ok </span><span class="cov0" title="0">{
+                                return nil, eris.New("invalid where clause")
+                        }</span>
+
+                        <span class="cov8" title="1">if isMatchFilter </span><span class="cov8" title="1">{
+                                results = append(results, result)
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">return results, nil</span>
+}
+
+// findMatchingArchetypes returns the archetypes that match the given components and match type.
+func findMatchingArchetypes(w *World, compNames []string, match SearchMatch) ([]archetypeID, error) <span class="cov8" title="1">{
+        if len(compNames) == 0 </span><span class="cov0" title="0">{
+                return nil, eris.New("component list cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">ws := w.state
+        component := bitmap.Bitmap{}
+        for _, name := range compNames </span><span class="cov8" title="1">{
+                id, exists := ws.components.catalog[name]
+                if !exists </span><span class="cov8" title="1">{
+                        return nil, eris.Errorf("component %s not registered", name)
+                }</span>
+                <span class="cov8" title="1">component.Set(id)</span>
+        }
+
+        <span class="cov8" title="1">var archIDs []int
+        switch match </span>{
+        case MatchExact:<span class="cov8" title="1">
+                aid, ok := ws.archExact(component)
+                if ok </span><span class="cov8" title="1">{
+                        archIDs = []int{aid}
+                }</span>
+        case MatchContains:<span class="cov8" title="1">
+                archIDs = ws.archContains(component)</span>
+        }
+        <span class="cov8" title="1">return archIDs, nil</span>
+}
+
+// archIter returns an iterator of the archetypes entities and its components.
+func archIter(a *archetype) iter.Seq2[EntityID, []Component] <span class="cov8" title="1">{
+        return func(yield func(EntityID, []Component) bool) </span><span class="cov8" title="1">{
+                for row := range a.entities </span><span class="cov8" title="1">{
+                        eid := a.entities[row]
+
+                        components := make([]Component, 0, a.compCount)
+                        for _, column := range a.columns </span><span class="cov8" title="1">{
+                                component := column.getAbstract(row)
+                                components = append(components, component)
+                        }</span>
+
+                        <span class="cov8" title="1">if !yield(eid, components) </span><span class="cov0" title="0">{
+                                return
+                        }</span>
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package ecs
+
+import "github.com/argus-labs/world-engine/pkg/assert"
+
+type sparseSet []int
+
+const sparseCapacity = 128
+const sparseTombstone = -1
+
+// newSparseSet creates a new sparse set.
+func newSparseSet() sparseSet <span class="cov8" title="1">{
+        s := make(sparseSet, sparseCapacity)
+        for i := range sparseCapacity </span><span class="cov8" title="1">{
+                s[i] = sparseTombstone
+        }</span>
+        <span class="cov8" title="1">return s</span>
+}
+
+// get returns the value for a key and whether it exists.
+func (s *sparseSet) get(key EntityID) (int, bool) <span class="cov8" title="1">{
+        if int(key) &gt;= len(*s) </span><span class="cov8" title="1">{
+                return 0, false
+        }</span>
+
+        <span class="cov8" title="1">value := (*s)[key]
+        if value == sparseTombstone </span><span class="cov8" title="1">{
+                return 0, false
+        }</span>
+
+        <span class="cov8" title="1">return value, true</span>
+}
+
+// set stores a value for a key, growing the backing slice if needed.
+func (s *sparseSet) set(key EntityID, value int) <span class="cov8" title="1">{
+        assert.That(value &gt;= 0, "value must be a non-negative row index")
+
+        if int(key) &gt;= len(*s) </span><span class="cov8" title="1">{ // Grow slice if needed
+                // Grow by doubling or to key+1, whichever is larger.
+                oldLen := len(*s)
+                newLen := max(oldLen*2, int(key)+1)
+
+                newSlice := make(sparseSet, newLen)
+                copy(newSlice, *s)
+                for i := oldLen; i &lt; newLen; i++ </span><span class="cov8" title="1">{
+                        newSlice[i] = sparseTombstone
+                }</span>
+                <span class="cov8" title="1">*s = newSlice</span>
+        }
+
+        <span class="cov8" title="1">(*s)[key] = value</span>
+}
+
+// remove sets a key's value to tombstone. Returns true if the key existed.
+func (s *sparseSet) remove(key EntityID) bool <span class="cov8" title="1">{
+        if int(key) &gt;= len(*s) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+
+        <span class="cov8" title="1">if (*s)[key] == sparseTombstone </span><span class="cov8" title="1">{
+                return false
+        }</span>
+
+        <span class="cov8" title="1">(*s)[key] = sparseTombstone
+        return true</span>
+}
+
+// toInt64Slice converts the sparseSet to a []int64 for protobuf serialization.
+func (s *sparseSet) toInt64Slice() []int64 <span class="cov8" title="1">{
+        result := make([]int64, len(*s))
+        for i, value := range *s </span><span class="cov8" title="1">{
+                result[i] = int64(value)
+        }</span>
+        <span class="cov8" title="1">return result</span>
+}
+
+// fromInt64Slice populates the sparseSet from a []int64.
+func (s *sparseSet) fromInt64Slice(data []int64) <span class="cov8" title="1">{
+        *s = make(sparseSet, len(data))
+        for i, value := range data </span><span class="cov8" title="1">{
+                (*s)[i] = int(value)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package ecs
+
+import (
+        "fmt"
+
+        "github.com/rotisserie/eris"
+)
+
+// System is a function that contains game logic.
+type System[T any] func(state *T) error
+
+func RegisterSystem[T any](w *World, system System[T], opts ...SystemOption) <span class="cov8" title="1">{
+        // Apply options to the default config.
+        cfg := newSystemConfig()
+        for _, opt := range opts </span><span class="cov8" title="1">{
+                opt(&amp;cfg)
+        }</span>
+
+        // Initialize the fields in the system state.
+        <span class="cov8" title="1">state := new(T)
+        componentDeps, err := initializeSystemState(w, state, cfg.modifiers)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(eris.Wrapf(err, "failed to register system %T", system))</span>
+        }
+
+        <span class="cov8" title="1">name := fmt.Sprintf("%T", system)
+        systemFn := func() error </span><span class="cov8" title="1">{ return system(state) }</span>
+
+        <span class="cov8" title="1">switch cfg.hook </span>{
+        case Init:<span class="cov8" title="1">
+                w.initSystems = append(w.initSystems, initSystem{name: name, fn: systemFn})</span>
+        case PreUpdate, Update, PostUpdate:<span class="cov0" title="0">
+                w.scheduler[cfg.hook].register(name, componentDeps, systemFn)</span>
+        default:<span class="cov0" title="0">
+                panic("invalid system hook")</span>
+        }
+}
+
+// initSystem represents a system that should be run once during world initialization.
+type initSystem struct {
+        name string       // The name of the system
+        fn   func() error // Function that wraps a System
+}
+
+// systemConfig holds all configurable options for system registration.
+type systemConfig struct {
+        // The hook that determines when the system should be executed.
+        hook SystemHook
+        // Functions that can be applied to the system state fields during initialization.
+        modifiers map[systemStateFieldType]func(any) error
+}
+
+// newSystemConfig creates a new system config with default values.
+func newSystemConfig() systemConfig <span class="cov8" title="1">{
+        return systemConfig{
+                hook:      Update,
+                modifiers: make(map[systemStateFieldType]func(any) error, 0),
+        }
+}</span>
+
+// SystemOption is a function that configures a SystemConfig.
+type SystemOption func(*systemConfig)
+
+// SystemHook defines when a system should be executed in the update cycle.
+type SystemHook uint8
+
+const (
+        // PreUpdate runs before the main update.
+        PreUpdate SystemHook = 0
+        // Update runs during the main update phase.
+        Update SystemHook = 1
+        // PostUpdate runs after the main update.
+        PostUpdate SystemHook = 2
+        // Init runs once during world initialization.
+        Init SystemHook = 3
+)
+
+// WithHook returns an option to set the system hook.
+func WithHook(hook SystemHook) SystemOption <span class="cov8" title="1">{
+        return func(cfg *systemConfig) </span><span class="cov8" title="1">{ cfg.hook = hook }</span>
+}
+
+// WithModifier returns an option to set a modifier for a specific field type.
+func WithModifier(fieldType systemStateFieldType, fn func(any) error) SystemOption <span class="cov0" title="0">{
+        return func(cfg *systemConfig) </span><span class="cov0" title="0">{ cfg.modifiers[fieldType] = fn }</span>
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package ecs
+
+import (
+        "math"
+
+        "github.com/argus-labs/world-engine/pkg/assert"
+        "github.com/rotisserie/eris"
+)
+
+// systemEventID is a unique identifier for a system event type.
+// It is used internally to track and manage system event types efficiently.
+type systemEventID = uint32
+
+// maxSystemEventID is the maximum number of system event types that can be registered.
+const maxSystemEventID = math.MaxUint32 - 1
+
+// SystemEvent is an interface that all system events must implement.
+// SystemEvents are events emitted by a system to be handled by another system.
+type SystemEvent = Command
+
+// systemEventManager manages the registration and storage of system events.
+type systemEventManager struct {
+        nextID   systemEventID            // The next system event ID
+        registry map[string]systemEventID // System event name -&gt; System event ID
+        events   [][]SystemEvent          // System event ID -&gt; System event
+}
+
+// newSystemEventManager creates a new systemEventManager.
+func newSystemEventManager() systemEventManager <span class="cov8" title="1">{
+        return systemEventManager{
+                nextID:   0,
+                registry: make(map[string]systemEventID),
+                events:   make([][]SystemEvent, 0),
+        }
+}</span>
+
+// register registers a new system event type. If the system event is already registered, the
+// existing id is returned.
+func (s *systemEventManager) register(name string) (systemEventID, error) <span class="cov8" title="1">{
+        if name == "" </span><span class="cov0" title="0">{
+                return 0, eris.New("system event name cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if id, exists := s.registry[name]; exists </span><span class="cov8" title="1">{
+                return id, nil
+        }</span>
+
+        <span class="cov8" title="1">if s.nextID &gt; maxSystemEventID </span><span class="cov0" title="0">{
+                return 0, eris.New("max number of system events exceeded")
+        }</span>
+
+        <span class="cov8" title="1">const initialEventBufferCapacity = 128
+        s.registry[name] = s.nextID
+        s.events = append(s.events, make([]SystemEvent, 0, initialEventBufferCapacity))
+        s.nextID++
+        assert.That(int(s.nextID) == len(s.events), "system event id doesn't match number of system events")
+
+        return s.nextID - 1, nil</span>
+}
+
+// get retrieves a list of system events for a given system event name. The system event must be
+// registered before calling this function.
+func (s *systemEventManager) get(name string) []SystemEvent <span class="cov8" title="1">{
+        id, exists := s.registry[name]
+        assert.That(exists, "system event %s not registered", name)
+        return s.events[id]
+}</span>
+
+// enqueue enqueues a system event to be handled by another system. The system event must be
+// registered before calling this function. This function is not safe for concurrent use. It expects
+// the scheduler to correctly order systems so that there are no concurrent access to the slices.
+func (s *systemEventManager) enqueue(name string, systemEvent SystemEvent) <span class="cov8" title="1">{
+        id, exists := s.registry[name]
+        assert.That(exists, "system event %s not registered", name)
+        s.events[id] = append(s.events[id], systemEvent)
+}</span>
+
+// clear clears the system event buffer.
+func (s *systemEventManager) clear() <span class="cov8" title="1">{
+        for id := range s.events </span><span class="cov8" title="1">{
+                s.events[id] = s.events[id][:0]
+                assert.That(len(s.events[id]) == 0, "system events not cleared properly")
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package ecs
+
+import (
+        "iter"
+        "math"
+        "reflect"
+
+        "github.com/argus-labs/world-engine/pkg/assert"
+        "github.com/argus-labs/world-engine/pkg/micro"
+        "github.com/kelindar/bitmap"
+        "github.com/rotisserie/eris"
+)
+
+// systemStateField defines the interface for system state initialization and basic entity
+// operations. All system state fields must implement this interface.
+type systemStateField interface {
+        init(*World) (bitmap.Bitmap, error)
+        tag() systemStateFieldType
+}
+
+var _ systemStateField = &amp;BaseSystemState{}
+var _ systemStateField = &amp;WithCommand[Command]{}
+var _ systemStateField = &amp;WithEvent[Event]{}
+var _ systemStateField = &amp;WithSystemEventReceiver[SystemEvent]{}
+var _ systemStateField = &amp;WithSystemEventEmitter[SystemEvent]{}
+var _ systemStateField = &amp;search[any]{}
+var _ systemStateField = &amp;Contains[any]{}
+var _ systemStateField = &amp;Exact[any]{}
+
+// -------------------------------------------------------------------------------------------------
+// Base System State Field
+// -------------------------------------------------------------------------------------------------
+
+// BaseSystemState is a barebones system state field that can be embedded in your custom system
+// state types to allow your systems to access the world state. It provides a raw event emitter that
+// can be used to emit custom events.
+//
+// Example:
+//
+//        // Define your system state by embedding BaseState.
+//        type DebugSystemState struct {
+//            ecs.BaseSystemState
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func DebugSystem(state *DebugSystemState) error {
+//            state.EmitRawEvent(EventKindCustom, "my custom event")
+//            return nil
+//        }
+type BaseSystemState struct {
+        world *World
+}
+
+// init initializes the base system state.
+func (b *BaseSystemState) init(w *World) (bitmap.Bitmap, error) <span class="cov0" title="0">{
+        b.world = w
+        return bitmap.Bitmap{}, nil
+}</span>
+
+// tag returns the type of system state field.
+func (b *BaseSystemState) tag() systemStateFieldType <span class="cov0" title="0">{
+        return FieldBase
+}</span>
+
+// UnsafeWorldState returns a pointer to the world's underlying state. Use this only when you know
+// what you're doing as it's possible to mess up the world state.
+func (b *BaseSystemState) UnsafeWorldState() *worldState <span class="cov0" title="0">{ //nolint:revive // it's ok
+        return b.world.state
+}</span>
+
+// EmitRawEvent emits a raw event to the world with the given event kind and payload.
+func (b *BaseSystemState) EmitRawEvent(kind EventKind, payload any) <span class="cov0" title="0">{
+        b.world.events.enqueue(kind, payload)
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Commands Fields
+// -------------------------------------------------------------------------------------------------
+
+// WithCommand is a generic system state field that allows systems to receive commands of type T.
+// The commands are automatically registered when the system is registered.
+//
+// Example:
+//
+//        // Define a command type for spawning players.
+//        type SpawnPlayer struct{ Nickname string }
+//
+//        func (SpawnPlayer) Name() string { return "spawn-player" }
+//
+//        // Define your system state.
+//        type SpawnSystemState struct {
+//            SpawnPlayerCommands ecs.WithCommand[SpawnPlayer]
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func SpawnSystem(state *SpawnSystemState) error {
+//            for cmd := range state.SpawnPlayerCommands.Iter() {
+//                persona := cmd.Persona()
+//                spawnData := cmd.Payload()
+//                // Process spawn commands based on persona and payload.
+//            }
+//            return nil
+//        }
+type WithCommand[T Command] struct {
+        world *World
+}
+
+// init initializes the command state field.
+func (m *WithCommand[T]) init(w *World) (bitmap.Bitmap, error) <span class="cov8" title="1">{
+        var zero T
+
+        id, err := w.commands.register(zero.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register command %s", zero.Name())
+        }</span>
+        <span class="cov8" title="1">m.world = w
+
+        // Set the command ID in the bitmap so we can check that a system doesn't contain multiple
+        // WithCommand fields with the same command type.
+        deps := bitmap.Bitmap{}
+        deps.Set(uint32(id))
+
+        return deps, nil</span>
+}
+
+// tag returns the type of system state field.
+func (m *WithCommand[T]) tag() systemStateFieldType <span class="cov0" title="0">{
+        return FieldCommand
+}</span>
+
+// Iter returns an iterator over all commands of type T.
+//
+// Example usage:
+//
+//        for cmd := range state.SpawnPlayerCommands.Iter() {
+//            persona := cmd.Persona()
+//            payload := cmd.Payload()
+//            // Process each command
+//        }
+func (m *WithCommand[T]) Iter() iter.Seq[CommandContext[T]] <span class="cov8" title="1">{
+        var zero T
+        commands, err := m.world.commands.get(zero.Name())
+        assert.That(err == nil, "command not automatically registered %s", zero.Name())
+
+        return func(yield func(CommandContext[T]) bool) </span><span class="cov8" title="1">{
+                for _, command := range commands </span><span class="cov8" title="1">{
+                        ctx := newCommandContext[T](&amp;command)
+                        if !yield(ctx) </span><span class="cov8" title="1">{
+                                return
+                        }</span>
+                }
+        }
+}
+
+// CommandContext wraps a micro.Command and provides typed access to command data and metadata.
+type CommandContext[T Command] struct {
+        raw *micro.Command
+}
+
+// newCommandContext creates a new CommandContext wrapping the given micro.Command.
+func newCommandContext[T Command](raw *micro.Command) CommandContext[T] <span class="cov8" title="1">{
+        return CommandContext[T]{raw: raw}
+}</span>
+
+// Payload returns the strongly-typed command payload.
+func (c CommandContext[T]) Payload() T <span class="cov8" title="1">{
+        payload, ok := c.raw.Command.Body.Payload.(T)
+        assert.That(ok, "mismatched command type passed to ecs")
+        return payload
+}</span>
+
+// Persona returns the persona (sender) of the command.
+func (c CommandContext[T]) Persona() string <span class="cov8" title="1">{
+        return c.raw.Command.Body.Persona
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Events Fields
+// -------------------------------------------------------------------------------------------------
+
+// WithEvent is a generic system state field that allows systems to emit events of type T.
+//
+// Example:
+//
+//        // Define an event type for level ups.
+//        type LevelUp struct{ Nickname string }
+//
+//        func (LevelUp) Name() string { return "level-up" }
+//
+//        type LevelUpSystemState struct {
+//            LevelUpEvents ecs.WithEvent[LevelUp]
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func LevelUpSystem(state *LevelUpSystemState) error {
+//            // Emit a level up event.
+//            state.LevelUpEvents.Emit(LevelUp{Nickname: "Player1"})
+//            return nil
+//        }
+type WithEvent[T Event] struct {
+        world *World
+}
+
+// init initializes the event state field.
+func (e *WithEvent[T]) init(w *World) (bitmap.Bitmap, error) <span class="cov8" title="1">{
+        var zero T
+
+        id, err := w.events.register(zero.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register event %s", zero.Name())
+        }</span>
+        <span class="cov8" title="1">e.world = w
+
+        deps := bitmap.Bitmap{}
+        deps.Set(id)
+        return deps, nil</span>
+}
+
+// tag returns the type of system state field.
+func (e *WithEvent[T]) tag() systemStateFieldType <span class="cov0" title="0">{
+        return FieldEvent
+}</span>
+
+// Emit emits an event of tpe T.
+//
+// Example:
+//
+//        state.LevelUpEvents.Emit(LevelUp{Nickname: "Player1"})
+func (e *WithEvent[T]) Emit(event T) <span class="cov8" title="1">{
+        e.world.events.enqueue(EventKindDefault, event)
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// System Event Fields
+// -------------------------------------------------------------------------------------------------
+
+// WithSystemEventReceiver is a generic system state field that allows systems to receive system
+// events of type T. System events are automatically registered when the system is registered.
+//
+// Example:
+//
+//        // Define a system event for player deaths.
+//        type PlayerDeath struct{ Nickname string }
+//
+//        func (PlayerDeath) Name() string { return "player-death" }
+//
+//        type GraveyardSystemState struct {
+//            PlayerDeathSystemEvents ecs.WithSystemEventReceiver[PlayerDeath]
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func GraveyardSystem(state *GraveyardSystemState) error {
+//            // Receive system events emitted from another system.
+//            for systemEvent := range state.PlayerDeathSystemEvents.Iter() {
+//                // Process the system event.
+//            }
+//            return nil
+//        }
+type WithSystemEventReceiver[T SystemEvent] struct {
+        world *World
+}
+
+// init initializes the system event state field.
+func (s *WithSystemEventReceiver[T]) init(w *World) (bitmap.Bitmap, error) <span class="cov8" title="1">{
+        var zero T
+
+        id, err := w.systemEvents.register(zero.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register system event")
+        }</span>
+        <span class="cov8" title="1">s.world = w
+
+        // Set the system event ID in the bitmap so the scheduler can order the systems correctly.
+        deps := bitmap.Bitmap{}
+        deps.Set(id)
+
+        return deps, nil</span>
+}
+
+// tag returns the type of system state field.
+func (s *WithSystemEventReceiver[T]) tag() systemStateFieldType <span class="cov0" title="0">{
+        return FieldSystemEventReceiver
+}</span>
+
+// Iter returns an iterator over all system events of type T.
+//
+// Example usage:
+//
+//        for systemEvent := range state.PlayerDeathEvents.Iter() {
+//            // Process each system event
+//        }
+func (s *WithSystemEventReceiver[T]) Iter() iter.Seq[T] <span class="cov8" title="1">{
+        var zero T
+        systemEvents := s.world.systemEvents.get(zero.Name())
+
+        return func(yield func(T) bool) </span><span class="cov8" title="1">{
+                for _, systemEvent := range systemEvents </span><span class="cov8" title="1">{
+                        if !yield(systemEvent.(T)) </span><span class="cov8" title="1">{ //nolint:errcheck // We know the type
+                                return
+                        }</span>
+                }
+        }
+}
+
+// WithSystemEventEmitter is a generic system state field that allows systems to emit system events
+// of type T. System events are automatically registered when the system is registered.
+//
+// Example:
+//
+//        // Define a system event for player deaths.
+//        type PlayerDeath struct{ Nickname string }
+//
+//        func (PlayerDeath) Name() string { return "player-death" }
+//
+//        type CombatSystemState struct {
+//            PlayerDeathSystemEvents ecs.WithSystemEventEmitter[PlayerDeath]
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func CombatSystem(state *CombatSystemState) error {
+//            // Emit a player death event to be handled in another system.
+//            state.PlayerDeathEvents.Emit(PlayerDeath{Nickname: "Player1"})
+//            return nil
+//        }
+type WithSystemEventEmitter[T SystemEvent] struct {
+        world *World
+}
+
+// init initializes the system event state field.
+func (s *WithSystemEventEmitter[T]) init(w *World) (bitmap.Bitmap, error) <span class="cov8" title="1">{
+        var zero T
+
+        id, err := w.systemEvents.register(zero.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register system event")
+        }</span>
+        <span class="cov8" title="1">s.world = w
+
+        // Set the system event ID in the bitmap so the scheduler can order the systems correctly.
+        deps := bitmap.Bitmap{}
+        deps.Set(id)
+
+        return deps, nil</span>
+}
+
+// tag returns the type of system state field.
+func (s *WithSystemEventEmitter[T]) tag() systemStateFieldType <span class="cov0" title="0">{
+        return FieldSystemEventEmitter
+}</span>
+
+// Emit emits a system event of type T.
+//
+// Example:
+//
+//        state.PlayerDeathEvents.Emit(PlayerDeath{Nickname: "Player1"})
+func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) <span class="cov8" title="1">{
+        var zero T
+        s.world.systemEvents.enqueue(zero.Name(), systemEvent)
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Component Search Fields
+// -------------------------------------------------------------------------------------------------
+
+// search provides type-safe component queries for entities in the world state. It uses reflection
+// during initialization to figure out which components to include in the query. T must be a struct
+// type composed of fields of only the type Ref[Component], e.g.:
+//
+//        type Particle struct {
+//            Position ecs.Ref[Position]
+//            Velocity ecs.Ref[Velocity]
+//        }
+//
+// search is used as the base implementation for ecs.Contains and ecs.Exact which provide the
+// matching behaviors for finding entities with specific component combinations. Every component
+// type used in T will be automatically registered when the system is registered.
+type search[T any] struct {
+        world      *World        // Reference to the world
+        components bitmap.Bitmap // Bitmap of component types this search looks for
+        result     T             // Reusable instance of the result type
+        fields     []ref         // Cached references to result's fields to be initialized in Iter
+}
+
+// init initializes the search by analyzing the generic type's struct fields and caching its
+// component dependencies.
+func (s *search[T]) init(w *World) (bitmap.Bitmap, error) <span class="cov8" title="1">{
+        var zero T
+        resultType := reflect.TypeOf(zero)
+        resultValue := reflect.ValueOf(&amp;s.result).Elem()
+
+        s.world = w
+        s.fields = make([]ref, resultType.NumField())
+
+        for i := range resultType.NumField() </span><span class="cov8" title="1">{
+                // Store a ref of the field in the search to be initialized during Iter.
+                field := resultType.Field(i)
+                fieldRef, ok := resultValue.Field(i).Addr().Interface().(ref)
+                if !ok </span><span class="cov0" title="0">{
+                        return bitmap.Bitmap{}, eris.Errorf("field %s must be of type Ref[Component], got %s", field.Name, field.Type)
+                }</span>
+                <span class="cov8" title="1">s.fields[i] = fieldRef
+
+                // Register the component.
+                cid, err := fieldRef.register(w)
+                if err != nil </span><span class="cov0" title="0">{
+                        return bitmap.Bitmap{}, err
+                }</span>
+
+                // Set the component ID in the bitmap so the scheduler can order the systems correctly.
+                <span class="cov8" title="1">s.components.Set(cid)</span>
+        }
+
+        <span class="cov8" title="1">return s.components, nil</span>
+}
+
+// tag returns the type of system state field.
+func (s *search[T]) tag() systemStateFieldType <span class="cov8" title="1">{
+        return FieldComponent
+}</span>
+
+// Create creates a new entity with the given components. Returns an error if any of the components
+// are not defined in the search field.
+//
+// Example:
+//
+//        entity, err := state.Mob.Create(Health{Value: 100}, Position{X: 0, Y: 0})
+//        if err != nil {
+//            state.Logger().Error().Err(err).Msg("Failed to create entity")
+//        }
+//        // Use entity...
+func (s *search[T]) Create() (EntityID, T) <span class="cov8" title="1">{
+        ws := s.world.state
+        eid := ws.newEntityWithArchetype(s.components)
+
+        for i := range s.fields </span><span class="cov8" title="1">{
+                s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
+        }</span>
+
+        <span class="cov8" title="1">return eid, s.result</span>
+}
+
+// Destroy deletes an entity and all its components from the world.
+//
+// Example:
+//
+//        ok := state.Mob.Destroy(entityID)
+//        if !ok {
+//            state.Logger().Warn().Msg("Entity doesn't exist or is already destroyed")
+//        }
+func (s *search[T]) Destroy(eid EntityID) bool <span class="cov0" title="0">{
+        return Destroy(s.world.state, eid)
+}</span>
+
+// GetByID retrieves an entity's components by its ID. Returns false if the entity doesn't exist.
+//
+// Example:
+//
+//        mob, ok := state.Mob.GetByID(entityID)
+//        if !ok {
+//            state.Logger().Warn().Msg("Entity not found")
+//            return
+//        }
+//        health := mob.Health.Get()
+func (s *search[T]) GetByID(eid EntityID) (T, bool) <span class="cov0" title="0">{
+        ws := s.world.state
+
+        if !Alive(ws, eid) </span><span class="cov0" title="0">{
+                var zero T
+                return zero, false
+        }</span>
+
+        <span class="cov0" title="0">for i := range s.fields </span><span class="cov0" title="0">{
+                s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
+        }</span>
+        <span class="cov0" title="0">return s.result, true</span>
+}
+
+// iter returns an iterator over all entities that match the given archetypes.
+func (s *search[T]) iter(archetypeIDs []archetypeID) iter.Seq2[EntityID, T] <span class="cov8" title="1">{
+        ws := s.world.state
+        return func(yield func(EntityID, T) bool) </span><span class="cov8" title="1">{
+                for _, id := range archetypeIDs </span><span class="cov8" title="1">{
+                        arch := ws.archetypes[id]
+                        for _, eid := range arch.entities </span><span class="cov8" title="1">{
+                                for i := range s.fields </span><span class="cov8" title="1">{
+                                        s.fields[i].attach(ws, eid) // Attach the entity and world state buffer to the ref
+                                }</span>
+
+                                <span class="cov8" title="1">if !yield(eid, s.result) </span><span class="cov0" title="0">{
+                                        return
+                                }</span>
+                        }
+                }
+        }
+}
+
+// Contains provides a search that matches archetypes containing all specified component types,
+// potentially along with additional components.
+//
+// Example:
+//
+//        type MovementSystemState struct {
+//            Movers ecs.Contains[struct {
+//                Position ecs.Ref[Position]
+//                Velocity ecs.Ref[Velocity]
+//            }]
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func MovementSystem(state *MovementSystemState) error {
+//            for entity, mover := range state.Movers.Iter() {
+//                // Process entity and compnents.
+//            }
+//            return nil
+//        }
+type Contains[T any] struct{ search[T] }
+
+// Iter returns an iterator over entities and their components that match the Contains search.
+//
+// Example:
+//
+//        for _, mover := range state.Movers.Iter() {
+//            pos := mover.Position.Get()
+//            vel := mover.Velocity.Get()
+//            mover.Position.Set(Position{X: pos.X + vel.X, Y: pos.Y + vel.Y})
+//        }
+func (c *Contains[T]) Iter() iter.Seq2[EntityID, T] <span class="cov0" title="0">{
+        return c.iter(c.world.state.archContains(c.components))
+}</span>
+
+// Exact provides a search that matches archetypes containing exactly the specified component types,
+// without any additional components.
+//
+// Example:
+//
+//        type PlayerSystemState struct {
+//            Players ecs.Exact[struct {
+//                Tag    ecs.Ref[PlayerTag]
+//                Health ecs.Ref[Health]
+//            }]
+//            // Other fields...
+//        }
+//
+//        // Your system function receives a pointer to your system state.
+//        func PlayerSystem(state *PlayerSystemState) error {
+//            for entity, player := range state.Players.Iter() {
+//                // Process entity and compnents.
+//            }
+//            return nil
+//        }
+type Exact[T any] struct{ search[T] }
+
+// Iter returns an iterator over entities and their components that match the Exact query.
+//
+// Example:
+//
+//        for _, player := range state.Players.Iter() {
+//            health := player.Health.Get()
+//            player.Health.Set(Health{HP: health.HP + 100})
+//        }
+func (c *Exact[T]) Iter() iter.Seq2[EntityID, T] <span class="cov0" title="0">{
+        archetypes := make([]int, 0, 1)
+        if id, ok := c.world.state.archExact(c.components); ok </span><span class="cov0" title="0">{
+                archetypes = append(archetypes, id)
+        }</span>
+        <span class="cov0" title="0">return c.iter(archetypes)</span>
+}
+
+// -------------------------------------------------------------------------------------------------
+// Component Handles
+// -------------------------------------------------------------------------------------------------
+
+// ref is an internal interface for component references.
+type ref interface {
+        attach(*worldState, EntityID)
+        register(*World) (componentID, error)
+}
+
+var _ ref = &amp;Ref[Component]{}
+
+// Ref provides a type-safe handle to a component on an entity.
+type Ref[T Component] struct {
+        ws     *worldState // Internal reference to the world state
+        entity EntityID    // The entity's ID
+}
+
+// attach sets the entity and world state to the Ref so that Get and Set works properly.
+func (r *Ref[T]) attach(ws *worldState, eid EntityID) <span class="cov8" title="1">{
+        r.ws = ws
+        r.entity = eid
+}</span>
+
+// TODO: might be possible to get the read/write type of the component in the query so we can
+// optimize the scheduler by running read-only systems in parallel. e.g., we can have two different
+// ref types, ReadOnlyRef and ReadWriteRef. For the read-only ref, we don't have to set its ID in
+// the system bitmap.
+
+// register returns the registerAndGetComponent type for this Ref.
+func (r *Ref[T]) register(w *World) (componentID, error) <span class="cov8" title="1">{
+        return registerComponent[T](w.state)
+}</span>
+
+// Get retrieves the component value for this Ref's entity.
+//
+// This is the recommended system-friendly alternative to ecs.Get() for accessing components within systems.
+//
+// Example:
+//
+//        for _, player := range state.Players.Iter() {
+//            health := player.Health.Get()
+//        }
+func (r *Ref[T]) Get() T <span class="cov8" title="1">{
+        component, err := Get[T](r.ws, r.entity)
+        assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
+        return component
+}</span>
+
+// Set updates the component value for this Ref's entity.
+//
+// This is the recommended system-friendly alternative to ecs.Set() for modifying components within systems.
+//
+// Example:
+//
+//        for _, player := range state.Players.Iter() {
+//            player.Health.Set(Health{HP: 100})
+//        }
+func (r *Ref[T]) Set(component T) <span class="cov8" title="1">{
+        err := Set(r.ws, r.entity, component)
+        assert.That(err == nil, "entity doesn't exist") // Shouldn't happen
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Internal
+// -------------------------------------------------------------------------------------------------
+
+// systemStateFieldType is an enum type for system state field types.
+type systemStateFieldType uint8
+
+const (
+        // FieldComponent is the systemStateFieldType for Contains and Exact.
+        FieldComponent systemStateFieldType = iota
+        // FieldSystemEventReceiver is the systemStateFieldType for WithSystemEventReceiver.
+        FieldSystemEventReceiver
+        // FieldSystemEventEmitter is the systemStateFieldType for WithSystemEventEmitter.
+        FieldSystemEventEmitter
+        // FieldBase is the systemStateFieldType for BaseSystemState.
+        FieldBase
+        // FieldEvent is the systemStateFieldType for WithEvent.
+        FieldEvent
+        // FieldCommand is the systemStateFieldType for WithCommand.
+        FieldCommand
+)
+
+// Helper function to initialize fields when registering systems.
+func initializeSystemState[T any]( //nolint:gocognit // Will refactor after things are stable
+        w *World,
+        state *T,
+        modifiers map[systemStateFieldType]func(any) error,
+) (bitmap.Bitmap, error) <span class="cov8" title="1">{
+        // Bitmaps used by the scheduler as the system's dependencies.
+        var componentDeps bitmap.Bitmap
+        var systemEventDeps bitmap.Bitmap
+
+        // Bitmaps to check for duplicate fields that operate on the same type. A system cannot process
+        // multiples of the same type, e.g. multiple WithCommand[T] with the same T type.
+        var commandDeps bitmap.Bitmap
+        var eventDeps bitmap.Bitmap
+        var systemEventReceiverDeps bitmap.Bitmap
+        var systemEventEmitterDeps bitmap.Bitmap
+
+        // For each field in the system state, initialize the field and collect its dependencies.
+        value := reflect.ValueOf(state).Elem()
+        for i := range value.NumField() </span><span class="cov8" title="1">{
+                field := value.Field(i)
+                fieldType := value.Type().Field(i)
+
+                // If the field is not exported, return an error.
+                if !field.CanAddr() </span><span class="cov0" title="0">{
+                        return componentDeps, eris.Errorf("field %s must be exported", fieldType.Name)
+                }</span>
+
+                // If the field doesn't implement systemStateField, return an error. This shouldn't happen
+                // as long as the user sticks to the provided system state field types.
+                <span class="cov8" title="1">fieldInstance := field.Addr().Interface()
+                stateField, ok := fieldInstance.(systemStateField)
+                if !ok </span><span class="cov0" title="0">{
+                        return componentDeps, eris.Errorf("field %s must implement SystemStateField", fieldType.Name)
+                }</span>
+
+                // Initialize the field and collect its dependencies.
+                <span class="cov8" title="1">deps, err := stateField.init(w)
+                if err != nil </span><span class="cov0" title="0">{
+                        return componentDeps, eris.Wrapf(err, "failed to initialize field %s", fieldType.Name)
+                }</span>
+
+                // Add field dependencies to the system dependencies.
+                <span class="cov8" title="1">tag := stateField.tag()
+                switch tag </span>{
+                case FieldComponent:<span class="cov8" title="1">
+                        componentDeps.Or(deps)</span>
+                case FieldSystemEventReceiver:<span class="cov0" title="0">
+                        if hasDuplicate(systemEventReceiverDeps, deps) </span><span class="cov0" title="0">{
+                                return componentDeps, eris.New(
+                                        "systems cannot declare multiple WithSystemEventReceiver fields of the same system event type")
+                        }</span>
+                        <span class="cov0" title="0">systemEventReceiverDeps.Or(deps) // Add to seen list
+                        systemEventDeps.Or(deps)</span>         // Add to scheduler deps
+                case FieldSystemEventEmitter:<span class="cov0" title="0">
+                        if hasDuplicate(systemEventEmitterDeps, deps) </span><span class="cov0" title="0">{
+                                return componentDeps, eris.New(
+                                        "systems cannot declare multiple WithSystemEventEmitter fields of the same system event type")
+                        }</span>
+                        <span class="cov0" title="0">systemEventEmitterDeps.Or(deps) // Add to seen list
+                        systemEventDeps.Or(deps)</span>        // Add to scheduler deps
+                case FieldCommand:<span class="cov0" title="0">
+                        if hasDuplicate(commandDeps, deps) </span><span class="cov0" title="0">{
+                                return componentDeps, eris.New("systems cannot process multiple commands of the same type")
+                        }</span>
+                        <span class="cov0" title="0">commandDeps.Or(deps)</span> // Add to seen list
+                case FieldEvent:<span class="cov0" title="0">
+                        if hasDuplicate(eventDeps, deps) </span><span class="cov0" title="0">{
+                                return componentDeps, eris.New("systems cannot declare multiple WithEvent fields of the same event type")
+                        }</span>
+                        <span class="cov0" title="0">eventDeps.Or(deps)</span> // Add to seen list
+                case FieldBase:<span class="cov0" title="0"></span>
+                }
+
+                // Run the field modifier functions if they're set.
+                <span class="cov8" title="1">for t, modifier := range modifiers </span><span class="cov0" title="0">{
+                        if t == tag </span><span class="cov0" title="0">{
+                                if err := modifier(fieldInstance); err != nil </span><span class="cov0" title="0">{
+                                        return componentDeps, eris.Wrapf(err, "error initializing field %s", fieldType.Name)
+                                }</span>
+                        }
+                }
+        }
+
+        // Add system event deps to component deps.
+        <span class="cov8" title="1">n := w.state.components.nextID
+        assert.That(systemEventDeps.Count()+int(n) &lt;= math.MaxUint32-1, "system dependencies exceed max limit")
+        systemEventDeps.Range(func(x uint32) </span><span class="cov0" title="0">{
+                componentDeps.Set(n + x)
+        }</span>)
+
+        <span class="cov8" title="1">return componentDeps, nil</span>
+}
+
+// hasDuplicate checks if any bits in deps are already set in aggregate.
+func hasDuplicate(aggregate, deps bitmap.Bitmap) bool <span class="cov0" title="0">{
+        clone := deps.Clone(nil)
+        clone.And(aggregate)
+        return clone.Count() != 0
+}</span>
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">package ecs
+
+import (
+        "github.com/argus-labs/world-engine/pkg/micro"
+        cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+        "github.com/rotisserie/eris"
+        "google.golang.org/protobuf/proto"
+)
+
+// World represents the root ECS state.
+type World struct {
+        state *worldState
+
+        // Systems.
+        initDone    bool               // Tracks if init systems have been executed
+        initSystems []initSystem       // Initialization systems, run once during the genesis tick
+        scheduler   [3]systemScheduler // Systems schedulers (PreTick, Update, PostTick)
+
+        // Commands, events, system events.
+        commands     commandManager     // Receives commands from external sources
+        events       *eventManager      // Stores events to be emitted to external sources
+        systemEvents systemEventManager // Manages system events
+}
+
+// NewWorld creates a new World instance.
+func NewWorld() *World <span class="cov8" title="1">{
+        world := &amp;World{
+                state:        newWorldState(),
+                initDone:     false,
+                initSystems:  make([]initSystem, 0),
+                scheduler:    [3]systemScheduler{},
+                systemEvents: newSystemEventManager(),
+                commands:     newCommandManager(),
+                events:       newEventManager(),
+        }
+
+        for i := range world.scheduler </span><span class="cov8" title="1">{
+                world.scheduler[i] = newSystemScheduler()
+        }</span>
+
+        <span class="cov8" title="1">return world</span>
+}
+
+// Init initializes the system schedulers by creating their schedules.
+func (w *World) Init() <span class="cov8" title="1">{
+        for i := range w.scheduler </span><span class="cov8" title="1">{
+                w.scheduler[i].createSchedule()
+        }</span>
+}
+
+// Tick passes external events into the event manager and executes the
+// registered systems in order. If any system returns an error, the entire tick is considered
+// failed, changes are discarded, and the error is returned. If the tick succeeds, the events
+// emmitted during the tick is returned.
+func (w *World) Tick(commands []micro.Command) ([]RawEvent, error) <span class="cov8" title="1">{
+        // Run init systems once on first tick.
+        if !w.initDone </span><span class="cov8" title="1">{
+                for _, system := range w.initSystems </span><span class="cov8" title="1">{
+                        if err := system.fn(); err != nil </span><span class="cov0" title="0">{
+                                return []RawEvent{}, eris.Wrapf(err, "init system %s failed", system.name)
+                        }</span>
+                }
+                <span class="cov8" title="1">w.initDone = true
+                return []RawEvent{}, nil</span>
+        }
+
+        // Receive commands from external sources and clear buffers.
+        <span class="cov0" title="0">w.commands.receiveCommands(commands)
+        defer w.clearBuffers()
+
+        // Run the systems.
+        for i := range w.scheduler </span><span class="cov0" title="0">{
+                if err := w.scheduler[i].Run(); err != nil </span><span class="cov0" title="0">{
+                        return []RawEvent{}, err
+                }</span>
+        }
+
+        // Copy commands and events to the result.
+        <span class="cov0" title="0">emittedEvents := w.events.getEvents()
+        result := make([]RawEvent, len(emittedEvents))
+        copy(result, emittedEvents)
+
+        return result, nil</span>
+}
+
+// CustomTick allows for a custom update function to be run instead of the registered systems.
+// This function is for testing and internal use only!
+func (w *World) CustomTick(fn func(*worldState)) <span class="cov0" title="0">{
+        fn(w.state)
+}</span>
+
+// clearBuffers clears the previous tick's buffers.
+func (w *World) clearBuffers() <span class="cov0" title="0">{
+        w.commands.clear()
+        w.events.clear()
+        w.systemEvents.clear()
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Serialization methods
+// -------------------------------------------------------------------------------------------------
+
+// Serialize converts the World's state to a byte slice for serialization.
+// Only serializes the WorldState as components, systems, and managers are recreated on startup.
+func (w *World) Serialize() ([]byte, error) <span class="cov8" title="1">{
+        snapshot, err := w.state.toProto()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)</span>
+}
+
+// Deserialize populates the World's state from a byte slice.
+// This should only be called after the World has been properly initialized with components registered.
+func (w *World) Deserialize(data []byte) error <span class="cov8" title="1">{
+        var snapshot cardinalv1.CardinalSnapshot
+        if err := proto.Unmarshal(data, &amp;snapshot); err != nil </span><span class="cov8" title="1">{
+                return eris.Wrap(err, "failed to unmarshal snapshot")
+        }</span>
+        <span class="cov8" title="1">if err := w.state.fromProto(&amp;snapshot); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        // Mark init as done to prevent re-running init systems after restore.
+        <span class="cov8" title="1">w.initDone = true
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">package ecs
+
+import (
+        "math"
+        "sync"
+
+        "github.com/argus-labs/world-engine/pkg/assert"
+        cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+        "github.com/kelindar/bitmap"
+        "github.com/rotisserie/eris"
+)
+
+// EntityID is a unique identifier for an entity.
+type EntityID uint32
+
+// maxEntityID is the maximum entity ID that can be created.
+const maxEntityID = math.MaxUint32 - 1
+
+// invalidEntityID is a sentinel id for errors or when we have exceeded the maximum entities count.
+const invalidEntityID = maxEntityID + 1
+
+// voidArchetype is an archetype without components.
+const voidArchetypeID = 0
+
+// worldState holds the state of the world.
+type worldState struct {
+        components componentManager // Component type manager
+        nextID     EntityID         // Entity ID counter
+        free       []EntityID       // Free entity IDs to reuse
+        entityArch sparseSet
+        archetypes []*archetype // Array of archetypes
+        mu         sync.Mutex
+}
+
+// newWorldState creates a new world state.
+func newWorldState() *worldState <span class="cov8" title="1">{
+        ws := worldState{
+                components: newComponentManager(),
+                nextID:     0,
+                free:       make([]EntityID, 0),
+                entityArch: newSparseSet(),
+                archetypes: make([]*archetype, 1),
+        }
+
+        // Insert the void archetype.
+        ws.archetypes[voidArchetypeID] = ws.newArchetype(voidArchetypeID, bitmap.Bitmap{})
+
+        return &amp;ws
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Entity operations
+// -------------------------------------------------------------------------------------------------
+
+// newEntity creates a new entity of the void archetype in the world state. Returns the entity ID.
+func (ws *worldState) newEntity() EntityID <span class="cov8" title="1">{
+        ws.mu.Lock()
+        defer ws.mu.Unlock()
+
+        var eid EntityID
+        if len(ws.free) &gt; 0 </span><span class="cov8" title="1">{ // Reuse free IDs if any
+                eid = ws.free[0]
+                ws.free = ws.free[1:]
+        }</span> else<span class="cov8" title="1"> { // Else get the next ID
+                eid = ws.nextID
+                ws.nextID++
+        }</span>
+        <span class="cov8" title="1">assert.That(eid != invalidEntityID, "max number of entities exceeded")
+
+        // New entities are assigned to the void archetype, which doesn't contain any components.
+        voidArchetype := ws.archetypes[voidArchetypeID]
+        // Add the entity to the void archetype.
+        voidArchetype.newEntity(eid)
+
+        // Update the entity archetype mapping.
+        ws.entityArch.set(eid, voidArchetypeID)
+
+        return eid</span>
+}
+
+// newEntityWithArchetype creates a new entity of an archetype with the specified components.
+// Returns the entity ID. Prefer this method over newEntity + multiple sets because that does a lot
+// of moveEntity, which is the most expensive world state operation.
+func (ws *worldState) newEntityWithArchetype(components bitmap.Bitmap) EntityID <span class="cov8" title="1">{
+        eid := ws.newEntity()
+        ws.moveEntity(eid, components)
+        return eid
+}</span>
+
+// removeEntity removes an entity from the world state. Returns true if the entity is removed, false
+// if the entity doesn't exist.
+func (ws *worldState) removeEntity(eid EntityID) bool <span class="cov8" title="1">{
+        ws.mu.Lock()
+        defer ws.mu.Unlock()
+
+        aid, exists := ws.entityArch.get(eid)
+        if !exists </span><span class="cov8" title="1">{
+                return false
+        }</span>
+
+        // Remove the entity from the archetype.
+        <span class="cov8" title="1">archetype := ws.archetypes[aid]
+        archetype.removeEntity(eid)
+
+        // Remove the removed entity ID from the map.
+        ok := ws.entityArch.remove(eid)
+        assert.That(ok, "entity isn't removed from sparse set")
+
+        // Add the removed ID to the free list for reuse.
+        ws.free = append(ws.free, eid)
+
+        return true</span>
+}
+
+// moveEntity moves an entity to a new archetype with the given components. Returns a ponter to the
+// destination archetype.
+func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) <span class="cov8" title="1">{
+        ws.mu.Lock()
+        defer ws.mu.Unlock()
+
+        oldAid, exists := ws.entityArch.get(eid)
+        assert.That(exists, "entity doesn't exist. caller should've checked")
+
+        newAid := ws.findOrCreateArchetype(newComponents)
+
+        // Move the entity to the new oldArchetype.
+        newArchetype := ws.archetypes[newAid]
+        oldArchetype := ws.archetypes[oldAid]
+        oldArchetype.moveEntity(newArchetype, eid)
+
+        // Update the archetype mapping.
+        ws.entityArch.set(eid, newAid)
+}</span>
+
+// findOrCreateArchetype finds an existing archetype that matches the given components or creates a
+// new one if no archetypes match.
+// NOTE: findOrCreateArchetype has a chance of reallocating ws.archetypes, invalidating existing
+// pointers to items in ws.archetypes. Be careful when using this method.
+func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeID <span class="cov8" title="1">{
+        aid, exists := ws.archExact(components)
+        if exists </span><span class="cov8" title="1">{
+                return aid
+        }</span>
+
+        // Create the new archetype with the desired components.
+        <span class="cov8" title="1">aid = len(ws.archetypes)
+        newArchetype := ws.newArchetype(aid, components)
+
+        // Add it to the archetypes array.
+        ws.archetypes = append(ws.archetypes, newArchetype)
+
+        return aid</span>
+}
+
+// -------------------------------------------------------------------------------------------------
+// Component operations
+// -------------------------------------------------------------------------------------------------
+
+// setComponent sets a component in the given entity. Returns an error if the entity doesn't exist.
+// If the entity's archetype contains the component type, this will update the value. If it doesn't,
+// it will move the entity to a new archetype and set the value there.
+func setComponent[T Component](ws *worldState, eid EntityID, component T) error <span class="cov8" title="1">{
+        aid, exists := ws.entityArch.get(eid)
+        if !exists </span><span class="cov0" title="0">{
+                return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
+        }</span>
+        <span class="cov8" title="1">archetype := ws.archetypes[aid]
+
+        cid, err := ws.components.getID(component.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return eris.Wrap(err, "failed to get component id")
+        }</span>
+
+        // If current archetype doesnt' contain the component, move the entity to one that does.
+        <span class="cov8" title="1">if !archetype.components.Contains(cid) </span><span class="cov8" title="1">{
+                // Create the desired newComponents bitmap.
+                newComponents := archetype.components.Clone(nil)
+                newComponents.Set(cid)
+
+                ws.moveEntity(eid, newComponents)
+
+                // Update the archetype and row variable with the new archetype.
+                newAid, newExists := ws.entityArch.get(eid)
+                assert.That(newExists, "entity should exist after moveEntity")
+                archetype = ws.archetypes[newAid]
+        }</span>
+
+        // Get the column from the archetype directly.
+        <span class="cov8" title="1">index := archetype.components.CountTo(cid)
+        column, ok := archetype.columns[index].(*column[T])
+        assert.That(ok, "unexpected column type")
+
+        row, exists := archetype.rows.get(eid)
+        assert.That(exists, "entity should have a row in its archetype")
+        column.set(row, component)
+        return nil</span>
+}
+
+// getComponent gets a component value from the given entity. Returns an error if the entity doesn't
+// exist or if the entity's archetype doesn't contain the component type.
+func getComponent[T Component](ws *worldState, eid EntityID) (T, error) <span class="cov8" title="1">{
+        var zero T
+
+        aid, exists := ws.entityArch.get(eid)
+        if !exists </span><span class="cov0" title="0">{
+                return zero, eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
+        }</span>
+        <span class="cov8" title="1">archetype := ws.archetypes[aid]
+
+        cid, err := ws.components.getID(zero.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return zero, eris.Wrap(err, "failed to get component id")
+        }</span>
+
+        <span class="cov8" title="1">if !archetype.components.Contains(cid) </span><span class="cov8" title="1">{
+                return zero, eris.Errorf("entity %d doesn't contain component %s", eid, zero.Name())
+        }</span>
+
+        // Get the column from the archetype directly.
+        <span class="cov8" title="1">index := archetype.components.CountTo(cid)
+        column, ok := archetype.columns[index].(*column[T])
+        assert.That(ok, "unexpected column type")
+
+        row := archetype.rows[eid]
+        return column.get(row), nil</span>
+}
+
+// removeComponent removes a component from the given entity. Returns an error if the entity or the
+// component to remove doesn't exist.
+func removeComponent[T Component](ws *worldState, eid EntityID) error <span class="cov8" title="1">{
+        var zero T
+
+        aid, exists := ws.entityArch.get(eid)
+        if !exists </span><span class="cov0" title="0">{
+                return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
+        }</span>
+        <span class="cov8" title="1">archetype := ws.archetypes[aid]
+
+        cid, err := ws.components.getID(zero.Name())
+        if err != nil </span><span class="cov0" title="0">{
+                return eris.Wrap(err, "failed to get component id")
+        }</span>
+
+        // Check if the entity actually has this component.
+        <span class="cov8" title="1">if !archetype.components.Contains(cid) </span><span class="cov8" title="1">{
+                // Entity doesn't have this component, nothing to remove
+                return nil
+        }</span>
+
+        // Create the components bitmap without the component to remove.
+        <span class="cov8" title="1">newComponents := archetype.components.Clone(nil)
+        newComponents.Remove(cid)
+
+        // A remove component is basically a move, so just move the entity to the correct archetype.
+        ws.moveEntity(eid, newComponents)
+        return nil</span>
+}
+
+// registerComponent registers a component type with the world state.
+func registerComponent[T Component](ws *worldState) (componentID, error) <span class="cov8" title="1">{
+        var zero T
+        return ws.components.register(zero.Name(), newColumnFactory[T]())
+}</span>
+
+// -------------------------------------------------------------------------------------------------
+// Serialization
+// -------------------------------------------------------------------------------------------------
+
+// toProto converts the worldState to a protobuf message for serialization.
+func (ws *worldState) toProto() (*cardinalv1.CardinalSnapshot, error) <span class="cov8" title="1">{
+        freeIDs := make([]uint32, len(ws.free))
+        for i, entityID := range ws.free </span><span class="cov8" title="1">{
+                freeIDs[i] = uint32(entityID)
+        }</span>
+
+        <span class="cov8" title="1">pbArchetypes := make([]*cardinalv1.Archetype, len(ws.archetypes))
+        for i, arch := range ws.archetypes </span><span class="cov8" title="1">{
+                pbArch, err := arch.toProto()
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, eris.Wrapf(err, "failed to serialize archetype %d", i)
+                }</span>
+                <span class="cov8" title="1">pbArchetypes[i] = pbArch</span>
+        }
+
+        <span class="cov8" title="1">return &amp;cardinalv1.CardinalSnapshot{
+                NextId:     uint32(ws.nextID),
+                FreeIds:    freeIDs,
+                EntityArch: ws.entityArch.toInt64Slice(),
+                Archetypes: pbArchetypes,
+        }, nil</span>
+}
+
+// fromProto populates the worldState from a protobuf message.
+func (ws *worldState) fromProto(pb *cardinalv1.CardinalSnapshot) error <span class="cov8" title="1">{
+        ws.nextID = EntityID(pb.GetNextId())
+
+        ws.free = make([]EntityID, len(pb.GetFreeIds()))
+        for i, freeID := range pb.GetFreeIds() </span><span class="cov8" title="1">{
+                ws.free[i] = EntityID(freeID)
+        }</span>
+
+        <span class="cov8" title="1">ws.entityArch.fromInt64Slice(pb.GetEntityArch())
+
+        ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
+        for i, pbArch := range pb.GetArchetypes() </span><span class="cov8" title="1">{
+                ws.archetypes[i] = &amp;archetype{}
+                if err := ws.archetypes[i].fromProto(pbArch, &amp;ws.components); err != nil </span><span class="cov8" title="1">{
+                        return eris.Wrapf(err, "failed to deserialize archetype %d", i)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// -------------------------------------------------------------------------------------------------
+// Archetype helpers
+// -------------------------------------------------------------------------------------------------
+
+// newArchetype creates a new archetype with the given archetype ID and components bitmap.
+func (ws *worldState) newArchetype(aid archetypeID, components bitmap.Bitmap) *archetype <span class="cov8" title="1">{
+        count := components.Count()
+        columns := make([]abstractColumn, count)
+
+        // Initialize the columns with the column factories.
+        index := 0
+        components.Range(func(cid uint32) </span><span class="cov8" title="1">{
+                factory := ws.components.factories[cid]
+                columns[index] = factory()
+                index++
+        }</span>)
+        <span class="cov8" title="1">assert.That(index == count, "not all columns are created")
+
+        arch := newArchetype(aid, components, columns)
+        return &amp;arch</span>
+}
+
+// archExact returns the archetype that exactly matches the given component types.
+func (ws *worldState) archExact(components bitmap.Bitmap) (archetypeID, bool) <span class="cov8" title="1">{
+        for aid, archetype := range ws.archetypes </span><span class="cov8" title="1">{
+                if archetype.exact(components) </span><span class="cov8" title="1">{
+                        return aid, true
+                }</span>
+        }
+        <span class="cov8" title="1">return 0, false</span>
+}
+
+// archContains returns all archetypes that have the given component types.
+func (ws *worldState) archContains(components bitmap.Bitmap) []int <span class="cov8" title="1">{
+        result := make([]int, 0)
+        for aid, archetype := range ws.archetypes </span><span class="cov8" title="1">{
+                if archetype.contains(components) </span><span class="cov8" title="1">{
+                        result = append(result, aid)
+                }</span>
+        }
+        <span class="cov8" title="1">return result</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -11,6 +11,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -39,14 +40,14 @@ func (s *ShardService) handleQuery(ctx context.Context, req *micro.Request) *mic
 	// Check if world is shutting down.
 	select {
 	case <-ctx.Done():
-		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), 0)
+		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
 	default:
 		// Continue processing.
 	}
 
 	query, err := parseQuery(&s.queryPool, req)
 	if err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), 0)
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.Internal)
 	}
 	defer s.queryPool.Put(query)
 
@@ -56,12 +57,12 @@ func (s *ShardService) handleQuery(ctx context.Context, req *micro.Request) *mic
 		Where: query.Where,
 	})
 	if err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to search entities"), 0)
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to search entities"), codes.Internal)
 	}
 
 	res, err := serializeQueryResults(results)
 	if err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to serialize results"), 0)
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to serialize results"), codes.Internal)
 	}
 
 	return micro.NewSuccessResponse(req, res)

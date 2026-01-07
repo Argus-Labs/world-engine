@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"math/rand/v2"
+	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -32,7 +33,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 	// Setup: pre-register a fixed set of command names.
 	for range numCommands {
 		name := randValidCommandName(prng)
-		_, err := impl.register(name)
+		_, err := impl.register(name, reflect.TypeOf(nil))
 		require.NoError(t, err)
 		model[name] = []micro.Command{}
 	}
@@ -127,7 +128,7 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 
 	for range opsMax {
 		name := randValidCommandName(prng)
-		implID, err := impl.register(name)
+		implID, err := impl.register(name, reflect.TypeOf(nil))
 		require.NoError(t, err)
 
 		if modelID, exists := model[name]; exists {
@@ -163,15 +164,15 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 	t.Run("registration idempotence", func(t *testing.T) {
 		t.Parallel()
 
-		id1, err := impl.register("hello")
+		id1, err := impl.register("hello", reflect.TypeOf(nil))
 		require.NoError(t, err)
 
-		id2, err := impl.register("hello")
+		id2, err := impl.register("hello", reflect.TypeOf(nil))
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := impl.register("a_different_name")
+		id3, err := impl.register("a_different_name", reflect.TypeOf(nil))
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)

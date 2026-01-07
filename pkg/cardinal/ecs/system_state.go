@@ -111,7 +111,7 @@ type WithCommand[T Command] struct {
 func (m *WithCommand[T]) init(w *World) (bitmap.Bitmap, error) {
 	var zero T
 
-	id, err := w.commands.register(zero.Name())
+	id, err := w.commands.register(zero.Name(), reflect.TypeOf(zero))
 	if err != nil {
 		return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register command %s", zero.Name())
 	}
@@ -208,7 +208,7 @@ type WithEvent[T Event] struct {
 func (e *WithEvent[T]) init(w *World) (bitmap.Bitmap, error) {
 	var zero T
 
-	id, err := w.events.register(zero.Name())
+	id, err := w.events.register(zero.Name(), reflect.TypeOf(zero))
 	if err != nil {
 		return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register event %s", zero.Name())
 	}

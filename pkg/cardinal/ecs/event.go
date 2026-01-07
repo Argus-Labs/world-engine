@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -45,11 +46,12 @@ const (
 
 // eventManager manages the registration and storage of events.
 type eventManager struct {
-	events   chan RawEvent     // Channel for collecting events emitted by systems
-	buffer   []RawEvent        // Buffer for storing events to be outputted
-	mu       sync.Mutex        // Mutex for buffer access during flush
-	registry map[string]uint32 // Map from event name to event ID
-	nextID   uint32            // Next available event ID
+	events   chan RawEvent           // Channel for collecting events emitted by systems
+	buffer   []RawEvent              // Buffer for storing events to be outputted
+	mu       sync.Mutex              // Mutex for buffer access during flush
+	registry map[string]uint32       // Map from event name to event ID
+	types    map[string]reflect.Type // Event name -> reflect.Type
+	nextID   uint32                  // Next available event ID
 }
 
 // newEventManager creates a new eventManager with optional configuration.
@@ -58,6 +60,7 @@ func newEventManager(opts ...eventManagerOption) *eventManager {
 		events:   make(chan RawEvent, defaultEventChannelCapacity),
 		buffer:   make([]RawEvent, 0, defaultEventBufferCapacity),
 		registry: make(map[string]uint32),
+		types:    make(map[string]reflect.Type),
 		nextID:   0,
 	}
 	for _, opt := range opts {
@@ -68,7 +71,7 @@ func newEventManager(opts ...eventManagerOption) *eventManager {
 
 // register registers an event type and returns its ID. If already registered, returns existing ID.
 // This is used just to check for duplicate WithEvent handlers in a system.
-func (e *eventManager) register(name string) (uint32, error) {
+func (e *eventManager) register(name string, typ reflect.Type) (uint32, error) {
 	if name == "" {
 		return 0, eris.New("event name cannot be empty")
 	}
@@ -82,6 +85,7 @@ func (e *eventManager) register(name string) (uint32, error) {
 	}
 
 	e.registry[name] = e.nextID
+	e.types[name] = typ
 	e.nextID++
 	return e.nextID - 1, nil
 }

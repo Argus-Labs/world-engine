@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"reflect"
+
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
@@ -123,4 +125,23 @@ func (w *World) Deserialize(data []byte) error {
 	// Mark init as done to prevent re-running init systems after restore.
 	w.initDone = true
 	return nil
+}
+
+// -------------------------------------------------------------------------------------------------
+// Introspection methods
+// -------------------------------------------------------------------------------------------------
+
+// CommandTypes returns a map of command names to their reflect.Type.
+func (w *World) CommandTypes() map[string]reflect.Type {
+	return w.commands.types
+}
+
+// EventTypes returns a map of event names to their reflect.Type.
+func (w *World) EventTypes() map[string]reflect.Type {
+	return w.events.types
+}
+
+// ComponentTypes returns a map of component names to their reflect.Type.
+func (w *World) ComponentTypes() map[string]reflect.Type {
+	return w.state.components.types
 }
