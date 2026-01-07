@@ -693,8 +693,8 @@ func getPlayerLobby(
 		return nil
 	}
 
-	lobbyEntity, ok := lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-	if !ok {
+	lobbyEntity, err := lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+	if err != nil {
 		return nil
 	}
 
@@ -749,7 +749,7 @@ func LobbySystem(state *LobbySystemState) error {
 	processGetAllPlayersCommands(state, &lobbyIndex)
 
 	// Save lobby index
-	if lobbyIndexEntity, ok := state.LobbyIndexes.GetByID(lobbyIndexEntityID); ok {
+	if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
 		lobbyIndexEntity.Index.Set(lobbyIndex)
 	}
 
@@ -859,8 +859,8 @@ func processTimedOutLobby(
 		return nil, nil
 	}
 
-	lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-	if !ok {
+	lobbyEntity, err := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+	if err != nil {
 		return nil, nil
 	}
 
@@ -975,8 +975,8 @@ func areAllPlayersReady(
 		if !exists {
 			return false
 		}
-		playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-		if !ok {
+		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		if err != nil {
 			return false
 		}
 		if !playerEntity.Player.Get().IsReady {
@@ -999,8 +999,8 @@ func gatherLobbyPlayers(
 		if !pExists {
 			continue
 		}
-		pEntity, pOK := state.Players.GetByID(ecs.EntityID(pEntityID))
-		if !pOK {
+		pEntity, pErr := state.Players.GetByID(ecs.EntityID(pEntityID))
+		if pErr != nil {
 			continue
 		}
 		playersList = append(playersList, pEntity.Player.Get())
@@ -1178,8 +1178,8 @@ func processJoinLobbyCommands(
 			continue
 		}
 
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
+		lobbyEntity, err := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+		if err != nil {
 			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
 			continue
 		}
@@ -1312,7 +1312,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		var playerComp component.PlayerComponent
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			if playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID)); ok {
+			if playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID)); err == nil {
 				playerComp = playerEntity.Player.Get()
 				playerComp.TeamID = newTeam.TeamID
 				playerEntity.Player.Set(playerComp)
@@ -1469,8 +1469,8 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			})
 			continue
 		}
-		playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-		if !ok {
+		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		if err != nil {
 			state.SetReadyResults.Emit(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -1756,8 +1756,8 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			continue
 		}
 
-		lobbyEntity, ok := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
-		if !ok {
+		lobbyEntity, err := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+		if err != nil {
 			continue
 		}
 
@@ -1778,8 +1778,8 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			if !pExists {
 				continue
 			}
-			playerEntity, pOK := state.Players.GetByID(ecs.EntityID(playerEntityID))
-			if !pOK {
+			playerEntity, pErr := state.Players.GetByID(ecs.EntityID(playerEntityID))
+			if pErr != nil {
 				continue
 			}
 			playerComp := playerEntity.Player.Get()
@@ -1952,8 +1952,8 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			})
 			continue
 		}
-		playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-		if !ok {
+		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		if err != nil {
 			state.UpdatePlayerPassthroughResults.Emit(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -2008,8 +2008,8 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 			continue
 		}
 
-		playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-		if !ok {
+		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		if err != nil {
 			state.GetPlayerResults.Emit(GetPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -2054,8 +2054,8 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *component
 			if !exists {
 				continue
 			}
-			playerEntity, ok := state.Players.GetByID(ecs.EntityID(playerEntityID))
-			if !ok {
+			playerEntity, pErr := state.Players.GetByID(ecs.EntityID(playerEntityID))
+			if pErr != nil {
 				continue
 			}
 			players = append(players, playerEntity.Player.Get())
@@ -2151,7 +2151,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 	// Early exit if no players timed out
 	if len(timedOutPlayers) == 0 {
 		// Save lobby index (heartbeat commands may have updated deadlines)
-		if lobbyIndexEntity, ok := state.LobbyIndexes.GetByID(lobbyIndexEntityID); ok {
+		if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
 			lobbyIndexEntity.Index.Set(lobbyIndex)
 		}
 		return nil
@@ -2185,7 +2185,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 	}
 
 	// Save lobby index
-	if lobbyIndexEntity, ok := state.LobbyIndexes.GetByID(lobbyIndexEntityID); ok {
+	if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
 		lobbyIndexEntity.Index.Set(lobbyIndex)
 	}
 
