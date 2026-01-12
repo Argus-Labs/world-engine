@@ -7,24 +7,22 @@
 package protoutil
 
 import (
-	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // MarshalCommand converts an ecs.Command to its protobuf representation.
-func MarshalCommand(command ecs.Command, dst *micro.ServiceAddress, personaID string) (*iscv1.CommandBody, error) {
+func MarshalCommand(command ecs.Command, dst *micro.ServiceAddress, personaID string) (*iscv1.Command, error) {
 	pbStruct, err := marshalToStruct(command)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal command into structpb")
 	}
 
-	return &iscv1.CommandBody{
+	return &iscv1.Command{
 		Name:    command.Name(),
 		Payload: pbStruct,
 		Address: dst,
@@ -45,17 +43,6 @@ func MarshalEvent(event ecs.Event) (*iscv1.Event, error) {
 		Name:    event.Name(),
 		Payload: pbStruct,
 	}, nil
-}
-
-func UnmarshalCommandBytes(bytes []byte) (*iscv1.CommandRaw, error) {
-	command := &iscv1.CommandRaw{}
-	if err := proto.Unmarshal(bytes, command); err != nil {
-		return command, eris.Wrap(err, "failed to unmarshal command from command bytes")
-	}
-	if err := protovalidate.Validate(command); err != nil {
-		return command, eris.Wrap(err, "failed to validate command")
-	}
-	return command, nil
 }
 
 // marshalToStruct is a helper function to convert an arbitrary struct type into a protobuf-

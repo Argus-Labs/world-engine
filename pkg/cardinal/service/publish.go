@@ -6,7 +6,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/protoutil"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 )
@@ -73,17 +72,12 @@ func (s *ShardService) publishInterShardCommand(raw ecs.RawEvent) error {
 		return eris.Errorf("invalid inter shard command %v", isc)
 	}
 
-	pbCommand, err := protoutil.MarshalCommand(isc.Command, isc.Target, s.personaID)
+	pbCommand, err := protoutil.MarshalCommand(isc.Command, isc.Target, micro.String(s.Address))
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal command")
 	}
 
-	signedCommand, err := s.signer.SignCommand(pbCommand, iscv1.AuthInfo_AUTH_MODE_PERSONA)
-	if err != nil {
-		return eris.Wrap(err, "failed to sign inter-shard command")
-	}
-
-	_, err = s.client.Request(context.Background(), isc.Target, "command."+isc.Command.Name(), signedCommand)
+	_, err = s.client.Request(context.Background(), isc.Target, "command."+isc.Command.Name(), pbCommand)
 	if err != nil {
 		err = eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Command.Name())
 		return err
