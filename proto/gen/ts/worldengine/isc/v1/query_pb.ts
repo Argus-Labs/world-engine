@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/isc/v1/query.proto.
  */
 export const file_worldengine_isc_v1_query: GenFile = /*@__PURE__*/
-  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSLIAQoFUXVlcnkSLwoEZmluZBgBIAMoCUIhukgekgEbIhlyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEjoKBW1hdGNoGAIgASgOMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Lk1hdGNoQgq6SAeCAQQQASAAEg0KBXdoZXJlGAMgASgJIkMKBU1hdGNoEhUKEU1BVENIX1VOU1BFQ0lGSUVEEAASDwoLTUFUQ0hfRVhBQ1QQARISCg5NQVRDSF9DT05UQUlOUxACIh8KC1F1ZXJ5UmVzdWx0EhAKCGVudGl0aWVzGAEgAygMQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSLyAQoFUXVlcnkSLQoEZmluZBgBIAMoCUIfukgckgEZIhdyFRiAATIQXlthLXpBLVowLTlfLV0rJBI4CgVtYXRjaBgCIAEoDjIfLndvcmxkZW5naW5lLmlzYy52MS5RdWVyeS5NYXRjaEIIukgFggECEAESDQoFd2hlcmUYAyABKAkSDQoFbGltaXQYBCABKA0SDgoGb2Zmc2V0GAUgASgNIlIKBU1hdGNoEhUKEU1BVENIX1VOU1BFQ0lGSUVEEAASDwoLTUFUQ0hfRVhBQ1QQARISCg5NQVRDSF9DT05UQUlOUxACEg0KCU1BVENIX0FMTBADIh8KC1F1ZXJ5UmVzdWx0EhAKCGVudGl0aWVzGAEgAygMQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Query represents a request to search for entities in Cardinal.
@@ -21,7 +21,7 @@ export const file_worldengine_isc_v1_query: GenFile = /*@__PURE__*/
  */
 export type Query = Message<"worldengine.isc.v1.Query"> & {
   /**
-   * List of component names to search for.
+   * List of component names to search for. Must be empty when match is MATCH_ALL.
    *
    * @generated from field: repeated string find = 1;
    */
@@ -40,6 +40,20 @@ export type Query = Message<"worldengine.isc.v1.Query"> & {
    * @generated from field: string where = 3;
    */
   where: string;
+
+  /**
+   * Maximum number of results to return (default: unlimited, 0 = unlimited).
+   *
+   * @generated from field: uint32 limit = 4;
+   */
+  limit: number;
+
+  /**
+   * Number of results to skip before returning (default: 0).
+   *
+   * @generated from field: uint32 offset = 5;
+   */
+  offset: number;
 };
 
 /**
@@ -76,6 +90,13 @@ export enum Query_Match {
    * @generated from enum value: MATCH_CONTAINS = 2;
    */
   CONTAINS = 2,
+
+  /**
+   * MATCH_ALL matches all entities regardless of components. Find must be empty when using this.
+   *
+   * @generated from enum value: MATCH_ALL = 3;
+   */
+  ALL = 3,
 }
 
 /**

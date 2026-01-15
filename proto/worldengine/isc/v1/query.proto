@@ -21,12 +21,14 @@ message Query {
     // MATCH_CONTAINS requires entities to have at least the specified components, but may contain
     // additional components.
     MATCH_CONTAINS = 2;
+
+    // MATCH_ALL matches all entities regardless of components. Find must be empty when using this.
+    MATCH_ALL = 3;
   }
 
-  // List of component names to search for.
+  // List of component names to search for. Must be empty when match is MATCH_ALL.
   repeated string find = 1 [(buf.validate.field).repeated.items = {
     string: {
-      min_len: 1
       max_len: 128
       pattern: "^[a-zA-Z0-9_-]+$"
     }
@@ -35,11 +37,16 @@ message Query {
   // match determines how the components should be matched against entities.
   Match match = 2 [(buf.validate.field).enum = {
     defined_only: true
-    not_in: [0]
   }];
 
   // Optional filter expression using the expr language.
   string where = 3;
+
+  // Maximum number of results to return (default: unlimited, 0 = unlimited).
+  uint32 limit = 4;
+
+  // Number of results to skip before returning (default: 0).
+  uint32 offset = 5;
 }
 
 // QueryResult contains results of the query.
