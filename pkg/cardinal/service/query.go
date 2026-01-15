@@ -19,13 +19,17 @@ import (
 // For now it has the same structure as ecs.SearchParam, but we might add more fields in the future
 // so it's better to keep these as separate types.
 type Query struct {
-	// List of component names to search for.
+	// List of component names to search for. Empty = all entities.
 	Find []string `json:"find"`
-	// Match type: "exact" or "contains".
+	// Match type: "exact" or "contains". Ignored when Find is empty.
 	Match ecs.SearchMatch `json:"match"`
 	// Optional expr language string to filter the results.
 	// See https://expr-lang.org/ for documentation.
 	Where string `json:"where,omitempty"`
+	// Maximum number of results to return (default: 50, max: 10000).
+	Limit int `json:"limit,omitempty"`
+	// Number of results to skip before returning (default: 0).
+	Offset int `json:"offset,omitempty"`
 }
 
 // reset resets the Query object for reuse.
@@ -33,6 +37,8 @@ func (q *Query) reset() {
 	q.Find = q.Find[:0] // Reuse the underlying array
 	q.Match = ""
 	q.Where = ""
+	q.Limit = 0
+	q.Offset = 0
 }
 
 // handleQuery creates a new query handler for the world.
@@ -52,9 +58,11 @@ func (s *ShardService) handleQuery(ctx context.Context, req *micro.Request) *mic
 	defer s.queryPool.Put(query)
 
 	results, err := s.world.NewSearch(ecs.SearchParam{
-		Find:  query.Find,
-		Match: query.Match,
-		Where: query.Where,
+		Find:   query.Find,
+		Match:  query.Match,
+		Where:  query.Where,
+		Limit:  query.Limit,
+		Offset: query.Offset,
 	})
 	if err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to search entities"), codes.Internal)
@@ -85,6 +93,25 @@ func parseQuery(pool *sync.Pool, req *micro.Request) (*Query, error) {
 	query.Find = payload.GetFind()
 	query.Match = ecs.SearchMatch(iscv1MatchToString(payload.GetMatch()))
 	query.Where = payload.GetWhere()
+
+	// Parse Limit and Offset
+	// Note: Default limit is applied in the ECS layer (ecs.NewSearch)
+	// In proto3, unset int32 fields return 0, so we can't distinguish "not set" from "set to 0"
+	// We pass 0 to ECS, which will apply the default (50)
+	limit := int(payload.GetLimit())
+	if limit > ecs.MaxQueryLimit {
+		return nil, eris.Errorf("limit must be <= %d, got %d", ecs.MaxQueryLimit, limit)
+	}
+	if limit < 0 {
+		return nil, eris.Errorf("limit must be >= 0, got %d", limit)
+	}
+	query.Limit = limit
+
+	offset := int(payload.GetOffset())
+	if offset < 0 {
+		return nil, eris.Errorf("offset must be >= 0, got %d", offset)
+	}
+	query.Offset = offset
 
 	return query, nil
 }

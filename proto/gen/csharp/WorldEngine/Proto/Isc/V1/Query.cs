@@ -26,20 +26,21 @@ namespace WorldEngine.Proto.Isc.V1 {
           string.Concat(
             "Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5l",
             "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvGhxnb29nbGUv",
-            "cHJvdG9idWYvc3RydWN0LnByb3RvItwBCgVRdWVyeRI1CgRmaW5kGAEgAygJ",
-            "QiG6SB6SARsiGXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyRSBGZpbmQSQQoF",
-            "bWF0Y2gYAiABKA4yHy53b3JsZGVuZ2luZS5pc2MudjEuUXVlcnkuTWF0Y2hC",
-            "CrpIB4IBBBABIABSBW1hdGNoEhQKBXdoZXJlGAMgASgJUgV3aGVyZSJDCgVN",
-            "YXRjaBIVChFNQVRDSF9VTlNQRUNJRklFRBAAEg8KC01BVENIX0VYQUNUEAES",
-            "EgoOTUFUQ0hfQ09OVEFJTlMQAiJCCgtRdWVyeVJlc3VsdBIzCghlbnRpdGll",
-            "cxgBIAMoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RSCGVudGl0aWVzQmVa",
-            "SGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2Vu",
-            "L2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlBy",
-            "b3RvLklzYy5WMWIGcHJvdG8z"));
+            "cHJvdG9idWYvc3RydWN0LnByb3RvIpsCCgVRdWVyeRIzCgRmaW5kGAEgAygJ",
+            "Qh+6SBySARkiF3IVGIABMhBeW2EtekEtWjAtOV8tXSskUgRmaW5kEj8KBW1h",
+            "dGNoGAIgASgOMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Lk1hdGNoQgi6",
+            "SAWCAQIQAVIFbWF0Y2gSFAoFd2hlcmUYAyABKAlSBXdoZXJlEiAKBWxpbWl0",
+            "GAQgASgFQgq6SAcaBRiQTigAUgVsaW1pdBIfCgZvZmZzZXQYBSABKAVCB7pI",
+            "BBoCKABSBm9mZnNldCJDCgVNYXRjaBIVChFNQVRDSF9VTlNQRUNJRklFRBAA",
+            "Eg8KC01BVENIX0VYQUNUEAESEgoOTUFUQ0hfQ09OVEFJTlMQAiJCCgtRdWVy",
+            "eVJlc3VsdBIzCghlbnRpdGllcxgBIAMoCzIXLmdvb2dsZS5wcm90b2J1Zi5T",
+            "dHJ1Y3RSCGVudGl0aWVzQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3Js",
+            "ZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2",
+            "MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Query), global::WorldEngine.Proto.Isc.V1.Query.Parser, new[]{ "Find", "Match", "Where" }, null, new[]{ typeof(global::WorldEngine.Proto.Isc.V1.Query.Types.Match) }, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Query), global::WorldEngine.Proto.Isc.V1.Query.Parser, new[]{ "Find", "Match", "Where", "Limit", "Offset" }, null, new[]{ typeof(global::WorldEngine.Proto.Isc.V1.Query.Types.Match) }, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.QueryResult), global::WorldEngine.Proto.Isc.V1.QueryResult.Parser, new[]{ "Entities" }, null, null, null, null)
           }));
     }
@@ -89,6 +90,8 @@ namespace WorldEngine.Proto.Isc.V1 {
       find_ = other.find_.Clone();
       match_ = other.match_;
       where_ = other.where_;
+      limit_ = other.limit_;
+      offset_ = other.offset_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -104,7 +107,7 @@ namespace WorldEngine.Proto.Isc.V1 {
         = pb::FieldCodec.ForString(10);
     private readonly pbc::RepeatedField<string> find_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// List of component names to search for.
+    /// List of component names to search for. Empty list queries all entities.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -117,6 +120,7 @@ namespace WorldEngine.Proto.Isc.V1 {
     private global::WorldEngine.Proto.Isc.V1.Query.Types.Match match_ = global::WorldEngine.Proto.Isc.V1.Query.Types.Match.Unspecified;
     /// <summary>
     /// match determines how the components should be matched against entities.
+    /// Ignored when find is empty.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -142,6 +146,36 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
     }
 
+    /// <summary>Field number for the "limit" field.</summary>
+    public const int LimitFieldNumber = 4;
+    private int limit_;
+    /// <summary>
+    /// Maximum number of results to return (default: 50, max: 10000).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int Limit {
+      get { return limit_; }
+      set {
+        limit_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "offset" field.</summary>
+    public const int OffsetFieldNumber = 5;
+    private int offset_;
+    /// <summary>
+    /// Number of results to skip before returning (default: 0, min: 0).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int Offset {
+      get { return offset_; }
+      set {
+        offset_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -160,6 +194,8 @@ namespace WorldEngine.Proto.Isc.V1 {
       if(!find_.Equals(other.find_)) return false;
       if (Match != other.Match) return false;
       if (Where != other.Where) return false;
+      if (Limit != other.Limit) return false;
+      if (Offset != other.Offset) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -170,6 +206,8 @@ namespace WorldEngine.Proto.Isc.V1 {
       hash ^= find_.GetHashCode();
       if (Match != global::WorldEngine.Proto.Isc.V1.Query.Types.Match.Unspecified) hash ^= Match.GetHashCode();
       if (Where.Length != 0) hash ^= Where.GetHashCode();
+      if (Limit != 0) hash ^= Limit.GetHashCode();
+      if (Offset != 0) hash ^= Offset.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -197,6 +235,14 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(26);
         output.WriteString(Where);
       }
+      if (Limit != 0) {
+        output.WriteRawTag(32);
+        output.WriteInt32(Limit);
+      }
+      if (Offset != 0) {
+        output.WriteRawTag(40);
+        output.WriteInt32(Offset);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -216,6 +262,14 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(26);
         output.WriteString(Where);
       }
+      if (Limit != 0) {
+        output.WriteRawTag(32);
+        output.WriteInt32(Limit);
+      }
+      if (Offset != 0) {
+        output.WriteRawTag(40);
+        output.WriteInt32(Offset);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -232,6 +286,12 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
       if (Where.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Where);
+      }
+      if (Limit != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Limit);
+      }
+      if (Offset != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Offset);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -251,6 +311,12 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
       if (other.Where.Length != 0) {
         Where = other.Where;
+      }
+      if (other.Limit != 0) {
+        Limit = other.Limit;
+      }
+      if (other.Offset != 0) {
+        Offset = other.Offset;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -283,6 +349,14 @@ namespace WorldEngine.Proto.Isc.V1 {
             Where = input.ReadString();
             break;
           }
+          case 32: {
+            Limit = input.ReadInt32();
+            break;
+          }
+          case 40: {
+            Offset = input.ReadInt32();
+            break;
+          }
         }
       }
     #endif
@@ -312,6 +386,14 @@ namespace WorldEngine.Proto.Isc.V1 {
           }
           case 26: {
             Where = input.ReadString();
+            break;
+          }
+          case 32: {
+            Limit = input.ReadInt32();
+            break;
+          }
+          case 40: {
+            Offset = input.ReadInt32();
             break;
           }
         }
