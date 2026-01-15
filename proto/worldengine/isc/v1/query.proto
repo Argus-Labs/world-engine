@@ -24,23 +24,35 @@ message Query {
     MATCH_CONTAINS = 2;
   }
 
-  // List of component names to search for.
+  // List of component names to search for. Empty list queries all entities.
   repeated string find = 1 [(buf.validate.field).repeated.items = {
     string: {
-      min_len: 1
       max_len: 128
       pattern: "^[a-zA-Z0-9_-]+$"
+      // Note: min_len removed to allow empty find list
     }
   }];
 
   // match determines how the components should be matched against entities.
+  // Ignored when find is empty.
   Match match = 2 [(buf.validate.field).enum = {
     defined_only: true
-    not_in: [0]
+    // Note: not_in: [0] removed to allow MATCH_UNSPECIFIED when find is empty
   }];
 
   // Optional filter expression using the expr language.
   string where = 3;
+
+  // Maximum number of results to return (default: 50, max: 10000).
+  int32 limit = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
+
+  // Number of results to skip before returning (default: 0, min: 0).
+  int32 offset = 5 [(buf.validate.field).int32 = {
+    gte: 0
+  }];
 }
 
 // QueryResult contains results of the query.

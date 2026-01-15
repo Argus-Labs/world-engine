@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/isc/v1/query.proto.
  */
 export const file_worldengine_isc_v1_query: GenFile = /*@__PURE__*/
-  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSLIAQoFUXVlcnkSLwoEZmluZBgBIAMoCUIhukgekgEbIhlyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEjoKBW1hdGNoGAIgASgOMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Lk1hdGNoQgq6SAeCAQQQASAAEg0KBXdoZXJlGAMgASgJIkMKBU1hdGNoEhUKEU1BVENIX1VOU1BFQ0lGSUVEEAASDwoLTUFUQ0hfRVhBQ1QQARISCg5NQVRDSF9DT05UQUlOUxACIjgKC1F1ZXJ5UmVzdWx0EikKCGVudGl0aWVzGAEgAygLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSL4AQoFUXVlcnkSLQoEZmluZBgBIAMoCUIfukgckgEZIhdyFRiAATIQXlthLXpBLVowLTlfLV0rJBI4CgVtYXRjaBgCIAEoDjIfLndvcmxkZW5naW5lLmlzYy52MS5RdWVyeS5NYXRjaEIIukgFggECEAESDQoFd2hlcmUYAyABKAkSGQoFbGltaXQYBCABKAVCCrpIBxoFGJBOKAASFwoGb2Zmc2V0GAUgASgFQge6SAQaAigAIkMKBU1hdGNoEhUKEU1BVENIX1VOU1BFQ0lGSUVEEAASDwoLTUFUQ0hfRVhBQ1QQARISCg5NQVRDSF9DT05UQUlOUxACIjgKC1F1ZXJ5UmVzdWx0EikKCGVudGl0aWVzGAEgAygLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * Query represents a request to search for entities in Cardinal.
@@ -22,7 +22,7 @@ export const file_worldengine_isc_v1_query: GenFile = /*@__PURE__*/
  */
 export type Query = Message<"worldengine.isc.v1.Query"> & {
   /**
-   * List of component names to search for.
+   * List of component names to search for. Empty list queries all entities.
    *
    * @generated from field: repeated string find = 1;
    */
@@ -30,6 +30,7 @@ export type Query = Message<"worldengine.isc.v1.Query"> & {
 
   /**
    * match determines how the components should be matched against entities.
+   * Ignored when find is empty.
    *
    * @generated from field: worldengine.isc.v1.Query.Match match = 2;
    */
@@ -41,6 +42,20 @@ export type Query = Message<"worldengine.isc.v1.Query"> & {
    * @generated from field: string where = 3;
    */
   where: string;
+
+  /**
+   * Maximum number of results to return (default: 50, max: 10000).
+   *
+   * @generated from field: int32 limit = 4;
+   */
+  limit: number;
+
+  /**
+   * Number of results to skip before returning (default: 0, min: 0).
+   *
+   * @generated from field: int32 offset = 5;
+   */
+  offset: number;
 };
 
 /**
