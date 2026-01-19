@@ -256,10 +256,13 @@ func formatStreamName(address *ServiceAddress) string {
 }
 
 // epochPublishOptions creates publish options for epoch messages with deduplication and ordering.
-func epochPublishOptions(subject string, epochCount uint64) []jetstream.PublishOpt {
-	opts := []jetstream.PublishOpt{jetstream.WithMsgID(fmt.Sprintf("%s-%d", subject, epochCount))}
-	if epochCount > 0 {
-		opts = append(opts, jetstream.WithExpectLastMsgID(fmt.Sprintf("%s-%d", subject, epochCount-1)))
+// It uses ExpectLastSequence for ordering which is persisted with stream state and survives NATS restarts,
+// unlike ExpectLastMsgID which relies on an in-memory deduplication cache.
+// epochHeight is used as the expected last sequence since epochs map 1:1 with stream sequences.
+func epochPublishOptions(subject string, epochHeight uint64) []jetstream.PublishOpt {
+	opts := []jetstream.PublishOpt{jetstream.WithMsgID(fmt.Sprintf("%s-%d", subject, epochHeight))}
+	if epochHeight > 0 {
+		opts = append(opts, jetstream.WithExpectLastSequence(epochHeight))
 	}
 	return opts
 }

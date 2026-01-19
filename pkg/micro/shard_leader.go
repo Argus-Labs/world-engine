@@ -158,12 +158,20 @@ func (s *Shard) publishEpoch(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal epoch")
 	}
-	_, err = s.js.Publish(ctx, s.subject, payload, epochPublishOptions(s.subject, s.epochHeight)...)
+	ack, err := s.js.Publish(ctx, s.subject, payload, epochPublishOptions(s.subject, s.epochHeight)...)
 	if err != nil {
 		return eris.Wrap(err, "failed to publish epoch")
 	}
 
-	logger.Debug().Uint64("epoch", s.epochHeight).Hex("hash", stateHash).Msg("epoch published")
+	// Verify stream sequence matches expected epoch height (1:1 mapping).
+	// Stream sequences start at 1, so we'll have to compare with epochHeight+1. We can't set the
+	// stream sequence to start at 0, so we'll just have to deal with it here.
+	expectedSeq := s.epochHeight + 1
+	if ack.Sequence != expectedSeq {
+		return eris.Errorf("epoch sequence mismatch: expected %d, got %d", expectedSeq, ack.Sequence)
+	}
+
+	logger.Debug().Uint64("epoch", s.epochHeight).Uint64("seq", ack.Sequence).Hex("hash", stateHash).Msg("epoch published")
 	return nil
 }
 
