@@ -3,7 +3,7 @@ package epoch
 import (
 	"time"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 )
 
 type Epoch struct {

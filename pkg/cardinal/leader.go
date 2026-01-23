@@ -3,7 +3,6 @@ package cardinal
 import (
 	"context"
 	"crypto/sha256"
-	"slices"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -33,8 +32,7 @@ func (w *World) runLeader(ctx context.Context) error {
 func (w *World) Tick(timestamp time.Time) error {
 	assert.That(len(w.ticks) < int(w.options.EpochFrequency), "last epoch is not submitted")
 
-	// Copy commands slice to avoid aliasing issues with reused buffer.
-	commands := slices.Clone(w.commands.GetCommands())
+	commands := w.commands.Drain()
 
 	// Append to ticks slice.
 	tick := epoch.Tick{

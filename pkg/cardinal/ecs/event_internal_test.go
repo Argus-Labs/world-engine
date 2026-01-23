@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"math/rand/v2"
 	"reflect"
 	"testing"
 	"testing/synctest"
@@ -139,7 +140,7 @@ func TestEvent_RegisterModelFuzz(t *testing.T) {
 	model := make(map[string]uint32) // name -> ID
 
 	for range opsMax {
-		name := randValidCommandName(prng)
+		name := randValidEventName(prng)
 		implID, err := impl.register(name, reflect.TypeOf(name))
 		require.NoError(t, err)
 
@@ -189,4 +190,14 @@ func TestEvent_RegisterModelFuzz(t *testing.T) {
 
 		assert.Equal(t, id1+1, id3)
 	})
+}
+
+func randValidEventName(prng *rand.Rand) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+	length := prng.IntN(50) + 1 // 1-50 characters
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = chars[prng.IntN(len(chars))]
+	}
+	return string(b)
 }

@@ -130,7 +130,7 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	model := make(map[string]systemEventID) // name -> ID
 
 	for range opsMax {
-		name := randValidCommandName(prng) // Reuse the command name generator as they're identical
+		name := randValidEventName(prng) // Reuse the command name generator as they're identical
 		implID, err := impl.register(name)
 		require.NoError(t, err)
 

@@ -16,7 +16,7 @@ const maxSystemEventID = math.MaxUint32 - 1
 
 // SystemEvent is an interface that all system events must implement.
 // SystemEvents are events emitted by a system to be handled by another system.
-type SystemEvent = Command
+type SystemEvent = Event
 
 // systemEventManager manages the registration and storage of system events.
 type systemEventManager struct {

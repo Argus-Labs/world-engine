@@ -3,7 +3,6 @@ package ecs
 import (
 	"reflect"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -18,8 +17,7 @@ type World struct {
 	initSystems []initSystem       // Initialization systems, run once during the genesis tick
 	scheduler   [3]systemScheduler // Systems schedulers (PreTick, Update, PostTick)
 
-	// Commands, events, system events.
-	commands     commandManager     // Receives commands from external sources
+	// events, system events.
 	events       *eventManager      // Stores events to be emitted to external sources
 	systemEvents systemEventManager // Manages system events
 }
@@ -32,7 +30,6 @@ func NewWorld() *World {
 		initSystems:  make([]initSystem, 0),
 		scheduler:    [3]systemScheduler{},
 		systemEvents: newSystemEventManager(),
-		commands:     newCommandManager(),
 		events:       newEventManager(),
 	}
 
@@ -54,7 +51,7 @@ func (w *World) Init() {
 // registered systems in order. If any system returns an error, the entire tick is considered
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
-func (w *World) Tick(commands []command.Command) ([]RawEvent, error) {
+func (w *World) Tick() ([]RawEvent, error) {
 	// Run init systems once on first tick.
 	if !w.initDone {
 		for _, system := range w.initSystems {
@@ -66,8 +63,6 @@ func (w *World) Tick(commands []command.Command) ([]RawEvent, error) {
 		return []RawEvent{}, nil
 	}
 
-	// Receive commands from external sources and clear buffers.
-	w.commands.receiveCommands(commands)
 	defer w.clearBuffers()
 
 	// Run the systems.
@@ -77,7 +72,7 @@ func (w *World) Tick(commands []command.Command) ([]RawEvent, error) {
 		}
 	}
 
-	// Copy commands and events to the result.
+	// Copy events to the result.
 	emittedEvents := w.events.getEvents()
 	result := make([]RawEvent, len(emittedEvents))
 	copy(result, emittedEvents)
@@ -93,7 +88,6 @@ func (w *World) CustomTick(fn func(*worldState)) {
 
 // clearBuffers clears the previous tick's buffers.
 func (w *World) clearBuffers() {
-	w.commands.clear()
 	w.events.clear()
 	w.systemEvents.clear()
 }
@@ -133,7 +127,7 @@ func (w *World) Deserialize(data []byte) error {
 
 // CommandTypes returns a map of command names to their reflect.Type.
 func (w *World) CommandTypes() map[string]reflect.Type {
-	return w.commands.types
+	return nil
 }
 
 // EventTypes returns a map of event names to their reflect.Type.

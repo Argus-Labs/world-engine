@@ -5,12 +5,13 @@ import (
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/rotisserie/eris"
 )
 
 // Event is an interface that all events must implement.
 // Events are packets of information that are sent from systems to the outside world.
-type Event = Command
+type Event = command.CommandPayload
 
 // EventKind is a type that represents the kind of event.
 type EventKind uint8
@@ -80,7 +81,7 @@ func (e *eventManager) register(name string, typ reflect.Type) (uint32, error) {
 		return id, nil
 	}
 
-	if e.nextID > MaxCommandID {
+	if e.nextID > command.MaxID {
 		return 0, eris.New("max number of events exceeded")
 	}
 

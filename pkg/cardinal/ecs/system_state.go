@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
@@ -19,7 +18,8 @@ type systemStateField interface {
 }
 
 var _ systemStateField = &BaseSystemState{}
-var _ systemStateField = &WithCommand[Command]{}
+
+// var _ systemStateField = &WithCommand[Command]{}
 var _ systemStateField = &WithEvent[Event]{}
 var _ systemStateField = &WithSystemEventReceiver[SystemEvent]{}
 var _ systemStateField = &WithSystemEventEmitter[SystemEvent]{}
@@ -103,78 +103,78 @@ func (b *BaseSystemState) EmitRawEvent(kind EventKind, payload any) {
 //	    }
 //	    return nil
 //	}
-type WithCommand[T Command] struct {
-	world *World
-}
-
+// type WithCommand[T Command] struct {
+// 	world *World
+// }
+//
 // init initializes the command state field.
-func (m *WithCommand[T]) init(w *World) (bitmap.Bitmap, error) {
-	var zero T
-
-	id, err := w.commands.register(zero.Name(), reflect.TypeOf(zero))
-	if err != nil {
-		return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register command %s", zero.Name())
-	}
-	m.world = w
-
-	// Set the command ID in the bitmap so we can check that a system doesn't contain multiple
-	// WithCommand fields with the same command type.
-	deps := bitmap.Bitmap{}
-	deps.Set(uint32(id))
-
-	return deps, nil
-}
-
-// tag returns the type of system state field.
-func (m *WithCommand[T]) tag() systemStateFieldType {
-	return FieldCommand
-}
-
-// Iter returns an iterator over all commands of type T.
+// func (m *WithCommand[T]) init(w *World) (bitmap.Bitmap, error) {
+// 	var zero T
 //
-// Example usage:
+// 	id, err := w.commands.register(zero.Name(), reflect.TypeOf(zero))
+// 	if err != nil {
+// 		return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register command %s", zero.Name())
+// 	}
+// 	m.world = w
 //
-//	for cmd := range state.SpawnPlayerCommands.Iter() {
-//	    persona := cmd.Persona()
-//	    payload := cmd.Payload()
-//	    // Process each command
-//	}
-func (m *WithCommand[T]) Iter() iter.Seq[CommandContext[T]] {
-	var zero T
-	commands, err := m.world.commands.get(zero.Name())
-	assert.That(err == nil, "command not automatically registered %s", zero.Name())
-
-	return func(yield func(CommandContext[T]) bool) {
-		for _, command := range commands {
-			ctx := newCommandContext[T](&command)
-			if !yield(ctx) {
-				return
-			}
-		}
-	}
-}
-
-// CommandContext wraps a command.Command and provides typed access to command data and metadata.
-type CommandContext[T Command] struct {
-	raw *command.Command
-}
-
-// newCommandContext creates a new CommandContext wrapping the given command.Command.
-func newCommandContext[T Command](raw *command.Command) CommandContext[T] {
-	return CommandContext[T]{raw: raw}
-}
-
-// Payload returns the strongly-typed command payload.
-func (c CommandContext[T]) Payload() T {
-	payload, ok := c.raw.Payload.(T)
-	assert.That(ok, "mismatched command type passed to ecs")
-	return payload
-}
-
-// Persona returns the persona (sender) of the command.
-func (c CommandContext[T]) Persona() string {
-	return c.raw.Persona
-}
+// 	// Set the command ID in the bitmap so we can check that a system doesn't contain multiple
+// 	// WithCommand fields with the same command type.
+// 	deps := bitmap.Bitmap{}
+// 	deps.Set(uint32(id))
+//
+// 	return deps, nil
+// }
+//
+// // tag returns the type of system state field.
+// func (m *WithCommand[T]) tag() systemStateFieldType {
+// 	return FieldCommand
+// }
+//
+// // Iter returns an iterator over all commands of type T.
+// //
+// // Example usage:
+// //
+// //	for cmd := range state.SpawnPlayerCommands.Iter() {
+// //	    persona := cmd.Persona()
+// //	    payload := cmd.Payload()
+// //	    // Process each command
+// //	}
+// func (m *WithCommand[T]) Iter() iter.Seq[CommandContext[T]] {
+// 	var zero T
+// 	commands, err := m.world.commands.get(zero.Name())
+// 	assert.That(err == nil, "command not automatically registered %s", zero.Name())
+//
+// 	return func(yield func(CommandContext[T]) bool) {
+// 		for _, command := range commands {
+// 			ctx := newCommandContext[T](&command)
+// 			if !yield(ctx) {
+// 				return
+// 			}
+// 		}
+// 	}
+// }
+//
+// // CommandContext wraps a command.Command and provides typed access to command data and metadata.
+// type CommandContext[T Command] struct {
+// 	raw *command.Command
+// }
+//
+// // newCommandContext creates a new CommandContext wrapping the given command.Command.
+// func newCommandContext[T Command](raw *command.Command) CommandContext[T] {
+// 	return CommandContext[T]{raw: raw}
+// }
+//
+// // Payload returns the strongly-typed command payload.
+// func (c CommandContext[T]) Payload() T {
+// 	payload, ok := c.raw.Payload.(T)
+// 	assert.That(ok, "mismatched command type passed to ecs")
+// 	return payload
+// }
+//
+// // Persona returns the persona (sender) of the command.
+// func (c CommandContext[T]) Persona() string {
+// 	return c.raw.Persona
+// }
 
 // -------------------------------------------------------------------------------------------------
 // Events Fields
