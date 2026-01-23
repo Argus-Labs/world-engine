@@ -18,12 +18,12 @@ func TestMarshalCommand(t *testing.T) {
 	tests := []struct {
 		name      string
 		command   ecs.Command
-		checkFunc func(t *testing.T, result *iscv1.CommandBody)
+		checkFunc func(t *testing.T, result *iscv1.Command)
 	}{
 		{
 			name:    "marshal command",
 			command: testutils.NewSimpleCommand("test-command", "test-payload"),
-			checkFunc: func(t *testing.T, result *iscv1.CommandBody) {
+			checkFunc: func(t *testing.T, result *iscv1.Command) {
 				assert.Equal(t, "test-command", result.GetName())
 				assert.NotNil(t, result.GetPayload())
 				assert.Equal(t, "test-command", result.GetPayload().GetFields()["name"].GetStringValue())

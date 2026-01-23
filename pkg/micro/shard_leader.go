@@ -7,8 +7,10 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -123,7 +125,7 @@ func (s *Shard) publishEpoch(ctx context.Context) error {
 	}
 
 	for _, tick := range s.ticks {
-		tickPb := iscv1.Tick{
+		tickPb := &iscv1.Tick{
 			Header: &iscv1.TickHeader{
 				TickHeight: tick.Header.TickHeight,
 				Timestamp:  timestamppb.New(tick.Header.Timestamp),
@@ -132,30 +134,44 @@ func (s *Shard) publishEpoch(ctx context.Context) error {
 		}
 
 		for _, command := range tick.Data.Commands {
-			commandPb := iscv1.Command{
-				Signature: command.Signature,
-				AuthInfo: &iscv1.AuthInfo{
-					Mode:          command.AuthInfo.Mode,
-					SignerAddress: command.AuthInfo.SignerAddress,
-				},
-				CommandBytes: command.CommandBytes,
+			commandPb := &iscv1.Command{
+				Name:    command.Name,
+				Address: command.Address,
+				Persona: &iscv1.Persona{Id: command.Persona},
 			}
-			tickPb.Data.Commands = append(tickPb.Data.Commands, &commandPb)
+
+			if command.Payload != nil {
+				pbStruct, err := marshalToStruct(command.Payload)
+				if err != nil {
+					return eris.Wrap(err, "failed to marshal command payload")
+				}
+				commandPb.Payload = pbStruct
+			}
+
+			tickPb.Data.Commands = append(tickPb.Data.Commands, commandPb)
 		}
 
-		epoch.Ticks = append(epoch.Ticks, &tickPb)
+		epoch.Ticks = append(epoch.Ticks, tickPb)
 	}
 
 	payload, err := proto.Marshal(&epoch)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal epoch")
 	}
-	_, err = s.js.Publish(ctx, s.subject, payload, epochPublishOptions(s.subject, s.epochHeight)...)
+	ack, err := s.js.Publish(ctx, s.subject, payload, epochPublishOptions(s.subject, s.epochHeight)...)
 	if err != nil {
 		return eris.Wrap(err, "failed to publish epoch")
 	}
 
-	logger.Debug().Uint64("epoch", s.epochHeight).Hex("hash", stateHash).Msg("epoch published")
+	// Verify stream sequence matches expected epoch height (1:1 mapping).
+	// Stream sequences start at 1, so we'll have to compare with epochHeight+1. We can't set the
+	// stream sequence to start at 0, so we'll just have to deal with it here.
+	expectedSeq := s.epochHeight + 1
+	if ack.Sequence != expectedSeq {
+		return eris.Errorf("epoch sequence mismatch: expected %d, got %d", expectedSeq, ack.Sequence)
+	}
+
+	logger.Debug().Uint64("epoch", s.epochHeight).Uint64("seq", ack.Sequence).Hex("hash", stateHash).Msg("epoch published")
 	return nil
 }
 
@@ -189,4 +205,22 @@ func (s *Shard) createAndStoreSnapshot(snapshot *Snapshot) {
 		Uint64("epoch", snapshot.EpochHeight).
 		Hex("hash", snapshot.StateHash).
 		Msg("snapshot stored")
+}
+
+func marshalToStruct(payload any) (*structpb.Struct, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to marshal payload")
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(bytes, &m); err != nil {
+		return nil, eris.Wrap(err, "failed to unmarshal payload to map[string]any")
+	}
+
+	pbStruct, err := structpb.NewStruct(m)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to convert map to structpb.Struct")
+	}
+	return pbStruct, nil
 }
