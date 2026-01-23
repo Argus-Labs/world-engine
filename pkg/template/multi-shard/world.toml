@@ -9,10 +9,6 @@ project = "project"
 # log_level = "info"
 # enable_otel = false
 
-[registry]
-# log_level = "info"
-# enable_otel = false
-
 # Shard definitions
 # Each shard's `id` must match its directory name under `shards/` (e.g., shards/game/).
 # If you need to use a different directory location, override with the `path` key.
