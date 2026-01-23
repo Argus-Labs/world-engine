@@ -3,7 +3,7 @@ package ecs
 import (
 	"reflect"
 
-	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -54,7 +54,7 @@ func (w *World) Init() {
 // registered systems in order. If any system returns an error, the entire tick is considered
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
-func (w *World) Tick(commands []micro.Command) ([]RawEvent, error) {
+func (w *World) Tick(commands []command.Command) ([]RawEvent, error) {
 	// Run init systems once on first tick.
 	if !w.initDone {
 		for _, system := range w.initSystems {

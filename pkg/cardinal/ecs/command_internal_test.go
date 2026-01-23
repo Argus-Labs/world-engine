@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +15,7 @@ import (
 // Model-based fuzzing command manager operations
 // -------------------------------------------------------------------------------------------------
 // This test verifies the commandManager implementation correctness using model-based testing. It
-// compares our implementation against a map[string][]micro.Command as the model by applying random
+// compares our implementation against a map[string][]command.Command as the model by applying random
 // sequences of receive/clear/get operations to both and asserting equivalence.
 // Commands are pre-registered since the micro layer guarantees only registered commands reach ECS.
 // -------------------------------------------------------------------------------------------------
@@ -28,14 +28,14 @@ func TestCommand_ModelFuzz(t *testing.T) {
 	const opsMax = 1 << 15 // 32_768 iterations
 
 	impl := newCommandManager()
-	model := make(map[string][]micro.Command) // name -> commands buffer
+	model := make(map[string][]command.Command) // name -> commands buffer
 
 	// Setup: pre-register a fixed set of command names.
 	for range numCommands {
 		name := randValidCommandName(prng)
 		_, err := impl.register(name, reflect.TypeOf(nil))
 		require.NoError(t, err)
-		model[name] = []micro.Command{}
+		model[name] = []command.Command{}
 	}
 
 	for range opsMax {
@@ -43,10 +43,10 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		switch op {
 		case cr_receive:
 			batchSize := prng.IntN(200) + 1
-			batch := make([]micro.Command, batchSize)
+			batch := make([]command.Command, batchSize)
 			for i := range batchSize {
 				name := testutils.RandMapKey(prng, model)
-				batch[i] = micro.Command{Name: name}
+				batch[i] = command.Command{Name: name}
 			}
 
 			impl.receiveCommands(batch)

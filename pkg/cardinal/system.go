@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/service"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -53,7 +54,7 @@ func RegisterSystem[T any](w *World, system ecs.System[T], opts ...ecs.SystemOpt
 		ecs.WithModifier(ecs.FieldSystemEventReceiver, withSystemEventReceiverInit(w)),
 		ecs.WithModifier(ecs.FieldSystemEventEmitter, withSystemEventEmitterInit(w)),
 	)
-	ecs.RegisterSystem(w.getWorld(), system, opts...)
+	ecs.RegisterSystem(w.world, system, opts...)
 }
 
 // The following aliases are exported from ecs so that users don't have to import the ecs package.
@@ -125,14 +126,14 @@ func (b *BaseSystemState) Logger() *zerolog.Logger {
 
 // Tick returns the current tick of the world.
 func (b *BaseSystemState) Tick() uint64 {
-	tick, err := b.cardinal.CurrentTick()
+	tick, err := b.cardinal.currentTick()
 	assert.That(err == nil, "GetCurrentTick should never fail during system execution")
 	return tick.Header.TickHeight
 }
 
 // Timestamp returns the current timestamp of the world.
 func (b *BaseSystemState) Timestamp() time.Time {
-	tick, err := b.cardinal.CurrentTick()
+	tick, err := b.cardinal.currentTick()
 	assert.That(err == nil, "GetCurrentTick should never fail during system execution")
 	return tick.Header.Timestamp
 }
@@ -201,8 +202,9 @@ func (c *WithCommand[T]) init(w *World) error {
 		return eris.Errorf("Command %s must embed cardinal.BaseCommand", name)
 	}
 
-	if err := micro.RegisterCommand[T](w.Shard); err != nil {
-		return eris.Wrap(err, "failed to register command with shard")
+	w.commands.Register(name, command.NewChannel[T]())
+	if err := w.registerCommand(name); err != nil {
+		return eris.Wrap(err, "failed to register command handler")
 	}
 
 	return nil

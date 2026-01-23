@@ -1,8 +1,16 @@
-package micro
+package epoch
 
 import (
 	"time"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 )
+
+type Epoch struct {
+	EpochHeight uint64
+	Hash        []byte
+	Ticks       []Tick
+}
 
 // Tick represents a single execution step in the shard's lifecycle.
 type Tick struct {
@@ -18,17 +26,5 @@ type TickHeader struct {
 
 // TickData contains the commands that were processed during this tick execution.
 type TickData struct {
-	Commands []Command // List of commands executed in this tick
-}
-
-// Command represents a command from a player or external system.
-type Command struct {
-	Name    string          // The command name
-	Address *ServiceAddress // Service address this command is sent to
-	Persona string          // Sender's persona
-	Payload any             // The command payload itself
-}
-
-type ShardCommand interface {
-	Name() string
+	Commands []command.Command // List of commands executed in this tick
 }

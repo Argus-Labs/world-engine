@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
@@ -205,9 +205,9 @@ func TestSystem_WithCommand_Properties(t *testing.T) {
 
 	// Generate random commands (model).
 	count := prng.IntN(10_000)
-	model := make([]micro.Command, count)
+	model := make([]command.Command, count)
 	for i := range count {
-		model[i] = micro.Command{
+		model[i] = command.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Persona: randString(prng, 8),
 			Payload: testutils.SimpleCommand{Value: prng.Int()},
@@ -218,9 +218,9 @@ func TestSystem_WithCommand_Properties(t *testing.T) {
 	world.commands.receiveCommands(model)
 
 	// Iterate and collect results.
-	var results []micro.Command
+	var results []command.Command
 	for ctx := range withCmd.Iter() {
-		results = append(results, micro.Command{
+		results = append(results, command.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Persona: ctx.Persona(),
 			Payload: ctx.Payload(),
@@ -276,9 +276,9 @@ func TestSystem_WithCommand_EdgeCases(t *testing.T) {
 		require.NoError(t, err)
 
 		// Submit 10 commands.
-		commands := make([]micro.Command, 10)
+		commands := make([]command.Command, 10)
 		for i := range commands {
-			commands[i] = micro.Command{
+			commands[i] = command.Command{
 				Name:    testutils.SimpleCommand{}.Name(),
 				Persona: "test",
 				Payload: testutils.SimpleCommand{Value: i},

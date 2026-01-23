@@ -1,17 +1,17 @@
 package main
 
 import (
+	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/micro"
 )
 
 func main() {
 	world, err := cardinal.NewWorld(cardinal.WorldOptions{
 		TickRate:            1,
 		EpochFrequency:      10,
-		SnapshotStorageType: micro.SnapshotStorageJetStream,
+		SnapshotStorageType: snapshot.StorageTypeJetStream,
 	})
 	if err != nil {
 		panic(err.Error())

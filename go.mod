@@ -6,11 +6,10 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1
 	buf.build/go/protovalidate v1.0.0
 	github.com/caarlos0/env/v11 v11.3.1
-	github.com/coocood/freecache v1.2.4
-	github.com/cosmos/ics23/go v0.11.0
 	github.com/expr-lang/expr v1.17.6
 	github.com/getsentry/sentry-go v0.36.2
 	github.com/goccy/go-json v0.10.5
+	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/kelindar/bitmap v1.5.3
 	github.com/nats-io/nats-server/v2 v2.12.1
@@ -36,15 +35,11 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-tpm v0.9.6 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/kelindar/simd v1.1.2 // indirect

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
@@ -154,13 +154,13 @@ func (m *WithCommand[T]) Iter() iter.Seq[CommandContext[T]] {
 	}
 }
 
-// CommandContext wraps a micro.Command and provides typed access to command data and metadata.
+// CommandContext wraps a command.Command and provides typed access to command data and metadata.
 type CommandContext[T Command] struct {
-	raw *micro.Command
+	raw *command.Command
 }
 
-// newCommandContext creates a new CommandContext wrapping the given micro.Command.
-func newCommandContext[T Command](raw *micro.Command) CommandContext[T] {
+// newCommandContext creates a new CommandContext wrapping the given command.Command.
+func newCommandContext[T Command](raw *command.Command) CommandContext[T] {
 	return CommandContext[T]{raw: raw}
 }
 

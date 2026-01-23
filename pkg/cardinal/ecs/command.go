@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/cardinal/command"
 	"github.com/rotisserie/eris"
 )
 
@@ -18,14 +18,14 @@ const MaxCommandID = math.MaxUint32 - 1
 // Command is the interface that all commands must implement.
 // Commands are predefined user actions that are handled by systems.
 type Command interface { //nolint:iface // ecs.Command must be a subset of micro.ShardCommand
-	micro.ShardCommand
+	command.CommandPayload
 }
 
 // commandManager manages the registration and storage of commands.
 type commandManager struct {
 	nextID   CommandID               // The next command ID
 	catalog  map[string]CommandID    // Command name -> Command ID
-	commands [][]micro.Command       // Command ID -> command
+	commands [][]command.Command     // Command ID -> command
 	types    map[string]reflect.Type // Command name -> reflect.Type
 }
 
@@ -34,7 +34,7 @@ func newCommandManager() commandManager {
 	return commandManager{
 		nextID:   0,
 		catalog:  make(map[string]CommandID),
-		commands: make([][]micro.Command, 0),
+		commands: make([][]command.Command, 0),
 		types:    make(map[string]reflect.Type),
 	}
 }
@@ -57,7 +57,7 @@ func (c *commandManager) register(name string, typ reflect.Type) (CommandID, err
 
 	const initialCommandBufferCapacity = 128
 	c.catalog[name] = c.nextID
-	c.commands = append(c.commands, make([]micro.Command, 0, initialCommandBufferCapacity))
+	c.commands = append(c.commands, make([]command.Command, 0, initialCommandBufferCapacity))
 	c.types[name] = typ
 	c.nextID++
 	assert.That(int(c.nextID) == len(c.commands), "command id doesn't match number of commands")
@@ -66,7 +66,7 @@ func (c *commandManager) register(name string, typ reflect.Type) (CommandID, err
 }
 
 // get retrieves a list of commands for a given command name.
-func (c *commandManager) get(name string) ([]micro.Command, error) {
+func (c *commandManager) get(name string) ([]command.Command, error) {
 	id, exists := c.catalog[name]
 	if !exists {
 		return nil, eris.Errorf("command %s is not registered", name)
@@ -83,11 +83,11 @@ func (c *commandManager) clear() {
 }
 
 // receiveCommands receives a list of commands and stores them in the commandManager.
-// All commands are assumed to be pre-validated by the micro layer (micro.commandManager.Enqueue),
+// All commands are assumed to be pre-validated by the micro layer (command.Manager.Enqueue),
 // which rejects unregistered commands before they reach ECS. An unknown command name here indicates
 // a mismatch between micro and ECS command registration, which is a programming error, so we should
 // fail fast (and loudly) instead of silently ignoring it.
-func (c *commandManager) receiveCommands(commands []micro.Command) {
+func (c *commandManager) receiveCommands(commands []command.Command) {
 	for _, command := range commands {
 		id, exists := c.catalog[command.Name]
 		assert.That(exists, "command %s is not registered", command.Name)
