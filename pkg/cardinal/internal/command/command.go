@@ -6,7 +6,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Command represents a command from a player or external system.
@@ -35,10 +37,6 @@ const InvalidID = MaxID + 1
 const initialCommandBufferCapacity = 128
 
 // Manager manages command registration, queuing, and routing for the shard.
-//
-// Thread safety: The queues slice is read-only after all commands are registered (which happens
-// before the shard starts accepting requests). Each queue has its own mutex to protect concurrent
-// access between enqueue (NATS handler goroutines) and drain (tick loop goroutine).
 type Manager struct {
 	nextID   ID
 	catalog  map[string]ID // Command name -> command ID
@@ -59,61 +57,94 @@ func NewManager() Manager {
 }
 
 // Register registers the command type with the command manager.
-func (c *Manager) Register(name string, queue Queue) (ID, error) {
+func (m *Manager) Register(name string, queue Queue) (ID, error) {
 	if name == "" {
 		return 0, eris.New("command name cannot be empty")
 	}
 
 	// If the command is already registered, return the existing ID.
-	if id, exists := c.catalog[name]; exists {
+	if id, exists := m.catalog[name]; exists {
 		return id, nil
 	}
 
-	if c.nextID > MaxID {
+	if m.nextID > MaxID {
 		return 0, eris.New("max number of commands exceeded")
 	}
 
-	id := c.nextID
-	c.catalog[name] = id
-	c.commands = append(c.commands, make([]Command, 0, initialCommandBufferCapacity))
-	c.queues = append(c.queues, queue)
+	id := m.nextID
+	m.catalog[name] = id
+	m.commands = append(m.commands, make([]Command, 0, initialCommandBufferCapacity))
+	m.queues = append(m.queues, queue)
 
-	c.nextID++
-	assert.That(int(c.nextID) == len(c.commands), "command id doesn't match number of commands")
+	m.nextID++
+	assert.That(int(m.nextID) == len(m.commands), "command id doesn't match number of commands")
 
 	return id, nil
 }
 
-// Enqueue receives a command from an external source and stores it in the corresponding channel for
-// the given command type. The command name is extracted from the command and used to route
-// the command to the appropriate channel.
-// Returns an error if the command type is not registered or if validation fails.
-func (c *Manager) Enqueue(command *iscv1.Command) error {
+// Enqueue stores a command in its corresponding queue. The queues map isn't lock protected, and it
+// is expected that there exists only 1 caller for each command type, therefore each caller reads
+// a different key. This is ok because concurrent reads on Go maps are allowed.
+func (m *Manager) Enqueue(command *iscv1.Command) error {
+	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
+	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the
+	// ID of the command in the caller, so we can do a direct index with Enqueue(id, command).
 	name := command.GetName()
-	id, exists := c.catalog[name]
+	id, exists := m.catalog[name]
 	if !exists {
 		return eris.Errorf("unregistered command: %s", name)
 	}
-	return c.queues[id].enqueue(command)
+	return m.queues[id].Enqueue(command)
 }
 
-func (c *Manager) Get(id ID) ([]Command, error) {
-	if id >= c.nextID {
+// Get retrieves a slice of commands given the command ID. The ID is returned from Register, and
+// callers are expected to store it for calls to Get. This API is used vs using the command's name
+// as the index as that requires an extra map lookup. We sacrifice extra complexity at the caller
+// to make sure lookups are fast as Get is a hot path as it is called every tick.
+func (m *Manager) Get(id ID) ([]Command, error) {
+	if id >= m.nextID {
 		return nil, eris.Errorf("unregistered command id: %d", id)
 	}
-	return c.commands[id], nil
+	return m.commands[id], nil
 }
 
-func (c *Manager) Drain() []Command {
+// Drain collects commands from the queues to read-only command buffers. It also returns a list of
+// all commands collected thus far (used by the transaction log). Drain is expected to be called at
+// the start of each tick.
+func (m *Manager) Drain() []Command {
 	// Clear buffers from previous tick to reuse the slices.
-	for id := range c.commands {
-		c.commands[id] = c.commands[id][:0]
+	for id := range m.commands {
+		m.commands[id] = m.commands[id][:0]
 	}
 
-	all := make([]Command, 0, len(c.commands)*initialCommandBufferCapacity)
-	for id, queue := range c.queues {
-		queue.drain(&c.commands[id])
-		all = append(all, c.commands[id]...)
+	all := make([]Command, 0, len(m.commands)*initialCommandBufferCapacity)
+	for id, queue := range m.queues {
+		queue.Drain(&m.commands[id])
+		all = append(all, m.commands[id]...)
 	}
 	return all
+}
+
+// TODO: should we just encode JSON []byte instead of using proto struct?
+// TODO: JSON converts u64s to f64 which loses precision of some types. Consider other serialization
+// format or create a custom one.
+
+// PayloadToProto converts a CommandPayload to a protobuf struct.
+func PayloadToProto(payload CommandPayload) (*structpb.Struct, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to marshal payload")
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(bytes, &m); err != nil {
+		return nil, eris.Wrap(err, "failed to unmarshal payload to map[string]any")
+	}
+
+	pbStruct, err := structpb.NewStruct(m)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to convert map to structpb.Struct")
+	}
+
+	return pbStruct, nil
 }
