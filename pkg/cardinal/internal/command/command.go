@@ -19,7 +19,7 @@ type Command struct {
 	Payload CommandPayload        // The command payload itself
 }
 
-// The interface all user-defined commands must implement.
+// The interface all command payloads must implement.
 type CommandPayload interface {
 	Name() string
 }
@@ -36,12 +36,14 @@ const InvalidID = MaxID + 1
 // initialCommandBufferCapacity is the starting capacity of command buffers.
 const initialCommandBufferCapacity = 128
 
-// Manager manages command registration, queuing, and routing for the shard.
+// Manager manages command registration and stores commands received to be passed to the ECS world.
+// Command IDs are mainly used for quick lookup and to check for duplicate WithCommand fields in
+// a system state.
 type Manager struct {
-	nextID   ID
+	nextID   ID            // Next available command ID
 	catalog  map[string]ID // Command name -> command ID
-	queues   []Queue       // Command ID -> sliceQueue[T]
-	commands [][]Command   // Command ID -> commands slice
+	queues   []Queue       // queue for incoming commands, indexed by command ID
+	commands [][]Command   // read-only commands slice used by ECS systems, indexed by command ID
 }
 
 // NewManager creates a new command manager.

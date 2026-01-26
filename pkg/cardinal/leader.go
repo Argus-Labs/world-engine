@@ -45,7 +45,7 @@ func (w *World) Tick(timestamp time.Time) error {
 	w.ticks = append(w.ticks, tick)
 
 	// Tick ECS world.
-	events, err := w.world.Tick(tick.Data.Commands)
+	err := w.world.Tick()
 	if err != nil {
 		return eris.Wrap(err, "one or more systems failed")
 	}
@@ -54,7 +54,8 @@ func (w *World) Tick(timestamp time.Time) error {
 	w.tickHeight++
 
 	// Emit events.
-	w.service.Publish(events)
+	err = w.events.Dispatch()
+	w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 
 	data, _ := w.world.Serialize()
 	hash := sha256.Sum256(data)

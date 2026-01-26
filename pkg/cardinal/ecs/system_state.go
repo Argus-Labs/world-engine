@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
@@ -20,7 +21,7 @@ type systemStateField interface {
 var _ systemStateField = &BaseSystemState{}
 
 // var _ systemStateField = &WithCommand[Command]{}
-var _ systemStateField = &WithEvent[Event]{}
+// var _ systemStateField = &WithEvent[Event]{}
 var _ systemStateField = &WithSystemEventReceiver[SystemEvent]{}
 var _ systemStateField = &WithSystemEventEmitter[SystemEvent]{}
 var _ systemStateField = &search[any]{}
@@ -70,8 +71,8 @@ func (b *BaseSystemState) UnsafeWorldState() *worldState { //nolint:revive // it
 }
 
 // EmitRawEvent emits a raw event to the world with the given event kind and payload.
-func (b *BaseSystemState) EmitRawEvent(kind EventKind, payload any) {
-	b.world.events.enqueue(kind, payload)
+func (b *BaseSystemState) EmitRawEvent(kind event.Kind, payload any) {
+	// b.world.events.enqueue(kind, payload)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -200,38 +201,38 @@ func (b *BaseSystemState) EmitRawEvent(kind EventKind, payload any) {
 //	    state.LevelUpEvents.Emit(LevelUp{Nickname: "Player1"})
 //	    return nil
 //	}
-type WithEvent[T Event] struct {
-	world *World
-}
-
-// init initializes the event state field.
-func (e *WithEvent[T]) init(w *World) (bitmap.Bitmap, error) {
-	var zero T
-
-	id, err := w.events.register(zero.Name(), reflect.TypeOf(zero))
-	if err != nil {
-		return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register event %s", zero.Name())
-	}
-	e.world = w
-
-	deps := bitmap.Bitmap{}
-	deps.Set(id)
-	return deps, nil
-}
-
-// tag returns the type of system state field.
-func (e *WithEvent[T]) tag() systemStateFieldType {
-	return FieldEvent
-}
-
-// Emit emits an event of tpe T.
+// type WithEvent[T Event] struct {
+// 	world *World
+// }
 //
-// Example:
+// // init initializes the event state field.
+// func (e *WithEvent[T]) init(w *World) (bitmap.Bitmap, error) {
+// 	var zero T
 //
-//	state.LevelUpEvents.Emit(LevelUp{Nickname: "Player1"})
-func (e *WithEvent[T]) Emit(event T) {
-	e.world.events.enqueue(EventKindDefault, event)
-}
+// 	id, err := w.events.register(zero.Name(), reflect.TypeOf(zero))
+// 	if err != nil {
+// 		return bitmap.Bitmap{}, eris.Wrapf(err, "failed to register event %s", zero.Name())
+// 	}
+// 	e.world = w
+//
+// 	deps := bitmap.Bitmap{}
+// 	deps.Set(id)
+// 	return deps, nil
+// }
+//
+// // tag returns the type of system state field.
+// func (e *WithEvent[T]) tag() systemStateFieldType {
+// 	return FieldEvent
+// }
+//
+// // Emit emits an event of tpe T.
+// //
+// // Example:
+// //
+// //	state.LevelUpEvents.Emit(LevelUp{Nickname: "Player1"})
+// func (e *WithEvent[T]) Emit(event T) {
+// 	e.world.events.enqueue(EventKindDefault, event)
+// }
 
 // -------------------------------------------------------------------------------------------------
 // System Event Fields

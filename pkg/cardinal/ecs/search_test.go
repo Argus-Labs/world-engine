@@ -90,7 +90,7 @@ func TestSearch_Validation(t *testing.T) {
 
 			w.Init()
 
-			_, err := w.Tick(nil)
+			err := w.Tick()
 			require.NoError(t, err)
 
 			_, err = w.NewSearch(tt.params)
@@ -189,7 +189,7 @@ func TestSearch_FindAndMatch(t *testing.T) {
 
 			w.Init()
 
-			_, err := w.Tick(nil)
+			err := w.Tick()
 			require.NoError(t, err)
 
 			results, err := w.NewSearch(tt.params)
@@ -315,7 +315,7 @@ func TestSearch_Where(t *testing.T) {
 
 			w.Init()
 
-			_, err := w.Tick(nil)
+			err := w.Tick()
 			require.NoError(t, err)
 
 			results, err := w.NewSearch(tt.params)

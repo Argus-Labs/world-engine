@@ -14,8 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: test no race conditions
-
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing command manager operations
 // -------------------------------------------------------------------------------------------------
@@ -162,9 +160,9 @@ func registerCommand[T command.CommandPayload](
 }
 
 // modelManager is a simple reference implementation of command.Manager for model-based testing.
-// NOTE: The #1 most important aspect of a model is "obvious correctness". The code must be simple and
-// obviously correct, no matter the cost on other aspects like performance. Ideally the model is
-// small enough to be inlined in the test, but for larger types factoring it out makes the test
+// NOTE: The #1 most important aspect of a model is "obvious correctness". The code must be simple
+// and obviously correct, no matter the cost on other aspects like performance. Ideally the model
+// is small enough to be inlined in the test, but for larger types factoring it out makes the test
 // function clearer to read.
 type modelManager struct {
 	nextID   command.ID

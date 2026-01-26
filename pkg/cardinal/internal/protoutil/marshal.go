@@ -7,7 +7,8 @@
 package protoutil
 
 import (
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/goccy/go-json"
@@ -15,8 +16,8 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// MarshalCommand converts an ecs.Command to its protobuf representation.
-func MarshalCommand(command ecs.Command, dst *micro.ServiceAddress, personaID string) (*iscv1.Command, error) {
+// MarshalCommand converts an command.CommandPayload to its protobuf representation.
+func MarshalCommand(command command.CommandPayload, dst *micro.ServiceAddress, personaID string) (*iscv1.Command, error) {
 	pbStruct, err := marshalToStruct(command)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal command into structpb")
@@ -33,7 +34,7 @@ func MarshalCommand(command ecs.Command, dst *micro.ServiceAddress, personaID st
 }
 
 // MarshalEvent converts an ecs.Event to its protobuf representation.
-func MarshalEvent(event ecs.Event) (*iscv1.Event, error) {
+func MarshalEvent(event event.EventPayload) (*iscv1.Event, error) {
 	pbStruct, err := marshalToStruct(event)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal event into structpb")

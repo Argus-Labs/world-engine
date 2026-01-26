@@ -17,8 +17,7 @@ type World struct {
 	initSystems []initSystem       // Initialization systems, run once during the genesis tick
 	scheduler   [3]systemScheduler // Systems schedulers (PreTick, Update, PostTick)
 
-	// events, system events.
-	events       *eventManager      // Stores events to be emitted to external sources
+	// system events.
 	systemEvents systemEventManager // Manages system events
 }
 
@@ -30,7 +29,6 @@ func NewWorld() *World {
 		initSystems:  make([]initSystem, 0),
 		scheduler:    [3]systemScheduler{},
 		systemEvents: newSystemEventManager(),
-		events:       newEventManager(),
 	}
 
 	for i := range world.scheduler {
@@ -51,16 +49,16 @@ func (w *World) Init() {
 // registered systems in order. If any system returns an error, the entire tick is considered
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
-func (w *World) Tick() ([]RawEvent, error) {
+func (w *World) Tick() error {
 	// Run init systems once on first tick.
 	if !w.initDone {
 		for _, system := range w.initSystems {
 			if err := system.fn(); err != nil {
-				return []RawEvent{}, eris.Wrapf(err, "init system %s failed", system.name)
+				return eris.Wrapf(err, "init system %s failed", system.name)
 			}
 		}
 		w.initDone = true
-		return []RawEvent{}, nil
+		return nil
 	}
 
 	defer w.clearBuffers()
@@ -68,16 +66,11 @@ func (w *World) Tick() ([]RawEvent, error) {
 	// Run the systems.
 	for i := range w.scheduler {
 		if err := w.scheduler[i].Run(); err != nil {
-			return []RawEvent{}, err
+			return err
 		}
 	}
 
-	// Copy events to the result.
-	emittedEvents := w.events.getEvents()
-	result := make([]RawEvent, len(emittedEvents))
-	copy(result, emittedEvents)
-
-	return result, nil
+	return nil
 }
 
 // CustomTick allows for a custom update function to be run instead of the registered systems.
@@ -88,7 +81,6 @@ func (w *World) CustomTick(fn func(*worldState)) {
 
 // clearBuffers clears the previous tick's buffers.
 func (w *World) clearBuffers() {
-	w.events.clear()
 	w.systemEvents.clear()
 }
 
@@ -132,7 +124,7 @@ func (w *World) CommandTypes() map[string]reflect.Type {
 
 // EventTypes returns a map of event names to their reflect.Type.
 func (w *World) EventTypes() map[string]reflect.Type {
-	return w.events.types
+	return nil
 }
 
 // ComponentTypes returns a map of component names to their reflect.Type.

@@ -149,7 +149,7 @@ func BenchmarkQuery(b *testing.B) {
 
 			world.Init()
 
-			_, err := world.Tick(nil)
+			err := world.Tick()
 			if err != nil {
 				b.Fatal("failed to initialize world:", err)
 			}

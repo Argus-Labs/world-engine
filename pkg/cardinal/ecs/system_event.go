@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/rotisserie/eris"
 )
 
@@ -16,7 +17,7 @@ const maxSystemEventID = math.MaxUint32 - 1
 
 // SystemEvent is an interface that all system events must implement.
 // SystemEvents are events emitted by a system to be handled by another system.
-type SystemEvent = Event
+type SystemEvent = event.EventPayload
 
 // systemEventManager manages the registration and storage of system events.
 type systemEventManager struct {

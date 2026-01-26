@@ -181,3 +181,13 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 		assert.Equal(t, id1+1, id3)
 	})
 }
+
+func randValidEventName(prng *rand.Rand) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+	length := prng.IntN(50) + 1 // 1-50 characters
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = chars[prng.IntN(len(chars))]
+	}
+	return string(b)
+}

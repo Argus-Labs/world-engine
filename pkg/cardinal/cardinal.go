@@ -11,6 +11,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/epoch"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/service"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -24,9 +25,11 @@ import (
 
 // World represents your game world and serves as the main entry point for Cardinal.
 type World struct {
-	world    *ecs.World // The ECS world storing the game's state and systems
-	service  *service.ShardService
+	world   *ecs.World // The ECS world storing the game's state and systems
+	service *service.ShardService
+
 	commands command.Manager
+	events   event.Manager
 
 	tickHeight      uint64       // Tick height
 	epochHeight     uint64       // Epoch height
@@ -74,6 +77,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	world := &World{
 		world:       ecsWorld,
 		commands:    command.NewManager(),
+		events:      event.NewManager(),
 		tickHeight:  0,
 		epochHeight: 0,
 		ticks:       make([]epoch.Tick, 0, options.EpochFrequency),
@@ -123,6 +127,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	return world, nil
 }
 
+// TODO: initialize client and service here instead of in constructor
 // StartGame launches your game and runs it until stopped.
 func (w *World) StartGame() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

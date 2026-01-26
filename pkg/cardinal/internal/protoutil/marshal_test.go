@@ -3,8 +3,9 @@ package protoutil_test
 import (
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
-	"github.com/argus-labs/world-engine/pkg/cardinal/protoutil"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/protoutil"
 	"github.com/argus-labs/world-engine/pkg/cardinal/testutils"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -17,7 +18,7 @@ func TestMarshalCommand(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		command   ecs.Command
+		command   command.CommandPayload
 		checkFunc func(t *testing.T, result *iscv1.Command)
 	}{
 		{
@@ -51,7 +52,7 @@ func TestMarshalEvent(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		event     ecs.Event
+		event     event.EventPayload
 		checkFunc func(t *testing.T, result *iscv1.Event)
 	}{
 		{

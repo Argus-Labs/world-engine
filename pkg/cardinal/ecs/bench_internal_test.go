@@ -533,9 +533,9 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 			w.Init()
 
 			// First tick runs init systems only (creates entities)
-			_, _ = w.Tick(nil)
+			_ = w.Tick()
 			// Second tick runs the getSetSystem (what we want to benchmark)
-			_, _ = w.Tick(nil)
+			_ = w.Tick()
 		}
 	})
 
@@ -580,9 +580,9 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 			w.Init()
 
 			// First tick runs init systems only (creates entities)
-			_, _ = w.Tick(nil)
+			_ = w.Tick()
 			// Second tick runs the getSetSystem (what we want to benchmark)
-			_, _ = w.Tick(nil)
+			_ = w.Tick()
 		}
 	})
 
@@ -643,9 +643,9 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 			w.Init()
 
 			// First tick runs init systems only (creates entities)
-			_, _ = w.Tick(nil)
+			_ = w.Tick()
 			// Second tick runs the getSetSystem (what we want to benchmark)
-			_, _ = w.Tick(nil)
+			_ = w.Tick()
 		}
 	})
 }
