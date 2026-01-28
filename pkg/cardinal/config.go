@@ -1,8 +1,6 @@
 package cardinal
 
 import (
-	"strings"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/caarlos0/env/v11"
@@ -16,7 +14,6 @@ type WorldOptions struct {
 	Organization        string               // The organization that owns this world
 	Project             string               // Name of the project within the organization
 	ShardID             string               // Unique ID for of world's instance
-	Mode                ShardMode            // Operation mode (Leader or Follower)
 	EpochFrequency      uint32               // Number of ticks per epoch
 	TickRate            float64              // Number of ticks per second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
@@ -33,7 +30,6 @@ func newDefaultWorldOptions() WorldOptions {
 		Organization:        "",
 		Project:             "",
 		ShardID:             "",
-		Mode:                ModeLeader, // Default to leader mode
 		EpochFrequency:      0,
 		TickRate:            0,
 		SnapshotStorageType: snapshot.StorageTypeNop, // Default to nop snapshot
@@ -55,9 +51,6 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.ShardID != "" {
 		opt.ShardID = newOpt.ShardID
-	}
-	if newOpt.Mode.IsValid() {
-		opt.Mode = newOpt.Mode
 	}
 	if newOpt.EpochFrequency != 0 {
 		opt.EpochFrequency = newOpt.EpochFrequency
@@ -95,9 +88,6 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.TickRate == 0.0 {
 		return eris.New("tick rate cannot be 0")
-	}
-	if !opt.Mode.IsValid() {
-		return eris.New("invalid shard mode")
 	}
 	if !opt.SnapshotStorageType.IsValid() {
 		return eris.New("snapshot storage type must be specified")
@@ -143,9 +133,6 @@ type worldOptionsEnv struct {
 	// Unique ID of this world's instance.
 	ShardID string `env:"CARDINAL_SHARD_ID"`
 
-	// Shard mode configuration ("LEADER" or "FOLLOWER").
-	ModeStr string `env:"SHARD_MODE" envDefault:"LEADER"`
-
 	// Snapshot storage type ("NOP" or "JETSTREAM").
 	SnapshotStorageTypeStr string `env:"SHARD_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
@@ -173,9 +160,6 @@ func loadWorldOptionsEnv() (worldOptionsEnv, error) {
 
 // validate performs validation on the loaded configuration.
 func (cfg *worldOptionsEnv) validate() error {
-	if _, err := parseShardMode(cfg.ModeStr); err != nil {
-		return err
-	}
 	if _, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr); err != nil {
 		return err
 	}
@@ -184,9 +168,6 @@ func (cfg *worldOptionsEnv) validate() error {
 
 // toOptions converts the worldOptionsEnv to WorldOptions.
 func (cfg *worldOptionsEnv) toOptions() WorldOptions {
-	mode, err := parseShardMode(cfg.ModeStr)
-	assert.That(err == nil, "config not validated")
-
 	snapshotStorageType, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr)
 	assert.That(err == nil, "config not validated")
 
@@ -195,56 +176,8 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		Organization:        cfg.Organization,
 		Project:             cfg.Project,
 		ShardID:             cfg.ShardID,
-		Mode:                mode,
 		SnapshotStorageType: snapshotStorageType,
 		SnapshotFrequency:   cfg.SnapshotFrequency,
 		EpochStreamMaxBytes: cfg.EpochStreamMaxBytes,
-	}
-}
-
-// -------------------------------------------------------------------------------------------------
-// Shard mode
-// -------------------------------------------------------------------------------------------------
-
-// ShardMode defines the operational mode of a shard instance.
-type ShardMode uint8
-
-const (
-	ModeUndefined ShardMode = iota // Used as the zero value
-	ModeLeader                     // Leader mode processes input and publishes epochs
-	ModeFollower                   // Follower mode consumes epochs and replays state
-)
-
-const (
-	leaderModeString    = "LEADER"
-	followerModeString  = "FOLLOWER"
-	undefinedModeString = "UNDEFINED"
-)
-
-func (m ShardMode) String() string {
-	switch m {
-	case ModeUndefined:
-		return undefinedModeString
-	case ModeLeader:
-		return leaderModeString
-	case ModeFollower:
-		return followerModeString
-	default:
-		return undefinedModeString
-	}
-}
-
-func (m ShardMode) IsValid() bool {
-	return m == ModeLeader || m == ModeFollower
-}
-
-func parseShardMode(s string) (ShardMode, error) {
-	switch strings.ToUpper(s) {
-	case leaderModeString:
-		return ModeLeader, nil
-	case followerModeString:
-		return ModeFollower, nil
-	default:
-		return ModeUndefined, eris.Errorf("invalid shard mode: %s (must be LEADER or FOLLOWER)", s)
 	}
 }

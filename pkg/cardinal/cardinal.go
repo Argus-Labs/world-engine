@@ -1,7 +1,9 @@
 package cardinal
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"os/signal"
 	"syscall"
 	"time"
@@ -152,21 +154,131 @@ func (w *World) run(ctx context.Context) error {
 	// Initialize world schedulers.
 	w.world.Init()
 
-	if err := w.sync(); err != nil {
-		return eris.Wrap(err, "failed to sync shard state")
+	if err := w.restore(); err != nil {
+		// TODO: reset world if error. Note, we can't just initialize a new world since system
+		// registration runs before sync, so we have to manually reset the state.
+		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
 
-	// Core shard loop based on the mode.
 	logger := w.tel.GetLogger("shard")
-	logger.Info().Str("mode", w.options.Mode.String()).Msg("starting core shard loop")
-	switch w.options.Mode {
-	case ModeLeader:
-		return w.runLeader(ctx)
-	case ModeFollower:
-		return w.runFollower(ctx)
-	default:
-		assert.That(true, "unreachable")
+	logger.Info().Msg("starting core shard loop")
+
+	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
+	defer ticker.Stop()
+
+	// TODO: select from debug channel to pause/play ticks.
+	for {
+		select {
+		case <-ticker.C:
+			if err := w.Tick(time.Now()); err != nil {
+				return eris.Wrap(err, "failed to run tick")
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+}
+
+func (w *World) Tick(timestamp time.Time) error {
+	assert.That(len(w.ticks) < int(w.options.EpochFrequency), "last epoch is not submitted")
+
+	commands := w.commands.Drain()
+
+	// Append to ticks slice.
+	tick := epoch.Tick{
+		Header: epoch.TickHeader{
+			TickHeight: w.tickHeight,
+			Timestamp:  timestamp,
+		},
+		Data: epoch.TickData{Commands: commands},
+	}
+	w.ticks = append(w.ticks, tick)
+
+	// Tick ECS world.
+	err := w.world.Tick()
+	if err != nil {
+		return eris.Wrap(err, "one or more systems failed")
+	}
+
+	// Increment tick height.
+	w.tickHeight++
+
+	// Emit events.
+	if err := w.events.Dispatch(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
+	}
+
+	data, _ := w.world.Serialize()
+	hash := sha256.Sum256(data)
+
+	// Publish epoch.
+	if len(w.ticks) == int(w.options.EpochFrequency) {
+		epoch := epoch.Epoch{
+			EpochHeight: w.epochHeight,
+			Hash:        hash[:],
+		}
+		if err := w.epochLog.Publish(context.Background(), epoch); err != nil {
+			return eris.Wrap(err, "failed to published epoch")
+		}
+
+		// Publish snapshot.
+		if w.epochHeight%uint64(w.options.SnapshotFrequency) == 0 {
+			// snapshot := &micro.Snapshot{
+			// 	EpochHeight: w.epochHeight,
+			// 	TickHeight:  w.tickHeight - 1,
+			// 	Timestamp:   timestamppb.New(timestamp),
+			// 	StateHash:   hash[:],
+			// 	Data:        nil, // Will be filled in the goroutine
+			// }
+			// if err := w.snapshots.Store(snapshot); err != nil {
+			// 	return eris.Wrap(err, "failed to published snapshot")
+			// }
+		}
+
+		// Increment epoch count after publishing the epoch.
+		w.epochHeight++
+
+		// Clear ticks array to prepare for the next epoch.
+		w.ticks = w.ticks[:0]
+	}
+
+	return nil
+}
+
+func (w *World) restore() error {
+	logger := w.tel.GetLogger("snapshot")
+
+	if !w.snapshotStorage.Exists() {
+		logger.Debug().Msg("no snapshot found")
+		return nil
+	}
+
+	logger.Debug().Msg("restoring from snapshot")
+	snapshot, err := w.snapshotStorage.Load()
+	if err != nil {
+		return eris.Wrap(err, "failed to load snapshot")
+	}
+
+	// Attempt to restore ECS world from snapshot.
+	if err := w.world.Deserialize(snapshot.Data); err != nil {
+		return eris.Wrap(err, "failed to restore world from snapshot")
+	}
+
+	// Validate restored state hash matches snapshot.
+	data, err := w.world.Serialize()
+	if err != nil {
+		return eris.Wrap(err, "failed to reserialize restored world for integrity validation")
+	}
+
+	currentHash := sha256.Sum256(data)
+	if !bytes.Equal(currentHash[:], snapshot.StateHash) {
+		return eris.Errorf("snapshot hash mismatch, expected %s, got %s",
+			string(snapshot.StateHash), string(currentHash[:]))
+	}
+
+	// Only update shard state after successful restoration and validation.
+	w.epochHeight = snapshot.EpochHeight + 1
+	w.tickHeight = snapshot.TickHeight + 1
 
 	return nil
 }
@@ -204,9 +316,6 @@ func (w *World) shutdown() {
 }
 
 func (w *World) registerCommand(name string) error {
-	if w.options.Mode != ModeLeader {
-		return nil
-	}
 	return w.service.AddGroup("command").AddEndpoint(name, func(ctx context.Context, req *micro.Request) *micro.Response {
 		// Check if shard is shutting down.
 		select {
