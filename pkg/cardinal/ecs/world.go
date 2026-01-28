@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"reflect"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -53,9 +54,7 @@ func (w *World) Tick() error {
 	// Run init systems once on first tick.
 	if !w.initDone {
 		for _, system := range w.initSystems {
-			if err := system.fn(); err != nil {
-				return eris.Wrapf(err, "init system %s failed", system.name)
-			}
+			system.fn()
 		}
 		w.initDone = true
 		return nil
@@ -65,9 +64,7 @@ func (w *World) Tick() error {
 
 	// Run the systems.
 	for i := range w.scheduler {
-		if err := w.scheduler[i].Run(); err != nil {
-			return err
-		}
+		w.scheduler[i].Run()
 	}
 
 	return nil

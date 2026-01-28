@@ -103,6 +103,10 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 	world.service = service
 
+	// Register event handlers with the service's (NATS) publishers.
+	world.events.RegisterHandler(event.KindDefault, service.PublishDefaultEvent)
+	world.events.RegisterHandler(event.KindDefault, service.PublishInterShardCommand)
+
 	// Setup epoch log.
 	epochLog, err := epoch.NewJetStreamLog(epoch.JetStreamLogOptions{
 		Client:    client,

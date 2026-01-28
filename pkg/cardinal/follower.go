@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
+	// "github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 )
@@ -28,10 +28,11 @@ func (w *World) sync() error {
 	// Fetch from snapshot if exists and leader
 	if w.options.Mode == ModeLeader {
 		if ok := w.restoreSnapshot(); !ok {
+			// TODO: only reset if error, this code will reset even if snapshot doesn't exist.
 			// Something went wrong when restoring from snapshot, reinitialize world (since it may be in
 			// a corrupted state), and fallback to replaying epochs.
-			w.world = ecs.NewWorld() // Restart to a fresh world
-			w.world.Init()           // Reinitialize schedulers
+			// w.world = ecs.NewWorld() // Restart to a fresh world
+			// w.world.Init()           // Reinitialize schedulers
 		}
 	}
 

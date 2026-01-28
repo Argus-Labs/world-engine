@@ -21,29 +21,7 @@ func (isc InterShardCommand) Name() string {
 	return isc.Command.Name()
 }
 
-// Publish publishes a list of raw events.
-func (s *ShardService) Publish(events []event.Event) {
-	for _, evt := range events {
-		go func(raw event.Event) {
-			var err error
-			switch raw.Kind {
-			case event.KindDefault:
-				err = s.publishEvent(raw)
-			case event.KindInterShardCommand:
-				err = s.publishInterShardCommand(raw)
-			default:
-				err = eris.Errorf("unknown event kind %T", raw.Kind)
-			}
-			if err != nil {
-				logger := s.tel.GetLogger("publish")
-				logger.Error().Err(err).Msg("Failed to publish raw event")
-				return
-			}
-		}(evt)
-	}
-}
-
-func (s *ShardService) publishEvent(raw event.Event) error {
+func (s *ShardService) PublishDefaultEvent(raw event.Event) error {
 	payload := raw.Payload
 
 	// Craft target service address `<this cardinal's service address>.event.<group>.<event name>`.
@@ -62,7 +40,7 @@ func (s *ShardService) publishEvent(raw event.Event) error {
 	return s.client.Publish(target, bytes)
 }
 
-func (s *ShardService) publishInterShardCommand(raw event.Event) error {
+func (s *ShardService) PublishInterShardCommand(raw event.Event) error {
 	isc, ok := raw.Payload.(InterShardCommand)
 	if !ok {
 		return eris.Errorf("invalid inter shard command %v", isc)

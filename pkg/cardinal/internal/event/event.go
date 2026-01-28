@@ -36,51 +36,22 @@ const defaultEventChannelCapacity = 1024
 // initialCommandBufferCapacity is the starting capacity of command buffers.
 const initialEventBufferCapacity = 128
 
-// MaxID is the maximum number of event types that can be registered.
-const maxID = math.MaxUint32 - 1
-
 // Manager manages event registration, stores events emitted by systems, and dispatches their
-// handlers at the end of every tick. Event IDs are only used to check for duplicate WithEvent
-// fields in a system state.
+// handlers at the end of every tick.
 type Manager struct {
-	nextID   uint32            // Next available event ID
-	catalog  map[string]uint32 // Event name -> event ID
-	handlers []Handler         // Event handlers, indexed by event kind
-	channel  chan Event        // Channel for collecting events emitted by systems
-	buffer   []Event           // Overflow buffer for when channel is full
-	mu       sync.Mutex        // Mutex for buffer access during flush
+	handlers []Handler  // Event handlers, indexed by event kind
+	channel  chan Event // Channel for collecting events emitted by systems
+	buffer   []Event    // Overflow buffer for when channel is full
+	mu       sync.Mutex // Mutex for buffer access during flush
 }
 
 // NewManager creates a new event manager.
 func NewManager() Manager {
 	return Manager{
-		nextID:   0,
-		catalog:  make(map[string]uint32),
-		handlers: make([]Handler, 0, math.MaxUint8),
+		handlers: make([]Handler, math.MaxUint8+1),
 		channel:  make(chan Event, defaultEventChannelCapacity),
 		buffer:   make([]Event, 0, initialEventBufferCapacity),
 	}
-}
-
-// Register registers the event type with the event manager.
-func (m *Manager) Register(name string, kind Kind) (uint32, error) {
-	if name == "" {
-		return 0, eris.New("event name cannot be empty")
-	}
-
-	// If the command is already registered, return the existing ID.
-	if id, exists := m.catalog[name]; exists {
-		return id, nil
-	}
-
-	if m.nextID > maxID {
-		return 0, eris.New("max number of events exceeded")
-	}
-
-	id := m.nextID
-	m.catalog[name] = id
-	m.nextID++
-	return id, nil
 }
 
 // Enqueue enqueues an event into the eventManager.
@@ -127,6 +98,9 @@ func (m *Manager) Dispatch() error {
 			errs = append(errs, err)
 		}
 	}
+
+	// Clear the buffer after processing.
+	m.buffer = m.buffer[:0]
 
 	if len(errs) > 0 {
 		return eris.Errorf("event dispatch encountered %d error(s): %v", len(errs), errs)

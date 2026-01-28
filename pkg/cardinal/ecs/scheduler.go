@@ -1,20 +1,19 @@
 package ecs
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"slices"
 
 	"github.com/kelindar/bitmap"
-	"github.com/rotisserie/eris"
-	"golang.org/x/sync/errgroup"
 )
 
 // systemMetadata contains the metadata for a system.
 type systemMetadata struct {
 	name string        // The name of the system
 	deps bitmap.Bitmap // Bitmap of system dependencies (components + system events)
-	fn   func() error  // Function that wraps a System
+	fn   func()        // Function that wraps a System
 }
 
 // systemScheduler manages the execution of systems in a dependency-aware concurrent manner.
@@ -42,23 +41,23 @@ func newSystemScheduler() systemScheduler {
 }
 
 // register registers a system with the scheduler.
-func (s *systemScheduler) register(name string, systemDep bitmap.Bitmap, systemFn func() error) {
+func (s *systemScheduler) register(name string, systemDep bitmap.Bitmap, systemFn func()) {
 	s.systems = append(s.systems, systemMetadata{name: name, deps: systemDep, fn: systemFn})
 }
 
 // Run executes the systems in the order of their dependencies. It returns an error if any system
 // returns an error. If multiple systems fail, all errors are wrapped in a single error.
-func (s *systemScheduler) Run() error {
+func (s *systemScheduler) Run() {
 	// Fast path: no systems in hook.
 	if len(s.systems) == 0 {
-		return nil
+		return
 	}
 
 	executionQueue := make(chan int, len(s.systems))
 	defer close(executionQueue)
 
 	currentIndegree, nextIndegree := s.getCurrentAndNextIndegrees()
-	g := new(errgroup.Group)
+	var wg sync.WaitGroup
 
 	// Schedule all tier 0 systems
 	for _, systemID := range s.tier0 {
@@ -68,15 +67,8 @@ func (s *systemScheduler) Run() error {
 	// Launch goroutines to execute systems
 	for range s.systems {
 		systemID := <-executionQueue
-		g.Go(func() error {
-			// Do not return the system error early here so that the dependent systems can be scheduled to
-			// run first. If we return early then some systems might not run. We do this so that we can
-			// guarantee all of the systems are executed (`for range s.systems`) instead of being
-			// optimistic about it.
-			var err error
-			if err = s.systems[systemID].fn(); err != nil { // The error assignment is intended here
-				err = eris.Wrapf(err, "system %s failed", s.systems[systemID].name)
-			}
+		wg.Go(func() {
+			s.systems[systemID].fn()
 
 			// Process all systems that depend on this one.
 			for _, dependent := range s.graph[systemID] {
@@ -88,15 +80,10 @@ func (s *systemScheduler) Run() error {
 					executionQueue <- dependent
 				}
 			}
-
-			return err
 		})
 	}
 
-	if err := g.Wait(); err != nil {
-		return eris.Wrap(err, "system returned an error")
-	}
-	return nil
+	wg.Wait() // Wait for all systems to finish
 }
 
 // getCurrentAndNextIndegrees returns the current and next indegrees. It also switches the active

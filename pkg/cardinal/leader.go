@@ -54,8 +54,9 @@ func (w *World) Tick(timestamp time.Time) error {
 	w.tickHeight++
 
 	// Emit events.
-	err = w.events.Dispatch()
-	w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
+	if err := w.events.Dispatch(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
+	}
 
 	data, _ := w.world.Serialize()
 	hash := sha256.Sum256(data)
