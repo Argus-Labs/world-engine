@@ -311,7 +311,8 @@ func BenchmarkECS2_Iteration_Pure(b *testing.B) {
 			}
 
 			search := Exact[struct{ Position Ref[Position3D] }]{}
-			_, _ = search.init(w)
+			meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
+			_ = search.init(meta)
 			b.StartTimer()
 			for _, result := range search.Iter() {
 				_ = result
@@ -344,7 +345,8 @@ func BenchmarkECS2_Iteration_Pure(b *testing.B) {
 				Transform Ref[Transform]
 				Inventory Ref[Inventory]
 			}]{}
-			_, _ = search.init(w)
+			meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
+			_ = search.init(meta)
 			b.StartTimer()
 			for _, result := range search.Iter() {
 				_ = result
@@ -390,7 +392,8 @@ func BenchmarkECS2_Iteration_Pure(b *testing.B) {
 				Physics     Ref[Physics]
 				NetworkSync Ref[NetworkSync]
 			}]{}
-			_, _ = search.init(w)
+			meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
+			_ = search.init(meta)
 			b.StartTimer()
 			for _, result := range search.Iter() {
 				_ = result
@@ -413,7 +416,8 @@ func BenchmarkECS2_Iteration_Pure(b *testing.B) {
 			}
 
 			search := Contains[struct{ Position Ref[Position3D] }]{}
-			_, _ = search.init(w)
+			meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
+			_ = search.init(meta)
 			b.StartTimer()
 			for _, result := range search.Iter() {
 				_ = result
@@ -444,7 +448,8 @@ func BenchmarkECS2_Iteration_Pure(b *testing.B) {
 				Velocity Ref[Velocity3D]
 				Health   Ref[Health2]
 			}]{}
-			_, _ = search.init(w)
+			meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
+			_ = search.init(meta)
 			b.StartTimer()
 			for _, result := range search.Iter() {
 				_ = result
@@ -486,7 +491,8 @@ func BenchmarkECS2_Iteration_Pure(b *testing.B) {
 				Inventory   Ref[Inventory]
 				PlayerStats Ref[PlayerStats]
 			}]{}
-			_, _ = search.init(w)
+			meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
+			_ = search.init(meta)
 			b.StartTimer()
 			for _, result := range search.Iter() {
 				_ = result
@@ -502,39 +508,28 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := setup2(Position3D{})
+			state1 := &getSetSystemState1{}
 
-			// Setup system: create 100 entities
-			setupSystem := func(state *getSetSystemState1) error {
+			_ = RegisterSystem(w, state1, "setup1", func() {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
+					_, entity := state1.Entities.Create()
 					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				}
-				return nil
-			}
+			}, Init)
 
-			// GetSet system: get and set components
-			getSetSystem := func(state *getSetSystemState1) error {
+			_ = RegisterSystem(w, state1, "getset1", func() {
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
-					// Get the position
+				for _, entity := range state1.Entities.Iter() {
 					pos := entity.Position.Get()
-					// Mutate it
 					pos.X += 1.0
-					// Set it back
 					entity.Position.Set(pos)
 				}
 				b.StopTimer()
-				return nil
-			}
-
-			RegisterSystem(w, setupSystem, WithHook(Init))
-			RegisterSystem(w, getSetSystem)
+			}, Update)
 
 			w.Init()
 
-			// First tick runs init systems only (creates entities)
 			_ = w.Tick()
-			// Second tick runs the getSetSystem (what we want to benchmark)
 			_ = w.Tick()
 		}
 	})
@@ -543,45 +538,34 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := setup2(Position3D{}, Velocity3D{}, Health2{}, Transform{}, Inventory{})
+			state5 := &getSetSystemState5{}
 
-			// Setup system: create 100 entities
-			setupSystem := func(state *getSetSystemState5) error {
+			_ = RegisterSystem(w, state5, "setup5", func() {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
+					_, entity := state5.Entities.Create()
 					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Health.Set(Health2{Current: j, Max: 100})
 					entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
 					entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
 				}
-				return nil
-			}
+			}, Init)
 
-			// GetSet system: get position, set velocity
-			getSetSystem := func(state *getSetSystemState5) error {
+			_ = RegisterSystem(w, state5, "getset5", func() {
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
-					// Get position
+				for _, entity := range state5.Entities.Iter() {
 					pos := entity.Position.Get()
-					// Get and mutate velocity based on position
 					vel := entity.Velocity.Get()
 					vel.X = pos.X * 0.1
 					vel.Y = pos.Y * 0.1
-					// Set velocity back
 					entity.Velocity.Set(vel)
 				}
 				b.StopTimer()
-				return nil
-			}
-
-			RegisterSystem(w, setupSystem, WithHook(Init))
-			RegisterSystem(w, getSetSystem)
+			}, Update)
 
 			w.Init()
 
-			// First tick runs init systems only (creates entities)
 			_ = w.Tick()
-			// Second tick runs the getSetSystem (what we want to benchmark)
 			_ = w.Tick()
 		}
 	})
@@ -593,11 +577,11 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 				Position3D{}, Velocity3D{}, Health2{}, Transform{}, Inventory{},
 				PlayerStats{}, AIBehavior{}, Renderer{}, Physics{}, NetworkSync{},
 			)
+			state10 := &getSetSystemState10{}
 
-			// Setup system: create 100 entities
-			setupSystem := func(state *getSetSystemState10) error {
+			_ = RegisterSystem(w, state10, "setup10", func() {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
+					_, entity := state10.Entities.Create()
 					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Health.Set(Health2{Current: j, Max: 100})
@@ -612,39 +596,28 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 						IsDirty: false, Interpolate: true,
 					})
 				}
-				return nil
-			}
+			}, Init)
 
-			// GetSet system: get position and health, set physics and renderer
-			getSetSystem := func(state *getSetSystemState10) error {
+			_ = RegisterSystem(w, state10, "getset10", func() {
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
-					// Get position and health
+				for _, entity := range state10.Entities.Iter() {
 					pos := entity.Position.Get()
 					health := entity.Health.Get()
 
-					// Mutate physics based on position
 					physics := entity.Physics.Get()
 					physics.Mass = pos.X * 0.01
 					entity.Physics.Set(physics)
 
-					// Mutate renderer based on health
 					renderer := entity.Renderer.Get()
 					renderer.Visible = health.Current > 50
 					entity.Renderer.Set(renderer)
 				}
 				b.StopTimer()
-				return nil
-			}
-
-			RegisterSystem(w, setupSystem, WithHook(Init))
-			RegisterSystem(w, getSetSystem)
+			}, Update)
 
 			w.Init()
 
-			// First tick runs init systems only (creates entities)
 			_ = w.Tick()
-			// Second tick runs the getSetSystem (what we want to benchmark)
 			_ = w.Tick()
 		}
 	})

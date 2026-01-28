@@ -12,7 +12,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -55,7 +54,7 @@ func TestScheduler_RunFuzzConcurrent(t *testing.T) {
 			scheduler := newSystemScheduler()
 			for i, sys := range systems {
 				systemID := i
-				scheduler.register(sys.name, sys.deps, func() error {
+				scheduler.register(sys.name, sys.deps, func() {
 					start := clock.Add(2)
 					// We add a sleep here to simulate goroutine interleaving for a more realistic test
 					// scenario. In synctest.Test, the time package uses a fake clock, so this sleep doesn't
@@ -68,7 +67,6 @@ func TestScheduler_RunFuzzConcurrent(t *testing.T) {
 					assert.Zero(t, events[systemID], "system %d executed more than once", systemID)
 					events[systemID] = struct{ start, end int64 }{start: start, end: end}
 					mu.Unlock()
-					return nil
 				})
 			}
 			scheduler.createSchedule()
@@ -81,8 +79,7 @@ func TestScheduler_RunFuzzConcurrent(t *testing.T) {
 					events[i] = struct{ start, end int64 }{}
 				}
 
-				err := scheduler.Run()
-				require.NoError(t, err)
+				scheduler.Run()
 
 				// Property: All systems execute exactly once.
 				for i, ev := range events {

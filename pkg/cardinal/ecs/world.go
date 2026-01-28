@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"fmt"
 	"reflect"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
