@@ -260,13 +260,15 @@ type OtherWorld struct {
 //	    Winner: "Team 1",
 //	  })
 //	}
-func (o OtherWorld) SendCommand(state *BaseSystemState, command command.CommandPayload) {
+func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.CommandPayload) {
 	serviceAddress := micro.GetAddress(o.Region, micro.RealmWorld, o.Organization, o.Project, o.ShardID)
 	state.world.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
-		Payload: service.InterShardCommand{
-			Target:  serviceAddress,
-			Command: command,
+		Payload: command.Command{
+			Name:    cmd.Name(),
+			Persona: micro.String(state.world.service.Address),
+			Address: serviceAddress,
+			Payload: cmd,
 		},
 	})
 }

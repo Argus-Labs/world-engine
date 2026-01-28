@@ -5,34 +5,29 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/protoutil"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 )
 
-// InterShardCommand is a wrapper around an ecs.Command that contains the target shard and the command to send.
-type InterShardCommand struct {
-	Target  *micro.ServiceAddress
-	Command command.CommandPayload
-}
-
-func (isc InterShardCommand) Name() string {
-	return isc.Command.Name()
-}
-
-func (s *ShardService) PublishDefaultEvent(raw event.Event) error {
-	payload := raw.Payload
+func (s *ShardService) PublishDefaultEvent(evt event.Event) error {
+	payload := evt.Payload.(event.EventPayload)
 
 	// Craft target service address `<this cardinal's service address>.event.<group>.<event name>`.
 	target := micro.String(s.Address) + ".event." + payload.Name()
 
-	pbEvent, err := protoutil.MarshalEvent(payload)
+	payloadPb, err := event.PayloadToProto(payload)
 	if err != nil {
-		return eris.Wrap(err, "failed to marshal event")
+		return eris.Wrap(err, "failed to marshal event payload")
 	}
 
-	bytes, err := proto.Marshal(pbEvent)
+	eventPb := &iscv1.Event{
+		Name:    payload.Name(),
+		Payload: payloadPb,
+	}
+
+	bytes, err := proto.Marshal(eventPb)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal iscv1.Event")
 	}
@@ -41,20 +36,26 @@ func (s *ShardService) PublishDefaultEvent(raw event.Event) error {
 }
 
 func (s *ShardService) PublishInterShardCommand(raw event.Event) error {
-	isc, ok := raw.Payload.(InterShardCommand)
+	isc, ok := raw.Payload.(command.Command)
 	if !ok {
 		return eris.Errorf("invalid inter shard command %v", isc)
 	}
 
-	pbCommand, err := protoutil.MarshalCommand(isc.Command, isc.Target, micro.String(s.Address))
+	payload, err := command.PayloadToProto(isc.Payload)
 	if err != nil {
-		return eris.Wrap(err, "failed to marshal command")
+		return eris.Wrap(err, "failed to marshal command payload")
 	}
 
-	_, err = s.client.Request(context.Background(), isc.Target, "command."+isc.Command.Name(), pbCommand)
+	commandPb := &iscv1.Command{
+		Name:    isc.Payload.Name(),
+		Address: isc.Address,
+		Persona: &iscv1.Persona{Id: isc.Persona},
+		Payload: payload,
+	}
+
+	_, err = s.client.Request(context.Background(), isc.Address, "command."+isc.Payload.Name(), commandPb)
 	if err != nil {
-		err = eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Command.Name())
-		return err
+		return eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Payload.Name())
 	}
 
 	return nil
