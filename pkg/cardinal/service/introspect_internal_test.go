@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/stretchr/testify/assert"

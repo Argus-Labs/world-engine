@@ -20,9 +20,9 @@ type SpawnPlayerSystemState struct {
 	Players             PlayerSearch
 }
 
-func PlayerSpawnSystem(state *SpawnPlayerSystemState) error {
+func PlayerSpawnSystem(state *SpawnPlayerSystemState) {
 	for cmd := range state.SpawnPlayerCommands.Iter() {
-		command := cmd.Payload()
+		command := cmd.Payload
 
 		// Regardless of whether the player exists or not, we emit a spawn event
 		// Because the act of spawning is also creating (if they don’t already exist)
@@ -50,11 +50,10 @@ func PlayerSpawnSystem(state *SpawnPlayerSystemState) error {
 			Msgf("Created player %s (id: %s)", command.ArgusAuthName, command.ArgusAuthID)
 
 		// Inform chat shard about the spawn
-		otherworld.Chat.Send(&state.BaseSystemState, chatcommand.UserChat{
+		otherworld.Chat.SendCommand(&state.BaseSystemState, chatcommand.UserChat{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 			Message:       fmt.Sprintf("%s joined at (%s)", command.ArgusAuthName, state.Timestamp().Format(time.RFC3339)),
 		})
 	}
-	return nil
 }

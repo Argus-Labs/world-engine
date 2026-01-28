@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/rotisserie/eris"

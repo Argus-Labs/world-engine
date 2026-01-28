@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/service"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -308,4 +308,5 @@ type (
 	Ref[T ecs.Component]                       = ecs.Ref[T]
 	WithSystemEventReceiver[T ecs.SystemEvent] = ecs.WithSystemEventReceiver[T]
 	WithSystemEventEmitter[T ecs.SystemEvent]  = ecs.WithSystemEventEmitter[T]
+	EntityID                                   = ecs.EntityID
 )
