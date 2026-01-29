@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"math"
-	"reflect"
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -258,9 +257,12 @@ func removeComponent[T Component](ws *worldState, eid EntityID) error {
 }
 
 // registerComponent registers a component type with the world state.
-func registerComponent[T Component](ws *worldState) (componentID, error) {
+func registerComponent[T Component](w *World) (componentID, error) {
 	var zero T
-	return ws.components.register(zero.Name(), newColumnFactory[T](), reflect.TypeOf(zero))
+	if err := w.onComponentRegister(zero); err != nil {
+		return 0, eris.Wrap(err, "component registered callback failed")
+	}
+	return w.state.components.register(zero.Name(), newColumnFactory[T]())
 }
 
 // -------------------------------------------------------------------------------------------------

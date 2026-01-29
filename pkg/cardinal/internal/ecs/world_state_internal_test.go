@@ -444,14 +444,15 @@ func TestWorldState_EntityID_FIFO(t *testing.T) {
 
 func newTestWorldState(t *testing.T) *worldState {
 	t.Helper()
-	ws := newWorldState()
-	_, err := registerComponent[testutils.ComponentA](ws)
+	w := NewWorld()
+	w.OnComponentRegister(func(Component) error { return nil })
+	_, err := registerComponent[testutils.ComponentA](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentB](ws)
+	_, err = registerComponent[testutils.ComponentB](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentC](ws)
+	_, err = registerComponent[testutils.ComponentC](w)
 	require.NoError(t, err)
-	return ws
+	return w.state
 }
 
 // -------------------------------------------------------------------------------------------------

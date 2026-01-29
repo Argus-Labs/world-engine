@@ -1,8 +1,6 @@
 package ecs
 
 import (
-	"reflect"
-
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -10,15 +8,12 @@ import (
 
 // World represents the root ECS state.
 type World struct {
-	state *worldState
-
-	// Systems.
-	initDone    bool               // Tracks if init systems have been executed
-	initSystems []initSystem       // Initialization systems, run once during the genesis tick
-	scheduler   [3]systemScheduler // Systems schedulers (PreTick, Update, PostTick)
-
-	// system events.
-	systemEvents systemEventManager // Manages system events
+	state               *worldState
+	initDone            bool                  // Tracks if init systems have been executed
+	initSystems         []initSystem          // Initialization systems, run once during the genesis tick
+	scheduler           [3]systemScheduler    // Systems schedulers (PreTick, Update, PostTick)
+	systemEvents        systemEventManager    // Manages system events
+	onComponentRegister func(Component) error // Callback called when a component is registered
 }
 
 // NewWorld creates a new World instance.
@@ -59,7 +54,8 @@ func (w *World) Tick() error {
 		return nil
 	}
 
-	defer w.clearBuffers()
+	// Clear system events after each tick.
+	defer w.systemEvents.clear()
 
 	// Run the systems.
 	for i := range w.scheduler {
@@ -69,15 +65,8 @@ func (w *World) Tick() error {
 	return nil
 }
 
-// CustomTick allows for a custom update function to be run instead of the registered systems.
-// This function is for testing and internal use only!
-func (w *World) CustomTick(fn func(*worldState)) {
-	fn(w.state)
-}
-
-// clearBuffers clears the previous tick's buffers.
-func (w *World) clearBuffers() {
-	w.systemEvents.clear()
+func (w *World) OnComponentRegister(callback func(zero Component) error) {
+	w.onComponentRegister = callback
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -107,23 +96,4 @@ func (w *World) Deserialize(data []byte) error {
 	// Mark init as done to prevent re-running init systems after restore.
 	w.initDone = true
 	return nil
-}
-
-// -------------------------------------------------------------------------------------------------
-// Introspection methods
-// -------------------------------------------------------------------------------------------------
-
-// CommandTypes returns a map of command names to their reflect.Type.
-func (w *World) CommandTypes() map[string]reflect.Type {
-	return nil
-}
-
-// EventTypes returns a map of event names to their reflect.Type.
-func (w *World) EventTypes() map[string]reflect.Type {
-	return nil
-}
-
-// ComponentTypes returns a map of component names to their reflect.Type.
-func (w *World) ComponentTypes() map[string]reflect.Type {
-	return w.state.components.types
 }

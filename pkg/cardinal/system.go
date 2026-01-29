@@ -10,7 +10,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/service"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -194,8 +193,12 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 		return eris.Wrapf(err, "failed to register command %s", name)
 	}
 
-	if err := meta.world.registerCommand(name); err != nil {
-		return eris.Wrapf(err, "failed to register command handler %s", name)
+	if err := meta.world.registerCommand(zero); err != nil {
+		return eris.Wrapf(err, "failed to register command handler world %s", name)
+	}
+
+	if err := meta.world.debug.register("command", zero); err != nil {
+		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 
 	meta.commands[name] = struct{}{} // Add to system commands set for duplicate field check
@@ -289,6 +292,10 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 
 	if _, ok := meta.events[name]; ok {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
+	}
+
+	if err := meta.world.debug.register("event", zero); err != nil {
+		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 
 	meta.events[name] = struct{}{} // Add to system events set for duplicate field check

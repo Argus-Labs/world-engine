@@ -5,6 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
@@ -17,7 +18,7 @@ func (s *ShardService) PublishDefaultEvent(evt event.Event) error {
 	// Craft target service address `<this cardinal's service address>.event.<group>.<event name>`.
 	target := micro.String(s.Address) + ".event." + payload.Name()
 
-	payloadPb, err := event.PayloadToProto(payload)
+	payloadPb, err := schema.ToProtoStruct(payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal event payload")
 	}
@@ -41,7 +42,7 @@ func (s *ShardService) PublishInterShardCommand(raw event.Event) error {
 		return eris.Errorf("invalid inter shard command %v", isc)
 	}
 
-	payload, err := command.PayloadToProto(isc.Payload)
+	payload, err := schema.ToProtoStruct(isc.Payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal command payload")
 	}

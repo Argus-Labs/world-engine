@@ -500,7 +500,7 @@ func (r *Ref[T]) attach(ws *worldState, eid EntityID) {
 
 // register returns the registerAndGetComponent type for this Ref.
 func (r *Ref[T]) register(w *World) (componentID, error) {
-	return registerComponent[T](w.state)
+	return registerComponent[T](w)
 }
 
 // Get retrieves the component value for this Ref's entity.

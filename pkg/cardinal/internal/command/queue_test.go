@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 		case enqueueWeight:
 
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
-			payload, err := command.PayloadToProto(cmd)
+			payload, err := schema.ToProtoStruct(cmd)
 			require.NoError(t, err)
 
 			name := cmd.Name()

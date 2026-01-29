@@ -110,11 +110,12 @@ func newTestWorld(t *testing.T) *World {
 	t.Helper()
 
 	w := NewWorld()
-	_, err := registerComponent[testutils.ComponentA](w.state)
+	w.OnComponentRegister(func(Component) error { return nil })
+	_, err := registerComponent[testutils.ComponentA](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentB](w.state)
+	_, err = registerComponent[testutils.ComponentB](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentC](w.state)
+	_, err = registerComponent[testutils.ComponentC](w)
 	require.NoError(t, err)
 	return w
 }

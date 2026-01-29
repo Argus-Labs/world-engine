@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"reflect"
 	"slices"
 	"testing"
 
@@ -351,13 +350,11 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	cid1, err := cm.register(
 		testutils.ComponentA{}.Name(),
 		newColumnFactory[testutils.ComponentA](),
-		reflect.TypeOf(testutils.ComponentA{}),
 	)
 	require.NoError(t, err)
 	cid2, err := cm.register(
 		testutils.ComponentB{}.Name(),
 		newColumnFactory[testutils.ComponentB](),
-		reflect.TypeOf(testutils.ComponentB{}),
 	)
 	require.NoError(t, err)
 
@@ -397,7 +394,6 @@ func TestArchetype_DeserializationNegative(t *testing.T) {
 	cid1, err := cm.register(
 		testutils.ComponentA{}.Name(),
 		newColumnFactory[testutils.ComponentA](),
-		reflect.TypeOf(testutils.ComponentA{}),
 	)
 	require.NoError(t, err)
 

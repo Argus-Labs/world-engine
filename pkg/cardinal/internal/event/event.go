@@ -4,9 +4,8 @@ import (
 	"math"
 	"sync"
 
-	"github.com/goccy/go-json"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Event represents an event emitted from a system.
@@ -17,7 +16,7 @@ type Event struct {
 
 // The interface all default event payloads must implement.
 type EventPayload interface {
-	Name() string
+	schema.Serializable
 }
 
 // Kind is a type that represents the kind of event.
@@ -113,24 +112,4 @@ func (m *Manager) Dispatch() error {
 // RegisterHandler registers the handler function for a specific event kind.
 func (m *Manager) RegisterHandler(kind Kind, fn Handler) {
 	m.handlers[kind] = fn
-}
-
-// PayloadToProto converts a EventPayload to a protobuf struct.
-func PayloadToProto(payload EventPayload) (*structpb.Struct, error) {
-	bytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to marshal payload")
-	}
-
-	var m map[string]any
-	if err := json.Unmarshal(bytes, &m); err != nil {
-		return nil, eris.Wrap(err, "failed to unmarshal payload to map[string]any")
-	}
-
-	pbStruct, err := structpb.NewStruct(m)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to convert map to structpb.Struct")
-	}
-
-	return pbStruct, nil
 }

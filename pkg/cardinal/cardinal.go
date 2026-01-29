@@ -33,8 +33,9 @@ type World struct {
 	commands command.Manager
 	events   event.Manager
 
+	debug debugModule
+
 	tickHeight      uint64       // Tick height
-	epochHeight     uint64       // Epoch height
 	ticks           []epoch.Tick // List of ticks in the current epoch
 	epochLog        epoch.Log
 	snapshotStorage snapshot.Storage
@@ -77,15 +78,16 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	ecsWorld := ecs.NewWorld()
 
 	world := &World{
-		world:       ecsWorld,
-		commands:    command.NewManager(),
-		events:      event.NewManager(),
-		tickHeight:  0,
-		epochHeight: 0,
-		ticks:       make([]epoch.Tick, 0, options.EpochFrequency),
-		options:     options,
-		tel:         tel,
+		world:      ecsWorld,
+		commands:   command.NewManager(),
+		events:     event.NewManager(),
+		tickHeight: 0,
+		ticks:      make([]epoch.Tick, 0, options.EpochFrequency),
+		options:    options,
+		tel:        tel,
 	}
+
+	ecsWorld.OnComponentRegister(world.registerComponent)
 
 	// Setup message bus.
 	client, err := micro.NewClient(micro.WithLogger(tel.GetLogger("client")))
@@ -129,6 +131,8 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
 	}
 	world.snapshotStorage = snapshotStorage
+
+	world.debug = newDebugModule(world)
 
 	return world, nil
 }
@@ -208,21 +212,21 @@ func (w *World) Tick(timestamp time.Time) error {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
-	data, _ := w.world.Serialize()
-	hash := sha256.Sum256(data)
+	// data, _ := w.world.Serialize()
+	// hash := sha256.Sum256(data)
 
 	// Publish epoch.
 	if len(w.ticks) == int(w.options.EpochFrequency) {
-		epoch := epoch.Epoch{
-			EpochHeight: w.epochHeight,
-			Hash:        hash[:],
-		}
-		if err := w.epochLog.Publish(context.Background(), epoch); err != nil {
-			return eris.Wrap(err, "failed to published epoch")
-		}
+		// epoch := epoch.Epoch{
+		// 	EpochHeight: w.epochHeight,
+		// 	Hash:        hash[:],
+		// }
+		// if err := w.epochLog.Publish(context.Background(), epoch); err != nil {
+		// 	return eris.Wrap(err, "failed to published epoch")
+		// }
 
 		// Publish snapshot.
-		if w.epochHeight%uint64(w.options.SnapshotFrequency) == 0 {
+		if w.tickHeight%uint64(w.options.SnapshotFrequency) == 0 {
 			// snapshot := &micro.Snapshot{
 			// 	EpochHeight: w.epochHeight,
 			// 	TickHeight:  w.tickHeight - 1,
@@ -236,7 +240,7 @@ func (w *World) Tick(timestamp time.Time) error {
 		}
 
 		// Increment epoch count after publishing the epoch.
-		w.epochHeight++
+		// w.epochHeight++
 
 		// Clear ticks array to prepare for the next epoch.
 		w.ticks = w.ticks[:0]
@@ -277,7 +281,7 @@ func (w *World) restore() error {
 	}
 
 	// Only update shard state after successful restoration and validation.
-	w.epochHeight = snapshot.EpochHeight + 1
+	// w.epochHeight = snapshot.EpochHeight + 1
 	w.tickHeight = snapshot.TickHeight + 1
 
 	return nil
@@ -315,8 +319,9 @@ func (w *World) shutdown() {
 	w.tel.Logger.Info().Msg("World shutdown complete")
 }
 
-func (w *World) registerCommand(name string) error {
-	return w.service.AddGroup("command").AddEndpoint(name, func(ctx context.Context, req *micro.Request) *micro.Response {
+func (w *World) registerCommand(zero command.CommandPayload) error {
+	// Register a handler with the service.
+	return w.service.AddGroup("command").AddEndpoint(zero.Name(), func(ctx context.Context, req *micro.Request) *micro.Response {
 		// Check if shard is shutting down.
 		select {
 		case <-ctx.Done():
@@ -344,4 +349,8 @@ func (w *World) registerCommand(name string) error {
 
 		return micro.NewSuccessResponse(req, nil)
 	})
+}
+
+func (w *World) onRegisterCommand(zero ecs.Component) error {
+	return w.debug.register("component", zero)
 }

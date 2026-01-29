@@ -4,11 +4,10 @@ import (
 	"math"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Command represents a command from a player or external system.
@@ -21,7 +20,7 @@ type Command struct {
 
 // The interface all command payloads must implement.
 type CommandPayload interface {
-	Name() string
+	schema.Serializable
 }
 
 // ID is a unique identifier for a command type, used for bookkeeping and performance boosts.
@@ -125,28 +124,4 @@ func (m *Manager) Drain() []Command {
 		all = append(all, m.commands[id]...)
 	}
 	return all
-}
-
-// TODO: should we just encode JSON []byte instead of using proto struct?
-// TODO: JSON converts u64s to f64 which loses precision of some types. Consider other serialization
-// format or create a custom one.
-
-// PayloadToProto converts a CommandPayload to a protobuf struct.
-func PayloadToProto(payload CommandPayload) (*structpb.Struct, error) {
-	bytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to marshal payload")
-	}
-
-	var m map[string]any
-	if err := json.Unmarshal(bytes, &m); err != nil {
-		return nil, eris.Wrap(err, "failed to unmarshal payload to map[string]any")
-	}
-
-	pbStruct, err := structpb.NewStruct(m)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to convert map to structpb.Struct")
-	}
-
-	return pbStruct, nil
 }

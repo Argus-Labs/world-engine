@@ -625,29 +625,29 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 
 func setup2(components ...Component) *World {
 	w := NewWorld()
-	ws := w.state
+	w.OnComponentRegister(func(Component) error { return nil })
 	for _, c := range components {
 		switch c.(type) {
 		case Position3D:
-			_, _ = registerComponent[Position3D](ws)
+			_, _ = registerComponent[Position3D](w)
 		case Velocity3D:
-			_, _ = registerComponent[Velocity3D](ws)
+			_, _ = registerComponent[Velocity3D](w)
 		case Health2:
-			_, _ = registerComponent[Health2](ws)
+			_, _ = registerComponent[Health2](w)
 		case Transform:
-			_, _ = registerComponent[Transform](ws)
+			_, _ = registerComponent[Transform](w)
 		case Inventory:
-			_, _ = registerComponent[Inventory](ws)
+			_, _ = registerComponent[Inventory](w)
 		case PlayerStats:
-			_, _ = registerComponent[PlayerStats](ws)
+			_, _ = registerComponent[PlayerStats](w)
 		case AIBehavior:
-			_, _ = registerComponent[AIBehavior](ws)
+			_, _ = registerComponent[AIBehavior](w)
 		case Renderer:
-			_, _ = registerComponent[Renderer](ws)
+			_, _ = registerComponent[Renderer](w)
 		case Physics:
-			_, _ = registerComponent[Physics](ws)
+			_, _ = registerComponent[Physics](w)
 		case NetworkSync:
-			_, _ = registerComponent[NetworkSync](ws)
+			_, _ = registerComponent[NetworkSync](w)
 		}
 	}
 	return w

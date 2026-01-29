@@ -52,26 +52,27 @@ func (s *ShardService) handleIntrospect(ctx context.Context, req *micro.Request)
 // buildIntrospectCache builds the introspection metadata for commands, components, and events.
 // This is called once and cached for subsequent requests.
 func (s *ShardService) buildIntrospectCache() (map[string]any, error) {
-	componentsSchemas, err := getJSONSchemas(s.world.ComponentTypes())
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to get components JSON schemas")
-	}
-
-	commandsSchemas, err := getJSONSchemas(s.world.CommandTypes())
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to get commands JSON schemas")
-	}
-
-	eventsSchemas, err := getJSONSchemas(s.world.EventTypes())
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to get events JSON schemas")
-	}
-
-	return map[string]any{
-		"commands":   commandsSchemas,
-		"components": componentsSchemas,
-		"events":     eventsSchemas,
-	}, nil
+	return nil, nil
+	// componentsSchemas, err := getJSONSchemas(s.world.ComponentTypes())
+	// if err != nil {
+	// 	return nil, eris.Wrap(err, "failed to get components JSON schemas")
+	// }
+	//
+	// commandsSchemas, err := getJSONSchemas(s.world.CommandTypes())
+	// if err != nil {
+	// 	return nil, eris.Wrap(err, "failed to get commands JSON schemas")
+	// }
+	//
+	// eventsSchemas, err := getJSONSchemas(s.world.EventTypes())
+	// if err != nil {
+	// 	return nil, eris.Wrap(err, "failed to get events JSON schemas")
+	// }
+	//
+	// return map[string]any{
+	// 	"commands":   commandsSchemas,
+	// 	"components": componentsSchemas,
+	// 	"events":     eventsSchemas,
+	// }, nil
 }
 
 // getJSONSchemas is a generic helper that converts a map of type names to reflect.Type
