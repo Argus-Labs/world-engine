@@ -16,6 +16,7 @@ import (
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 )
 
+// TODO: add tick log here.
 type debugModule struct {
 	world      *World
 	server     *http.Server

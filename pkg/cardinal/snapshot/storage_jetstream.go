@@ -8,11 +8,12 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/caarlos0/env/v11"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const defaultObjectName = "snapshot"
@@ -74,7 +75,11 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 }
 
 func (j *JetStreamStorage) Store(snapshot *Snapshot) error {
-	snapshotPb := &microv1.Snapshot{}
+	snapshotPb := &cardinalv1.Snapshot{
+		TickHeight: snapshot.TickHeight,
+		Timestamp:  timestamppb.New(snapshot.Timestamp),
+		Data:       snapshot.Data,
+	}
 	data, err := proto.Marshal(snapshotPb)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal snapshot")
@@ -105,7 +110,7 @@ func (j *JetStreamStorage) Load() (*Snapshot, error) {
 		return nil, eris.Wrap(err, "failed to read from object")
 	}
 
-	snapshotPb := microv1.Snapshot{}
+	snapshotPb := cardinalv1.Snapshot{}
 	if err = proto.Unmarshal(data, &snapshotPb); err != nil {
 		return nil, eris.Wrap(err, "failed to unmarshal snapshot")
 	}
@@ -114,11 +119,9 @@ func (j *JetStreamStorage) Load() (*Snapshot, error) {
 	}
 
 	return &Snapshot{
-		EpochHeight: snapshotPb.GetEpochHeight(),
-		TickHeight:  snapshotPb.GetTickHeight(),
-		Timestamp:   snapshotPb.GetTimestamp().AsTime(),
-		StateHash:   snapshotPb.GetStateHash(),
-		Data:        snapshotPb.GetData(),
+		TickHeight: snapshotPb.GetTickHeight(),
+		Timestamp:  snapshotPb.GetTimestamp().AsTime(),
+		Data:       snapshotPb.GetData(),
 	}, nil
 }
 

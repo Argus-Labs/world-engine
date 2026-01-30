@@ -14,11 +14,9 @@ type WorldOptions struct {
 	Organization        string               // The organization that owns this world
 	Project             string               // Name of the project within the organization
 	ShardID             string               // Unique ID for of world's instance
-	EpochFrequency      uint32               // Number of ticks per epoch
 	TickRate            float64              // Number of ticks per second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
-	SnapshotFrequency   uint32               // Number of epochs per snapshot
-	EpochStreamMaxBytes uint32               // Maximum bytes for epoch stream (required by some NATS providers)
+	SnapshotFrequency   uint32               // Number of ticks per snapshot
 	Debug               *bool                // Enable debug server (nil = disabled)
 }
 
@@ -31,11 +29,9 @@ func newDefaultWorldOptions() WorldOptions {
 		Organization:        "",
 		Project:             "",
 		ShardID:             "",
-		EpochFrequency:      0,
 		TickRate:            0,
 		SnapshotStorageType: snapshot.StorageTypeNop, // Default to nop snapshot
 		SnapshotFrequency:   0,
-		EpochStreamMaxBytes: 0, // There is no invalid values for this, just set default of 0
 		Debug:               nil,
 	}
 }
@@ -54,9 +50,6 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.ShardID != "" {
 		opt.ShardID = newOpt.ShardID
 	}
-	if newOpt.EpochFrequency != 0 {
-		opt.EpochFrequency = newOpt.EpochFrequency
-	}
 	if newOpt.TickRate != 0.0 {
 		opt.TickRate = newOpt.TickRate
 	}
@@ -65,9 +58,6 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.SnapshotFrequency != 0 {
 		opt.SnapshotFrequency = newOpt.SnapshotFrequency
-	}
-	if newOpt.EpochStreamMaxBytes != 0 {
-		opt.EpochStreamMaxBytes = newOpt.EpochStreamMaxBytes
 	}
 	if newOpt.Debug != nil {
 		opt.Debug = newOpt.Debug
@@ -87,9 +77,6 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.ShardID == "" {
 		return eris.New("shard ID cannot be empty")
-	}
-	if opt.EpochFrequency < MinEpochFrequency {
-		return eris.Errorf("epoch frequency must be at least %d", MinEpochFrequency)
 	}
 	if opt.TickRate == 0.0 {
 		return eris.New("tick rate cannot be 0")
@@ -144,11 +131,8 @@ type worldOptionsEnv struct {
 	// Snapshot storage type ("NOP" or "JETSTREAM").
 	SnapshotStorageTypeStr string `env:"SHARD_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
-	// Number of epochs per snapshot.
+	// Number of ticks per snapshot.
 	SnapshotFrequency uint32 `env:"SHARD_SNAPSHOT_FREQUENCY"`
-
-	// Maximum bytes for epoch stream. Required by some NATS providers like Synadia Cloud.
-	EpochStreamMaxBytes uint32 `env:"SHARD_EPOCH_STREAM_MAX_BYTES"`
 
 	// Enable debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
@@ -189,7 +173,6 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		ShardID:             cfg.ShardID,
 		SnapshotStorageType: snapshotStorageType,
 		SnapshotFrequency:   cfg.SnapshotFrequency,
-		EpochStreamMaxBytes: cfg.EpochStreamMaxBytes,
 		Debug:               &cfg.Debug,
 	}
 }

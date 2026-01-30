@@ -10,7 +10,7 @@ import (
 func main() {
 	world, err := cardinal.NewWorld(cardinal.WorldOptions{
 		TickRate:            1,
-		EpochFrequency:      10,
+		SnapshotRate:        50,
 		SnapshotStorageType: snapshot.StorageTypeJetStream,
 	})
 	if err != nil {

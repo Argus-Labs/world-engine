@@ -10,11 +10,9 @@ import (
 // Snapshot represents a point-in-time capture of shard state.
 // This is an alias to the protobuf-generated type for better API ergonomics.
 type Snapshot struct {
-	EpochHeight uint64
-	TickHeight  uint64
-	Timestamp   time.Time
-	StateHash   []byte
-	Data        []byte
+	TickHeight uint64
+	Timestamp  time.Time
+	Data       []byte
 }
 
 // Storage provides persistence for shard snapshots.

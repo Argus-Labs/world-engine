@@ -1,9 +1,7 @@
 package cardinal
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"os/signal"
 	"syscall"
 	"time"
@@ -149,8 +147,6 @@ func (w *World) run(ctx context.Context) error {
 	w.world.Init()
 
 	if err := w.restore(); err != nil {
-		// TODO: reset world if error. Note, we can't just initialize a new world since system
-		// registration runs before sync, so we have to manually reset the state.
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
 
@@ -190,21 +186,22 @@ func (w *World) Tick(timestamp time.Time) error {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
-	// data, _ := w.world.Serialize()
-	// hash := sha256.Sum256(data)
+	data, err := w.world.Serialize()
+	if err != nil {
+		return eris.Wrap(err, "failed to serialize world")
+	}
 
 	// Publish snapshot.
 	if w.currentTick.height%uint64(w.options.SnapshotFrequency) == 0 {
-		// snapshot := &micro.Snapshot{
-		// 	EpochHeight: w.epochHeight,
-		// 	TickHeight:  w.tickHeight - 1,
-		// 	Timestamp:   timestamppb.New(timestamp),
-		// 	StateHash:   hash[:],
-		// 	Data:        nil, // Will be filled in the goroutine
-		// }
-		// if err := w.snapshots.Store(snapshot); err != nil {
-		// 	return eris.Wrap(err, "failed to published snapshot")
-		// }
+		snapshot := &snapshot.Snapshot{
+			TickHeight: w.currentTick.height,
+			Timestamp:  timestamp,
+			Data:       data,
+		}
+		if err := w.snapshotStorage.Store(snapshot); err != nil {
+			return eris.Wrap(err, "failed to published snapshot")
+		}
+		w.tel.Logger.Info().Msg("published snapshot")
 	}
 
 	// Increment tick height.
@@ -232,20 +229,7 @@ func (w *World) restore() error {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
-	// Validate restored state hash matches snapshot.
-	data, err := w.world.Serialize()
-	if err != nil {
-		return eris.Wrap(err, "failed to reserialize restored world for integrity validation")
-	}
-
-	currentHash := sha256.Sum256(data)
-	if !bytes.Equal(currentHash[:], snapshot.StateHash) {
-		return eris.Errorf("snapshot hash mismatch, expected %s, got %s",
-			string(snapshot.StateHash), string(currentHash[:]))
-	}
-
 	// Only update shard state after successful restoration and validation.
-	// w.epochHeight = snapshot.EpochHeight + 1
 	w.currentTick.height = snapshot.TickHeight + 1
 
 	return nil
