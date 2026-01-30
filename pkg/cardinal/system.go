@@ -157,16 +157,12 @@ func (b *BaseSystemState) Logger() *zerolog.Logger {
 
 // Tick returns the current tick of the world.
 func (b *BaseSystemState) Tick() uint64 {
-	tick, err := b.world.currentTick()
-	assert.That(err == nil, "GetCurrentTick should never fail during system execution")
-	return tick.Header.TickHeight
+	return b.world.currentTick.height
 }
 
 // Timestamp returns the current timestamp of the world.
 func (b *BaseSystemState) Timestamp() time.Time {
-	tick, err := b.world.currentTick()
-	assert.That(err == nil, "GetCurrentTick should never fail during system execution")
-	return tick.Header.Timestamp
+	return b.world.currentTick.timestamp
 }
 
 // -------------------------------------------------------------------------------------------------

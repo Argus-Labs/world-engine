@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"buf.build/go/protovalidate"
-	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/cardinal/epoch"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
@@ -35,9 +33,7 @@ type World struct {
 
 	debug *debugModule
 
-	tickHeight      uint64       // Tick height
-	ticks           []epoch.Tick // List of ticks in the current epoch
-	epochLog        epoch.Log
+	currentTick     Tick
 	snapshotStorage snapshot.Storage
 
 	options WorldOptions
@@ -78,13 +74,12 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	ecsWorld := ecs.NewWorld()
 
 	world := &World{
-		world:      ecsWorld,
-		commands:   command.NewManager(),
-		events:     event.NewManager(),
-		tickHeight: 0,
-		ticks:      make([]epoch.Tick, 0, options.EpochFrequency),
-		options:    options,
-		tel:        tel,
+		world:       ecsWorld,
+		commands:    command.NewManager(),
+		events:      event.NewManager(),
+		currentTick: Tick{height: 0}, // timestamp will be set by cardinal.Tick
+		options:     options,
+		tel:         tel,
 	}
 
 	ecsWorld.OnComponentRegister(world.registerComponent)
@@ -110,17 +105,6 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	// Register event handlers with the service's (NATS) publishers.
 	world.events.RegisterHandler(event.KindDefault, service.PublishDefaultEvent)
 	world.events.RegisterHandler(event.KindDefault, service.PublishInterShardCommand)
-
-	// Setup epoch log.
-	epochLog, err := epoch.NewJetStreamLog(epoch.JetStreamLogOptions{
-		Client:    client,
-		Address:   address,
-		Telemetry: &tel,
-	})
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create jetstream epoch log")
-	}
-	world.epochLog = epochLog
 
 	// Setup snapshot storage.
 	snapshotStorage, err := snapshot.NewJetStreamStorage(snapshot.JetStreamStorageOptions{
@@ -190,28 +174,16 @@ func (w *World) run(ctx context.Context) error {
 }
 
 func (w *World) Tick(timestamp time.Time) error {
-	assert.That(len(w.ticks) < int(w.options.EpochFrequency), "last epoch is not submitted")
+	// TODO: commands returned to be used for debug epoch log.
+	_ = w.commands.Drain()
 
-	commands := w.commands.Drain()
-
-	// Append to ticks slice.
-	tick := epoch.Tick{
-		Header: epoch.TickHeader{
-			TickHeight: w.tickHeight,
-			Timestamp:  timestamp,
-		},
-		Data: epoch.TickData{Commands: commands},
-	}
-	w.ticks = append(w.ticks, tick)
+	w.currentTick.timestamp = timestamp
 
 	// Tick ECS world.
 	err := w.world.Tick()
 	if err != nil {
 		return eris.Wrap(err, "one or more systems failed")
 	}
-
-	// Increment tick height.
-	w.tickHeight++
 
 	// Emit events.
 	if err := w.events.Dispatch(); err != nil {
@@ -221,36 +193,22 @@ func (w *World) Tick(timestamp time.Time) error {
 	// data, _ := w.world.Serialize()
 	// hash := sha256.Sum256(data)
 
-	// Publish epoch.
-	if len(w.ticks) == int(w.options.EpochFrequency) {
-		// epoch := epoch.Epoch{
+	// Publish snapshot.
+	if w.currentTick.height%uint64(w.options.SnapshotFrequency) == 0 {
+		// snapshot := &micro.Snapshot{
 		// 	EpochHeight: w.epochHeight,
-		// 	Hash:        hash[:],
+		// 	TickHeight:  w.tickHeight - 1,
+		// 	Timestamp:   timestamppb.New(timestamp),
+		// 	StateHash:   hash[:],
+		// 	Data:        nil, // Will be filled in the goroutine
 		// }
-		// if err := w.epochLog.Publish(context.Background(), epoch); err != nil {
-		// 	return eris.Wrap(err, "failed to published epoch")
+		// if err := w.snapshots.Store(snapshot); err != nil {
+		// 	return eris.Wrap(err, "failed to published snapshot")
 		// }
-
-		// Publish snapshot.
-		if w.tickHeight%uint64(w.options.SnapshotFrequency) == 0 {
-			// snapshot := &micro.Snapshot{
-			// 	EpochHeight: w.epochHeight,
-			// 	TickHeight:  w.tickHeight - 1,
-			// 	Timestamp:   timestamppb.New(timestamp),
-			// 	StateHash:   hash[:],
-			// 	Data:        nil, // Will be filled in the goroutine
-			// }
-			// if err := w.snapshots.Store(snapshot); err != nil {
-			// 	return eris.Wrap(err, "failed to published snapshot")
-			// }
-		}
-
-		// Increment epoch count after publishing the epoch.
-		// w.epochHeight++
-
-		// Clear ticks array to prepare for the next epoch.
-		w.ticks = w.ticks[:0]
 	}
+
+	// Increment tick height.
+	w.currentTick.height++
 
 	return nil
 }
@@ -288,16 +246,9 @@ func (w *World) restore() error {
 
 	// Only update shard state after successful restoration and validation.
 	// w.epochHeight = snapshot.EpochHeight + 1
-	w.tickHeight = snapshot.TickHeight + 1
+	w.currentTick.height = snapshot.TickHeight + 1
 
 	return nil
-}
-
-func (w *World) currentTick() (epoch.Tick, error) {
-	if len(w.ticks) == 0 {
-		return epoch.Tick{}, eris.New("cannot get current tick during inter-tick period")
-	}
-	return w.ticks[len(w.ticks)-1], nil
 }
 
 // shutdown performs graceful cleanup of world resources, such as closing services
@@ -365,4 +316,9 @@ func (w *World) registerCommand(zero command.CommandPayload) error {
 
 func (w *World) registerComponent(zero ecs.Component) error {
 	return w.debug.register("component", zero)
+}
+
+type Tick struct {
+	height    uint64
+	timestamp time.Time
 }
