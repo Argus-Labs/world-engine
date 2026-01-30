@@ -19,6 +19,7 @@ type WorldOptions struct {
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotFrequency   uint32               // Number of epochs per snapshot
 	EpochStreamMaxBytes uint32               // Maximum bytes for epoch stream (required by some NATS providers)
+	Debug               *bool                // Enable debug server (nil = disabled)
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
@@ -35,6 +36,7 @@ func newDefaultWorldOptions() WorldOptions {
 		SnapshotStorageType: snapshot.StorageTypeNop, // Default to nop snapshot
 		SnapshotFrequency:   0,
 		EpochStreamMaxBytes: 0, // There is no invalid values for this, just set default of 0
+		Debug:               nil,
 	}
 }
 
@@ -67,6 +69,9 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.EpochStreamMaxBytes != 0 {
 		opt.EpochStreamMaxBytes = newOpt.EpochStreamMaxBytes
 	}
+	if newOpt.Debug != nil {
+		opt.Debug = newOpt.Debug
+	}
 }
 
 // validate checks that all required options are set and valid.
@@ -94,6 +99,9 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.SnapshotFrequency == 0 {
 		return eris.New("snapshot frequency cannot be 0")
+	}
+	if opt.Debug == nil {
+		return eris.New("debug must be specified")
 	}
 	return nil
 }
@@ -141,6 +149,9 @@ type worldOptionsEnv struct {
 
 	// Maximum bytes for epoch stream. Required by some NATS providers like Synadia Cloud.
 	EpochStreamMaxBytes uint32 `env:"SHARD_EPOCH_STREAM_MAX_BYTES"`
+
+	// Enable debug server.
+	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
 }
 
 // loadWorldOptionsEnv loads the world options from environment variables.
@@ -179,5 +190,6 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		SnapshotStorageType: snapshotStorageType,
 		SnapshotFrequency:   cfg.SnapshotFrequency,
 		EpochStreamMaxBytes: cfg.EpochStreamMaxBytes,
+		Debug:               &cfg.Debug,
 	}
 }

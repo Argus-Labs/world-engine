@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package worldengine.cardinal.v1;
+
+import "google/protobuf/struct.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
+
+// DebugService provides debugging and introspection endpoints for Cardinal.
+// This service is intended for dev tooling (e.g., AI agents, debugging tools).
+service DebugService {
+  // Introspect returns metadata about the registered types in the world.
+  // The result includes JSON schemas for commands, components, and events.
+  rpc Introspect(IntrospectRequest) returns (IntrospectResponse);
+}
+
+// IntrospectRequest is the request message for the Introspect RPC.
+message IntrospectRequest {}
+
+// IntrospectResponse contains introspection metadata about the world.
+message IntrospectResponse {
+  // JSON schemas for registered commands.
+  repeated TypeSchema commands = 1;
+
+  // JSON schemas for registered components.
+  repeated TypeSchema components = 2;
+
+  // JSON schemas for registered events.
+  repeated TypeSchema events = 3;
+}
+
+// TypeSchema represents the JSON schema for a registered type.
+message TypeSchema {
+  // Name of the type.
+  string name = 1;
+
+  // JSON schema for the type.
+  google.protobuf.Struct schema = 2;
+}

@@ -14,11 +14,10 @@ import (
 type ShardService struct {
 	*micro.Service
 
-	client     *micro.Client        // NATS client
-	world      *ecs.World           // Reference to the ECS world
-	tel        *telemetry.Telemetry // Telemetry for logging and tracing
-	queryPool  sync.Pool            // Pool for query objects
-	introspect Introspect           // Introspection metadata cache
+	client    *micro.Client        // NATS client
+	world     *ecs.World           // Reference to the ECS world
+	tel       *telemetry.Telemetry // Telemetry for logging and tracing
+	queryPool sync.Pool            // Pool for query objects
 }
 
 // NewShardService creates a new shard service.
@@ -64,10 +63,6 @@ func (s *ShardService) registerEndpoints() error {
 	err = s.AddEndpoint("query", s.handleQuery)
 	if err != nil {
 		return eris.Wrap(err, "failed to register query handler")
-	}
-	err = s.AddEndpoint("introspect", s.handleIntrospect)
-	if err != nil {
-		return eris.Wrap(err, "failed to register introspect handler")
 	}
 	return nil
 }

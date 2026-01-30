@@ -33,7 +33,7 @@ type World struct {
 	commands command.Manager
 	events   event.Manager
 
-	debug debugModule
+	debug *debugModule
 
 	tickHeight      uint64       // Tick height
 	ticks           []epoch.Tick // List of ticks in the current epoch
@@ -132,7 +132,10 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 	world.snapshotStorage = snapshotStorage
 
-	world.debug = newDebugModule(world)
+	if *options.Debug {
+		debug := newDebugModule(world)
+		world.debug = &debug
+	}
 
 	return world, nil
 }
@@ -145,6 +148,9 @@ func (w *World) StartGame() {
 
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
+
+	// Start the debug server.
+	w.debug.Init(":8080")
 
 	w.tel.CaptureEvent(ctx, "Start Game", nil)
 
@@ -303,6 +309,12 @@ func (w *World) shutdown() {
 
 	w.tel.Logger.Info().Msg("Shutting down world")
 
+	// Shutdown debug server.
+	if err := w.debug.Shutdown(ctx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("debug server shutdown error")
+		w.tel.CaptureException(ctx, err)
+	}
+
 	// Shutdown shard service.
 	if w.service != nil {
 		if err := w.service.Close(); err != nil {
@@ -351,6 +363,6 @@ func (w *World) registerCommand(zero command.CommandPayload) error {
 	})
 }
 
-func (w *World) onRegisterCommand(zero ecs.Component) error {
+func (w *World) registerComponent(zero ecs.Component) error {
 	return w.debug.register("component", zero)
 }
