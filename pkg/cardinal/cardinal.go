@@ -192,7 +192,7 @@ func (w *World) Tick(timestamp time.Time) error {
 	}
 
 	// Publish snapshot.
-	if w.currentTick.height%uint64(w.options.SnapshotFrequency) == 0 {
+	if w.currentTick.height%uint64(w.options.SnapshotRate) == 0 {
 		snapshot := &snapshot.Snapshot{
 			TickHeight: w.currentTick.height,
 			Timestamp:  timestamp,

@@ -16,7 +16,7 @@ type WorldOptions struct {
 	ShardID             string               // Unique ID for of world's instance
 	TickRate            float64              // Number of ticks per second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
-	SnapshotFrequency   uint32               // Number of ticks per snapshot
+	SnapshotRate        uint32               // Number of ticks per snapshot
 	Debug               *bool                // Enable debug server (nil = disabled)
 }
 
@@ -31,7 +31,7 @@ func newDefaultWorldOptions() WorldOptions {
 		ShardID:             "",
 		TickRate:            0,
 		SnapshotStorageType: snapshot.StorageTypeNop, // Default to nop snapshot
-		SnapshotFrequency:   0,
+		SnapshotRate:        0,
 		Debug:               nil,
 	}
 }
@@ -56,8 +56,8 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.SnapshotStorageType.IsValid() {
 		opt.SnapshotStorageType = newOpt.SnapshotStorageType
 	}
-	if newOpt.SnapshotFrequency != 0 {
-		opt.SnapshotFrequency = newOpt.SnapshotFrequency
+	if newOpt.SnapshotRate != 0 {
+		opt.SnapshotRate = newOpt.SnapshotRate
 	}
 	if newOpt.Debug != nil {
 		opt.Debug = newOpt.Debug
@@ -84,7 +84,7 @@ func (opt *WorldOptions) validate() error {
 	if !opt.SnapshotStorageType.IsValid() {
 		return eris.New("snapshot storage type must be specified")
 	}
-	if opt.SnapshotFrequency == 0 {
+	if opt.SnapshotRate == 0 {
 		return eris.New("snapshot frequency cannot be 0")
 	}
 	if opt.Debug == nil {
@@ -114,6 +114,7 @@ func (opt *WorldOptions) getSentryTags() map[string]string {
 // World options environment variables
 // -------------------------------------------------------------------------------------------------
 
+// TODO: update envs.
 // worldOptionsEnv are WorldOption values set through env variables.
 type worldOptionsEnv struct {
 	// Region the shard is deployed to.
@@ -132,7 +133,7 @@ type worldOptionsEnv struct {
 	SnapshotStorageTypeStr string `env:"SHARD_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
 	// Number of ticks per snapshot.
-	SnapshotFrequency uint32 `env:"SHARD_SNAPSHOT_FREQUENCY"`
+	SnapshotRate uint32 `env:"SHARD_SNAPSHOT_FREQUENCY"`
 
 	// Enable debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
@@ -172,7 +173,7 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		Project:             cfg.Project,
 		ShardID:             cfg.ShardID,
 		SnapshotStorageType: snapshotStorageType,
-		SnapshotFrequency:   cfg.SnapshotFrequency,
+		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &cfg.Debug,
 	}
 }
