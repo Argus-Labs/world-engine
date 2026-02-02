@@ -139,7 +139,7 @@ type JetStreamStorageOptions struct {
 	Address *micro.ServiceAddress
 
 	// Maximum bytes for snapshot storage (ObjectStore). Required by some NATS providers like Synadia Cloud.
-	SnapshotStorageMaxBytes uint64 `env:"SHARD_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"0"`
+	SnapshotStorageMaxBytes uint64 `env:"CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"0"`
 }
 
 func (opt *JetStreamStorageOptions) Validate() error {
