@@ -130,10 +130,10 @@ type worldOptionsEnv struct {
 	ShardID string `env:"CARDINAL_SHARD_ID"`
 
 	// Snapshot storage type ("NOP" or "JETSTREAM").
-	SnapshotStorageTypeStr string `env:"SHARD_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
+	SnapshotStorageTypeStr string `env:"CARDINAL_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
 	// Number of ticks per snapshot.
-	SnapshotRate uint32 `env:"SHARD_SNAPSHOT_FREQUENCY"`
+	SnapshotRate uint32 `env:"CARDINAL_SNAPSHOT_RATE"`
 
 	// Enable debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
