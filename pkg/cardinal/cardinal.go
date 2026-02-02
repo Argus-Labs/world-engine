@@ -23,19 +23,15 @@ import (
 
 // World represents your game world and serves as the main entry point for Cardinal.
 type World struct {
-	world   *ecs.World // The ECS world storing the game's state and systems
-	service *service.ShardService
-
-	commands command.Manager
-	events   event.Manager
-
-	debug *debugModule
-
-	currentTick     Tick
-	snapshotStorage snapshot.Storage
-
-	options WorldOptions
-	tel     telemetry.Telemetry // Telemetry for logging and tracing
+	world           *ecs.World            // The ECS world storing the game's state and systems
+	service         *service.ShardService // micro.Service wrapper
+	commands        command.Manager       // Receives commands for systems
+	events          event.Manager         // Collects and dispatches events
+	debug           *debugModule          // For debug only utils and services
+	currentTick     Tick                  // The current tick
+	snapshotStorage snapshot.Storage      // Snapshot storage
+	options         WorldOptions          // Options
+	tel             telemetry.Telemetry   // Telemetry for logging and tracing
 }
 
 // NewWorld creates a new game world with the specified configuration.

@@ -17,7 +17,7 @@ type WorldOptions struct {
 	TickRate            float64              // Number of ticks per second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotRate        uint32               // Number of ticks per snapshot
-	Debug               *bool                // Enable debug server (nil = disabled)
+	Debug               *bool                // Enable debug server
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
