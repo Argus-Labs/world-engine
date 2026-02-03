@@ -12,24 +12,32 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing component registration
 // -------------------------------------------------------------------------------------------------
-// This test verifies the componentManager registration correctness using model-based testing. It
-// compares our implementation against a map[string]componentID as the model by applying random
-// sequences of register/getID operations to both and asserting equivalence.
-// We also verify structural invariants: name-id bijection and component id uniqueness.
+// This test verifies the archetype implementation correctness by applying random sequences of
+// operations and comparing it against a regular Go map of name->id as the model. We also verify
+// structural invariants: name-id bijection and component id uniqueness.
 // -------------------------------------------------------------------------------------------------
 
 func TestComponent_RegisterModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax     = 1 << 15 // 32_768 iterations
+		opRegister = "register"
+		opGetID    = "getID"
+	)
+
+	// Randomize operation weights.
+	operations := []string{opRegister, opGetID}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newComponentManager()
 	model := make(map[string]componentID) // name -> cid
 
 	for range opsMax {
-		// 70% register, 30% getID
-		if prng.Float64() < 0.7 { //nolint:nestif // it's not bad
+		op := testutils.RandWeightedOp(prng, weights)
+		switch op {
+		case opRegister:
 			name := randValidComponentName(prng)
 
 			implID, implErr := impl.register(name, nil) // we don't use the columnFactory so it's ok
@@ -44,7 +52,8 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 				require.NoError(t, implErr)
 				model[name] = implID
 			}
-		} else {
+
+		case opGetID:
 			// Bias toward registered names (80%) to test retrieval path.
 			var name string
 			if len(model) > 0 && prng.Float64() < 0.8 {
@@ -61,6 +70,9 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 			if modelExists {
 				assert.Equal(t, modelID, implID, "getID(%s) ID mismatch", name)
 			}
+
+		default:
+			panic("unreachable")
 		}
 	}
 

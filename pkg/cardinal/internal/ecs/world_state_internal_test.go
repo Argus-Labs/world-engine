@@ -17,9 +17,8 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing world state operations
 // -------------------------------------------------------------------------------------------------
-// This test verifies the worldState implementation correctness using model-based testing. It
-// compares our implementation against a map[EntityID]map[string]Component as the model by applying
-// random sequences of entity and component operations to both and asserting equivalence.
+// This test verifies the worldState implementation correctness by applying random sequences of
+// operations and comparing it against a Go map of map[EntityID]map[string]any as the model.
 // We also verify structural invariants: entity-archetype bijection and global entity uniqueness.
 // -------------------------------------------------------------------------------------------------
 
@@ -27,15 +26,27 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax          = 1 << 15 // 32_768 iterations
+		opEntityNew     = "entityNew"
+		opEntityRemove  = "entityRemove"
+		opCompSetUpdate = "compSetUpdate"
+		opCompSetMove   = "compSetMove"
+		opCompRemove    = "compRemove"
+		opCompGet       = "compGet"
+	)
+
+	// Randomize operation weights.
+	operations := []string{opEntityNew, opEntityRemove, opCompSetUpdate, opCompSetMove, opCompRemove, opCompGet}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newTestWorldState(t)
 	model := make(map[EntityID]map[string]any)
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, worldStateOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case ws_entityNew:
+		case opEntityNew:
 			eid := impl.newEntity()
 			model[eid] = make(map[string]any)
 
@@ -43,7 +54,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			_, exists := impl.entityArch.get(eid)
 			assert.True(t, exists, "newEntity(%d) should exist in entityArch", eid)
 
-		case ws_entityRemove:
+		case opEntityRemove:
 			eid := EntityID(prng.IntN(10_000)) // Default to random (which might not exist).
 			// Bias toward existing entities (80%) to test actual removal path.
 			if len(model) > 0 && prng.Float64() < 0.8 {
@@ -61,7 +72,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			_, exists := impl.entityArch.get(eid)
 			assert.False(t, exists, "removeEntity(%d) should not exist in entityArch", eid)
 
-		case ws_compSetUpdate:
+		case opCompSetUpdate:
 			if len(model) == 0 {
 				continue
 			}
@@ -86,7 +97,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			assert.True(t, exists, "setComponentUpdate(%d) entity should exist", eid)
 			assert.Equal(t, aidBefore, aidAfter, "setComponentUpdate(%d) archetype should not change", eid)
 
-		case ws_compSetMove:
+		case opCompSetMove:
 			if len(model) == 0 {
 				continue
 			}
@@ -111,7 +122,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			assert.True(t, exists, "setComponentMove(%d) entity should exist", eid)
 			assert.NotEqual(t, aidBefore, aidAfter, "setComponentMove(%d) archetype should change", eid)
 
-		case ws_compRemove:
+		case opCompRemove:
 			if len(model) == 0 {
 				continue
 			}
@@ -125,7 +136,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			_, ok := getComponentAbstract(t, impl, eid, c.Name())
 			assert.False(t, ok, "removeComponent(%d, %s) then get should not exist", eid, c.Name())
 
-		case ws_compGet:
+		case opCompGet:
 			if len(model) == 0 {
 				continue
 			}
@@ -196,21 +207,6 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 	}
 }
 
-type worldStateOp uint8
-
-const (
-	ws_entityNew     worldStateOp = 16
-	ws_entityRemove  worldStateOp = 14
-	ws_compSetUpdate worldStateOp = 15 // Update existing component (no archetype change)
-	ws_compSetMove   worldStateOp = 30 // Set new component (triggers archetype move)
-	ws_compRemove    worldStateOp = 20
-	ws_compGet       worldStateOp = 5
-)
-
-var worldStateOps = []worldStateOp{
-	ws_entityNew, ws_entityRemove, ws_compSetUpdate, ws_compSetMove, ws_compRemove, ws_compGet,
-}
-
 func getComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name string) (Component, bool) {
 	var res Component
 	var err error
@@ -243,11 +239,11 @@ func setComponentAbstract(t *testing.T, impl *worldState, eid EntityID, c Compon
 	name := c.Name()
 	switch name {
 	case testutils.ComponentA{}.Name():
-		err = setComponent[testutils.ComponentA](impl, eid, c.(testutils.ComponentA))
+		err = setComponent(impl, eid, c.(testutils.ComponentA))
 	case testutils.ComponentB{}.Name():
-		err = setComponent[testutils.ComponentB](impl, eid, c.(testutils.ComponentB))
+		err = setComponent(impl, eid, c.(testutils.ComponentB))
 	case testutils.ComponentC{}.Name():
-		err = setComponent[testutils.ComponentC](impl, eid, c.(testutils.ComponentC))
+		err = setComponent(impl, eid, c.(testutils.ComponentC))
 	default:
 		panic("unreachable")
 	}
@@ -300,22 +296,33 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	const (
-		opsMax            = 1 << 15 // 32_768 iterations
-		createRemoveRatio = 0.6
+		opsMax   = 1 << 15 // 32_768 iterations
+		opCreate = "create"
+		opRemove = "remove"
 	)
+
+	// Randomize operation weights.
+	operations := []string{opCreate, opRemove}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newTestWorldState(t)
 	prevNextID := impl.nextID
 
 	for range opsMax {
-		if prng.Float64() < createRemoveRatio {
+		op := testutils.RandWeightedOp(prng, weights)
+		switch op {
+		case opCreate:
 			impl.newEntity()
-		} else {
+
+		case opRemove:
 			if impl.nextID == 0 {
 				continue
 			}
 			eid := EntityID(prng.IntN(int(impl.nextID)))
 			impl.removeEntity(eid) // May return false if already removed.
+
+		default:
+			panic("unreachable")
 		}
 
 		// Property: nextID is monotonically non-decreasing.
@@ -352,9 +359,7 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 		var wg sync.WaitGroup
 
 		for range numGoroutines {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
 				prng := testutils.NewRand(t)
 
@@ -371,7 +376,7 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 						removeCount.Add(1)
 					}
 				}
-			}()
+			})
 		}
 		wg.Wait()
 

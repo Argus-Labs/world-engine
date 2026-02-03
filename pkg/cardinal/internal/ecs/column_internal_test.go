@@ -11,31 +11,40 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing column operations
 // -------------------------------------------------------------------------------------------------
-// This test verifies the column implementation correctness using model-based testing. It compares
-// our implementation against Go's slice with swap-remove semantics as the model by applying random
-// sequences of extend/set/get/remove operations to both and asserting equivalence.
+// This test verifies the archetype implementation correctness by applying random sequences of
+// operations and comparing it against a regular Go slice as the model.
 // -------------------------------------------------------------------------------------------------
 
 func TestColumn_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax   = 1 << 15 // 32_768 iterations
+		opExtend = "extend"
+		opSet    = "set"
+		opGet    = "get"
+		opRemove = "remove"
+	)
+
+	// Randomize operation weights.
+	operations := []string{opExtend, opSet, opGet, opRemove}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newColumn[testutils.SimpleComponent]()
 	model := make([]testutils.SimpleComponent, 0, columnCapacity)
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, columnOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case c_extend:
+		case opExtend:
 			impl.extend()
 			model = append(model, testutils.SimpleComponent{})
 
 			// Property: length increases by 1.
 			assert.Equal(t, len(model), impl.len(), "extend length mismatch")
 
-		case c_set:
+		case opSet:
 			if len(model) == 0 {
 				continue
 			}
@@ -49,7 +58,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 			// Property: get(k) after set(k) returns same value.
 			assert.Equal(t, value, impl.get(row), "set(%d) then get value mismatch", row)
 
-		case c_get:
+		case opGet:
 			if len(model) == 0 {
 				continue
 			}
@@ -61,7 +70,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 			// Property: get(k) returns same value as model.
 			assert.Equal(t, modelValue, implValue, "get(%d) value mismatch", row)
 
-		case c_remove:
+		case opRemove:
 			if len(model) == 0 {
 				continue
 			}
@@ -93,17 +102,6 @@ func TestColumn_ModelFuzz(t *testing.T) {
 		assert.Equal(t, expected, got, "element %d mismatch", i)
 	}
 }
-
-type columnOp uint8
-
-const (
-	c_extend columnOp = 20
-	c_set    columnOp = 35
-	c_remove columnOp = 30
-	c_get    columnOp = 15
-)
-
-var columnOps = []columnOp{c_extend, c_set, c_remove, c_get}
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test

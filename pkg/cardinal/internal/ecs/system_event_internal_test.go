@@ -12,17 +12,26 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing system-event manager operations
 // -------------------------------------------------------------------------------------------------
-// This test verifies the systemEventManager implementation correctness using model-based testing.
-// It compares our implementation against a map[string][]SystemEvent as the model by applying random
-// sequences of enqueue/get/clear operations to both and asserting equivalence. System events are
-// pre-registered since WithSystemEventEmitter/Receiver.init guarantees registration before use.
+// This test verifies the queue implementation correctness by applying random sequences of
+// operations and comparing it against a regular Go map of name->[]SystemEvent as the model.
+// System events are pre-registered since WithSystemEventEmitter/Receiver.init guarantees
+// registration before use.
 // -------------------------------------------------------------------------------------------------
 
 func TestSystemEvent_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax    = 1 << 15 // 32_768 iterations
+		opEnqueue = "enqueue"
+		opGet     = "get"
+		opClear   = "clear"
+	)
+
+	// Randomize operation weights.
+	operations := []string{opEnqueue, opGet, opClear}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newSystemEventManager()
 	model := make(map[string][]SystemEvent) // name -> system-event buffer
@@ -35,16 +44,16 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	}
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, systemEventOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case sem_enqueue:
+		case opEnqueue:
 			name := testutils.RandMapKey(prng, model)
 			event := randSystemEventByName(prng, name)
 
 			impl.enqueue(name, event)
 			model[name] = append(model[name], event)
 
-		case sem_get:
+		case opGet:
 			name := testutils.RandMapKey(prng, model)
 
 			implSysEvents := impl.get(name)
@@ -56,7 +65,7 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 				assert.Equal(t, modelSysEvents[i], implSysEvents[i], "get(%s)[%d] mismatch", name, i)
 			}
 
-		case sem_clear:
+		case opClear:
 			impl.clear()
 			for name := range model {
 				model[name] = []SystemEvent{}
@@ -84,16 +93,6 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	}
 }
 
-type systemEventOp uint8
-
-const (
-	sem_enqueue systemEventOp = 46
-	sem_get     systemEventOp = 44
-	sem_clear   systemEventOp = 10
-)
-
-var systemEventOps = []systemEventOp{sem_enqueue, sem_get, sem_clear}
-
 var allSystemEventNames = []string{
 	testutils.SystemEventA{}.Name(), testutils.SystemEventB{}.Name(), testutils.SystemEventC{}.Name(),
 }
@@ -114,10 +113,8 @@ func randSystemEventByName(prng *rand.Rand, name string) SystemEvent {
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing system-event registration
 // -------------------------------------------------------------------------------------------------
-// This test verifies the systemEventManager registration correctness using model-based testing. It
-// compares our implementation against a map[string]systemEventID as the model by applying random
-// register operations and asserting equivalence. We also verify structural invariants:
-// name-id bijection and ID uniqueness.
+// This test verifies the system event manager registration correctness by applying random sequences
+// of operations and comparing against a Go map as the model.
 // -------------------------------------------------------------------------------------------------
 
 func TestSystemEvent_RegisterModelFuzz(t *testing.T) {

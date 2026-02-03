@@ -27,26 +27,30 @@ func TestCommand_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax    = 1 << 15 // 32_768 iterations
+		opEnqueue = "enqueue"
+		opDrain   = "drain"
+		opGet     = "get"
+	)
 
 	impl := command.NewManager()
 	model := newModelManager()
 
+	// Slice of "generator" helper functions to create typed commands.
 	generators := make([]func() command.Payload, 3)
 	generators[0] = registerCommand[testutils.CommandA](t, prng, &impl, model)
 	generators[1] = registerCommand[testutils.CommandB](t, prng, &impl, model)
 	generators[2] = registerCommand[testutils.CommandC](t, prng, &impl, model)
 
 	// Randomize operation weights.
-	enqueueWeight := prng.IntN(100)
-	drainWeight := prng.IntN(100 - enqueueWeight)
-	getWeight := 100 - enqueueWeight - drainWeight
-	ops := []int{enqueueWeight, drainWeight, getWeight}
+	operations := []string{opEnqueue, opDrain, opGet}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, ops)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case enqueueWeight:
+		case opEnqueue:
 			// Pick a random command type and enqueue.
 			payload := generators[prng.IntN(len(generators))]()
 			pbPayload, err := schema.ToProtoStruct(payload)
@@ -68,7 +72,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 				Payload: payload,
 			})
 
-		case drainWeight:
+		case opDrain:
 			modelAll := model.drain()
 			implAll := impl.Drain()
 
@@ -89,7 +93,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 				assert.Equal(t, modelBuf, implBuf, "buffer mismatch for command %q", name)
 			}
 
-		case getWeight:
+		case opGet:
 			// Get for a random command type should match model.
 			name := generators[prng.IntN(len(generators))]().Name()
 
@@ -220,7 +224,7 @@ func (m *modelManager) drain() []command.Command {
 // Model-based fuzzing command registration
 // -------------------------------------------------------------------------------------------------
 // This test verifies the command manager registration correctness by applying random sequences of
-// ooperations and comparing agianst a Go map as the model.
+// operations and comparing against a Go map as the model.
 // -------------------------------------------------------------------------------------------------
 
 func TestCommand_RegisterModelFuzz(t *testing.T) {

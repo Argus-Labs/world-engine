@@ -23,21 +23,22 @@ func TestQueue_ModelFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	const (
-		opsMax = 1 << 15 // 32_768 iterations
+		opsMax    = 1 << 15 // 32_768 iterations
+		opEnqueue = "enqueue"
+		opDrain   = "drain"
 	)
 
-	// Randomly assign weights for operations at test start.
-	enqueueWeight := prng.IntN(100)
-	drainWeight := 100 - enqueueWeight // remainder
-	queueOps := []int{enqueueWeight, drainWeight}
+	// Randomize operation weights.
+	operations := []string{opEnqueue, opDrain}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := command.NewQueue[testutils.SimpleCommand]()
 	model := make([]command.Command, 0)
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, queueOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case enqueueWeight:
+		case opEnqueue:
 
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
 			payload, err := schema.ToProtoStruct(cmd)
@@ -73,7 +74,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 				})
 			}
 
-		case drainWeight:
+		case opDrain:
 			var implResult []command.Command
 			impl.Drain(&implResult)
 

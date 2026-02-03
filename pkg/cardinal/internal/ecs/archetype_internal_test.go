@@ -13,17 +13,24 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing archetype operations
 // -------------------------------------------------------------------------------------------------
-// This test verifies the archetype implementation correctness using model-based testing. It
-// compares our implementation against Go's map tracking entity->archetype ownership by applying
-// random sequences of new/move/remove operations to both and asserting equivalence.
-// We also verify extra invariants such as bijection consistency and global entity uniqueness.
+// This test verifies the archetype implementation correctness by applying random sequences of
+// operations and comparing it against a regular Go map of entity->archetype as the model.
 // -------------------------------------------------------------------------------------------------
 
 func TestArchetype_ModelFuzz(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	const opsMax = 1 << 15 // 32_768 iterations
+	const (
+		opsMax   = 1 << 15 // 32_768 iterations
+		opNew    = "new"
+		opMove   = "move"
+		opRemove = "remove"
+	)
+
+	// Randomize operation weights.
+	operations := []string{opNew, opMove, opRemove}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	pool := newArchetypePool()
 	model := make(map[EntityID]*archetype) // Just track archetype entity ownership
@@ -33,9 +40,9 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 	var next EntityID
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, archetypeOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case a_new:
+		case opNew:
 			eid := next
 			next++
 			entities = append(entities, eid)
@@ -49,7 +56,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			assert.True(t, exists)
 			assert.Equal(t, eid, arch.entities[row])
 
-		case a_remove:
+		case opRemove:
 			if len(entities) == 0 {
 				continue
 			}
@@ -65,7 +72,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			_, exists := arch.rows.get(eid)
 			assert.False(t, exists)
 
-		case a_move:
+		case opMove:
 			if len(entities) == 0 {
 				continue
 			}
@@ -140,16 +147,6 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 		}
 	}
 }
-
-type archetypeOp uint8
-
-const (
-	a_new    archetypeOp = 40
-	a_move   archetypeOp = 35
-	a_remove archetypeOp = 25
-)
-
-var archetypeOps = []archetypeOp{a_new, a_move, a_remove}
 
 // -------------------------------------------------------------------------------------------------
 // Exhaustive archetype move test

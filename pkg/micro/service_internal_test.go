@@ -164,9 +164,8 @@ func randEndpointName(prng *rand.Rand) string {
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing endpoint registration
 // -------------------------------------------------------------------------------------------------
-// This test verifies Service endpoint registration correctness using model-based testing. It
-// compares our implementation against a map[string]bool as the model by applying random sequences
-// of AddEndpoint and AddGroup().AddEndpoint operations and asserting equivalence.
+// This test verifies the endpoint registration implementation correctness by applying random
+// sequences of operations and comparing it against a regular Go map as the model.
 // -------------------------------------------------------------------------------------------------
 
 func TestService_RegisterModelFuzz(t *testing.T) {
@@ -174,10 +173,16 @@ func TestService_RegisterModelFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	const (
-		opsMax       = 1 << 15 // 4096 iterations
-		maxEndpoints = 100     // limit unique endpoint names to increase collision chance
-		maxGroups    = 10      // limit unique group names to increase collision chance
+		opsMax             = 1 << 15 // 4096 iterations
+		maxEndpoints       = 100     // limit unique endpoint names to increase collision chance
+		maxGroups          = 10      // limit unique group names to increase collision chance
+		opAddEndpoint      = "addEndpoint"
+		opAddGroupEndpoint = "addGroupEndpoint"
 	)
+
+	// Randomize operation weights.
+	operations := []string{opAddEndpoint, opAddGroupEndpoint}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl, client := newTestService(t, prng)
 	model := make(map[string]bool) // tracks registered endpoint names
@@ -188,9 +193,9 @@ func TestService_RegisterModelFuzz(t *testing.T) {
 	dummyHandler := func(_ context.Context, _ *Request) *Response { return nil }
 
 	for range opsMax {
-		op := testutils.RandWeightedOp(prng, registrationOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case reg_addEndpoint:
+		case opAddEndpoint:
 			name := "endpoint-" + strconv.Itoa(prng.IntN(maxEndpoints))
 			err := impl.AddEndpoint(name, dummyHandler)
 
@@ -206,7 +211,7 @@ func TestService_RegisterModelFuzz(t *testing.T) {
 				model[name] = true
 			}
 
-		case reg_addGroupEndpoint:
+		case opAddGroupEndpoint:
 			groupName := "group-" + strconv.Itoa(prng.IntN(maxGroups))
 			endpointName := "endpoint-" + strconv.Itoa(prng.IntN(maxEndpoints))
 			fullName := groupName + "." + endpointName
@@ -237,15 +242,6 @@ func TestService_RegisterModelFuzz(t *testing.T) {
 		assert.True(t, exists, "endpoint %q should exist in service", name)
 	}
 }
-
-type registrationOp uint8
-
-const (
-	reg_addEndpoint      registrationOp = 60
-	reg_addGroupEndpoint registrationOp = 40
-)
-
-var registrationOps = []registrationOp{reg_addEndpoint, reg_addGroupEndpoint}
 
 func newTestService(t *testing.T, prng *rand.Rand) (*Service, *Client) {
 	t.Helper()

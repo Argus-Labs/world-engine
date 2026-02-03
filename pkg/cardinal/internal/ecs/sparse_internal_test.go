@@ -10,9 +10,8 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing sparse set operations
 // -------------------------------------------------------------------------------------------------
-// This test verifies the sparseSet implementation correctness using model-based testing. It
-// compares our implementation against a Go's map as the model by applying random sequences of
-// set/get/remove operations to both and asserting equivalence.
+// This test verifies the queue implementation correctness by applying random sequences of
+// operations and comparing it against a regular Go map as the model.
 // -------------------------------------------------------------------------------------------------
 
 func TestSparseSet_ModelFuzz(t *testing.T) {
@@ -20,9 +19,16 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	const (
-		opsMax = 1 << 15 // 32_768 iterations
-		eidMax = 10_000
+		opsMax   = 1 << 15 // 32_768 iterations
+		eidMax   = 10_000
+		opSet    = "set"
+		opGet    = "get"
+		opRemove = "remove"
 	)
+
+	// Randomize operation weights.
+	operations := []string{opSet, opGet, opRemove}
+	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newSparseSet()
 	model := make(map[EntityID]int, sparseCapacity)
@@ -31,9 +37,9 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 	for range opsMax {
 		key := EntityID(prng.IntN(eidMax))
 
-		op := testutils.RandWeightedOp(prng, sparseSetOps)
+		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
-		case s_set:
+		case opSet:
 			value := prng.Int()
 			impl.set(key, value)
 			model[key] = value
@@ -43,7 +49,7 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 			assert.True(t, ok, "set(%d) then get should exist", key)
 			assert.Equal(t, value, got, "set(%d) then get value mismatch", key)
 
-		case s_get:
+		case opGet:
 			// Bias toward existing keys (80%) to test value retrieval path.
 			if len(model) > 0 && prng.Float64() < 0.8 {
 				key = testutils.RandMapKey(prng, model)
@@ -62,7 +68,7 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 				assert.Equal(t, sparseTombstone, impl[key], "get(%d) non-existent key should be tombstone", key)
 			}
 
-		case s_remove:
+		case opRemove:
 			implOk := impl.remove(key)
 			_, modelOk := model[key]
 			delete(model, key)
@@ -89,16 +95,6 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 		assert.Equal(t, modelValue, implValue, "key %d value mismatch", key)
 	}
 }
-
-type sparseSetOp uint8
-
-const (
-	s_set    sparseSetOp = 55
-	s_remove sparseSetOp = 35
-	s_get    sparseSetOp = 10
-)
-
-var sparseSetOps = []sparseSetOp{s_set, s_remove, s_get}
 
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
