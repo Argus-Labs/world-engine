@@ -58,8 +58,8 @@ func (s StorageType) String() string {
 	}
 }
 
-func (m StorageType) IsValid() bool {
-	return m == StorageTypeNop || m == StorageTypeJetStream
+func (s StorageType) IsValid() bool {
+	return s == StorageTypeNop || s == StorageTypeJetStream
 }
 
 func ParseStorageType(s string) (StorageType, error) {

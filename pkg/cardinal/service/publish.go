@@ -13,7 +13,10 @@ import (
 )
 
 func (s *ShardService) PublishDefaultEvent(evt event.Event) error {
-	payload := evt.Payload.(event.EventPayload)
+	payload, ok := evt.Payload.(event.Payload)
+	if !ok {
+		return eris.Errorf("invalid event payload type: %T", evt.Payload)
+	}
 
 	// Craft target service address `<this cardinal's service address>.event.<group>.<event name>`.
 	target := micro.String(s.Address) + ".event." + payload.Name()

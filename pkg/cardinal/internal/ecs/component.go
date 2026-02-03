@@ -10,7 +10,7 @@ import (
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
-type Component interface { //nolint:iface // We may add more methods in the future.
+type Component interface { //nolint:iface // may extend later
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
 	//

@@ -32,7 +32,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 	impl := command.NewManager()
 	model := newModelManager()
 
-	generators := make([]func() command.CommandPayload, 3)
+	generators := make([]func() command.Payload, 3)
 	generators[0] = registerCommand[testutils.CommandA](t, prng, &impl, model)
 	generators[1] = registerCommand[testutils.CommandB](t, prng, &impl, model)
 	generators[2] = registerCommand[testutils.CommandC](t, prng, &impl, model)
@@ -73,7 +73,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 			implAll := impl.Drain()
 
 			// Property: drain returns all enqueued commands.
-			assert.Equal(t, len(modelAll), len(implAll), "drain count mismatch")
+			assert.Len(t, implAll, len(modelAll), "drain count mismatch")
 			assert.ElementsMatch(t, modelAll, implAll, "drain content mismatch")
 
 			// Property: per-command-type buffers match model via Get.
@@ -109,7 +109,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 	// Final state check: drain and verify all buffers match model.
 	modelAll := model.drain()
 	implAll := impl.Drain()
-	assert.Equal(t, len(modelAll), len(implAll), "final drain count mismatch")
+	assert.Len(t, implAll, len(modelAll), "final drain count mismatch")
 	assert.ElementsMatch(t, modelAll, implAll, "final drain content mismatch")
 
 	for _, gen := range generators {
@@ -125,9 +125,9 @@ func TestCommand_ModelFuzz(t *testing.T) {
 	}
 }
 
-func registerCommand[T command.CommandPayload](
+func registerCommand[T command.Payload](
 	t *testing.T, prng *rand.Rand, impl *command.Manager, model *modelManager,
-) func() command.CommandPayload {
+) func() command.Payload {
 	t.Helper()
 
 	var zero T
@@ -140,11 +140,11 @@ func registerCommand[T command.CommandPayload](
 
 	switch name {
 	case testutils.CommandA{}.Name():
-		return func() command.CommandPayload {
+		return func() command.Payload {
 			return testutils.CommandA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
 		}
 	case testutils.CommandB{}.Name():
-		return func() command.CommandPayload {
+		return func() command.Payload {
 			return testutils.CommandB{
 				ID:      uint64(prng.IntN(1 << 50)), // Use smaller values to avoid JSON precision loss
 				Label:   testutils.RandString(prng, 10),
@@ -152,7 +152,7 @@ func registerCommand[T command.CommandPayload](
 			}
 		}
 	case testutils.CommandC{}.Name():
-		return func() command.CommandPayload {
+		return func() command.Payload {
 			return testutils.CommandC{Values: [8]int32{}, Counter: uint16(prng.Int())}
 		}
 	default:
@@ -299,7 +299,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 				prng := testutils.NewRand(t)
 
 				for i := range commandsPerRoutine {
-					var payload command.CommandPayload
+					var payload command.Payload
 					if prng.IntN(2) == 0 {
 						payload = testutils.CommandA{X: float64(i), Y: prng.Float64(), Z: 0}
 					} else {
@@ -340,7 +340,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 		// Drain all commands and verify count and content.
 		all := impl.Drain()
 		expectedTotal := numGoroutines * commandsPerRoutine
-		assert.Equal(t, expectedTotal, len(all), "total command count mismatch")
+		assert.Len(t, all, expectedTotal, "total command count mismatch")
 		assert.ElementsMatch(t, expected, all, "command content mismatch")
 	})
 }

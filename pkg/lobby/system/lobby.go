@@ -1744,9 +1744,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			Msg("Session ended")
 
 		// Emit broadcast event
-		state.SessionEndedEvents.Emit(SessionEndedEvent{
-			LobbyID: payload.LobbyID,
-		})
+		state.SessionEndedEvents.Emit(SessionEndedEvent(payload))
 	}
 }
 

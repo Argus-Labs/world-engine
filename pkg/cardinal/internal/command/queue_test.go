@@ -78,7 +78,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 			impl.Drain(&implResult)
 
 			// Property: drain returns all enqueued commands.
-			assert.Equal(t, len(model), len(implResult), "drain count mismatch")
+			assert.Len(t, implResult, len(model), "drain count mismatch")
 
 			// Property: FIFO ordering preserved.
 			for i := range implResult {
@@ -104,7 +104,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 	// Final state check: drain remaining and verify equivalence.
 	var finalResult []command.Command
 	impl.Drain(&finalResult)
-	assert.Equal(t, len(model), len(finalResult), "final drain count mismatch")
+	assert.Len(t, finalResult, len(model), "final drain count mismatch")
 	for i := range finalResult {
 		assert.Equal(t, model[i], finalResult[i], "final command[%d] mismatch", i)
 	}

@@ -15,11 +15,11 @@ type Command struct {
 	Name    string                // The command name
 	Address *micro.ServiceAddress // Service address this command is sent to
 	Persona string                // Sender's persona
-	Payload CommandPayload        // The command payload itself
+	Payload Payload               // The command payload itself
 }
 
-// The interface all command payloads must implement.
-type CommandPayload interface {
+// Payload is the interface all command payloads must implement.
+type Payload interface {
 	schema.Serializable
 }
 

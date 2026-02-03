@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
@@ -98,13 +99,16 @@ func (d *debugModule) Init(addr string) {
 	mux.Handle(cardinalv1connect.NewDebugServiceHandler(d, connect.WithInterceptors(validate.NewInterceptor())))
 
 	d.server = &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	logger.Info().Str("addr", addr).Msg("Debug service initialized")
 
-	go d.server.ListenAndServe()
+	go func() {
+		_ = d.server.ListenAndServe()
+	}()
 }
 
 // Shutdown gracefully shuts down the debug server.

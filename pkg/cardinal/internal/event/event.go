@@ -14,8 +14,8 @@ type Event struct {
 	Payload any  // The event payload itself
 }
 
-// The interface all default event payloads must implement.
-type EventPayload interface {
+// Payload is the interface all default event payloads must implement.
+type Payload interface {
 	schema.Serializable
 }
 

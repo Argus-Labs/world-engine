@@ -75,7 +75,7 @@ func initSystemFields[T any](state *T, world *World) error {
 
 		// ECS fields will be initialized separately, so we just have to check the rest of the fields
 		// are valid system field types.
-		if _, ok := fieldInstance.(ecs.SystemField); !ok {
+		if _, isECSField := fieldInstance.(ecs.SystemField); !isECSField {
 			return eris.Errorf("field %s is not a valid cardinal system field", fieldType.Name)
 		}
 	}
@@ -169,7 +169,7 @@ func (b *BaseSystemState) Timestamp() time.Time {
 // Commands
 // -------------------------------------------------------------------------------------------------
 
-type Command = command.CommandPayload
+type Command = command.Payload
 
 type WithCommand[T Command] struct {
 	manager *command.Manager
@@ -259,7 +259,7 @@ type OtherWorld struct {
 //	    Winner: "Team 1",
 //	  })
 //	}
-func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.CommandPayload) {
+func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.Payload) {
 	serviceAddress := micro.GetAddress(o.Region, micro.RealmWorld, o.Organization, o.Project, o.ShardID)
 	state.world.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
@@ -276,7 +276,7 @@ func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.CommandPaylo
 // Events
 // -------------------------------------------------------------------------------------------------
 
-type Event = event.EventPayload
+type Event = event.Payload
 
 type WithEvent[T Event] struct {
 	manager *event.Manager

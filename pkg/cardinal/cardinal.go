@@ -262,9 +262,8 @@ func (w *World) shutdown() {
 	w.tel.Logger.Info().Msg("World shutdown complete")
 }
 
-func (w *World) registerCommand(zero command.CommandPayload) error {
-	// Register a handler with the service.
-	return w.service.AddGroup("command").AddEndpoint(zero.Name(), func(ctx context.Context, req *micro.Request) *micro.Response {
+func (w *World) registerCommand(zero command.Payload) error {
+	handler := func(ctx context.Context, req *micro.Request) *micro.Response {
 		// Check if shard is shutting down.
 		select {
 		case <-ctx.Done():
@@ -291,7 +290,8 @@ func (w *World) registerCommand(zero command.CommandPayload) error {
 		}
 
 		return micro.NewSuccessResponse(req, nil)
-	})
+	}
+	return w.service.AddGroup("command").AddEndpoint(zero.Name(), handler)
 }
 
 func (w *World) registerComponent(zero ecs.Component) error {

@@ -1,4 +1,4 @@
-package event
+package event_test
 
 // TODO: adapt tests to new type.
 

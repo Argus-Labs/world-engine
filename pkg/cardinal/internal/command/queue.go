@@ -16,7 +16,7 @@ type Queue interface {
 	Len() int
 }
 
-var _ Queue = &sliceQueue[CommandPayload]{}
+var _ Queue = &sliceQueue[Payload]{}
 
 // TODO: figure out whether to make this configurable.
 // initialQueueCapacity is the starting capacity of queue.
@@ -24,13 +24,13 @@ const initialQueueCapacity = 1024
 
 // sliceQueue is a generic unbounded sliceQueue for handling commands of a specific type.
 // It implements the Queue interface and provides type-safe command processing.
-type sliceQueue[T CommandPayload] struct {
+type sliceQueue[T Payload] struct {
 	commands []Command
 	mu       sync.Mutex
 }
 
 // NewQueue creates a new command queue with an initial buffer capacity.
-func NewQueue[T CommandPayload]() *sliceQueue[T] {
+func NewQueue[T Payload]() Queue {
 	return &sliceQueue[T]{
 		commands: make([]Command, 0, initialQueueCapacity),
 	}
