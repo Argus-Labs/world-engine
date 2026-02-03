@@ -178,11 +178,426 @@ func (x *TypeSchema) GetSchema() *structpb.Struct {
 	return nil
 }
 
+// PauseRequest is the request message for the Pause RPC.
+type PauseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseRequest) Reset() {
+	*x = PauseRequest{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseRequest) ProtoMessage() {}
+
+func (x *PauseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseRequest.ProtoReflect.Descriptor instead.
+func (*PauseRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{3}
+}
+
+// PauseResponse is the response message for the Pause RPC.
+type PauseResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The tick height at which the world was paused.
+	TickHeight    uint64 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseResponse) Reset() {
+	*x = PauseResponse{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseResponse) ProtoMessage() {}
+
+func (x *PauseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseResponse.ProtoReflect.Descriptor instead.
+func (*PauseResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PauseResponse) GetTickHeight() uint64 {
+	if x != nil {
+		return x.TickHeight
+	}
+	return 0
+}
+
+// ResumeRequest is the request message for the Resume RPC.
+type ResumeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeRequest) Reset() {
+	*x = ResumeRequest{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeRequest) ProtoMessage() {}
+
+func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeRequest.ProtoReflect.Descriptor instead.
+func (*ResumeRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{5}
+}
+
+// ResumeResponse is the response message for the Resume RPC.
+type ResumeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeResponse) Reset() {
+	*x = ResumeResponse{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeResponse) ProtoMessage() {}
+
+func (x *ResumeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeResponse.ProtoReflect.Descriptor instead.
+func (*ResumeResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{6}
+}
+
+// StepRequest is the request message for the Step RPC.
+type StepRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepRequest) Reset() {
+	*x = StepRequest{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepRequest) ProtoMessage() {}
+
+func (x *StepRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepRequest.ProtoReflect.Descriptor instead.
+func (*StepRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{7}
+}
+
+// StepResponse is the response message for the Step RPC.
+type StepResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The tick height after stepping.
+	TickHeight    uint64 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepResponse) Reset() {
+	*x = StepResponse{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepResponse) ProtoMessage() {}
+
+func (x *StepResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepResponse.ProtoReflect.Descriptor instead.
+func (*StepResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *StepResponse) GetTickHeight() uint64 {
+	if x != nil {
+		return x.TickHeight
+	}
+	return 0
+}
+
+// ResetRequest is the request message for the Reset RPC.
+type ResetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetRequest) Reset() {
+	*x = ResetRequest{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetRequest) ProtoMessage() {}
+
+func (x *ResetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetRequest.ProtoReflect.Descriptor instead.
+func (*ResetRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{9}
+}
+
+// ResetResponse is the response message for the Reset RPC.
+type ResetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetResponse) Reset() {
+	*x = ResetResponse{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetResponse) ProtoMessage() {}
+
+func (x *ResetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetResponse.ProtoReflect.Descriptor instead.
+func (*ResetResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{10}
+}
+
+// GetStateRequest is the request message for the GetState RPC.
+type GetStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStateRequest) Reset() {
+	*x = GetStateRequest{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStateRequest) ProtoMessage() {}
+
+func (x *GetStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStateRequest.ProtoReflect.Descriptor instead.
+func (*GetStateRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{11}
+}
+
+// GetStateResponse is the response message for the GetState RPC.
+type GetStateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The current tick height.
+	TickHeight uint64 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
+	// Whether the world is currently paused.
+	IsPaused bool `protobuf:"varint,2,opt,name=is_paused,json=isPaused,proto3" json:"is_paused,omitempty"`
+	// The current world state snapshot.
+	Snapshot      *CardinalSnapshot `protobuf:"bytes,3,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStateResponse) Reset() {
+	*x = GetStateResponse{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStateResponse) ProtoMessage() {}
+
+func (x *GetStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStateResponse.ProtoReflect.Descriptor instead.
+func (*GetStateResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetStateResponse) GetTickHeight() uint64 {
+	if x != nil {
+		return x.TickHeight
+	}
+	return 0
+}
+
+func (x *GetStateResponse) GetIsPaused() bool {
+	if x != nil {
+		return x.IsPaused
+	}
+	return false
+}
+
+func (x *GetStateResponse) GetSnapshot() *CardinalSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
 var File_worldengine_cardinal_v1_debug_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
-	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x13\n" +
+	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a&worldengine/cardinal/v1/snapshot.proto\"\x13\n" +
 	"\x11IntrospectRequest\"\xd7\x01\n" +
 	"\x12IntrospectResponse\x12?\n" +
 	"\bcommands\x18\x01 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\bcommands\x12C\n" +
@@ -193,10 +608,33 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
 	"TypeSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\x06schema\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06schema2u\n" +
+	"\x06schema\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06schema\"\x0e\n" +
+	"\fPauseRequest\"0\n" +
+	"\rPauseResponse\x12\x1f\n" +
+	"\vtick_height\x18\x01 \x01(\x04R\n" +
+	"tickHeight\"\x0f\n" +
+	"\rResumeRequest\"\x10\n" +
+	"\x0eResumeResponse\"\r\n" +
+	"\vStepRequest\"/\n" +
+	"\fStepResponse\x12\x1f\n" +
+	"\vtick_height\x18\x01 \x01(\x04R\n" +
+	"tickHeight\"\x0e\n" +
+	"\fResetRequest\"\x0f\n" +
+	"\rResetResponse\"\x11\n" +
+	"\x0fGetStateRequest\"\x97\x01\n" +
+	"\x10GetStateResponse\x12\x1f\n" +
+	"\vtick_height\x18\x01 \x01(\x04R\n" +
+	"tickHeight\x12\x1b\n" +
+	"\tis_paused\x18\x02 \x01(\bR\bisPaused\x12E\n" +
+	"\bsnapshot\x18\x03 \x01(\v2).worldengine.cardinal.v1.CardinalSnapshotR\bsnapshot2\xb6\x04\n" +
 	"\fDebugService\x12e\n" +
 	"\n" +
-	"Introspect\x12*.worldengine.cardinal.v1.IntrospectRequest\x1a+.worldengine.cardinal.v1.IntrospectResponseBtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
+	"Introspect\x12*.worldengine.cardinal.v1.IntrospectRequest\x1a+.worldengine.cardinal.v1.IntrospectResponse\x12V\n" +
+	"\x05Pause\x12%.worldengine.cardinal.v1.PauseRequest\x1a&.worldengine.cardinal.v1.PauseResponse\x12Y\n" +
+	"\x06Resume\x12&.worldengine.cardinal.v1.ResumeRequest\x1a'.worldengine.cardinal.v1.ResumeResponse\x12S\n" +
+	"\x04Step\x12$.worldengine.cardinal.v1.StepRequest\x1a%.worldengine.cardinal.v1.StepResponse\x12V\n" +
+	"\x05Reset\x12%.worldengine.cardinal.v1.ResetRequest\x1a&.worldengine.cardinal.v1.ResetResponse\x12_\n" +
+	"\bGetState\x12(.worldengine.cardinal.v1.GetStateRequest\x1a).worldengine.cardinal.v1.GetStateResponseBtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
 
 var (
 	file_worldengine_cardinal_v1_debug_proto_rawDescOnce sync.Once
@@ -210,25 +648,47 @@ func file_worldengine_cardinal_v1_debug_proto_rawDescGZIP() []byte {
 	return file_worldengine_cardinal_v1_debug_proto_rawDescData
 }
 
-var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
 	(*IntrospectRequest)(nil),  // 0: worldengine.cardinal.v1.IntrospectRequest
 	(*IntrospectResponse)(nil), // 1: worldengine.cardinal.v1.IntrospectResponse
 	(*TypeSchema)(nil),         // 2: worldengine.cardinal.v1.TypeSchema
-	(*structpb.Struct)(nil),    // 3: google.protobuf.Struct
+	(*PauseRequest)(nil),       // 3: worldengine.cardinal.v1.PauseRequest
+	(*PauseResponse)(nil),      // 4: worldengine.cardinal.v1.PauseResponse
+	(*ResumeRequest)(nil),      // 5: worldengine.cardinal.v1.ResumeRequest
+	(*ResumeResponse)(nil),     // 6: worldengine.cardinal.v1.ResumeResponse
+	(*StepRequest)(nil),        // 7: worldengine.cardinal.v1.StepRequest
+	(*StepResponse)(nil),       // 8: worldengine.cardinal.v1.StepResponse
+	(*ResetRequest)(nil),       // 9: worldengine.cardinal.v1.ResetRequest
+	(*ResetResponse)(nil),      // 10: worldengine.cardinal.v1.ResetResponse
+	(*GetStateRequest)(nil),    // 11: worldengine.cardinal.v1.GetStateRequest
+	(*GetStateResponse)(nil),   // 12: worldengine.cardinal.v1.GetStateResponse
+	(*structpb.Struct)(nil),    // 13: google.protobuf.Struct
+	(*CardinalSnapshot)(nil),   // 14: worldengine.cardinal.v1.CardinalSnapshot
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
-	2, // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
-	2, // 1: worldengine.cardinal.v1.IntrospectResponse.components:type_name -> worldengine.cardinal.v1.TypeSchema
-	2, // 2: worldengine.cardinal.v1.IntrospectResponse.events:type_name -> worldengine.cardinal.v1.TypeSchema
-	3, // 3: worldengine.cardinal.v1.TypeSchema.schema:type_name -> google.protobuf.Struct
-	0, // 4: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
-	1, // 5: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2,  // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
+	2,  // 1: worldengine.cardinal.v1.IntrospectResponse.components:type_name -> worldengine.cardinal.v1.TypeSchema
+	2,  // 2: worldengine.cardinal.v1.IntrospectResponse.events:type_name -> worldengine.cardinal.v1.TypeSchema
+	13, // 3: worldengine.cardinal.v1.TypeSchema.schema:type_name -> google.protobuf.Struct
+	14, // 4: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.CardinalSnapshot
+	0,  // 5: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
+	3,  // 6: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
+	5,  // 7: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
+	7,  // 8: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
+	9,  // 9: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
+	11, // 10: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
+	1,  // 11: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
+	4,  // 12: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
+	6,  // 13: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
+	8,  // 14: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
+	10, // 15: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
+	12, // 16: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_debug_proto_init() }
@@ -236,13 +696,14 @@ func file_worldengine_cardinal_v1_debug_proto_init() {
 	if File_worldengine_cardinal_v1_debug_proto != nil {
 		return
 	}
+	file_worldengine_cardinal_v1_snapshot_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_cardinal_v1_debug_proto_rawDesc), len(file_worldengine_cardinal_v1_debug_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

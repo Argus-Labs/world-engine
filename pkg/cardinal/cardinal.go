@@ -107,6 +107,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	// Create the debug module only if debug is on.
 	if *options.Debug {
 		debug := newDebugModule(world)
+		debug.control.isPaused.Store(true)
 		world.debug = &debug
 	}
 
@@ -151,17 +152,46 @@ func (w *World) run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
 	defer ticker.Stop()
 
-	// TODO: select from debug channel to pause/play ticks.
 	for {
+		if w.debug != nil && w.debug.control.isPaused.Load() {
+			select {
+			case <-w.debug.control.resumeCh:
+				w.debug.control.isPaused.Store(false)
+			case replyCh := <-w.debug.control.stepCh:
+				if err := w.Tick(time.Now()); err != nil {
+					replyCh <- 0
+					return eris.Wrap(err, "failed to run tick during step")
+				}
+				replyCh <- w.currentTick.height
+			case replyCh := <-w.debug.control.resetCh:
+				replyCh <- w.reset()
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			continue
+		}
+
 		select {
 		case <-ticker.C:
 			if err := w.Tick(ctx, time.Now()); err != nil {
 				return eris.Wrap(err, "failed to run tick")
 			}
+		case replyCh := <-w.debug.control.pauseCh:
+			w.debug.control.isPaused.Store(true)
+			replyCh <- w.currentTick.height
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
+}
+
+func (w *World) reset() error {
+	w.world.Reset()
+	w.commands.Clear()
+	w.events.Clear()
+	w.currentTick.height = 0
+	w.currentTick.timestamp = time.Time{}
+	return nil
 }
 
 func (w *World) Tick(ctx context.Context, timestamp time.Time) error {

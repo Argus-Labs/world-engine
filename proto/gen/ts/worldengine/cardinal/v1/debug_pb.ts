@@ -5,13 +5,15 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { CardinalSnapshot } from "./snapshot_pb";
+import { file_worldengine_cardinal_v1_snapshot } from "./snapshot_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/cardinal/v1/debug.proto.
  */
 export const file_worldengine_cardinal_v1_debug: GenFile = /*@__PURE__*/
-  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiuQEKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYSJDCgpUeXBlU2NoZW1hEgwKBG5hbWUYASABKAkSJwoGc2NoZW1hGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdDJ1CgxEZWJ1Z1NlcnZpY2USZQoKSW50cm9zcGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXF1ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlc3BvbnNlQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiuQEKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYSJDCgpUeXBlU2NoZW1hEgwKBG5hbWUYASABKAkSJwoGc2NoZW1hGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QidwoQR2V0U3RhdGVSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBBIRCglpc19wYXVzZWQYAiABKAgSOwoIc25hcHNob3QYAyABKAsyKS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5DYXJkaW5hbFNuYXBzaG90MrYECgxEZWJ1Z1NlcnZpY2USZQoKSW50cm9zcGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXF1ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlc3BvbnNlElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXNwb25zZRJZCgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXF1ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVzcG9uc2USUwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXF1ZXN0GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlc3BvbnNlElYKBVJlc2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXNwb25zZRJfCghHZXRTdGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVxdWVzdBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVzcG9uc2VCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_google_protobuf_struct, file_worldengine_cardinal_v1_snapshot]);
 
 /**
  * IntrospectRequest is the request message for the Introspect RPC.
@@ -92,6 +94,188 @@ export const TypeSchemaSchema: GenMessage<TypeSchema> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 2);
 
 /**
+ * PauseRequest is the request message for the Pause RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.PauseRequest
+ */
+export type PauseRequest = Message<"worldengine.cardinal.v1.PauseRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.PauseRequest.
+ * Use `create(PauseRequestSchema)` to create a new message.
+ */
+export const PauseRequestSchema: GenMessage<PauseRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 3);
+
+/**
+ * PauseResponse is the response message for the Pause RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.PauseResponse
+ */
+export type PauseResponse = Message<"worldengine.cardinal.v1.PauseResponse"> & {
+  /**
+   * The tick height at which the world was paused.
+   *
+   * @generated from field: uint64 tick_height = 1;
+   */
+  tickHeight: bigint;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.PauseResponse.
+ * Use `create(PauseResponseSchema)` to create a new message.
+ */
+export const PauseResponseSchema: GenMessage<PauseResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 4);
+
+/**
+ * ResumeRequest is the request message for the Resume RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.ResumeRequest
+ */
+export type ResumeRequest = Message<"worldengine.cardinal.v1.ResumeRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ResumeRequest.
+ * Use `create(ResumeRequestSchema)` to create a new message.
+ */
+export const ResumeRequestSchema: GenMessage<ResumeRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 5);
+
+/**
+ * ResumeResponse is the response message for the Resume RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.ResumeResponse
+ */
+export type ResumeResponse = Message<"worldengine.cardinal.v1.ResumeResponse"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ResumeResponse.
+ * Use `create(ResumeResponseSchema)` to create a new message.
+ */
+export const ResumeResponseSchema: GenMessage<ResumeResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 6);
+
+/**
+ * StepRequest is the request message for the Step RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.StepRequest
+ */
+export type StepRequest = Message<"worldengine.cardinal.v1.StepRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.StepRequest.
+ * Use `create(StepRequestSchema)` to create a new message.
+ */
+export const StepRequestSchema: GenMessage<StepRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 7);
+
+/**
+ * StepResponse is the response message for the Step RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.StepResponse
+ */
+export type StepResponse = Message<"worldengine.cardinal.v1.StepResponse"> & {
+  /**
+   * The tick height after stepping.
+   *
+   * @generated from field: uint64 tick_height = 1;
+   */
+  tickHeight: bigint;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.StepResponse.
+ * Use `create(StepResponseSchema)` to create a new message.
+ */
+export const StepResponseSchema: GenMessage<StepResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 8);
+
+/**
+ * ResetRequest is the request message for the Reset RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.ResetRequest
+ */
+export type ResetRequest = Message<"worldengine.cardinal.v1.ResetRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ResetRequest.
+ * Use `create(ResetRequestSchema)` to create a new message.
+ */
+export const ResetRequestSchema: GenMessage<ResetRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 9);
+
+/**
+ * ResetResponse is the response message for the Reset RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.ResetResponse
+ */
+export type ResetResponse = Message<"worldengine.cardinal.v1.ResetResponse"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ResetResponse.
+ * Use `create(ResetResponseSchema)` to create a new message.
+ */
+export const ResetResponseSchema: GenMessage<ResetResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 10);
+
+/**
+ * GetStateRequest is the request message for the GetState RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.GetStateRequest
+ */
+export type GetStateRequest = Message<"worldengine.cardinal.v1.GetStateRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.GetStateRequest.
+ * Use `create(GetStateRequestSchema)` to create a new message.
+ */
+export const GetStateRequestSchema: GenMessage<GetStateRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 11);
+
+/**
+ * GetStateResponse is the response message for the GetState RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.GetStateResponse
+ */
+export type GetStateResponse = Message<"worldengine.cardinal.v1.GetStateResponse"> & {
+  /**
+   * The current tick height.
+   *
+   * @generated from field: uint64 tick_height = 1;
+   */
+  tickHeight: bigint;
+
+  /**
+   * Whether the world is currently paused.
+   *
+   * @generated from field: bool is_paused = 2;
+   */
+  isPaused: boolean;
+
+  /**
+   * The current world state snapshot.
+   *
+   * @generated from field: worldengine.cardinal.v1.CardinalSnapshot snapshot = 3;
+   */
+  snapshot?: CardinalSnapshot;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.GetStateResponse.
+ * Use `create(GetStateResponseSchema)` to create a new message.
+ */
+export const GetStateResponseSchema: GenMessage<GetStateResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 12);
+
+/**
  * DebugService provides debugging and introspection endpoints for Cardinal.
  * This service is intended for dev tooling (e.g., AI agents, debugging tools).
  *
@@ -108,6 +292,56 @@ export const DebugService: GenService<{
     methodKind: "unary";
     input: typeof IntrospectRequestSchema;
     output: typeof IntrospectResponseSchema;
+  },
+  /**
+   * Pause stops tick execution. The world remains running but no ticks are processed.
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.Pause
+   */
+  pause: {
+    methodKind: "unary";
+    input: typeof PauseRequestSchema;
+    output: typeof PauseResponseSchema;
+  },
+  /**
+   * Resume continues tick execution after a pause.
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.Resume
+   */
+  resume: {
+    methodKind: "unary";
+    input: typeof ResumeRequestSchema;
+    output: typeof ResumeResponseSchema;
+  },
+  /**
+   * Step executes a single tick. Only works when paused.
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.Step
+   */
+  step: {
+    methodKind: "unary";
+    input: typeof StepRequestSchema;
+    output: typeof StepResponseSchema;
+  },
+  /**
+   * Reset restores the world to its initial state (before tick 0).
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.Reset
+   */
+  reset: {
+    methodKind: "unary";
+    input: typeof ResetRequestSchema;
+    output: typeof ResetResponseSchema;
+  },
+  /**
+   * GetState returns the current world state snapshot.
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.GetState
+   */
+  getState: {
+    methodKind: "unary";
+    input: typeof GetStateRequestSchema;
+    output: typeof GetStateResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);

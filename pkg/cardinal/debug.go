@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -17,10 +18,31 @@ import (
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 )
 
+// tickControl manages pause/resume/step/reset signaling for the tick loop.
+type tickControl struct {
+	pauseCh   chan chan uint64 // Request pause, receives tick height when paused
+	resumeCh  chan struct{}    // Signal to resume
+	stepCh    chan chan uint64 // Request step, receives tick height after step
+	resetCh   chan chan error  // Request reset, receives error result
+	isPaused  atomic.Bool      // Current pause state
+	stepReady chan struct{}    // Signals that step result is ready to be read
+}
+
+func newTickControl() *tickControl {
+	return &tickControl{
+		pauseCh:   make(chan chan uint64),
+		resumeCh:  make(chan struct{}),
+		stepCh:    make(chan chan uint64),
+		resetCh:   make(chan chan error),
+		stepReady: make(chan struct{}),
+	}
+}
+
 // TODO: add tick log here.
 type debugModule struct {
 	world      *World
 	server     *http.Server
+	control    *tickControl
 	reflector  *jsonschema.Reflector
 	commands   map[string]*structpb.Struct
 	events     map[string]*structpb.Struct
@@ -30,6 +52,7 @@ type debugModule struct {
 func newDebugModule(world *World) debugModule {
 	return debugModule{
 		world:      world,
+		control:    newTickControl(),
 		commands:   make(map[string]*structpb.Struct),
 		events:     make(map[string]*structpb.Struct),
 		components: make(map[string]*structpb.Struct),
@@ -143,4 +166,89 @@ func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*car
 		})
 	}
 	return schemas
+}
+
+// Pause stops tick execution and returns the current tick height.
+func (d *debugModule) Pause(
+	_ context.Context,
+	_ *connect.Request[cardinalv1.PauseRequest],
+) (*connect.Response[cardinalv1.PauseResponse], error) {
+	if d.control.isPaused.Load() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world is already paused"))
+	}
+
+	replyCh := make(chan uint64, 1)
+	d.control.pauseCh <- replyCh
+	tickHeight := <-replyCh
+
+	return connect.NewResponse(&cardinalv1.PauseResponse{
+		TickHeight: tickHeight,
+	}), nil
+}
+
+// Resume continues tick execution after a pause.
+func (d *debugModule) Resume(
+	_ context.Context,
+	_ *connect.Request[cardinalv1.ResumeRequest],
+) (*connect.Response[cardinalv1.ResumeResponse], error) {
+	if !d.control.isPaused.Load() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world is not paused"))
+	}
+
+	d.control.resumeCh <- struct{}{}
+
+	return connect.NewResponse(&cardinalv1.ResumeResponse{}), nil
+}
+
+// Step executes a single tick. Only works when paused.
+func (d *debugModule) Step(
+	_ context.Context,
+	_ *connect.Request[cardinalv1.StepRequest],
+) (*connect.Response[cardinalv1.StepResponse], error) {
+	if !d.control.isPaused.Load() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world must be paused to step"))
+	}
+
+	replyCh := make(chan uint64, 1)
+	d.control.stepCh <- replyCh
+	tickHeight := <-replyCh
+
+	return connect.NewResponse(&cardinalv1.StepResponse{
+		TickHeight: tickHeight,
+	}), nil
+}
+
+// Reset restores the world to its initial state (before tick 0).
+func (d *debugModule) Reset(
+	_ context.Context,
+	_ *connect.Request[cardinalv1.ResetRequest],
+) (*connect.Response[cardinalv1.ResetResponse], error) {
+	if !d.control.isPaused.Load() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world must be paused to reset"))
+	}
+
+	replyCh := make(chan error, 1)
+	d.control.resetCh <- replyCh
+	if err := <-replyCh; err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
+}
+
+// GetState returns the current world state snapshot.
+func (d *debugModule) GetState(
+	_ context.Context,
+	_ *connect.Request[cardinalv1.GetStateRequest],
+) (*connect.Response[cardinalv1.GetStateResponse], error) {
+	snapshot, err := d.world.world.SerializeToProto()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to serialize world state"))
+	}
+
+	return connect.NewResponse(&cardinalv1.GetStateResponse{
+		TickHeight: d.world.currentTick.height,
+		IsPaused:   d.control.isPaused.Load(),
+		Snapshot:   snapshot,
+	}), nil
 }

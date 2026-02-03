@@ -83,6 +83,11 @@ func (w *World) Serialize() ([]byte, error) {
 	return proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 }
 
+// SerializeToProto returns the World's state as a proto message.
+func (w *World) SerializeToProto() (*cardinalv1.CardinalSnapshot, error) {
+	return w.state.toProto()
+}
+
 // Deserialize populates the World's state from a byte slice.
 // This should only be called after the World has been properly initialized with components registered.
 func (w *World) Deserialize(data []byte) error {
@@ -96,4 +101,11 @@ func (w *World) Deserialize(data []byte) error {
 	// Mark init as done to prevent re-running init systems after restore.
 	w.initDone = true
 	return nil
+}
+
+// Reset clears the world state back to its initial empty state.
+// Components remain registered but all entities and archetypes are cleared.
+func (w *World) Reset() {
+	w.state.reset()
+	w.initDone = false
 }

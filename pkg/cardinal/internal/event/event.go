@@ -80,6 +80,21 @@ func (m *Manager) flush() {
 	}
 }
 
+// Clear discards all pending events from the channel and buffer.
+func (m *Manager) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for {
+		select {
+		case <-m.channel:
+		default:
+			m.buffer = m.buffer[:0]
+			return
+		}
+	}
+}
+
 // Dispatch loops through emitted events and calls their handler functions based on the event kind.
 // Returns all errors collected from handlers.
 func (m *Manager) Dispatch() error {

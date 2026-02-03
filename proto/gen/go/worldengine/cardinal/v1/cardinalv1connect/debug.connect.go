@@ -35,6 +35,16 @@ const (
 const (
 	// DebugServiceIntrospectProcedure is the fully-qualified name of the DebugService's Introspect RPC.
 	DebugServiceIntrospectProcedure = "/worldengine.cardinal.v1.DebugService/Introspect"
+	// DebugServicePauseProcedure is the fully-qualified name of the DebugService's Pause RPC.
+	DebugServicePauseProcedure = "/worldengine.cardinal.v1.DebugService/Pause"
+	// DebugServiceResumeProcedure is the fully-qualified name of the DebugService's Resume RPC.
+	DebugServiceResumeProcedure = "/worldengine.cardinal.v1.DebugService/Resume"
+	// DebugServiceStepProcedure is the fully-qualified name of the DebugService's Step RPC.
+	DebugServiceStepProcedure = "/worldengine.cardinal.v1.DebugService/Step"
+	// DebugServiceResetProcedure is the fully-qualified name of the DebugService's Reset RPC.
+	DebugServiceResetProcedure = "/worldengine.cardinal.v1.DebugService/Reset"
+	// DebugServiceGetStateProcedure is the fully-qualified name of the DebugService's GetState RPC.
+	DebugServiceGetStateProcedure = "/worldengine.cardinal.v1.DebugService/GetState"
 )
 
 // DebugServiceClient is a client for the worldengine.cardinal.v1.DebugService service.
@@ -42,6 +52,16 @@ type DebugServiceClient interface {
 	// Introspect returns metadata about the registered types in the world.
 	// The result includes JSON schemas for commands, components, and events.
 	Introspect(context.Context, *connect.Request[v1.IntrospectRequest]) (*connect.Response[v1.IntrospectResponse], error)
+	// Pause stops tick execution. The world remains running but no ticks are processed.
+	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.PauseResponse], error)
+	// Resume continues tick execution after a pause.
+	Resume(context.Context, *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ResumeResponse], error)
+	// Step executes a single tick. Only works when paused.
+	Step(context.Context, *connect.Request[v1.StepRequest]) (*connect.Response[v1.StepResponse], error)
+	// Reset restores the world to its initial state (before tick 0).
+	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
+	// GetState returns the current world state snapshot.
+	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
 }
 
 // NewDebugServiceClient constructs a client for the worldengine.cardinal.v1.DebugService service.
@@ -61,12 +81,47 @@ func NewDebugServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(debugServiceMethods.ByName("Introspect")),
 			connect.WithClientOptions(opts...),
 		),
+		pause: connect.NewClient[v1.PauseRequest, v1.PauseResponse](
+			httpClient,
+			baseURL+DebugServicePauseProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("Pause")),
+			connect.WithClientOptions(opts...),
+		),
+		resume: connect.NewClient[v1.ResumeRequest, v1.ResumeResponse](
+			httpClient,
+			baseURL+DebugServiceResumeProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("Resume")),
+			connect.WithClientOptions(opts...),
+		),
+		step: connect.NewClient[v1.StepRequest, v1.StepResponse](
+			httpClient,
+			baseURL+DebugServiceStepProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("Step")),
+			connect.WithClientOptions(opts...),
+		),
+		reset: connect.NewClient[v1.ResetRequest, v1.ResetResponse](
+			httpClient,
+			baseURL+DebugServiceResetProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("Reset")),
+			connect.WithClientOptions(opts...),
+		),
+		getState: connect.NewClient[v1.GetStateRequest, v1.GetStateResponse](
+			httpClient,
+			baseURL+DebugServiceGetStateProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("GetState")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // debugServiceClient implements DebugServiceClient.
 type debugServiceClient struct {
 	introspect *connect.Client[v1.IntrospectRequest, v1.IntrospectResponse]
+	pause      *connect.Client[v1.PauseRequest, v1.PauseResponse]
+	resume     *connect.Client[v1.ResumeRequest, v1.ResumeResponse]
+	step       *connect.Client[v1.StepRequest, v1.StepResponse]
+	reset      *connect.Client[v1.ResetRequest, v1.ResetResponse]
+	getState   *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
 }
 
 // Introspect calls worldengine.cardinal.v1.DebugService.Introspect.
@@ -74,11 +129,46 @@ func (c *debugServiceClient) Introspect(ctx context.Context, req *connect.Reques
 	return c.introspect.CallUnary(ctx, req)
 }
 
+// Pause calls worldengine.cardinal.v1.DebugService.Pause.
+func (c *debugServiceClient) Pause(ctx context.Context, req *connect.Request[v1.PauseRequest]) (*connect.Response[v1.PauseResponse], error) {
+	return c.pause.CallUnary(ctx, req)
+}
+
+// Resume calls worldengine.cardinal.v1.DebugService.Resume.
+func (c *debugServiceClient) Resume(ctx context.Context, req *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ResumeResponse], error) {
+	return c.resume.CallUnary(ctx, req)
+}
+
+// Step calls worldengine.cardinal.v1.DebugService.Step.
+func (c *debugServiceClient) Step(ctx context.Context, req *connect.Request[v1.StepRequest]) (*connect.Response[v1.StepResponse], error) {
+	return c.step.CallUnary(ctx, req)
+}
+
+// Reset calls worldengine.cardinal.v1.DebugService.Reset.
+func (c *debugServiceClient) Reset(ctx context.Context, req *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error) {
+	return c.reset.CallUnary(ctx, req)
+}
+
+// GetState calls worldengine.cardinal.v1.DebugService.GetState.
+func (c *debugServiceClient) GetState(ctx context.Context, req *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error) {
+	return c.getState.CallUnary(ctx, req)
+}
+
 // DebugServiceHandler is an implementation of the worldengine.cardinal.v1.DebugService service.
 type DebugServiceHandler interface {
 	// Introspect returns metadata about the registered types in the world.
 	// The result includes JSON schemas for commands, components, and events.
 	Introspect(context.Context, *connect.Request[v1.IntrospectRequest]) (*connect.Response[v1.IntrospectResponse], error)
+	// Pause stops tick execution. The world remains running but no ticks are processed.
+	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.PauseResponse], error)
+	// Resume continues tick execution after a pause.
+	Resume(context.Context, *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ResumeResponse], error)
+	// Step executes a single tick. Only works when paused.
+	Step(context.Context, *connect.Request[v1.StepRequest]) (*connect.Response[v1.StepResponse], error)
+	// Reset restores the world to its initial state (before tick 0).
+	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
+	// GetState returns the current world state snapshot.
+	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
 }
 
 // NewDebugServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -94,10 +184,50 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(debugServiceMethods.ByName("Introspect")),
 		connect.WithHandlerOptions(opts...),
 	)
+	debugServicePauseHandler := connect.NewUnaryHandler(
+		DebugServicePauseProcedure,
+		svc.Pause,
+		connect.WithSchema(debugServiceMethods.ByName("Pause")),
+		connect.WithHandlerOptions(opts...),
+	)
+	debugServiceResumeHandler := connect.NewUnaryHandler(
+		DebugServiceResumeProcedure,
+		svc.Resume,
+		connect.WithSchema(debugServiceMethods.ByName("Resume")),
+		connect.WithHandlerOptions(opts...),
+	)
+	debugServiceStepHandler := connect.NewUnaryHandler(
+		DebugServiceStepProcedure,
+		svc.Step,
+		connect.WithSchema(debugServiceMethods.ByName("Step")),
+		connect.WithHandlerOptions(opts...),
+	)
+	debugServiceResetHandler := connect.NewUnaryHandler(
+		DebugServiceResetProcedure,
+		svc.Reset,
+		connect.WithSchema(debugServiceMethods.ByName("Reset")),
+		connect.WithHandlerOptions(opts...),
+	)
+	debugServiceGetStateHandler := connect.NewUnaryHandler(
+		DebugServiceGetStateProcedure,
+		svc.GetState,
+		connect.WithSchema(debugServiceMethods.ByName("GetState")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/worldengine.cardinal.v1.DebugService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DebugServiceIntrospectProcedure:
 			debugServiceIntrospectHandler.ServeHTTP(w, r)
+		case DebugServicePauseProcedure:
+			debugServicePauseHandler.ServeHTTP(w, r)
+		case DebugServiceResumeProcedure:
+			debugServiceResumeHandler.ServeHTTP(w, r)
+		case DebugServiceStepProcedure:
+			debugServiceStepHandler.ServeHTTP(w, r)
+		case DebugServiceResetProcedure:
+			debugServiceResetHandler.ServeHTTP(w, r)
+		case DebugServiceGetStateProcedure:
+			debugServiceGetStateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,4 +239,24 @@ type UnimplementedDebugServiceHandler struct{}
 
 func (UnimplementedDebugServiceHandler) Introspect(context.Context, *connect.Request[v1.IntrospectRequest]) (*connect.Response[v1.IntrospectResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.Introspect is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.PauseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.Pause is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) Resume(context.Context, *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ResumeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.Resume is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) Step(context.Context, *connect.Request[v1.StepRequest]) (*connect.Response[v1.StepResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.Step is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.Reset is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.GetState is not implemented"))
 }

@@ -246,7 +246,7 @@ type OtherWorld struct {
 	ShardID      string
 }
 
-// Send sends a command to an external service.
+// SendCommand sends a command to an external service.
 //
 // Example:
 //

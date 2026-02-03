@@ -48,6 +48,18 @@ func newWorldState() *worldState {
 	return &ws
 }
 
+// reset clears all entity data while preserving registered components.
+func (ws *worldState) reset() {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+
+	ws.nextID = 0
+	ws.free = make([]EntityID, 0)
+	ws.entityArch = newSparseSet()
+	ws.archetypes = make([]*archetype, 1)
+	ws.archetypes[voidArchetypeID] = ws.newArchetype(voidArchetypeID, bitmap.Bitmap{})
+}
+
 // -------------------------------------------------------------------------------------------------
 // Entity operations
 // -------------------------------------------------------------------------------------------------
