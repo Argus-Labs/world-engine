@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
+	"github.com/shamaton/msgpack/v3"
 )
 
 // Queue defines the interface for command queuing operations.
@@ -46,13 +46,8 @@ func (q *sliceQueue[T]) Enqueue(command *iscv1.Command) error {
 		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), command.GetName())
 	}
 
-	jsonBytes, err := command.GetPayload().MarshalJSON()
-	if err != nil {
-		return eris.Wrap(err, "failed to marshal command payload to json")
-	}
-
-	if err := json.Unmarshal(jsonBytes, &zero); err != nil {
-		return eris.Wrap(err, "failed to unmarshal to command")
+	if err := msgpack.Unmarshal(command.GetPayload(), &zero); err != nil {
+		return eris.Wrap(err, "failed to unmarshal command payload")
 	}
 
 	q.mu.Lock()

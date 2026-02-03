@@ -25,19 +25,18 @@ namespace WorldEngine.Proto.Isc.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5l",
-            "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvGhxnb29nbGUv",
-            "cHJvdG9idWYvc3RydWN0LnByb3RvItwBCgVRdWVyeRI1CgRmaW5kGAEgAygJ",
-            "QiG6SB6SARsiGXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyRSBGZpbmQSQQoF",
-            "bWF0Y2gYAiABKA4yHy53b3JsZGVuZ2luZS5pc2MudjEuUXVlcnkuTWF0Y2hC",
-            "CrpIB4IBBBABIABSBW1hdGNoEhQKBXdoZXJlGAMgASgJUgV3aGVyZSJDCgVN",
-            "YXRjaBIVChFNQVRDSF9VTlNQRUNJRklFRBAAEg8KC01BVENIX0VYQUNUEAES",
-            "EgoOTUFUQ0hfQ09OVEFJTlMQAiJCCgtRdWVyeVJlc3VsdBIzCghlbnRpdGll",
-            "cxgBIAMoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RSCGVudGl0aWVzQmVa",
-            "SGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2Vu",
-            "L2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlBy",
-            "b3RvLklzYy5WMWIGcHJvdG8z"));
+            "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvItwBCgVRdWVy",
+            "eRI1CgRmaW5kGAEgAygJQiG6SB6SARsiGXIXEAEYgAEyEF5bYS16QS1aMC05",
+            "Xy1dKyRSBGZpbmQSQQoFbWF0Y2gYAiABKA4yHy53b3JsZGVuZ2luZS5pc2Mu",
+            "djEuUXVlcnkuTWF0Y2hCCrpIB4IBBBABIABSBW1hdGNoEhQKBXdoZXJlGAMg",
+            "ASgJUgV3aGVyZSJDCgVNYXRjaBIVChFNQVRDSF9VTlNQRUNJRklFRBAAEg8K",
+            "C01BVENIX0VYQUNUEAESEgoOTUFUQ0hfQ09OVEFJTlMQAiIpCgtRdWVyeVJl",
+            "c3VsdBIaCghlbnRpdGllcxgBIAMoDFIIZW50aXRpZXNCZVpIZ2l0aHViLmNv",
+            "bS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRl",
+            "bmdpbmUvaXNjL3YxO2lzY3YxqgIYV29ybGRFbmdpbmUuUHJvdG8uSXNjLlYx",
+            "YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Query), global::WorldEngine.Proto.Isc.V1.Query.Parser, new[]{ "Find", "Match", "Where" }, null, new[]{ typeof(global::WorldEngine.Proto.Isc.V1.Query.Types.Match) }, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.QueryResult), global::WorldEngine.Proto.Isc.V1.QueryResult.Parser, new[]{ "Entities" }, null, null, null, null)
@@ -398,16 +397,16 @@ namespace WorldEngine.Proto.Isc.V1 {
 
     /// <summary>Field number for the "entities" field.</summary>
     public const int EntitiesFieldNumber = 1;
-    private static readonly pb::FieldCodec<global::Google.Protobuf.WellKnownTypes.Struct> _repeated_entities_codec
-        = pb::FieldCodec.ForMessage(10, global::Google.Protobuf.WellKnownTypes.Struct.Parser);
-    private readonly pbc::RepeatedField<global::Google.Protobuf.WellKnownTypes.Struct> entities_ = new pbc::RepeatedField<global::Google.Protobuf.WellKnownTypes.Struct>();
+    private static readonly pb::FieldCodec<pb::ByteString> _repeated_entities_codec
+        = pb::FieldCodec.ForBytes(10);
+    private readonly pbc::RepeatedField<pb::ByteString> entities_ = new pbc::RepeatedField<pb::ByteString>();
     /// <summary>
-    /// List of entities that match the query. Each entity is a map of component names to their values
-    /// as well as a "_ID" field containing the entity ID.
+    /// List of entities that match the query, serialized as MessagePack bytes.
+    /// Each entity is a map of component names to their values with a "_ID" field for entity ID.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::Google.Protobuf.WellKnownTypes.Struct> Entities {
+    public pbc::RepeatedField<pb::ByteString> Entities {
       get { return entities_; }
     }
 

@@ -25,20 +25,19 @@ namespace WorldEngine.Proto.Isc.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdp",
-            "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aHGdvb2ds",
-            "ZS9wcm90b2J1Zi9zdHJ1Y3QucHJvdG8aIHdvcmxkZW5naW5lL2lzYy92MS9w",
-            "ZXJzb25hLnByb3RvGiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnBy",
-            "b3RvIoACCgdDb21tYW5kEjMKBG5hbWUYASABKAlCH7pIHHIXEAEYgAEyEF5b",
-            "YS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRkcmVzcxgCIAEoCzIkLndv",
-            "cmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQFSB2Fk",
-            "ZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5Q",
-            "ZXJzb25hQga6SAPIAQFSB3BlcnNvbmESOQoHcGF5bG9hZBgEIAEoCzIXLmdv",
-            "b2dsZS5wcm90b2J1Zi5TdHJ1Y3RCBrpIA8gBAVIHcGF5bG9hZEJlWkhnaXRo",
-            "dWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93",
-            "b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5J",
-            "c2MuVjFiBnByb3RvMw=="));
+            "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aIHdvcmxk",
+            "ZW5naW5lL2lzYy92MS9wZXJzb25hLnByb3RvGiJ3b3JsZGVuZ2luZS9taWNy",
+            "by92MS9zZXJ2aWNlLnByb3RvIucBCgdDb21tYW5kEjMKBG5hbWUYASABKAlC",
+            "H7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRk",
+            "cmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRy",
+            "ZXNzQga6SAPIAQFSB2FkZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxk",
+            "ZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQFSB3BlcnNvbmESIAoHcGF5",
+            "bG9hZBgEIAEoDEIGukgDyAEBUgdwYXlsb2FkQmVaSGdpdGh1Yi5jb20vYXJn",
+            "dXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5l",
+            "L2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJv",
+            "dG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Name", "Address", "Persona", "Payload" }, null, null, null, null)
           }));
@@ -88,7 +87,7 @@ namespace WorldEngine.Proto.Isc.V1 {
       name_ = other.name_;
       address_ = other.address_ != null ? other.address_.Clone() : null;
       persona_ = other.persona_ != null ? other.persona_.Clone() : null;
-      payload_ = other.payload_ != null ? other.payload_.Clone() : null;
+      payload_ = other.payload_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -145,16 +144,16 @@ namespace WorldEngine.Proto.Isc.V1 {
 
     /// <summary>Field number for the "payload" field.</summary>
     public const int PayloadFieldNumber = 4;
-    private global::Google.Protobuf.WellKnownTypes.Struct payload_;
+    private pb::ByteString payload_ = pb::ByteString.Empty;
     /// <summary>
-    /// The command payload.
+    /// The command payload serialized as MessagePack bytes.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Google.Protobuf.WellKnownTypes.Struct Payload {
+    public pb::ByteString Payload {
       get { return payload_; }
       set {
-        payload_ = value;
+        payload_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -176,7 +175,7 @@ namespace WorldEngine.Proto.Isc.V1 {
       if (Name != other.Name) return false;
       if (!object.Equals(Address, other.Address)) return false;
       if (!object.Equals(Persona, other.Persona)) return false;
-      if (!object.Equals(Payload, other.Payload)) return false;
+      if (Payload != other.Payload) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -187,7 +186,7 @@ namespace WorldEngine.Proto.Isc.V1 {
       if (Name.Length != 0) hash ^= Name.GetHashCode();
       if (address_ != null) hash ^= Address.GetHashCode();
       if (persona_ != null) hash ^= Persona.GetHashCode();
-      if (payload_ != null) hash ^= Payload.GetHashCode();
+      if (Payload.Length != 0) hash ^= Payload.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -218,9 +217,9 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(26);
         output.WriteMessage(Persona);
       }
-      if (payload_ != null) {
+      if (Payload.Length != 0) {
         output.WriteRawTag(34);
-        output.WriteMessage(Payload);
+        output.WriteBytes(Payload);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -244,9 +243,9 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(26);
         output.WriteMessage(Persona);
       }
-      if (payload_ != null) {
+      if (Payload.Length != 0) {
         output.WriteRawTag(34);
-        output.WriteMessage(Payload);
+        output.WriteBytes(Payload);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -267,8 +266,8 @@ namespace WorldEngine.Proto.Isc.V1 {
       if (persona_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Persona);
       }
-      if (payload_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Payload);
+      if (Payload.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Payload);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -297,11 +296,8 @@ namespace WorldEngine.Proto.Isc.V1 {
         }
         Persona.MergeFrom(other.Persona);
       }
-      if (other.payload_ != null) {
-        if (payload_ == null) {
-          Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-        }
-        Payload.MergeFrom(other.Payload);
+      if (other.Payload.Length != 0) {
+        Payload = other.Payload;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -341,10 +337,7 @@ namespace WorldEngine.Proto.Isc.V1 {
             break;
           }
           case 34: {
-            if (payload_ == null) {
-              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Payload);
+            Payload = input.ReadBytes();
             break;
           }
         }
@@ -385,10 +378,7 @@ namespace WorldEngine.Proto.Isc.V1 {
             break;
           }
           case 34: {
-            if (payload_ == null) {
-              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Payload);
+            Payload = input.ReadBytes();
             break;
           }
         }

@@ -41,7 +41,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
-			payload, err := schema.ToProtoStruct(cmd)
+			payload, err := schema.ToMsgpack(cmd)
 			require.NoError(t, err)
 
 			name := cmd.Name()
@@ -108,5 +108,64 @@ func TestQueue_ModelFuzz(t *testing.T) {
 	assert.Len(t, finalResult, len(model), "final drain count mismatch")
 	for i := range finalResult {
 		assert.Equal(t, model[i], finalResult[i], "final command[%d] mismatch", i)
+	}
+}
+
+// -------------------------------------------------------------------------------------------------
+// uint64 precision test
+// -------------------------------------------------------------------------------------------------
+// This test verifies that MessagePack serialization preserves uint64 precision for command
+// payloads with values above 2^53-1, which would be corrupted by JSON's float64 representation.
+// -------------------------------------------------------------------------------------------------
+
+func TestQueue_Uint64Precision(t *testing.T) {
+	t.Parallel()
+
+	// Test values that would lose precision with JSON (values > 2^53-1 = 9007199254740991)
+	testCases := []testutils.CommandUint64{
+		{
+			Amount:    18446744073709551615, // uint64 max
+			EntityID:  9007199254740993,     // 2^53 + 1, loses precision in JSON
+			Timestamp: 9223372036854775807,  // int64 max
+		},
+		{
+			Amount:    10000000000000000000, // 10^19
+			EntityID:  9007199254740992,     // 2^53, first value that loses precision
+			Timestamp: -9223372036854775808, // int64 min
+		},
+	}
+
+	queue := command.NewQueue[testutils.CommandUint64]()
+
+	// Enqueue commands with large uint64 values
+	for _, tc := range testCases {
+		payload, err := schema.ToMsgpack(tc)
+		require.NoError(t, err)
+
+		cmdpb := &iscv1.Command{
+			Name:    tc.Name(),
+			Persona: &iscv1.Persona{Id: "test-persona"},
+			Payload: payload,
+		}
+
+		err = queue.Enqueue(cmdpb)
+		require.NoError(t, err)
+	}
+
+	// Drain and verify precision is preserved
+	var result []command.Command
+	queue.Drain(&result)
+
+	require.Len(t, result, len(testCases))
+	for i, expected := range testCases {
+		actual, ok := result[i].Payload.(testutils.CommandUint64)
+		require.True(t, ok, "payload type mismatch at %d", i)
+
+		assert.Equal(t, expected.Amount, actual.Amount,
+			"Amount mismatch at %d: expected %d, got %d (would fail with JSON)", i, expected.Amount, actual.Amount)
+		assert.Equal(t, expected.EntityID, actual.EntityID,
+			"EntityID mismatch at %d: expected %d, got %d (would fail with JSON)", i, expected.EntityID, actual.EntityID)
+		assert.Equal(t, expected.Timestamp, actual.Timestamp,
+			"Timestamp mismatch at %d: expected %d, got %d", i, expected.Timestamp, actual.Timestamp)
 	}
 }

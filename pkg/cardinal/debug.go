@@ -10,7 +10,6 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -22,17 +21,17 @@ type debugModule struct {
 	world      *World
 	server     *http.Server
 	reflector  *jsonschema.Reflector
-	commands   map[string]*structpb.Struct
-	events     map[string]*structpb.Struct
-	components map[string]*structpb.Struct
+	commands   map[string]string // JSON schema strings
+	events     map[string]string
+	components map[string]string
 }
 
 func newDebugModule(world *World) debugModule {
 	return debugModule{
 		world:      world,
-		commands:   make(map[string]*structpb.Struct),
-		events:     make(map[string]*structpb.Struct),
-		components: make(map[string]*structpb.Struct),
+		commands:   make(map[string]string),
+		events:     make(map[string]string),
+		components: make(map[string]string),
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
@@ -45,7 +44,7 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 		return nil
 	}
 
-	var catalog map[string]*structpb.Struct
+	var catalog map[string]string
 	switch kind {
 	case "command":
 		catalog = d.commands
@@ -78,12 +77,13 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
 
-	schemaStruct, err := structpb.NewStruct(schemaMap)
+	// Re-marshal to get clean JSON string.
+	cleanData, err := json.Marshal(schemaMap)
 	if err != nil {
-		return eris.Wrap(err, "failed to create struct from schema")
+		return eris.Wrap(err, "failed to marshal cleaned schema")
 	}
 
-	catalog[name] = schemaStruct
+	catalog[name] = string(cleanData)
 	return nil
 }
 
@@ -134,12 +134,12 @@ func (d *debugModule) Introspect(
 }
 
 // buildTypeSchemas converts the internal schema cache to proto TypeSchema messages.
-func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*cardinalv1.TypeSchema {
+func (d *debugModule) buildTypeSchemas(cache map[string]string) []*cardinalv1.TypeSchema {
 	schemas := make([]*cardinalv1.TypeSchema, 0, len(cache))
-	for name, schemaStruct := range cache {
+	for name, schemaJSON := range cache {
 		schemas = append(schemas, &cardinalv1.TypeSchema{
-			Name:   name,
-			Schema: schemaStruct,
+			Name:       name,
+			SchemaJson: schemaJSON,
 		})
 	}
 	return schemas

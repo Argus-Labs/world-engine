@@ -25,26 +25,25 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRl",
-            "bmdpbmUuY2FyZGluYWwudjEaHGdvb2dsZS9wcm90b2J1Zi9zdHJ1Y3QucHJv",
-            "dG8iEwoRSW50cm9zcGVjdFJlcXVlc3Qi1wEKEkludHJvc3BlY3RSZXNwb25z",
-            "ZRI/Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYx",
-            "LlR5cGVTY2hlbWFSCGNvbW1hbmRzEkMKCmNvbXBvbmVudHMYAiADKAsyIy53",
-            "b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBlU2NoZW1hUgpjb21wb25lbnRz",
-            "EjsKBmV2ZW50cxgDIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5",
-            "cGVTY2hlbWFSBmV2ZW50cyJRCgpUeXBlU2NoZW1hEhIKBG5hbWUYASABKAlS",
-            "BG5hbWUSLwoGc2NoZW1hGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVj",
-            "dFIGc2NoZW1hMnUKDERlYnVnU2VydmljZRJlCgpJbnRyb3NwZWN0Eioud29y",
-            "bGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVlc3QaKy53b3Js",
-            "ZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9uc2VCdFpSZ2l0",
-            "aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28v",
-            "d29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5n",
-            "aW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
+            "bmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3Qi1wEKEklu",
+            "dHJvc3BlY3RSZXNwb25zZRI/Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5n",
+            "aW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWFSCGNvbW1hbmRzEkMKCmNvbXBv",
+            "bmVudHMYAiADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBlU2No",
+            "ZW1hUgpjb21wb25lbnRzEjsKBmV2ZW50cxgDIAMoCzIjLndvcmxkZW5naW5l",
+            "LmNhcmRpbmFsLnYxLlR5cGVTY2hlbWFSBmV2ZW50cyJBCgpUeXBlU2NoZW1h",
+            "EhIKBG5hbWUYASABKAlSBG5hbWUSHwoLc2NoZW1hX2pzb24YAiABKAlSCnNj",
+            "aGVtYUpzb24ydQoMRGVidWdTZXJ2aWNlEmUKCkludHJvc3BlY3QSKi53b3Js",
+            "ZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVxdWVzdBorLndvcmxk",
+            "ZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXNwb25zZUJ0WlJnaXRo",
+            "dWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93",
+            "b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdp",
+            "bmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, },
+          new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest), global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse), global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse.Parser, new[]{ "Commands", "Components", "Events" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "Schema" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "SchemaJson" }, null, null, null, null)
           }));
     }
     #endregion
@@ -505,7 +504,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public TypeSchema(TypeSchema other) : this() {
       name_ = other.name_;
-      schema_ = other.schema_ != null ? other.schema_.Clone() : null;
+      schemaJson_ = other.schemaJson_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -530,18 +529,18 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
-    /// <summary>Field number for the "schema" field.</summary>
-    public const int SchemaFieldNumber = 2;
-    private global::Google.Protobuf.WellKnownTypes.Struct schema_;
+    /// <summary>Field number for the "schema_json" field.</summary>
+    public const int SchemaJsonFieldNumber = 2;
+    private string schemaJson_ = "";
     /// <summary>
-    /// JSON schema for the type.
+    /// JSON schema for the type (human-readable string).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Google.Protobuf.WellKnownTypes.Struct Schema {
-      get { return schema_; }
+    public string SchemaJson {
+      get { return schemaJson_; }
       set {
-        schema_ = value;
+        schemaJson_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -561,7 +560,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         return true;
       }
       if (Name != other.Name) return false;
-      if (!object.Equals(Schema, other.Schema)) return false;
+      if (SchemaJson != other.SchemaJson) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -570,7 +569,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (Name.Length != 0) hash ^= Name.GetHashCode();
-      if (schema_ != null) hash ^= Schema.GetHashCode();
+      if (SchemaJson.Length != 0) hash ^= SchemaJson.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -593,9 +592,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(10);
         output.WriteString(Name);
       }
-      if (schema_ != null) {
+      if (SchemaJson.Length != 0) {
         output.WriteRawTag(18);
-        output.WriteMessage(Schema);
+        output.WriteString(SchemaJson);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -611,9 +610,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(10);
         output.WriteString(Name);
       }
-      if (schema_ != null) {
+      if (SchemaJson.Length != 0) {
         output.WriteRawTag(18);
-        output.WriteMessage(Schema);
+        output.WriteString(SchemaJson);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -628,8 +627,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (Name.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
       }
-      if (schema_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Schema);
+      if (SchemaJson.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(SchemaJson);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -646,11 +645,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (other.Name.Length != 0) {
         Name = other.Name;
       }
-      if (other.schema_ != null) {
-        if (schema_ == null) {
-          Schema = new global::Google.Protobuf.WellKnownTypes.Struct();
-        }
-        Schema.MergeFrom(other.Schema);
+      if (other.SchemaJson.Length != 0) {
+        SchemaJson = other.SchemaJson;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -676,10 +672,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             break;
           }
           case 18: {
-            if (schema_ == null) {
-              Schema = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Schema);
+            SchemaJson = input.ReadString();
             break;
           }
         }
@@ -706,10 +699,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             break;
           }
           case 18: {
-            if (schema_ == null) {
-              Schema = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Schema);
+            SchemaJson = input.ReadString();
             break;
           }
         }

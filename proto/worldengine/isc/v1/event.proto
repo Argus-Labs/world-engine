@@ -3,7 +3,6 @@ syntax = "proto3";
 package worldengine.isc.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/struct.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Isc.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
@@ -20,6 +19,6 @@ message Event {
     }
   ];
 
-  // The payload of the event.
-  google.protobuf.Struct payload = 2 [(buf.validate.field).required = true];
+  // The event payload serialized as MessagePack bytes.
+  bytes payload = 2 [(buf.validate.field).required = true];
 }

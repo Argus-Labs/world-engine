@@ -3,7 +3,6 @@ syntax = "proto3";
 package worldengine.isc.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/struct.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Isc.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
@@ -45,7 +44,7 @@ message Query {
 
 // QueryResult contains results of the query.
 message QueryResult {
-  // List of entities that match the query. Each entity is a map of component names to their values
-  // as well as a "_ID" field containing the entity ID.
-  repeated google.protobuf.Struct entities = 1;
+  // List of entities that match the query, serialized as MessagePack bytes.
+  // Each entity is a map of component names to their values with a "_ID" field for entity ID.
+  repeated bytes entities = 1;
 }
