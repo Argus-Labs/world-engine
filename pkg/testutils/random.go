@@ -61,7 +61,7 @@ func RandOpWeights(r *rand.Rand, ops []string) OpWeights {
 
 	weights := make(map[string]uint64, numEnabled)
 	for i := range numEnabled {
-		weights[shuffled[i]] = uint64(1 + r.IntN(100))
+		weights[shuffled[i]] = uint64(1 + r.IntN(100)) //nolint:gosec // not gonna happen
 	}
 	return weights
 }

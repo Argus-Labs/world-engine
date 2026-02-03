@@ -98,7 +98,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Register event handlers with the service's (NATS) publishers.
 	world.events.RegisterHandler(event.KindDefault, service.PublishDefaultEvent)
-	world.events.RegisterHandler(event.KindDefault, service.PublishInterShardCommand)
+	world.events.RegisterHandler(event.KindInterShardCommand, service.PublishInterShardCommand)
 
 	// Setup snapshot storage.
 	snapshotStorage, err := snapshot.NewJetStreamStorage(snapshot.JetStreamStorageOptions{
