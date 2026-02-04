@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
@@ -56,7 +57,11 @@ func NewShardService(opts ShardServiceOptions) (*ShardService, error) {
 
 // RegisterEndpoints registers the service endpoints for handling requests.
 func (s *ShardService) registerEndpoints() error {
-	err := s.AddEndpoint("query", s.handleQuery)
+	err := s.AddEndpoint("ping", s.handlePing)
+	if err != nil {
+		return eris.Wrap(err, "failed to register ping handler")
+	}
+	err = s.AddEndpoint("query", s.handleQuery)
 	if err != nil {
 		return eris.Wrap(err, "failed to register query handler")
 	}
@@ -65,6 +70,12 @@ func (s *ShardService) registerEndpoints() error {
 		return eris.Wrap(err, "failed to register introspect handler")
 	}
 	return nil
+}
+
+// handlePing responds to health-check requests. Used by NATS CLI or K8s probes to verify
+// the shard is connected to NATS and running. Accepts empty or valid Request payload.
+func (s *ShardService) handlePing(ctx context.Context, req *micro.Request) *micro.Response {
+	return micro.NewSuccessResponse(req, nil)
 }
 
 // -------------------------------------------------------------------------------------------------
