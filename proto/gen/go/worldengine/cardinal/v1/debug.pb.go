@@ -9,6 +9,7 @@ package cardinalv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -127,8 +128,8 @@ type TypeSchema struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// JSON schema for the type (human-readable string).
-	SchemaJson    string `protobuf:"bytes,2,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
+	// JSON schema for the type.
+	Schema        *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -170,30 +171,29 @@ func (x *TypeSchema) GetName() string {
 	return ""
 }
 
-func (x *TypeSchema) GetSchemaJson() string {
+func (x *TypeSchema) GetSchema() *structpb.Struct {
 	if x != nil {
-		return x.SchemaJson
+		return x.Schema
 	}
-	return ""
+	return nil
 }
 
 var File_worldengine_cardinal_v1_debug_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
-	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\"\x13\n" +
+	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x13\n" +
 	"\x11IntrospectRequest\"\xd7\x01\n" +
 	"\x12IntrospectResponse\x12?\n" +
 	"\bcommands\x18\x01 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\bcommands\x12C\n" +
 	"\n" +
 	"components\x18\x02 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\n" +
 	"components\x12;\n" +
-	"\x06events\x18\x03 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\x06events\"A\n" +
+	"\x06events\x18\x03 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\x06events\"Q\n" +
 	"\n" +
 	"TypeSchema\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
-	"\vschema_json\x18\x02 \x01(\tR\n" +
-	"schemaJson2u\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
+	"\x06schema\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06schema2u\n" +
 	"\fDebugService\x12e\n" +
 	"\n" +
 	"Introspect\x12*.worldengine.cardinal.v1.IntrospectRequest\x1a+.worldengine.cardinal.v1.IntrospectResponseBtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
@@ -215,18 +215,20 @@ var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
 	(*IntrospectRequest)(nil),  // 0: worldengine.cardinal.v1.IntrospectRequest
 	(*IntrospectResponse)(nil), // 1: worldengine.cardinal.v1.IntrospectResponse
 	(*TypeSchema)(nil),         // 2: worldengine.cardinal.v1.TypeSchema
+	(*structpb.Struct)(nil),    // 3: google.protobuf.Struct
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	2, // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
 	2, // 1: worldengine.cardinal.v1.IntrospectResponse.components:type_name -> worldengine.cardinal.v1.TypeSchema
 	2, // 2: worldengine.cardinal.v1.IntrospectResponse.events:type_name -> worldengine.cardinal.v1.TypeSchema
-	0, // 3: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
-	1, // 4: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 3: worldengine.cardinal.v1.TypeSchema.schema:type_name -> google.protobuf.Struct
+	0, // 4: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
+	1, // 5: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_debug_proto_init() }

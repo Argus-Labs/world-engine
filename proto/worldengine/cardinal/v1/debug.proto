@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package worldengine.cardinal.v1;
 
+import "google/protobuf/struct.proto";
+
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
 
@@ -33,6 +35,6 @@ message TypeSchema {
   // Name of the type.
   string name = 1;
 
-  // JSON schema for the type (human-readable string).
-  string schema_json = 2;
+  // JSON schema for the type.
+  google.protobuf.Struct schema = 2;
 }
