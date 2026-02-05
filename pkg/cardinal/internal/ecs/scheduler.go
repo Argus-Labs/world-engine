@@ -3,6 +3,7 @@ package ecs
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"slices"
 
@@ -20,6 +21,7 @@ type systemMetadata struct {
 // It orders systems based on their component and system event dependencies and is optimized to
 // maximize parallelism while maintaining correct order.
 type systemScheduler struct {
+	systemHook     SystemHook       // The execution hook ("pre", "update", "post")
 	systems        []systemMetadata // The systems to run
 	tier0          []int            // The first execution tier
 	graph          map[int][]int    // Mapping of systems -> systems that depend on it
@@ -28,6 +30,10 @@ type systemScheduler struct {
 	// for each system. They alternate between runs to avoid reinitialization.
 	indegree0 []atomic.Int32
 	indegree1 []atomic.Int32
+	// onSystemRun is an optional callback for debug performance metrics.
+	// When set, it is called after each system execution with the system name, system hook,
+	// and start/end times. Duration is derived from monotonic clock (time.Since);
+	onSystemRun func(name string, hook SystemHook, startTime, endTime time.Time)
 }
 
 // newSystemScheduler creates a new system scheduler.
@@ -53,6 +59,9 @@ func (s *systemScheduler) Run() {
 		return
 	}
 
+	// Single monotonic base for this run
+	schedulerStartTime := time.Now()
+
 	executionQueue := make(chan int, len(s.systems))
 	defer close(executionQueue)
 
@@ -68,7 +77,14 @@ func (s *systemScheduler) Run() {
 	for range s.systems {
 		systemID := <-executionQueue
 		wg.Go(func() {
-			s.systems[systemID].fn()
+			if s.onSystemRun != nil { // Set by the debug module to collect performance metrics.
+				systemStartTime := schedulerStartTime.Add(time.Since(schedulerStartTime))
+				s.systems[systemID].fn()
+				systemEndTime := systemStartTime.Add(time.Since(systemStartTime))
+				s.onSystemRun(s.systems[systemID].name, s.systemHook, systemStartTime, systemEndTime)
+			} else {
+				s.systems[systemID].fn()
+			}
 
 			// Process all systems that depend on this one.
 			for _, dependent := range s.graph[systemID] {
@@ -97,6 +113,32 @@ func (s *systemScheduler) getCurrentAndNextIndegrees() ([]atomic.Int32, []atomic
 	}
 
 	return s.indegree1, s.indegree0
+}
+
+// SystemInfo describes a system and its dependents for external introspection.
+type SystemInfo struct {
+	ID         int
+	Name       string
+	Dependents []int // IDs of systems that depend on this one (forward edges).
+}
+
+// ScheduleInfo describes the dependency graph for one execution phase.
+type ScheduleInfo struct {
+	Hook    SystemHook
+	Systems []SystemInfo
+}
+
+// scheduleInfo returns the dependency graph for introspection.
+func (s *systemScheduler) scheduleInfo() ScheduleInfo {
+	systems := make([]SystemInfo, len(s.systems))
+	for i, sys := range s.systems {
+		systems[i] = SystemInfo{
+			ID:         i,
+			Name:       sys.name,
+			Dependents: s.graph[i],
+		}
+	}
+	return ScheduleInfo{Hook: s.systemHook, Systems: systems}
 }
 
 // createSchedule initializes the dependency graph and execution schedule for the systems.

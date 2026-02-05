@@ -45,6 +45,8 @@ const (
 	DebugServiceResetProcedure = "/worldengine.cardinal.v1.DebugService/Reset"
 	// DebugServiceGetStateProcedure is the fully-qualified name of the DebugService's GetState RPC.
 	DebugServiceGetStateProcedure = "/worldengine.cardinal.v1.DebugService/GetState"
+	// DebugServiceStreamPerfProcedure is the fully-qualified name of the DebugService's StreamPerf RPC.
+	DebugServiceStreamPerfProcedure = "/worldengine.cardinal.v1.DebugService/StreamPerf"
 )
 
 // DebugServiceClient is a client for the worldengine.cardinal.v1.DebugService service.
@@ -62,6 +64,10 @@ type DebugServiceClient interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
+	// StreamPerf streams batches of per-tick timing data to clients.
+	// The server pushes a PerfBatch every N ticks; clients accumulate the full
+	// history and compute their own aggregations (avg, P95, etc.).
+	StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest]) (*connect.ServerStreamForClient[v1.PerfBatch], error)
 }
 
 // NewDebugServiceClient constructs a client for the worldengine.cardinal.v1.DebugService service.
@@ -111,6 +117,12 @@ func NewDebugServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(debugServiceMethods.ByName("GetState")),
 			connect.WithClientOptions(opts...),
 		),
+		streamPerf: connect.NewClient[v1.StreamPerfRequest, v1.PerfBatch](
+			httpClient,
+			baseURL+DebugServiceStreamPerfProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("StreamPerf")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -122,6 +134,7 @@ type debugServiceClient struct {
 	step       *connect.Client[v1.StepRequest, v1.StepResponse]
 	reset      *connect.Client[v1.ResetRequest, v1.ResetResponse]
 	getState   *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
+	streamPerf *connect.Client[v1.StreamPerfRequest, v1.PerfBatch]
 }
 
 // Introspect calls worldengine.cardinal.v1.DebugService.Introspect.
@@ -154,6 +167,11 @@ func (c *debugServiceClient) GetState(ctx context.Context, req *connect.Request[
 	return c.getState.CallUnary(ctx, req)
 }
 
+// StreamPerf calls worldengine.cardinal.v1.DebugService.StreamPerf.
+func (c *debugServiceClient) StreamPerf(ctx context.Context, req *connect.Request[v1.StreamPerfRequest]) (*connect.ServerStreamForClient[v1.PerfBatch], error) {
+	return c.streamPerf.CallServerStream(ctx, req)
+}
+
 // DebugServiceHandler is an implementation of the worldengine.cardinal.v1.DebugService service.
 type DebugServiceHandler interface {
 	// Introspect returns metadata about the registered types in the world.
@@ -169,6 +187,10 @@ type DebugServiceHandler interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
+	// StreamPerf streams batches of per-tick timing data to clients.
+	// The server pushes a PerfBatch every N ticks; clients accumulate the full
+	// history and compute their own aggregations (avg, P95, etc.).
+	StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest], *connect.ServerStream[v1.PerfBatch]) error
 }
 
 // NewDebugServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -214,6 +236,12 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(debugServiceMethods.ByName("GetState")),
 		connect.WithHandlerOptions(opts...),
 	)
+	debugServiceStreamPerfHandler := connect.NewServerStreamHandler(
+		DebugServiceStreamPerfProcedure,
+		svc.StreamPerf,
+		connect.WithSchema(debugServiceMethods.ByName("StreamPerf")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/worldengine.cardinal.v1.DebugService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DebugServiceIntrospectProcedure:
@@ -228,6 +256,8 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 			debugServiceResetHandler.ServeHTTP(w, r)
 		case DebugServiceGetStateProcedure:
 			debugServiceGetStateHandler.ServeHTTP(w, r)
+		case DebugServiceStreamPerfProcedure:
+			debugServiceStreamPerfHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -259,4 +289,8 @@ func (UnimplementedDebugServiceHandler) Reset(context.Context, *connect.Request[
 
 func (UnimplementedDebugServiceHandler) GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.GetState is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest], *connect.ServerStream[v1.PerfBatch]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.StreamPerf is not implemented"))
 }
