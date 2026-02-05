@@ -76,21 +76,21 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 // Serialize converts the World's state to a byte slice for serialization.
 // Only serializes the WorldState as components, systems, and managers are recreated on startup.
 func (w *World) Serialize() ([]byte, error) {
-	snapshot, err := w.state.toProto()
+	worldState, err := w.state.toProto()
 	if err != nil {
 		return nil, err
 	}
-	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
+	return proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 }
 
 // Deserialize populates the World's state from a byte slice.
 // This should only be called after the World has been properly initialized with components registered.
 func (w *World) Deserialize(data []byte) error {
-	var snapshot cardinalv1.CardinalSnapshot
-	if err := proto.Unmarshal(data, &snapshot); err != nil {
-		return eris.Wrap(err, "failed to unmarshal snapshot")
+	var worldState cardinalv1.WorldState
+	if err := proto.Unmarshal(data, &worldState); err != nil {
+		return eris.Wrap(err, "failed to unmarshal world state")
 	}
-	if err := w.state.fromProto(&snapshot); err != nil {
+	if err := w.state.fromProto(&worldState); err != nil {
 		return err
 	}
 	// Mark init as done to prevent re-running init systems after restore.

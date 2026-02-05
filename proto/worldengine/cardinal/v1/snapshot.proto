@@ -14,11 +14,11 @@ message Snapshot {
 
   google.protobuf.Timestamp timestamp = 2;
 
-  bytes data = 3;
+  WorldState world_state = 3;
 }
 
-// CardinalSnapshot represents a complete snapshot of the world state.
-message CardinalSnapshot {
+// WorldState represents the ECS world state.
+message WorldState {
   // Entity manager state
   uint32 next_id = 1;
 

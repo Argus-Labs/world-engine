@@ -26,11 +26,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           string.Concat(
             "CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29y",
             "bGRlbmdpbmUuY2FyZGluYWwudjEaG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5w",
-            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byJ5CghTbmFw",
-            "c2hvdBIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlja0hlaWdodBI4Cgl0aW1l",
-            "c3RhbXAYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgl0aW1l",
-            "c3RhbXASEgoEZGF0YRgDIAEoDFIEZGF0YSKrAQoQQ2FyZGluYWxTbmFwc2hv",
-            "dBIXCgduZXh0X2lkGAEgASgNUgZuZXh0SWQSGQoIZnJlZV9pZHMYAiADKA1S",
+            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byKrAQoIU25h",
+            "cHNob3QSHwoLdGlja19oZWlnaHQYASABKARSCnRpY2tIZWlnaHQSOAoJdGlt",
+            "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
+            "ZXN0YW1wEkQKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
+            "ZGluYWwudjEuV29ybGRTdGF0ZVIKd29ybGRTdGF0ZSKlAQoKV29ybGRTdGF0",
+            "ZRIXCgduZXh0X2lkGAEgASgNUgZuZXh0SWQSGQoIZnJlZV9pZHMYAiADKA1S",
             "B2ZyZWVJZHMSHwoLZW50aXR5X2FyY2gYAyADKANSCmVudGl0eUFyY2gSQgoK",
             "YXJjaGV0eXBlcxgEIAMoCzIiLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkFy",
             "Y2hldHlwZVIKYXJjaGV0eXBlcyKzAQoJQXJjaGV0eXBlEg4KAmlkGAEgASgF",
@@ -46,8 +47,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "Data" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot), global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Rows", "Entities", "Columns" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Column), global::WorldEngine.Proto.Cardinal.V1.Column.Parser, new[]{ "ComponentName", "Components" }, null, null, null, null)
           }));
@@ -96,7 +97,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public Snapshot(Snapshot other) : this() {
       tickHeight_ = other.tickHeight_;
       timestamp_ = other.timestamp_ != null ? other.timestamp_.Clone() : null;
-      data_ = other.data_;
+      worldState_ = other.worldState_ != null ? other.worldState_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -130,15 +131,15 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
-    /// <summary>Field number for the "data" field.</summary>
-    public const int DataFieldNumber = 3;
-    private pb::ByteString data_ = pb::ByteString.Empty;
+    /// <summary>Field number for the "world_state" field.</summary>
+    public const int WorldStateFieldNumber = 3;
+    private global::WorldEngine.Proto.Cardinal.V1.WorldState worldState_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString Data {
-      get { return data_; }
+    public global::WorldEngine.Proto.Cardinal.V1.WorldState WorldState {
+      get { return worldState_; }
       set {
-        data_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+        worldState_ = value;
       }
     }
 
@@ -159,7 +160,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (TickHeight != other.TickHeight) return false;
       if (!object.Equals(Timestamp, other.Timestamp)) return false;
-      if (Data != other.Data) return false;
+      if (!object.Equals(WorldState, other.WorldState)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -169,7 +170,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       int hash = 1;
       if (TickHeight != 0UL) hash ^= TickHeight.GetHashCode();
       if (timestamp_ != null) hash ^= Timestamp.GetHashCode();
-      if (Data.Length != 0) hash ^= Data.GetHashCode();
+      if (worldState_ != null) hash ^= WorldState.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -196,9 +197,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(Timestamp);
       }
-      if (Data.Length != 0) {
+      if (worldState_ != null) {
         output.WriteRawTag(26);
-        output.WriteBytes(Data);
+        output.WriteMessage(WorldState);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -218,9 +219,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(Timestamp);
       }
-      if (Data.Length != 0) {
+      if (worldState_ != null) {
         output.WriteRawTag(26);
-        output.WriteBytes(Data);
+        output.WriteMessage(WorldState);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -238,8 +239,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (timestamp_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Timestamp);
       }
-      if (Data.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Data);
+      if (worldState_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(WorldState);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -262,8 +263,11 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         }
         Timestamp.MergeFrom(other.Timestamp);
       }
-      if (other.Data.Length != 0) {
-        Data = other.Data;
+      if (other.worldState_ != null) {
+        if (worldState_ == null) {
+          WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
+        }
+        WorldState.MergeFrom(other.WorldState);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -296,7 +300,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             break;
           }
           case 26: {
-            Data = input.ReadBytes();
+            if (worldState_ == null) {
+              WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
+            }
+            input.ReadMessage(WorldState);
             break;
           }
         }
@@ -330,7 +337,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             break;
           }
           case 26: {
-            Data = input.ReadBytes();
+            if (worldState_ == null) {
+              WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
+            }
+            input.ReadMessage(WorldState);
             break;
           }
         }
@@ -341,19 +351,19 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// CardinalSnapshot represents a complete snapshot of the world state.
+  /// WorldState represents the ECS world state.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CardinalSnapshot : pb::IMessage<CardinalSnapshot>
+  public sealed partial class WorldState : pb::IMessage<WorldState>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CardinalSnapshot> _parser = new pb::MessageParser<CardinalSnapshot>(() => new CardinalSnapshot());
+    private static readonly pb::MessageParser<WorldState> _parser = new pb::MessageParser<WorldState>(() => new WorldState());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CardinalSnapshot> Parser { get { return _parser; } }
+    public static pb::MessageParser<WorldState> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -369,7 +379,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CardinalSnapshot() {
+    public WorldState() {
       OnConstruction();
     }
 
@@ -377,7 +387,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CardinalSnapshot(CardinalSnapshot other) : this() {
+    public WorldState(WorldState other) : this() {
       nextId_ = other.nextId_;
       freeIds_ = other.freeIds_.Clone();
       entityArch_ = other.entityArch_.Clone();
@@ -387,8 +397,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CardinalSnapshot Clone() {
-      return new CardinalSnapshot(this);
+    public WorldState Clone() {
+      return new WorldState(this);
     }
 
     /// <summary>Field number for the "next_id" field.</summary>
@@ -448,12 +458,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CardinalSnapshot);
+      return Equals(other as WorldState);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CardinalSnapshot other) {
+    public bool Equals(WorldState other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -541,7 +551,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CardinalSnapshot other) {
+    public void MergeFrom(WorldState other) {
       if (other == null) {
         return;
       }

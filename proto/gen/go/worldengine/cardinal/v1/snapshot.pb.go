@@ -28,7 +28,7 @@ type Snapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TickHeight    uint64                 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	WorldState    *WorldState            `protobuf:"bytes,3,opt,name=world_state,json=worldState,proto3" json:"world_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -77,15 +77,15 @@ func (x *Snapshot) GetTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Snapshot) GetData() []byte {
+func (x *Snapshot) GetWorldState() *WorldState {
 	if x != nil {
-		return x.Data
+		return x.WorldState
 	}
 	return nil
 }
 
-// CardinalSnapshot represents a complete snapshot of the world state.
-type CardinalSnapshot struct {
+// WorldState represents the ECS world state.
+type WorldState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Entity manager state
 	NextId  uint32   `protobuf:"varint,1,opt,name=next_id,json=nextId,proto3" json:"next_id,omitempty"`
@@ -98,20 +98,20 @@ type CardinalSnapshot struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CardinalSnapshot) Reset() {
-	*x = CardinalSnapshot{}
+func (x *WorldState) Reset() {
+	*x = WorldState{}
 	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CardinalSnapshot) String() string {
+func (x *WorldState) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CardinalSnapshot) ProtoMessage() {}
+func (*WorldState) ProtoMessage() {}
 
-func (x *CardinalSnapshot) ProtoReflect() protoreflect.Message {
+func (x *WorldState) ProtoReflect() protoreflect.Message {
 	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -123,33 +123,33 @@ func (x *CardinalSnapshot) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CardinalSnapshot.ProtoReflect.Descriptor instead.
-func (*CardinalSnapshot) Descriptor() ([]byte, []int) {
+// Deprecated: Use WorldState.ProtoReflect.Descriptor instead.
+func (*WorldState) Descriptor() ([]byte, []int) {
 	return file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CardinalSnapshot) GetNextId() uint32 {
+func (x *WorldState) GetNextId() uint32 {
 	if x != nil {
 		return x.NextId
 	}
 	return 0
 }
 
-func (x *CardinalSnapshot) GetFreeIds() []uint32 {
+func (x *WorldState) GetFreeIds() []uint32 {
 	if x != nil {
 		return x.FreeIds
 	}
 	return nil
 }
 
-func (x *CardinalSnapshot) GetEntityArch() []int64 {
+func (x *WorldState) GetEntityArch() []int64 {
 	if x != nil {
 		return x.EntityArch
 	}
 	return nil
 }
 
-func (x *CardinalSnapshot) GetArchetypes() []*Archetype {
+func (x *WorldState) GetArchetypes() []*Archetype {
 	if x != nil {
 		return x.Archetypes
 	}
@@ -297,13 +297,15 @@ var File_worldengine_cardinal_v1_snapshot_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\n" +
-	"&worldengine/cardinal/v1/snapshot.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"y\n" +
+	"&worldengine/cardinal/v1/snapshot.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
 	"\bSnapshot\x12\x1f\n" +
 	"\vtick_height\x18\x01 \x01(\x04R\n" +
 	"tickHeight\x128\n" +
-	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x12\n" +
-	"\x04data\x18\x03 \x01(\fR\x04data\"\xab\x01\n" +
-	"\x10CardinalSnapshot\x12\x17\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12D\n" +
+	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateR\n" +
+	"worldState\"\xa5\x01\n" +
+	"\n" +
+	"WorldState\x12\x17\n" +
 	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12\x19\n" +
 	"\bfree_ids\x18\x02 \x03(\rR\afreeIds\x12\x1f\n" +
 	"\ventity_arch\x18\x03 \x03(\x03R\n" +
@@ -338,20 +340,21 @@ func file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP() []byte {
 var file_worldengine_cardinal_v1_snapshot_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_worldengine_cardinal_v1_snapshot_proto_goTypes = []any{
 	(*Snapshot)(nil),              // 0: worldengine.cardinal.v1.Snapshot
-	(*CardinalSnapshot)(nil),      // 1: worldengine.cardinal.v1.CardinalSnapshot
+	(*WorldState)(nil),            // 1: worldengine.cardinal.v1.WorldState
 	(*Archetype)(nil),             // 2: worldengine.cardinal.v1.Archetype
 	(*Column)(nil),                // 3: worldengine.cardinal.v1.Column
 	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_worldengine_cardinal_v1_snapshot_proto_depIdxs = []int32{
 	4, // 0: worldengine.cardinal.v1.Snapshot.timestamp:type_name -> google.protobuf.Timestamp
-	2, // 1: worldengine.cardinal.v1.CardinalSnapshot.archetypes:type_name -> worldengine.cardinal.v1.Archetype
-	3, // 2: worldengine.cardinal.v1.Archetype.columns:type_name -> worldengine.cardinal.v1.Column
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // 1: worldengine.cardinal.v1.Snapshot.world_state:type_name -> worldengine.cardinal.v1.WorldState
+	2, // 2: worldengine.cardinal.v1.WorldState.archetypes:type_name -> worldengine.cardinal.v1.Archetype
+	3, // 3: worldengine.cardinal.v1.Archetype.columns:type_name -> worldengine.cardinal.v1.Column
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_snapshot_proto_init() }

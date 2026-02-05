@@ -75,10 +75,14 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 }
 
 func (j *JetStreamStorage) Store(snapshot *Snapshot) error {
+	var worldState cardinalv1.WorldState
+	if err := proto.Unmarshal(snapshot.Data, &worldState); err != nil {
+		return eris.Wrap(err, "failed to unmarshal world state")
+	}
 	snapshotPb := &cardinalv1.Snapshot{
 		TickHeight: snapshot.TickHeight,
 		Timestamp:  timestamppb.New(snapshot.Timestamp),
-		Data:       snapshot.Data,
+		WorldState: &worldState,
 	}
 	data, err := proto.Marshal(snapshotPb)
 	if err != nil {
@@ -118,10 +122,15 @@ func (j *JetStreamStorage) Load() (*Snapshot, error) {
 		return nil, eris.Wrap(err, "failed to validate snapshot")
 	}
 
+	worldStateBytes, err := proto.Marshal(snapshotPb.GetWorldState())
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to marshal world state")
+	}
+
 	return &Snapshot{
 		TickHeight: snapshotPb.GetTickHeight(),
 		Timestamp:  snapshotPb.GetTimestamp().AsTime(),
-		Data:       snapshotPb.GetData(),
+		Data:       worldStateBytes,
 	}, nil
 }
 
