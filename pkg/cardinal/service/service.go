@@ -69,7 +69,7 @@ func (s *ShardService) registerEndpoints() error {
 
 // handlePing responds to health-check requests. Used by NATS CLI or K8s probes to verify
 // the shard is connected to NATS and running. Accepts empty or valid Request payload.
-func (s *ShardService) handlePing(ctx context.Context, req *micro.Request) *micro.Response {
+func (s *ShardService) handlePing(_ context.Context, req *micro.Request) *micro.Response {
 	return micro.NewSuccessResponse(req, nil)
 }
 
