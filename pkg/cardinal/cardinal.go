@@ -9,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -111,6 +112,16 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		debug := newDebugModule(world)
 		debug.control.isPaused.Store(true)
 		world.debug = &debug
+
+		world.world.OnSystemRun(func(name string, hook ecs.SystemHook, startTime, endTime time.Time) {
+			world.debug.recordSpan(performance.TickSpan{
+				TickHeight: world.currentTick.height,
+				SystemName: name,
+				SystemHook: uint8(hook),
+				StartTime:  startTime,
+				EndTime:    endTime,
+			})
+		})
 	}
 
 	return world, nil
@@ -193,12 +204,15 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
 	_ = w.commands.Drain()
 
 	w.currentTick.timestamp = timestamp
+	w.debug.startPerfTick()
 
 	// Tick ECS world.
 	err := w.world.Tick()
 	if err != nil {
 		return eris.Wrap(err, "one or more systems failed")
 	}
+
+	w.debug.recordTick(w.currentTick.height, timestamp)
 
 	// Emit events.
 	if err := w.events.Dispatch(); err != nil {
@@ -270,6 +284,7 @@ func (w *World) restore(ctx context.Context) error {
 
 	// Only update shard state after successful restoration and validation.
 	w.currentTick.height = snap.TickHeight + 1
+	w.debug.resetPerf()
 
 	return nil
 }
@@ -313,6 +328,7 @@ func (w *World) reset() {
 	w.events.Clear()
 	w.currentTick.height = 0
 	w.currentTick.timestamp = time.Time{}
+	w.debug.resetPerf()
 }
 
 type Tick struct {

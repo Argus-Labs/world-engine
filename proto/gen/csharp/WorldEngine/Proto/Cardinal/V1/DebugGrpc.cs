@@ -73,6 +73,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.GetStateRequest> __Marshaller_worldengine_cardinal_v1_GetStateRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.GetStateRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> __Marshaller_worldengine_cardinal_v1_GetStateResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.GetStateResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest> __Marshaller_worldengine_cardinal_v1_StreamPerfRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.PerfBatch> __Marshaller_worldengine_cardinal_v1_PerfBatch = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.PerfBatch.Parser));
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest, global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse> __Method_Introspect = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest, global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse>(
@@ -121,6 +125,14 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         "GetState",
         __Marshaller_worldengine_cardinal_v1_GetStateRequest,
         __Marshaller_worldengine_cardinal_v1_GetStateResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest, global::WorldEngine.Proto.Cardinal.V1.PerfBatch> __Method_StreamPerf = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest, global::WorldEngine.Proto.Cardinal.V1.PerfBatch>(
+        grpc::MethodType.ServerStreaming,
+        __ServiceName,
+        "StreamPerf",
+        __Marshaller_worldengine_cardinal_v1_StreamPerfRequest,
+        __Marshaller_worldengine_cardinal_v1_PerfBatch);
 
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -201,6 +213,21 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       /// <returns>The response to send back to the client (wrapped by a task).</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> GetState(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// StreamPerf streams batches of per-tick timing data to clients.
+      /// The server pushes a PerfBatch every N ticks; clients accumulate the full
+      /// history and compute their own aggregations (avg, P95, etc.).
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="responseStream">Used for sending responses back to the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>A task indicating completion of the handler.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task StreamPerf(global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest request, grpc::IServerStreamWriter<global::WorldEngine.Proto.Cardinal.V1.PerfBatch> responseStream, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
@@ -526,6 +553,34 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       {
         return CallInvoker.AsyncUnaryCall(__Method_GetState, null, options, request);
       }
+      /// <summary>
+      /// StreamPerf streams batches of per-tick timing data to clients.
+      /// The server pushes a PerfBatch every N ticks; clients accumulate the full
+      /// history and compute their own aggregations (avg, P95, etc.).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncServerStreamingCall<global::WorldEngine.Proto.Cardinal.V1.PerfBatch> StreamPerf(global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return StreamPerf(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// StreamPerf streams batches of per-tick timing data to clients.
+      /// The server pushes a PerfBatch every N ticks; clients accumulate the full
+      /// history and compute their own aggregations (avg, P95, etc.).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncServerStreamingCall<global::WorldEngine.Proto.Cardinal.V1.PerfBatch> StreamPerf(global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncServerStreamingCall(__Method_StreamPerf, null, options, request);
+      }
       /// <summary>Creates a new instance of client from given <c>ClientBaseConfiguration</c>.</summary>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       protected override DebugServiceClient NewInstance(ClientBaseConfiguration configuration)
@@ -545,7 +600,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           .AddMethod(__Method_Resume, serviceImpl.Resume)
           .AddMethod(__Method_Step, serviceImpl.Step)
           .AddMethod(__Method_Reset, serviceImpl.Reset)
-          .AddMethod(__Method_GetState, serviceImpl.GetState).Build();
+          .AddMethod(__Method_GetState, serviceImpl.GetState)
+          .AddMethod(__Method_StreamPerf, serviceImpl.StreamPerf).Build();
     }
 
     /// <summary>Register service method with a service binder with or without implementation. Useful when customizing the service binding logic.
@@ -561,6 +617,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       serviceBinder.AddMethod(__Method_Step, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.StepRequest, global::WorldEngine.Proto.Cardinal.V1.StepResponse>(serviceImpl.Step));
       serviceBinder.AddMethod(__Method_Reset, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.ResetRequest, global::WorldEngine.Proto.Cardinal.V1.ResetResponse>(serviceImpl.Reset));
       serviceBinder.AddMethod(__Method_GetState, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.GetStateRequest, global::WorldEngine.Proto.Cardinal.V1.GetStateResponse>(serviceImpl.GetState));
+      serviceBinder.AddMethod(__Method_StreamPerf, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest, global::WorldEngine.Proto.Cardinal.V1.PerfBatch>(serviceImpl.StreamPerf));
     }
 
   }

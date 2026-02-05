@@ -4,6 +4,7 @@ package worldengine.cardinal.v1;
 
 import "google/protobuf/struct.proto";
 import "worldengine/cardinal/v1/snapshot.proto";
+import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
@@ -29,7 +30,16 @@ service DebugService {
 
   // GetState returns the current world state snapshot.
   rpc GetState(GetStateRequest) returns (GetStateResponse);
+
+  // StreamPerf streams batches of per-tick timing data to clients.
+  // The server pushes a PerfBatch every N ticks; clients accumulate the full
+  // history and compute their own aggregations (avg, P95, etc.).
+  rpc StreamPerf(StreamPerfRequest) returns (stream PerfBatch);
 }
+
+// -------------------------------------------------------------------------------------------------
+// Introspect
+// -------------------------------------------------------------------------------------------------
 
 // IntrospectRequest is the request message for the Introspect RPC.
 message IntrospectRequest {}
@@ -44,6 +54,28 @@ message IntrospectResponse {
 
   // JSON schemas for registered events.
   repeated TypeSchema events = 3;
+
+  // Tick rate in Hz (e.g. 20). Clients derive tick_budget_ms as 1000/tick_rate_hz.
+  uint32 tick_rate_hz = 4;
+
+  // System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
+  repeated SystemSchedule schedules = 5;
+}
+
+// SystemSchedule describes the dependency graph for one execution phase.
+message SystemSchedule {
+  SystemHook hook = 1;
+  repeated SystemNode systems = 2;
+}
+
+// SystemNode describes a single system and its dependencies within a schedule.
+message SystemNode {
+  // Index of this system within the schedule (used as the ID for dependency references).
+  uint32 id = 1;
+  // Name of the system.
+  string name = 2;
+  // Indices of systems that must complete before this system can run.
+  repeated uint32 depends_on = 3;
 }
 
 // TypeSchema represents the JSON schema for a registered type.
@@ -95,4 +127,44 @@ message GetStateResponse {
 
   // The current world state snapshot (includes tick_height).
   Snapshot snapshot = 2;
+}
+
+// -------------------------------------------------------------------------------------------------
+// StreamPerf
+// -------------------------------------------------------------------------------------------------
+
+// StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
+message StreamPerfRequest {}
+
+// PerfBatch is a batch of completed tick timelines pushed to the client.
+message PerfBatch {
+  repeated TickTimeline ticks = 1;
+  // Spans dropped during these ticks because the per-tick limit was exceeded (per-batch delta).
+  uint64 dropped_spans = 2;
+  // Subscriber sends that failed (slow client) since the last successfully delivered batch (per-batch delta).
+  uint64 dropped_batches = 3;
+}
+
+message TickTimeline {
+  uint64 tick_height = 1;
+  google.protobuf.Timestamp tick_start = 2;
+  repeated SystemSpan spans = 3;
+}
+
+// SystemHook defines when a system executes in the tick lifecycle.
+enum SystemHook {
+  SYSTEM_HOOK_UNSPECIFIED = 0;
+  SYSTEM_HOOK_PRE_UPDATE = 1;
+  SYSTEM_HOOK_UPDATE = 2;
+  SYSTEM_HOOK_POST_UPDATE = 3;
+  SYSTEM_HOOK_INIT = 4;
+}
+
+message SystemSpan {
+  SystemHook system_hook = 1;
+  string system = 2;
+  // Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+  uint64 start_offset_ns = 3;
+  // Duration of this span in nanoseconds.
+  uint64 duration_ns = 4;
 }

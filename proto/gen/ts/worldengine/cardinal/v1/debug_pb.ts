@@ -2,9 +2,10 @@
 // @generated from file worldengine/cardinal/v1/debug.proto (package worldengine.cardinal.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Snapshot } from "./snapshot_pb";
 import { file_worldengine_cardinal_v1_snapshot } from "./snapshot_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
@@ -13,7 +14,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/debug.proto.
  */
 export const file_worldengine_cardinal_v1_debug: GenFile = /*@__PURE__*/
-  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiuQEKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYSJDCgpUeXBlU2NoZW1hEgwKBG5hbWUYASABKAkSJwoGc2NoZW1hGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdDK2BAoMRGVidWdTZXJ2aWNlEmUKCkludHJvc3BlY3QSKi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVxdWVzdBorLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXNwb25zZRJWCgVQYXVzZRIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBhdXNlUmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBhdXNlUmVzcG9uc2USWQoGUmVzdW1lEiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVxdWVzdBonLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlc3BvbnNlElMKBFN0ZXASJC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVxdWVzdBolLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXNwb25zZRJWCgVSZXNldBIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVzcG9uc2USXwoIR2V0U3RhdGUSKC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRTdGF0ZVJlcXVlc3QaKS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRTdGF0ZVJlc3BvbnNlQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_google_protobuf_struct, file_worldengine_cardinal_v1_snapshot]);
+  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiiwIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKA0SOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiOgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJEhIKCmRlcGVuZHNfb24YAyADKA0iQwoKVHlwZVNjaGVtYRIMCgRuYW1lGAEgASgJEicKBnNjaGVtYRgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiDgoMUGF1c2VSZXF1ZXN0IiQKDVBhdXNlUmVzcG9uc2USEwoLdGlja19oZWlnaHQYASABKAQiDwoNUmVzdW1lUmVxdWVzdCIQCg5SZXN1bWVSZXNwb25zZSINCgtTdGVwUmVxdWVzdCIjCgxTdGVwUmVzcG9uc2USEwoLdGlja19oZWlnaHQYASABKAQiDgoMUmVzZXRSZXF1ZXN0Ig8KDVJlc2V0UmVzcG9uc2UiEQoPR2V0U3RhdGVSZXF1ZXN0IloKEEdldFN0YXRlUmVzcG9uc2USEQoJaXNfcGF1c2VkGAEgASgIEjMKCHNuYXBzaG90GAIgASgLMiEud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU25hcHNob3QiEwoRU3RyZWFtUGVyZlJlcXVlc3QicQoJUGVyZkJhdGNoEjQKBXRpY2tzGAEgAygLMiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVGlja1RpbWVsaW5lEhUKDWRyb3BwZWRfc3BhbnMYAiABKAQSFwoPZHJvcHBlZF9iYXRjaGVzGAMgASgEIocBCgxUaWNrVGltZWxpbmUSEwoLdGlja19oZWlnaHQYASABKAQSLgoKdGlja19zdGFydBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoFc3BhbnMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1TcGFuIoQBCgpTeXN0ZW1TcGFuEjgKC3N5c3RlbV9ob29rGAEgASgOMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtSG9vaxIOCgZzeXN0ZW0YAiABKAkSFwoPc3RhcnRfb2Zmc2V0X25zGAMgASgEEhMKC2R1cmF0aW9uX25zGAQgASgEKpABCgpTeXN0ZW1Ib29rEhsKF1NZU1RFTV9IT09LX1VOU1BFQ0lGSUVEEAASGgoWU1lTVEVNX0hPT0tfUFJFX1VQREFURRABEhYKElNZU1RFTV9IT09LX1VQREFURRACEhsKF1NZU1RFTV9IT09LX1BPU1RfVVBEQVRFEAMSFAoQU1lTVEVNX0hPT0tfSU5JVBAEMpYFCgxEZWJ1Z1NlcnZpY2USZQoKSW50cm9zcGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXF1ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlc3BvbnNlElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXNwb25zZRJZCgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXF1ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVzcG9uc2USUwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXF1ZXN0GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlc3BvbnNlElYKBVJlc2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXNwb25zZRJfCghHZXRTdGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVxdWVzdBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVzcG9uc2USXgoKU3RyZWFtUGVyZhIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0cmVhbVBlcmZSZXF1ZXN0GiIud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGVyZkJhdGNoMAFCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_google_protobuf_struct, file_worldengine_cardinal_v1_snapshot, file_google_protobuf_timestamp]);
 
 /**
  * IntrospectRequest is the request message for the Introspect RPC.
@@ -56,6 +57,20 @@ export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResp
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema events = 3;
    */
   events: TypeSchema[];
+
+  /**
+   * Tick rate in Hz (e.g. 20). Clients derive tick_budget_ms as 1000/tick_rate_hz.
+   *
+   * @generated from field: uint32 tick_rate_hz = 4;
+   */
+  tickRateHz: number;
+
+  /**
+   * System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
+   *
+   * @generated from field: repeated worldengine.cardinal.v1.SystemSchedule schedules = 5;
+   */
+  schedules: SystemSchedule[];
 };
 
 /**
@@ -64,6 +79,65 @@ export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResp
  */
 export const IntrospectResponseSchema: GenMessage<IntrospectResponse> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 1);
+
+/**
+ * SystemSchedule describes the dependency graph for one execution phase.
+ *
+ * @generated from message worldengine.cardinal.v1.SystemSchedule
+ */
+export type SystemSchedule = Message<"worldengine.cardinal.v1.SystemSchedule"> & {
+  /**
+   * @generated from field: worldengine.cardinal.v1.SystemHook hook = 1;
+   */
+  hook: SystemHook;
+
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.SystemNode systems = 2;
+   */
+  systems: SystemNode[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SystemSchedule.
+ * Use `create(SystemScheduleSchema)` to create a new message.
+ */
+export const SystemScheduleSchema: GenMessage<SystemSchedule> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 2);
+
+/**
+ * SystemNode describes a single system and its dependencies within a schedule.
+ *
+ * @generated from message worldengine.cardinal.v1.SystemNode
+ */
+export type SystemNode = Message<"worldengine.cardinal.v1.SystemNode"> & {
+  /**
+   * Index of this system within the schedule (used as the ID for dependency references).
+   *
+   * @generated from field: uint32 id = 1;
+   */
+  id: number;
+
+  /**
+   * Name of the system.
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * Indices of systems that must complete before this system can run.
+   *
+   * @generated from field: repeated uint32 depends_on = 3;
+   */
+  dependsOn: number[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SystemNode.
+ * Use `create(SystemNodeSchema)` to create a new message.
+ */
+export const SystemNodeSchema: GenMessage<SystemNode> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 3);
 
 /**
  * TypeSchema represents the JSON schema for a registered type.
@@ -91,7 +165,7 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
  * Use `create(TypeSchemaSchema)` to create a new message.
  */
 export const TypeSchemaSchema: GenMessage<TypeSchema> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 2);
+  messageDesc(file_worldengine_cardinal_v1_debug, 4);
 
 /**
  * PauseRequest is the request message for the Pause RPC.
@@ -106,7 +180,7 @@ export type PauseRequest = Message<"worldengine.cardinal.v1.PauseRequest"> & {
  * Use `create(PauseRequestSchema)` to create a new message.
  */
 export const PauseRequestSchema: GenMessage<PauseRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 3);
+  messageDesc(file_worldengine_cardinal_v1_debug, 5);
 
 /**
  * PauseResponse is the response message for the Pause RPC.
@@ -127,7 +201,7 @@ export type PauseResponse = Message<"worldengine.cardinal.v1.PauseResponse"> & {
  * Use `create(PauseResponseSchema)` to create a new message.
  */
 export const PauseResponseSchema: GenMessage<PauseResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 4);
+  messageDesc(file_worldengine_cardinal_v1_debug, 6);
 
 /**
  * ResumeRequest is the request message for the Resume RPC.
@@ -142,7 +216,7 @@ export type ResumeRequest = Message<"worldengine.cardinal.v1.ResumeRequest"> & {
  * Use `create(ResumeRequestSchema)` to create a new message.
  */
 export const ResumeRequestSchema: GenMessage<ResumeRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 5);
+  messageDesc(file_worldengine_cardinal_v1_debug, 7);
 
 /**
  * ResumeResponse is the response message for the Resume RPC.
@@ -157,7 +231,7 @@ export type ResumeResponse = Message<"worldengine.cardinal.v1.ResumeResponse"> &
  * Use `create(ResumeResponseSchema)` to create a new message.
  */
 export const ResumeResponseSchema: GenMessage<ResumeResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 6);
+  messageDesc(file_worldengine_cardinal_v1_debug, 8);
 
 /**
  * StepRequest is the request message for the Step RPC.
@@ -172,7 +246,7 @@ export type StepRequest = Message<"worldengine.cardinal.v1.StepRequest"> & {
  * Use `create(StepRequestSchema)` to create a new message.
  */
 export const StepRequestSchema: GenMessage<StepRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 7);
+  messageDesc(file_worldengine_cardinal_v1_debug, 9);
 
 /**
  * StepResponse is the response message for the Step RPC.
@@ -193,7 +267,7 @@ export type StepResponse = Message<"worldengine.cardinal.v1.StepResponse"> & {
  * Use `create(StepResponseSchema)` to create a new message.
  */
 export const StepResponseSchema: GenMessage<StepResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 8);
+  messageDesc(file_worldengine_cardinal_v1_debug, 10);
 
 /**
  * ResetRequest is the request message for the Reset RPC.
@@ -208,7 +282,7 @@ export type ResetRequest = Message<"worldengine.cardinal.v1.ResetRequest"> & {
  * Use `create(ResetRequestSchema)` to create a new message.
  */
 export const ResetRequestSchema: GenMessage<ResetRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 9);
+  messageDesc(file_worldengine_cardinal_v1_debug, 11);
 
 /**
  * ResetResponse is the response message for the Reset RPC.
@@ -223,7 +297,7 @@ export type ResetResponse = Message<"worldengine.cardinal.v1.ResetResponse"> & {
  * Use `create(ResetResponseSchema)` to create a new message.
  */
 export const ResetResponseSchema: GenMessage<ResetResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 10);
+  messageDesc(file_worldengine_cardinal_v1_debug, 12);
 
 /**
  * GetStateRequest is the request message for the GetState RPC.
@@ -238,7 +312,7 @@ export type GetStateRequest = Message<"worldengine.cardinal.v1.GetStateRequest">
  * Use `create(GetStateRequestSchema)` to create a new message.
  */
 export const GetStateRequestSchema: GenMessage<GetStateRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 11);
+  messageDesc(file_worldengine_cardinal_v1_debug, 13);
 
 /**
  * GetStateResponse is the response message for the GetState RPC.
@@ -266,7 +340,156 @@ export type GetStateResponse = Message<"worldengine.cardinal.v1.GetStateResponse
  * Use `create(GetStateResponseSchema)` to create a new message.
  */
 export const GetStateResponseSchema: GenMessage<GetStateResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 12);
+  messageDesc(file_worldengine_cardinal_v1_debug, 14);
+
+/**
+ * StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
+ *
+ * @generated from message worldengine.cardinal.v1.StreamPerfRequest
+ */
+export type StreamPerfRequest = Message<"worldengine.cardinal.v1.StreamPerfRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.StreamPerfRequest.
+ * Use `create(StreamPerfRequestSchema)` to create a new message.
+ */
+export const StreamPerfRequestSchema: GenMessage<StreamPerfRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 15);
+
+/**
+ * PerfBatch is a batch of completed tick timelines pushed to the client.
+ *
+ * @generated from message worldengine.cardinal.v1.PerfBatch
+ */
+export type PerfBatch = Message<"worldengine.cardinal.v1.PerfBatch"> & {
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.TickTimeline ticks = 1;
+   */
+  ticks: TickTimeline[];
+
+  /**
+   * Spans dropped during these ticks because the per-tick limit was exceeded (per-batch delta).
+   *
+   * @generated from field: uint64 dropped_spans = 2;
+   */
+  droppedSpans: bigint;
+
+  /**
+   * Subscriber sends that failed (slow client) since the last successfully delivered batch (per-batch delta).
+   *
+   * @generated from field: uint64 dropped_batches = 3;
+   */
+  droppedBatches: bigint;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.PerfBatch.
+ * Use `create(PerfBatchSchema)` to create a new message.
+ */
+export const PerfBatchSchema: GenMessage<PerfBatch> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 16);
+
+/**
+ * @generated from message worldengine.cardinal.v1.TickTimeline
+ */
+export type TickTimeline = Message<"worldengine.cardinal.v1.TickTimeline"> & {
+  /**
+   * @generated from field: uint64 tick_height = 1;
+   */
+  tickHeight: bigint;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp tick_start = 2;
+   */
+  tickStart?: Timestamp;
+
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.SystemSpan spans = 3;
+   */
+  spans: SystemSpan[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.TickTimeline.
+ * Use `create(TickTimelineSchema)` to create a new message.
+ */
+export const TickTimelineSchema: GenMessage<TickTimeline> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 17);
+
+/**
+ * @generated from message worldengine.cardinal.v1.SystemSpan
+ */
+export type SystemSpan = Message<"worldengine.cardinal.v1.SystemSpan"> & {
+  /**
+   * @generated from field: worldengine.cardinal.v1.SystemHook system_hook = 1;
+   */
+  systemHook: SystemHook;
+
+  /**
+   * @generated from field: string system = 2;
+   */
+  system: string;
+
+  /**
+   * Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+   *
+   * @generated from field: uint64 start_offset_ns = 3;
+   */
+  startOffsetNs: bigint;
+
+  /**
+   * Duration of this span in nanoseconds.
+   *
+   * @generated from field: uint64 duration_ns = 4;
+   */
+  durationNs: bigint;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SystemSpan.
+ * Use `create(SystemSpanSchema)` to create a new message.
+ */
+export const SystemSpanSchema: GenMessage<SystemSpan> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 18);
+
+/**
+ * SystemHook defines when a system executes in the tick lifecycle.
+ *
+ * @generated from enum worldengine.cardinal.v1.SystemHook
+ */
+export enum SystemHook {
+  /**
+   * @generated from enum value: SYSTEM_HOOK_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SYSTEM_HOOK_PRE_UPDATE = 1;
+   */
+  PRE_UPDATE = 1,
+
+  /**
+   * @generated from enum value: SYSTEM_HOOK_UPDATE = 2;
+   */
+  UPDATE = 2,
+
+  /**
+   * @generated from enum value: SYSTEM_HOOK_POST_UPDATE = 3;
+   */
+  POST_UPDATE = 3,
+
+  /**
+   * @generated from enum value: SYSTEM_HOOK_INIT = 4;
+   */
+  INIT = 4,
+}
+
+/**
+ * Describes the enum worldengine.cardinal.v1.SystemHook.
+ */
+export const SystemHookSchema: GenEnum<SystemHook> = /*@__PURE__*/
+  enumDesc(file_worldengine_cardinal_v1_debug, 0);
 
 /**
  * DebugService provides debugging and introspection endpoints for Cardinal.
@@ -335,6 +558,18 @@ export const DebugService: GenService<{
     methodKind: "unary";
     input: typeof GetStateRequestSchema;
     output: typeof GetStateResponseSchema;
+  },
+  /**
+   * StreamPerf streams batches of per-tick timing data to clients.
+   * The server pushes a PerfBatch every N ticks; clients accumulate the full
+   * history and compute their own aggregations (avg, P95, etc.).
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.StreamPerf
+   */
+  streamPerf: {
+    methodKind: "server_streaming";
+    input: typeof StreamPerfRequestSchema;
+    output: typeof PerfBatchSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
