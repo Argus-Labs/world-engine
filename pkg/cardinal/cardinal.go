@@ -9,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -108,9 +109,22 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Create the debug module only if debug is on.
 	if *options.Debug {
-		debug := newDebugModule(world)
+		debug, err := newDebugModule(world)
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create debug module")
+		}
 		debug.control.isPaused.Store(true)
 		world.debug = &debug
+
+		world.world.SetOnSystemRun(func(phase, name string, startOffsetNs, durationNs int64) {
+			world.debug.recordSpan(performance.TickSpan{
+				TickHeight:    world.currentTick.height,
+				Phase:         phase,
+				SystemName:    name,
+				StartOffsetNs: startOffsetNs,
+				DurationNs:    durationNs,
+			})
+		})
 	}
 
 	return world, nil
@@ -193,12 +207,14 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
 	_ = w.commands.Drain()
 
 	w.currentTick.timestamp = timestamp
+	w.debug.startPerfTick(w.currentTick.height, timestamp)
 
-	// Tick ECS world.
-	err := w.world.Tick()
+	err := w.world.Tick(timestamp)
 	if err != nil {
 		return eris.Wrap(err, "one or more systems failed")
 	}
+
+	w.debug.recordTick(w.currentTick.height, timestamp)
 
 	// Emit events.
 	if err := w.events.Dispatch(); err != nil {

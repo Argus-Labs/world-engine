@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"time"
+
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
@@ -24,8 +26,10 @@ func NewWorld() *World {
 		systemEvents: newSystemEventManager(),
 	}
 
+	phaseNames := [3]string{"pre", "update", "post"}
 	for i := range world.scheduler {
 		world.scheduler[i] = newSystemScheduler()
+		world.scheduler[i].phase = phaseNames[i]
 	}
 
 	return world
@@ -42,7 +46,7 @@ func (w *World) Init() {
 // registered systems in order. If any system returns an error, the entire tick is considered
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
-func (w *World) Tick() error {
+func (w *World) Tick(tickStart time.Time) error {
 	// Run init systems once on first tick.
 	if !w.initDone {
 		for _, system := range w.initSystems {
@@ -57,10 +61,18 @@ func (w *World) Tick() error {
 
 	// Run the systems.
 	for i := range w.scheduler {
-		w.scheduler[i].Run()
+		w.scheduler[i].Run(tickStart)
 	}
 
 	return nil
+}
+
+// SetOnSystemRun sets a callback invoked after each system execution.
+// Must be called before Init.
+func (w *World) SetOnSystemRun(fn func(phase, name string, startOffsetNs, durationNs int64)) {
+	for i := range w.scheduler {
+		w.scheduler[i].onSystemRun = fn
+	}
 }
 
 func (w *World) OnComponentRegister(callback func(zero Component) error) {

@@ -3,6 +3,7 @@ package ecs
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"slices"
 
@@ -20,6 +21,7 @@ type systemMetadata struct {
 // It orders systems based on their component and system event dependencies and is optimized to
 // maximize parallelism while maintaining correct order.
 type systemScheduler struct {
+	phase          string           // The execution phase ("pre", "update", "post")
 	systems        []systemMetadata // The systems to run
 	tier0          []int            // The first execution tier
 	graph          map[int][]int    // Mapping of systems -> systems that depend on it
@@ -28,6 +30,11 @@ type systemScheduler struct {
 	// for each system. They alternate between runs to avoid reinitialization.
 	indegree0 []atomic.Int32
 	indegree1 []atomic.Int32
+	// onSystemRun is an optional callback for debug performance metrics.
+	// When set, it is called after each system execution with the phase, system name,
+	// start offset from tick start (ns), and execution duration (ns).
+	// When nil, system execution has zero instrumentation overhead.
+	onSystemRun func(phase, name string, startOffsetNs, durationNs int64)
 }
 
 // newSystemScheduler creates a new system scheduler.
@@ -47,7 +54,7 @@ func (s *systemScheduler) register(name string, systemDep bitmap.Bitmap, systemF
 
 // Run executes the systems in the order of their dependencies. It returns an error if any system
 // returns an error. If multiple systems fail, all errors are wrapped in a single error.
-func (s *systemScheduler) Run() {
+func (s *systemScheduler) Run(tickStart time.Time) {
 	// Fast path: no systems in hook.
 	if len(s.systems) == 0 {
 		return
@@ -68,7 +75,15 @@ func (s *systemScheduler) Run() {
 	for range s.systems {
 		systemID := <-executionQueue
 		wg.Go(func() {
-			s.systems[systemID].fn()
+			if s.onSystemRun != nil { // Set by the debug module to collect performance metrics.
+				startOffset := time.Since(tickStart).Nanoseconds()
+				start := time.Now()
+				s.systems[systemID].fn()
+				duration := time.Since(start).Nanoseconds()
+				s.onSystemRun(s.phase, s.systems[systemID].name, startOffset, duration)
+			} else {
+				s.systems[systemID].fn()
+			}
 
 			// Process all systems that depend on this one.
 			for _, dependent := range s.graph[systemID] {

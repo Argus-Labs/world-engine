@@ -2,8 +2,10 @@ syntax = "proto3";
 
 package worldengine.cardinal.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/struct.proto";
 import "worldengine/cardinal/v1/snapshot.proto";
+import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
@@ -29,7 +31,17 @@ service DebugService {
 
   // GetState returns the current world state snapshot.
   rpc GetState(GetStateRequest) returns (GetStateResponse);
+
+  // PerfOverview returns aggregated tick timing statistics over a time window.
+  rpc PerfOverview(PerfOverviewRequest) returns (PerfOverviewResponse);
+
+  // PerfSchedule returns per-system span timelines for recent ticks.
+  rpc PerfSchedule(PerfScheduleRequest) returns (PerfScheduleResponse);
 }
+
+// -------------------------------------------------------------------------------------------------
+// Introspect
+// -------------------------------------------------------------------------------------------------
 
 // IntrospectRequest is the request message for the Introspect RPC.
 message IntrospectRequest {}
@@ -95,4 +107,72 @@ message GetStateResponse {
 
   // The current world state snapshot (includes tick_height).
   Snapshot snapshot = 2;
+}
+
+// -------------------------------------------------------------------------------------------------
+// PerfOverview
+// -------------------------------------------------------------------------------------------------
+
+message PerfOverviewRequest {
+  // Lookback window in seconds. Must be one of: 10, 60, 300.
+  uint32 window_seconds = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).uint32 = {in: [10, 60, 300]}
+  ];
+}
+
+message PerfOverviewResponse {
+  uint32 tick_rate_hz = 1;
+  double tick_budget_ms = 2;
+  uint32 window_seconds = 3;
+  TickSampleStats samples = 4;
+  TickFreshness freshness = 5;
+}
+
+message TickSampleStats {
+  int32 count = 1;
+  double avg_ms = 2;
+  double p95_ms = 3;
+  double max_ms = 4;
+  int32 overrun_count = 5;
+  double overrun_rate = 6;
+}
+
+message TickFreshness {
+  uint64 last_tick_height = 1;
+  google.protobuf.Timestamp last_tick_at = 2;
+  int64 age_ms = 3;
+}
+
+// -------------------------------------------------------------------------------------------------
+// PerfSchedule
+// -------------------------------------------------------------------------------------------------
+
+message PerfScheduleRequest {
+  // Lookback window in seconds. Must be one of: 10, 60.
+  uint32 window_seconds = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).uint32 = {in: [10, 60]}
+  ];
+}
+
+message PerfScheduleResponse {
+  uint32 tick_rate_hz = 1;
+  double tick_budget_ms = 2;
+  uint32 window_seconds = 3;
+  uint64 dropped_spans = 4;
+  repeated TickTimeline ticks = 5;
+}
+
+message TickTimeline {
+  uint64 tick_height = 1;
+  google.protobuf.Timestamp tick_start = 2;
+  repeated SystemSpan spans = 3;
+}
+
+message SystemSpan {
+  string phase = 1;
+  string system = 2;
+  int64 start_offset_ns = 3;
+  int64 duration_ns = 4;
 }

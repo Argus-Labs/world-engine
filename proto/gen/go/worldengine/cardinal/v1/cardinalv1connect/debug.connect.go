@@ -45,6 +45,12 @@ const (
 	DebugServiceResetProcedure = "/worldengine.cardinal.v1.DebugService/Reset"
 	// DebugServiceGetStateProcedure is the fully-qualified name of the DebugService's GetState RPC.
 	DebugServiceGetStateProcedure = "/worldengine.cardinal.v1.DebugService/GetState"
+	// DebugServicePerfOverviewProcedure is the fully-qualified name of the DebugService's PerfOverview
+	// RPC.
+	DebugServicePerfOverviewProcedure = "/worldengine.cardinal.v1.DebugService/PerfOverview"
+	// DebugServicePerfScheduleProcedure is the fully-qualified name of the DebugService's PerfSchedule
+	// RPC.
+	DebugServicePerfScheduleProcedure = "/worldengine.cardinal.v1.DebugService/PerfSchedule"
 )
 
 // DebugServiceClient is a client for the worldengine.cardinal.v1.DebugService service.
@@ -62,6 +68,10 @@ type DebugServiceClient interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
+	// PerfOverview returns aggregated tick timing statistics over a time window.
+	PerfOverview(context.Context, *connect.Request[v1.PerfOverviewRequest]) (*connect.Response[v1.PerfOverviewResponse], error)
+	// PerfSchedule returns per-system span timelines for recent ticks.
+	PerfSchedule(context.Context, *connect.Request[v1.PerfScheduleRequest]) (*connect.Response[v1.PerfScheduleResponse], error)
 }
 
 // NewDebugServiceClient constructs a client for the worldengine.cardinal.v1.DebugService service.
@@ -111,17 +121,31 @@ func NewDebugServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(debugServiceMethods.ByName("GetState")),
 			connect.WithClientOptions(opts...),
 		),
+		perfOverview: connect.NewClient[v1.PerfOverviewRequest, v1.PerfOverviewResponse](
+			httpClient,
+			baseURL+DebugServicePerfOverviewProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("PerfOverview")),
+			connect.WithClientOptions(opts...),
+		),
+		perfSchedule: connect.NewClient[v1.PerfScheduleRequest, v1.PerfScheduleResponse](
+			httpClient,
+			baseURL+DebugServicePerfScheduleProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("PerfSchedule")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // debugServiceClient implements DebugServiceClient.
 type debugServiceClient struct {
-	introspect *connect.Client[v1.IntrospectRequest, v1.IntrospectResponse]
-	pause      *connect.Client[v1.PauseRequest, v1.PauseResponse]
-	resume     *connect.Client[v1.ResumeRequest, v1.ResumeResponse]
-	step       *connect.Client[v1.StepRequest, v1.StepResponse]
-	reset      *connect.Client[v1.ResetRequest, v1.ResetResponse]
-	getState   *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
+	introspect   *connect.Client[v1.IntrospectRequest, v1.IntrospectResponse]
+	pause        *connect.Client[v1.PauseRequest, v1.PauseResponse]
+	resume       *connect.Client[v1.ResumeRequest, v1.ResumeResponse]
+	step         *connect.Client[v1.StepRequest, v1.StepResponse]
+	reset        *connect.Client[v1.ResetRequest, v1.ResetResponse]
+	getState     *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
+	perfOverview *connect.Client[v1.PerfOverviewRequest, v1.PerfOverviewResponse]
+	perfSchedule *connect.Client[v1.PerfScheduleRequest, v1.PerfScheduleResponse]
 }
 
 // Introspect calls worldengine.cardinal.v1.DebugService.Introspect.
@@ -154,6 +178,16 @@ func (c *debugServiceClient) GetState(ctx context.Context, req *connect.Request[
 	return c.getState.CallUnary(ctx, req)
 }
 
+// PerfOverview calls worldengine.cardinal.v1.DebugService.PerfOverview.
+func (c *debugServiceClient) PerfOverview(ctx context.Context, req *connect.Request[v1.PerfOverviewRequest]) (*connect.Response[v1.PerfOverviewResponse], error) {
+	return c.perfOverview.CallUnary(ctx, req)
+}
+
+// PerfSchedule calls worldengine.cardinal.v1.DebugService.PerfSchedule.
+func (c *debugServiceClient) PerfSchedule(ctx context.Context, req *connect.Request[v1.PerfScheduleRequest]) (*connect.Response[v1.PerfScheduleResponse], error) {
+	return c.perfSchedule.CallUnary(ctx, req)
+}
+
 // DebugServiceHandler is an implementation of the worldengine.cardinal.v1.DebugService service.
 type DebugServiceHandler interface {
 	// Introspect returns metadata about the registered types in the world.
@@ -169,6 +203,10 @@ type DebugServiceHandler interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
+	// PerfOverview returns aggregated tick timing statistics over a time window.
+	PerfOverview(context.Context, *connect.Request[v1.PerfOverviewRequest]) (*connect.Response[v1.PerfOverviewResponse], error)
+	// PerfSchedule returns per-system span timelines for recent ticks.
+	PerfSchedule(context.Context, *connect.Request[v1.PerfScheduleRequest]) (*connect.Response[v1.PerfScheduleResponse], error)
 }
 
 // NewDebugServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -214,6 +252,18 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(debugServiceMethods.ByName("GetState")),
 		connect.WithHandlerOptions(opts...),
 	)
+	debugServicePerfOverviewHandler := connect.NewUnaryHandler(
+		DebugServicePerfOverviewProcedure,
+		svc.PerfOverview,
+		connect.WithSchema(debugServiceMethods.ByName("PerfOverview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	debugServicePerfScheduleHandler := connect.NewUnaryHandler(
+		DebugServicePerfScheduleProcedure,
+		svc.PerfSchedule,
+		connect.WithSchema(debugServiceMethods.ByName("PerfSchedule")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/worldengine.cardinal.v1.DebugService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DebugServiceIntrospectProcedure:
@@ -228,6 +278,10 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 			debugServiceResetHandler.ServeHTTP(w, r)
 		case DebugServiceGetStateProcedure:
 			debugServiceGetStateHandler.ServeHTTP(w, r)
+		case DebugServicePerfOverviewProcedure:
+			debugServicePerfOverviewHandler.ServeHTTP(w, r)
+		case DebugServicePerfScheduleProcedure:
+			debugServicePerfScheduleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -259,4 +313,12 @@ func (UnimplementedDebugServiceHandler) Reset(context.Context, *connect.Request[
 
 func (UnimplementedDebugServiceHandler) GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.GetState is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) PerfOverview(context.Context, *connect.Request[v1.PerfOverviewRequest]) (*connect.Response[v1.PerfOverviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.PerfOverview is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) PerfSchedule(context.Context, *connect.Request[v1.PerfScheduleRequest]) (*connect.Response[v1.PerfScheduleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.PerfSchedule is not implemented"))
 }

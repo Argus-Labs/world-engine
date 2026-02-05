@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"testing"
+	"time"
 
 	"github.com/kelindar/bitmap"
 )
@@ -529,8 +530,8 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 
 			w.Init()
 
-			_ = w.Tick()
-			_ = w.Tick()
+			_ = w.Tick(time.Now())
+			_ = w.Tick(time.Now())
 		}
 	})
 
@@ -565,8 +566,8 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 
 			w.Init()
 
-			_ = w.Tick()
-			_ = w.Tick()
+			_ = w.Tick(time.Now())
+			_ = w.Tick(time.Now())
 		}
 	})
 
@@ -617,8 +618,8 @@ func BenchmarkECS2_Iteration_GetSet(b *testing.B) {
 
 			w.Init()
 
-			_ = w.Tick()
-			_ = w.Tick()
+			_ = w.Tick(time.Now())
+			_ = w.Tick(time.Now())
 		}
 	})
 }
