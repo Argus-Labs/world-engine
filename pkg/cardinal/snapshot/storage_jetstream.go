@@ -12,6 +12,7 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -38,7 +39,12 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 		return nil, eris.Wrap(err, "failed to parse env")
 	}
 
-	js, err := jetstream.New(opts.Client.Conn)
+	client, err := micro.NewClient(micro.WithLogger(opts.Logger))
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create micro client")
+	}
+
+	js, err := jetstream.New(client.Conn)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create JetStream client")
 	}
@@ -144,17 +150,14 @@ func (j *JetStreamStorage) Exists() bool {
 // -------------------------------------------------------------------------------------------------
 
 type JetStreamStorageOptions struct {
-	Client  *micro.Client
 	Address *micro.ServiceAddress
+	Logger  zerolog.Logger
 
 	// Maximum bytes for snapshot storage (ObjectStore). Required by some NATS providers like Synadia Cloud.
 	SnapshotStorageMaxBytes uint64 `env:"CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"0"`
 }
 
 func (opt *JetStreamStorageOptions) Validate() error {
-	if opt.Client == nil {
-		return eris.New("NATS client cannot be nil")
-	}
 	if opt.Address == nil {
 		return eris.New("service address cannot be nil")
 	}

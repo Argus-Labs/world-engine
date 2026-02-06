@@ -189,9 +189,10 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 		return eris.Wrapf(err, "failed to register command %s", name)
 	}
 
-	if err := meta.world.registerCommand(zero); err != nil {
-		return eris.Wrapf(err, "failed to register command handler world %s", name)
-	}
+	// Register the command handler with NATS. NOTE: this just adds to the service's command name set,
+	// it doesn't create the NATS subscription/request handler immediately. This method is free of
+	// side effects so we can test without NATS.
+	meta.world.service.registerCommandHandler(name)
 
 	if err := meta.world.debug.register("command", zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
@@ -265,7 +266,7 @@ func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.Payload) {
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(state.world.service.Address),
+			Persona: micro.String(state.world.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},

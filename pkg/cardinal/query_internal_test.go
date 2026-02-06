@@ -1,4 +1,4 @@
-package service
+package cardinal
 
 // import (
 // 	"fmt"
@@ -156,8 +156,8 @@ package service
 //
 // 			pool := sync.Pool{
 // 				New: func() any {
-// 					return &Query{
-// 						Find: make([]string, 0, 8),
+// 					return &query{
+// 						find: make([]string, 0, 8),
 // 					}
 // 				},
 // 			}
@@ -174,9 +174,9 @@ package service
 //
 // 				// Search.
 // 				results, err := world.NewSearch(ecs.SearchParam{
-// 					Find:  query.Find,
-// 					Match: query.Match,
-// 					Where: query.Where,
+// 					Find:  query.find,
+// 					Match: query.match,
+// 					Where: query.where,
 // 				})
 // 				if err != nil {
 // 					b.Fatal("search failed:", err)

@@ -1,12 +1,12 @@
-package service
+package cardinal
 
 import (
 	"context"
 	"sync"
 
+	"buf.build/go/protovalidate"
 	"github.com/goccy/go-json"
 
-	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -15,28 +15,28 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// Query is a struct that represents a query to the world.
+// query is a struct that represents a query to the world.
 // For now it has the same structure as ecs.SearchParam, but we might add more fields in the future
 // so it's better to keep these as separate types.
-type Query struct {
+type query struct {
 	// List of component names to search for.
-	Find []string `json:"find"`
+	find []string
 	// Match type: "exact" or "contains".
-	Match ecs.SearchMatch `json:"match"`
+	match ecs.SearchMatch
 	// Optional expr language string to filter the results.
 	// See https://expr-lang.org/ for documentation.
-	Where string `json:"where,omitempty"`
+	where string
 }
 
-// reset resets the Query object for reuse.
-func (q *Query) reset() {
-	q.Find = q.Find[:0] // Reuse the underlying array
-	q.Match = ""
-	q.Where = ""
+// reset resets the query object for reuse.
+func (q *query) reset() {
+	q.find = q.find[:0] // Reuse the underlying array
+	q.match = ""
+	q.where = ""
 }
 
 // handleQuery creates a new query handler for the world.
-func (s *ShardService) handleQuery(ctx context.Context, req *micro.Request) *micro.Response {
+func (s *service) handleQuery(ctx context.Context, req *micro.Request) *micro.Response {
 	// Check if world is shutting down.
 	select {
 	case <-ctx.Done():
@@ -45,16 +45,16 @@ func (s *ShardService) handleQuery(ctx context.Context, req *micro.Request) *mic
 		// Continue processing.
 	}
 
-	query, err := parseQuery(&s.queryPool, req)
+	q, err := parseQuery(&s.queryPool, req)
 	if err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.Internal)
 	}
-	defer s.queryPool.Put(query)
+	defer s.queryPool.Put(q)
 
-	results, err := s.world.NewSearch(ecs.SearchParam{
-		Find:  query.Find,
-		Match: query.Match,
-		Where: query.Where,
+	results, err := s.world.world.NewSearch(ecs.SearchParam{
+		Find:  q.find,
+		Match: q.match,
+		Where: q.where,
 	})
 	if err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to search entities"), codes.Internal)
@@ -69,7 +69,7 @@ func (s *ShardService) handleQuery(ctx context.Context, req *micro.Request) *mic
 }
 
 // parseQuery parses the query from the payload.
-func parseQuery(pool *sync.Pool, req *micro.Request) (*Query, error) {
+func parseQuery(pool *sync.Pool, req *micro.Request) (*query, error) {
 	var payload iscv1.Query
 	if err := req.Payload.UnmarshalTo(&payload); err != nil {
 		return nil, eris.Wrap(err, "failed to unmarshal payload into query")
@@ -78,15 +78,15 @@ func parseQuery(pool *sync.Pool, req *micro.Request) (*Query, error) {
 		return nil, eris.Wrap(err, "failed to validate query")
 	}
 
-	query := pool.Get().(*Query) //nolint:errcheck // we know the type
-	query.reset()
+	q := pool.Get().(*query) //nolint:errcheck // we know the type
+	q.reset()
 
 	// Set query fields from the iscv1 query.
-	query.Find = payload.GetFind()
-	query.Match = ecs.SearchMatch(iscv1MatchToString(payload.GetMatch()))
-	query.Where = payload.GetWhere()
+	q.find = payload.GetFind()
+	q.match = ecs.SearchMatch(iscv1MatchToString(payload.GetMatch()))
+	q.where = payload.GetWhere()
 
-	return query, nil
+	return q, nil
 }
 
 // serializeQueryResults serializes the results into a protobuf message.
