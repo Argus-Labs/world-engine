@@ -64,7 +64,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	world := &World{
 		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
-		events:   event.NewManager(),
+		events:   event.NewManager(1024), // Default event channel capacity
 		address: micro.GetAddress(
 			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
 		currentTick: Tick{height: 0}, // timestamp will be set by cardinal.Tick

@@ -30,10 +30,6 @@ const (
 // Handler is a function called to handle emitted events.
 type Handler func(Event) error
 
-// TODO: figure out whether to make this configurable.
-// defaultEventChannelCapacity is the default size of the event channel.
-const defaultEventChannelCapacity = 1024
-
 // initialCommandBufferCapacity is the starting capacity of command buffers.
 const initialEventBufferCapacity = 128
 
@@ -46,11 +42,11 @@ type Manager struct {
 	mu       sync.Mutex // Mutex for buffer access during flush
 }
 
-// NewManager creates a new event manager.
-func NewManager() Manager {
+// NewManager creates a new event manager with the specified channel capacity.
+func NewManager(channelCapacity int) Manager {
 	return Manager{
 		handlers: make([]Handler, math.MaxUint8+1),
-		channel:  make(chan Event, defaultEventChannelCapacity),
+		channel:  make(chan Event, channelCapacity),
 		buffer:   make([]Event, 0, initialEventBufferCapacity),
 	}
 }
