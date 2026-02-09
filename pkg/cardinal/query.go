@@ -16,7 +16,7 @@ import (
 // query is a struct that represents a query to the world.
 // For now it has the same structure as ecs.SearchParam, but we might add more fields in the future
 // so it's better to keep these as separate types.
-type Query struct {
+type query struct {
 	// List of component names to search for. Must be empty when Match is MatchAll.
 	Find []string `json:"find"`
 	// Match type: "exact", "contains", or "all".
@@ -31,7 +31,7 @@ type Query struct {
 }
 
 // reset resets the Query object for reuse.
-func (q *Query) reset() {
+func (q *query) reset() {
 	q.Find = q.Find[:0] // Reuse the underlying array
 	q.Match = ""
 	q.Where = ""
@@ -55,12 +55,12 @@ func (s *service) handleQuery(ctx context.Context, req *micro.Request) *micro.Re
 	}
 	defer s.queryPool.Put(q)
 
-	results, err := s.world.NewSearch(ecs.SearchParam{
-		Find:   query.Find,
-		Match:  query.Match,
-		Where:  query.Where,
-		Limit:  query.Limit,
-		Offset: query.Offset,
+	results, err := s.world.world.NewSearch(ecs.SearchParam{
+		Find:   q.Find,
+		Match:  q.Match,
+		Where:  q.Where,
+		Limit:  q.Limit,
+		Offset: q.Offset,
 	})
 	if err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to search entities"), codes.Internal)
@@ -88,16 +88,16 @@ func parseQuery(pool *sync.Pool, req *micro.Request) (*query, error) {
 	q.reset()
 
 	// Set query fields from the iscv1 query.
-	q.find = payload.GetFind()
-	q.match = ecs.SearchMatch(iscv1MatchToString(payload.GetMatch()))
-	q.where = payload.GetWhere()
+	q.Find = payload.GetFind()
+	q.Match = ecs.SearchMatch(iscv1MatchToString(payload.GetMatch()))
+	q.Where = payload.GetWhere()
 
 	// Parse Limit and Offset
 	// In proto3, unset uint32 fields return 0, which means unlimited for limit
-	query.Limit = payload.GetLimit()
-	query.Offset = payload.GetOffset()
+	q.Limit = payload.GetLimit()
+	q.Offset = payload.GetOffset()
 
-	return query, nil
+	return q, nil
 }
 
 // serializeQueryResults serializes the results into a protobuf message.

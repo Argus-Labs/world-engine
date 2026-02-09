@@ -35,7 +35,7 @@ func newService(world *World) *service {
 			New: func() any {
 				return &query{
 					// Pre-allocate space for 8 components which should cover most cases.
-					find: make([]string, 0, 8),
+					Find: make([]string, 0, 8),
 				}
 			},
 		},
