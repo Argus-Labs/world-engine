@@ -29,6 +29,7 @@ type Snapshot struct {
 	TickHeight    uint64                 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	WorldState    *WorldState            `protobuf:"bytes,3,opt,name=world_state,json=worldState,proto3" json:"world_state,omitempty"`
+	Version       uint32                 `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -82,6 +83,13 @@ func (x *Snapshot) GetWorldState() *WorldState {
 		return x.WorldState
 	}
 	return nil
+}
+
+func (x *Snapshot) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
 }
 
 // WorldState represents the ECS world state.
@@ -297,13 +305,14 @@ var File_worldengine_cardinal_v1_snapshot_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\n" +
-	"&worldengine/cardinal/v1/snapshot.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
+	"&worldengine/cardinal/v1/snapshot.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x01\n" +
 	"\bSnapshot\x12\x1f\n" +
 	"\vtick_height\x18\x01 \x01(\x04R\n" +
 	"tickHeight\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12D\n" +
 	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateR\n" +
-	"worldState\"\xa5\x01\n" +
+	"worldState\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\rR\aversion\"\xa5\x01\n" +
 	"\n" +
 	"WorldState\x12\x17\n" +
 	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12\x19\n" +

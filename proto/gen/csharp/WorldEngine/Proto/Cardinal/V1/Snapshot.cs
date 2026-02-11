@@ -26,28 +26,28 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           string.Concat(
             "CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29y",
             "bGRlbmdpbmUuY2FyZGluYWwudjEaG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5w",
-            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byKrAQoIU25h",
+            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byLFAQoIU25h",
             "cHNob3QSHwoLdGlja19oZWlnaHQYASABKARSCnRpY2tIZWlnaHQSOAoJdGlt",
             "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
             "ZXN0YW1wEkQKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
-            "ZGluYWwudjEuV29ybGRTdGF0ZVIKd29ybGRTdGF0ZSKlAQoKV29ybGRTdGF0",
-            "ZRIXCgduZXh0X2lkGAEgASgNUgZuZXh0SWQSGQoIZnJlZV9pZHMYAiADKA1S",
-            "B2ZyZWVJZHMSHwoLZW50aXR5X2FyY2gYAyADKANSCmVudGl0eUFyY2gSQgoK",
-            "YXJjaGV0eXBlcxgEIAMoCzIiLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkFy",
-            "Y2hldHlwZVIKYXJjaGV0eXBlcyKzAQoJQXJjaGV0eXBlEg4KAmlkGAEgASgF",
-            "UgJpZBIrChFjb21wb25lbnRzX2JpdG1hcBgCIAEoDFIQY29tcG9uZW50c0Jp",
-            "dG1hcBISCgRyb3dzGAMgAygDUgRyb3dzEhoKCGVudGl0aWVzGAQgAygNUghl",
-            "bnRpdGllcxI5Cgdjb2x1bW5zGAUgAygLMh8ud29ybGRlbmdpbmUuY2FyZGlu",
-            "YWwudjEuQ29sdW1uUgdjb2x1bW5zIlgKBkNvbHVtbhIuCg5jb21wb25lbnRf",
-            "bmFtZRgBIAEoCUIHukgEcgIQAVINY29tcG9uZW50TmFtZRIeCgpjb21wb25l",
-            "bnRzGAIgAygMUgpjb21wb25lbnRzQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFi",
-            "cy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRp",
-            "bmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5h",
-            "bC5WMWIGcHJvdG8z"));
+            "ZGluYWwudjEuV29ybGRTdGF0ZVIKd29ybGRTdGF0ZRIYCgd2ZXJzaW9uGAQg",
+            "ASgNUgd2ZXJzaW9uIqUBCgpXb3JsZFN0YXRlEhcKB25leHRfaWQYASABKA1S",
+            "Bm5leHRJZBIZCghmcmVlX2lkcxgCIAMoDVIHZnJlZUlkcxIfCgtlbnRpdHlf",
+            "YXJjaBgDIAMoA1IKZW50aXR5QXJjaBJCCgphcmNoZXR5cGVzGAQgAygLMiIu",
+            "d29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJjaGV0eXBlUgphcmNoZXR5cGVz",
+            "IrMBCglBcmNoZXR5cGUSDgoCaWQYASABKAVSAmlkEisKEWNvbXBvbmVudHNf",
+            "Yml0bWFwGAIgASgMUhBjb21wb25lbnRzQml0bWFwEhIKBHJvd3MYAyADKANS",
+            "BHJvd3MSGgoIZW50aXRpZXMYBCADKA1SCGVudGl0aWVzEjkKB2NvbHVtbnMY",
+            "BSADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW5SB2NvbHVt",
+            "bnMiWAoGQ29sdW1uEi4KDmNvbXBvbmVudF9uYW1lGAEgASgJQge6SARyAhAB",
+            "Ug1jb21wb25lbnROYW1lEh4KCmNvbXBvbmVudHMYAiADKAxSCmNvbXBvbmVu",
+            "dHNCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90",
+            "by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoC",
+            "HVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Rows", "Entities", "Columns" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Column), global::WorldEngine.Proto.Cardinal.V1.Column.Parser, new[]{ "ComponentName", "Components" }, null, null, null, null)
@@ -98,6 +98,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       tickHeight_ = other.tickHeight_;
       timestamp_ = other.timestamp_ != null ? other.timestamp_.Clone() : null;
       worldState_ = other.worldState_ != null ? other.worldState_.Clone() : null;
+      version_ = other.version_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -143,6 +144,18 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
+    /// <summary>Field number for the "version" field.</summary>
+    public const int VersionFieldNumber = 4;
+    private uint version_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Version {
+      get { return version_; }
+      set {
+        version_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -161,6 +174,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (TickHeight != other.TickHeight) return false;
       if (!object.Equals(Timestamp, other.Timestamp)) return false;
       if (!object.Equals(WorldState, other.WorldState)) return false;
+      if (Version != other.Version) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -171,6 +185,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (TickHeight != 0UL) hash ^= TickHeight.GetHashCode();
       if (timestamp_ != null) hash ^= Timestamp.GetHashCode();
       if (worldState_ != null) hash ^= WorldState.GetHashCode();
+      if (Version != 0) hash ^= Version.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -201,6 +216,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(26);
         output.WriteMessage(WorldState);
       }
+      if (Version != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Version);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -223,6 +242,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(26);
         output.WriteMessage(WorldState);
       }
+      if (Version != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Version);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -241,6 +264,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (worldState_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(WorldState);
+      }
+      if (Version != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Version);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -268,6 +294,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
         }
         WorldState.MergeFrom(other.WorldState);
+      }
+      if (other.Version != 0) {
+        Version = other.Version;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -306,6 +335,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             input.ReadMessage(WorldState);
             break;
           }
+          case 32: {
+            Version = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -341,6 +374,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
               WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
             }
             input.ReadMessage(WorldState);
+            break;
+          }
+          case 32: {
+            Version = input.ReadUInt32();
             break;
           }
         }

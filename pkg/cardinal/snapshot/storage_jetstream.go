@@ -80,7 +80,7 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 	return &JetStreamStorage{os: os}, nil
 }
 
-func (j *JetStreamStorage) Store(snapshot *Snapshot) error {
+func (j *JetStreamStorage) Store(ctx context.Context, snapshot *Snapshot) error {
 	var worldState cardinalv1.WorldState
 	if err := proto.Unmarshal(snapshot.Data, &worldState); err != nil {
 		return eris.Wrap(err, "failed to unmarshal world state")
@@ -89,6 +89,7 @@ func (j *JetStreamStorage) Store(snapshot *Snapshot) error {
 		TickHeight: snapshot.TickHeight,
 		Timestamp:  timestamppb.New(snapshot.Timestamp),
 		WorldState: &worldState,
+		Version:    snapshot.Version,
 	}
 	data, err := proto.Marshal(snapshotPb)
 	if err != nil {
@@ -96,18 +97,18 @@ func (j *JetStreamStorage) Store(snapshot *Snapshot) error {
 	}
 
 	// Overwrite the existing snapshot if any.
-	if _, err = j.os.PutBytes(context.Background(), defaultObjectName, data); err != nil {
+	if _, err = j.os.PutBytes(ctx, defaultObjectName, data); err != nil {
 		return eris.Wrap(err, "failed to store snapshot in ObjectStore")
 	}
 
 	return nil
 }
 
-func (j *JetStreamStorage) Load() (*Snapshot, error) {
-	object, err := j.os.Get(context.Background(), defaultObjectName)
+func (j *JetStreamStorage) Load(ctx context.Context) (*Snapshot, error) {
+	object, err := j.os.Get(ctx, defaultObjectName)
 	if err != nil {
 		if eris.Is(err, jetstream.ErrObjectNotFound) {
-			return nil, eris.New("no snapshot exists")
+			return nil, eris.Wrap(ErrSnapshotNotFound, "no snapshot exists")
 		}
 		return nil, eris.Wrap(err, "failed to get snapshot from ObjectStore")
 	}
@@ -137,12 +138,8 @@ func (j *JetStreamStorage) Load() (*Snapshot, error) {
 		TickHeight: snapshotPb.GetTickHeight(),
 		Timestamp:  snapshotPb.GetTimestamp().AsTime(),
 		Data:       worldStateBytes,
+		Version:    snapshotPb.GetVersion(),
 	}, nil
-}
-
-func (j *JetStreamStorage) Exists() bool {
-	_, err := j.os.GetInfo(context.Background(), defaultObjectName)
-	return err == nil
 }
 
 // -------------------------------------------------------------------------------------------------

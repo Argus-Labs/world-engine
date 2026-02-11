@@ -141,7 +141,7 @@ func (w *World) run(ctx context.Context) error {
 	// Initialize world schedulers.
 	w.world.Init()
 
-	if err := w.restore(); err != nil {
+	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
 
@@ -155,7 +155,7 @@ func (w *World) run(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			if err := w.Tick(time.Now()); err != nil {
+			if err := w.Tick(ctx, time.Now()); err != nil {
 				return eris.Wrap(err, "failed to run tick")
 			}
 		case <-ctx.Done():
@@ -164,7 +164,7 @@ func (w *World) run(ctx context.Context) error {
 	}
 }
 
-func (w *World) Tick(timestamp time.Time) error {
+func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
 	// TODO: commands returned to be used for debug epoch log.
 	_ = w.commands.Drain()
 
@@ -181,22 +181,11 @@ func (w *World) Tick(timestamp time.Time) error {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
-	data, err := w.world.Serialize()
-	if err != nil {
-		return eris.Wrap(err, "failed to serialize world")
-	}
-
 	// Publish snapshot.
 	if w.currentTick.height%uint64(w.options.SnapshotRate) == 0 {
-		snapshot := &snapshot.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamp,
-			Data:       data,
-		}
-		if err := w.snapshotStorage.Store(snapshot); err != nil {
-			return eris.Wrap(err, "failed to published snapshot")
-		}
-		w.tel.Logger.Info().Msg("published snapshot")
+		snapshotCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		w.snapshot(snapshotCtx, timestamp)
+		cancel()
 	}
 
 	// Increment tick height.
@@ -205,29 +194,51 @@ func (w *World) Tick(timestamp time.Time) error {
 	return nil
 }
 
-func (w *World) restore() error {
+func (w *World) restore(ctx context.Context) error {
 	logger := w.tel.GetLogger("snapshot")
 
-	if !w.snapshotStorage.Exists() {
-		logger.Debug().Msg("no snapshot found")
-		return nil
-	}
-
 	logger.Debug().Msg("restoring from snapshot")
-	snapshot, err := w.snapshotStorage.Load()
+	snap, err := w.snapshotStorage.Load(ctx)
 	if err != nil {
+		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
+			logger.Debug().Msg("no snapshot found")
+			return nil
+		}
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
 	// Attempt to restore ECS world from snapshot.
-	if err := w.world.Deserialize(snapshot.Data); err != nil {
+	if err := w.world.Deserialize(snap.Data); err != nil {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
 	// Only update shard state after successful restoration and validation.
-	w.currentTick.height = snapshot.TickHeight + 1
+	w.currentTick.height = snap.TickHeight + 1
 
 	return nil
+}
+
+// snapshot persists the world state as a best-effort operation. Snapshots are best effort only, and
+// we just log errors instead of returning it, which would cause the world to stop and restart,
+// effectively losing unsaved state. If a snapshot fails, the main loop still continues and we retry
+// in the next snapshot call.
+func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
+	data, err := w.world.Serialize()
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for snapshot")
+		return
+	}
+	snap := &snapshot.Snapshot{
+		TickHeight: w.currentTick.height,
+		Timestamp:  timestamp,
+		Data:       data,
+		Version:    snapshot.CurrentVersion,
+	}
+	if err := w.snapshotStorage.Store(ctx, snap); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to store snapshot")
+		return
+	}
+	w.tel.Logger.Info().Msg("published snapshot")
 }
 
 // shutdown performs graceful cleanup of world resources, such as closing services
@@ -238,6 +249,10 @@ func (w *World) shutdown() {
 	defer cancel()
 
 	w.tel.Logger.Info().Msg("Shutting down world")
+
+	snapshotCtx, snapshotCancel := context.WithTimeout(ctx, 2*time.Second)
+	w.snapshot(snapshotCtx, time.Now())
+	snapshotCancel()
 
 	// Shutdown debug server.
 	if err := w.debug.Shutdown(ctx); err != nil {

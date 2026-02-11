@@ -1,6 +1,10 @@
 package snapshot
 
-import "github.com/rotisserie/eris"
+import (
+	"context"
+
+	"github.com/rotisserie/eris"
+)
 
 // NopStorage is a no-op implementation of SnapshotStorage.
 // It's used when snapshots are not needed (e.g., development, testing).
@@ -13,14 +17,10 @@ func NewNopStorage() *NopStorage {
 	return &NopStorage{}
 }
 
-func (n *NopStorage) Store(_ *Snapshot) error {
+func (n *NopStorage) Store(_ context.Context, _ *Snapshot) error {
 	return nil
 }
 
-func (n *NopStorage) Load() (*Snapshot, error) {
-	return nil, eris.New("no snapshots available (using no-op storage)")
-}
-
-func (n *NopStorage) Exists() bool {
-	return false
+func (n *NopStorage) Load(_ context.Context) (*Snapshot, error) {
+	return nil, eris.Wrap(ErrSnapshotNotFound, "no snapshots available (using no-op storage)")
 }

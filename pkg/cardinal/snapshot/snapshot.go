@@ -1,6 +1,8 @@
 package snapshot
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -13,21 +15,23 @@ type Snapshot struct {
 	TickHeight uint64
 	Timestamp  time.Time
 	Data       []byte
+	Version    uint32
 }
+
+const CurrentVersion uint32 = 1
+
+var ErrSnapshotNotFound = errors.New("snapshot not found")
 
 // Storage provides persistence for shard snapshots.
 // Implementations handle atomic storage with automatic backup of previous snapshots.
 type Storage interface {
 	// Store saves the snapshot, atomically replacing any existing snapshot.
 	// The previous snapshot should be preserved as backup if possible.
-	Store(snapshot *Snapshot) error
+	Store(ctx context.Context, snapshot *Snapshot) error
 
 	// Load retrieves the current snapshot.
 	// Returns an error if no snapshot exists.
-	Load() (*Snapshot, error)
-
-	// Exists checks if a current snapshot is available.
-	Exists() bool
+	Load(ctx context.Context) (*Snapshot, error)
 }
 
 // StorageType defines the type of snapshot storage to use.
