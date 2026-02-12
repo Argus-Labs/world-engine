@@ -531,3 +531,17 @@ func (r *Ref[T]) Set(component T) {
 	err := Set(r.ws, r.entity, component)
 	assert.That(err == nil, "entity doesn't exist") // Shouldn't happen
 }
+
+// Remove removes the component from this Ref's entity.
+//
+// This is the recommended system-friendly alternative to ecs.Remove() for removing components within systems.
+//
+// Example:
+//
+//	for _, player := range state.Players.Iter() {
+//	    player.Shield.Remove()
+//	}
+func (r *Ref[T]) Remove() {
+	err := Remove[T](r.ws, r.entity)
+	assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
+}

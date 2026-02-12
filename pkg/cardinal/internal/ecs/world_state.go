@@ -259,8 +259,10 @@ func removeComponent[T Component](ws *worldState, eid EntityID) error {
 // registerComponent registers a component type with the world state.
 func registerComponent[T Component](w *World) (componentID, error) {
 	var zero T
-	if err := w.onComponentRegister(zero); err != nil {
-		return 0, eris.Wrap(err, "component registered callback failed")
+	if w.onComponentRegister != nil {
+		if err := w.onComponentRegister(zero); err != nil {
+			return 0, eris.Wrap(err, "component registered callback failed")
+		}
 	}
 	return w.state.components.register(zero.Name(), newColumnFactory[T]())
 }
