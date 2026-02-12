@@ -88,14 +88,14 @@ func TestSearch_Smoke(t *testing.T) {
 
 		// Wrong archetype.
 		_, err = fixture.Movers.GetByID(singleID)
-		assert.ErrorIs(t, err, ErrArchetypeMismatch)
+		require.ErrorIs(t, err, ErrArchetypeMismatch)
 
 		_, err = fixture.Singles.GetByID(moverID)
-		assert.ErrorIs(t, err, ErrArchetypeMismatch)
+		require.ErrorIs(t, err, ErrArchetypeMismatch)
 
 		// Nonexistent entity.
 		_, err = fixture.Movers.GetByID(999)
-		assert.ErrorIs(t, err, ErrEntityNotFound)
+		require.ErrorIs(t, err, ErrEntityNotFound)
 	})
 
 	t.Run("get set remove", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestSearch_Smoke(t *testing.T) {
 		// Remove changes the archetype, so the entity no longer matches Movers.
 		mover.A.Remove()
 		_, err := fixture.Movers.GetByID(eid)
-		assert.ErrorIs(t, err, ErrArchetypeMismatch)
+		require.ErrorIs(t, err, ErrArchetypeMismatch)
 	})
 
 	t.Run("destroy", func(t *testing.T) {

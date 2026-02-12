@@ -180,7 +180,7 @@ func TestWithEvent_Smoke(t *testing.T) {
 		err := fixture.world.events.Dispatch()
 		require.NoError(t, err)
 
-		assert.Len(t, collected, 0)
+		assert.Empty(t, collected)
 	})
 }
 
