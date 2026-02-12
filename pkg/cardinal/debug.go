@@ -12,31 +12,12 @@ import (
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 )
-
-// tickControl manages pause/resume/step/reset signaling for the tick loop.
-type tickControl struct {
-	pauseCh   chan chan uint64 // Request pause, receives tick height when paused
-	resumeCh  chan struct{}    // Signal to resume
-	stepCh    chan chan uint64 // Request step, receives tick height after step
-	resetCh   chan chan error  // Request reset, receives error result
-	isPaused  atomic.Bool      // Current pause state
-	stepReady chan struct{}    // Signals that step result is ready to be read
-}
-
-func newTickControl() *tickControl {
-	return &tickControl{
-		pauseCh:   make(chan chan uint64),
-		resumeCh:  make(chan struct{}),
-		stepCh:    make(chan chan uint64),
-		resetCh:   make(chan chan error),
-		stepReady: make(chan struct{}),
-	}
-}
 
 // TODO: add tick log here.
 type debugModule struct {
@@ -48,6 +29,8 @@ type debugModule struct {
 	events     map[string]*structpb.Struct
 	components map[string]*structpb.Struct
 }
+
+var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
 
 func newDebugModule(world *World) debugModule {
 	return debugModule{
@@ -62,6 +45,42 @@ func newDebugModule(world *World) debugModule {
 		},
 	}
 }
+
+// Init initializes and starts the connect server for the debug service.
+func (d *debugModule) Init(addr string) {
+	if d == nil {
+		return
+	}
+
+	logger := d.world.tel.GetLogger("debug")
+
+	mux := http.NewServeMux()
+	mux.Handle(cardinalv1connect.NewDebugServiceHandler(d, connect.WithInterceptors(validate.NewInterceptor())))
+
+	d.server = &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	logger.Info().Str("addr", addr).Msg("Debug service initialized")
+
+	go func() {
+		_ = d.server.ListenAndServe()
+	}()
+}
+
+// Shutdown gracefully shuts down the debug server.
+func (d *debugModule) Shutdown(ctx context.Context) error {
+	if d == nil || d.server == nil {
+		return nil
+	}
+	return d.server.Shutdown(ctx)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Introspect
+// -------------------------------------------------------------------------------------------------
 
 func (d *debugModule) register(kind string, value schema.Serializable) error {
 	if d == nil {
@@ -110,40 +129,6 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	return nil
 }
 
-// Init initializes and starts the connect server for the debug service.
-func (d *debugModule) Init(addr string) {
-	if d == nil {
-		return
-	}
-
-	logger := d.world.tel.GetLogger("debug")
-
-	mux := http.NewServeMux()
-	mux.Handle(cardinalv1connect.NewDebugServiceHandler(d, connect.WithInterceptors(validate.NewInterceptor())))
-
-	d.server = &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	logger.Info().Str("addr", addr).Msg("Debug service initialized")
-
-	go func() {
-		_ = d.server.ListenAndServe()
-	}()
-}
-
-// Shutdown gracefully shuts down the debug server.
-func (d *debugModule) Shutdown(ctx context.Context) error {
-	if d == nil || d.server == nil {
-		return nil
-	}
-	return d.server.Shutdown(ctx)
-}
-
-var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
-
 // Introspect returns metadata about the registered types in the world.
 func (d *debugModule) Introspect(
 	_ context.Context,
@@ -166,6 +151,30 @@ func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*car
 		})
 	}
 	return schemas
+}
+
+// -------------------------------------------------------------------------------------------------
+// Debugger
+// -------------------------------------------------------------------------------------------------
+
+// tickControl manages pause/resume/step/reset signaling for the tick loop.
+type tickControl struct {
+	pauseCh   chan chan uint64   // Request pause, receives tick height when paused
+	resumeCh  chan struct{}      // Signal to resume
+	stepCh    chan chan uint64   // Request step, receives tick height after step
+	resetCh   chan chan struct{} // Request reset
+	isPaused  atomic.Bool        // Current pause state
+	stepReady chan struct{}      // Signals that step result is ready to be read
+}
+
+func newTickControl() *tickControl {
+	return &tickControl{
+		pauseCh:   make(chan chan uint64),
+		resumeCh:  make(chan struct{}),
+		stepCh:    make(chan chan uint64),
+		resetCh:   make(chan chan struct{}),
+		stepReady: make(chan struct{}),
+	}
 }
 
 // Pause stops tick execution and returns the current tick height.
@@ -227,11 +236,9 @@ func (d *debugModule) Reset(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world must be paused to reset"))
 	}
 
-	replyCh := make(chan error, 1)
+	replyCh := make(chan struct{}, 1)
 	d.control.resetCh <- replyCh
-	if err := <-replyCh; err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
+	<-replyCh
 
 	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 }
@@ -241,14 +248,17 @@ func (d *debugModule) GetState(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.GetStateRequest],
 ) (*connect.Response[cardinalv1.GetStateResponse], error) {
-	snapshot, err := d.world.world.SerializeToProto()
+	worldState, err := d.world.world.ToProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to serialize world state"))
 	}
 
 	return connect.NewResponse(&cardinalv1.GetStateResponse{
-		TickHeight: d.world.currentTick.height,
-		IsPaused:   d.control.isPaused.Load(),
-		Snapshot:   snapshot,
+		IsPaused: d.control.isPaused.Load(),
+		Snapshot: &cardinalv1.Snapshot{
+			TickHeight: d.world.currentTick.height,
+			Timestamp:  timestamppb.New(d.world.currentTick.timestamp),
+			WorldState: worldState,
+		},
 	}), nil
 }

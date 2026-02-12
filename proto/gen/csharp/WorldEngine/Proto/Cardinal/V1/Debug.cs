@@ -38,26 +38,25 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             "X2hlaWdodBgBIAEoBFIKdGlja0hlaWdodCIPCg1SZXN1bWVSZXF1ZXN0IhAK",
             "DlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0Ii8KDFN0ZXBSZXNwb25z",
             "ZRIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlja0hlaWdodCIOCgxSZXNldFJl",
-            "cXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QilwEK",
-            "EEdldFN0YXRlUmVzcG9uc2USHwoLdGlja19oZWlnaHQYASABKARSCnRpY2tI",
-            "ZWlnaHQSGwoJaXNfcGF1c2VkGAIgASgIUghpc1BhdXNlZBJFCghzbmFwc2hv",
-            "dBgDIAEoCzIpLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNhcmRpbmFsU25h",
-            "cHNob3RSCHNuYXBzaG90MrYECgxEZWJ1Z1NlcnZpY2USZQoKSW50cm9zcGVj",
-            "dBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXF1ZXN0",
-            "Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlc3BvbnNl",
-            "ElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXF1",
-            "ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXNwb25zZRJZ",
-            "CgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXF1",
-            "ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVzcG9uc2US",
-            "UwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXF1ZXN0",
-            "GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlc3BvbnNlElYKBVJl",
-            "c2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXF1ZXN0GiYu",
-            "d29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXNwb25zZRJfCghHZXRT",
-            "dGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVxdWVz",
-            "dBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVzcG9uc2VC",
-            "dFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9n",
-            "ZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdv",
-            "cmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
+            "cXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QibgoQ",
+            "R2V0U3RhdGVSZXNwb25zZRIbCglpc19wYXVzZWQYASABKAhSCGlzUGF1c2Vk",
+            "Ej0KCHNuYXBzaG90GAIgASgLMiEud29ybGRlbmdpbmUuY2FyZGluYWwudjEu",
+            "U25hcHNob3RSCHNuYXBzaG90MrYECgxEZWJ1Z1NlcnZpY2USZQoKSW50cm9z",
+            "cGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXF1",
+            "ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlc3Bv",
+            "bnNlElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VS",
+            "ZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXNwb25z",
+            "ZRJZCgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVS",
+            "ZXF1ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVzcG9u",
+            "c2USUwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXF1",
+            "ZXN0GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlc3BvbnNlElYK",
+            "BVJlc2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXF1ZXN0",
+            "GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXNwb25zZRJfCghH",
+            "ZXRTdGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVx",
+            "dWVzdBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVzcG9u",
+            "c2VCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90",
+            "by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoC",
+            "HVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -73,7 +72,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ResetRequest), global::WorldEngine.Proto.Cardinal.V1.ResetRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ResetResponse), global::WorldEngine.Proto.Cardinal.V1.ResetResponse.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest), global::WorldEngine.Proto.Cardinal.V1.GetStateRequest.Parser, null, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.GetStateResponse), global::WorldEngine.Proto.Cardinal.V1.GetStateResponse.Parser, new[]{ "TickHeight", "IsPaused", "Snapshot" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.GetStateResponse), global::WorldEngine.Proto.Cardinal.V1.GetStateResponse.Parser, new[]{ "IsPaused", "Snapshot" }, null, null, null, null)
           }));
     }
     #endregion
@@ -2342,7 +2341,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public GetStateResponse(GetStateResponse other) : this() {
-      tickHeight_ = other.tickHeight_;
       isPaused_ = other.isPaused_;
       snapshot_ = other.snapshot_ != null ? other.snapshot_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -2354,23 +2352,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       return new GetStateResponse(this);
     }
 
-    /// <summary>Field number for the "tick_height" field.</summary>
-    public const int TickHeightFieldNumber = 1;
-    private ulong tickHeight_;
-    /// <summary>
-    /// The current tick height.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong TickHeight {
-      get { return tickHeight_; }
-      set {
-        tickHeight_ = value;
-      }
-    }
-
     /// <summary>Field number for the "is_paused" field.</summary>
-    public const int IsPausedFieldNumber = 2;
+    public const int IsPausedFieldNumber = 1;
     private bool isPaused_;
     /// <summary>
     /// Whether the world is currently paused.
@@ -2385,14 +2368,14 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     }
 
     /// <summary>Field number for the "snapshot" field.</summary>
-    public const int SnapshotFieldNumber = 3;
-    private global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot snapshot_;
+    public const int SnapshotFieldNumber = 2;
+    private global::WorldEngine.Proto.Cardinal.V1.Snapshot snapshot_;
     /// <summary>
-    /// The current world state snapshot.
+    /// The current world state snapshot (includes tick_height).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot Snapshot {
+    public global::WorldEngine.Proto.Cardinal.V1.Snapshot Snapshot {
       get { return snapshot_; }
       set {
         snapshot_ = value;
@@ -2414,7 +2397,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (TickHeight != other.TickHeight) return false;
       if (IsPaused != other.IsPaused) return false;
       if (!object.Equals(Snapshot, other.Snapshot)) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -2424,7 +2406,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (TickHeight != 0UL) hash ^= TickHeight.GetHashCode();
       if (IsPaused != false) hash ^= IsPaused.GetHashCode();
       if (snapshot_ != null) hash ^= Snapshot.GetHashCode();
       if (_unknownFields != null) {
@@ -2445,16 +2426,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (TickHeight != 0UL) {
-        output.WriteRawTag(8);
-        output.WriteUInt64(TickHeight);
-      }
       if (IsPaused != false) {
-        output.WriteRawTag(16);
+        output.WriteRawTag(8);
         output.WriteBool(IsPaused);
       }
       if (snapshot_ != null) {
-        output.WriteRawTag(26);
+        output.WriteRawTag(18);
         output.WriteMessage(Snapshot);
       }
       if (_unknownFields != null) {
@@ -2467,16 +2444,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (TickHeight != 0UL) {
-        output.WriteRawTag(8);
-        output.WriteUInt64(TickHeight);
-      }
       if (IsPaused != false) {
-        output.WriteRawTag(16);
+        output.WriteRawTag(8);
         output.WriteBool(IsPaused);
       }
       if (snapshot_ != null) {
-        output.WriteRawTag(26);
+        output.WriteRawTag(18);
         output.WriteMessage(Snapshot);
       }
       if (_unknownFields != null) {
@@ -2489,9 +2462,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (TickHeight != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(TickHeight);
-      }
       if (IsPaused != false) {
         size += 1 + 1;
       }
@@ -2510,15 +2480,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (other == null) {
         return;
       }
-      if (other.TickHeight != 0UL) {
-        TickHeight = other.TickHeight;
-      }
       if (other.IsPaused != false) {
         IsPaused = other.IsPaused;
       }
       if (other.snapshot_ != null) {
         if (snapshot_ == null) {
-          Snapshot = new global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot();
+          Snapshot = new global::WorldEngine.Proto.Cardinal.V1.Snapshot();
         }
         Snapshot.MergeFrom(other.Snapshot);
       }
@@ -2542,16 +2509,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
           case 8: {
-            TickHeight = input.ReadUInt64();
-            break;
-          }
-          case 16: {
             IsPaused = input.ReadBool();
             break;
           }
-          case 26: {
+          case 18: {
             if (snapshot_ == null) {
-              Snapshot = new global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot();
+              Snapshot = new global::WorldEngine.Proto.Cardinal.V1.Snapshot();
             }
             input.ReadMessage(Snapshot);
             break;
@@ -2576,16 +2539,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
           case 8: {
-            TickHeight = input.ReadUInt64();
-            break;
-          }
-          case 16: {
             IsPaused = input.ReadBool();
             break;
           }
-          case 26: {
+          case 18: {
             if (snapshot_ == null) {
-              Snapshot = new global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot();
+              Snapshot = new global::WorldEngine.Proto.Cardinal.V1.Snapshot();
             }
             input.ReadMessage(Snapshot);
             break;

@@ -90,12 +90,9 @@ message GetStateRequest {}
 
 // GetStateResponse is the response message for the GetState RPC.
 message GetStateResponse {
-  // The current tick height.
-  uint64 tick_height = 1;
-
   // Whether the world is currently paused.
-  bool is_paused = 2;
+  bool is_paused = 1;
 
-  // The current world state snapshot.
-  CardinalSnapshot snapshot = 3;
+  // The current world state snapshot (includes tick_height).
+  Snapshot snapshot = 2;
 }

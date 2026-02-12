@@ -54,9 +54,10 @@ func (ws *worldState) reset() {
 	defer ws.mu.Unlock()
 
 	ws.nextID = 0
-	ws.free = make([]EntityID, 0)
-	ws.entityArch = newSparseSet()
-	ws.archetypes = make([]*archetype, 1)
+	ws.free = ws.free[:0]
+	ws.entityArch.clear()
+	ws.archetypes = ws.archetypes[:1] // Keep the void archetype slot
+	// Reset the void archetype to avoid stale data.
 	ws.archetypes[voidArchetypeID] = ws.newArchetype(voidArchetypeID, bitmap.Bitmap{})
 }
 

@@ -532,12 +532,10 @@ func (*GetStateRequest) Descriptor() ([]byte, []int) {
 // GetStateResponse is the response message for the GetState RPC.
 type GetStateResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The current tick height.
-	TickHeight uint64 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
 	// Whether the world is currently paused.
-	IsPaused bool `protobuf:"varint,2,opt,name=is_paused,json=isPaused,proto3" json:"is_paused,omitempty"`
-	// The current world state snapshot.
-	Snapshot      *CardinalSnapshot `protobuf:"bytes,3,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	IsPaused bool `protobuf:"varint,1,opt,name=is_paused,json=isPaused,proto3" json:"is_paused,omitempty"`
+	// The current world state snapshot (includes tick_height).
+	Snapshot      *Snapshot `protobuf:"bytes,2,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -572,13 +570,6 @@ func (*GetStateResponse) Descriptor() ([]byte, []int) {
 	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *GetStateResponse) GetTickHeight() uint64 {
-	if x != nil {
-		return x.TickHeight
-	}
-	return 0
-}
-
 func (x *GetStateResponse) GetIsPaused() bool {
 	if x != nil {
 		return x.IsPaused
@@ -586,7 +577,7 @@ func (x *GetStateResponse) GetIsPaused() bool {
 	return false
 }
 
-func (x *GetStateResponse) GetSnapshot() *CardinalSnapshot {
+func (x *GetStateResponse) GetSnapshot() *Snapshot {
 	if x != nil {
 		return x.Snapshot
 	}
@@ -621,12 +612,10 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"tickHeight\"\x0e\n" +
 	"\fResetRequest\"\x0f\n" +
 	"\rResetResponse\"\x11\n" +
-	"\x0fGetStateRequest\"\x97\x01\n" +
-	"\x10GetStateResponse\x12\x1f\n" +
-	"\vtick_height\x18\x01 \x01(\x04R\n" +
-	"tickHeight\x12\x1b\n" +
-	"\tis_paused\x18\x02 \x01(\bR\bisPaused\x12E\n" +
-	"\bsnapshot\x18\x03 \x01(\v2).worldengine.cardinal.v1.CardinalSnapshotR\bsnapshot2\xb6\x04\n" +
+	"\x0fGetStateRequest\"n\n" +
+	"\x10GetStateResponse\x12\x1b\n" +
+	"\tis_paused\x18\x01 \x01(\bR\bisPaused\x12=\n" +
+	"\bsnapshot\x18\x02 \x01(\v2!.worldengine.cardinal.v1.SnapshotR\bsnapshot2\xb6\x04\n" +
 	"\fDebugService\x12e\n" +
 	"\n" +
 	"Introspect\x12*.worldengine.cardinal.v1.IntrospectRequest\x1a+.worldengine.cardinal.v1.IntrospectResponse\x12V\n" +
@@ -664,14 +653,14 @@ var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
 	(*GetStateRequest)(nil),    // 11: worldengine.cardinal.v1.GetStateRequest
 	(*GetStateResponse)(nil),   // 12: worldengine.cardinal.v1.GetStateResponse
 	(*structpb.Struct)(nil),    // 13: google.protobuf.Struct
-	(*CardinalSnapshot)(nil),   // 14: worldengine.cardinal.v1.CardinalSnapshot
+	(*Snapshot)(nil),           // 14: worldengine.cardinal.v1.Snapshot
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	2,  // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
 	2,  // 1: worldengine.cardinal.v1.IntrospectResponse.components:type_name -> worldengine.cardinal.v1.TypeSchema
 	2,  // 2: worldengine.cardinal.v1.IntrospectResponse.events:type_name -> worldengine.cardinal.v1.TypeSchema
 	13, // 3: worldengine.cardinal.v1.TypeSchema.schema:type_name -> google.protobuf.Struct
-	14, // 4: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.CardinalSnapshot
+	14, // 4: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
 	0,  // 5: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
 	3,  // 6: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
 	5,  // 7: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
