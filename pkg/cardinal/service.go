@@ -146,7 +146,7 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 	// Craft target service address `<this cardinal's service address>.event.<group>.<event name>`.
 	target := micro.String(s.world.address) + ".event." + payload.Name()
 
-	payloadPb, err := schema.ToProtoStruct(payload)
+	payloadPb, err := schema.Serialize(payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal event payload")
 	}
@@ -170,7 +170,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 		return eris.Errorf("invalid inter shard command %v", isc)
 	}
 
-	payload, err := schema.ToProtoStruct(isc.Payload)
+	payload, err := schema.Serialize(isc.Payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal command payload")
 	}

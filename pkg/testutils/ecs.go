@@ -39,6 +39,49 @@ func (ComponentC) Name() string {
 	return "component_c"
 }
 
+// ComponentMixed is a comprehensive test component with all common field types.
+// Used to verify MessagePack correctly handles the full range of Go types.
+type ComponentMixed struct {
+	// Integer types
+	Int8Val   int8
+	Int16Val  int16
+	Int32Val  int32
+	Int64Val  int64
+	Uint8Val  uint8
+	Uint16Val uint16
+	Uint32Val uint32
+	Uint64Val uint64 // Critical: values > 2^53-1 lose precision in JSON
+
+	// Floating point
+	Float32Val float32
+	Float64Val float64
+
+	// String and bool
+	StringVal string
+	BoolVal   bool
+
+	// Slice and array
+	IntSlice   []int
+	ByteSlice  []byte
+	FloatArray [3]float64
+
+	// Nested struct
+	Nested NestedData
+
+	// Map
+	Metadata map[string]int
+}
+
+type NestedData struct {
+	ID    uint64
+	Name  string
+	Score float64
+}
+
+func (ComponentMixed) Name() string {
+	return "component_mixed"
+}
+
 // -------------------------------------------------------------------------------------------------
 // System events
 // -------------------------------------------------------------------------------------------------
@@ -115,6 +158,17 @@ type CommandC struct {
 
 func (CommandC) Name() string {
 	return "command_c"
+}
+
+// CommandUint64 is a test command with uint64 fields for precision testing.
+type CommandUint64 struct {
+	Amount    uint64
+	EntityID  uint64
+	Timestamp int64
+}
+
+func (CommandUint64) Name() string {
+	return "command_uint64"
 }
 
 // -------------------------------------------------------------------------------------------------

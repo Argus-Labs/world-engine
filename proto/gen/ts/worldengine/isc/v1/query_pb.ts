@@ -5,14 +5,13 @@
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/isc/v1/query.proto.
  */
 export const file_worldengine_isc_v1_query: GenFile = /*@__PURE__*/
-  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSLIAQoFUXVlcnkSLwoEZmluZBgBIAMoCUIhukgekgEbIhlyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEjoKBW1hdGNoGAIgASgOMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Lk1hdGNoQgq6SAeCAQQQASAAEg0KBXdoZXJlGAMgASgJIkMKBU1hdGNoEhUKEU1BVENIX1VOU1BFQ0lGSUVEEAASDwoLTUFUQ0hfRVhBQ1QQARISCg5NQVRDSF9DT05UQUlOUxACIjgKC1F1ZXJ5UmVzdWx0EikKCGVudGl0aWVzGAEgAygLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvcXVlcnkucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSLIAQoFUXVlcnkSLwoEZmluZBgBIAMoCUIhukgekgEbIhlyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEjoKBW1hdGNoGAIgASgOMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Lk1hdGNoQgq6SAeCAQQQASAAEg0KBXdoZXJlGAMgASgJIkMKBU1hdGNoEhUKEU1BVENIX1VOU1BFQ0lGSUVEEAASDwoLTUFUQ0hfRVhBQ1QQARISCg5NQVRDSF9DT05UQUlOUxACIh8KC1F1ZXJ5UmVzdWx0EhAKCGVudGl0aWVzGAEgAygMQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Query represents a request to search for entities in Cardinal.
@@ -92,12 +91,12 @@ export const Query_MatchSchema: GenEnum<Query_Match> = /*@__PURE__*/
  */
 export type QueryResult = Message<"worldengine.isc.v1.QueryResult"> & {
   /**
-   * List of entities that match the query. Each entity is a map of component names to their values
-   * as well as a "_ID" field containing the entity ID.
+   * List of entities that match the query, serialized as MessagePack bytes.
+   * Each entity is a map of component names to their values with a "_ID" field for entity ID.
    *
-   * @generated from field: repeated google.protobuf.Struct entities = 1;
+   * @generated from field: repeated bytes entities = 1;
    */
-  entities: JsonObject[];
+  entities: Uint8Array[];
 };
 
 /**

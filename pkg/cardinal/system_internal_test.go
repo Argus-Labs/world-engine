@@ -112,14 +112,13 @@ func newCommandFixture(t *testing.T) *commandFixture {
 func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, persona string) {
 	t.Helper()
 
-	// TODO: refactor to serializable after merge
-	pbPayload, err := schema.ToProtoStruct(payload)
+	bytes, err := schema.Serialize(payload)
 	require.NoError(t, err)
 
 	cmdpb := &iscv1.Command{
 		Name:    payload.Name(),
 		Persona: &iscv1.Persona{Id: persona},
-		Payload: pbPayload,
+		Payload: bytes,
 	}
 
 	err = f.world.commands.Enqueue(cmdpb)

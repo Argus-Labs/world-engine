@@ -53,7 +53,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 			// Pick a random command type and enqueue.
 			payload := generators[prng.IntN(len(generators))]()
-			pbPayload, err := schema.ToProtoStruct(payload)
+			pbPayload, err := schema.Serialize(payload)
 			require.NoError(t, err)
 
 			persona := testutils.RandString(prng, 8)
@@ -310,9 +310,9 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 						payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
 					}
 
-					pbPayload, err := schema.ToProtoStruct(payload)
+					pbPayload, err := schema.Serialize(payload)
 					if err != nil {
-						t.Errorf("ToProtoStruct failed: %v", err)
+						t.Errorf("Serialize failed: %v", err)
 						return
 					}
 

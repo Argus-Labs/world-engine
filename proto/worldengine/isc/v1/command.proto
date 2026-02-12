@@ -3,7 +3,6 @@ syntax = "proto3";
 package worldengine.isc.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/struct.proto";
 import "worldengine/isc/v1/persona.proto";
 import "worldengine/micro/v1/service.proto";
 
@@ -28,6 +27,6 @@ message Command {
   // The persona sending the command.
   Persona persona = 3 [(buf.validate.field).required = true];
 
-  // The command payload.
-  google.protobuf.Struct payload = 4 [(buf.validate.field).required = true];
+  // The command payload serialized as MessagePack bytes.
+  bytes payload = 4 [(buf.validate.field).required = true];
 }

@@ -5,18 +5,17 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import type { Persona } from "./persona_pb";
 import { file_worldengine_isc_v1_persona } from "./persona_pb";
 import type { ServiceAddress } from "../../micro/v1/service_pb";
 import { file_worldengine_micro_v1_service } from "../../micro/v1/service_pb";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/isc/v1/command.proto.
  */
 export const file_worldengine_isc_v1_command: GenFile = /*@__PURE__*/
-  fileDesc("CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdpbmUuaXNjLnYxIt8BCgdDb21tYW5kEi0KBG5hbWUYASABKAlCH7pIHMgBAXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyQSPQoHYWRkcmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESNAoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQESMAoHcGF5bG9hZBgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCBrpIA8gBAUJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_worldengine_isc_v1_persona, file_worldengine_micro_v1_service]);
+  fileDesc("CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdpbmUuaXNjLnYxIsYBCgdDb21tYW5kEi0KBG5hbWUYASABKAlCH7pIHMgBAXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyQSPQoHYWRkcmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESNAoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQESFwoHcGF5bG9hZBgEIAEoDEIGukgDyAEBQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z", [file_buf_validate_validate, file_worldengine_isc_v1_persona, file_worldengine_micro_v1_service]);
 
 /**
  * Command represents the data payload of a command to trigger systems in a shard.
@@ -46,11 +45,11 @@ export type Command = Message<"worldengine.isc.v1.Command"> & {
   persona?: Persona;
 
   /**
-   * The command payload.
+   * The command payload serialized as MessagePack bytes.
    *
-   * @generated from field: google.protobuf.Struct payload = 4;
+   * @generated from field: bytes payload = 4;
    */
-  payload?: JsonObject;
+  payload: Uint8Array;
 };
 
 /**

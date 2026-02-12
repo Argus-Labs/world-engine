@@ -41,7 +41,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
-			payload, err := schema.ToProtoStruct(cmd)
+			payload, err := schema.Serialize(cmd)
 			require.NoError(t, err)
 
 			name := cmd.Name()

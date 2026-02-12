@@ -5,14 +5,12 @@ import (
 	"sync"
 
 	"buf.build/go/protovalidate"
-	"github.com/goccy/go-json"
-
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
+	"github.com/shamaton/msgpack/v3"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // query is a struct that represents a query to the world.
@@ -90,26 +88,16 @@ func parseQuery(pool *sync.Pool, req *micro.Request) (*query, error) {
 }
 
 // serializeQueryResults serializes the results into a protobuf message.
+// Each entity is serialized as MessagePack bytes to preserve uint64 precision.
 func serializeQueryResults(results []map[string]any) (*iscv1.QueryResult, error) {
-	var entities []*structpb.Struct
+	entities := make([][]byte, 0, len(results))
 
 	for _, result := range results {
-		jsonBytes, err := json.Marshal(result)
+		data, err := msgpack.Marshal(result)
 		if err != nil {
-			return nil, eris.Wrap(err, "failed to marshal results to JSON")
+			return nil, eris.Wrap(err, "failed to marshal entity to msgpack")
 		}
-
-		var protoCompatible map[string]any
-		if err := json.Unmarshal(jsonBytes, &protoCompatible); err != nil {
-			return nil, eris.Wrap(err, "failed to unmarshal results to protobuf-compatible format")
-		}
-
-		structValue, err := structpb.NewStruct(protoCompatible)
-		if err != nil {
-			return nil, eris.Wrap(err, "failed to create struct value")
-		}
-
-		entities = append(entities, structValue)
+		entities = append(entities, data)
 	}
 
 	return &iscv1.QueryResult{
