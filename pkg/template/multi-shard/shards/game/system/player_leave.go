@@ -5,7 +5,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/event"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 )
 
 type PlayerLeaveSystemState struct {
@@ -16,15 +15,15 @@ type PlayerLeaveSystemState struct {
 }
 
 // PlayerLeaveSystem is called when a player leaves a quadrant (e.g. to join another quadrant).
-func PlayerLeaveSystem(state *PlayerLeaveSystemState) error {
-	players := make(map[string]ecs.EntityID)
+func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
+	players := make(map[string]cardinal.EntityID)
 
 	for entity, player := range state.Players.Iter() {
 		players[player.Tag.Get().ArgusAuthID] = entity
 	}
 
 	for cmd := range state.PlayerLeaveCommands.Iter() {
-		command := cmd.Payload()
+		command := cmd.Payload
 
 		entityID, exists := players[command.ArgusAuthID]
 		if !exists {
@@ -38,5 +37,4 @@ func PlayerLeaveSystem(state *PlayerLeaveSystemState) error {
 			ArgusAuthID: command.ArgusAuthID,
 		})
 	}
-	return nil
 }

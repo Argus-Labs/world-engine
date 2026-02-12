@@ -18,7 +18,7 @@ type OnlineStatusUpdaterState struct {
 	PlayerDepartureEvent cardinal.WithEvent[event.PlayerDeparture]
 }
 
-func OnlineStatusUpdater(state *OnlineStatusUpdaterState) error {
+func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
 	for entity, player := range state.Players.Iter() {
 		isOnline := player.OnlineStatus.Get().Online
 		lastActive := player.OnlineStatus.Get().LastActive
@@ -36,5 +36,4 @@ func OnlineStatusUpdater(state *OnlineStatusUpdaterState) error {
 				Msgf("Player %s (id: %s) is offline", player.PlayerTag.Get().ArgusAuthName, player.PlayerTag.Get().ArgusAuthID)
 		}
 	}
-	return nil
 }

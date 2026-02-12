@@ -8,7 +8,6 @@ import (
 
 // ExternalCommand should originate from another game shard.
 type ExternalCommand struct {
-	cardinal.BaseCommand
 	Message string
 }
 
@@ -17,7 +16,6 @@ func (ExternalCommand) Name() string {
 }
 
 type CallExternalCommand struct {
-	cardinal.BaseCommand
 	Message string
 }
 
@@ -30,13 +28,12 @@ type CallExternalSystemState struct {
 	CallExternalCommands cardinal.WithCommand[CallExternalCommand]
 }
 
-func CallExternalSystem(state *CallExternalSystemState) error {
+func CallExternalSystem(state *CallExternalSystemState) {
 	for cmd := range state.CallExternalCommands.Iter() {
 		state.Logger().Info().Msg("Received call-external message")
 
-		otherworld.Matchmaking.Send(&state.BaseSystemState, CreatePlayerCommand{
-			Nickname: cmd.Payload().Message,
+		otherworld.Matchmaking.SendCommand(&state.BaseSystemState, CreatePlayerCommand{
+			Nickname: cmd.Payload.Message,
 		})
 	}
-	return nil
 }

@@ -5,20 +5,56 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/cardinal/v1/snapshot.proto.
  */
 export const file_worldengine_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiggEKEENhcmRpbmFsU25hcHNob3QSDwoHbmV4dF9pZBgBIAEoDRIQCghmcmVlX2lkcxgCIAMoDRITCgtlbnRpdHlfYXJjaBgDIAMoAxI2CgphcmNoZXR5cGVzGAQgAygLMiIud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJjaGV0eXBlIoQBCglBcmNoZXR5cGUSCgoCaWQYASABKAUSGQoRY29tcG9uZW50c19iaXRtYXAYAiABKAwSDAoEcm93cxgDIAMoAxIQCghlbnRpdGllcxgEIAMoDRIwCgdjb2x1bW5zGAUgAygLMh8ud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQ29sdW1uIj0KBkNvbHVtbhIfCg5jb21wb25lbnRfbmFtZRgBIAEoCUIHukgEcgIQARISCgpjb21wb25lbnRzGAIgAygMQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEimQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASOAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlEg8KB3ZlcnNpb24YBCABKA0ifAoKV29ybGRTdGF0ZRIPCgduZXh0X2lkGAEgASgNEhAKCGZyZWVfaWRzGAIgAygNEhMKC2VudGl0eV9hcmNoGAMgAygDEjYKCmFyY2hldHlwZXMYBCADKAsyIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5BcmNoZXR5cGUihAEKCUFyY2hldHlwZRIKCgJpZBgBIAEoBRIZChFjb21wb25lbnRzX2JpdG1hcBgCIAEoDBIMCgRyb3dzGAMgAygDEhAKCGVudGl0aWVzGAQgAygNEjAKB2NvbHVtbnMYBSADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW4iPQoGQ29sdW1uEh8KDmNvbXBvbmVudF9uYW1lGAEgASgJQge6SARyAhABEhIKCmNvbXBvbmVudHMYAiADKAxCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
- * CardinalSnapshot represents a complete snapshot of the world state.
+ * Snapshot represents a point-in-time capture of shard state.
  *
- * @generated from message worldengine.cardinal.v1.CardinalSnapshot
+ * @generated from message worldengine.cardinal.v1.Snapshot
  */
-export type CardinalSnapshot = Message<"worldengine.cardinal.v1.CardinalSnapshot"> & {
+export type Snapshot = Message<"worldengine.cardinal.v1.Snapshot"> & {
+  /**
+   * @generated from field: uint64 tick_height = 1;
+   */
+  tickHeight: bigint;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 2;
+   */
+  timestamp?: Timestamp;
+
+  /**
+   * @generated from field: worldengine.cardinal.v1.WorldState world_state = 3;
+   */
+  worldState?: WorldState;
+
+  /**
+   * @generated from field: uint32 version = 4;
+   */
+  version: number;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.Snapshot.
+ * Use `create(SnapshotSchema)` to create a new message.
+ */
+export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_snapshot, 0);
+
+/**
+ * WorldState represents the ECS world state.
+ *
+ * @generated from message worldengine.cardinal.v1.WorldState
+ */
+export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
   /**
    * Entity manager state
    *
@@ -47,11 +83,11 @@ export type CardinalSnapshot = Message<"worldengine.cardinal.v1.CardinalSnapshot
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.CardinalSnapshot.
- * Use `create(CardinalSnapshotSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.WorldState.
+ * Use `create(WorldStateSchema)` to create a new message.
  */
-export const CardinalSnapshotSchema: GenMessage<CardinalSnapshot> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_snapshot, 0);
+export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_snapshot, 1);
 
 /**
  * Archetype represents a collection of entities with the same component types.
@@ -100,7 +136,7 @@ export type Archetype = Message<"worldengine.cardinal.v1.Archetype"> & {
  * Use `create(ArchetypeSchema)` to create a new message.
  */
 export const ArchetypeSchema: GenMessage<Archetype> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_snapshot, 1);
+  messageDesc(file_worldengine_cardinal_v1_snapshot, 2);
 
 /**
  * Column represents a sparse set data structure for storing component data.
@@ -128,5 +164,5 @@ export type Column = Message<"worldengine.cardinal.v1.Column"> & {
  * Use `create(ColumnSchema)` to create a new message.
  */
 export const ColumnSchema: GenMessage<Column> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_snapshot, 2);
+  messageDesc(file_worldengine_cardinal_v1_snapshot, 3);
 

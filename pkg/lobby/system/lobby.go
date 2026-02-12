@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
 	"github.com/argus-labs/world-engine/pkg/lobby/component"
 	"github.com/google/uuid"
 )
@@ -18,7 +17,6 @@ import (
 
 // CreateLobbyCommand creates a new lobby with the sender as leader.
 type CreateLobbyCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 	// Teams is the initial team configuration for the lobby.
 	Teams []TeamConfig `json:"teams,omitempty"`
@@ -41,7 +39,6 @@ func (CreateLobbyCommand) Name() string { return "lobby_create" }
 
 // JoinLobbyCommand joins an existing lobby via invite code.
 type JoinLobbyCommand struct {
-	cardinal.BaseCommand
 	RequestID  string `json:"request_id"`          // For matching request/response
 	InviteCode string `json:"invite_code"`         // Required: invite code to join
 	TeamName   string `json:"team_name,omitempty"` // Optional: team to join by name (joins first available if empty)
@@ -54,7 +51,6 @@ func (JoinLobbyCommand) Name() string { return "lobby_join" }
 
 // JoinTeamCommand moves a player to a different team.
 type JoinTeamCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 	TeamName  string `json:"team_name"`
 }
@@ -64,7 +60,6 @@ func (JoinTeamCommand) Name() string { return "lobby_join_team" }
 
 // LeaveLobbyCommand leaves the current lobby.
 type LeaveLobbyCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 }
 
@@ -73,7 +68,6 @@ func (LeaveLobbyCommand) Name() string { return "lobby_leave" }
 
 // SetReadyCommand sets the player's ready status.
 type SetReadyCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 	IsReady   bool   `json:"is_ready"`
 }
@@ -83,7 +77,6 @@ func (SetReadyCommand) Name() string { return "lobby_set_ready" }
 
 // KickPlayerCommand kicks a player from the lobby (leader only).
 type KickPlayerCommand struct {
-	cardinal.BaseCommand
 	RequestID      string `json:"request_id"` // For matching request/response
 	TargetPlayerID string `json:"target_player_id"`
 }
@@ -93,7 +86,6 @@ func (KickPlayerCommand) Name() string { return "lobby_kick" }
 
 // TransferLeaderCommand transfers leadership to another player.
 type TransferLeaderCommand struct {
-	cardinal.BaseCommand
 	RequestID      string `json:"request_id"` // For matching request/response
 	TargetPlayerID string `json:"target_player_id"`
 }
@@ -103,7 +95,6 @@ func (TransferLeaderCommand) Name() string { return "lobby_transfer_leader" }
 
 // StartSessionCommand starts the session (leader only).
 type StartSessionCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 }
 
@@ -112,7 +103,6 @@ func (StartSessionCommand) Name() string { return "lobby_start_session" }
 
 // GenerateInviteCodeCommand generates a new invite code (leader only).
 type GenerateInviteCodeCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 }
 
@@ -122,7 +112,6 @@ func (GenerateInviteCodeCommand) Name() string { return "lobby_generate_invite" 
 // HeartbeatCommand is sent periodically by clients to indicate they're still connected.
 // Players who don't send heartbeats within the timeout period are automatically removed.
 type HeartbeatCommand struct {
-	cardinal.BaseCommand
 }
 
 // Name returns the command name.
@@ -130,7 +119,6 @@ func (HeartbeatCommand) Name() string { return "lobby_heartbeat" }
 
 // UpdateSessionPassthroughCommand updates the session passthrough data (leader only).
 type UpdateSessionPassthroughCommand struct {
-	cardinal.BaseCommand
 	RequestID       string         `json:"request_id"` // For matching request/response
 	PassthroughData map[string]any `json:"passthrough_data"`
 }
@@ -140,7 +128,6 @@ func (UpdateSessionPassthroughCommand) Name() string { return "lobby_update_sess
 
 // UpdatePlayerPassthroughCommand updates the player's own passthrough data.
 type UpdatePlayerPassthroughCommand struct {
-	cardinal.BaseCommand
 	RequestID       string         `json:"request_id"` // For matching request/response
 	PassthroughData map[string]any `json:"passthrough_data"`
 }
@@ -150,7 +137,6 @@ func (UpdatePlayerPassthroughCommand) Name() string { return "lobby_update_playe
 
 // GetPlayerCommand fetches a specific player's component data.
 type GetPlayerCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 	PlayerID  string `json:"player_id"`  // Target player ID (empty = self)
 }
@@ -160,7 +146,6 @@ func (GetPlayerCommand) Name() string { return "lobby_get_player" }
 
 // GetAllPlayersCommand fetches all players in the caller's lobby.
 type GetAllPlayersCommand struct {
-	cardinal.BaseCommand
 	RequestID string `json:"request_id"` // For matching request/response
 }
 
@@ -173,7 +158,6 @@ func (GetAllPlayersCommand) Name() string { return "lobby_get_all_players" }
 
 // LobbyCreatedEvent is emitted when a lobby is created.
 type LobbyCreatedEvent struct {
-	cardinal.BaseEvent
 	LobbyID    string `json:"lobby_id"`
 	LeaderID   string `json:"leader_id"`
 	InviteCode string `json:"invite_code"`
@@ -184,7 +168,6 @@ func (LobbyCreatedEvent) Name() string { return "lobby_created" }
 
 // PlayerJoinedEvent is emitted when a player joins a lobby.
 type PlayerJoinedEvent struct {
-	cardinal.BaseEvent
 	LobbyID  string                    `json:"lobby_id"`
 	TeamName string                    `json:"team_name"`
 	Player   component.PlayerComponent `json:"player"`
@@ -195,7 +178,6 @@ func (PlayerJoinedEvent) Name() string { return "lobby_player_joined" }
 
 // PlayerLeftEvent is emitted when a player leaves a lobby.
 type PlayerLeftEvent struct {
-	cardinal.BaseEvent
 	LobbyID  string `json:"lobby_id"`
 	PlayerID string `json:"player_id"`
 }
@@ -205,7 +187,6 @@ func (PlayerLeftEvent) Name() string { return "lobby_player_left" }
 
 // PlayerKickedEvent is emitted when a player is kicked.
 type PlayerKickedEvent struct {
-	cardinal.BaseEvent
 	LobbyID  string `json:"lobby_id"`
 	PlayerID string `json:"player_id"`
 	KickerID string `json:"kicker_id"`
@@ -216,7 +197,6 @@ func (PlayerKickedEvent) Name() string { return "lobby_player_kicked" }
 
 // PlayerReadyEvent is emitted when a player changes ready status.
 type PlayerReadyEvent struct {
-	cardinal.BaseEvent
 	LobbyID string                    `json:"lobby_id"`
 	Player  component.PlayerComponent `json:"player"`
 }
@@ -226,7 +206,6 @@ func (PlayerReadyEvent) Name() string { return "lobby_player_ready" }
 
 // PlayerChangedTeamEvent is emitted when a player changes team.
 type PlayerChangedTeamEvent struct {
-	cardinal.BaseEvent
 	LobbyID     string                    `json:"lobby_id"`
 	OldTeamName string                    `json:"old_team_name"`
 	NewTeamName string                    `json:"new_team_name"`
@@ -238,7 +217,6 @@ func (PlayerChangedTeamEvent) Name() string { return "lobby_player_changed_team"
 
 // LeaderChangedEvent is emitted when leadership is transferred.
 type LeaderChangedEvent struct {
-	cardinal.BaseEvent
 	LobbyID     string `json:"lobby_id"`
 	OldLeaderID string `json:"old_leader_id"`
 	NewLeaderID string `json:"new_leader_id"`
@@ -249,7 +227,6 @@ func (LeaderChangedEvent) Name() string { return "lobby_leader_changed" }
 
 // SessionStartedEvent is emitted when a session starts.
 type SessionStartedEvent struct {
-	cardinal.BaseEvent
 	LobbyID string `json:"lobby_id"`
 }
 
@@ -258,7 +235,6 @@ func (SessionStartedEvent) Name() string { return "lobby_session_started" }
 
 // SessionEndedEvent is emitted when a session ends.
 type SessionEndedEvent struct {
-	cardinal.BaseEvent
 	LobbyID string `json:"lobby_id"`
 }
 
@@ -267,7 +243,6 @@ func (SessionEndedEvent) Name() string { return "lobby_session_ended" }
 
 // InviteCodeGeneratedEvent is emitted when a new invite code is generated.
 type InviteCodeGeneratedEvent struct {
-	cardinal.BaseEvent
 	LobbyID    string `json:"lobby_id"`
 	InviteCode string `json:"invite_code"`
 }
@@ -277,7 +252,6 @@ func (InviteCodeGeneratedEvent) Name() string { return "lobby_invite_generated" 
 
 // LobbyDeletedEvent is emitted when a lobby is deleted.
 type LobbyDeletedEvent struct {
-	cardinal.BaseEvent
 	LobbyID string `json:"lobby_id"`
 }
 
@@ -286,7 +260,6 @@ func (LobbyDeletedEvent) Name() string { return "lobby_deleted" }
 
 // PlayerTimedOutEvent is emitted when a player is removed due to missed heartbeats.
 type PlayerTimedOutEvent struct {
-	cardinal.BaseEvent
 	LobbyID  string `json:"lobby_id"`
 	PlayerID string `json:"player_id"`
 }
@@ -296,7 +269,6 @@ func (PlayerTimedOutEvent) Name() string { return "lobby_player_timed_out" }
 
 // SessionPassthroughUpdatedEvent is emitted when session passthrough data is updated.
 type SessionPassthroughUpdatedEvent struct {
-	cardinal.BaseEvent
 	LobbyID         string         `json:"lobby_id"`
 	PassthroughData map[string]any `json:"passthrough_data"`
 }
@@ -306,7 +278,6 @@ func (SessionPassthroughUpdatedEvent) Name() string { return "lobby_session_pass
 
 // PlayerPassthroughUpdatedEvent is emitted when a player's passthrough data is updated.
 type PlayerPassthroughUpdatedEvent struct {
-	cardinal.BaseEvent
 	LobbyID string                    `json:"lobby_id"`
 	Player  component.PlayerComponent `json:"player"`
 }
@@ -320,7 +291,6 @@ func (PlayerPassthroughUpdatedEvent) Name() string { return "lobby_player_passth
 
 // CreateLobbyResult is sent back to the client after CreateLobbyCommand.
 type CreateLobbyResult struct {
-	cardinal.BaseEvent
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
@@ -333,7 +303,6 @@ func (r CreateLobbyResult) Name() string { return r.RequestID + "_create_lobby_r
 
 // JoinLobbyResult is sent back to the client after JoinLobbyCommand.
 type JoinLobbyResult struct {
-	cardinal.BaseEvent
 	RequestID   string                      `json:"request_id"`
 	IsSuccess   bool                        `json:"is_success"`
 	Message     string                      `json:"message"`
@@ -346,7 +315,6 @@ func (r JoinLobbyResult) Name() string { return r.RequestID + "_join_lobby_resul
 
 // JoinTeamResult is sent back to the client after JoinTeamCommand.
 type JoinTeamResult struct {
-	cardinal.BaseEvent
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
@@ -358,7 +326,6 @@ func (r JoinTeamResult) Name() string { return r.RequestID + "_join_team_result"
 
 // LeaveLobbyResult is sent back to the client after LeaveLobbyCommand.
 type LeaveLobbyResult struct {
-	cardinal.BaseEvent
 	RequestID string `json:"request_id"`
 	IsSuccess bool   `json:"is_success"`
 	Message   string `json:"message"`
@@ -369,7 +336,6 @@ func (r LeaveLobbyResult) Name() string { return r.RequestID + "_leave_lobby_res
 
 // SetReadyResult is sent back to the client after SetReadyCommand.
 type SetReadyResult struct {
-	cardinal.BaseEvent
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
@@ -381,7 +347,6 @@ func (r SetReadyResult) Name() string { return r.RequestID + "_set_ready_result"
 
 // KickPlayerResult is sent back to the client after KickPlayerCommand.
 type KickPlayerResult struct {
-	cardinal.BaseEvent
 	RequestID string `json:"request_id"`
 	IsSuccess bool   `json:"is_success"`
 	Message   string `json:"message"`
@@ -392,7 +357,6 @@ func (r KickPlayerResult) Name() string { return r.RequestID + "_kick_player_res
 
 // TransferLeaderResult is sent back to the client after TransferLeaderCommand.
 type TransferLeaderResult struct {
-	cardinal.BaseEvent
 	RequestID string `json:"request_id"`
 	IsSuccess bool   `json:"is_success"`
 	Message   string `json:"message"`
@@ -403,7 +367,6 @@ func (r TransferLeaderResult) Name() string { return r.RequestID + "_transfer_le
 
 // StartSessionResult is sent back to the client after StartSessionCommand.
 type StartSessionResult struct {
-	cardinal.BaseEvent
 	RequestID string `json:"request_id"`
 	IsSuccess bool   `json:"is_success"`
 	Message   string `json:"message"`
@@ -414,7 +377,6 @@ func (r StartSessionResult) Name() string { return r.RequestID + "_start_session
 
 // GenerateInviteCodeResult is sent back to the client after GenerateInviteCodeCommand.
 type GenerateInviteCodeResult struct {
-	cardinal.BaseEvent
 	RequestID  string `json:"request_id"`
 	IsSuccess  bool   `json:"is_success"`
 	Message    string `json:"message"`
@@ -426,7 +388,6 @@ func (r GenerateInviteCodeResult) Name() string { return r.RequestID + "_generat
 
 // UpdateSessionPassthroughResult is sent back to the client after UpdateSessionPassthroughCommand.
 type UpdateSessionPassthroughResult struct {
-	cardinal.BaseEvent
 	RequestID string `json:"request_id"`
 	IsSuccess bool   `json:"is_success"`
 	Message   string `json:"message"`
@@ -439,7 +400,6 @@ func (r UpdateSessionPassthroughResult) Name() string {
 
 // UpdatePlayerPassthroughResult is sent back to the client after UpdatePlayerPassthroughCommand.
 type UpdatePlayerPassthroughResult struct {
-	cardinal.BaseEvent
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
@@ -453,7 +413,6 @@ func (r UpdatePlayerPassthroughResult) Name() string {
 
 // GetPlayerResult is sent back to the client after GetPlayerCommand.
 type GetPlayerResult struct {
-	cardinal.BaseEvent
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
@@ -467,7 +426,6 @@ func (r GetPlayerResult) Name() string {
 
 // GetAllPlayersResult is sent back to the client after GetAllPlayersCommand.
 type GetAllPlayersResult struct {
-	cardinal.BaseEvent
 	RequestID string                      `json:"request_id"`
 	IsSuccess bool                        `json:"is_success"`
 	Message   string                      `json:"message"`
@@ -485,7 +443,6 @@ func (r GetAllPlayersResult) Name() string {
 
 // NotifySessionStartCommand is sent to game shard when a session starts.
 type NotifySessionStartCommand struct {
-	cardinal.BaseCommand
 	Lobby      component.LobbyComponent `json:"lobby"`
 	LobbyWorld cardinal.OtherWorld      `json:"lobby_world"`
 }
@@ -495,7 +452,6 @@ func (NotifySessionStartCommand) Name() string { return "lobby_notify_session_st
 
 // NotifySessionEndCommand is sent from game shard to lobby when session ends.
 type NotifySessionEndCommand struct {
-	cardinal.BaseCommand
 	LobbyID string `json:"lobby_id"`
 }
 
@@ -578,7 +534,7 @@ type InitSystemState struct {
 }
 
 // InitSystem creates singleton index entities. Runs once at tick 0.
-func InitSystem(state *InitSystemState) error {
+func InitSystem(state *InitSystemState) {
 	// Create lobby index entity
 	_, lobbyIdx := state.LobbyIndexes.Create()
 	idx := component.LobbyIndexComponent{}
@@ -590,8 +546,6 @@ func InitSystem(state *InitSystemState) error {
 	_, cfg := state.Configs.Create()
 	cfg.Config.Set(storedConfig)
 	state.Logger().Info().Msg("Created lobby config entity")
-
-	return nil
 }
 
 // -----------------------------------------------------------------------------
@@ -669,7 +623,7 @@ type LobbySystemState struct {
 // lobbyLookupResult holds the result of looking up a player's lobby.
 type lobbyLookupResult struct {
 	lobbyID  string
-	entityID ecs.EntityID
+	entityID cardinal.EntityID
 	lobby    component.LobbyComponent
 	lobbyRef cardinal.Ref[component.LobbyComponent]
 }
@@ -693,26 +647,26 @@ func getPlayerLobby(
 		return nil
 	}
 
-	lobbyEntity, err := lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+	lobbyEntity, err := lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
 	if err != nil {
 		return nil
 	}
 
 	return &lobbyLookupResult{
 		lobbyID:  lobbyID,
-		entityID: ecs.EntityID(lobbyEntityID),
+		entityID: cardinal.EntityID(lobbyEntityID),
 		lobby:    lobbyEntity.Lobby.Get(),
 		lobbyRef: lobbyEntity.Lobby,
 	}
 }
 
 // LobbySystem processes lobby commands.
-func LobbySystem(state *LobbySystemState) error {
+func LobbySystem(state *LobbySystemState) {
 	now := state.Timestamp().Unix()
 
 	// Get lobby index
 	var lobbyIndex component.LobbyIndexComponent
-	var lobbyIndexEntityID ecs.EntityID
+	var lobbyIndexEntityID cardinal.EntityID
 	for entityID, idx := range state.LobbyIndexes.Iter() {
 		lobbyIndex = idx.Index.Get()
 		lobbyIndexEntityID = entityID
@@ -752,8 +706,6 @@ func LobbySystem(state *LobbySystemState) error {
 	if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
 		lobbyIndexEntity.Index.Set(lobbyIndex)
 	}
-
-	return nil
 }
 
 // timedOutPlayer holds info about a player who missed heartbeat deadline.
@@ -825,7 +777,7 @@ func createPlayerEntity(
 	playerID, lobbyID, teamID string,
 	passthroughData map[string]any,
 	now int64,
-) (component.PlayerComponent, ecs.EntityID) {
+) (component.PlayerComponent, cardinal.EntityID) {
 	playerComp := component.PlayerComponent{
 		PlayerID:        playerID,
 		LobbyID:         lobbyID,
@@ -841,7 +793,7 @@ func createPlayerEntity(
 
 // lobbyToDestroy holds info about a lobby to be destroyed.
 type lobbyToDestroy struct {
-	entityID ecs.EntityID
+	entityID cardinal.EntityID
 	lobbyID  string
 }
 
@@ -852,14 +804,14 @@ func processTimedOutLobby(
 	lobbyIndex *component.LobbyIndexComponent,
 	lobbyID string,
 	players []timedOutPlayer,
-) ([]ecs.EntityID, *lobbyToDestroy) {
-	var playerEntities []ecs.EntityID
+) ([]cardinal.EntityID, *lobbyToDestroy) {
+	var playerEntities []cardinal.EntityID
 	lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
 	if !exists {
 		return nil, nil
 	}
 
-	lobbyEntity, err := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
 	if err != nil {
 		return nil, nil
 	}
@@ -870,7 +822,7 @@ func processTimedOutLobby(
 	for _, p := range players {
 		lobby.RemovePlayerFromTeam(p.playerID, p.teamID)
 		lobbyIndex.RemovePlayerFromLobby(p.playerID)
-		playerEntities = append(playerEntities, ecs.EntityID(p.playerEntityID))
+		playerEntities = append(playerEntities, cardinal.EntityID(p.playerEntityID))
 
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
@@ -886,7 +838,7 @@ func processTimedOutLobby(
 		lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
 		state.Logger().Info().Str("lobby_id", lobbyID).Msg("Lobby marked for deletion (empty after timeout)")
 		state.LobbyDeletedEvents.Emit(LobbyDeletedEvent{LobbyID: lobbyID})
-		return playerEntities, &lobbyToDestroy{entityID: ecs.EntityID(lobbyEntityID), lobbyID: lobbyID}
+		return playerEntities, &lobbyToDestroy{entityID: cardinal.EntityID(lobbyEntityID), lobbyID: lobbyID}
 	}
 
 	// Handle leader timeout
@@ -914,7 +866,7 @@ func processHeartbeatCommands(
 	now, timeout int64,
 ) {
 	for cmd := range state.HeartbeatCmds.Iter() {
-		playerID := cmd.Persona()
+		playerID := cmd.Persona
 		lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 
 		state.Logger().Debug().
@@ -975,7 +927,7 @@ func areAllPlayersReady(
 		if !exists {
 			return false
 		}
-		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			return false
 		}
@@ -999,7 +951,7 @@ func gatherLobbyPlayers(
 		if !pExists {
 			continue
 		}
-		pEntity, pErr := state.Players.GetByID(ecs.EntityID(pEntityID))
+		pEntity, pErr := state.Players.GetByID(cardinal.EntityID(pEntityID))
 		if pErr != nil {
 			continue
 		}
@@ -1039,8 +991,8 @@ func processCreateLobbyCommands(
 	now, timeout int64,
 ) {
 	for cmd := range state.CreateLobbyCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		// Check if player is already in a lobby
 		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
@@ -1154,8 +1106,8 @@ func processJoinLobbyCommands(
 	now, timeout int64,
 ) {
 	for cmd := range state.JoinLobbyCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		// Check if player is already in a lobby
 		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
@@ -1178,7 +1130,7 @@ func processJoinLobbyCommands(
 			continue
 		}
 
-		lobbyEntity, err := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
 		if err != nil {
 			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
 			continue
@@ -1245,8 +1197,8 @@ func processJoinLobbyCommands(
 
 func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.JoinTeamCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1312,7 +1264,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		var playerComp component.PlayerComponent
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			if playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID)); err == nil {
+			if playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID)); err == nil {
 				playerComp = playerEntity.Player.Get()
 				playerComp.TeamID = newTeam.TeamID
 				playerEntity.Player.Set(playerComp)
@@ -1345,8 +1297,8 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.LeaveLobbyCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1363,7 +1315,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 		// Delete player entity
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			state.Players.Destroy(ecs.EntityID(playerEntityID))
+			state.Players.Destroy(cardinal.EntityID(playerEntityID))
 		}
 
 		// Remove player from lobby - use index for O(1) team lookup, then O(players in team) removal
@@ -1434,8 +1386,8 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.SetReadyCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1469,7 +1421,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			})
 			continue
 		}
-		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			state.SetReadyResults.Emit(SetReadyResult{
 				RequestID: payload.RequestID,
@@ -1505,8 +1457,8 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.KickPlayerCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1554,7 +1506,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 		// Delete player entity
 		targetPlayerEntityID, exists := lobbyIndex.GetPlayerEntityID(payload.TargetPlayerID)
 		if exists {
-			state.Players.Destroy(ecs.EntityID(targetPlayerEntityID))
+			state.Players.Destroy(cardinal.EntityID(targetPlayerEntityID))
 		}
 
 		// Remove player from lobby - use index for O(1) team lookup, then O(players in team) removal
@@ -1586,8 +1538,8 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.TransferLeaderCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1655,8 +1607,8 @@ func processStartSessionCommands(
 	config *component.ConfigComponent,
 ) {
 	for cmd := range state.StartSessionCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1729,7 +1681,7 @@ func processStartSessionCommands(
 				Project:      config.LobbyWorld.Project,
 				ShardID:      config.LobbyWorld.ShardID,
 			}
-			gameWorld.Send(&state.BaseSystemState, NotifySessionStartCommand{
+			gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
 				Lobby:      lobby,
 				LobbyWorld: lobbyWorld,
 			})
@@ -1749,14 +1701,14 @@ func processStartSessionCommands(
 
 func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.NotifySessionEndCmds.Iter() {
-		payload := cmd.Payload()
+		payload := cmd.Payload
 
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.LobbyID)
 		if !exists {
 			continue
 		}
 
-		lobbyEntity, err := state.Lobbies.GetByID(ecs.EntityID(lobbyEntityID))
+		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
 		if err != nil {
 			continue
 		}
@@ -1778,7 +1730,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			if !pExists {
 				continue
 			}
-			playerEntity, pErr := state.Players.GetByID(ecs.EntityID(playerEntityID))
+			playerEntity, pErr := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 			if pErr != nil {
 				continue
 			}
@@ -1792,16 +1744,14 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			Msg("Session ended")
 
 		// Emit broadcast event
-		state.SessionEndedEvents.Emit(SessionEndedEvent{
-			LobbyID: payload.LobbyID,
-		})
+		state.SessionEndedEvents.Emit(SessionEndedEvent(payload))
 	}
 }
 
 func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.GenerateInviteCodeCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1877,8 +1827,8 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 
 func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.UpdateSessionPassthroughCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1928,8 +1878,8 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 
 func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.UpdatePlayerPassthroughCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
@@ -1952,7 +1902,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			})
 			continue
 		}
-		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			state.UpdatePlayerPassthroughResults.Emit(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
@@ -1988,8 +1938,8 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 
 func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.GetPlayerCmds.Iter() {
-		callerID := cmd.Persona()
-		payload := cmd.Payload()
+		callerID := cmd.Persona
+		payload := cmd.Payload
 
 		// Determine target player ID (self if empty)
 		targetPlayerID := payload.PlayerID
@@ -2008,7 +1958,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 			continue
 		}
 
-		playerEntity, err := state.Players.GetByID(ecs.EntityID(playerEntityID))
+		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			state.GetPlayerResults.Emit(GetPlayerResult{
 				RequestID: payload.RequestID,
@@ -2031,8 +1981,8 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 
 func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
 	for cmd := range state.GetAllPlayersCmds.Iter() {
-		playerID := cmd.Persona()
-		payload := cmd.Payload()
+		playerID := cmd.Persona
+		payload := cmd.Payload
 
 		// Get caller's lobby
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
@@ -2054,7 +2004,7 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *component
 			if !exists {
 				continue
 			}
-			playerEntity, pErr := state.Players.GetByID(ecs.EntityID(playerEntityID))
+			playerEntity, pErr := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 			if pErr != nil {
 				continue
 			}
@@ -2111,12 +2061,12 @@ type HeartbeatSystemState struct {
 }
 
 // HeartbeatSystem processes heartbeat commands and removes stale players.
-func HeartbeatSystem(state *HeartbeatSystemState) error {
+func HeartbeatSystem(state *HeartbeatSystemState) {
 	now := state.Timestamp().Unix()
 
 	// Get lobby index
 	var lobbyIndex component.LobbyIndexComponent
-	var lobbyIndexEntityID ecs.EntityID
+	var lobbyIndexEntityID cardinal.EntityID
 	for entityID, idx := range state.LobbyIndexes.Iter() {
 		lobbyIndex = idx.Index.Get()
 		lobbyIndexEntityID = entityID
@@ -2154,7 +2104,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 		if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
 			lobbyIndexEntity.Index.Set(lobbyIndex)
 		}
-		return nil
+		return
 	}
 
 	// Group timed out players by lobby for efficient processing
@@ -2162,7 +2112,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 
 	// Process each affected lobby
 	var lobbiesToDestroy []lobbyToDestroy
-	var playerEntitiesToDestroy []ecs.EntityID
+	var playerEntitiesToDestroy []cardinal.EntityID
 	for lobbyID, players := range timedOutByLobby {
 		playerEntities, toDestroy := processTimedOutLobby(state, &lobbyIndex, lobbyID, players)
 		playerEntitiesToDestroy = append(playerEntitiesToDestroy, playerEntities...)
@@ -2188,6 +2138,4 @@ func HeartbeatSystem(state *HeartbeatSystemState) error {
 	if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
 		lobbyIndexEntity.Index.Set(lobbyIndex)
 	}
-
-	return nil
 }

@@ -26,23 +26,29 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           string.Concat(
             "CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29y",
             "bGRlbmdpbmUuY2FyZGluYWwudjEaG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5w",
-            "cm90byKrAQoQQ2FyZGluYWxTbmFwc2hvdBIXCgduZXh0X2lkGAEgASgNUgZu",
-            "ZXh0SWQSGQoIZnJlZV9pZHMYAiADKA1SB2ZyZWVJZHMSHwoLZW50aXR5X2Fy",
-            "Y2gYAyADKANSCmVudGl0eUFyY2gSQgoKYXJjaGV0eXBlcxgEIAMoCzIiLndv",
-            "cmxkZW5naW5lLmNhcmRpbmFsLnYxLkFyY2hldHlwZVIKYXJjaGV0eXBlcyKz",
-            "AQoJQXJjaGV0eXBlEg4KAmlkGAEgASgFUgJpZBIrChFjb21wb25lbnRzX2Jp",
-            "dG1hcBgCIAEoDFIQY29tcG9uZW50c0JpdG1hcBISCgRyb3dzGAMgAygDUgRy",
-            "b3dzEhoKCGVudGl0aWVzGAQgAygNUghlbnRpdGllcxI5Cgdjb2x1bW5zGAUg",
-            "AygLMh8ud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQ29sdW1uUgdjb2x1bW5z",
-            "IlgKBkNvbHVtbhIuCg5jb21wb25lbnRfbmFtZRgBIAEoCUIHukgEcgIQAVIN",
-            "Y29tcG9uZW50TmFtZRIeCgpjb21wb25lbnRzGAIgAygMUgpjb21wb25lbnRz",
-            "QnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8v",
-            "Z2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1X",
-            "b3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z"));
+            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byLFAQoIU25h",
+            "cHNob3QSHwoLdGlja19oZWlnaHQYASABKARSCnRpY2tIZWlnaHQSOAoJdGlt",
+            "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
+            "ZXN0YW1wEkQKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
+            "ZGluYWwudjEuV29ybGRTdGF0ZVIKd29ybGRTdGF0ZRIYCgd2ZXJzaW9uGAQg",
+            "ASgNUgd2ZXJzaW9uIqUBCgpXb3JsZFN0YXRlEhcKB25leHRfaWQYASABKA1S",
+            "Bm5leHRJZBIZCghmcmVlX2lkcxgCIAMoDVIHZnJlZUlkcxIfCgtlbnRpdHlf",
+            "YXJjaBgDIAMoA1IKZW50aXR5QXJjaBJCCgphcmNoZXR5cGVzGAQgAygLMiIu",
+            "d29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJjaGV0eXBlUgphcmNoZXR5cGVz",
+            "IrMBCglBcmNoZXR5cGUSDgoCaWQYASABKAVSAmlkEisKEWNvbXBvbmVudHNf",
+            "Yml0bWFwGAIgASgMUhBjb21wb25lbnRzQml0bWFwEhIKBHJvd3MYAyADKANS",
+            "BHJvd3MSGgoIZW50aXRpZXMYBCADKA1SCGVudGl0aWVzEjkKB2NvbHVtbnMY",
+            "BSADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW5SB2NvbHVt",
+            "bnMiWAoGQ29sdW1uEi4KDmNvbXBvbmVudF9uYW1lGAEgASgJQge6SARyAhAB",
+            "Ug1jb21wb25lbnROYW1lEh4KCmNvbXBvbmVudHMYAiADKAxSCmNvbXBvbmVu",
+            "dHNCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90",
+            "by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoC",
+            "HVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot), global::WorldEngine.Proto.Cardinal.V1.CardinalSnapshot.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Rows", "Entities", "Columns" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Column), global::WorldEngine.Proto.Cardinal.V1.Column.Parser, new[]{ "ComponentName", "Components" }, null, null, null, null)
           }));
@@ -52,19 +58,19 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
   #region Messages
   /// <summary>
-  /// CardinalSnapshot represents a complete snapshot of the world state.
+  /// Snapshot represents a point-in-time capture of shard state.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class CardinalSnapshot : pb::IMessage<CardinalSnapshot>
+  public sealed partial class Snapshot : pb::IMessage<Snapshot>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<CardinalSnapshot> _parser = new pb::MessageParser<CardinalSnapshot>(() => new CardinalSnapshot());
+    private static readonly pb::MessageParser<Snapshot> _parser = new pb::MessageParser<Snapshot>(() => new Snapshot());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<CardinalSnapshot> Parser { get { return _parser; } }
+    public static pb::MessageParser<Snapshot> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -80,7 +86,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CardinalSnapshot() {
+    public Snapshot() {
       OnConstruction();
     }
 
@@ -88,7 +94,337 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CardinalSnapshot(CardinalSnapshot other) : this() {
+    public Snapshot(Snapshot other) : this() {
+      tickHeight_ = other.tickHeight_;
+      timestamp_ = other.timestamp_ != null ? other.timestamp_.Clone() : null;
+      worldState_ = other.worldState_ != null ? other.worldState_.Clone() : null;
+      version_ = other.version_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public Snapshot Clone() {
+      return new Snapshot(this);
+    }
+
+    /// <summary>Field number for the "tick_height" field.</summary>
+    public const int TickHeightFieldNumber = 1;
+    private ulong tickHeight_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong TickHeight {
+      get { return tickHeight_; }
+      set {
+        tickHeight_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "timestamp" field.</summary>
+    public const int TimestampFieldNumber = 2;
+    private global::Google.Protobuf.WellKnownTypes.Timestamp timestamp_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Google.Protobuf.WellKnownTypes.Timestamp Timestamp {
+      get { return timestamp_; }
+      set {
+        timestamp_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "world_state" field.</summary>
+    public const int WorldStateFieldNumber = 3;
+    private global::WorldEngine.Proto.Cardinal.V1.WorldState worldState_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Cardinal.V1.WorldState WorldState {
+      get { return worldState_; }
+      set {
+        worldState_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "version" field.</summary>
+    public const int VersionFieldNumber = 4;
+    private uint version_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Version {
+      get { return version_; }
+      set {
+        version_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as Snapshot);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(Snapshot other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (TickHeight != other.TickHeight) return false;
+      if (!object.Equals(Timestamp, other.Timestamp)) return false;
+      if (!object.Equals(WorldState, other.WorldState)) return false;
+      if (Version != other.Version) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (TickHeight != 0UL) hash ^= TickHeight.GetHashCode();
+      if (timestamp_ != null) hash ^= Timestamp.GetHashCode();
+      if (worldState_ != null) hash ^= WorldState.GetHashCode();
+      if (Version != 0) hash ^= Version.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (TickHeight != 0UL) {
+        output.WriteRawTag(8);
+        output.WriteUInt64(TickHeight);
+      }
+      if (timestamp_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Timestamp);
+      }
+      if (worldState_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(WorldState);
+      }
+      if (Version != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Version);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (TickHeight != 0UL) {
+        output.WriteRawTag(8);
+        output.WriteUInt64(TickHeight);
+      }
+      if (timestamp_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Timestamp);
+      }
+      if (worldState_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(WorldState);
+      }
+      if (Version != 0) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Version);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (TickHeight != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(TickHeight);
+      }
+      if (timestamp_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Timestamp);
+      }
+      if (worldState_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(WorldState);
+      }
+      if (Version != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Version);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(Snapshot other) {
+      if (other == null) {
+        return;
+      }
+      if (other.TickHeight != 0UL) {
+        TickHeight = other.TickHeight;
+      }
+      if (other.timestamp_ != null) {
+        if (timestamp_ == null) {
+          Timestamp = new global::Google.Protobuf.WellKnownTypes.Timestamp();
+        }
+        Timestamp.MergeFrom(other.Timestamp);
+      }
+      if (other.worldState_ != null) {
+        if (worldState_ == null) {
+          WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
+        }
+        WorldState.MergeFrom(other.WorldState);
+      }
+      if (other.Version != 0) {
+        Version = other.Version;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 8: {
+            TickHeight = input.ReadUInt64();
+            break;
+          }
+          case 18: {
+            if (timestamp_ == null) {
+              Timestamp = new global::Google.Protobuf.WellKnownTypes.Timestamp();
+            }
+            input.ReadMessage(Timestamp);
+            break;
+          }
+          case 26: {
+            if (worldState_ == null) {
+              WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
+            }
+            input.ReadMessage(WorldState);
+            break;
+          }
+          case 32: {
+            Version = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 8: {
+            TickHeight = input.ReadUInt64();
+            break;
+          }
+          case 18: {
+            if (timestamp_ == null) {
+              Timestamp = new global::Google.Protobuf.WellKnownTypes.Timestamp();
+            }
+            input.ReadMessage(Timestamp);
+            break;
+          }
+          case 26: {
+            if (worldState_ == null) {
+              WorldState = new global::WorldEngine.Proto.Cardinal.V1.WorldState();
+            }
+            input.ReadMessage(WorldState);
+            break;
+          }
+          case 32: {
+            Version = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// WorldState represents the ECS world state.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class WorldState : pb::IMessage<WorldState>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<WorldState> _parser = new pb::MessageParser<WorldState>(() => new WorldState());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<WorldState> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public WorldState() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public WorldState(WorldState other) : this() {
       nextId_ = other.nextId_;
       freeIds_ = other.freeIds_.Clone();
       entityArch_ = other.entityArch_.Clone();
@@ -98,8 +434,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public CardinalSnapshot Clone() {
-      return new CardinalSnapshot(this);
+    public WorldState Clone() {
+      return new WorldState(this);
     }
 
     /// <summary>Field number for the "next_id" field.</summary>
@@ -159,12 +495,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as CardinalSnapshot);
+      return Equals(other as WorldState);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(CardinalSnapshot other) {
+    public bool Equals(WorldState other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -252,7 +588,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(CardinalSnapshot other) {
+    public void MergeFrom(WorldState other) {
       if (other == null) {
         return;
       }
@@ -361,7 +697,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor.MessageTypes[1]; }
+      get { return global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor.MessageTypes[2]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -696,7 +1032,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor.MessageTypes[2]; }
+      get { return global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor.MessageTypes[3]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

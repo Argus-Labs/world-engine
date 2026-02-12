@@ -1,9 +1,6 @@
 package event
 
-import "github.com/argus-labs/world-engine/pkg/cardinal"
-
 type PlayerDeath struct {
-	cardinal.BaseEvent
 	Nickname string
 }
 
@@ -12,7 +9,6 @@ func (PlayerDeath) Name() string {
 }
 
 type NewPlayer struct {
-	cardinal.BaseEvent
 	Nickname string
 }
 

@@ -8,8 +8,8 @@ import (
 
 func main() {
 	world, err := cardinal.NewWorld(cardinal.WorldOptions{
-		TickRate:       20,
-		EpochFrequency: 200,
+		TickRate:     20,
+		SnapshotRate: 50,
 	})
 	if err != nil {
 		panic(err.Error())

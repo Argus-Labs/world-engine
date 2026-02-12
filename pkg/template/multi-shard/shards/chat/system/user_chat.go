@@ -17,9 +17,9 @@ type UserChatSystemState struct {
 	ChatSearch       ChatSearch
 }
 
-func UserChatSystem(state *UserChatSystemState) error {
+func UserChatSystem(state *UserChatSystemState) {
 	for cmd := range state.UserChatCommands.Iter() {
-		command := cmd.Payload()
+		command := cmd.Payload
 
 		timestamp := time.Now()
 
@@ -44,5 +44,4 @@ func UserChatSystem(state *UserChatSystemState) error {
 			Timestamp:     timestamp,
 		})
 	}
-	return nil
 }

@@ -1,11 +1,8 @@
 package event
 
-import "github.com/argus-labs/world-engine/pkg/cardinal"
-
 // New player has joined the quadrant
 
 type PlayerSpawn struct {
-	cardinal.BaseEvent
 	ArgusAuthID   string `json:"argus_auth_id"`
 	ArgusAuthName string `json:"argus_auth_name"`
 	X             uint32 `json:"x"`
@@ -19,7 +16,6 @@ func (PlayerSpawn) Name() string {
 // Player has moved inside the quadrant
 
 type PlayerMovement struct {
-	cardinal.BaseEvent
 	ArgusAuthID   string `json:"argus_auth_id"`
 	ArgusAuthName string `json:"argus_auth_name"`
 	X             uint32 `json:"x"`
@@ -33,7 +29,6 @@ func (PlayerMovement) Name() string {
 // Player has left the quadrant (either by leaving the quadrant or going offline)
 
 type PlayerDeparture struct {
-	cardinal.BaseEvent
 	ArgusAuthID string `json:"argus_auth_id"`
 }
 

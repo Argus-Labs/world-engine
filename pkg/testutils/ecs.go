@@ -90,6 +90,33 @@ func (SimpleCommand) Name() string {
 	return "simple_command"
 }
 
+type CommandA struct {
+	X, Y, Z float64
+}
+
+func (CommandA) Name() string {
+	return "command_a"
+}
+
+type CommandB struct {
+	ID      uint64
+	Label   string
+	Enabled bool
+}
+
+func (CommandB) Name() string {
+	return "command_b"
+}
+
+type CommandC struct {
+	Values  [8]int32
+	Counter uint16
+}
+
+func (CommandC) Name() string {
+	return "command_c"
+}
+
 // -------------------------------------------------------------------------------------------------
 // Events
 // -------------------------------------------------------------------------------------------------

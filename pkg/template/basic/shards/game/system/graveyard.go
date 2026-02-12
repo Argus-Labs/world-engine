@@ -13,12 +13,11 @@ type GraveyardSystemState struct {
 	Graves                  GraveSearch
 }
 
-func GraveyardSystem(state *GraveyardSystemState) error {
+func GraveyardSystem(state *GraveyardSystemState) {
 	for event := range state.PlayerDeathSystemEvents.Iter() {
 		_, entity := state.Graves.Create()
 		entity.Grave.Set(component.Gravestone{Nickname: event.Nickname})
 
 		state.Logger().Info().Msgf("Created grave stone for player %s", event.Nickname)
 	}
-	return nil
 }
