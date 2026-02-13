@@ -218,34 +218,6 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
 	return nil
 }
 
-func (w *World) restore(ctx context.Context) error {
-	logger := w.tel.GetLogger("snapshot")
-
-	logger.Debug().Msg("restoring from snapshot")
-	snap, err := w.snapshotStorage.Load(ctx)
-	if err != nil {
-		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
-			logger.Debug().Msg("no snapshot found")
-			return nil
-		}
-		return eris.Wrap(err, "failed to load snapshot")
-	}
-
-	// Unmarshal snapshot bytes into proto and restore ECS world.
-	var worldState cardinalv1.WorldState
-	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
-		return eris.Wrap(err, "failed to unmarshal snapshot data")
-	}
-	if err := w.world.FromProto(&worldState); err != nil {
-		return eris.Wrap(err, "failed to restore world from snapshot")
-	}
-
-	// Only update shard state after successful restoration and validation.
-	w.currentTick.height = snap.TickHeight + 1
-
-	return nil
-}
-
 // snapshot persists the world state as a best-effort operation. Snapshots are best effort only, and
 // we just log errors instead of returning it, which would cause the world to stop and restart,
 // effectively losing unsaved state. If a snapshot fails, the main loop still continues and we retry
@@ -272,6 +244,34 @@ func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
 		return
 	}
 	w.tel.Logger.Info().Msg("published snapshot")
+}
+
+func (w *World) restore(ctx context.Context) error {
+	logger := w.tel.GetLogger("snapshot")
+
+	logger.Debug().Msg("restoring from snapshot")
+	snap, err := w.snapshotStorage.Load(ctx)
+	if err != nil {
+		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
+			logger.Debug().Msg("no snapshot found")
+			return nil
+		}
+		return eris.Wrap(err, "failed to load snapshot")
+	}
+
+	// Unmarshal snapshot bytes into proto and restore ECS world.
+	var worldState cardinalv1.WorldState
+	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
+		return eris.Wrap(err, "failed to unmarshal snapshot data")
+	}
+	if err := w.world.FromProto(&worldState); err != nil {
+		return eris.Wrap(err, "failed to restore world from snapshot")
+	}
+
+	// Only update shard state after successful restoration and validation.
+	w.currentTick.height = snap.TickHeight + 1
+
+	return nil
 }
 
 // shutdown performs graceful cleanup of world resources, such as closing services

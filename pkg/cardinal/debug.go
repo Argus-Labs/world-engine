@@ -19,7 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 )
 
-// TODO: add tick log here.
+// debugModule provides introspection and debugging capabilities for a World instance.
 type debugModule struct {
 	world      *World
 	server     *http.Server
@@ -32,6 +32,7 @@ type debugModule struct {
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
 
+// newDebugModule creates a new debugModule bound to the given World.
 func newDebugModule(world *World) debugModule {
 	return debugModule{
 		world:      world,
@@ -82,6 +83,7 @@ func (d *debugModule) Shutdown(ctx context.Context) error {
 // Introspect
 // -------------------------------------------------------------------------------------------------
 
+// register records the JSON schema of a command, event, or component type for introspection.
 func (d *debugModule) register(kind string, value schema.Serializable) error {
 	if d == nil {
 		return nil
@@ -157,7 +159,7 @@ func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*car
 // Debugger
 // -------------------------------------------------------------------------------------------------
 
-// tickControl manages pause/resume/step/reset signaling for the tick loop.
+// tickControl coordinates pause, resume, step, and reset signaling for the tick loop.
 type tickControl struct {
 	pauseCh   chan chan uint64   // Request pause, receives tick height when paused
 	resumeCh  chan struct{}      // Signal to resume
@@ -167,6 +169,7 @@ type tickControl struct {
 	stepReady chan struct{}      // Signals that step result is ready to be read
 }
 
+// newTickControl creates a tickControl with initialized channels.
 func newTickControl() *tickControl {
 	return &tickControl{
 		pauseCh:   make(chan chan uint64),
