@@ -53,6 +53,26 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest> __Marshaller_worldengine_cardinal_v1_IntrospectRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse> __Marshaller_worldengine_cardinal_v1_IntrospectResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.PauseRequest> __Marshaller_worldengine_cardinal_v1_PauseRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.PauseRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.PauseResponse> __Marshaller_worldengine_cardinal_v1_PauseResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.PauseResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.ResumeRequest> __Marshaller_worldengine_cardinal_v1_ResumeRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.ResumeRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.ResumeResponse> __Marshaller_worldengine_cardinal_v1_ResumeResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.ResumeResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StepRequest> __Marshaller_worldengine_cardinal_v1_StepRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StepRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StepResponse> __Marshaller_worldengine_cardinal_v1_StepResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StepResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.ResetRequest> __Marshaller_worldengine_cardinal_v1_ResetRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.ResetRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.ResetResponse> __Marshaller_worldengine_cardinal_v1_ResetResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.ResetResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.GetStateRequest> __Marshaller_worldengine_cardinal_v1_GetStateRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.GetStateRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> __Marshaller_worldengine_cardinal_v1_GetStateResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.GetStateResponse.Parser));
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest, global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse> __Method_Introspect = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest, global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse>(
@@ -61,6 +81,46 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         "Introspect",
         __Marshaller_worldengine_cardinal_v1_IntrospectRequest,
         __Marshaller_worldengine_cardinal_v1_IntrospectResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.PauseRequest, global::WorldEngine.Proto.Cardinal.V1.PauseResponse> __Method_Pause = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.PauseRequest, global::WorldEngine.Proto.Cardinal.V1.PauseResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "Pause",
+        __Marshaller_worldengine_cardinal_v1_PauseRequest,
+        __Marshaller_worldengine_cardinal_v1_PauseResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.ResumeRequest, global::WorldEngine.Proto.Cardinal.V1.ResumeResponse> __Method_Resume = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.ResumeRequest, global::WorldEngine.Proto.Cardinal.V1.ResumeResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "Resume",
+        __Marshaller_worldengine_cardinal_v1_ResumeRequest,
+        __Marshaller_worldengine_cardinal_v1_ResumeResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StepRequest, global::WorldEngine.Proto.Cardinal.V1.StepResponse> __Method_Step = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StepRequest, global::WorldEngine.Proto.Cardinal.V1.StepResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "Step",
+        __Marshaller_worldengine_cardinal_v1_StepRequest,
+        __Marshaller_worldengine_cardinal_v1_StepResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.ResetRequest, global::WorldEngine.Proto.Cardinal.V1.ResetResponse> __Method_Reset = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.ResetRequest, global::WorldEngine.Proto.Cardinal.V1.ResetResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "Reset",
+        __Marshaller_worldengine_cardinal_v1_ResetRequest,
+        __Marshaller_worldengine_cardinal_v1_ResetResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.GetStateRequest, global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> __Method_GetState = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.GetStateRequest, global::WorldEngine.Proto.Cardinal.V1.GetStateResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "GetState",
+        __Marshaller_worldengine_cardinal_v1_GetStateRequest,
+        __Marshaller_worldengine_cardinal_v1_GetStateResponse);
 
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -81,6 +141,66 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       /// <returns>The response to send back to the client (wrapped by a task).</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse> Introspect(global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// Pause stops tick execution. The world remains running but no ticks are processed.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.PauseResponse> Pause(global::WorldEngine.Proto.Cardinal.V1.PauseRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// Resume continues tick execution after a pause.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.ResumeResponse> Resume(global::WorldEngine.Proto.Cardinal.V1.ResumeRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// Step executes a single tick. Only works when paused.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.StepResponse> Step(global::WorldEngine.Proto.Cardinal.V1.StepRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// Reset restores the world to its initial state (before tick 0).
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.ResetResponse> Reset(global::WorldEngine.Proto.Cardinal.V1.ResetRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// GetState returns the current world state snapshot.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> GetState(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest request, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
@@ -166,6 +286,246 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       {
         return CallInvoker.AsyncUnaryCall(__Method_Introspect, null, options, request);
       }
+      /// <summary>
+      /// Pause stops tick execution. The world remains running but no ticks are processed.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.PauseResponse Pause(global::WorldEngine.Proto.Cardinal.V1.PauseRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return Pause(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Pause stops tick execution. The world remains running but no ticks are processed.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.PauseResponse Pause(global::WorldEngine.Proto.Cardinal.V1.PauseRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_Pause, null, options, request);
+      }
+      /// <summary>
+      /// Pause stops tick execution. The world remains running but no ticks are processed.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.PauseResponse> PauseAsync(global::WorldEngine.Proto.Cardinal.V1.PauseRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return PauseAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Pause stops tick execution. The world remains running but no ticks are processed.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.PauseResponse> PauseAsync(global::WorldEngine.Proto.Cardinal.V1.PauseRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_Pause, null, options, request);
+      }
+      /// <summary>
+      /// Resume continues tick execution after a pause.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.ResumeResponse Resume(global::WorldEngine.Proto.Cardinal.V1.ResumeRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return Resume(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Resume continues tick execution after a pause.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.ResumeResponse Resume(global::WorldEngine.Proto.Cardinal.V1.ResumeRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_Resume, null, options, request);
+      }
+      /// <summary>
+      /// Resume continues tick execution after a pause.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.ResumeResponse> ResumeAsync(global::WorldEngine.Proto.Cardinal.V1.ResumeRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return ResumeAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Resume continues tick execution after a pause.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.ResumeResponse> ResumeAsync(global::WorldEngine.Proto.Cardinal.V1.ResumeRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_Resume, null, options, request);
+      }
+      /// <summary>
+      /// Step executes a single tick. Only works when paused.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.StepResponse Step(global::WorldEngine.Proto.Cardinal.V1.StepRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return Step(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Step executes a single tick. Only works when paused.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.StepResponse Step(global::WorldEngine.Proto.Cardinal.V1.StepRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_Step, null, options, request);
+      }
+      /// <summary>
+      /// Step executes a single tick. Only works when paused.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.StepResponse> StepAsync(global::WorldEngine.Proto.Cardinal.V1.StepRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return StepAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Step executes a single tick. Only works when paused.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.StepResponse> StepAsync(global::WorldEngine.Proto.Cardinal.V1.StepRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_Step, null, options, request);
+      }
+      /// <summary>
+      /// Reset restores the world to its initial state (before tick 0).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.ResetResponse Reset(global::WorldEngine.Proto.Cardinal.V1.ResetRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return Reset(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Reset restores the world to its initial state (before tick 0).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.ResetResponse Reset(global::WorldEngine.Proto.Cardinal.V1.ResetRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_Reset, null, options, request);
+      }
+      /// <summary>
+      /// Reset restores the world to its initial state (before tick 0).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.ResetResponse> ResetAsync(global::WorldEngine.Proto.Cardinal.V1.ResetRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return ResetAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Reset restores the world to its initial state (before tick 0).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.ResetResponse> ResetAsync(global::WorldEngine.Proto.Cardinal.V1.ResetRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_Reset, null, options, request);
+      }
+      /// <summary>
+      /// GetState returns the current world state snapshot.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.GetStateResponse GetState(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return GetState(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// GetState returns the current world state snapshot.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.GetStateResponse GetState(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_GetState, null, options, request);
+      }
+      /// <summary>
+      /// GetState returns the current world state snapshot.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> GetStateAsync(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return GetStateAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// GetState returns the current world state snapshot.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.GetStateResponse> GetStateAsync(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_GetState, null, options, request);
+      }
       /// <summary>Creates a new instance of client from given <c>ClientBaseConfiguration</c>.</summary>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       protected override DebugServiceClient NewInstance(ClientBaseConfiguration configuration)
@@ -180,7 +540,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public static grpc::ServerServiceDefinition BindService(DebugServiceBase serviceImpl)
     {
       return grpc::ServerServiceDefinition.CreateBuilder()
-          .AddMethod(__Method_Introspect, serviceImpl.Introspect).Build();
+          .AddMethod(__Method_Introspect, serviceImpl.Introspect)
+          .AddMethod(__Method_Pause, serviceImpl.Pause)
+          .AddMethod(__Method_Resume, serviceImpl.Resume)
+          .AddMethod(__Method_Step, serviceImpl.Step)
+          .AddMethod(__Method_Reset, serviceImpl.Reset)
+          .AddMethod(__Method_GetState, serviceImpl.GetState).Build();
     }
 
     /// <summary>Register service method with a service binder with or without implementation. Useful when customizing the service binding logic.
@@ -191,6 +556,11 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public static void BindService(grpc::ServiceBinderBase serviceBinder, DebugServiceBase serviceImpl)
     {
       serviceBinder.AddMethod(__Method_Introspect, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest, global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse>(serviceImpl.Introspect));
+      serviceBinder.AddMethod(__Method_Pause, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.PauseRequest, global::WorldEngine.Proto.Cardinal.V1.PauseResponse>(serviceImpl.Pause));
+      serviceBinder.AddMethod(__Method_Resume, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.ResumeRequest, global::WorldEngine.Proto.Cardinal.V1.ResumeResponse>(serviceImpl.Resume));
+      serviceBinder.AddMethod(__Method_Step, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.StepRequest, global::WorldEngine.Proto.Cardinal.V1.StepResponse>(serviceImpl.Step));
+      serviceBinder.AddMethod(__Method_Reset, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.ResetRequest, global::WorldEngine.Proto.Cardinal.V1.ResetResponse>(serviceImpl.Reset));
+      serviceBinder.AddMethod(__Method_GetState, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.GetStateRequest, global::WorldEngine.Proto.Cardinal.V1.GetStateResponse>(serviceImpl.GetState));
     }
 
   }

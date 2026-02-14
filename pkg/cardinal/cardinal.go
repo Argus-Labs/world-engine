@@ -14,7 +14,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
+	"google.golang.org/protobuf/proto"
 )
 
 // World represents your game world and serves as the main entry point for Cardinal.
@@ -107,6 +109,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	// Create the debug module only if debug is on.
 	if *options.Debug {
 		debug := newDebugModule(world)
+		debug.control.isPaused.Store(true)
 		world.debug = &debug
 	}
 
@@ -151,13 +154,34 @@ func (w *World) run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
 	defer ticker.Stop()
 
-	// TODO: select from debug channel to pause/play ticks.
 	for {
+		if w.debug != nil && w.debug.control.isPaused.Load() {
+			select {
+			case <-w.debug.control.resumeCh:
+				w.debug.control.isPaused.Store(false)
+			case replyCh := <-w.debug.control.stepCh:
+				if err := w.Tick(ctx, time.Now()); err != nil {
+					replyCh <- 0
+					return eris.Wrap(err, "failed to run tick during step")
+				}
+				replyCh <- w.currentTick.height
+			case replyCh := <-w.debug.control.resetCh:
+				w.reset()
+				replyCh <- struct{}{}
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			continue
+		}
+
 		select {
 		case <-ticker.C:
 			if err := w.Tick(ctx, time.Now()); err != nil {
 				return eris.Wrap(err, "failed to run tick")
 			}
+		case replyCh := <-w.debug.control.pauseCh:
+			w.debug.control.isPaused.Store(true)
+			replyCh <- w.currentTick.height
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -207,8 +231,12 @@ func (w *World) restore(ctx context.Context) error {
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
-	// Attempt to restore ECS world from snapshot.
-	if err := w.world.Deserialize(snap.Data); err != nil {
+	// Unmarshal snapshot bytes into proto and restore ECS world.
+	var worldState cardinalv1.WorldState
+	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
+		return eris.Wrap(err, "failed to unmarshal snapshot data")
+	}
+	if err := w.world.FromProto(&worldState); err != nil {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
@@ -223,9 +251,14 @@ func (w *World) restore(ctx context.Context) error {
 // effectively losing unsaved state. If a snapshot fails, the main loop still continues and we retry
 // in the next snapshot call.
 func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
-	data, err := w.world.Serialize()
+	worldState, err := w.world.ToProto()
 	if err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for snapshot")
+		return
+	}
+	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
 		return
 	}
 	snap := &snapshot.Snapshot{
@@ -272,6 +305,14 @@ func (w *World) shutdown() {
 	}
 
 	w.tel.Logger.Info().Msg("World shutdown complete")
+}
+
+func (w *World) reset() {
+	w.world.Reset()
+	w.commands.Clear()
+	w.events.Clear()
+	w.currentTick.height = 0
+	w.currentTick.timestamp = time.Time{}
 }
 
 type Tick struct {
