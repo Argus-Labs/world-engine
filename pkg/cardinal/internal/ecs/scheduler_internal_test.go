@@ -79,7 +79,7 @@ func TestScheduler_RunFuzzConcurrent(t *testing.T) {
 					events[i] = struct{ start, end int64 }{}
 				}
 
-				scheduler.Run()
+				scheduler.Run(time.Now())
 
 				// Property: All systems execute exactly once.
 				for i, ev := range events {
