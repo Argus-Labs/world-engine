@@ -125,3 +125,11 @@ func (m *Manager) Drain() []Command {
 	}
 	return all
 }
+
+// Clear discards all pending commands from both queues and buffers.
+func (m *Manager) Clear() {
+	for id := range m.queues {
+		m.queues[id].Drain(&m.commands[id])
+		m.commands[id] = m.commands[id][:0]
+	}
+}

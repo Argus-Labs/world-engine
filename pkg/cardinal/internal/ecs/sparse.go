@@ -64,6 +64,13 @@ func (s *sparseSet) remove(key EntityID) bool {
 	return true
 }
 
+// clear clears all entries by filling the existing backing slice with tombstones.
+func (s *sparseSet) clear() {
+	for i := range *s {
+		(*s)[i] = sparseTombstone
+	}
+}
+
 // toInt64Slice converts the sparseSet to a []int64 for protobuf serialization.
 func (s *sparseSet) toInt64Slice() []int64 {
 	result := make([]int64, len(*s))
