@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/rotisserie/eris"
@@ -337,10 +338,12 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 // Concurrent entity operations fuzz
 // -------------------------------------------------------------------------------------------------
 // This test verifies that the newEntity/removeEntity operations maintain the same invariants tested
-// by the entity id generator test, but under concurrent operations using Go 1.25 testing/synctest.
-// We only test entity operations concurrently because component operations (get/set/remove) are not
-// concurrent-safe. The system scheduler ensures operations on the same component type are never
-// done concurrently in multiple systems.
+// by the entity id generator test, but under concurrent operations. Run with -race to detect data
+// races (go test -race). We use synctest.Test with time.Sleep to force goroutine interleaving.
+// Without it, WaitGroup goroutines tend to run sequentially, which defeats the purpose of a
+// concurrency test. We only test entity operations concurrently because component operations
+// (get/set/remove) are not concurrent-safe. The system scheduler ensures operations on the same
+// component type are never done concurrently in multiple systems.
 // -------------------------------------------------------------------------------------------------
 
 func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
@@ -368,13 +371,18 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 						ws.newEntity()
 						createCount.Add(1)
 					} else {
-						if ws.nextID > 0 {
-							eid := EntityID(prng.IntN(int(ws.nextID))) // prng.IntN will fail if nextID is 0
+						// Read nextID under lock to avoid racing with concurrent newEntity calls.
+						ws.mu.Lock()
+						nextID := ws.nextID
+						ws.mu.Unlock()
+						if nextID > 0 {
+							eid := EntityID(prng.IntN(int(nextID)))
 							ws.removeEntity(eid)
 						}
 						// Increment regardless of whether we removed any entities.
 						removeCount.Add(1)
 					}
+					time.Sleep(2 * time.Millisecond)
 				}
 			})
 		}
