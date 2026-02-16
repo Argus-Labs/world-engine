@@ -43,6 +43,9 @@ func (w *World) Init() {
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
 func (w *World) Tick() error {
+	// Clear system events after each tick.
+	defer w.systemEvents.clear()
+
 	// Run init systems once on first tick.
 	if !w.initDone {
 		for _, system := range w.initSystems {
@@ -52,15 +55,19 @@ func (w *World) Tick() error {
 		return nil
 	}
 
-	// Clear system events after each tick.
-	defer w.systemEvents.clear()
-
 	// Run the systems.
 	for i := range w.scheduler {
 		w.scheduler[i].Run()
 	}
 
 	return nil
+}
+
+// Reset clears the world state back to its initial empty state.
+// Components remain registered but all entities and archetypes are cleared.
+func (w *World) Reset() {
+	w.state.reset()
+	w.initDone = false
 }
 
 func (w *World) OnComponentRegister(callback func(zero Component) error) {
@@ -86,11 +93,4 @@ func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 	// Mark init as done to prevent re-running init systems after restore.
 	w.initDone = true
 	return nil
-}
-
-// Reset clears the world state back to its initial empty state.
-// Components remain registered but all entities and archetypes are cleared.
-func (w *World) Reset() {
-	w.state.reset()
-	w.initDone = false
 }
