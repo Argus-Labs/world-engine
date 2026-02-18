@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -28,12 +30,18 @@ type debugModule struct {
 	commands   map[string]*structpb.Struct
 	events     map[string]*structpb.Struct
 	components map[string]*structpb.Struct
+	perf       *performance.Collector
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
 
 // newDebugModule creates a new debugModule bound to the given World.
-func newDebugModule(world *World) debugModule {
+func newDebugModule(world *World) (debugModule, error) {
+	perf, err := performance.NewCollector(world.options.TickRate)
+	if err != nil {
+		return debugModule{}, eris.Wrap(err, "failed to create performance collector")
+	}
+
 	return debugModule{
 		world:      world,
 		control:    newTickControl(),
@@ -44,7 +52,8 @@ func newDebugModule(world *World) debugModule {
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
 		},
-	}
+		perf: perf,
+	}, nil
 }
 
 // Init initializes and starts the connect server for the debug service.
@@ -141,6 +150,136 @@ func (d *debugModule) Introspect(
 		Components: d.buildTypeSchemas(d.components),
 		Events:     d.buildTypeSchemas(d.events),
 	}), nil
+}
+
+// PerfOverview returns aggregated tick timing statistics over a time window.
+func (d *debugModule) PerfOverview(
+	_ context.Context,
+	req *connect.Request[cardinalv1.PerfOverviewRequest],
+) (*connect.Response[cardinalv1.PerfOverviewResponse], error) {
+	now := time.Now()
+	windowSeconds := int(req.Msg.GetWindowSeconds())
+	stats, freshness := d.perf.Overview(windowSeconds, now)
+
+	return connect.NewResponse(&cardinalv1.PerfOverviewResponse{
+		TickRateHz:    uint32(math.Round(d.world.options.TickRate)),
+		TickBudgetMs:  1000.0 / d.world.options.TickRate,
+		WindowSeconds: req.Msg.GetWindowSeconds(),
+		Samples: &cardinalv1.TickSampleStats{
+			Count:        int32(min(stats.Count, math.MaxInt32)), //nolint:gosec // bounded by ring capacity
+			AvgMs:        stats.AvgMs,
+			P95Ms:        stats.P95Ms,
+			MaxMs:        stats.MaxMs,
+			OverrunCount: int32(min(stats.OverrunCount, math.MaxInt32)), //nolint:gosec // bounded by Count
+			OverrunRate:  stats.OverrunRate,
+		},
+		Freshness: &cardinalv1.TickFreshness{
+			LastTickHeight: freshness.LastTickHeight,
+			LastTickAt:     timestamppb.New(freshness.LastTickAt),
+			AgeMs:          freshness.AgeMs,
+		},
+	}), nil
+}
+
+const (
+	// Mirrors the smallest proto-allowed window_seconds {in: [10, 60]}.
+	// Multiplied by tick rate at request time so the cap scales automatically.
+	defaultMaxTicksSeconds = 10
+	// Mirrors the largest proto-allowed window_seconds {in: [10, 60]}.
+	hardMaxTicksSeconds = 60
+)
+
+// PerfSchedule returns per-system span timelines for recent ticks.
+func (d *debugModule) PerfSchedule(
+	_ context.Context,
+	req *connect.Request[cardinalv1.PerfScheduleRequest],
+) (*connect.Response[cardinalv1.PerfScheduleResponse], error) {
+	now := time.Now()
+	windowSeconds := int(req.Msg.GetWindowSeconds())
+	tickRate := d.world.options.TickRate
+
+	hardLimit := int(tickRate * hardMaxTicksSeconds)
+	maxTicks := int(req.Msg.GetMaxTicks())
+	if maxTicks == 0 {
+		maxTicks = int(tickRate * defaultMaxTicksSeconds)
+	}
+	if maxTicks > hardLimit {
+		maxTicks = hardLimit
+	}
+
+	result := d.perf.Schedule(windowSeconds, maxTicks, now)
+
+	ticks := make([]*cardinalv1.TickTimeline, 0, len(result.Ticks))
+	for _, ts := range result.Ticks {
+		spans := make([]*cardinalv1.SystemSpan, 0, len(ts.Spans))
+		for _, span := range ts.Spans {
+			spans = append(spans, &cardinalv1.SystemSpan{
+				Phase:         span.Phase,
+				System:        span.SystemName,
+				StartOffsetNs: span.StartOffsetNs,
+				DurationNs:    span.DurationNs,
+			})
+		}
+		ticks = append(ticks, &cardinalv1.TickTimeline{
+			TickHeight: ts.TickHeight,
+			TickStart:  timestamppb.New(ts.TickStart),
+			Spans:      spans,
+		})
+	}
+
+	return connect.NewResponse(&cardinalv1.PerfScheduleResponse{
+		TickRateHz:    uint32(math.Round(d.world.options.TickRate)),
+		TickBudgetMs:  1000.0 / d.world.options.TickRate,
+		WindowSeconds: req.Msg.GetWindowSeconds(),
+		DroppedSpans:  d.perf.DroppedSpans(),
+		Ticks:         ticks,
+		Truncated:     result.Truncated,
+	}), nil
+}
+
+// recordTick computes tick duration and records the sample. Nil-safe.
+func (d *debugModule) recordTick(tickHeight uint64, tickStart time.Time) {
+	if d == nil {
+		return
+	}
+	completedAt := time.Now()
+	// float64 preserves sub-ms precision for P95/avg stats; .Milliseconds() truncates to int64.
+	durationMs := completedAt.Sub(tickStart).Seconds() * 1000
+	d.perf.RecordTick(performance.TickSample{
+		At:         completedAt,
+		TickHeight: tickHeight,
+		DurationMs: durationMs,
+		Overrun:    durationMs > 1000.0/d.world.options.TickRate,
+	})
+}
+
+// startPerfTick initializes span storage for a new tick. Nil-safe.
+func (d *debugModule) startPerfTick(tickHeight uint64, tickStart time.Time) {
+	if d == nil {
+		return
+	}
+	if err := d.perf.StartTick(tickHeight, tickStart); err != nil {
+		logger := d.world.tel.GetLogger("debug")
+		logger.Warn().Err(err).Uint64("tick_height", tickHeight).
+			Msg("perf StartTick out of sequence, skipping span data for this tick")
+	}
+}
+
+// resetPerf clears all buffered performance data and re-synchronizes the
+// collector to expect nextHead as the next tick height. Nil-safe.
+func (d *debugModule) resetPerf(nextHead uint64) {
+	if d == nil {
+		return
+	}
+	d.perf.Reset(nextHead)
+}
+
+// recordSpan records a per-system span. Nil-safe.
+func (d *debugModule) recordSpan(span performance.TickSpan) {
+	if d == nil {
+		return
+	}
+	d.perf.RecordSpan(span)
 }
 
 // buildTypeSchemas converts the internal schema cache to proto TypeSchema messages.
