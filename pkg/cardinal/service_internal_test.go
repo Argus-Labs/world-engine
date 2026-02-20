@@ -72,7 +72,7 @@ func TestService_HandleCommand(t *testing.T) {
 		payload := testutils.SimpleCommand{Value: 42}
 		payloadBytes, err := schema.Serialize(payload)
 		require.NoError(t, err)
-		wrongAddress := randServiceAddress(prng)
+		wrongAddress := RandServiceAddress(prng)
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
 			Address: wrongAddress,
@@ -222,7 +222,7 @@ type serviceFixture struct {
 func newServiceFixture(t *testing.T, prng *rand.Rand) *serviceFixture {
 	t.Helper()
 
-	address := randServiceAddress(prng)
+	address := RandServiceAddress(prng)
 	tel := telemetry.Telemetry{
 		Logger: zerolog.Nop(),
 		Tracer: noop.NewTracerProvider().Tracer("test"),
@@ -246,7 +246,7 @@ func newServiceFixture(t *testing.T, prng *rand.Rand) *serviceFixture {
 	w.service = svc
 
 	// Create a micro.Client connected to the shared test NATS server.
-	client := newTestClient(t)
+	client := NewTestClient(t)
 	svc.client = client
 
 	microService, err := micro.NewService(client, address, &tel)
