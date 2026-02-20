@@ -29,7 +29,7 @@ func TestClient_Request(t *testing.T) {
 	t.Parallel()
 
 	prng := testutils.NewRand(t)
-	client := micro.NewTestClient2(t)
+	client := micro.NewTestClient(t)
 	testPayload := micro.RandServiceAddress(t, prng) // Use a service address as the payload
 
 	t.Run("happy path", func(t *testing.T) {
@@ -126,7 +126,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 	t.Parallel()
 
 	prng := testutils.NewRand(t)
-	client := micro.NewTestClient2(t)
+	client := micro.NewTestClient(t)
 	testPayload := micro.RandServiceAddress(t, prng)
 
 	t.Run("happy path", func(t *testing.T) {

@@ -1,4 +1,4 @@
-package micro
+package cardinal
 
 import (
 	"log"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
 	"github.com/rs/zerolog"
@@ -45,13 +46,13 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func NewTestClient(t *testing.T) *Client {
+func NewTestClient(t *testing.T) *micro.Client {
 	t.Helper()
 
 	assert.NotNil(t, TestNATS, "test NATS server is not running")
-	c, err := NewClient(
-		WithNATSConfig(NATSConfig{Name: "test-client", URL: TestNATS.ClientURL()}),
-		WithLogger(zerolog.Nop()),
+	c, err := micro.NewClient(
+		micro.WithNATSConfig(micro.NATSConfig{Name: "test-client", URL: TestNATS.ClientURL()}),
+		micro.WithLogger(zerolog.Nop()),
 	)
 	require.NoError(t, err)
 
@@ -62,14 +63,12 @@ func NewTestClient(t *testing.T) *Client {
 	return c
 }
 
-func RandServiceAddress(t *testing.T, rng *rand.Rand) *ServiceAddress {
-	t.Helper()
-
-	return GetAddress(
-		"r-"+strconv.FormatInt(rng.Int64(), 10),
-		RealmInternal,
-		"o-"+strconv.FormatInt(rng.Int64(), 10),
-		"p-"+strconv.FormatInt(rng.Int64(), 10),
-		"s-"+strconv.FormatInt(rng.Int64(), 10),
+func RandServiceAddress(prng *rand.Rand) *micro.ServiceAddress {
+	return micro.GetAddress(
+		"r-"+strconv.FormatInt(prng.Int64(), 10),
+		micro.RealmInternal,
+		"o-"+strconv.FormatInt(prng.Int64(), 10),
+		"p-"+strconv.FormatInt(prng.Int64(), 10),
+		"s-"+strconv.FormatInt(prng.Int64(), 10),
 	)
 }
