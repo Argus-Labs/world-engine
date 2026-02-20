@@ -93,43 +93,6 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
-// NewTestClient creates a NATS client specifically for testing without authentication.
-// This should only be used in test environments with unauthenticated NATS servers.
-func NewTestClient(natsURL string) (*Client, error) {
-	c := &Client{
-		natsConfig: NATSConfig{
-			Name: "test-client",
-			URL:  natsURL,
-		},
-		log: zerolog.Nop(),
-	}
-
-	// Create basic NATS options without authentication
-	natsOpts := []nats.Option{
-		nats.Name(c.natsConfig.Name),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(time.Second * 5),
-		nats.DisconnectErrHandler(c.handleDisconnect),
-		nats.ReconnectHandler(c.handleReconnect),
-		nats.ClosedHandler(c.handleClosed),
-		nats.ErrorHandler(c.handleError),
-	}
-
-	// Connect without authentication (for test NATS servers).
-	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to connect to NATS server")
-	}
-	c.Conn = conn
-
-	c.log.Info().
-		Str("url", c.ConnectedUrl()).
-		Str("name", c.natsConfig.Name).
-		Msg("Connected to test NATS server")
-
-	return c, nil
-}
-
 // Request sends a request to a subject and waits for a response (request-reply pattern).
 // The timeout should be set in ctx.
 func (c *Client) Request(
