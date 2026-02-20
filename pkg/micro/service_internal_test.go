@@ -250,7 +250,7 @@ func newTestService(t *testing.T, prng *rand.Rand) (*Service, *Client) {
 		Logger: zerolog.Nop(),
 		Tracer: noop.NewTracerProvider().Tracer("test"),
 	}
-	client := NewTestClient2(t)
+	client := NewTestClient(t)
 	address := RandServiceAddress(t, prng)
 
 	svc, err := NewService(client, address, tel)
