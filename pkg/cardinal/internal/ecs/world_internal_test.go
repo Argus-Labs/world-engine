@@ -9,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -51,7 +52,7 @@ func TestWorld_TickFuzz(t *testing.T) {
 	for i := range numSystemEvents {
 		name := testutils.RandString(prng, 8)
 		_, err := world.systemEvents.register(name)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		systemEventNames[i] = name
 	}
 
@@ -129,7 +130,7 @@ func TestWorld_TickFuzz(t *testing.T) {
 		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
 		case opTick:
-			if expectInit {
+			if expectInit { //nolint:nestif // it's fine
 				world.Tick()
 
 				// Property: each init system ran exactly once.
@@ -178,7 +179,6 @@ func TestWorld_TickFuzz(t *testing.T) {
 					assert.Less(t, maxEnd[Update], minStart[PostUpdate],
 						"Update must finish before PostUpdate starts")
 				}
-
 			}
 
 			// Property: system events are cleared after tick.

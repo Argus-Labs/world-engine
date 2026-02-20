@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func newTestClient(t *testing.T) *micro.Client {
+func NewTestClient(t *testing.T) *micro.Client {
 	t.Helper()
 
 	assert.NotNil(t, TestNATS, "test NATS server is not running")
@@ -63,7 +63,7 @@ func newTestClient(t *testing.T) *micro.Client {
 	return c
 }
 
-func randServiceAddress(prng *rand.Rand) *micro.ServiceAddress {
+func RandServiceAddress(prng *rand.Rand) *micro.ServiceAddress {
 	return micro.GetAddress(
 		"r-"+strconv.FormatInt(prng.Int64(), 10),
 		micro.RealmInternal,
