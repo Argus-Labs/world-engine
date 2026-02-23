@@ -155,17 +155,17 @@ func (w *World) run(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
-		if w.debug != nil && w.debug.control.isPaused.Load() {
+		if w.debug.isPaused() {
 			select {
-			case <-w.debug.control.resumeCh:
-				w.debug.control.isPaused.Store(false)
-			case replyCh := <-w.debug.control.stepCh:
+			case <-w.debug.resumeChan():
+				w.debug.setPaused(false)
+			case replyCh := <-w.debug.stepChan():
 				if err := w.Tick(ctx, time.Now()); err != nil {
 					replyCh <- 0
 					return eris.Wrap(err, "failed to run tick during step")
 				}
 				replyCh <- w.currentTick.height
-			case replyCh := <-w.debug.control.resetCh:
+			case replyCh := <-w.debug.resetChan():
 				w.reset()
 				replyCh <- struct{}{}
 			case <-ctx.Done():
@@ -179,8 +179,8 @@ func (w *World) run(ctx context.Context) error {
 			if err := w.Tick(ctx, time.Now()); err != nil {
 				return eris.Wrap(err, "failed to run tick")
 			}
-		case replyCh := <-w.debug.control.pauseCh:
-			w.debug.control.isPaused.Store(true)
+		case replyCh := <-w.debug.pauseChan():
+			w.debug.setPaused(true)
 			replyCh <- w.currentTick.height
 		case <-ctx.Done():
 			return ctx.Err()

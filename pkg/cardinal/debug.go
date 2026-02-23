@@ -265,3 +265,51 @@ func (d *debugModule) GetState(
 		},
 	}), nil
 }
+
+// isPaused returns whether the world is currently paused. Returns false if d is nil.
+func (d *debugModule) isPaused() bool {
+	if d == nil {
+		return false
+	}
+	return d.control.isPaused.Load()
+}
+
+// setPaused sets the paused state. No-op if d is nil.
+func (d *debugModule) setPaused(v bool) {
+	if d == nil {
+		return
+	}
+	d.control.isPaused.Store(v)
+}
+
+// pauseChan returns the pause request channel, or nil if d is nil.
+func (d *debugModule) pauseChan() <-chan chan uint64 {
+	if d == nil {
+		return nil
+	}
+	return d.control.pauseCh
+}
+
+// resumeChan returns the resume signal channel, or nil if d is nil.
+func (d *debugModule) resumeChan() <-chan struct{} {
+	if d == nil {
+		return nil
+	}
+	return d.control.resumeCh
+}
+
+// stepChan returns the step request channel, or nil if d is nil.
+func (d *debugModule) stepChan() <-chan chan uint64 {
+	if d == nil {
+		return nil
+	}
+	return d.control.stepCh
+}
+
+// resetChan returns the reset request channel, or nil if d is nil.
+func (d *debugModule) resetChan() <-chan chan struct{} {
+	if d == nil {
+		return nil
+	}
+	return d.control.resetCh
+}
