@@ -2,8 +2,6 @@ package ecs
 
 import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
-	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/proto"
 )
 
 // World represents the root ECS state.
@@ -73,27 +71,26 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 // Serialization methods
 // -------------------------------------------------------------------------------------------------
 
-// Serialize converts the World's state to a byte slice for serialization.
+// ToProto converts the World's state to a proto message.
 // Only serializes the WorldState as components, systems, and managers are recreated on startup.
-func (w *World) Serialize() ([]byte, error) {
-	worldState, err := w.state.toProto()
-	if err != nil {
-		return nil, err
-	}
-	return proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
+func (w *World) ToProto() (*cardinalv1.WorldState, error) {
+	return w.state.toProto()
 }
 
-// Deserialize populates the World's state from a byte slice.
+// FromProto populates the World's state from a proto message.
 // This should only be called after the World has been properly initialized with components registered.
-func (w *World) Deserialize(data []byte) error {
-	var worldState cardinalv1.WorldState
-	if err := proto.Unmarshal(data, &worldState); err != nil {
-		return eris.Wrap(err, "failed to unmarshal world state")
-	}
-	if err := w.state.fromProto(&worldState); err != nil {
+func (w *World) FromProto(pb *cardinalv1.WorldState) error {
+	if err := w.state.fromProto(pb); err != nil {
 		return err
 	}
 	// Mark init as done to prevent re-running init systems after restore.
 	w.initDone = true
 	return nil
+}
+
+// Reset clears the world state back to its initial empty state.
+// Components remain registered but all entities and archetypes are cleared.
+func (w *World) Reset() {
+	w.state.reset()
+	w.initDone = false
 }

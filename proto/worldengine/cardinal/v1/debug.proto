@@ -3,6 +3,7 @@ syntax = "proto3";
 package worldengine.cardinal.v1;
 
 import "google/protobuf/struct.proto";
+import "worldengine/cardinal/v1/snapshot.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
@@ -13,6 +14,21 @@ service DebugService {
   // Introspect returns metadata about the registered types in the world.
   // The result includes JSON schemas for commands, components, and events.
   rpc Introspect(IntrospectRequest) returns (IntrospectResponse);
+
+  // Pause stops tick execution. The world remains running but no ticks are processed.
+  rpc Pause(PauseRequest) returns (PauseResponse);
+
+  // Resume continues tick execution after a pause.
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+
+  // Step executes a single tick. Only works when paused.
+  rpc Step(StepRequest) returns (StepResponse);
+
+  // Reset restores the world to its initial state (before tick 0).
+  rpc Reset(ResetRequest) returns (ResetResponse);
+
+  // GetState returns the current world state snapshot.
+  rpc GetState(GetStateRequest) returns (GetStateResponse);
 }
 
 // IntrospectRequest is the request message for the Introspect RPC.
@@ -37,4 +53,46 @@ message TypeSchema {
 
   // JSON schema for the type.
   google.protobuf.Struct schema = 2;
+}
+
+// PauseRequest is the request message for the Pause RPC.
+message PauseRequest {}
+
+// PauseResponse is the response message for the Pause RPC.
+message PauseResponse {
+  // The tick height at which the world was paused.
+  uint64 tick_height = 1;
+}
+
+// ResumeRequest is the request message for the Resume RPC.
+message ResumeRequest {}
+
+// ResumeResponse is the response message for the Resume RPC.
+message ResumeResponse {}
+
+// StepRequest is the request message for the Step RPC.
+message StepRequest {}
+
+// StepResponse is the response message for the Step RPC.
+message StepResponse {
+  // The tick height after stepping.
+  uint64 tick_height = 1;
+}
+
+// ResetRequest is the request message for the Reset RPC.
+message ResetRequest {}
+
+// ResetResponse is the response message for the Reset RPC.
+message ResetResponse {}
+
+// GetStateRequest is the request message for the GetState RPC.
+message GetStateRequest {}
+
+// GetStateResponse is the response message for the GetState RPC.
+message GetStateResponse {
+  // Whether the world is currently paused.
+  bool is_paused = 1;
+
+  // The current world state snapshot (includes tick_height).
+  Snapshot snapshot = 2;
 }
