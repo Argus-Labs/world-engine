@@ -1,32 +1,41 @@
 ---
 title: Introduction
-description: Welcome to World Engine — the seed of future worlds
 ---
 
 <img className="block" src="/images/og.jpg" alt="Hero" style={{ borderRadius: '0.5rem' }} />
 
-## Getting Started
+World Engine is a high-performance framework designed specifically for onchain, real-time games. It allows you to build games that run on their own dedicated "shards", giving you the speed and complexity of a traditional game engine, while keeping your game fully secure and verifiable on the blockchain.
 
-Get up and running with World Engine in less than 10 minutes.
+This architecture unlocks a new generation of onchain games. From real-time strategy to physics-heavy simulations, World Engine empowers you to build complex, persistent worlds that were previously impossible to run on general-purpose blockchains.
 
-<CardGroup cols={2}>
-  <Card title="Installation & Setup" icon="pen-to-square" href="/setup">
-    Install World CLI and scaffold a starter game project
-  </Card>
-  <Card title="Architecture" icon="sitemap" href="https://blog.argus.gg/world-engine/">
-    Learn the high-level architecture of World Engine
-  </Card>
-</CardGroup>
+## Why World Engine?
 
-## Building Your Game
+Traditional blockchains are built around event-driven execution: a transaction arrives, the chain processes it, and only then does the state change. This model is too slow and too unpredictable for real-time games, where the world must update continuously and on a fixed schedule.
 
-Ready to build your game using the World Engine stack? Here are some resources.
+World Engine takes a different approach. It introduces a tick-driven rollup protocol where the world updates on a fixed schedule, just like a real game engine. The world advances every tick, deterministically, regardless of how or when inputs arrive.
 
-<CardGroup cols={2}>
-  <Card title="Cardinal (Game Shard)" icon="gamepad" href="/cardinal/introduction">
-    Build your fully onchain game using World Engine's Cardinal framework
-  </Card>
-  <Card title="JavaScript SDK" icon="js" href="/javascript/introduction">
-    Build your game client with JavaScript and React (optional)
-  </Card>
-</CardGroup>
+This gives developers real-time performance without giving up security or verifiability. Games stay responsive because the protocol follows the same timing model as modern game engines.
+
+## Key Features
+
+**Built for Games**
+
+World Engine is purpose-built for real-time games. It supports execution sharding and horizontal scalability, so your game can scale across multiple shards as needed.
+
+**Built for Developers**
+
+We provide end-to-end tooling designed for a smooth developer experience across the full cycle: building, testing, debugging, and deploying. With client SDKs, built-in auth, and managed deployment, everything is set up to help you iterate quickly.
+
+**Built for Collaboration**
+
+The ecosystem supports community plugins and preset shards for common game types. You can share components, extend existing shards, or build on top of what others have created.
+
+## The Cardinal Framework
+
+Cardinal is our first implementation of the World Engine protocol, written in Go. It's an ECS-based, tick-driven game server framework designed for writing high-performance, real-time games.
+
+If you've worked with engines like Unity, Unreal, or Bevy, Cardinal will feel familiar. It uses the same ECS architecture and tick-based execution model, so you can focus on building your game rather than wrestling with blockchain mechanics. The rest of this documentation will guide you through Cardinal's core concepts and patterns.
+
+## Next Steps
+
+Head over the the next page to learn how to install the World Engine and create your first game!

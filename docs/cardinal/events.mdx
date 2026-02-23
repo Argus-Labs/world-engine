@@ -1,0 +1,96 @@
+---
+title: Events
+---
+
+Events are notifications sent to game clients about things happening in your game, such as a player dying, an item dropping, or a match ending. While commands are input from players, events are output from systems.
+
+Events are useful for triggering real-time UI updates, playing sound effects, or synchronizing game state across clients. Note that events are distinct from [system events](/cardinal/system-events), which are internal messages for communication between systems within a single tick.
+
+## Defining Events
+
+Events are plain Go structs that embed `BaseEvent` and implement the `Event` interface. This interface requires a single `Name()` method that returns a **unique** string identifier.
+
+```go
+import "github.com/argus-labs/world-engine/pkg/cardinal"
+
+type PlayerDeathEvent struct {
+    cardinal.BaseEvent
+    PlayerID string `json:"player_id"`
+    KillerID string `json:"killer_id"`
+}
+
+func (PlayerDeathEvent) Name() string {
+    return "player-death"
+}
+```
+
+## Emitting Events
+
+Just like with commands, you must declare the events a system emits in its state struct. Add a `WithEvent[T]` field to your system state type, where `T` is your event type:
+
+```go
+import "github.com/argus-labs/world-engine/pkg/cardinal"
+
+type CombatSystemState struct {
+    cardinal.BaseSystemState
+    PlayerDeathEvents cardinal.WithEvent[PlayerDeathEvent]
+}
+```
+
+In your system, use `Emit` to emit the event:
+
+```go
+func CombatSystem(state *CombatSystemState) error {
+    // Game logic that results in a player death...
+
+    state.PlayerDeathEvents.Emit(PlayerDeathEvent{
+        PlayerID: "player-123",
+        KillerID: "player-456",
+    })
+
+    return nil
+}
+```
+
+<Note>
+  Just like with commands, a system cannot have multiple `WithEvent` fields with the same event type.
+</Note>
+
+## Subscribing to Events
+
+Events emitted during a tick are collected and broadcast to subscribers at the end of that tick. While events are broadcast, clients must explicitly subscribe to receive them.
+
+Subscribe to an event by passing the event name and a handler function:
+
+<Tabs>
+  <Tab title="Unity C#">
+    {/* TODO: link to C# SDK documentation */}
+    ```csharp
+    var handler = evt =>
+    {
+        Debug.Log($"New player event: {evt.Payload}");
+    };
+    await shard.SubscribeEventAsync("new-player", handler);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    TODO: update
+    ```
+  </Tab>
+</Tabs>
+
+Unsubscribe from an event when you no longer need to receive updates:
+
+<Tabs>
+  <Tab title="Unity C#">
+    ```csharp
+    await shard.UnsubscribeEventAsync("new-player", handler);
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```ts
+    TODO: update
+    ```
+  </Tab>
+</Tabs>
