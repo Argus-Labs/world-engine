@@ -451,6 +451,37 @@ func TestScheduler_GraphExamples(t *testing.T) {
 	}
 }
 
+// TestScheduler_RunAfterRecreate is a regression test for a deadlock caused by createSchedule()
+// not resetting activeIndegree. After an odd number of Run() calls, activeIndegree would be 1,
+// but createSchedule() always seeds indegree0. The next Run() would read from the zeroed indegree1,
+// dependents would never reach remainingDeps == 0, and the channel read would block forever. This
+// bug happens only when you Reset() the world.
+func TestScheduler_RunAfterRecreate(t *testing.T) {
+	t.Parallel()
+
+	// synctest.Test detects the deadlock instantly via its goroutine bubble — if all goroutines
+	// inside the bubble block, it panics with "deadlock" instead of waiting for a test timeout.
+	synctest.Test(t, func(t *testing.T) {
+		s := newSystemScheduler()
+
+		// Two systems where B depends on A (shared component bit 0).
+		ran := [2]int{}
+		s.register("A", deps(0), func() { ran[0]++ })
+		s.register("B", deps(0), func() { ran[1]++ })
+
+		// First schedule + run.
+		s.createSchedule()
+		s.Run()
+		assert.Equal(t, [2]int{1, 1}, ran)
+
+		// Recreate schedule (simulates shard restart) and run again.
+		ran = [2]int{}
+		s.createSchedule()
+		s.Run()
+		assert.Equal(t, [2]int{1, 1}, ran)
+	})
+}
+
 func deps(componentIDs ...uint32) bitmap.Bitmap {
 	deps := bitmap.Bitmap{}
 	for _, id := range componentIDs {

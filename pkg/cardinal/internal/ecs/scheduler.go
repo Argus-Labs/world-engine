@@ -107,6 +107,7 @@ func (s *systemScheduler) createSchedule() {
 
 	// Initialize double-buffered atomic counters for tracking dependencies. These are used to avoid
 	// reallocation during system execution.
+	s.activeIndegree = 0
 	s.indegree0 = make([]atomic.Int32, len(s.systems))
 	s.indegree1 = make([]atomic.Int32, len(s.systems))
 
