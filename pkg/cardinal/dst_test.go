@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"math/rand/v2"
@@ -45,10 +44,25 @@ func TestDST(t *testing.T) {
 			dstDoSnapshotRestore(t, fix)
 		}
 
-		require.NoError(t, fix.world.Tick(context.Background(), time.Now()))
-		fix.nats.clear()
+		// Reset processed command tracking before the tick.
+		dstTracker.reset()
 
-		_ = tick
+		timestamp := time.Unix(int64(tick), 0)
+		require.NoError(t, fix.world.Tick(context.Background(), timestamp))
+
+		// Assert every enqueued command was processed by its system.
+		require.ElementsMatch(t, fix.nats.pending, dstTracker.processed,
+			"tick %d: enqueued commands do not match processed commands", tick)
+
+		// Assert every event emitted by systems was received by the event handler.
+		require.ElementsMatch(t, dstTracker.events, fix.nats.events,
+			"tick %d: emitted events do not match received events", tick)
+
+		// Assert every inter-shard command emitted by systems was received by the ISC handler.
+		require.ElementsMatch(t, dstTracker.iscCommands, fix.nats.iscEvents,
+			"tick %d: emitted ISC commands do not match received ISC commands", tick)
+
+		fix.nats.clear()
 	}
 }
 
@@ -58,9 +72,6 @@ type dstConfig struct {
 	Ticks     int                 // Total number of ticks to simulate
 	OpWeights testutils.OpWeights // Weighted operation selection
 
-	// Fault injection: commands
-	CommandFaultRate float64 // Probability [0,1] that a command enqueue silently drops
-
 	// Fault injection: snapshot storage
 	StoreFaultRate float64 // Probability [0,1] that snapshot Store fails
 	LoadFaultRate  float64 // Probability [0,1] that snapshot Load fails
@@ -68,11 +79,10 @@ type dstConfig struct {
 
 func newDSTConfig(rng *rand.Rand) dstConfig {
 	return dstConfig{
-		Ticks:            *dstNumTicks,
-		OpWeights:        testutils.RandOpWeights(rng, dstOps),
-		CommandFaultRate: rng.Float64() * 0.3, // Up to 30% of commands are faulty
-		StoreFaultRate:   0,                   // TODO: randomize when storage fault injection is implemented
-		LoadFaultRate:    0,                   // TODO: randomize when storage fault injection is implemented
+		Ticks:          *dstNumTicks,
+		OpWeights:      testutils.RandOpWeights(rng, dstOps),
+		StoreFaultRate: 0, // TODO: randomize when storage fault injection is implemented
+		LoadFaultRate:  0, // TODO: randomize when storage fault injection is implemented
 	}
 }
 
@@ -81,7 +91,6 @@ func (c *dstConfig) log(t *testing.T) {
 	t.Logf("DST config:")
 	t.Logf("  ticks:              %d", c.Ticks)
 	t.Logf("  op_weights:         %v", c.OpWeights)
-	t.Logf("  command_fault_rate: %.2f", c.CommandFaultRate)
 	t.Logf("  store_fault_rate:   %.2f", c.StoreFaultRate)
 	t.Logf("  load_fault_rate:    %.2f", c.LoadFaultRate)
 }
@@ -105,8 +114,8 @@ func dstDoJoinGame(t *testing.T, fix *dstFixture, rng *rand.Rand) {
 	t.Helper()
 	cmd := dstJoinGame{
 		Nickname:     testutils.RandString(rng, 6),
-		HP:           1 + rng.IntN(100),
-		ShieldPoints: 1 + rng.IntN(50),
+		HP:           1 + rng.Int(),
+		ShieldPoints: 1 + rng.Int(),
 	}
 	persona := testutils.RandString(rng, 8)
 	require.NoError(t, fix.nats.enqueueCommand(cmd, persona))
@@ -138,10 +147,7 @@ func dstDoSnapshotRestore(t *testing.T, fix *dstFixture) {
 	t.Helper()
 	ctx := context.Background()
 
-	// Take a snapshot of the current state.
-	fix.world.snapshot(ctx, time.Now())
-
-	// Reset and restore from the snapshot.
+	// Reset and restore from existing snapshot.
 	fix.world.reset()
 	require.NoError(t, fix.world.restore(ctx))
 }
@@ -170,7 +176,7 @@ func (f *dstFixture) allEntityIDs() []EntityID {
 	return ids
 }
 
-func newDSTFixture(t *testing.T, rng *rand.Rand, cfg dstConfig) *dstFixture {
+func newDSTFixture(t *testing.T, _ *rand.Rand, _ dstConfig) *dstFixture {
 	t.Helper()
 
 	// Suppress world logs during DST to reduce noise.
@@ -194,7 +200,7 @@ func newDSTFixture(t *testing.T, rng *rand.Rand, cfg dstConfig) *dstFixture {
 	dstRegisterShardSystems(w)
 
 	// Replace NATS with fake that captures events and allows direct command injection.
-	fakeNATS := newDSTFakeNATS(t, w, rng, cfg.CommandFaultRate)
+	fakeNATS := newDSTFakeNATS(t, w)
 
 	// Step 2: Replace nop snapshot storage with in-memory storage for DST.
 	w.snapshotStorage = &memSnapshotStorage{t: t}
@@ -203,7 +209,7 @@ func newDSTFixture(t *testing.T, rng *rand.Rand, cfg dstConfig) *dstFixture {
 	w.world.Init()
 
 	// Verify the world can tick without errors.
-	require.NoError(t, w.Tick(context.Background(), time.Now()))
+	require.NoError(t, w.Tick(context.Background(), time.Unix(0, 0)))
 
 	return &dstFixture{
 		world: w,
@@ -257,22 +263,20 @@ func (m *memSnapshotStorage) Load(_ context.Context) (*snapshot.Snapshot, error)
 // dstFakeNATS replaces real NATS in DST. It enqueues commands directly into the world's command
 // manager and captures events emitted by systems instead of publishing them over the network.
 type dstFakeNATS struct {
-	t                *testing.T
-	rng              *rand.Rand
-	world            *World
-	commandFaultRate float64           // Probability [0,1] that a command is injected with a fault
-	events           []event.Event     // Default events captured during the last tick
-	iscEvents        []command.Command // Inter-shard commands captured during the last tick
+	t         *testing.T
+	world     *World
+	pending   []CommandContext[Command] // Commands enqueued this tick (expected to be processed)
+	events    []event.Event             // Default events captured during the last tick
+	iscEvents []event.Event             // Inter-shard commands captured during the last tick
 }
 
-func newDSTFakeNATS(t *testing.T, world *World, rng *rand.Rand, commandFaultRate float64) *dstFakeNATS {
+func newDSTFakeNATS(t *testing.T, world *World) *dstFakeNATS {
 	f := &dstFakeNATS{
-		t:                t,
-		rng:              rng,
-		world:            world,
-		commandFaultRate: commandFaultRate,
-		events:           make([]event.Event, 0),
-		iscEvents:        make([]command.Command, 0),
+		t:         t,
+		world:     world,
+		pending:   make([]CommandContext[Command], 0),
+		events:    make([]event.Event, 0),
+		iscEvents: make([]event.Event, 0),
 	}
 
 	// Replace NATS event handlers with local capture handlers.
@@ -283,8 +287,8 @@ func newDSTFakeNATS(t *testing.T, world *World, rng *rand.Rand, commandFaultRate
 }
 
 // enqueueCommand serializes a command payload and enqueues it into the world's command manager,
-// bypassing NATS entirely. When fault injection is active, it randomly corrupts the command
-// (wrong name, garbage payload, nil persona, etc.) and expects the enqueue to return an error.
+// bypassing NATS entirely. All commands are valid — boundary validation (protovalidate) is not
+// exercised here because it belongs to the real NATS handler.
 func (f *dstFakeNATS) enqueueCommand(cmd command.Payload, persona string) error {
 	assert.NotEmpty(f.t, cmd.Name(), "nats: enqueueCommand called with empty command name")
 	assert.NotEmpty(f.t, persona, "nats: enqueueCommand called with empty persona")
@@ -295,50 +299,25 @@ func (f *dstFakeNATS) enqueueCommand(cmd command.Payload, persona string) error 
 	}
 	assert.NotEmpty(f.t, data, "nats: enqueueCommand serialized payload is empty")
 
-	// Fault injection: randomly corrupt the command.
-	if f.commandFaultRate > 0 && f.rng.Float64() < f.commandFaultRate {
-		return f.enqueueFaultyCommand(cmd.Name(), data, persona)
-	}
-
-	return f.world.commands.Enqueue(&iscv1.Command{
+	iscCmd := &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,
 		Persona: &iscv1.Persona{Id: persona},
 		Payload: data,
-	})
-}
-
-// enqueueFaultyCommand injects a random fault into the command and asserts that enqueue fails.
-func (f *dstFakeNATS) enqueueFaultyCommand(name string, data []byte, persona string) error {
-	faultName := name
-	faultPayload := data
-	faultPersona := &iscv1.Persona{Id: persona}
-
-	switch f.rng.IntN(3) {
-	case 0: // Unknown command name
-		faultName = "nonexistent_" + testutils.RandString(f.rng, 4)
-	case 1: // Garbage payload
-		faultPayload = []byte("garbage")
-	case 2: // Nil persona
-		faultPersona = nil
 	}
-
-	err := f.world.commands.Enqueue(&iscv1.Command{
-		Name:    faultName,
-		Address: f.world.address,
-		Persona: faultPersona,
-		Payload: faultPayload,
-	})
-	// Faulty commands with bad name or bad payload must be rejected.
-	// Nil persona is not validated at the enqueue level, so it may succeed.
-	if faultName != name || !bytes.Equal(faultPayload, data) {
-		assert.Error(f.t, err, "faulty command should have been rejected")
+	err = f.world.commands.Enqueue(iscCmd)
+	if err == nil {
+		f.pending = append(f.pending, CommandContext[Command]{
+			Payload: cmd,
+			Persona: iscCmd.GetPersona().GetId(),
+		})
 	}
-	return nil // Swallow the error — fault injection is expected to fail.
+	return err
 }
 
 // clear resets captured events. Should be called before each tick.
 func (f *dstFakeNATS) clear() {
+	f.pending = f.pending[:0]
 	f.events = f.events[:0]
 	f.iscEvents = f.iscEvents[:0]
 }
@@ -360,6 +339,6 @@ func (f *dstFakeNATS) handleInterShardCommand(evt event.Event) error {
 	}
 	assert.NotEmpty(f.t, isc.Name, "nats: inter-shard command has empty name")
 	assert.NotNil(f.t, isc.Address, "nats: inter-shard command has nil address")
-	f.iscEvents = append(f.iscEvents, isc)
+	f.iscEvents = append(f.iscEvents, event.Event{Kind: event.KindInterShardCommand, Payload: isc.Payload})
 	return nil
 }

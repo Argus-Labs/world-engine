@@ -87,6 +87,14 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 // is expected that there exists only 1 caller for each command type, therefore each caller reads
 // a different key. This is ok because concurrent reads on Go maps are allowed.
 func (m *Manager) Enqueue(command *iscv1.Command) error {
+	// Enqueue expects callers to validate the command, so here we just assert for defense in depth.
+	// NOTE: one extra assertion that we can't put here is if command.address == this shard.address.
+	// The caller must be responsible for checking this.
+	assert.That(command.GetName() != "", "command has empty name")
+	assert.That(command.GetAddress() != nil, "command has nil address")
+	assert.That(command.GetPersona() != nil, "command has nil persona")
+	assert.That(command.GetPayload() != nil, "command has nil payload")
+
 	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
 	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the
 	// ID of the command in the caller, so we can do a direct index with Enqueue(id, command).
