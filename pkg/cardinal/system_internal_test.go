@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -117,6 +118,7 @@ func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, p
 
 	cmdpb := &iscv1.Command{
 		Name:    payload.Name(),
+		Address: &microv1.ServiceAddress{},
 		Persona: &iscv1.Persona{Id: persona},
 		Payload: bytes,
 	}
