@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"time"
+
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
@@ -24,8 +26,10 @@ func NewWorld() *World {
 		systemEvents: newSystemEventManager(),
 	}
 
+	systemHookNames := [3]SystemHook{PreUpdate, Update, PostUpdate}
 	for i := range world.scheduler {
 		world.scheduler[i] = newSystemScheduler()
+		world.scheduler[i].systemHook = systemHookNames[i]
 	}
 
 	return world
@@ -61,6 +65,23 @@ func (w *World) Tick() error {
 	}
 
 	return nil
+}
+
+// SetOnSystemRun sets a callback invoked after each system execution.
+// Must be called before Init.
+func (w *World) OnSystemRun(fn func(name string, systemHook SystemHook, startTime, endTime time.Time)) {
+	for i := range w.scheduler {
+		w.scheduler[i].onSystemRun = fn
+	}
+}
+
+// Schedules returns the dependency graphs for all execution phases.
+func (w *World) Schedules() []ScheduleInfo {
+	schedules := make([]ScheduleInfo, len(w.scheduler))
+	for i := range w.scheduler {
+		schedules[i] = w.scheduler[i].scheduleInfo()
+	}
+	return schedules
 }
 
 func (w *World) OnComponentRegister(callback func(zero Component) error) {

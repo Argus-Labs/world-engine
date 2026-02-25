@@ -50,7 +50,7 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.ShardID != "" {
 		opt.ShardID = newOpt.ShardID
 	}
-	if newOpt.TickRate != 0.0 {
+	if newOpt.TickRate > 0.0 {
 		opt.TickRate = newOpt.TickRate
 	}
 	if newOpt.SnapshotStorageType.IsValid() {
@@ -78,8 +78,8 @@ func (opt *WorldOptions) validate() error {
 	if opt.ShardID == "" {
 		return eris.New("shard ID cannot be empty")
 	}
-	if opt.TickRate == 0.0 {
-		return eris.New("tick rate cannot be 0")
+	if opt.TickRate <= 0.0 {
+		return eris.New("tick rate must be greater than 0")
 	}
 	if !opt.SnapshotStorageType.IsValid() {
 		return eris.New("snapshot storage type must be specified")
