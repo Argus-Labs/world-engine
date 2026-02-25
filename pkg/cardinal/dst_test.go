@@ -30,10 +30,32 @@ func TestDST(t *testing.T) {
 
 	fix := newDSTFixture(t, rng, cfg)
 
-	for tick := range cfg.Ticks {
+	tick := 0
+	for tick < cfg.Ticks {
 		op := testutils.RandWeightedOp(rng, cfg.OpWeights)
 
 		switch op {
+		case dstOpTick:
+			// Reset processed command tracking before the tick.
+			dstTracker.reset()
+
+			timestamp := time.Unix(int64(tick), 0)
+			require.NoError(t, fix.world.Tick(context.Background(), timestamp))
+
+			// Assert every enqueued command was processed by its system.
+			require.ElementsMatch(t, fix.nats.pending, dstTracker.processed,
+				"tick %d: enqueued commands do not match processed commands", tick)
+
+			// Assert every event emitted by systems was received by the event handler.
+			require.ElementsMatch(t, dstTracker.events, fix.nats.events,
+				"tick %d: emitted events do not match received events", tick)
+
+			// Assert every inter-shard command emitted by systems was received by the ISC handler.
+			require.ElementsMatch(t, dstTracker.iscCommands, fix.nats.iscEvents,
+				"tick %d: emitted ISC commands do not match received ISC commands", tick)
+
+			fix.nats.clear()
+			tick++
 		case dstOpJoinGame:
 			dstDoJoinGame(t, fix, rng)
 		case dstOpAttack:
@@ -43,26 +65,6 @@ func TestDST(t *testing.T) {
 		case dstOpSnapshotRestore:
 			dstDoSnapshotRestore(t, fix)
 		}
-
-		// Reset processed command tracking before the tick.
-		dstTracker.reset()
-
-		timestamp := time.Unix(int64(tick), 0)
-		require.NoError(t, fix.world.Tick(context.Background(), timestamp))
-
-		// Assert every enqueued command was processed by its system.
-		require.ElementsMatch(t, fix.nats.pending, dstTracker.processed,
-			"tick %d: enqueued commands do not match processed commands", tick)
-
-		// Assert every event emitted by systems was received by the event handler.
-		require.ElementsMatch(t, dstTracker.events, fix.nats.events,
-			"tick %d: emitted events do not match received events", tick)
-
-		// Assert every inter-shard command emitted by systems was received by the ISC handler.
-		require.ElementsMatch(t, dstTracker.iscCommands, fix.nats.iscEvents,
-			"tick %d: emitted ISC commands do not match received ISC commands", tick)
-
-		fix.nats.clear()
 	}
 }
 
@@ -72,15 +74,22 @@ type dstConfig struct {
 	Ticks     int                 // Total number of ticks to simulate
 	OpWeights testutils.OpWeights // Weighted operation selection
 
+	// World configuration
+	SnapshotRate uint32 // Snapshot rate (1–20)
+
 	// Fault injection: snapshot storage
 	StoreFaultRate float64 // Probability [0,1] that snapshot Store fails
 	LoadFaultRate  float64 // Probability [0,1] that snapshot Load fails
 }
 
 func newDSTConfig(rng *rand.Rand) dstConfig {
+	opWeights := testutils.RandOpWeights(rng, dstOps)
+	// Tick must always be enabled so the simulation makes progress.
+	opWeights[dstOpTick] = uint64(1 + rng.IntN(100)) //nolint:gosec // not gonna happen
 	return dstConfig{
 		Ticks:          *dstNumTicks,
-		OpWeights:      testutils.RandOpWeights(rng, dstOps),
+		OpWeights:      opWeights,
+		SnapshotRate:   uint32(1 + rng.IntN(25)),
 		StoreFaultRate: 0, // TODO: randomize when storage fault injection is implemented
 		LoadFaultRate:  0, // TODO: randomize when storage fault injection is implemented
 	}
@@ -91,12 +100,14 @@ func (c *dstConfig) log(t *testing.T) {
 	t.Logf("DST config:")
 	t.Logf("  ticks:              %d", c.Ticks)
 	t.Logf("  op_weights:         %v", c.OpWeights)
+	t.Logf("  snapshot_rate:      %d", c.SnapshotRate)
 	t.Logf("  store_fault_rate:   %.2f", c.StoreFaultRate)
 	t.Logf("  load_fault_rate:    %.2f", c.LoadFaultRate)
 }
 
 // DST operations.
 const (
+	dstOpTick            = "tick"
 	dstOpJoinGame        = "join_game"
 	dstOpAttack          = "attack"
 	dstOpRestart         = "restart"
@@ -123,12 +134,14 @@ func dstDoJoinGame(t *testing.T, fix *dstFixture, rng *rand.Rand) {
 
 func dstDoAttack(t *testing.T, fix *dstFixture, rng *rand.Rand) {
 	t.Helper()
-	// Pick a random entity ID from the world. If no entities exist, skip.
-	entities := fix.allEntityIDs()
-	if len(entities) == 0 {
-		return
+	var target EntityID
+	if entities := fix.allEntityIDs(t); len(entities) > 0 && rng.IntN(4) != 0 {
+		// 75%: pick a valid entity ID.
+		target = entities[rng.IntN(len(entities))]
+	} else {
+		// 25% (or no entities): use a random ID that is likely invalid.
+		target = EntityID(rng.Uint32())
 	}
-	target := entities[rng.IntN(len(entities))]
 	cmd := dstAttack{
 		TargetID: target,
 		Damage:   1 + rng.IntN(50),
@@ -140,7 +153,16 @@ func dstDoAttack(t *testing.T, fix *dstFixture, rng *rand.Rand) {
 func dstDoRestart(t *testing.T, fix *dstFixture) {
 	t.Helper()
 	fix.world.reset()
+	fix.nats.clear()
 	fix.world.world.Init()
+	// ecs.World.Tick returns early on the first tick after reset (only runs init systems). This means
+	// any commands drained in that tick are silently lost. We work around it here by consuming the
+	// init tick.
+	// TODO: init systems was previously executed in Tick because we need to record the state change
+	// in the epoch. Now that we don't have epochs, we're free to move it out of Tick into a init or
+	// bootstrap step, eliminating the branch. Fix in a future PR since some existing tests rely on
+	// the current behavior.
+	require.NoError(t, fix.world.Tick(context.Background(), time.Time{}))
 }
 
 func dstDoSnapshotRestore(t *testing.T, fix *dstFixture) {
@@ -149,6 +171,7 @@ func dstDoSnapshotRestore(t *testing.T, fix *dstFixture) {
 
 	// Reset and restore from existing snapshot.
 	fix.world.reset()
+	fix.nats.clear()
 	require.NoError(t, fix.world.restore(ctx))
 }
 
@@ -162,11 +185,10 @@ type dstFixture struct {
 }
 
 // allEntityIDs returns all entity IDs currently alive in the world using MatchAll search.
-func (f *dstFixture) allEntityIDs() []EntityID {
+func (f *dstFixture) allEntityIDs(t *testing.T) []EntityID {
+	t.Helper()
 	results, err := f.world.world.NewSearch(ecs.SearchParam{Match: ecs.MatchAll})
-	if err != nil {
-		return nil
-	}
+	require.NoError(t, err)
 	ids := make([]EntityID, 0, len(results))
 	for _, r := range results {
 		if id, ok := r["_id"].(uint32); ok {
@@ -176,7 +198,7 @@ func (f *dstFixture) allEntityIDs() []EntityID {
 	return ids
 }
 
-func newDSTFixture(t *testing.T, _ *rand.Rand, _ dstConfig) *dstFixture {
+func newDSTFixture(t *testing.T, _ *rand.Rand, cfg dstConfig) *dstFixture {
 	t.Helper()
 
 	// Suppress world logs during DST to reduce noise.
@@ -191,7 +213,7 @@ func newDSTFixture(t *testing.T, _ *rand.Rand, _ dstConfig) *dstFixture {
 		ShardID:             "0",
 		TickRate:            1,
 		SnapshotStorageType: snapshot.StorageTypeNop,
-		SnapshotRate:        10,
+		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
@@ -315,7 +337,8 @@ func (f *dstFakeNATS) enqueueCommand(cmd command.Payload, persona string) error 
 	return err
 }
 
-// clear resets captured events. Should be called before each tick.
+// clear resets captured events. Must be called after every world.reset() (which clears the real
+// command queue) and after each tick to keep test bookkeeping in sync with the world's state.
 func (f *dstFakeNATS) clear() {
 	f.pending = f.pending[:0]
 	f.events = f.events[:0]
