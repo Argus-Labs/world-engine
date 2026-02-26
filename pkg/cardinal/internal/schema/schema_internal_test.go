@@ -79,6 +79,34 @@ func TestDeserialize_NegativeFuzz(t *testing.T) {
 	assert.Equal(t, opsMax, valid+invalid, "valid + invalid should equal total iterations")
 }
 
+// TestDeserialize_RecoversFromMsgpackPanic_Regression is a regression test for
+// github.com/shamaton/msgpack/v3 panicking with:
+// "reflect.Value.SetBytes of non-byte slice".
+//
+// Payload shape:
+// - The target field is []int.
+// - The msgpack payload encodes that field as BIN8 (raw bytes), not ARRAY.
+func TestDeserialize_RecoversFromMsgpackPanic_Regression(t *testing.T) {
+	t.Parallel()
+
+	type target struct {
+		Ints []int `msgpack:"ints"`
+	}
+
+	// msgpack bytes:
+	// 0x81                -> fixmap(1)
+	// 0xa4 'i''n''t''s'   -> key "ints"
+	// 0xc4 0x03 'a''b''c' -> BIN8 len=3, payload "abc"
+	data := []byte{
+		0x81,
+		0xa4, 'i', 'n', 't', 's',
+		0xc4, 0x03, 'a', 'b', 'c',
+	}
+
+	var v target
+	require.ErrorContains(t, schema.Deserialize(data, &v), "failed to deserialize")
+}
+
 func randComponentMixed(prng *rand.Rand) testutils.ComponentMixed {
 	return testutils.ComponentMixed{
 		Int8Val:    int8(prng.Int()),
