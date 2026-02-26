@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"math/rand/v2"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -9,40 +10,139 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSerialize_Uint64Precision verifies that serialization preserves uint64 precision for values
-// above 2^53-1, which would be corrupted by JSON's float64 representation.
-func TestSerialize_Uint64Precision(t *testing.T) {
+// -------------------------------------------------------------------------------------------------
+// Serialization smoke test
+// -------------------------------------------------------------------------------------------------
+// We don't extensively test Serialize/Deserialize because:
+// 1. The implementation is a thin wrapper around msgpack.Marshal/Unmarshal (well-tested library).
+// 2. Heavy property-based testing would mostly exercise the msgpack package, not our code.
+// -------------------------------------------------------------------------------------------------
+
+func TestSerialize_RoundTrip(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	testCases := []testutils.CommandUint64{
-		{
-			Amount:    18446744073709551615, // uint64 max
-			EntityID:  9007199254740993,     // 2^53 + 1, loses precision in JSON
-			Timestamp: 9223372036854775807,  // int64 max
-		},
-		{
-			Amount:    10000000000000000000, // 10^19
-			EntityID:  9007199254740992,     // 2^53, first value that loses precision in JSON
-			Timestamp: -9223372036854775808, // int64 min
-		},
-	}
+	expected := randComponentMixed(prng)
 
-	for _, expected := range testCases {
+	data, err := schema.Serialize(expected)
+	require.NoError(t, err)
+
+	var actual testutils.ComponentMixed
+	err = schema.Deserialize(data, &actual)
+	require.NoError(t, err)
+
+	// Property: deserialize(serialize(x)) == x.
+	assert.Equal(t, expected, actual)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Deserialization robustness fuzz
+// -------------------------------------------------------------------------------------------------
+// Verifies Deserialize never panics on corrupted input — it must return an error or succeed.
+// This does NOT assert correctness: msgpack can silently skip corrupted field names, e.g. when a
+// struct field name is corrupted ("Value" -> "value"), it will parse the field and set it to its
+// zero value instead of returning an error.
+//
+// If we want correctness, we have to either:
+// - Incorporate checksums at the serialization layer and check it when deserializing, or
+// - Rely on the storage layer to enforce correctness, e.g. JetStream object store stores a sha256
+//   hash of the object in its metadata.
+// -------------------------------------------------------------------------------------------------
+
+func TestDeserialize_NegativeFuzz(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const opsMax = 1 << 11 // 2048 iterations
+
+	valid, invalid := 0, 0
+
+	for range opsMax {
+		expected := randComponentMixed(prng)
 		data, err := schema.Serialize(expected)
 		require.NoError(t, err)
 
-		var actual testutils.CommandUint64
-		err = schema.Deserialize(data, &actual)
-		require.NoError(t, err)
+		if prng.Float64() < 0.75 && len(data) > 0 {
+			// Flip a random bit to corrupt the data.
+			bit := uint(prng.IntN(8))
+			data[prng.IntN(len(data))] ^= 1 << bit
+		}
 
-		assert.Equal(t, expected.Amount, actual.Amount, "Amount mismatch")
-		assert.Equal(t, expected.EntityID, actual.EntityID, "EntityID mismatch")
-		assert.Equal(t, expected.Timestamp, actual.Timestamp, "Timestamp mismatch")
+		var actual testutils.ComponentMixed
+		err = schema.Deserialize(data, &actual)
+		if err != nil {
+			invalid++
+		} else {
+			valid++
+		}
+	}
+	assert.Equal(t, opsMax, valid+invalid, "valid + invalid should equal total iterations")
+}
+
+// TestDeserialize_RecoversFromMsgpackPanic_Regression is a regression test for
+// github.com/shamaton/msgpack/v3 panicking with:
+// "reflect.Value.SetBytes of non-byte slice".
+//
+// Payload shape:
+// - The target field is []int.
+// - The msgpack payload encodes that field as BIN8 (raw bytes), not ARRAY.
+func TestDeserialize_RecoversFromMsgpackPanic_Regression(t *testing.T) {
+	t.Parallel()
+
+	type target struct {
+		Ints []int `msgpack:"ints"`
+	}
+
+	// msgpack bytes:
+	// 0x81                -> fixmap(1)
+	// 0xa4 'i''n''t''s'   -> key "ints"
+	// 0xc4 0x03 'a''b''c' -> BIN8 len=3, payload "abc"
+	data := []byte{
+		0x81,
+		0xa4, 'i', 'n', 't', 's',
+		0xc4, 0x03, 'a', 'b', 'c',
+	}
+
+	var v target
+	require.ErrorContains(t, schema.Deserialize(data, &v), "failed to deserialize")
+}
+
+func randComponentMixed(prng *rand.Rand) testutils.ComponentMixed {
+	return testutils.ComponentMixed{
+		Int8Val:    int8(prng.Int()),
+		Int16Val:   int16(prng.Int()),
+		Int32Val:   int32(prng.Int()),
+		Int64Val:   int64(prng.Int()),
+		Uint8Val:   uint8(prng.Uint64()),
+		Uint16Val:  uint16(prng.Uint64()),
+		Uint32Val:  uint32(prng.Uint64()),
+		Uint64Val:  prng.Uint64(),
+		Float32Val: float32(prng.Float64()),
+		Float64Val: prng.Float64(),
+		StringVal:  testutils.RandString(prng, 1+prng.IntN(100)),
+		BoolVal:    prng.IntN(2) == 1,
+		IntSlice:   []int{prng.Int(), prng.Int(), prng.Int()},
+		ByteSlice:  []byte(testutils.RandString(prng, 1+prng.IntN(50))),
+		FloatArray: [3]float64{prng.Float64(), prng.Float64(), prng.Float64()},
+		Nested: testutils.NestedData{
+			ID:    prng.Uint64(),
+			Name:  testutils.RandString(prng, 1+prng.IntN(20)),
+			Score: prng.Float64(),
+		},
+		Metadata: map[string]int{
+			testutils.RandString(prng, 5): prng.Int(),
+			testutils.RandString(prng, 5): prng.Int(),
+		},
 	}
 }
 
-// TestSerialize_TypeCoverage verifies that serialization correctly handles all common Go types,
-// with special attention to uint64 values above 2^53-1 which would lose precision in JSON.
+// -------------------------------------------------------------------------------------------------
+// Type coverage regression test
+// -------------------------------------------------------------------------------------------------
+// Documents and guards against known edge cases we care about, such as uint64 values above
+// 2^53-1 not losing precision (which would happen with JSON's float64 representation).
+// -------------------------------------------------------------------------------------------------
+
 func TestSerialize_TypeCoverage(t *testing.T) {
 	t.Parallel()
 

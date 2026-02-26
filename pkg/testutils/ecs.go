@@ -160,17 +160,6 @@ func (CommandC) Name() string {
 	return "command_c"
 }
 
-// CommandUint64 is a test command with uint64 fields for precision testing.
-type CommandUint64 struct {
-	Amount    uint64
-	EntityID  uint64
-	Timestamp int64
-}
-
-func (CommandUint64) Name() string {
-	return "command_uint64"
-}
-
 // -------------------------------------------------------------------------------------------------
 // Events
 // -------------------------------------------------------------------------------------------------
