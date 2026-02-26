@@ -14,6 +14,7 @@ type Queue interface {
 	Enqueue(*iscv1.Command) error
 	Drain(target *[]Command)
 	Len() int
+	Zero() Payload
 }
 
 var _ Queue = &sliceQueue[Payload]{}
@@ -76,4 +77,10 @@ func (q *sliceQueue[T]) Len() int {
 	defer q.mu.Unlock()
 
 	return len(q.commands)
+}
+
+// Zero returns a zero-value instance of T.
+func (q *sliceQueue[T]) Zero() Payload {
+	var zero T
+	return zero
 }

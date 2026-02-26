@@ -141,3 +141,23 @@ func (m *Manager) Clear() {
 		m.commands[id] = m.commands[id][:0]
 	}
 }
+
+// -------------------------------------------------------------------------------------------------
+// Test helpers
+// -------------------------------------------------------------------------------------------------
+
+// Names returns the names of all registered command types.
+func (m *Manager) Names() []string {
+	names := make([]string, 0, len(m.catalog))
+	for name := range m.catalog {
+		names = append(names, name)
+	}
+	return names
+}
+
+// ZeroPayload returns a zero-value instance of the named command's payload type.
+func (m *Manager) Zero(name string) Payload {
+	id, exists := m.catalog[name]
+	assert.That(exists, "command doens't exist")
+	return m.queues[id].Zero()
+}
