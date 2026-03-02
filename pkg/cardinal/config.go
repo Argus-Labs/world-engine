@@ -3,6 +3,7 @@ package cardinal
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/caarlos0/env/v11"
 	"github.com/rotisserie/eris"
 )
@@ -18,6 +19,7 @@ type WorldOptions struct {
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotRate        uint32               // Number of ticks per snapshot
 	Debug               *bool                // Enable debug server
+	NATSConfig          *micro.NATSConfig    // Optional NATS config override (nil = use env/defaults)
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
@@ -61,6 +63,9 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.Debug != nil {
 		opt.Debug = newOpt.Debug
+	}
+	if newOpt.NATSConfig != nil {
+		opt.NATSConfig = newOpt.NATSConfig
 	}
 }
 

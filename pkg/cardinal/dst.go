@@ -37,15 +37,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var numTicks = flag.Int("dst.ticks", 1000, "number of ticks to run in DST")
+var numTicks = flag.Int("dst.ticks", 1000, "number of ticks to run in DST") //nolint:gochecknoglobals // test flag
 
-// DSTSetupFunc registers systems, components, and commands on a World.
-// It is called once during fixture creation, before the first tick.
+// DSTSetupFunc registers systems, components, and commands on a World. It is called once during
+// fixture creation, before the first tick.
 type DSTSetupFunc func(world *World)
 
 // RunDST executes a deterministic simulation test. The setup function registers game-specific
 // systems; the harness handles everything else: randomized engine config, command generation,
 // ticking, restart/restore operations, and structural invariant checking.
+//
+// The number of ticks defaults to 1000 and can be overridden with -dst.ticks:
+//
+//	go test ./pkg/cardinal/... -dst.ticks=5000
 func RunDST(t *testing.T, setup DSTSetupFunc) {
 	t.Helper()
 
@@ -80,14 +84,19 @@ func RunDST(t *testing.T, setup DSTSetupFunc) {
 
 		case strings.HasPrefix(op, opCommandPrefix):
 			cmdName := strings.TrimPrefix(op, opCommandPrefix)
-			cmd := fix.randCommand(prng, cmdName)
+			cmd := fix.randCommand(t, prng, cmdName)
 			require.NoError(t, fix.world.commands.Enqueue(cmd))
 
 		case op == opRestart:
 			fix.world.reset()
 			fix.world.world.Init()
-			// ecs.World.Tick returns early on the first tick after reset (only runs init systems).
-			// Consume the init tick so subsequent ticks run normally.
+			// ecs.World.Tick returns early on the first tick after reset (only runs init systems). This means
+			// any commands drained in that tick are silently lost. We work around it here by consuming the
+			// init tick.
+			// TODO: init systems was previously executed in Tick because we need to record the state change
+			// in the epoch. Now that we don't have epochs, we're free to move it out of Tick into a init or
+			// bootstrap step, eliminating the branch. Fix in a future PR since some existing tests rely on
+			// the current behavior.
 			require.NoError(t, fix.world.Tick(context.Background(), time.Time{}))
 
 		case op == opSnapshotRestore:
@@ -98,6 +107,13 @@ func RunDST(t *testing.T, setup DSTSetupFunc) {
 			// fix.verifySnapshotRoundtrip(t)
 		}
 	}
+
+	// Final validation after all randomized operations complete.
+	ecs.CheckWorld(t, fix.world.world)
+
+	// Ensure final world state remains serializable.
+	_, err := fix.world.world.ToProto()
+	require.NoError(t, err)
 
 	fix.logWorldState(t, "after")
 }
@@ -111,7 +127,7 @@ const (
 )
 
 // engineOps are the non-command operations that may be randomly enabled.
-var engineOps = []string{
+var engineOps = []string{ //nolint:gochecknoglobals // DST operation table
 	opRestart,
 	opSnapshotRestore,
 }
@@ -140,7 +156,7 @@ func newDSTConfig(rng *rand.Rand) dstConfig {
 	return dstConfig{
 		Ticks:        *numTicks,
 		OpWeights:    opWeights,
-		SnapshotRate: uint32(1 + rng.IntN(25)),
+		SnapshotRate: uint32(1 + rng.IntN(25)), //nolint:gosec // bounded to [1,25]
 	}
 }
 
@@ -252,13 +268,14 @@ func (f *dstFixture) logWorldState(t *testing.T, label string) {
 	}
 }
 
-func (f *dstFixture) randCommand(rng *rand.Rand, name string) *iscv1.Command {
+func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *iscv1.Command {
+	t.Helper()
 	val := reflect.New(f.cmdTypes[name]).Elem()
 	fillRandom(rng, val) // Recursive so not inlined
-	payload, err := schema.Serialize(val.Interface().(command.Payload))
-	if err != nil {
-		panic(err)
-	}
+	p, ok := val.Interface().(command.Payload)
+	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
+	payload, err := schema.Serialize(p)
+	require.NoError(t, err)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
@@ -341,7 +358,7 @@ func (m *memSnapshotStorage) Store(_ context.Context, s *snapshot.Snapshot) erro
 	assert.NotEmpty(m.t, s.Data, "snapshot: Store called with empty data")
 	// Invariant: data must be valid protobuf (must unmarshal into WorldState).
 	var ws cardinalv1.WorldState
-	assert.NoError(m.t, proto.Unmarshal(s.Data, &ws), "snapshot: Store data is not valid WorldState protobuf")
+	require.NoError(m.t, proto.Unmarshal(s.Data, &ws), "snapshot: Store data is not valid WorldState protobuf")
 
 	cp := *s
 	cp.Data = make([]byte, len(s.Data))

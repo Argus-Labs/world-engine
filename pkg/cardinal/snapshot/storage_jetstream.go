@@ -39,7 +39,11 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 		return nil, eris.Wrap(err, "failed to parse env")
 	}
 
-	client, err := micro.NewClient(micro.WithLogger(opts.Logger))
+	clientOpts := []micro.ClientOption{micro.WithLogger(opts.Logger)}
+	if opts.NATSConfig != nil {
+		clientOpts = append(clientOpts, micro.WithNATSConfig(*opts.NATSConfig))
+	}
+	client, err := micro.NewClient(clientOpts...)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create micro client")
 	}
@@ -147,8 +151,9 @@ func (j *JetStreamStorage) Load(ctx context.Context) (*Snapshot, error) {
 // -------------------------------------------------------------------------------------------------
 
 type JetStreamStorageOptions struct {
-	Address *micro.ServiceAddress
-	Logger  zerolog.Logger
+	Address    *micro.ServiceAddress
+	Logger     zerolog.Logger
+	NATSConfig *micro.NATSConfig // Optional NATS config override (nil = use env/defaults)
 
 	// Maximum bytes for snapshot storage (ObjectStore). Required by some NATS providers like Synadia Cloud.
 	SnapshotStorageMaxBytes uint64 `env:"CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"0"`

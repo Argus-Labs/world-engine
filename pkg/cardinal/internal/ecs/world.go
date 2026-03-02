@@ -179,7 +179,7 @@ func CheckWorld(t *testing.T, w *World) {
 		if val == sparseTombstone {
 			continue
 		}
-		eid := EntityID(i)
+		eid := EntityID(i) //nolint:gosec // sparset max length is entity id max
 		_, exists := liveEntities[eid]
 		require.True(t, exists,
 			"entityArch has entity %d -> archetype %d but entity not in any archetype", eid, val)

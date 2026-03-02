@@ -45,7 +45,11 @@ func newService(world *World) *service {
 }
 
 func (s *service) init() error {
-	client, err := micro.NewClient(micro.WithLogger(s.world.tel.GetLogger("service")))
+	clientOpts := []micro.ClientOption{micro.WithLogger(s.world.tel.GetLogger("service"))}
+	if cfg := s.world.options.NATSConfig; cfg != nil {
+		clientOpts = append(clientOpts, micro.WithNATSConfig(*cfg))
+	}
+	client, err := micro.NewClient(clientOpts...)
 	if err != nil {
 		return eris.Wrap(err, "failed to initialize micro client")
 	}
