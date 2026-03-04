@@ -2,9 +2,6 @@ package micro
 
 import (
 	"net"
-	"os"
-	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -53,6 +50,13 @@ func TestReconnectDelay(t *testing.T) {
 		}
 	})
 
+	t.Run("negative attempt does not panic", func(t *testing.T) {
+		t.Parallel()
+		d := reconnectDelay(-1)
+		assert.GreaterOrEqual(t, d, 250*time.Millisecond)
+		assert.LessOrEqual(t, d, 750*time.Millisecond)
+	})
+
 	t.Run("delay increases over attempts", func(t *testing.T) {
 		t.Parallel()
 		// Compare averages over many samples to smooth out jitter.
@@ -82,9 +86,6 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 	t.Parallel()
 
 	// Start a dedicated NATS server for this test (separate from the shared TestNATS).
-	tempDir := filepath.Join(os.TempDir(), "nats-reconnect-test-"+strconv.Itoa(os.Getpid()))
-	t.Cleanup(func() { os.RemoveAll(tempDir) })
-
 	opts := &server.Options{
 		Host:                  "127.0.0.1",
 		Port:                  -1,
@@ -92,7 +93,7 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 		NoSigs:                true,
 		MaxControlLine:        4096,
 		DisableShortFirstPing: true,
-		StoreDir:              tempDir,
+		StoreDir:              t.TempDir(),
 	}
 	srv := test.RunServer(opts)
 	srvURL := srv.ClientURL()
@@ -141,8 +142,9 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 	// Verify request-reply works again after reconnection.
 	var reconnectedMsg *nats.Msg
 	require.Eventually(t, func() bool {
-		reconnectedMsg, err = client.Conn.Request("test.ping", []byte("ping"), 2*time.Second)
-		return err == nil
+		var reqErr error
+		reconnectedMsg, reqErr = client.Conn.Request("test.ping", []byte("ping"), 2*time.Second)
+		return reqErr == nil
 	}, 5*time.Second, 200*time.Millisecond, "request-reply should work after reconnect")
 
 	assert.Equal(t, "pong", string(reconnectedMsg.Data))
