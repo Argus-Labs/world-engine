@@ -878,7 +878,6 @@ func processTimedOutLobby(
 			Msg("Player timed out due to missed heartbeats")
 
 		state.PlayerTimedOutEvents.Emit(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
-		state.PlayerLeftEvents.Emit(PlayerLeftEvent{LobbyID: lobbyID, PlayerID: p.playerID})
 	}
 
 	// Check if lobby is empty
@@ -2105,7 +2104,6 @@ type HeartbeatSystemState struct {
 
 	// Events
 	PlayerTimedOutEvents cardinal.WithEvent[PlayerTimedOutEvent]
-	PlayerLeftEvents     cardinal.WithEvent[PlayerLeftEvent]
 	LeaderChangedEvents  cardinal.WithEvent[LeaderChangedEvent]
 	LobbyDeletedEvents   cardinal.WithEvent[LobbyDeletedEvent]
 }
