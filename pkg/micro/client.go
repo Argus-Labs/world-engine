@@ -2,6 +2,7 @@ package micro
 
 import (
 	"context"
+	"math/rand"
 	"time"
 
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -62,10 +63,12 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	}
 
 	// Init NATS options with validated configuration.
+	// Reconnection strategy mirrors the NATS CLI: infinite retries with exponential backoff + jitter.
 	natsOpts := []nats.Option{
 		nats.Name(c.natsConfig.Name),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(time.Second * 5),
+		nats.MaxReconnects(-1),
+		nats.IgnoreAuthErrorAbort(),
+		nats.CustomReconnectDelay(reconnectDelay),
 		nats.DisconnectErrHandler(c.handleDisconnect),
 		nats.ReconnectHandler(c.handleReconnect),
 		nats.ClosedHandler(c.handleClosed),
@@ -229,6 +232,36 @@ func (c *Client) handleError(_ *nats.Conn, sub *nats.Subscription, err error) {
 		Err(err).
 		Str("subject", sub.Subject).
 		Msg("NATS subscription error occurred")
+}
+
+// reconnectBackoff defines the exponential backoff delays in milliseconds.
+// Copied from the NATS CLI's DefaultBackoff: https://github.com/nats-io/natscli/blob/main/internal/util/backoff.go
+// Starts at 500ms and ramps up to 20s over 44 steps.
+//
+//nolint:gochecknoglobals // package-level lookup table is appropriate here.
+var reconnectBackoff = []int{
+	500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
+	5500, 5750, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000,
+	10500, 10750, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000,
+	15500, 15750, 16000, 16500, 17000, 17500, 18000, 18500, 19000, 19500, 20000,
+}
+
+// reconnectDelay returns a jittered backoff duration for the given reconnect attempt.
+// The delay is randomized in the range [0.5*base .. 1.5*base) to prevent thundering herd.
+// Logic copied from NATS CLI: https://github.com/nats-io/natscli/blob/main/internal/util/backoff.go
+func reconnectDelay(attempts int) time.Duration {
+	if attempts >= len(reconnectBackoff) {
+		attempts = len(reconnectBackoff) - 1
+	}
+	return time.Duration(jitter(reconnectBackoff[attempts])) * time.Millisecond
+}
+
+// jitter returns a random integer uniformly distributed in the range [0.5*millis .. 1.5*millis).
+func jitter(millis int) int {
+	if millis == 0 {
+		return 0
+	}
+	return millis/2 + rand.Intn(millis) //nolint:gosec // jitter doesn't need crypto rand.
 }
 
 // -------------------------------------------------------------------------------------------------

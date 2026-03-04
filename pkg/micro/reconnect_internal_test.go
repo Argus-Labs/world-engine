@@ -1,0 +1,149 @@
+package micro
+
+import (
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats-server/v2/test"
+	"github.com/nats-io/nats.go"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// -------------------------------------------------------------------------------------------------
+// reconnectDelay unit tests
+// -------------------------------------------------------------------------------------------------
+
+func TestReconnectDelay(t *testing.T) {
+	t.Parallel()
+
+	t.Run("first attempt uses first backoff value", func(t *testing.T) {
+		t.Parallel()
+		for range 100 {
+			d := reconnectDelay(0)
+			// backoff[0] = 500ms, jitter range: [250ms, 750ms]
+			assert.GreaterOrEqual(t, d, 250*time.Millisecond)
+			assert.LessOrEqual(t, d, 750*time.Millisecond)
+		}
+	})
+
+	t.Run("last attempt uses last backoff value", func(t *testing.T) {
+		t.Parallel()
+		lastIdx := len(reconnectBackoff) - 1
+		for range 100 {
+			d := reconnectDelay(lastIdx)
+			// backoff[last] = 20000ms, jitter range: [10000ms, 30000ms]
+			assert.GreaterOrEqual(t, d, 10000*time.Millisecond)
+			assert.LessOrEqual(t, d, 30000*time.Millisecond)
+		}
+	})
+
+	t.Run("beyond max attempt clamps to last value", func(t *testing.T) {
+		t.Parallel()
+		for range 100 {
+			d := reconnectDelay(9999)
+			assert.GreaterOrEqual(t, d, 10000*time.Millisecond)
+			assert.LessOrEqual(t, d, 30000*time.Millisecond)
+		}
+	})
+
+	t.Run("delay increases over attempts", func(t *testing.T) {
+		t.Parallel()
+		// Compare averages over many samples to smooth out jitter.
+		samples := 500
+		avgFirst := avgDelay(0, samples)
+		avgLast := avgDelay(len(reconnectBackoff)-1, samples)
+		assert.Greater(t, avgLast, avgFirst)
+	})
+}
+
+func avgDelay(attempt, samples int) time.Duration {
+	var total time.Duration
+	for range samples {
+		total += reconnectDelay(attempt)
+	}
+	return total / time.Duration(samples)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Reconnection integration test
+// -------------------------------------------------------------------------------------------------
+// Verifies that a client with our reconnection config (MaxReconnects=-1, CustomReconnectDelay)
+// recovers after a NATS server restart and can resume request-reply.
+// -------------------------------------------------------------------------------------------------
+
+func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
+	t.Parallel()
+
+	// Start a dedicated NATS server for this test (separate from the shared TestNATS).
+	tempDir := filepath.Join(os.TempDir(), "nats-reconnect-test-"+strconv.Itoa(os.Getpid()))
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	opts := &server.Options{
+		Host:                  "127.0.0.1",
+		Port:                  -1,
+		NoLog:                 true,
+		NoSigs:                true,
+		MaxControlLine:        4096,
+		DisableShortFirstPing: true,
+		StoreDir:              tempDir,
+	}
+	srv := test.RunServer(opts)
+	srvURL := srv.ClientURL()
+
+	// Connect a client.
+	client, err := NewClient(
+		WithNATSConfig(NATSConfig{Name: "reconnect-test", URL: srvURL}),
+		WithLogger(zerolog.Nop()),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { client.Close() })
+
+	// Set up a subscription and verify it works before the restart.
+	sub, err := client.Subscribe("test.ping", func(msg *nats.Msg) {
+		msg.Respond([]byte("pong"))
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { sub.Unsubscribe() })
+	require.NoError(t, client.Flush())
+
+	msg, err := client.Conn.Request("test.ping", []byte("ping"), 2*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, "pong", string(msg.Data))
+
+	// Remember the port so we can restart on the same address.
+	addr := srv.Addr()
+
+	// Shut down the NATS server.
+	srv.Shutdown()
+	srv.WaitForShutdown()
+
+	// Restart the NATS server on the same port.
+	opts.Port = addr.(*net.TCPAddr).Port
+	srv = test.RunServer(opts)
+	t.Cleanup(func() { srv.Shutdown() })
+
+	// Wait for the client to reconnect.
+	require.Eventually(t, func() bool {
+		return client.IsReconnecting() || client.IsConnected()
+	}, 5*time.Second, 100*time.Millisecond, "client should be reconnecting or connected")
+
+	require.Eventually(t, func() bool {
+		return client.IsConnected()
+	}, 10*time.Second, 100*time.Millisecond, "client should have reconnected")
+
+	// Verify request-reply works again after reconnection.
+	var reconnectedMsg *nats.Msg
+	require.Eventually(t, func() bool {
+		reconnectedMsg, err = client.Conn.Request("test.ping", []byte("ping"), 2*time.Second)
+		return err == nil
+	}, 5*time.Second, 200*time.Millisecond, "request-reply should work after reconnect")
+
+	assert.Equal(t, "pong", string(reconnectedMsg.Data))
+}
