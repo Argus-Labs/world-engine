@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"iter"
+	"math"
 
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
@@ -34,7 +35,7 @@ const (
 )
 
 // DefaultQueryLimit is the default maximum number of results returned when Limit is 0 (unlimited).
-const DefaultQueryLimit = ^uint32(0) // Max uint32 (4294967295)
+const DefaultQueryLimit = math.MaxUint32
 
 // NewSearch returns a map of entities that match the given search parameters.
 //
@@ -163,9 +164,10 @@ func findMatchingArchetypes(w *World, compNames []string, match SearchMatch) ([]
 	case MatchContains:
 		archIDs = ws.archContains(component)
 	case MatchAll:
-		// This case should never be reached as MatchAll is handled earlier in the function
-		// but included for exhaustive switch coverage
-		return nil, eris.New("MatchAll should be handled before this switch")
+		// This case should never be reached as MatchAll is handled earlier in the function.
+		fallthrough
+	default:
+		panic("unreachable")
 	}
 	return archIDs, nil
 }

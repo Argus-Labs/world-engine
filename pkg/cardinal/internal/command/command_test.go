@@ -5,11 +5,13 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,6 +61,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 			persona := testutils.RandString(prng, 8)
 			cmdpb := &iscv1.Command{
 				Name:    payload.Name(),
+				Address: &microv1.ServiceAddress{},
 				Persona: &iscv1.Persona{Id: persona},
 				Payload: pbPayload,
 			}
@@ -68,6 +71,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 
 			model.enqueue(payload.Name(), command.Command{
 				Name:    payload.Name(),
+				Address: &microv1.ServiceAddress{},
 				Persona: persona,
 				Payload: payload,
 			})
@@ -275,6 +279,9 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 // Concurrent enqueue test
 // -------------------------------------------------------------------------------------------------
 // This test verifies that concurrent enqueues are thread-safe and all commands are properly stored.
+// Run with -race to detect data races (go test -race). We use synctest.Test with time.Sleep to
+// force goroutine interleaving. Without it, WaitGroup goroutines tend to run sequentially, which
+// defeats the purpose of a concurrency test.
 // -------------------------------------------------------------------------------------------------
 
 func TestCommand_ConcurrentEnqueue(t *testing.T) {
@@ -318,6 +325,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 
 					cmdpb := &iscv1.Command{
 						Name:    payload.Name(),
+						Address: &microv1.ServiceAddress{},
 						Persona: &iscv1.Persona{Id: "test-persona"},
 						Payload: pbPayload,
 					}
@@ -330,10 +338,12 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					mu.Lock()
 					expected = append(expected, command.Command{
 						Name:    payload.Name(),
+						Address: &microv1.ServiceAddress{},
 						Persona: "test-persona",
 						Payload: payload,
 					})
 					mu.Unlock()
+					time.Sleep(2 * time.Millisecond)
 				}
 			})
 		}

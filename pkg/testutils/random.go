@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math/rand/v2"
 	"os"
 	"slices"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var Seed uint64 //nolint:gochecknoglobals // intentionally global for test reproducibility
@@ -27,7 +29,20 @@ func init() { //nolint:gochecknoinits // intentionally using init to set seed
 
 func NewRand(t *testing.T) *rand.Rand {
 	t.Helper()
-	return rand.New(rand.NewPCG(Seed, Seed)) //nolint:gosec // weak RNG is fine for tests
+	// We derive a unique seed for each test by XOR-ing the global seed with a hash of the test name.
+	//
+	// This prevents parallel tests from generating the same random values, which can happen if NewRand
+	// is called at the same time from different goroutines.
+	//
+	// That normally isn’t a problem if tests are fully isolated. However, our NATS tests share a single
+	// test NATS server. If multiple parallel tests call RandServiceAddress with the same seed, they may
+	// generate the same service address. Since each test expects to exclusively own its address, this
+	// collision can cause the tests to fail.
+	h := fnv.New64a()
+	_, err := h.Write([]byte(t.Name()))
+	require.NoError(t, err)
+	perTest := h.Sum64()
+	return rand.New(rand.NewPCG(Seed^perTest, Seed^(perTest<<1))) //nolint:gosec // weak RNG is fine for tests
 }
 
 // RandMapKey returns a random key from a map. Panics if the map is empty.

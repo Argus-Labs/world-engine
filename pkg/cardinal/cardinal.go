@@ -91,8 +91,9 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	switch options.SnapshotStorageType {
 	case snapshot.StorageTypeJetStream:
 		snapshotJS, err := snapshot.NewJetStreamStorage(snapshot.JetStreamStorageOptions{
-			Logger:  tel.GetLogger("snapshot"),
-			Address: world.address,
+			Logger:     tel.GetLogger("snapshot"),
+			Address:    world.address,
+			NATSConfig: options.NATSConfig,
 		})
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
