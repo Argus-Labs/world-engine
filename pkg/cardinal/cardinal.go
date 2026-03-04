@@ -110,7 +110,6 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	// Create the debug module only if debug is on.
 	if *options.Debug {
 		debug := newDebugModule(world)
-		debug.control.isPaused.Store(true)
 		world.debug = &debug
 	}
 
