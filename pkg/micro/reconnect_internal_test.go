@@ -22,57 +22,29 @@ func TestReconnectDelay(t *testing.T) {
 
 	t.Run("first attempt uses first backoff value", func(t *testing.T) {
 		t.Parallel()
-		for range 100 {
-			d := reconnectDelay(0)
-			// backoff[0] = 500ms, jitter range: [250ms, 750ms]
-			assert.GreaterOrEqual(t, d, 250*time.Millisecond)
-			assert.LessOrEqual(t, d, 750*time.Millisecond)
-		}
+		assert.Equal(t, 500*time.Millisecond, reconnectDelay(0))
 	})
 
 	t.Run("last attempt uses last backoff value", func(t *testing.T) {
 		t.Parallel()
 		lastIdx := len(reconnectBackoff) - 1
-		for range 100 {
-			d := reconnectDelay(lastIdx)
-			// backoff[last] = 20000ms, jitter range: [10000ms, 30000ms]
-			assert.GreaterOrEqual(t, d, 10000*time.Millisecond)
-			assert.LessOrEqual(t, d, 30000*time.Millisecond)
-		}
+		assert.Equal(t, 20000*time.Millisecond, reconnectDelay(lastIdx))
 	})
 
 	t.Run("beyond max attempt clamps to last value", func(t *testing.T) {
 		t.Parallel()
-		for range 100 {
-			d := reconnectDelay(9999)
-			assert.GreaterOrEqual(t, d, 10000*time.Millisecond)
-			assert.LessOrEqual(t, d, 30000*time.Millisecond)
-		}
+		assert.Equal(t, 20000*time.Millisecond, reconnectDelay(9999))
 	})
 
 	t.Run("negative attempt does not panic", func(t *testing.T) {
 		t.Parallel()
-		d := reconnectDelay(-1)
-		assert.GreaterOrEqual(t, d, 250*time.Millisecond)
-		assert.LessOrEqual(t, d, 750*time.Millisecond)
+		assert.Equal(t, 500*time.Millisecond, reconnectDelay(-1))
 	})
 
 	t.Run("delay increases over attempts", func(t *testing.T) {
 		t.Parallel()
-		// Compare averages over many samples to smooth out jitter.
-		samples := 500
-		avgFirst := avgDelay(0, samples)
-		avgLast := avgDelay(len(reconnectBackoff)-1, samples)
-		assert.Greater(t, avgLast, avgFirst)
+		assert.Greater(t, reconnectDelay(len(reconnectBackoff)-1), reconnectDelay(0))
 	})
-}
-
-func avgDelay(attempt, samples int) time.Duration {
-	var total time.Duration
-	for range samples {
-		total += reconnectDelay(attempt)
-	}
-	return total / time.Duration(samples)
 }
 
 // -------------------------------------------------------------------------------------------------

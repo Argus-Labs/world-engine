@@ -2,7 +2,6 @@ package micro
 
 import (
 	"context"
-	"math/rand/v2"
 	"time"
 
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -63,7 +62,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	}
 
 	// Init NATS options with validated configuration.
-	// Reconnection strategy mirrors the NATS CLI: infinite retries with exponential backoff + jitter.
+	// Reconnection strategy mirrors the NATS CLI: infinite retries with exponential backoff.
 	natsOpts := []nats.Option{
 		nats.Name(c.natsConfig.Name),
 		nats.MaxReconnects(-1),
@@ -246,9 +245,8 @@ var reconnectBackoff = []int{
 	15500, 15750, 16000, 16500, 17000, 17500, 18000, 18500, 19000, 19500, 20000,
 }
 
-// reconnectDelay returns a jittered backoff duration for the given reconnect attempt.
-// The delay is randomized in the range [0.5*base .. 1.5*base) to prevent thundering herd.
-// Logic copied from NATS CLI: https://github.com/nats-io/natscli/blob/main/internal/util/backoff.go
+// reconnectDelay returns a backoff duration for the given reconnect attempt.
+// Backoff table copied from NATS CLI: https://github.com/nats-io/natscli/blob/main/internal/util/backoff.go
 // Note: NATS increments the attempt counter before calling this function, so the first
 // real call is reconnectDelay(1). Index 0 is never used in practice.
 func reconnectDelay(attempts int) time.Duration {
@@ -258,15 +256,7 @@ func reconnectDelay(attempts int) time.Duration {
 	if attempts >= len(reconnectBackoff) {
 		attempts = len(reconnectBackoff) - 1
 	}
-	return time.Duration(jitter(reconnectBackoff[attempts])) * time.Millisecond
-}
-
-// jitter returns a random integer uniformly distributed in the range [0.5*millis .. 1.5*millis).
-func jitter(millis int) int {
-	if millis == 0 {
-		return 0
-	}
-	return millis/2 + rand.IntN(millis) //nolint:gosec // jitter doesn't need crypto rand.
+	return time.Duration(reconnectBackoff[attempts]) * time.Millisecond
 }
 
 // -------------------------------------------------------------------------------------------------
