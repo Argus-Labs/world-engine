@@ -105,7 +105,7 @@ type tickFuzzSetup struct {
 
 func (s *tickFuzzSetup) verifyInitSystems(t *testing.T) {
 	t.Helper()
-	assert.Equal(t, s.numInitSystems, len(s.initOrder), "init system(s) ran more than once")
+	assert.Len(t, s.initOrder, s.numInitSystems, "init system(s) ran more than once")
 	for i := range s.numInitSystems {
 		assert.Equal(t, i, s.initOrder[i], "init system %d ran out of order", i)
 	}

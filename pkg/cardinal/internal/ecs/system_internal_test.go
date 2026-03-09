@@ -73,7 +73,8 @@ func TestSearch_Smoke(t *testing.T) {
 		prng := testutils.NewRand(t)
 		fixture := newSearchFixture(t)
 
-		compB := testutils.ComponentB{ID: prng.Uint64(), Label: testutils.RandString(prng, 8), Enabled: testutils.RandBool(prng)}
+		compB := testutils.ComponentB{
+			ID: prng.Uint64(), Label: testutils.RandString(prng, 8), Enabled: testutils.RandBool(prng)}
 		moverID, mover := fixture.Movers.Create()
 		mover.A.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
 		mover.B.Set(compB)
