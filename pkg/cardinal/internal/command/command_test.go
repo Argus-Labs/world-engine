@@ -156,7 +156,7 @@ func registerCommand[T command.Payload](
 			return testutils.CommandB{
 				ID:      uint64(prng.IntN(1 << 50)), // Use smaller values to avoid JSON precision loss
 				Label:   testutils.RandString(prng, 10),
-				Enabled: prng.IntN(2) == 1,
+				Enabled: testutils.RandBool(prng),
 			}
 		}
 	case testutils.CommandC{}.Name():
@@ -311,7 +311,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 
 				for i := range commandsPerRoutine {
 					var payload command.Payload
-					if prng.IntN(2) == 0 {
+					if testutils.RandBool(prng) {
 						payload = testutils.CommandA{X: float64(i), Y: prng.Float64(), Z: 0}
 					} else {
 						payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}

@@ -30,7 +30,7 @@ func TestSearch_Smoke(t *testing.T) {
 		// Create random movers and singles; only movers should appear in Iter.
 		var expectedIDs []EntityID
 		for range prng.IntN(100) {
-			if prng.IntN(2) == 0 {
+			if testutils.RandBool(prng) {
 				eid, _ := fixture.Movers.Create()
 				expectedIDs = append(expectedIDs, eid)
 			} else {
@@ -53,7 +53,7 @@ func TestSearch_Smoke(t *testing.T) {
 		// Create random singles and movers; only singles should appear in Iter.
 		var expectedIDs []EntityID
 		for range prng.IntN(100) {
-			if prng.IntN(2) == 0 {
+			if testutils.RandBool(prng) {
 				eid, _ := fixture.Singles.Create()
 				expectedIDs = append(expectedIDs, eid)
 			} else {
@@ -73,7 +73,8 @@ func TestSearch_Smoke(t *testing.T) {
 		prng := testutils.NewRand(t)
 		fixture := newSearchFixture(t)
 
-		compB := testutils.ComponentB{ID: prng.Uint64(), Label: testutils.RandString(prng, 8), Enabled: prng.IntN(2) == 1}
+		compB := testutils.ComponentB{
+			ID: prng.Uint64(), Label: testutils.RandString(prng, 8), Enabled: testutils.RandBool(prng)}
 		moverID, mover := fixture.Movers.Create()
 		mover.A.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
 		mover.B.Set(compB)

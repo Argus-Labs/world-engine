@@ -152,7 +152,7 @@ func (w *World) StartGame() {
 }
 
 func (w *World) run(ctx context.Context) error {
-	// Initialize world schedulers.
+	// Initialize world schedulers and run init systems.
 	w.world.Init()
 
 	if err := w.restore(ctx); err != nil {
@@ -323,11 +323,19 @@ func (w *World) shutdown() {
 }
 
 func (w *World) reset() {
+	// Reset ECS world and rerun the init systems.
 	w.world.Reset()
+	w.world.Init()
+
+	// Clear command and event buffers from previous tick.
 	w.commands.Clear()
 	w.events.Clear()
+
+	// Reset tick bookkeeping fields.
 	w.currentTick.height = 0
 	w.currentTick.timestamp = time.Time{}
+
+	// Reset perf collector.
 	w.debug.resetPerf()
 }
 

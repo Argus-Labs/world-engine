@@ -89,15 +89,6 @@ func RunDST(t *testing.T, setup DSTSetupFunc) {
 
 		case op == opRestart:
 			fix.world.reset()
-			fix.world.world.Init()
-			// ecs.World.Tick returns early on the first tick after reset (only runs init systems). This means
-			// any commands drained in that tick are silently lost. We work around it here by consuming the
-			// init tick.
-			// TODO: init systems was previously executed in Tick because we need to record the state change
-			// in the epoch. Now that we don't have epochs, we're free to move it out of Tick into a init or
-			// bootstrap step, eliminating the branch. Fix in a future PR since some existing tests rely on
-			// the current behavior.
-			require.NoError(t, fix.world.Tick(context.Background(), time.Time{}))
 
 		case op == opSnapshotRestore:
 			fix.world.reset()
@@ -230,9 +221,8 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	storage := &memSnapshotStorage{t: t}
 	w.snapshotStorage = storage
 
-	// Initialize ECS schedulers and consume the init tick.
+	// Initialize ECS schedulers and run init systems.
 	w.world.Init()
-	require.NoError(t, w.Tick(context.Background(), time.Unix(0, 0)))
 
 	// Cache concrete payload types for random command generation.
 	cmdTypes := make(map[string]reflect.Type)
@@ -313,7 +303,7 @@ func fillRandom(prng *rand.Rand, v reflect.Value) {
 	case reflect.Float32, reflect.Float64:
 		v.SetFloat(prng.Float64() * 1000)
 	case reflect.Bool:
-		v.SetBool(prng.IntN(2) == 0)
+		v.SetBool(testutils.RandBool(prng))
 	case reflect.String:
 		const chars = "abcdefghijklmnopqrstuvwxyz"
 		n := 1 + prng.IntN(12)
