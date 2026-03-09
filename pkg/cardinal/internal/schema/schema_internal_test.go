@@ -120,7 +120,7 @@ func randComponentMixed(prng *rand.Rand) testutils.ComponentMixed {
 		Float32Val: float32(prng.Float64()),
 		Float64Val: prng.Float64(),
 		StringVal:  testutils.RandString(prng, 1+prng.IntN(100)),
-		BoolVal:    prng.IntN(2) == 1,
+		BoolVal:    testutils.RandBool(prng),
 		IntSlice:   []int{prng.Int(), prng.Int(), prng.Int()},
 		ByteSlice:  []byte(testutils.RandString(prng, 1+prng.IntN(50))),
 		FloatArray: [3]float64{prng.Float64(), prng.Float64(), prng.Float64()},

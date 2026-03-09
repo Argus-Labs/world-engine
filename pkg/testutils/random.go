@@ -98,6 +98,11 @@ func RandWeightedOp(r *rand.Rand, ops OpWeights) string {
 	panic("unreachable")
 }
 
+// RandBool returns a random boolean.
+func RandBool(r *rand.Rand) bool {
+	return r.Uint64N(2) == 0
+}
+
 // RandString generates a random alphanumeric string of the given length.
 func RandString(r *rand.Rand, length int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

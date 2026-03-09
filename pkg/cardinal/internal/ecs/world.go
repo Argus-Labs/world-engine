@@ -11,8 +11,7 @@ import (
 // World represents the root ECS state.
 type World struct {
 	state               *worldState
-	initDone            bool                  // Tracks if init systems have been executed
-	initSystems         []initSystem          // Initialization systems, run once during the genesis tick
+	initSystems         []initSystem          // Initialization systems, run once per world initialization
 	scheduler           [3]systemScheduler    // Systems schedulers (PreTick, Update, PostTick)
 	systemEvents        systemEventManager    // Manages system events
 	onComponentRegister func(Component) error // Callback called when a component is registered
@@ -22,7 +21,6 @@ type World struct {
 func NewWorld() *World {
 	world := &World{
 		state:        newWorldState(),
-		initDone:     false,
 		initSystems:  make([]initSystem, 0),
 		scheduler:    [3]systemScheduler{},
 		systemEvents: newSystemEventManager(),
@@ -37,10 +35,14 @@ func NewWorld() *World {
 	return world
 }
 
-// Init initializes the system schedulers by creating their schedules.
+// Init initializes system schedulers by creating their schedules and runs init systems.
 func (w *World) Init() {
 	for i := range w.scheduler {
 		w.scheduler[i].createSchedule()
+	}
+
+	for _, system := range w.initSystems {
+		system.fn()
 	}
 }
 
@@ -51,15 +53,6 @@ func (w *World) Init() {
 func (w *World) Tick() error {
 	// Clear system events after each tick.
 	defer w.systemEvents.clear()
-
-	// Run init systems once on first tick.
-	if !w.initDone {
-		for _, system := range w.initSystems {
-			system.fn()
-		}
-		w.initDone = true
-		return nil
-	}
 
 	// Run the systems.
 	for i := range w.scheduler {
@@ -73,7 +66,6 @@ func (w *World) Tick() error {
 // Components remain registered but all entities and archetypes are cleared.
 func (w *World) Reset() {
 	w.state.reset()
-	w.initDone = false
 }
 
 // SetOnSystemRun sets a callback invoked after each system execution.
@@ -113,8 +105,6 @@ func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 	if err := w.state.fromProto(pb); err != nil {
 		return err
 	}
-	// Mark init as done to prevent re-running init systems after restore.
-	w.initDone = true
 	return nil
 }
 
