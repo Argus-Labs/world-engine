@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/require"
 )
@@ -11,6 +12,7 @@ import (
 // World represents the root ECS state.
 type World struct {
 	state               *worldState
+	initialized         bool                  // True once Init has completed; reset to false by Reset
 	initSystems         []initSystem          // Initialization systems, run once per world initialization
 	scheduler           [3]systemScheduler    // Systems schedulers (PreTick, Update, PostTick)
 	systemEvents        systemEventManager    // Manages system events
@@ -37,6 +39,8 @@ func NewWorld() *World {
 
 // Init initializes system schedulers by creating their schedules and runs init systems.
 func (w *World) Init() {
+	assert.That(!w.initialized, "Init called when world is already initialized")
+
 	for i := range w.scheduler {
 		w.scheduler[i].createSchedule()
 	}
@@ -44,6 +48,8 @@ func (w *World) Init() {
 	for _, system := range w.initSystems {
 		system.fn()
 	}
+
+	w.initialized = true
 }
 
 // Tick passes external events into the event manager and executes the
@@ -51,6 +57,8 @@ func (w *World) Init() {
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
 func (w *World) Tick() error {
+	assert.That(w.initialized, "Tick called before initialization")
+
 	// Clear system events after each tick.
 	defer w.systemEvents.clear()
 
@@ -66,6 +74,7 @@ func (w *World) Tick() error {
 // Components remain registered but all entities and archetypes are cleared.
 func (w *World) Reset() {
 	w.state.reset()
+	w.initialized = false
 }
 
 // SetOnSystemRun sets a callback invoked after each system execution.

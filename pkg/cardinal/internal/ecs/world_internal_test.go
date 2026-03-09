@@ -24,8 +24,8 @@ import (
 //
 //  1. Init systems run exactly once in World.Init(), in registration order.
 //  2. On ticks, phases are strictly ordered: PreUpdate < Update < PostUpdate.
-//  4. System events are cleared after each tick.
-//  5. After Reset(), calling World.Init() re-runs init systems.
+//  3. System events are cleared after each tick.
+//  4. After Reset(), calling World.Init() re-runs init systems.
 // -------------------------------------------------------------------------------------------------
 
 func TestWorld_TickFuzz(t *testing.T) {
