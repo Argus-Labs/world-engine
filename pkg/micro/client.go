@@ -227,10 +227,11 @@ func (c *Client) handleClosed(nc *nats.Conn) {
 
 // handleError handles NATS subscription errors.
 func (c *Client) handleError(_ *nats.Conn, sub *nats.Subscription, err error) {
-	c.log.Error().
-		Err(err).
-		Str("subject", sub.Subject).
-		Msg("NATS subscription error occurred")
+	logEvent := c.log.Error().Err(err)
+	if sub != nil {
+		logEvent = logEvent.Str("subject", sub.Subject)
+	}
+	logEvent.Msg("NATS subscription error occurred")
 }
 
 // reconnectBackoff defines the exponential backoff delays in milliseconds.
