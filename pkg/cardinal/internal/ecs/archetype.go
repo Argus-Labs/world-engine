@@ -102,7 +102,7 @@ func (a *archetype) removeEntity(eid EntityID) {
 		return
 	}
 
-	// Else, we ppdate the swapped entity metadata to point to the correct row.
+	// Else, we update the swapped entity metadata to point to the correct row.
 	movedID := a.entities[row]
 	a.rows.set(movedID, row)
 }

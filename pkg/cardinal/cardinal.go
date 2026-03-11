@@ -257,7 +257,7 @@ func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
 		w.tel.Logger.Warn().Err(err).Msg("failed to store snapshot")
 		return
 	}
-	w.tel.Logger.Info().Msg("published snapshot")
+	w.tel.Logger.Debug().Msg("published snapshot")
 }
 
 func (w *World) restore(ctx context.Context) error {
