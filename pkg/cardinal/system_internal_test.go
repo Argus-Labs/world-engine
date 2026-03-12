@@ -208,6 +208,98 @@ func newEventFixture(t *testing.T) *eventFixture {
 }
 
 // -------------------------------------------------------------------------------------------------
+// WithSystemEvent smoke tests
+// -------------------------------------------------------------------------------------------------
+// WithSystemEventEmitter and WithSystemEventReceiver are just light wrappers over the
+// systemEventManager, which is already tested. Here, we just check if the regular system event
+// operations work correctly.
+// -------------------------------------------------------------------------------------------------
+
+func TestSystem_WithSystemEvent(t *testing.T) {
+	t.Parallel()
+
+	t.Run("round trip", func(t *testing.T) {
+		t.Parallel()
+		prng := testutils.NewRand(t)
+		fixture := newSystemEventFixture(t)
+
+		count := prng.IntN(10_000)
+		model := make([]testutils.SimpleSystemEvent, count)
+		for i := range count {
+			model[i] = testutils.SimpleSystemEvent{Value: prng.Int()}
+		}
+
+		for _, event := range model {
+			fixture.Emitter.Emit(event)
+		}
+
+		var results []testutils.SimpleSystemEvent
+		for event := range fixture.Receiver.Iter() {
+			results = append(results, event)
+		}
+
+		assert.Len(t, results, len(model), "completeness: expected %d events, got %d", len(model), len(results))
+		for i, result := range results {
+			assert.Equal(t, model[i], result, "round-trip integrity: event mismatch at index %d", i)
+		}
+	})
+
+	t.Run("empty iteration", func(t *testing.T) {
+		t.Parallel()
+
+		fixture := newSystemEventFixture(t)
+
+		count := 0
+		for range fixture.Receiver.Iter() {
+			count++
+		}
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("early termination", func(t *testing.T) {
+		t.Parallel()
+
+		fixture := newSystemEventFixture(t)
+
+		for i := range 10 {
+			fixture.Emitter.Emit(testutils.SimpleSystemEvent{Value: i})
+		}
+
+		count := 0
+		for range fixture.Receiver.Iter() {
+			count++
+			break
+		}
+		assert.Equal(t, 1, count)
+	})
+}
+
+type systemEventFixture struct {
+	Emitter  WithSystemEventEmitter[testutils.SimpleSystemEvent]
+	Receiver WithSystemEventReceiver[testutils.SimpleSystemEvent]
+}
+
+func newSystemEventFixture(t *testing.T) *systemEventFixture {
+	t.Helper()
+
+	world := &World{world: ecs.NewWorld()}
+	fixture := &systemEventFixture{}
+
+	// We initialize these separately because the default behavior is we don't allow a system to
+	// process the same system event type, it doesn't make sense to do it. But here, we want to do it
+	// for simplicity, so we have to initialize these manually with different systemEvents sets.
+	meta := &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
+	err := fixture.Emitter.init(meta)
+	require.NoError(t, err)
+
+	meta = &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
+	err = fixture.Receiver.init(meta)
+	require.NoError(t, err)
+
+	return fixture
+}
+
+// -------------------------------------------------------------------------------------------------
 // Search, Contains, Exact, smoke tests
 // -------------------------------------------------------------------------------------------------
 // The search fields and Ref are just light wrappers over the world state operations, Which is
@@ -332,6 +424,98 @@ func TestSearch_Smoke(t *testing.T) {
 		assert.True(t, fixture.Movers.Destroy(eid))
 		assert.False(t, fixture.Movers.Destroy(eid))
 	})
+
+	t.Run("filter", func(t *testing.T) {
+		t.Parallel()
+		fixture := newSearchFixture(t)
+
+		eid1, mover1 := fixture.Movers.Create()
+		mover1.B.Set(testutils.ComponentB{ID: 1, Label: "one", Enabled: true})
+
+		eid2, mover2 := fixture.Movers.Create()
+		mover2.B.Set(testutils.ComponentB{ID: 2, Label: "two", Enabled: false})
+
+		eid3, mover3 := fixture.Movers.Create()
+		mover3.B.Set(testutils.ComponentB{ID: 3, Label: "three", Enabled: true})
+
+		allIDs := []EntityID{eid1, eid2, eid3}
+		expectedIDs := []EntityID{eid1, eid3}
+
+		var results []EntityID
+		for eid := range fixture.Movers.Iter().Filter(func(_ EntityID, mover struct {
+			A Ref[testutils.ComponentA]
+			B Ref[testutils.ComponentB]
+		}) bool {
+			return mover.B.Get().Enabled
+		}) {
+			results = append(results, eid)
+		}
+		assert.Equal(t, expectedIDs, results)
+
+		var nilPredicateResults []EntityID
+		for eid := range fixture.Movers.Iter().Filter(nil) {
+			nilPredicateResults = append(nilPredicateResults, eid)
+		}
+		assert.Equal(t, allIDs, nilPredicateResults)
+	})
+
+	t.Run("limit", func(t *testing.T) {
+		t.Parallel()
+		prng := testutils.NewRand(t)
+		fixture := newSearchFixture(t)
+
+		count := prng.IntN(100) + 1
+		expectedIDs := make([]EntityID, 0, count)
+		for range count {
+			eid, _ := fixture.Movers.Create()
+			expectedIDs = append(expectedIDs, eid)
+		}
+
+		limit := uint32(prng.IntN(count) + 1)
+		var results []EntityID
+		for eid := range fixture.Movers.Iter().Limit(limit) {
+			results = append(results, eid)
+		}
+		assert.Equal(t, expectedIDs[:limit], results)
+
+		var overLimitResults []EntityID
+		for eid := range fixture.Movers.Iter().Limit(uint32(count + 10)) {
+			overLimitResults = append(overLimitResults, eid)
+		}
+		assert.Equal(t, expectedIDs, overLimitResults)
+	})
+
+	t.Run("single", func(t *testing.T) {
+		t.Parallel()
+		prng := testutils.NewRand(t)
+
+		// Exactly one result.
+		exactlyOneFixture := newSearchFixture(t)
+		eidExpected, mover := exactlyOneFixture.Movers.Create()
+		compB := testutils.ComponentB{
+			ID:      prng.Uint64(),
+			Label:   testutils.RandString(prng, 8),
+			Enabled: testutils.RandBool(prng),
+		}
+		mover.B.Set(compB)
+
+		eid, result, err := exactlyOneFixture.Movers.Iter().Single()
+		require.NoError(t, err)
+		assert.Equal(t, eidExpected, eid)
+		assert.Equal(t, compB, result.B.Get())
+
+		// No results.
+		emptyFixture := newSearchFixture(t)
+		_, _, err = emptyFixture.Movers.Iter().Single()
+		require.ErrorIs(t, err, ErrSingleNoResult)
+
+		// Multiple results.
+		multipleFixture := newSearchFixture(t)
+		multipleFixture.Movers.Create()
+		multipleFixture.Movers.Create()
+		_, _, err = multipleFixture.Movers.Iter().Single()
+		require.ErrorIs(t, err, ErrSingleMultipleResult)
+	})
 }
 
 type searchFixture struct {
@@ -353,98 +537,6 @@ func newSearchFixture(t *testing.T) *searchFixture {
 	fixture := &searchFixture{}
 
 	_, _, err := initSystemFields(fixture, world)
-	require.NoError(t, err)
-
-	return fixture
-}
-
-// -------------------------------------------------------------------------------------------------
-// WithSystemEvent smoke tests
-// -------------------------------------------------------------------------------------------------
-// WithSystemEventEmitter and WithSystemEventReceiver are just light wrappers over the
-// systemEventManager, which is already tested. Here, we just check if the regular system event
-// operations work correctly.
-// -------------------------------------------------------------------------------------------------
-
-func TestSystem_WithSystemEvent(t *testing.T) {
-	t.Parallel()
-
-	t.Run("round trip", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-		fixture := newSystemEventFixture(t)
-
-		count := prng.IntN(10_000)
-		model := make([]testutils.SimpleSystemEvent, count)
-		for i := range count {
-			model[i] = testutils.SimpleSystemEvent{Value: prng.Int()}
-		}
-
-		for _, event := range model {
-			fixture.Emitter.Emit(event)
-		}
-
-		var results []testutils.SimpleSystemEvent
-		for event := range fixture.Receiver.Iter() {
-			results = append(results, event)
-		}
-
-		assert.Len(t, results, len(model), "completeness: expected %d events, got %d", len(model), len(results))
-		for i, result := range results {
-			assert.Equal(t, model[i], result, "round-trip integrity: event mismatch at index %d", i)
-		}
-	})
-
-	t.Run("empty iteration", func(t *testing.T) {
-		t.Parallel()
-
-		fixture := newSystemEventFixture(t)
-
-		count := 0
-		for range fixture.Receiver.Iter() {
-			count++
-		}
-		assert.Equal(t, 0, count)
-	})
-
-	t.Run("early termination", func(t *testing.T) {
-		t.Parallel()
-
-		fixture := newSystemEventFixture(t)
-
-		for i := range 10 {
-			fixture.Emitter.Emit(testutils.SimpleSystemEvent{Value: i})
-		}
-
-		count := 0
-		for range fixture.Receiver.Iter() {
-			count++
-			break
-		}
-		assert.Equal(t, 1, count)
-	})
-}
-
-type systemEventFixture struct {
-	Emitter  WithSystemEventEmitter[testutils.SimpleSystemEvent]
-	Receiver WithSystemEventReceiver[testutils.SimpleSystemEvent]
-}
-
-func newSystemEventFixture(t *testing.T) *systemEventFixture {
-	t.Helper()
-
-	world := &World{world: ecs.NewWorld()}
-	fixture := &systemEventFixture{}
-
-	// We initialize these separately because the default behavior is we don't allow a system to
-	// process the same system event type, it doesn't make sense to do it. But here, we want to do it
-	// for simplicity, so we have to initialize these manually with different systemEvents sets.
-	meta := &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
-	err := fixture.Emitter.init(meta)
-	require.NoError(t, err)
-
-	meta = &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
-	err = fixture.Receiver.init(meta)
 	require.NoError(t, err)
 
 	return fixture

@@ -40,7 +40,7 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	// Setup: pre-register many system event names with boxed queues.
 	boxedFactory := newSystemEventQueueFactory[SystemEvent]()
 	for id := range nSystemEventTypes {
-		name := seidToString(systemEventID(id))
+		name := seidToString(SystemEventID(id))
 		_, err := impl.register(name, boxedFactory)
 		require.NoError(t, err)
 		model[name] = []SystemEvent{}
@@ -130,11 +130,11 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	const opsMax = 1 << 15 // 32_768 iterations
 
 	impl := newSystemEventManager()
-	model := make(map[string]systemEventID) // name -> ID
+	model := make(map[string]SystemEventID) // name -> ID
 	boxedFactory := newSystemEventQueueFactory[SystemEvent]()
 
 	for range opsMax {
-		nameID := systemEventID(prng.IntN(opsMax / 4))
+		nameID := SystemEventID(prng.IntN(opsMax / 4))
 		name := seidToString(nameID)
 		implID, err := impl.register(name, boxedFactory)
 		require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	}
 
 	// Property: bijection holds between names and IDs.
-	seenIDs := make(map[systemEventID]string)
+	seenIDs := make(map[SystemEventID]string)
 	for name, id := range impl.catalog {
 		if prevName, seen := seenIDs[id]; seen {
 			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
@@ -171,25 +171,25 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	// Simple test to confirm that registering the same name repeatedly is a no-op.
 	t.Run("registration idempotence", func(t *testing.T) {
 		t.Parallel()
-		impl := newSystemEventManager()
+		sem := newSystemEventManager()
 		name1 := seidToString(123)
 		name2 := seidToString(124)
 
-		id1, err := impl.register(name1, boxedFactory)
+		id1, err := sem.register(name1, boxedFactory)
 		require.NoError(t, err)
 
-		id2, err := impl.register(name1, boxedFactory)
+		id2, err := sem.register(name1, boxedFactory)
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := impl.register(name2, boxedFactory)
+		id3, err := sem.register(name2, boxedFactory)
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)
 	})
 }
 
-func seidToString(id systemEventID) string {
+func seidToString(id SystemEventID) string {
 	return strconv.FormatUint(uint64(id), 10)
 }

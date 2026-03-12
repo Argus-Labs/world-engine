@@ -740,6 +740,11 @@ func (r *Ref[T]) Remove() {
 // Component Search Result Modifiers
 // -------------------------------------------------------------------------------------------------
 
+var (
+	ErrSingleNoResult       = eris.New("expected exactly 1 result, got 0")
+	ErrSingleMultipleResult = eris.New("expected exactly 1 result, got more than 1")
+)
+
 // SearchResult is a chainable iterator over key-value pairs.
 type SearchResult[E EntityID, C any] func(yield func(E, C) bool)
 
@@ -779,14 +784,21 @@ func (s SearchResult[E, C]) Limit(limit uint32) SearchResult[E, C] {
 	}
 }
 
-// TODO; return err if there's result count != 1.
-// Single returns the first value in the iterator and true. If the iterator is empty, it returns
-// the zero value and false.
-func (s SearchResult[E, C]) Single() (E, C, bool) {
+// Single returns the single value in the iterator. It returns an error if the iterator yields
+// zero or more than one result.
+func (s SearchResult[E, C]) Single() (E, C, error) {
+	var re E
+	var rc C
+	count := 0
 	for e, c := range s {
-		return e, c, true
+		if count == 1 {
+			return re, rc, ErrSingleMultipleResult
+		}
+		re, rc = e, c
+		count++
 	}
-	var za E
-	var zc C
-	return za, zc, false
+	if count == 0 {
+		return re, rc, ErrSingleNoResult
+	}
+	return re, rc, nil
 }

@@ -1,19 +1,17 @@
 package ecs
 
 import (
-	"math"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/rotisserie/eris"
 )
 
-// systemEventID is a unique identifier for a system event type.
+// SystemEventID is a unique identifier for a system event type.
 // It is used internally to track and manage system event types efficiently.
-type systemEventID = uint32
+type SystemEventID = uint32
 
 // maxSystemEventID is the maximum number of system event types that can be registered.
-const maxSystemEventID = math.MaxUint32 - 1
+// const maxSystemEventID = math.MaxUint32 - 1
 
 // SystemEvent is an interface that all system events must implement.
 // SystemEvents are events emitted by a system to be handled by another system.
@@ -23,8 +21,8 @@ type SystemEvent interface { //nolint:iface // may extend later
 
 // systemEventManager manages the registration and storage of system events.
 type systemEventManager struct {
-	nextID  systemEventID            // The next system event ID
-	catalog map[string]systemEventID // System event name -> System event ID
+	nextID  SystemEventID            // The next system event ID
+	catalog map[string]SystemEventID // System event name -> System event ID
 	events  []abstractSystemEventQueue
 }
 
@@ -32,14 +30,14 @@ type systemEventManager struct {
 func newSystemEventManager() systemEventManager {
 	return systemEventManager{
 		nextID:  0,
-		catalog: make(map[string]systemEventID),
+		catalog: make(map[string]SystemEventID),
 		events:  make([]abstractSystemEventQueue, 0),
 	}
 }
 
 // register registers a new system event type as abstract SystemEvent. If the system event is
 // already registered, the existing id is returned.
-func (s *systemEventManager) register(name string, factory systemEventQueueFactory) (systemEventID, error) {
+func (s *systemEventManager) register(name string, factory systemEventQueueFactory) (SystemEventID, error) {
 	if name == "" {
 		return 0, eris.New("system event name cannot be empty")
 	}
@@ -100,7 +98,7 @@ func getSystemEvent[T SystemEvent](s *systemEventManager) ([]T, error) {
 }
 
 // RegisterSystemEvent registers a component type with the world.
-func RegisterSystemEvent[T SystemEvent](world *World) (systemEventID, error) {
+func RegisterSystemEvent[T SystemEvent](world *World) (SystemEventID, error) {
 	var zero T
 	return world.systemEvents.register(zero.Name(), newSystemEventQueueFactory[T]())
 }

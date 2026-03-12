@@ -135,7 +135,8 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			entity.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
 			entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			entity.NetworkSync.Set(NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
+			entity.NetworkSync.Set(
+				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 			b.StopTimer()
 		}
 	})
@@ -157,7 +158,8 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			warmup.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			warmup.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
 			warmup.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			warmup.NetworkSync.Set(NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
+			warmup.NetworkSync.Set(
+				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
 			_, entity := state.Entities.Create()
@@ -170,7 +172,8 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			entity.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
 			entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			entity.NetworkSync.Set(NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
+			entity.NetworkSync.Set(
+				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 			b.StopTimer()
 		}
 	})
@@ -230,7 +233,8 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			entity.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
 			entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			entity.NetworkSync.Set(NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
+			entity.NetworkSync.Set(
+				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
 			_ = state.Entities.Destroy(eid)

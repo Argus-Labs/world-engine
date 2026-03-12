@@ -63,7 +63,12 @@ func Has[T Component](world *World, eid EntityID) bool {
 // We intentionally keep this as a callback-based iterator instead of returning iter.Seq because
 // the additional closure/layer on hot query paths adds measurable allocations in cardinal
 // benchmarks. This still resolves matching archetypes dynamically on every call.
-func IterEntities(world *World, components bitmap.Bitmap, match SearchMatch, yield func(EntityID) bool) error {
+func IterEntities( //nolint:gocognit // it's fine
+	world *World,
+	components bitmap.Bitmap,
+	match SearchMatch,
+	yield func(EntityID) bool,
+) error {
 	switch match {
 	case MatchExact:
 		aid, exists := world.state.archExact(components)
