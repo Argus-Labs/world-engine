@@ -358,11 +358,11 @@ func newSearchTestWorld(t *testing.T) *World {
 	w := NewWorld()
 	w.OnComponentRegister(func(Component) error { return nil })
 
-	_, err := registerComponent[testutils.ComponentA](w)
+	_, err := RegisterComponent[testutils.ComponentA](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentB](w)
+	_, err = RegisterComponent[testutils.ComponentB](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentC](w)
+	_, err = RegisterComponent[testutils.ComponentC](w)
 	require.NoError(t, err)
 
 	ws := w.state

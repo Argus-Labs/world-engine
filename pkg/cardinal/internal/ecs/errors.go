@@ -11,6 +11,12 @@ var (
 	// registered (used) in any systems.
 	ErrComponentNotFound = eris.New("component is not registered")
 
+	// ErrSystemEventNotFound is returned when attempting to operate on a system event that isn't
+	// registered (used) in any systems.
+	ErrSystemEventNotFound = eris.New("system event is not registered")
+
 	// ErrArchetypeMismatch is returned when an entity's archetype doesn't match the search criteria.
 	ErrArchetypeMismatch = eris.New("entity archetype does not match search")
+
+	ErrInvalidMatch = eris.New("invalid match type")
 )

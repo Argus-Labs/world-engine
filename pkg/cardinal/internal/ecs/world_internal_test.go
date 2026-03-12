@@ -74,8 +74,9 @@ func TestWorld_TickFuzz(t *testing.T) {
 				setup.verifyPhaseOrder(t)
 
 				// Property: system events are cleared after tick.
-				assert.Empty(t, setup.world.systemEvents.get(setup.systemEventName),
-					"system event %q should be cleared after tick", setup.systemEventName)
+				systemEvents, err := setup.world.systemEvents.getAbstract(testutils.SimpleSystemEvent{}.Name())
+				require.NoError(t, err)
+				assert.Empty(t, systemEvents, "system event should be cleared after tick")
 
 			case opReset:
 				setup.world.Reset()
@@ -95,12 +96,11 @@ type phaseEvent struct {
 }
 
 type tickFuzzSetup struct {
-	world           *World
-	systemEventName string
-	numInitSystems  int
-	initOrder       []int
-	phaseEvents     []phaseEvent
-	clock           atomic.Int64
+	world          *World
+	numInitSystems int
+	initOrder      []int
+	phaseEvents    []phaseEvent
+	clock          atomic.Int64
 }
 
 func (s *tickFuzzSetup) verifyInitSystems(t *testing.T) {
@@ -155,18 +155,19 @@ func setupWorldTickFuzz(t *testing.T, prng *rand.Rand, initSystemsMax, phaseSyst
 	var mu sync.Mutex
 
 	// Step 1: Create a new World.
-	setup := &tickFuzzSetup{world: NewWorld(), systemEventName: "test-event"}
+	setup := &tickFuzzSetup{world: NewWorld()}
 
 	// Step 2: Register a single system event on the world's systemEventManager.
 	// We only need one to verify that events are cleared after each tick.
-	_, err := setup.world.systemEvents.register(setup.systemEventName)
+	_, err := setup.world.systemEvents.register(
+		testutils.SimpleSystemEvent{}.Name(), newSystemEventQueueFactory[testutils.SimpleSystemEvent]())
 	require.NoError(t, err)
 	// emitSystemEvent is a helper that enqueues a system event.
 	// Both prng and systemEvents.enqueue are not concurrent-safe, so we guard with mu since
 	// systems within the same phase run concurrently via the scheduler.
 	emitSystemEvent := func() {
 		mu.Lock()
-		setup.world.systemEvents.enqueue(setup.systemEventName, testutils.SimpleSystemEvent{Value: prng.Int()})
+		setup.world.systemEvents.enqueueAbstract(testutils.SimpleSystemEvent{Value: prng.Int()})
 		mu.Unlock()
 	}
 
