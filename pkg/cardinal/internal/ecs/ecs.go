@@ -1,8 +1,6 @@
 package ecs
 
 import (
-	"iter"
-
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
@@ -60,32 +58,49 @@ func Has[T Component](world *World, eid EntityID) bool {
 	return eris.Is(err, ErrComponentNotFound)
 }
 
-func IterEntities(world *World, components bitmap.Bitmap, match SearchMatch) (iter.Seq[EntityID], error) {
-	var archetypeIDs []archetypeID
+// IterEntities iterates all entities that match the given component bitmap and match mode.
+//
+// We intentionally keep this as a callback-based iterator instead of returning iter.Seq because
+// the additional closure/layer on hot query paths adds measurable allocations in cardinal
+// benchmarks. This still resolves matching archetypes dynamically on every call.
+func IterEntities(world *World, components bitmap.Bitmap, match SearchMatch, yield func(EntityID) bool) error {
 	switch match {
 	case MatchExact:
-		if aid, exists := world.state.archExact(components); exists {
-			archetypeIDs = []archetypeID{aid}
+		aid, exists := world.state.archExact(components)
+		if !exists {
+			return nil
 		}
-		// If it doesn't exist, just leave empty so the iterator returns immediately
-	case MatchContains:
-		archetypeIDs = world.state.archContains(components)
-	case MatchAll:
-		archetypeIDs = world.state.archAll()
-	default:
-		return nil, eris.Wrapf(ErrInvalidMatch, "%v", match)
-	}
 
-	return func(yield func(EntityID) bool) {
-		for _, id := range archetypeIDs {
-			arch := world.state.archetypes[id]
+		arch := world.state.archetypes[aid]
+		for _, eid := range arch.entities {
+			if !yield(eid) {
+				return nil
+			}
+		}
+	case MatchContains:
+		for _, arch := range world.state.archetypes {
+			if !arch.contains(components) {
+				continue
+			}
+
 			for _, eid := range arch.entities {
 				if !yield(eid) {
-					return
+					return nil
 				}
 			}
 		}
-	}, nil
+	case MatchAll:
+		for _, arch := range world.state.archetypes {
+			for _, eid := range arch.entities {
+				if !yield(eid) {
+					return nil
+				}
+			}
+		}
+	default:
+		return eris.Wrapf(ErrInvalidMatch, "%v", match)
+	}
+	return nil
 }
 
 func MatchArchetype(world *World, eid EntityID, components bitmap.Bitmap, match SearchMatch) error {
@@ -121,5 +136,5 @@ func GetSystemEvents[T SystemEvent](world *World) ([]T, error) {
 }
 
 func EmitSystemEvent[T SystemEvent](world *World, systemEvent T) error {
-	return enqueueSystemEvent[T](&world.systemEvents, systemEvent)
+	return enqueueSystemEvent(&world.systemEvents, systemEvent)
 }

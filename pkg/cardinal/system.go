@@ -517,18 +517,14 @@ func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (T, error) {
 // iter returns an iterator over all entities that match the given archetypes.
 func (s *search[T]) iter(match ecs.SearchMatch) SearchResult[EntityID, T] {
 	return func(yield func(EntityID, T) bool) {
-		iter, err := ecs.IterEntities(s.world, s.components, match)
-		assert.That(err == nil, "invalid arguments sent to IterEntities")
-
-		for eid := range iter {
+		err := ecs.IterEntities(s.world, s.components, match, func(eid EntityID) bool {
 			for i := range s.fields {
 				s.fields[i].attach(s.world, eid) // Attach the entity and world state buffer to the ref
 			}
 
-			if !yield(eid, s.result) {
-				return
-			}
-		}
+			return yield(eid, s.result)
+		})
+		assert.That(err == nil, "invalid arguments sent to IterEntities")
 	}
 }
 
