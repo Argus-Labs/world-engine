@@ -11,7 +11,7 @@ import (
 
 func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
-		lobby.Register(w, lobby.Config{})
+		cardinal.RegisterPlugin(w, lobby.NewPlugin(lobby.Config{}))
 	})
 }
 
@@ -31,7 +31,7 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		lobby.Register(world, lobby.Config{})
+		cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{}))
 
 		return world
 	})

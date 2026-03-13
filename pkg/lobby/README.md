@@ -1,24 +1,26 @@
-# Lobby Package
+# Lobby Plugin
 
-A flexible lobby/party system for Cardinal worlds, handling player grouping and session management.
+A flexible lobby/party system for Cardinal worlds, handling player grouping and session management. Implemented as a Cardinal plugin.
 
 ## Quick Start
 
 ```go
-import "github.com/argus-labs/world-engine/pkg/lobby"
+import (
+    "github.com/argus-labs/world-engine/pkg/cardinal"
+    "github.com/argus-labs/world-engine/pkg/lobby"
+)
 
 func main() {
-    world, _ := cardinal.NewWorld(cardinal.WorldOptions{})
+    world, _ := cardinal.NewWorld(cardinal.WorldOptions{...})
 
-    lobby.Register(world, lobby.Config{
-        // LobbyWorld is this lobby shard's address (so game shard can send back NotifySessionEndCommand)
+    cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
         LobbyWorld: cardinal.OtherWorld{
             Region:       "us-west",
             Organization: "myorg",
             Project:      "myproject",
             ShardID:      "lobby-shard-1",
         },
-    })
+    }))
 
     world.StartGame()
 }
@@ -135,8 +137,7 @@ Session
 |--------|-------------|---------|
 | `LobbyWorld` | This lobby shard's address (for game shard to send NotifySessionEndCommand back) | required |
 | `Provider` | Custom provider (optional, default provided) | `DefaultProvider` |
-| `HeartbeatInterval` | How often clients should send heartbeats (seconds) | 10 |
-| `HeartbeatMaxMisses` | Consecutive missed heartbeats before player removal | 3 |
+| `HeartbeatTimeout` | Seconds before a player is removed for not sending heartbeats. Clients should send heartbeats more frequently (e.g., every timeout/3 seconds). | 30 |
 
 ## Cross-Shard Communication
 
@@ -156,18 +157,17 @@ Game shard should:
 
 ```go
 // In game shard
-func GameSessionSystem(state *GameSessionSystemState) error {
+func GameSessionSystem(state *GameSessionSystemState) {
     for cmd := range state.SessionStartCmds.Iter() {
-        payload := cmd.Payload()
+        payload := cmd.Payload
         // payload.Lobby contains full lobby data
         // payload.LobbyWorld for sending NotifySessionEndCommand back
 
         // When game ends:
-        payload.LobbyWorld.Send(&state.BaseSystemState, NotifySessionEndCommand{
+        payload.LobbyWorld.SendCommand(&state.BaseSystemState, lobby.NotifySessionEndCommand{
             LobbyID: payload.Lobby.ID,
         })
     }
-    return nil
 }
 ```
 
@@ -180,14 +180,14 @@ type MyProvider struct {
     lobby.DefaultProvider
 }
 
-func (p MyProvider) GenerateInviteCode(l *component.LobbyComponent) string {
+func (p MyProvider) GenerateInviteCode(l *lobby.Component) string {
     return generateMyCustomCode(8)
 }
 
-lobby.Register(world, lobby.Config{
+cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
     LobbyWorld: cardinal.OtherWorld{...},
     Provider:   MyProvider{},
-})
+}))
 ```
 
 Default: `Hash(LobbyID + Timestamp)` -> 6-char uppercase alphanumeric (excludes confusing chars: 0, O, I, L, 1).
@@ -217,22 +217,17 @@ The lobby package includes a heartbeat mechanism to detect and remove disconnect
 
 ### How It Works
 
-1. **Clients send `HeartbeatCommand`** periodically (e.g., every `HeartbeatInterval` seconds)
-2. **Server stores a deadline** for each player: `deadline = now + timeout`
-3. **On each heartbeat**, the deadline is extended: `deadline = now + timeout`
+1. **Clients send `HeartbeatCommand`** periodically (e.g., every `HeartbeatTimeout/3` seconds)
+2. **Server stores a deadline** for each player: `deadline = now + HeartbeatTimeout`
+3. **On each heartbeat**, the deadline is extended: `deadline = now + HeartbeatTimeout`
 4. **Server removes players** when `now >= deadline` (player failed to renew their lease)
-5. **Events emitted**: `PlayerTimedOutEvent` and `PlayerLeftEvent` when a player times out
+5. **Events emitted**: `PlayerTimedOutEvent` when a player times out
 
 ### Deadline Approach
 
-The timeout is calculated as:
-```
-timeout = HeartbeatInterval × HeartbeatMaxMisses
-```
-
 When a player joins or sends a heartbeat:
 ```
-deadline = currentTime + timeout
+deadline = currentTime + HeartbeatTimeout
 ```
 
 When checking for timeouts (every tick):
@@ -249,11 +244,10 @@ This approach is simpler than tracking "last heartbeat time" because:
 ### Configuration
 
 ```go
-lobby.Register(world, lobby.Config{
-    LobbyWorld:         lobby.GameWorld{...},
-    HeartbeatInterval:  10, // Clients should send heartbeat every 10 seconds
-    HeartbeatMaxMisses: 3,  // Remove after 3 misses (30 second timeout)
-})
+cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
+    LobbyWorld:       cardinal.OtherWorld{...},
+    HeartbeatTimeout: 30, // Remove player after 30 seconds without heartbeat
+}))
 ```
 
 ### Client Implementation
@@ -283,7 +277,6 @@ When a player joins a lobby, their deadline is set to `now + timeout`. This mean
 
 When a player times out:
 - Player is removed from the lobby
-- `PlayerTimedOutEvent` is emitted (for timeout-specific handling)
-- `PlayerLeftEvent` is emitted (for consistency with normal leave)
+- `PlayerTimedOutEvent` is emitted
 - If player was leader, leadership auto-transfers to another player
 - If lobby becomes empty, it is deleted
