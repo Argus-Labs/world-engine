@@ -100,6 +100,15 @@ func NewWorld(opts WorldOptions) (*World, error) {
 			return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
 		}
 		world.snapshotStorage = snapshotJS
+	case snapshot.StorageTypeS3:
+		snapshotS3, err := snapshot.NewS3Storage(snapshot.S3StorageOptions{
+			Logger:  tel.GetLogger("snapshot"),
+			Address: world.address,
+		})
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create S3 snapshot storage")
+		}
+		world.snapshotStorage = snapshotS3
 	case snapshot.StorageTypeNop:
 		world.snapshotStorage = snapshot.NewNopStorage()
 	case snapshot.StorageTypeUndefined:
