@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: we could probably copy what the system event test does here where it uses non-generic
+// methods that doesn't require us to register multiple different concrete types. E.g., the model
+// tests uses a single system event type with variable name. The non-generic type boxes and isn't
+// suitable for production use, but it makes testing easier, albeit a touch less clear.
+
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing system-event manager operations
 // -------------------------------------------------------------------------------------------------
