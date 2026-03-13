@@ -6,9 +6,9 @@
 // Usage:
 //
 //	world := cardinal.NewWorld(cardinal.WorldOptions{...})
-//	lobby.Register(world, lobby.Config{
-//		GameShardID: "game-shard-1",
-//	})
+//	cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
+//		LobbyWorld: myLobbyWorld,
+//	}))
 //	world.StartGame()
 //
 // The package registers the following systems:
@@ -126,17 +126,27 @@ type Config struct {
 	HeartbeatTimeout int64
 }
 
-// Register registers the lobby systems with the given world.
-// This should be called before world.StartGame().
-func Register(world *cardinal.World, config Config) {
-	// Store config for init system to use
+// Plugin implements cardinal.Plugin for the lobby system.
+type Plugin struct {
+	config Config
+}
+
+var _ cardinal.Plugin = (*Plugin)(nil)
+
+// NewPlugin creates a new lobby plugin with the given configuration.
+func NewPlugin(config Config) *Plugin {
+	return &Plugin{config: config}
+}
+
+// Register implements cardinal.Plugin.
+func (p *Plugin) Register(world *cardinal.World) {
 	system.SetConfig(component.ConfigComponent{
-		LobbyWorld:       config.LobbyWorld,
-		HeartbeatTimeout: config.HeartbeatTimeout,
+		LobbyWorld:       p.config.LobbyWorld,
+		HeartbeatTimeout: p.config.HeartbeatTimeout,
 	})
 
 	// Store provider
-	system.SetProvider(config.Provider)
+	system.SetProvider(p.config.Provider)
 
 	// Register init system (runs once during world initialization)
 	cardinal.RegisterSystem(world, system.InitSystem, cardinal.WithHook(cardinal.Init))
