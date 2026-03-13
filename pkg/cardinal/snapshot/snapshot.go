@@ -41,12 +41,14 @@ const (
 	StorageTypeUndefined StorageType = iota
 	StorageTypeNop
 	StorageTypeJetStream
+	StorageTypeS3
 )
 
 const (
 	nopStorageString       = "NOP"
 	jetStreamStorageString = "JETSTREAM"
-	undefinedStorageString = "UNDEFINED"
+	s3StorageString        = "S3"
+	undefinedStorageString  = "UNDEFINED"
 )
 
 func (s StorageType) String() string {
@@ -57,13 +59,15 @@ func (s StorageType) String() string {
 		return nopStorageString
 	case StorageTypeJetStream:
 		return jetStreamStorageString
+	case StorageTypeS3:
+		return s3StorageString
 	default:
 		return undefinedStorageString
 	}
 }
 
 func (s StorageType) IsValid() bool {
-	return s == StorageTypeNop || s == StorageTypeJetStream
+	return s == StorageTypeNop || s == StorageTypeJetStream || s == StorageTypeS3
 }
 
 func ParseStorageType(s string) (StorageType, error) {
@@ -72,6 +76,8 @@ func ParseStorageType(s string) (StorageType, error) {
 		return StorageTypeNop, nil
 	case jetStreamStorageString:
 		return StorageTypeJetStream, nil
+	case s3StorageString:
+		return StorageTypeS3, nil
 	default:
 		return StorageTypeUndefined, eris.Errorf("invalid shard mode: %s", s)
 	}
