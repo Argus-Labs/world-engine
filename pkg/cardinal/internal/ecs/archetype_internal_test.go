@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -26,13 +27,15 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 		opNew    = "new"
 		opMove   = "move"
 		opRemove = "remove"
+		// Max component count for the archetype pool. The number of archetypes generated is 2^n.
+		nComponents = 10
 	)
 
 	// Randomize operation weights.
 	operations := []string{opNew, opMove, opRemove}
 	weights := testutils.RandOpWeights(prng, operations)
 
-	pool := newArchetypePool()
+	pool := newArchetypePool(prng.IntN(nComponents))
 	model := make(map[EntityID]*archetype) // Just track archetype entity ownership
 
 	// List of live entities for random selection.
@@ -151,44 +154,56 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 // Exhaustive archetype move test
 // -------------------------------------------------------------------------------------------------
-// This test exhaustively enumerates all combinations of source/destination archetypes and entity
-// positions to verify moveEntity correctness. The archetype pool covers all component relationship
-// scenarios between source and destination:
+// This test exhaustively enumerates all combinations of source (S) and destination (D) archetypes
+// and entity positions to verify moveEntity correctness. Move diagnostics classify each transition
+// by component delta (k):
 //
-//   | Scenario            | Examples                                  |
-//   | ------------------- |------------------------------------------ |
-//   | Empty -> non-empty  | {} -> {A}, {} -> {A,B}                    |
-//   | Non-empty -> empty  | {A} -> {}, {A,B} -> {}                    |
-//   | Subset -> superset  | {A} -> {A,B}                              |
-//   | Superset -> subset  | {A,B} -> {A}                              |
-//   | Partial overlap     | {A,B} -> {B,C}, {B,C} -> {A,B} (B shared) |
-//   | Disjoint            | {A} -> {B,C}, {B,C} -> {A} (no shared)    |
+//   | Category                   | Condition     | Example            |
+//   | -------------------------- | ------------- | ------------------ |
+//   | nop                        | A=0, R=0      | {} -> {}, {A}->{A} |
+//   | add only (without copy)    | A>0, R=0, I=0 | {} -> {A,B}        |
+//   | add only (with copy)       | A>0, R=0, I>0 | {A} -> {A,B}       |
+//   | remove only (without copy) | A=0, R>0, I=0 | {A} -> {}          |
+//   | remove only (with copy)    | A=0, R>0, I>0 | {A,B,C} -> {A,C}   |
+//   | add+remove (without copy)  | A>0, R>0, I=0 | {A,B} -> {C,D}     |
+//   | add+remove (with copy)     | A>0, R>0, I>0 | {A,B} -> {B,C}     |
 //
-// For each src->dst pair, we also vary entity count (1-3) and move position (first/middle/last)
-// to exercise swap-remove edge cases: first and middle trigger a swap, last only truncates.
+// where A is the number of components added in D, R is the number removed from S, and I is the
+// number copied from S to D (intersection).
+//
+// Self moves (S == D) are included and only assert that moveEntity does not panic (no-op path).
+//
+// For each S->D pair, we also vary entity count (1-3) and move position (first/middle/last) to
+// exercise swap-remove edge cases: first and middle trigger a swap, last only truncates.
 // We also verify that shared component data is copied correctly to the destination.
 // -------------------------------------------------------------------------------------------------
 
 func TestArchetype_MoveExhaustive(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	const maxComponents = 6
+
+	// Generate all possible subsets (archetype) with N component types, total values: 2^N.
+	pool := newArchetypePool(maxComponents)
 
 	// Exhaustively test combinations of source * destination * entity count * moved entity row.
 	gen := testutils.NewGen()
 	for !gen.Done() {
-		pool := newArchetypePool()
-		srcIdx := gen.Index(len(pool)) // Randomize source
-		dstIdx := gen.Index(len(pool)) // Randomize destination
-		if srcIdx == dstIdx {
-			// Skip moves to self, this is a nop
-			continue
-		}
-		src := pool[srcIdx]
-		dst := pool[dstIdx]
+		// Pick and reset archetypes to clean state.
+		src := pool[gen.Index(len(pool))] // Randomize source
+		src.reset()
+		dst := pool[gen.Index(len(pool))] // Randomize destination
+		dst.reset()
 
-		// Populate source with 1-3 entities.
-		entityCount := gen.Range(1, 3) // Randomize entity count
-		for eid := range entityCount {
+		// Populate source with 1-3 entities, destination with 0-2 entities.
+		countSrc := gen.Range(1, 3) // Randomize source entity count
+		for eid := range countSrc {
 			src.newEntity(EntityID(eid))
+		}
+		countDst := gen.Range(0, 2) // Randomize destination entity count
+		for eid := range countDst {
+			dst.newEntity(EntityID(countSrc + eid)) // Entity IDs are globally unique
 		}
 
 		// Pick which entity to move.
@@ -196,11 +211,23 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 		eid := src.entities[row]
 
 		// Uncomment to see all cases checked.
-		// t.Logf("move: %s, index %d of %d", classifyMove(srcIdx, dstIdx), row, entityCount)
+		// t.Logf("move: %s", classifyMove(src, dst, row))
+
+		if src == dst {
+			assert.NotPanics(t, func() {
+				src.moveEntity(dst, eid)
+			}, "self move should be a no-op and must not panic")
+			continue
+		}
 
 		// Set non-zero values on the entity's components before the move.
 		for _, col := range src.columns {
-			col.setAbstract(row, testValueFor(col.name()))
+			col.setAbstract(row, testutils.SimpleComponent{Value: prng.Int()})
+		}
+		// This is used to check if the components are correctly copied over.
+		sourceValuesByName := make(map[string]Component, len(src.columns))
+		for _, col := range src.columns {
+			sourceValuesByName[col.name()] = col.getAbstract(row)
 		}
 
 		// Record original state.
@@ -244,7 +271,7 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 				return c.name() == dstCol.name()
 			})
 			if isShared {
-				expected := testValueFor(dstCol.name())
+				expected := sourceValuesByName[dstCol.name()]
 				actual := dstCol.getAbstract(dstRow)
 				assert.Equal(t, expected, actual, "shared component %s not copied", dstCol.name())
 			}
@@ -252,80 +279,79 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 	}
 }
 
-const (
-	cidA uint32 = 0
-	cidB uint32 = 1
-	cidC uint32 = 2
-)
-
-func newArchetypePool() []*archetype {
-	return []*archetype{
-		newTestArchetype(0, []uint32{}),           // {}
-		newTestArchetype(1, []uint32{cidA}),       // {A}
-		newTestArchetype(2, []uint32{cidA, cidB}), // {A, B}
-		newTestArchetype(3, []uint32{cidB, cidC}), // {B, C}
-	}
-}
-
-func newTestArchetype(aid archetypeID, cids []uint32) *archetype {
-	components := bitmap.Bitmap{}
-	columns := make([]abstractColumn, len(cids))
-
-	for i, cid := range cids {
-		components.Set(cid)
-		switch cid {
-		case cidA:
-			columns[i] = newColumnFactory[testutils.ComponentA]()()
-		case cidB:
-			columns[i] = newColumnFactory[testutils.ComponentB]()()
-		case cidC:
-			columns[i] = newColumnFactory[testutils.ComponentC]()()
+func newArchetypePool(n int) []*archetype {
+	pool := make([]bitmap.Bitmap, 0, 1<<n)
+	for mask := range 1 << n {
+		components := bitmap.Bitmap{}
+		for bit := range uint32(n) {
+			if mask&(1<<bit) != 0 {
+				components.Set(bit)
+			}
 		}
+		pool = append(pool, components)
 	}
 
-	arch := newArchetype(aid, components, columns)
-	return &arch
-}
-
-func testValueFor(name string) Component {
-	// We use fixed values rather than random because we're testing that moveEntity copies data
-	// correctly—a structural operation with no value-dependent logic. If copying works for one
-	// non-zero value, it works for all values.
-	switch name {
-	case "component_a":
-		return testutils.ComponentA{X: 1.1, Y: 2.2, Z: 3.3}
-	case "component_b":
-		return testutils.ComponentB{ID: 42, Label: "test", Enabled: true}
-	case "component_c":
-		return testutils.ComponentC{Values: [8]int32{1, 2, 3, 4, 5, 6, 7, 8}, Counter: 99}
-	default:
-		panic("unknown component: " + name)
+	archetypes := make([]*archetype, 0, len(pool))
+	for aid, components := range pool {
+		columns := make([]abstractColumn, components.Count())
+		for i := range components.Count() {
+			columns[i] = newColumnFactory[testutils.SimpleComponent]()()
+		}
+		arch := newArchetype(aid, components, columns)
+		archetypes = append(archetypes, &arch)
 	}
+
+	return archetypes
 }
 
-// classifyMove returns a string describing the move scenario based on archetype indices.
-// This is a helper function to visualize the cases handled in the test above.
-func classifyMove(srcIdx, dstIdx int) string { //nolint:unused // useful for debugging test cases
-	names := []string{"{}", "{A}", "{A,B}", "{B,C}"}
-	label := names[srcIdx] + " -> " + names[dstIdx]
+// classifyMove returns semantic class and diagnostics for exhaustive move tests.
+//
+// Variables:
+//   - S, D: source/destination archetype IDs
+//   - A: number of components added when moving S -> D
+//   - R: number of components removed when moving S -> D
+//   - I: number of components copied (intersection)
+//   - k: component difference between S and D (A + R)
+func classifyMove(src, dst *archetype, movedRow int) string { //nolint:unused // useful for debugging test cases
+	intersection := src.components.Clone(nil)
+	intersection.And(dst.components)
 
-	// Pool: 0={}, 1={A}, 2={A,B}, 3={B,C}
+	copied := intersection.Count() // I
+	added := dst.compCount - copied
+	removed := src.compCount - copied
+	diff := added + removed // k
+
+	category := "add+remove"
 	switch {
-	case srcIdx == 0:
-		return label + " (empty -> non-empty)"
-	case dstIdx == 0:
-		return label + " (non-empty -> empty)"
-	case srcIdx == 1 && dstIdx == 2:
-		return label + " (subset -> superset)"
-	case srcIdx == 2 && dstIdx == 1:
-		return label + " (superset -> subset)"
-	case (srcIdx == 2 && dstIdx == 3) || (srcIdx == 3 && dstIdx == 2):
-		return label + " (partial overlap)"
-	case (srcIdx == 1 && dstIdx == 3) || (srcIdx == 3 && dstIdx == 1):
-		return label + " (disjoint)"
+	case added == 0 && removed == 0:
+		category = "nop"
+	case added > 0 && removed == 0 && copied == 0:
+		category = "add only (without copy)"
+	case added > 0 && removed == 0 && copied > 0:
+		category = "add only (with copy)"
+	case added == 0 && removed > 0 && copied == 0:
+		category = "remove only (without copy)"
+	case added == 0 && removed > 0 && copied > 0:
+		category = "remove only (with copy)"
+	case copied == 0:
+		category = "add+remove (without copy)"
 	default:
-		return label + " (unknown)"
+		category = "add+remove (with copy)"
 	}
+
+	return fmt.Sprintf(
+		"%s | S=%d D=%d A=%d R=%d I=%d k=%d S_entities=%d D_entities=%d moved_row=%d",
+		category,
+		src.id,
+		dst.id,
+		added,
+		removed,
+		copied,
+		diff,
+		len(src.entities),
+		len(dst.entities),
+		movedRow,
+	)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -343,24 +369,12 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 
 	const entityMax = 1000
 
-	cm := newComponentManager()
-	cid1, err := cm.register(
-		testutils.ComponentA{}.Name(),
-		newColumnFactory[testutils.ComponentA](),
-	)
-	require.NoError(t, err)
-	cid2, err := cm.register(
-		testutils.ComponentB{}.Name(),
-		newColumnFactory[testutils.ComponentB](),
-	)
-	require.NoError(t, err)
-
-	arch := newTestArchetype(0, []uint32{cid1, cid2})
+	arch, cm := newSimpleArchetype(t)
 	entityCount := prng.IntN(entityMax) + 1
 	for eid := range entityCount {
 		arch.newEntity(EntityID(eid))
 		for _, col := range arch.columns {
-			col.setAbstract(eid, testValueFor(col.name()))
+			col.setAbstract(eid, testutils.SimpleComponent{Value: eid + 1})
 		}
 	}
 
@@ -368,11 +382,30 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	require.NoError(t, err)
 
 	arch2 := &archetype{}
-	err = arch2.fromProto(pb, &cm)
+	err = arch2.fromProto(pb, cm)
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
 	assertArchetypeEqual(t, arch, arch2)
+}
+
+func newSimpleArchetype(t *testing.T) (*archetype, *componentManager) {
+	t.Helper()
+
+	cm := newComponentManager()
+	cid, err := cm.register(
+		testutils.SimpleComponent{}.Name(),
+		newColumnFactory[testutils.SimpleComponent](),
+	)
+	require.NoError(t, err)
+
+	components := bitmap.Bitmap{}
+	components.Set(cid)
+	archValue := newArchetype(0, components, []abstractColumn{
+		newColumnFactory[testutils.SimpleComponent]()(),
+	})
+
+	return &archValue, &cm
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -387,14 +420,7 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 func TestArchetype_DeserializationNegative(t *testing.T) {
 	t.Parallel()
 
-	cm := newComponentManager()
-	cid1, err := cm.register(
-		testutils.ComponentA{}.Name(),
-		newColumnFactory[testutils.ComponentA](),
-	)
-	require.NoError(t, err)
-
-	arch := newTestArchetype(0, []uint32{cid1})
+	arch, cm := newSimpleArchetype(t)
 	arch.newEntity(0)
 
 	pb, err := arch.toProto()
@@ -404,7 +430,7 @@ func TestArchetype_DeserializationNegative(t *testing.T) {
 	pb.ComponentsBitmap = pb.GetComponentsBitmap()[:len(pb.GetComponentsBitmap())-1]
 
 	arch2 := &archetype{}
-	err = arch2.fromProto(pb, &cm)
+	err = arch2.fromProto(pb, cm)
 
 	// Property: corrupted bitmap should return an error, not panic.
 	assert.Error(t, err)

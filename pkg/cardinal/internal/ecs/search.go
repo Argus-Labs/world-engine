@@ -134,15 +134,6 @@ func (s *SearchParam) validateAndGetFilter() (*vm.Program, error) {
 func findMatchingArchetypes(w *World, compNames []string, match SearchMatch) ([]archetypeID, error) {
 	ws := w.state
 
-	// If match is MatchAll, return all archetype IDs
-	if match == MatchAll {
-		archIDs := make([]archetypeID, 0, len(ws.archetypes))
-		for id := range ws.archetypes {
-			archIDs = append(archIDs, id)
-		}
-		return archIDs, nil
-	}
-
 	// Build component bitmap from names
 	component := bitmap.Bitmap{}
 	for _, name := range compNames {
@@ -154,18 +145,17 @@ func findMatchingArchetypes(w *World, compNames []string, match SearchMatch) ([]
 	}
 
 	// Find matching archetypes based on match type
-	var archIDs []int
+	var archIDs []archetypeID
 	switch match {
 	case MatchExact:
 		aid, ok := ws.archExact(component)
 		if ok {
-			archIDs = []int{aid}
+			archIDs = []archetypeID{aid}
 		}
 	case MatchContains:
 		archIDs = ws.archContains(component)
 	case MatchAll:
-		// This case should never be reached as MatchAll is handled earlier in the function.
-		fallthrough
+		archIDs = ws.archAll()
 	default:
 		panic("unreachable")
 	}

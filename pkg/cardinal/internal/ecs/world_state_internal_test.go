@@ -6,8 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"testing/synctest"
-	"time"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/rotisserie/eris"
@@ -339,11 +337,11 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 // This test verifies that the newEntity/removeEntity operations maintain the same invariants tested
 // by the entity id generator test, but under concurrent operations. Run with -race to detect data
-// races (go test -race). We use synctest.Test with time.Sleep to force goroutine interleaving.
-// Without it, WaitGroup goroutines tend to run sequentially, which defeats the purpose of a
-// concurrency test. We only test entity operations concurrently because component operations
-// (get/set/remove) are not concurrent-safe. The system scheduler ensures operations on the same
-// component type are never done concurrently in multiple systems.
+// races (go test -race). We coordinate goroutine start with an explicit barrier to maximize
+// contention in the entity ID allocation/recycling path. We only test entity operations
+// concurrently because component operations (get/set/remove) are not concurrent-safe. The system
+// scheduler ensures operations on the same component type are never done concurrently in multiple
+// systems.
 // -------------------------------------------------------------------------------------------------
 
 func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
@@ -355,46 +353,48 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 		createRemoveRatio = 0.6
 	)
 
-	synctest.Test(t, func(t *testing.T) {
-		ws := newTestWorldState(t)
+	ws := newTestWorldState(t)
 
-		var createCount, removeCount atomic.Int64
-		var wg sync.WaitGroup
+	var createCount, removeCount atomic.Int64
+	var wg sync.WaitGroup
+	start := make(chan struct{})
 
-		for range numGoroutines {
-			wg.Go(func() {
-				// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
-				prng := testutils.NewRand(t)
+	for range numGoroutines {
+		wg.Go(func() {
+			// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
+			prng := testutils.NewRand(t)
+			<-start
 
-				for range opsPerGoroutine {
-					if prng.Float64() < createRemoveRatio {
-						ws.newEntity()
-						createCount.Add(1)
-					} else {
-						// Read nextID under lock to avoid racing with concurrent newEntity calls.
-						ws.mu.Lock()
-						nextID := ws.nextID
-						ws.mu.Unlock()
-						if nextID > 0 {
-							eid := EntityID(prng.IntN(int(nextID)))
-							ws.removeEntity(eid)
-						}
-						// Increment regardless of whether we removed any entities.
-						removeCount.Add(1)
+			for range opsPerGoroutine {
+				if prng.Float64() < createRemoveRatio {
+					ws.newEntity()
+					createCount.Add(1)
+				} else {
+					// Read nextID under lock to avoid racing with concurrent newEntity calls.
+					ws.mu.Lock()
+					nextID := ws.nextID
+					ws.mu.Unlock()
+					if nextID > 0 {
+						eid := EntityID(prng.IntN(int(nextID)))
+						ws.removeEntity(eid)
 					}
-					time.Sleep(2 * time.Millisecond)
+					// Increment regardless of whether we removed any entities.
+					removeCount.Add(1)
 				}
-			})
-		}
-		wg.Wait()
+			}
+		})
+	}
 
-		// Property: total operations equals expected count.
-		totalOps := createCount.Load() + removeCount.Load()
-		assert.Equal(t, int64(numGoroutines*opsPerGoroutine), totalOps,
-			"total operations mismatch: creates=%d, removes=%d", createCount.Load(), removeCount.Load())
+	// Release all workers simultaneously to maximize overlapping entity operations.
+	close(start)
+	wg.Wait()
 
-		assertEntityIDInvariants(t, ws)
-	})
+	// Property: total operations equals expected count.
+	totalOps := createCount.Load() + removeCount.Load()
+	assert.Equal(t, int64(numGoroutines*opsPerGoroutine), totalOps,
+		"total operations mismatch: creates=%d, removes=%d", createCount.Load(), removeCount.Load())
+
+	assertEntityIDInvariants(t, ws)
 }
 
 // assertEntityIDInvariants checks entity ID generator properties hold. Normally I'd hardcode this
@@ -459,11 +459,11 @@ func newTestWorldState(t *testing.T) *worldState {
 	t.Helper()
 	w := NewWorld()
 	w.OnComponentRegister(func(Component) error { return nil })
-	_, err := registerComponent[testutils.ComponentA](w)
+	_, err := RegisterComponent[testutils.ComponentA](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentB](w)
+	_, err = RegisterComponent[testutils.ComponentB](w)
 	require.NoError(t, err)
-	_, err = registerComponent[testutils.ComponentC](w)
+	_, err = RegisterComponent[testutils.ComponentC](w)
 	require.NoError(t, err)
 	return w.state
 }

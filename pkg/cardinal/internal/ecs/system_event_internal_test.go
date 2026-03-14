@@ -1,13 +1,18 @@
 package ecs
 
 import (
-	"math/rand/v2"
+	"strconv"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TODO: we could probably copy what the system event test does here where it uses non-generic
+// methods that doesn't require us to register multiple different concrete types. E.g., the model
+// tests uses a single system event type with variable name. The non-generic type boxes and isn't
+// suitable for production use, but it makes testing easier, albeit a touch less clear.
 
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing system-event manager operations
@@ -23,10 +28,11 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	const (
-		opsMax    = 1 << 15 // 32_768 iterations
-		opEnqueue = "enqueue"
-		opGet     = "get"
-		opClear   = "clear"
+		opsMax            = 1 << 15 // 32_768 iterations
+		opEnqueue         = "enqueue"
+		opGet             = "get"
+		opClear           = "clear"
+		nSystemEventTypes = 128
 	)
 
 	// Randomize operation weights.
@@ -36,9 +42,11 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	impl := newSystemEventManager()
 	model := make(map[string][]SystemEvent) // name -> system-event buffer
 
-	// Setup: pre-register a fixed set of system event names.
-	for _, name := range allSystemEventNames {
-		_, err := impl.register(name)
+	// Setup: pre-register many system event names with boxed queues.
+	boxedFactory := newSystemEventQueueFactory[SystemEvent]()
+	for id := range nSystemEventTypes {
+		name := seidToString(SystemEventID(id))
+		_, err := impl.register(name, boxedFactory)
 		require.NoError(t, err)
 		model[name] = []SystemEvent{}
 	}
@@ -48,15 +56,22 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 		switch op {
 		case opEnqueue:
 			name := testutils.RandMapKey(prng, model)
-			event := randSystemEventByName(prng, name)
+			// Create a random system event with the correct name.
+			systemEvent := modelFuzzSystemEvent{
+				EventName: name,
+				Counter:   prng.Uint64(),
+				Enabled:   prng.Float64() < 0.5,
+			}
 
-			impl.enqueue(name, event)
-			model[name] = append(model[name], event)
+			err := impl.enqueueAbstract(systemEvent)
+			require.NoError(t, err)
+			model[name] = append(model[name], systemEvent)
 
 		case opGet:
 			name := testutils.RandMapKey(prng, model)
 
-			implSysEvents := impl.get(name)
+			implSysEvents, err := impl.getAbstract(name)
+			require.NoError(t, err)
 			modelSysEvents := model[name]
 
 			// Property: get returns system-events in same order as enqueued.
@@ -73,7 +88,8 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 
 			// Property: all buffers should be empty after clear.
 			for name := range model {
-				implSysEvents := impl.get(name)
+				implSysEvents, err := impl.getAbstract(name)
+				require.NoError(t, err)
 				assert.Empty(t, implSysEvents, "clear() should empty buffer for %s", name)
 			}
 
@@ -83,9 +99,10 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	}
 
 	// Final state check: verify all system-events match between impl and model.
-	assert.Len(t, impl.registry, len(model), "registry length mismatch")
+	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
 	for name, modelEvents := range model {
-		implEvents := impl.get(name)
+		implEvents, err := impl.getAbstract(name)
+		require.NoError(t, err)
 		assert.Len(t, implEvents, len(modelEvents), "final state: %s length mismatch", name)
 		for i := range modelEvents {
 			assert.Equal(t, modelEvents[i], implEvents[i], "final state: %s[%d] mismatch", name, i)
@@ -93,21 +110,15 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	}
 }
 
-var allSystemEventNames = []string{
-	testutils.SystemEventA{}.Name(), testutils.SystemEventB{}.Name(), testutils.SystemEventC{}.Name(),
+// These are used over the default testutils system event because we want variable Name().
+type modelFuzzSystemEvent struct {
+	EventName string
+	Counter   uint64
+	Enabled   bool
 }
 
-func randSystemEventByName(prng *rand.Rand, name string) SystemEvent {
-	switch name {
-	case testutils.SystemEventA{}.Name():
-		return testutils.SystemEventA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
-	case testutils.SystemEventB{}.Name():
-		return testutils.SystemEventB{ID: prng.Uint64(), Label: "test", Enabled: prng.Float64() < 0.5}
-	case testutils.SystemEventC{}.Name():
-		return testutils.SystemEventC{Counter: uint16(prng.IntN(65536))}
-	default:
-		panic("unknown system event: " + name)
-	}
+func (s modelFuzzSystemEvent) Name() string {
+	return s.EventName
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -124,11 +135,13 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	const opsMax = 1 << 15 // 32_768 iterations
 
 	impl := newSystemEventManager()
-	model := make(map[string]systemEventID) // name -> ID
+	model := make(map[string]SystemEventID) // name -> ID
+	boxedFactory := newSystemEventQueueFactory[SystemEvent]()
 
 	for range opsMax {
-		name := randValidEventName(prng) // Reuse the command name generator as they're identical
-		implID, err := impl.register(name)
+		nameID := SystemEventID(prng.IntN(opsMax / 4))
+		name := seidToString(nameID)
+		implID, err := impl.register(name, boxedFactory)
 		require.NoError(t, err)
 
 		if modelID, exists := model[name]; exists {
@@ -139,23 +152,23 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	}
 
 	// Property: bijection holds between names and IDs.
-	seenIDs := make(map[systemEventID]string)
-	for name, id := range impl.registry {
+	seenIDs := make(map[SystemEventID]string)
+	for name, id := range impl.catalog {
 		if prevName, seen := seenIDs[id]; seen {
 			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
 		}
 		seenIDs[id] = name
 	}
 
-	// Property: all IDs in registry are in range [0, nextID).
-	for name, id := range impl.registry {
+	// Property: all IDs in catalog are in range [0, nextID).
+	for name, id := range impl.catalog {
 		assert.Less(t, id, impl.nextID, "ID for %q is out of range", name)
 	}
 
-	// Final state check: registry matches model.
-	assert.Len(t, impl.registry, len(model), "registry length mismatch")
+	// Final state check: catalog matches model.
+	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
 	for name, modelID := range model {
-		implID, exists := impl.registry[name]
+		implID, exists := impl.catalog[name]
 		require.True(t, exists, "system event %q should be registered", name)
 		assert.Equal(t, modelID, implID, "ID mismatch for %q", name)
 	}
@@ -163,28 +176,25 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	// Simple test to confirm that registering the same name repeatedly is a no-op.
 	t.Run("registration idempotence", func(t *testing.T) {
 		t.Parallel()
+		sem := newSystemEventManager()
+		name1 := seidToString(123)
+		name2 := seidToString(124)
 
-		id1, err := impl.register("hello")
+		id1, err := sem.register(name1, boxedFactory)
 		require.NoError(t, err)
 
-		id2, err := impl.register("hello")
+		id2, err := sem.register(name1, boxedFactory)
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := impl.register("a_different_name")
+		id3, err := sem.register(name2, boxedFactory)
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)
 	})
 }
 
-func randValidEventName(prng *rand.Rand) string {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	length := prng.IntN(50) + 1 // 1-50 characters
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = chars[prng.IntN(len(chars))]
-	}
-	return string(b)
+func seidToString(id SystemEventID) string {
+	return strconv.FormatUint(uint64(id), 10)
 }

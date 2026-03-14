@@ -32,7 +32,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newComponentManager()
-	model := make(map[string]componentID) // name -> cid
+	model := make(map[string]ComponentID) // name -> cid
 
 	for range opsMax {
 		op := testutils.RandWeightedOp(prng, weights)
@@ -79,7 +79,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 	// Property: bijection holds between names and IDs.
 	// Bijection means there's a 1-1 mapping of name->ID. Every name maps to a unique ID, and
 	// every ID comes from a unique name.
-	seenIDs := make(map[componentID]string)
+	seenIDs := make(map[ComponentID]string)
 	for name, id := range impl.catalog {
 		if prevName, seen := seenIDs[id]; seen {
 			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
