@@ -75,7 +75,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc) {
 		switch {
 		case op == opTick:
 			timestamp := time.Unix(int64(tick), 0)
-			require.NoError(t, fix.world.Tick(context.Background(), timestamp))
+			fix.world.Tick(context.Background(), timestamp)
 
 			// Assert structural ECS invariants after every tick.
 			ecs.CheckWorld(t, fix.world.world)

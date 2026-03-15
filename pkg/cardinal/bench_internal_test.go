@@ -652,8 +652,8 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 			}, WithHook(Update))
 
 			w.world.Init()
-			_ = w.world.Tick()
-			_ = w.world.Tick()
+			w.world.Tick()
+			w.world.Tick()
 		}
 	})
 
@@ -686,8 +686,8 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 			}, WithHook(Update))
 
 			w.world.Init()
-			_ = w.world.Tick()
-			_ = w.world.Tick()
+			w.world.Tick()
+			w.world.Tick()
 		}
 	})
 
@@ -733,8 +733,8 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 			}, WithHook(Update))
 
 			w.world.Init()
-			_ = w.world.Tick()
-			_ = w.world.Tick()
+			w.world.Tick()
+			w.world.Tick()
 		}
 	})
 }
