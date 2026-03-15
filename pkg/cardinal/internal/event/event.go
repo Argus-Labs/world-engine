@@ -4,6 +4,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/rotisserie/eris"
 )
@@ -42,8 +43,9 @@ type Manager struct {
 	mu       sync.Mutex // Mutex for buffer access during flush
 }
 
-// NewManager creates a new event manager with the specified channel capacity.
+// NewManager creates a new event manager with a non-zero channel capacity.
 func NewManager(channelCapacity int) Manager {
+	assert.That(channelCapacity > 0, "channel capacity must be greater than 0")
 	return Manager{
 		handlers: make([]Handler, math.MaxUint8+1),
 		channel:  make(chan Event, channelCapacity),
@@ -52,20 +54,19 @@ func NewManager(channelCapacity int) Manager {
 }
 
 // Enqueue enqueues an event into the eventManager.
-// If the channel is full, it flushes the channel to the buffer first.
+// If the channel is full, it flushes the channel to the overflow buffer and retries.
 func (m *Manager) Enqueue(event Event) {
-	select {
-	case m.channel <- event:
-		// Happy path: channel has capacity.
-	default:
-		// Channel full: flush to buffer, then send.
-		m.flush()
-		m.channel <- event
+	for {
+		select {
+		case m.channel <- event:
+			return
+		default:
+			m.flush()
+		}
 	}
 }
 
 // flush drains the channel into the buffer. Called when channel is full.
-// This method expects the caller to hold tthe mutex lock.
 func (m *Manager) flush() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

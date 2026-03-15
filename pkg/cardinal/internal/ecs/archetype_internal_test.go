@@ -321,7 +321,7 @@ func classifyMove(src, dst *archetype, movedRow int) string { //nolint:unused //
 	removed := src.compCount - copied
 	diff := added + removed // k
 
-	category := "add+remove"
+	var category string
 	switch {
 	case added == 0 && removed == 0:
 		category = "nop"
