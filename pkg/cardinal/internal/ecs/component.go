@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"math"
 	"regexp"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -29,6 +30,9 @@ type Component interface { //nolint:iface // may extend later
 // ComponentID is a unique identifier for a component type.
 // It is used internally to track and manage component types efficiently.
 type ComponentID = uint32
+
+// maxComponentID is the maximum number of component types that can be registered.
+const maxComponentID = math.MaxUint32 - 1
 
 // componentManager manages component type registration and lookup.
 type componentManager struct {
@@ -77,6 +81,10 @@ func (cm *componentManager) register(name string, factory columnFactory) (Compon
 	// If component already exists, no-op.
 	if cid, exists := cm.catalog[name]; exists {
 		return cid, nil
+	}
+
+	if cm.nextID > maxComponentID {
+		return 0, eris.New("max number of components exceeded")
 	}
 
 	cm.catalog[name] = cm.nextID

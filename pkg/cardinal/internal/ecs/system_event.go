@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"math"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/rotisserie/eris"
@@ -11,7 +13,7 @@ import (
 type SystemEventID = uint32
 
 // maxSystemEventID is the maximum number of system event types that can be registered.
-// const maxSystemEventID = math.MaxUint32 - 1
+const maxSystemEventID = math.MaxUint32 - 1
 
 // SystemEvent is an interface that all system events must implement.
 // SystemEvents are events emitted by a system to be handled by another system.
@@ -46,6 +48,10 @@ func (s *systemEventManager) register(name string, factory systemEventQueueFacto
 		return seid, nil
 	}
 
+	if s.nextID > maxSystemEventID {
+		return 0, eris.New("max number of system events exceeded")
+	}
+
 	s.catalog[name] = s.nextID
 	s.events = append(s.events, factory())
 	s.nextID++
@@ -70,7 +76,8 @@ func enqueueSystemEvent[T SystemEvent](s *systemEventManager, systemEvent T) err
 
 	seid, exists := s.catalog[name]
 	if !exists {
-		return eris.Wrapf(ErrSystemEventNotFound, "system event %d", seid)
+		var zero T
+		return eris.Wrapf(ErrSystemEventNotFound, "system event %s", zero.Name())
 	}
 
 	queue, ok := s.events[seid].(*systemEventQueue[T])
@@ -88,7 +95,7 @@ func getSystemEvent[T SystemEvent](s *systemEventManager) ([]T, error) {
 
 	seid, exists := s.catalog[name]
 	if !exists {
-		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %d", seid)
+		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %s", zero.Name())
 	}
 
 	queue, ok := s.events[seid].(*systemEventQueue[T])
@@ -112,7 +119,7 @@ func (s *systemEventManager) enqueueAbstract(systemEvent SystemEvent) error {
 
 	seid, exists := s.catalog[name]
 	if !exists {
-		return eris.Wrapf(ErrSystemEventNotFound, "system event %d", seid)
+		return eris.Wrapf(ErrSystemEventNotFound, "system event %s", systemEvent.Name())
 	}
 
 	queue := s.events[seid]
@@ -123,7 +130,7 @@ func (s *systemEventManager) enqueueAbstract(systemEvent SystemEvent) error {
 func (s *systemEventManager) getAbstract(name string) ([]SystemEvent, error) {
 	seid, exists := s.catalog[name]
 	if !exists {
-		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %d", seid)
+		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %s", name)
 	}
 
 	queue := s.events[seid]
@@ -160,7 +167,7 @@ func newSystemEventQueue[T SystemEvent]() systemEventQueue[T] {
 	}
 }
 
-// newColumnFactory returns a function that constructs a new column of type T.
+// newSystemEventQueueFactory returns a function that constructs a new system event queue of type T.
 func newSystemEventQueueFactory[T SystemEvent]() systemEventQueueFactory {
 	return func() abstractSystemEventQueue {
 		queue := newSystemEventQueue[T]()

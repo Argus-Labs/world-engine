@@ -234,7 +234,8 @@ func getComponent[T Component](ws *worldState, eid EntityID) (T, error) {
 	column, ok := archetype.columns[index].(*column[T])
 	assert.That(ok, "unexpected column type")
 
-	row := archetype.rows[eid]
+	row, exists := archetype.rows.get(eid)
+	assert.That(exists, "entity should have a row in its archetype")
 	return column.get(row), nil
 }
 
