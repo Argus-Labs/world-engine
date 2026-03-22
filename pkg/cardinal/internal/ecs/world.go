@@ -56,7 +56,7 @@ func (w *World) Init() {
 // registered systems in order. If any system returns an error, the entire tick is considered
 // failed, changes are discarded, and the error is returned. If the tick succeeds, the events
 // emmitted during the tick is returned.
-func (w *World) Tick() error {
+func (w *World) Tick() {
 	assert.That(w.initialized, "Tick called before initialization")
 
 	// Clear system events after each tick.
@@ -66,8 +66,6 @@ func (w *World) Tick() error {
 	for i := range w.scheduler {
 		w.scheduler[i].Run()
 	}
-
-	return nil
 }
 
 // Reset clears the world state back to its initial empty state.

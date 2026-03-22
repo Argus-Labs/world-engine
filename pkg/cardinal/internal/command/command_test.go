@@ -4,8 +4,6 @@ import (
 	"math/rand/v2"
 	"sync"
 	"testing"
-	"testing/synctest"
-	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -279,9 +277,8 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 // Concurrent enqueue test
 // -------------------------------------------------------------------------------------------------
 // This test verifies that concurrent enqueues are thread-safe and all commands are properly stored.
-// Run with -race to detect data races (go test -race). We use synctest.Test with time.Sleep to
-// force goroutine interleaving. Without it, WaitGroup goroutines tend to run sequentially, which
-// defeats the purpose of a concurrency test.
+// Run with -race to detect data races (go test -race). We coordinate goroutine start with an
+// explicit barrier to maximize contention in the Enqueue path.
 // -------------------------------------------------------------------------------------------------
 
 func TestCommand_ConcurrentEnqueue(t *testing.T) {
@@ -292,69 +289,71 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 		commandsPerRoutine = 1000
 	)
 
-	synctest.Test(t, func(t *testing.T) {
-		impl := command.NewManager()
+	impl := command.NewManager()
 
-		_, err := impl.Register(testutils.CommandA{}.Name(), command.NewQueue[testutils.CommandA]())
-		require.NoError(t, err)
-		_, err = impl.Register(testutils.CommandB{}.Name(), command.NewQueue[testutils.CommandB]())
-		require.NoError(t, err)
+	_, err := impl.Register(testutils.CommandA{}.Name(), command.NewQueue[testutils.CommandA]())
+	require.NoError(t, err)
+	_, err = impl.Register(testutils.CommandB{}.Name(), command.NewQueue[testutils.CommandB]())
+	require.NoError(t, err)
 
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		expected := make([]command.Command, 0, numGoroutines*commandsPerRoutine)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	start := make(chan struct{})
+	expected := make([]command.Command, 0, numGoroutines*commandsPerRoutine)
 
-		for range numGoroutines {
-			wg.Go(func() {
-				// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
-				prng := testutils.NewRand(t)
+	for range numGoroutines {
+		wg.Go(func() {
+			// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
+			prng := testutils.NewRand(t)
+			<-start
 
-				for i := range commandsPerRoutine {
-					var payload command.Payload
-					if testutils.RandBool(prng) {
-						payload = testutils.CommandA{X: float64(i), Y: prng.Float64(), Z: 0}
-					} else {
-						payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
-					}
-
-					pbPayload, err := schema.Serialize(payload)
-					if err != nil {
-						t.Errorf("Serialize failed: %v", err)
-						return
-					}
-
-					cmdpb := &iscv1.Command{
-						Name:    payload.Name(),
-						Address: &microv1.ServiceAddress{},
-						Persona: &iscv1.Persona{Id: "test-persona"},
-						Payload: pbPayload,
-					}
-
-					if err := impl.Enqueue(cmdpb); err != nil {
-						t.Errorf("Enqueue failed: %v", err)
-						return
-					}
-
-					mu.Lock()
-					expected = append(expected, command.Command{
-						Name:    payload.Name(),
-						Address: &microv1.ServiceAddress{},
-						Persona: "test-persona",
-						Payload: payload,
-					})
-					mu.Unlock()
-					time.Sleep(2 * time.Millisecond)
+			for i := range commandsPerRoutine {
+				var payload command.Payload
+				if testutils.RandBool(prng) {
+					payload = testutils.CommandA{X: float64(i), Y: prng.Float64(), Z: 0}
+				} else {
+					payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
 				}
-			})
-		}
 
-		// Wait for all goroutines to complete their work.
-		wg.Wait()
+				pbPayload, err := schema.Serialize(payload)
+				if err != nil {
+					t.Errorf("Serialize failed: %v", err)
+					return
+				}
 
-		// Drain all commands and verify count and content.
-		all := impl.Drain()
-		expectedTotal := numGoroutines * commandsPerRoutine
-		assert.Len(t, all, expectedTotal, "total command count mismatch")
-		assert.ElementsMatch(t, expected, all, "command content mismatch")
-	})
+				cmdpb := &iscv1.Command{
+					Name:    payload.Name(),
+					Address: &microv1.ServiceAddress{},
+					Persona: &iscv1.Persona{Id: "test-persona"},
+					Payload: pbPayload,
+				}
+
+				if err := impl.Enqueue(cmdpb); err != nil {
+					t.Errorf("Enqueue failed: %v", err)
+					return
+				}
+
+				mu.Lock()
+				expected = append(expected, command.Command{
+					Name:    payload.Name(),
+					Address: &microv1.ServiceAddress{},
+					Persona: "test-persona",
+					Payload: payload,
+				})
+				mu.Unlock()
+			}
+		})
+	}
+
+	// Release all workers simultaneously to maximize overlapping Enqueue calls.
+	close(start)
+
+	// Wait for all goroutines to complete their work.
+	wg.Wait()
+
+	// Drain all commands and verify count and content.
+	all := impl.Drain()
+	expectedTotal := numGoroutines * commandsPerRoutine
+	assert.Len(t, all, expectedTotal, "total command count mismatch")
+	assert.ElementsMatch(t, expected, all, "command content mismatch")
 }

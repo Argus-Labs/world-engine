@@ -234,7 +234,8 @@ func getComponent[T Component](ws *worldState, eid EntityID) (T, error) {
 	column, ok := archetype.columns[index].(*column[T])
 	assert.That(ok, "unexpected column type")
 
-	row := archetype.rows[eid]
+	row, exists := archetype.rows.get(eid)
+	assert.That(exists, "entity should have a row in its archetype")
 	return column.get(row), nil
 }
 
@@ -267,17 +268,6 @@ func removeComponent[T Component](ws *worldState, eid EntityID) error {
 	// A remove component is basically a move, so just move the entity to the correct archetype.
 	ws.moveEntity(eid, newComponents)
 	return nil
-}
-
-// registerComponent registers a component type with the world state.
-func registerComponent[T Component](w *World) (componentID, error) {
-	var zero T
-	if w.onComponentRegister != nil {
-		if err := w.onComponentRegister(zero); err != nil {
-			return 0, eris.Wrap(err, "component registered callback failed")
-		}
-	}
-	return w.state.components.register(zero.Name(), newColumnFactory[T]())
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -362,12 +352,21 @@ func (ws *worldState) archExact(components bitmap.Bitmap) (archetypeID, bool) {
 }
 
 // archContains returns all archetypes that have the given component types.
-func (ws *worldState) archContains(components bitmap.Bitmap) []int {
-	result := make([]int, 0)
+func (ws *worldState) archContains(components bitmap.Bitmap) []archetypeID {
+	result := make([]archetypeID, 0)
 	for aid, archetype := range ws.archetypes {
 		if archetype.contains(components) {
 			result = append(result, aid)
 		}
+	}
+	return result
+}
+
+// archAll returns all archetypes.
+func (ws *worldState) archAll() []archetypeID {
+	result := make([]archetypeID, len(ws.archetypes))
+	for aid := range ws.archetypes {
+		result[aid] = aid
 	}
 	return result
 }

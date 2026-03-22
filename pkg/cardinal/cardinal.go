@@ -171,10 +171,7 @@ func (w *World) run(ctx context.Context) error {
 			case <-w.debug.resumeChan():
 				w.debug.setPaused(false)
 			case replyCh := <-w.debug.stepChan():
-				if err := w.Tick(ctx, time.Now()); err != nil {
-					replyCh <- 0
-					return eris.Wrap(err, "failed to run tick during step")
-				}
+				w.Tick(ctx, time.Now())
 				replyCh <- w.currentTick.height
 			case replyCh := <-w.debug.resetChan():
 				w.reset()
@@ -187,9 +184,7 @@ func (w *World) run(ctx context.Context) error {
 
 		select {
 		case <-ticker.C:
-			if err := w.Tick(ctx, time.Now()); err != nil {
-				return eris.Wrap(err, "failed to run tick")
-			}
+			w.Tick(ctx, time.Now())
 		case replyCh := <-w.debug.pauseChan():
 			w.debug.setPaused(true)
 			replyCh <- w.currentTick.height
@@ -199,7 +194,7 @@ func (w *World) run(ctx context.Context) error {
 	}
 }
 
-func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
+func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 	// TODO: commands returned to be used for debug epoch log.
 	_ = w.commands.Drain()
 
@@ -207,10 +202,7 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
 	w.debug.startPerfTick()
 
 	// Tick ECS world.
-	err := w.world.Tick()
-	if err != nil {
-		return eris.Wrap(err, "one or more systems failed")
-	}
+	w.world.Tick()
 
 	w.debug.recordTick(w.currentTick.height, timestamp)
 
@@ -228,8 +220,6 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) error {
 
 	// Increment tick height.
 	w.currentTick.height++
-
-	return nil
 }
 
 // snapshot persists the world state as a best-effort operation. Snapshots are best effort only, and

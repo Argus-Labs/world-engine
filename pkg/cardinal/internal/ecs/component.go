@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"math"
 	"regexp"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -26,14 +27,17 @@ type Component interface { //nolint:iface // may extend later
 	schema.Serializable
 }
 
-// componentID is a unique identifier for a component type.
+// ComponentID is a unique identifier for a component type.
 // It is used internally to track and manage component types efficiently.
-type componentID = uint32
+type ComponentID = uint32
+
+// maxComponentID is the maximum number of component types that can be registered.
+const maxComponentID = math.MaxUint32 - 1
 
 // componentManager manages component type registration and lookup.
 type componentManager struct {
-	nextID    componentID            // The next available component ID
-	catalog   map[string]componentID // Component name -> component ID
+	nextID    ComponentID            // The next available component ID
+	catalog   map[string]ComponentID // Component name -> component ID
 	factories []columnFactory        // Component ID -> column factory
 }
 
@@ -41,7 +45,7 @@ type componentManager struct {
 func newComponentManager() componentManager {
 	return componentManager{
 		nextID:    0,
-		catalog:   make(map[string]componentID),
+		catalog:   make(map[string]ComponentID),
 		factories: make([]columnFactory, 0),
 	}
 }
@@ -68,7 +72,7 @@ func validateComponentName(name string) error {
 
 // register registers a new component type and returns its ID.
 // If the component is already registered, no-op.
-func (cm *componentManager) register(name string, factory columnFactory) (componentID, error) {
+func (cm *componentManager) register(name string, factory columnFactory) (ComponentID, error) {
 	// Validate component name follows expr identifier rules
 	if err := validateComponentName(name); err != nil {
 		return 0, err
@@ -77,6 +81,10 @@ func (cm *componentManager) register(name string, factory columnFactory) (compon
 	// If component already exists, no-op.
 	if cid, exists := cm.catalog[name]; exists {
 		return cid, nil
+	}
+
+	if cm.nextID > maxComponentID {
+		return 0, eris.New("max number of components exceeded")
 	}
 
 	cm.catalog[name] = cm.nextID
@@ -88,7 +96,7 @@ func (cm *componentManager) register(name string, factory columnFactory) (compon
 }
 
 // getID returns a component's ID given a name.
-func (cm *componentManager) getID(name string) (componentID, error) {
+func (cm *componentManager) getID(name string) (ComponentID, error) {
 	id, exists := cm.catalog[name]
 
 	if !exists {
@@ -96,4 +104,15 @@ func (cm *componentManager) getID(name string) (componentID, error) {
 	}
 
 	return id, nil
+}
+
+// RegisterComponent registers a component type with the world.
+func RegisterComponent[T Component](world *World) (ComponentID, error) {
+	var zero T
+	if world.onComponentRegister != nil {
+		if err := world.onComponentRegister(zero); err != nil {
+			return 0, eris.Wrap(err, "component registered callback failed")
+		}
+	}
+	return world.state.components.register(zero.Name(), newColumnFactory[T]())
 }

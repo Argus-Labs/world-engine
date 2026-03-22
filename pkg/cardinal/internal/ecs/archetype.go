@@ -52,6 +52,16 @@ func (a *archetype) contains(components bitmap.Bitmap) bool {
 	return intersect.Count() == components.Count()
 }
 
+func (a *archetype) reset() {
+	a.rows.clear()
+	a.entities = a.entities[:0]
+	for _, column := range a.columns {
+		for column.len() > 0 {
+			column.remove(column.len() - 1)
+		}
+	}
+}
+
 // -------------------------------------------------------------------------------------------------
 // Entity operations
 // -------------------------------------------------------------------------------------------------
