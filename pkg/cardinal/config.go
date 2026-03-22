@@ -134,7 +134,7 @@ type worldOptionsEnv struct {
 	// Unique ID of this world's instance.
 	ShardID string `env:"CARDINAL_SHARD_ID"`
 
-	// Snapshot storage type ("NOP" or "JETSTREAM").
+	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").
 	SnapshotStorageTypeStr string `env:"CARDINAL_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
 	// Number of ticks per snapshot.
