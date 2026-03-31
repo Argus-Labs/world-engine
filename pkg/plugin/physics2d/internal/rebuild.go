@@ -67,6 +67,11 @@ func FullRebuildFromECS(gravity box2d.B2Vec2, entries []PhysicsRebuildEntry) err
 		rt.World.SetGravity(gravity)
 	}
 	RegisterPhysicsContactListener(rt.World)
+	// ByteArena/box2d port bug: b2_defaultFilter is declared but never initialized (nil),
+	// so M_contactFilter is nil and ShouldCollide is never called during collision detection.
+	// Explicitly set the default filter so category/mask/group filtering works at the
+	// collision level (not just at query level).
+	rt.World.SetContactFilter(&box2d.B2ContactFilter{})
 
 	newBodies := make(map[cardinal.EntityID]BodyHandle, len(sorted))
 	newShadow := make(map[cardinal.EntityID]ShadowState, len(sorted))

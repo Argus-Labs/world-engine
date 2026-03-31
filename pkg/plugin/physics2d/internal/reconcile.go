@@ -162,10 +162,16 @@ func reconcileExistingBody(
 		enforceSensorAwakePolicy(body, e.PhysicsBody)
 	}
 	// Manual bodies always have zero velocity in Box2D (ECS owns position, not velocity).
+	// FixedRotation bodies always have zero angular velocity in Box2D (see CreateBody comment).
 	// For all other body types, push ECS velocity into Box2D when it changes.
 	if e.PhysicsBody.BodyType == component.BodyTypeManual {
 		body.SetLinearVelocity(box2d.MakeB2Vec2(0, 0))
 		body.SetAngularVelocity(0)
+	} else if e.PhysicsBody.FixedRotation {
+		body.SetAngularVelocity(0)
+		if prev.VelocityDiffers(e.Velocity) {
+			body.SetLinearVelocity(box2d.MakeB2Vec2(e.Velocity.Linear.X, e.Velocity.Linear.Y))
+		}
 	} else if prev.VelocityDiffers(e.Velocity) {
 		body.SetLinearVelocity(box2d.MakeB2Vec2(e.Velocity.Linear.X, e.Velocity.Linear.Y))
 		body.SetAngularVelocity(e.Velocity.Angular)

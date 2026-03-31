@@ -37,9 +37,19 @@ func CreateBody(
 	def.Position = box2d.MakeB2Vec2(transform.Position.X, transform.Position.Y)
 	def.Angle = transform.Rotation
 	// Manual bodies have zero velocity in Box2D; ECS Velocity2D is a gameplay concept for them.
+	// FixedRotation bodies have zero angular velocity in Box2D; Box2D's FixedRotation flag
+	// only prevents torques from generating angular velocity but still integrates any explicit
+	// value. Zeroing matches Box2D's own SetFixedRotation() behavior and standard engine
+	// practice (Unity freezeRotation, Godot lock_rotation). ECS Velocity2D.Angular is
+	// preserved as a gameplay concept; if FixedRotation is later disabled, the ECS angular
+	// velocity is naturally applied via the reconciler.
 	if pb.BodyType != component.BodyTypeManual {
 		def.LinearVelocity = box2d.MakeB2Vec2(velocity.Linear.X, velocity.Linear.Y)
-		def.AngularVelocity = velocity.Angular
+		if pb.FixedRotation {
+			def.AngularVelocity = 0
+		} else {
+			def.AngularVelocity = velocity.Angular
+		}
 	}
 	def.LinearDamping = pb.LinearDamping
 	def.AngularDamping = pb.AngularDamping
