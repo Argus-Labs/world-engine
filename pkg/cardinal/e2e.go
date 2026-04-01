@@ -232,7 +232,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *iscv1.Command {
 	t.Helper()
 	val := reflect.New(f.cmdTypes[name]).Elem()
-	fillRandom(rng, val)
+	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
 	payload, err := schema.Serialize(p)

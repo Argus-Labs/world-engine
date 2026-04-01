@@ -92,6 +92,22 @@ func (w *World) Schedules() []ScheduleInfo {
 	return schedules
 }
 
+// LiveEntityIDs returns the IDs that are currently present in the world.
+// This exists only for testing helpers such as DST and e2e fuzzing.
+func (w *World) LiveEntityIDs() []EntityID {
+	w.state.mu.Lock()
+	defer w.state.mu.Unlock()
+
+	ids := make([]EntityID, 0)
+	for i, aid := range w.state.entityArch {
+		if aid == sparseTombstone {
+			continue
+		}
+		ids = append(ids, EntityID(i)) //nolint:gosec // entityArch indices are entity IDs
+	}
+	return ids
+}
+
 func (w *World) OnComponentRegister(callback func(zero Component) error) {
 	w.onComponentRegister = callback
 }

@@ -15,11 +15,11 @@ func TestDSTGame(t *testing.T) {
 		cardinal.RegisterSystem(w, gamesystem.MovePlayerSystem)
 		cardinal.RegisterSystem(w, gamesystem.PlayerLeaveSystem)
 		cardinal.RegisterSystem(w, gamesystem.OnlineStatusUpdater)
-	})
+	}, nil)
 }
 
 func TestDSTChat(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
 		cardinal.RegisterSystem(w, chatsystem.UserChatSystem)
-	})
+	}, nil)
 }

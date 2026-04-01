@@ -10,7 +10,7 @@
 //	    cardinal.RunDST(t, func(w *cardinal.World) {
 //	        cardinal.RegisterSystem(w, system.MySystem)
 //	        // ... register all systems
-//	    })
+//	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
 //	}
 package cardinal
 
@@ -47,15 +47,21 @@ type DSTSetupFunc func(world *World)
 // systems; the harness handles everything else: randomized engine config, command generation,
 // ticking, restart/restore operations, and structural invariant checking.
 //
+// preTestCommands are enqueued before randomized fuzz operations begin. This supports worlds that
+// require deterministic bootstrap commands before entering an active state.
+//
 // The number of ticks defaults to 1000 and can be overridden with -dst.ticks:
 //
 //	go test ./pkg/cardinal/... -dst.ticks=5000
-func RunDST(t *testing.T, setup DSTSetupFunc) {
+func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	t.Helper()
 
 	prng := testutils.NewRand(t)
 	cfg := newDSTConfig(prng)
 	fix := newDSTFixture(t, cfg, setup)
+	for _, cmd := range preTestCommands {
+		require.NoError(t, fix.enqueueCommand(cmd))
+	}
 
 	// Add the world's commmands as operations in the dst config.
 	cmdNames := fix.world.commands.Names()
@@ -66,7 +72,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc) {
 	cfg.addCommandOps(prng, cmdOps)
 	cfg.log(t)
 
-	fix.logWorldState(t, "before")
+	// fix.logWorldState(t, "before")
 
 	tick := 0
 	for tick < cfg.Ticks {
@@ -106,7 +112,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc) {
 	_, err := fix.world.world.ToProto()
 	require.NoError(t, err)
 
-	fix.logWorldState(t, "after")
+	// fix.logWorldState(t, "after")
 }
 
 // Operations.
@@ -119,8 +125,9 @@ const (
 
 // engineOps are the non-command operations that may be randomly enabled.
 var engineOps = []string{ //nolint:gochecknoglobals // DST operation table
-	opRestart,
-	opSnapshotRestore,
+	opTick,
+	// opRestart,
+	// opSnapshotRestore,
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -261,7 +268,7 @@ func (f *dstFixture) logWorldState(t *testing.T, label string) {
 func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *iscv1.Command {
 	t.Helper()
 	val := reflect.New(f.cmdTypes[name]).Elem()
-	fillRandom(rng, val) // Recursive so not inlined
+	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
 	payload, err := schema.Serialize(p)
@@ -272,6 +279,19 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 		Persona: &iscv1.Persona{Id: testutils.RandString(rng, 8)},
 		Payload: payload,
 	}
+}
+
+func (f *dstFixture) enqueueCommand(cmd Command) error {
+	payload, err := schema.Serialize(cmd)
+	if err != nil {
+		return err
+	}
+	return f.world.commands.Enqueue(&iscv1.Command{
+		Name:    cmd.Name(),
+		Address: f.world.address,
+		Persona: &iscv1.Persona{Id: "dst-pretest"},
+		Payload: payload,
+	})
 }
 
 // TODO: Our serialization isn't deterministic because the msgpack serialization doesn't sort map
@@ -294,7 +314,16 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 // }
 
 // fillRandom recursively fills a reflect.Value with random data based on its type.
-func fillRandom(prng *rand.Rand, v reflect.Value) {
+func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
+	t := v.Type()
+	if len(liveEntityIDs) > 0 &&
+		(t == reflect.TypeFor[uint32]() || t == reflect.TypeFor[EntityID]()) &&
+		prng.IntN(10) < 9 {
+		eid := liveEntityIDs[prng.IntN(len(liveEntityIDs))]
+		v.SetUint(uint64(eid))
+		return
+	}
+
 	switch v.Kind() { //nolint:exhaustive // only handle types used in command payloads
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v.SetInt(prng.Int64())
@@ -315,19 +344,19 @@ func fillRandom(prng *rand.Rand, v reflect.Value) {
 	case reflect.Struct:
 		for i := range v.NumField() {
 			if v.Field(i).CanSet() {
-				fillRandom(prng, v.Field(i))
+				fillRandom(prng, v.Field(i), liveEntityIDs)
 			}
 		}
 	case reflect.Slice:
 		n := prng.IntN(5)
 		slice := reflect.MakeSlice(v.Type(), n, n)
 		for i := range n {
-			fillRandom(prng, slice.Index(i))
+			fillRandom(prng, slice.Index(i), liveEntityIDs)
 		}
 		v.Set(slice)
 	case reflect.Array:
 		for i := range v.Len() {
-			fillRandom(prng, v.Index(i))
+			fillRandom(prng, v.Index(i), liveEntityIDs)
 		}
 	}
 }

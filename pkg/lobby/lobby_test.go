@@ -12,7 +12,7 @@ import (
 func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
 		cardinal.RegisterPlugin(w, lobby.NewPlugin(lobby.Config{}))
-	})
+	}, nil)
 }
 
 func TestE2E(t *testing.T) {
