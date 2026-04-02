@@ -45,6 +45,7 @@ const (
 	BodyTypeStatic    = component.BodyTypeStatic
 	BodyTypeDynamic   = component.BodyTypeDynamic
 	BodyTypeKinematic = component.BodyTypeKinematic
+	BodyTypeManual    = component.BodyTypeManual
 )
 
 // Collider shape kinds (ColliderShape).
@@ -90,6 +91,50 @@ func PhysicsWorld() *box2d.B2World {
 		return nil
 	}
 	return rt.World
+}
+
+// Body returns the underlying Box2D body for a Cardinal entity, or nil if the entity has no
+// physics body (not yet created, or the entity lacks physics components).
+//
+// # Safe operations (read-only queries)
+//
+// Use the returned body for inspecting simulation state that is not exposed through ECS
+// components:
+//
+//   - Position/velocity inspection: GetPosition, GetAngle, GetLinearVelocity, GetAngularVelocity
+//   - Mass queries: GetMass, GetInertia, GetMassData
+//   - Contact iteration: GetContactList (walk the contact edge linked list)
+//   - Fixture inspection: GetFixtureList, GetFixtureCount
+//   - State checks: IsAwake, IsActive, IsBullet, IsFixedRotation, IsSleepingAllowed
+//   - World queries from body: GetWorld
+//
+// # Unsafe operations (will be overwritten)
+//
+// The plugin's reconciler (PreUpdate) and writeback (PostUpdate) systems own the following
+// body state. Calling these setters directly is ineffective — the values will be overwritten
+// by the next tick's reconcile or writeback pass. Use the ECS components instead:
+//
+//   - SetTransform, SetLinearVelocity, SetAngularVelocity → modify [Transform2D], [Velocity2D]
+//   - SetType, SetLinearDamping, SetAngularDamping, SetGravityScale → modify [Rigidbody2D]
+//   - SetActive, SetAwake, SetSleepingAllowed, SetBullet, SetFixedRotation → modify [Rigidbody2D]
+//
+// # Forbidden operations (will desync or crash)
+//
+// Do not create or destroy bodies/fixtures through the raw pointer. The plugin manages body
+// and fixture lifecycle from ECS components ([Rigidbody2D], [Collider2D]). Bypassing this
+// corrupts the internal body map, shadow state, and active-contact tracking.
+//
+// # Lifecycle
+//
+// The returned pointer is valid for the current tick only. After a ResetRuntime or
+// FullRebuildFromECS (e.g. crash recovery), all body pointers are invalidated — the plugin
+// destroys and recreates them from ECS state. Do not cache the pointer across ticks.
+func Body(entityID cardinal.EntityID) *box2d.B2Body {
+	rt := internal.Runtime()
+	if rt == nil {
+		return nil
+	}
+	return rt.Bodies[entityID]
 }
 
 // ResetRuntime drops all Box2D simulation state (no world, no bodies, empty maps).
@@ -188,4 +233,5 @@ func (p *Plugin) Register(world *cardinal.World) {
 	cardinal.RegisterSystem(world, physicssystem.InitPhysicsSystem, cardinal.WithHook(cardinal.Init))
 	cardinal.RegisterSystem(world, physicssystem.ReconcilePhysicsSystem, cardinal.WithHook(cardinal.PreUpdate))
 	cardinal.RegisterSystem(world, physicssystem.PhysicsStepSystem, cardinal.WithHook(cardinal.Update))
+	cardinal.RegisterSystem(world, physicssystem.WritebackPhysicsSystem, cardinal.WithHook(cardinal.PostUpdate))
 }

@@ -162,7 +162,12 @@ func reconcileExistingBody(
 			return err
 		}
 	}
-	if prev.VelocityDiffers(e.Velocity) {
+	// Manual bodies always have zero velocity in Box2D (ECS owns position, not velocity).
+	// For all other body types, push ECS velocity into Box2D when it changes.
+	if e.Rigidbody.BodyType == component.BodyTypeManual {
+		body.SetLinearVelocity(box2d.MakeB2Vec2(0, 0))
+		body.SetAngularVelocity(0)
+	} else if prev.VelocityDiffers(e.Velocity) {
 		body.SetLinearVelocity(box2d.MakeB2Vec2(e.Velocity.Linear.X, e.Velocity.Linear.Y))
 		body.SetAngularVelocity(e.Velocity.Angular)
 	}
@@ -205,12 +210,17 @@ func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 	return nil
 }
 
-// applyRigidbodyInPlace sets body type, damping, and gravity scale from Rigidbody2D.
+// applyRigidbodyInPlace sets body type, damping, gravity scale, and body flags from Rigidbody2D.
 func applyRigidbodyInPlace(body *box2d.B2Body, r component.Rigidbody2D) {
 	body.SetType(mapBodyType(r.BodyType))
 	body.SetLinearDamping(r.LinearDamping)
 	body.SetAngularDamping(r.AngularDamping)
 	body.SetGravityScale(r.GravityScale)
+	body.SetActive(r.Active)
+	body.SetSleepingAllowed(r.SleepingAllowed)
+	body.SetAwake(r.Awake)
+	body.SetBullet(r.Bullet)
+	body.SetFixedRotation(r.FixedRotation)
 }
 
 // destroyAllFixtures removes every fixture from body (used before re-attaching a structurally changed collider).

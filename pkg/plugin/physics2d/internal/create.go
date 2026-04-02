@@ -36,11 +36,19 @@ func CreateBody(
 	def.Type = mapBodyType(rigid.BodyType)
 	def.Position = box2d.MakeB2Vec2(transform.Position.X, transform.Position.Y)
 	def.Angle = transform.Rotation
-	def.LinearVelocity = box2d.MakeB2Vec2(velocity.Linear.X, velocity.Linear.Y)
-	def.AngularVelocity = velocity.Angular
+	// Manual bodies have zero velocity in Box2D; ECS Velocity2D is a gameplay concept for them.
+	if rigid.BodyType != component.BodyTypeManual {
+		def.LinearVelocity = box2d.MakeB2Vec2(velocity.Linear.X, velocity.Linear.Y)
+		def.AngularVelocity = velocity.Angular
+	}
 	def.LinearDamping = rigid.LinearDamping
 	def.AngularDamping = rigid.AngularDamping
 	def.GravityScale = rigid.GravityScale
+	def.Active = rigid.Active
+	def.Awake = rigid.Awake
+	def.AllowSleep = rigid.SleepingAllowed
+	def.Bullet = rigid.Bullet
+	def.FixedRotation = rigid.FixedRotation
 	def.UserData = &query.BodyUserData{EntityID: entityID}
 
 	body := world.CreateBody(&def)
@@ -97,7 +105,7 @@ func mapBodyType(t component.BodyType) uint8 {
 	switch t {
 	case component.BodyTypeStatic:
 		return box2d.B2BodyType.B2_staticBody
-	case component.BodyTypeKinematic:
+	case component.BodyTypeKinematic, component.BodyTypeManual:
 		return box2d.B2BodyType.B2_kinematicBody
 	case component.BodyTypeDynamic:
 		return box2d.B2BodyType.B2_dynamicBody
