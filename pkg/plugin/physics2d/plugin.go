@@ -50,10 +50,12 @@ const (
 
 // Collider shape kinds (ColliderShape).
 const (
-	ShapeTypeCircle        = component.ShapeTypeCircle
-	ShapeTypeBox           = component.ShapeTypeBox
-	ShapeTypeConvexPolygon = component.ShapeTypeConvexPolygon
-	ShapeTypeStaticChain   = component.ShapeTypeStaticChain
+	ShapeTypeCircle          = component.ShapeTypeCircle
+	ShapeTypeBox             = component.ShapeTypeBox
+	ShapeTypeConvexPolygon   = component.ShapeTypeConvexPolygon
+	ShapeTypeStaticChain     = component.ShapeTypeStaticChain
+	ShapeTypeStaticChainLoop = component.ShapeTypeStaticChainLoop
+	ShapeTypeEdge            = component.ShapeTypeEdge
 )
 
 // Contact / trigger system events (implement ecs.SystemEvent; register with WithSystemEventEmitter).

@@ -121,8 +121,12 @@ func attachFixture(
 	sh component.ColliderShape,
 	bodyType uint8,
 ) error {
-	if sh.ShapeType == component.ShapeTypeStaticChain && bodyType != box2d.B2BodyType.B2_staticBody {
-		return errors.New("static chain colliders require a static body")
+	//nolint:exhaustive // We only care about static chain, static chain loop, and edge shapes
+	switch sh.ShapeType {
+	case component.ShapeTypeStaticChain, component.ShapeTypeStaticChainLoop, component.ShapeTypeEdge:
+		if bodyType == box2d.B2BodyType.B2_dynamicBody {
+			return fmt.Errorf("%d shape type cannot be used on dynamic bodies (zero mass)", sh.ShapeType)
+		}
 	}
 
 	shape, err := buildShape(sh)
@@ -155,6 +159,10 @@ func buildShape(sh component.ColliderShape) (box2d.B2ShapeInterface, error) {
 		return buildPolygonShape(sh)
 	case component.ShapeTypeStaticChain:
 		return buildChainShape(sh)
+	case component.ShapeTypeStaticChainLoop:
+		return buildChainLoopShape(sh)
+	case component.ShapeTypeEdge:
+		return buildEdgeShape(sh)
 	default:
 		return nil, fmt.Errorf("unknown shape_type %d", sh.ShapeType)
 	}
@@ -192,6 +200,24 @@ func buildChainShape(sh component.ColliderShape) (box2d.B2ShapeInterface, error)
 	chain := box2d.MakeB2ChainShape()
 	chain.CreateChain(pts, len(sh.ChainPoints))
 	return &chain, nil
+}
+
+func buildChainLoopShape(sh component.ColliderShape) (box2d.B2ShapeInterface, error) {
+	pts := make([]box2d.B2Vec2, len(sh.ChainPoints))
+	for i := range sh.ChainPoints {
+		pts[i] = shapePointToBodySpace(sh.ChainPoints[i], sh.LocalOffset, sh.LocalRotation)
+	}
+	chain := box2d.MakeB2ChainShape()
+	chain.CreateLoop(pts, len(sh.ChainPoints))
+	return &chain, nil
+}
+
+func buildEdgeShape(sh component.ColliderShape) (box2d.B2ShapeInterface, error) {
+	v1 := shapePointToBodySpace(sh.EdgeVertices[0], sh.LocalOffset, sh.LocalRotation)
+	v2 := shapePointToBodySpace(sh.EdgeVertices[1], sh.LocalOffset, sh.LocalRotation)
+	edge := box2d.MakeB2EdgeShape()
+	edge.Set(v1, v2)
+	return &edge, nil
 }
 
 // shapePointToBodySpace maps a point from shape-local space into body-local space using

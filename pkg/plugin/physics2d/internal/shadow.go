@@ -49,6 +49,7 @@ func deepCopyColliderShape(s component.ColliderShape) component.ColliderShape {
 		HalfExtents:   s.HalfExtents,
 		Vertices:      cloneVec2Slice(s.Vertices),
 		ChainPoints:   cloneVec2Slice(s.ChainPoints),
+		EdgeVertices:  s.EdgeVertices,
 		Friction:      s.Friction,
 		Restitution:   s.Restitution,
 		Density:       s.Density,
@@ -140,7 +141,9 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		a.GroupIndex != b.GroupIndex {
 		return false
 	}
-	return vec2SliceEqual(a.Vertices, b.Vertices) && vec2SliceEqual(a.ChainPoints, b.ChainPoints)
+	return vec2SliceEqual(a.Vertices, b.Vertices) &&
+		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
+		a.EdgeVertices == b.EdgeVertices
 }
 
 // Collider2DStructuralEqual reports whether two colliders match for Box2D fixture shape
@@ -166,7 +169,8 @@ func colliderShapeStructuralEqual(a, b component.ColliderShape) bool {
 		a.Radius == b.Radius &&
 		vec2Equal(a.HalfExtents, b.HalfExtents) &&
 		vec2SliceEqual(a.Vertices, b.Vertices) &&
-		vec2SliceEqual(a.ChainPoints, b.ChainPoints)
+		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
+		a.EdgeVertices == b.EdgeVertices
 }
 
 // ColliderShapeMutableFieldsEqual compares per-shape fields that Box2D can update without
