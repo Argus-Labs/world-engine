@@ -244,7 +244,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	}
 }
 
-func (f *dstFixture) logWorldState(t *testing.T, label string) {
+func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unused // Used
 	t.Helper()
 	ws, err := f.world.world.ToProto()
 	if err != nil {
