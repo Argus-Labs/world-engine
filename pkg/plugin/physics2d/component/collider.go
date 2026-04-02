@@ -20,9 +20,17 @@ const (
 	ShapeTypeBox
 	// ShapeTypeConvexPolygon uses Vertices as a convex polygon in the shape's local frame.
 	ShapeTypeConvexPolygon
-	// ShapeTypeStaticChain uses ChainPoints for open chain segments (static/terrain-style
-	// geometry only; not for moving dynamic shapes).
+	// ShapeTypeStaticChain uses ChainPoints for open chain segments (static or kinematic
+	// bodies only; not for dynamic bodies which require mass).
 	ShapeTypeStaticChain
+	// ShapeTypeStaticChainLoop uses ChainPoints for closed chain loops (static or kinematic
+	// bodies only; not for dynamic bodies). Unlike ShapeTypeStaticChain, the last vertex
+	// automatically connects back to the first, creating a sealed boundary.
+	ShapeTypeStaticChainLoop
+	// ShapeTypeEdge uses EdgeVertices (exactly 2 points) for a single line segment
+	// (static or kinematic bodies only). Lighter than a 2-point chain for isolated barriers
+	// or triggers.
+	ShapeTypeEdge
 )
 
 // ColliderShape is one child shape inside a compound Collider2D.
@@ -33,6 +41,8 @@ const (
 //   - ShapeTypeBox → HalfExtents (half-width on X, half-height on Y, axis-aligned before LocalOffset/LocalRotation)
 //   - ShapeTypeConvexPolygon → Vertices (convex polygon, respect backend limits)
 //   - ShapeTypeStaticChain → ChainPoints (open polyline in local space)
+//   - ShapeTypeStaticChainLoop → ChainPoints (closed loop in local space)
+//   - ShapeTypeEdge → EdgeVertices (exactly 2 points in local space)
 type ColliderShape struct {
 	ShapeType     ShapeType `json:"shape_type"`
 	LocalOffset   Vec2      `json:"local_offset"`
@@ -40,10 +50,11 @@ type ColliderShape struct {
 	IsSensor      bool      `json:"is_sensor"`
 
 	// Geometry (use fields matching ShapeType).
-	Radius      float64 `json:"radius,omitempty"`
-	HalfExtents Vec2    `json:"half_extents,omitempty"`
-	Vertices    []Vec2  `json:"vertices,omitempty"`
-	ChainPoints []Vec2  `json:"chain_points,omitempty"`
+	Radius       float64 `json:"radius,omitempty"`
+	HalfExtents  Vec2    `json:"half_extents,omitempty"`
+	Vertices     []Vec2  `json:"vertices,omitempty"`
+	ChainPoints  []Vec2  `json:"chain_points,omitempty"`
+	EdgeVertices [2]Vec2 `json:"edge_vertices,omitempty"`
 
 	// Material and per-shape collision filtering (fixture-level in Box2D).
 	Friction     float64 `json:"friction"`
@@ -117,9 +128,15 @@ func (s ColliderShape) Validate() error {
 			return err
 		}
 	}
+	for i, v := range s.EdgeVertices {
+		if err := validateVec2(fmt.Sprintf("edge_vertices[%d]", i), v); err != nil {
+			return err
+		}
+	}
 
 	switch s.ShapeType {
-	case ShapeTypeCircle, ShapeTypeBox, ShapeTypeConvexPolygon, ShapeTypeStaticChain:
+	case ShapeTypeCircle, ShapeTypeBox, ShapeTypeConvexPolygon, ShapeTypeStaticChain,
+		ShapeTypeStaticChainLoop, ShapeTypeEdge:
 	default:
 		return fmt.Errorf("shape_type: unknown value %d", s.ShapeType)
 	}
