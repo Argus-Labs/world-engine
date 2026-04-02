@@ -85,7 +85,12 @@ func (s ShadowState) RigidbodyDiffers(r component.Rigidbody2D) bool {
 	return s.Rigidbody.BodyType != r.BodyType ||
 		s.Rigidbody.LinearDamping != r.LinearDamping ||
 		s.Rigidbody.AngularDamping != r.AngularDamping ||
-		s.Rigidbody.GravityScale != r.GravityScale
+		s.Rigidbody.GravityScale != r.GravityScale ||
+		s.Rigidbody.Active != r.Active ||
+		s.Rigidbody.Awake != r.Awake ||
+		s.Rigidbody.SleepingAllowed != r.SleepingAllowed ||
+		s.Rigidbody.Bullet != r.Bullet ||
+		s.Rigidbody.FixedRotation != r.FixedRotation
 }
 
 // ColliderDiffers reports deep differences in compound collider data: shape count/order (topology),
