@@ -8,35 +8,34 @@ import (
 // entity. It must not share slice backing with live ECS data so in-place component edits do
 // not corrupt the snapshot.
 type ShadowState struct {
-	Transform component.Transform2D
-	Velocity  component.Velocity2D
-	Rigidbody component.Rigidbody2D
-	Collider  component.Collider2D
+	Transform   component.Transform2D
+	Velocity    component.Velocity2D
+	PhysicsBody component.PhysicsBody2D
 }
 
-// NewShadowState returns a shadow snapshot with a deep-copied collider (Shapes and per-shape
+// NewShadowState returns a shadow snapshot with deep-copied shapes (Shapes and per-shape
 // Vertices / ChainPoints are cloned).
 func NewShadowState(
 	t component.Transform2D,
 	v component.Velocity2D,
-	r component.Rigidbody2D,
-	c component.Collider2D,
+	pb component.PhysicsBody2D,
 ) ShadowState {
+	shadow := pb
+	shadow.Shapes = deepCopyShapes(pb.Shapes)
 	return ShadowState{
-		Transform: t,
-		Velocity:  v,
-		Rigidbody: r,
-		Collider:  DeepCopyCollider2D(c),
+		Transform:   t,
+		Velocity:    v,
+		PhysicsBody: shadow,
 	}
 }
 
-// DeepCopyCollider2D clones the compound collider, including each shape’s slice geometry.
-func DeepCopyCollider2D(c component.Collider2D) component.Collider2D {
-	out := make([]component.ColliderShape, len(c.Shapes))
-	for i := range c.Shapes {
-		out[i] = deepCopyColliderShape(c.Shapes[i])
+// deepCopyShapes clones the shapes slice, including each shape's slice geometry.
+func deepCopyShapes(shapes []component.ColliderShape) []component.ColliderShape {
+	out := make([]component.ColliderShape, len(shapes))
+	for i := range shapes {
+		out[i] = deepCopyColliderShape(shapes[i])
 	}
-	return component.Collider2D{Shapes: out}
+	return out
 }
 
 func deepCopyColliderShape(s component.ColliderShape) component.ColliderShape {
@@ -81,45 +80,44 @@ func (s ShadowState) VelocityDiffers(v component.Velocity2D) bool {
 	return !vec2Equal(s.Velocity.Linear, v.Linear) || s.Velocity.Angular != v.Angular
 }
 
-// RigidbodyDiffers reports whether rigidbody simulation parameters differ from the shadow.
-func (s ShadowState) RigidbodyDiffers(r component.Rigidbody2D) bool {
-	return s.Rigidbody.BodyType != r.BodyType ||
-		s.Rigidbody.LinearDamping != r.LinearDamping ||
-		s.Rigidbody.AngularDamping != r.AngularDamping ||
-		s.Rigidbody.GravityScale != r.GravityScale ||
-		s.Rigidbody.Active != r.Active ||
-		s.Rigidbody.Awake != r.Awake ||
-		s.Rigidbody.SleepingAllowed != r.SleepingAllowed ||
-		s.Rigidbody.Bullet != r.Bullet ||
-		s.Rigidbody.FixedRotation != r.FixedRotation
+// BodyParamsDiffer reports whether rigidbody simulation parameters differ from the shadow.
+func (s ShadowState) BodyParamsDiffer(p component.PhysicsBody2D) bool {
+	return s.PhysicsBody.BodyType != p.BodyType ||
+		s.PhysicsBody.LinearDamping != p.LinearDamping ||
+		s.PhysicsBody.AngularDamping != p.AngularDamping ||
+		s.PhysicsBody.GravityScale != p.GravityScale ||
+		s.PhysicsBody.Active != p.Active ||
+		s.PhysicsBody.Awake != p.Awake ||
+		s.PhysicsBody.SleepingAllowed != p.SleepingAllowed ||
+		s.PhysicsBody.Bullet != p.Bullet ||
+		s.PhysicsBody.FixedRotation != p.FixedRotation
 }
 
-// ColliderDiffers reports deep differences in compound collider data: shape count/order (topology),
+// ShapesDiffer reports deep differences in compound collider data: shape count/order (topology),
 // per-shape type, transform, sensor, geometry, friction/restitution/density, and filter (category, mask, group).
-func (s ShadowState) ColliderDiffers(c component.Collider2D) bool {
-	return !Collider2DDeepEqual(s.Collider, c)
+func (s ShadowState) ShapesDiffer(p component.PhysicsBody2D) bool {
+	return !shapesDeepEqual(s.PhysicsBody.Shapes, p.Shapes)
 }
 
 // PhysicsDiffers is true if any reconciled field differs from the given live components.
 func (s ShadowState) PhysicsDiffers(
 	t component.Transform2D,
 	v component.Velocity2D,
-	r component.Rigidbody2D,
-	c component.Collider2D,
+	p component.PhysicsBody2D,
 ) bool {
 	return s.TransformDiffers(t) ||
 		s.VelocityDiffers(v) ||
-		s.RigidbodyDiffers(r) ||
-		s.ColliderDiffers(c)
+		s.BodyParamsDiffer(p) ||
+		s.ShapesDiffer(p)
 }
 
-// Collider2DDeepEqual compares compound colliders including shape order and slice geometry.
-func Collider2DDeepEqual(a, b component.Collider2D) bool {
-	if len(a.Shapes) != len(b.Shapes) {
+// shapesDeepEqual compares shape slices including shape order and slice geometry.
+func shapesDeepEqual(a, b []component.ColliderShape) bool {
+	if len(a) != len(b) {
 		return false
 	}
-	for i := range a.Shapes {
-		if !colliderShapeDeepEqual(a.Shapes[i], b.Shapes[i]) {
+	for i := range a {
+		if !colliderShapeDeepEqual(a[i], b[i]) {
 			return false
 		}
 	}
@@ -146,16 +144,16 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		a.EdgeVertices == b.EdgeVertices
 }
 
-// Collider2DStructuralEqual reports whether two colliders match for Box2D fixture shape
+// ShapesStructuralEqual reports whether two shape slices match for Box2D fixture shape
 // definition: shape count/order (topology) and, per index, shape type, local transform, and
 // geometry. Differences confined to sensor flag, friction, restitution, density, or filter
 // (category, mask, group) are not structural and can be applied with fixture setters.
-func Collider2DStructuralEqual(a, b component.Collider2D) bool {
-	if len(a.Shapes) != len(b.Shapes) {
+func ShapesStructuralEqual(a, b []component.ColliderShape) bool {
+	if len(a) != len(b) {
 		return false
 	}
-	for i := range a.Shapes {
-		if !colliderShapeStructuralEqual(a.Shapes[i], b.Shapes[i]) {
+	for i := range a {
+		if !colliderShapeStructuralEqual(a[i], b[i]) {
 			return false
 		}
 	}

@@ -90,10 +90,10 @@ func PhysicsPipelineSystem(state *PhysicsPipelineSystemState) {
 	wbEntries := make([]internal.WritebackEntry, 0, len(rt.Bodies))
 	for eid, row := range state.Bodies.Iter() {
 		wbEntries = append(wbEntries, internal.WritebackEntry{
-			EntityID:  eid,
-			Transform: row.Transform,
-			Velocity:  row.Velocity,
-			Rigidbody: row.Rigidbody,
+			EntityID:    eid,
+			Transform:   row.Transform,
+			Velocity:    row.Velocity,
+			PhysicsBody: row.PhysicsBody,
 		})
 	}
 	internal.WritebackFromBox2D(wbEntries)

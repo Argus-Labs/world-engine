@@ -28,19 +28,22 @@ import (
 // Re-export component types for callers that import the plugin root only.
 type (
 	Vec2                = component.Vec2
-	Transform2D         = component.Transform2D
-	Velocity2D          = component.Velocity2D
 	BodyType            = component.BodyType
-	Rigidbody2D         = component.Rigidbody2D
 	ShapeType           = component.ShapeType
 	ColliderShape       = component.ColliderShape
-	Collider2D          = component.Collider2D
 	PhysicsSingletonTag = component.PhysicsSingletonTag
 	ActiveContacts      = component.ActiveContacts
 	ContactPairEntry    = component.ContactPairEntry
 )
 
-// Body kinds (Rigidbody2D).
+// Components entities require to participate in physics simulation.
+type (
+	Transform2D   = component.Transform2D
+	Velocity2D    = component.Velocity2D
+	PhysicsBody2D = component.PhysicsBody2D
+)
+
+// Body kinds (PhysicsBody2D).
 const (
 	BodyTypeStatic    = component.BodyTypeStatic
 	BodyTypeDynamic   = component.BodyTypeDynamic
@@ -114,13 +117,13 @@ func PhysicsWorld() *box2d.B2World {
 // next tick's reconcile or writeback pass. Use the ECS components instead:
 //
 //   - SetTransform, SetLinearVelocity, SetAngularVelocity → modify [Transform2D], [Velocity2D]
-//   - SetType, SetLinearDamping, SetAngularDamping, SetGravityScale → modify [Rigidbody2D]
-//   - SetActive, SetAwake, SetSleepingAllowed, SetBullet, SetFixedRotation → modify [Rigidbody2D]
+//   - SetType, SetLinearDamping, SetAngularDamping, SetGravityScale → modify [PhysicsBody2D]
+//   - SetActive, SetAwake, SetSleepingAllowed, SetBullet, SetFixedRotation → modify [PhysicsBody2D]
 //
 // # Forbidden operations (will desync or crash)
 //
 // Do not create or destroy bodies/fixtures through the raw pointer. The plugin manages body
-// and fixture lifecycle from ECS components ([Rigidbody2D], [Collider2D]). Bypassing this
+// and fixture lifecycle from ECS components ([PhysicsBody2D]). Bypassing this
 // corrupts the internal body map, shadow state, and active-contact tracking.
 //
 // # Lifecycle

@@ -88,7 +88,7 @@ func destroyOrphanBodies(rt *PhysicsRuntime, sorted []PhysicsRebuildEntry) {
 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
 func reconcileOneEntry(rt *PhysicsRuntime, e PhysicsRebuildEntry) error {
-	if len(e.Collider.Shapes) == 0 {
+	if len(e.PhysicsBody.Shapes) == 0 {
 		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
 	}
 	prev, hadPrev := rt.Shadow[e.EntityID]
@@ -96,13 +96,13 @@ func reconcileOneEntry(rt *PhysicsRuntime, e PhysicsRebuildEntry) error {
 	if !hadBody || body == nil {
 		return createBodyForEntry(rt, e)
 	}
-	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.Rigidbody, e.Collider) {
+	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) {
 		return nil
 	}
 	if err := reconcileExistingBody(rt, body, hadPrev, prev, e); err != nil {
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
-	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.Rigidbody, e.Collider)
+	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
@@ -113,14 +113,13 @@ func createBodyForEntry(rt *PhysicsRuntime, e PhysicsRebuildEntry) error {
 		e.EntityID,
 		e.Transform,
 		e.Velocity,
-		e.Rigidbody,
-		e.Collider,
+		e.PhysicsBody,
 	)
 	if err != nil {
 		return err
 	}
 	rt.Bodies[e.EntityID] = body
-	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.Rigidbody, e.Collider)
+	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
@@ -145,8 +144,8 @@ func reconcileExistingBody(
 		return err
 	}
 
-	if prev.RigidbodyDiffers(e.Rigidbody) {
-		applyRigidbodyInPlace(body, e.Rigidbody)
+	if prev.BodyParamsDiffer(e.PhysicsBody) {
+		applyBodyParamsInPlace(body, e.PhysicsBody)
 	}
 	if prev.TransformDiffers(e.Transform) {
 		body.SetTransform(
@@ -154,14 +153,14 @@ func reconcileExistingBody(
 			e.Transform.Rotation,
 		)
 	}
-	if prev.ColliderDiffers(e.Collider) {
-		if err := reconcileColliderChange(rt, body, e.EntityID, prev.Collider, e.Collider); err != nil {
+	if prev.ShapesDiffer(e.PhysicsBody) {
+		if err := reconcileShapesChange(rt, body, e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
 			return err
 		}
 	}
 	// Manual bodies always have zero velocity in Box2D (ECS owns position, not velocity).
 	// For all other body types, push ECS velocity into Box2D when it changes.
-	if e.Rigidbody.BodyType == component.BodyTypeManual {
+	if e.PhysicsBody.BodyType == component.BodyTypeManual {
 		body.SetLinearVelocity(box2d.MakeB2Vec2(0, 0))
 		body.SetAngularVelocity(0)
 	} else if prev.VelocityDiffers(e.Velocity) {
@@ -171,16 +170,16 @@ func reconcileExistingBody(
 	return nil
 }
 
-// reconcileColliderChange applies structural fixture rebuild or in-place mutable updates when
-// shadow collider state differs from ECS.
-func reconcileColliderChange(
+// reconcileShapesChange applies structural fixture rebuild or in-place mutable updates when
+// shadow shapes differ from ECS.
+func reconcileShapesChange(
 	rt *PhysicsRuntime,
 	body *box2d.B2Body,
 	entityID cardinal.EntityID,
-	prev, live component.Collider2D,
+	prev, live []component.ColliderShape,
 ) error {
-	if Collider2DStructuralEqual(prev, live) {
-		return applyMutableColliderFixtures(body, prev, live)
+	if ShapesStructuralEqual(prev, live) {
+		return applyMutableShapeFixtures(body, prev, live)
 	}
 	destroyAllFixtures(body)
 	if err := AttachColliderFixtures(body, entityID, live); err != nil {
@@ -198,26 +197,23 @@ func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 	if err := e.Velocity.Validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d velocity: %w", e.EntityID, err)
 	}
-	if err := e.Rigidbody.Validate(); err != nil {
-		return fmt.Errorf("physics2d: entity %d rigidbody: %w", e.EntityID, err)
-	}
-	if err := e.Collider.Validate(); err != nil {
-		return fmt.Errorf("physics2d: entity %d collider: %w", e.EntityID, err)
+	if err := e.PhysicsBody.Validate(); err != nil {
+		return fmt.Errorf("physics2d: entity %d physics_body: %w", e.EntityID, err)
 	}
 	return nil
 }
 
-// applyRigidbodyInPlace sets body type, damping, gravity scale, and body flags from Rigidbody2D.
-func applyRigidbodyInPlace(body *box2d.B2Body, r component.Rigidbody2D) {
-	body.SetType(mapBodyType(r.BodyType))
-	body.SetLinearDamping(r.LinearDamping)
-	body.SetAngularDamping(r.AngularDamping)
-	body.SetGravityScale(r.GravityScale)
-	body.SetActive(r.Active)
-	body.SetSleepingAllowed(r.SleepingAllowed)
-	body.SetAwake(r.Awake)
-	body.SetBullet(r.Bullet)
-	body.SetFixedRotation(r.FixedRotation)
+// applyBodyParamsInPlace sets body type, damping, gravity scale, and body flags from PhysicsBody2D.
+func applyBodyParamsInPlace(body *box2d.B2Body, pb component.PhysicsBody2D) {
+	body.SetType(mapBodyType(pb.BodyType))
+	body.SetLinearDamping(pb.LinearDamping)
+	body.SetAngularDamping(pb.AngularDamping)
+	body.SetGravityScale(pb.GravityScale)
+	body.SetActive(pb.Active)
+	body.SetSleepingAllowed(pb.SleepingAllowed)
+	body.SetAwake(pb.Awake)
+	body.SetBullet(pb.Bullet)
+	body.SetFixedRotation(pb.FixedRotation)
 }
 
 // destroyAllFixtures removes every fixture from body (used before re-attaching a structurally changed collider).
@@ -247,32 +243,34 @@ func fixturesByShapeIndex(body *box2d.B2Body) (map[int]*box2d.B2Fixture, error) 
 	return m, nil
 }
 
-// applyMutableColliderFixtures updates sensor, friction, restitution, density, and filter per shape index in place.
-func applyMutableColliderFixtures(
+// applyMutableShapeFixtures updates sensor, friction, restitution, density, and filter per shape index in place.
+func applyMutableShapeFixtures(
 	body *box2d.B2Body,
-	prev component.Collider2D,
-	live component.Collider2D,
+	prev []component.ColliderShape,
+	live []component.ColliderShape,
 ) error {
-	if err := live.Validate(); err != nil {
-		return fmt.Errorf("physics2d: collider: %w", err)
+	for i := range live {
+		if err := live[i].Validate(); err != nil {
+			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
+		}
 	}
 	byIdx, err := fixturesByShapeIndex(body)
 	if err != nil {
 		return err
 	}
 	var densityTouched bool
-	for i := range live.Shapes {
-		if ColliderShapeMutableFieldsEqual(prev.Shapes[i], live.Shapes[i]) {
+	for i := range live {
+		if ColliderShapeMutableFieldsEqual(prev[i], live[i]) {
 			continue
 		}
-		if prev.Shapes[i].Density != live.Shapes[i].Density {
+		if prev[i].Density != live[i].Density {
 			densityTouched = true
 		}
 		fix := byIdx[i]
 		if fix == nil {
 			return fmt.Errorf("missing fixture for shape index %d", i)
 		}
-		sh := live.Shapes[i]
+		sh := live[i]
 		fix.SetSensor(sh.IsSensor)
 		fix.SetFriction(sh.Friction)
 		fix.SetRestitution(sh.Restitution)

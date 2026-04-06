@@ -11,14 +11,14 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
 )
 
-// CreateBody builds a Box2D body from ECS rigidbody/transform/velocity. It does not add
+// CreateBody builds a Box2D body from ECS physics body/transform/velocity. It does not add
 // fixtures; use AttachColliderFixtures next. Body.UserData is set to *query.BodyUserData.
 func CreateBody(
 	world *box2d.B2World,
 	entityID cardinal.EntityID,
 	transform component.Transform2D,
 	velocity component.Velocity2D,
-	rigid component.Rigidbody2D,
+	pb component.PhysicsBody2D,
 ) (*box2d.B2Body, error) {
 	if world == nil {
 		return nil, errors.New("physics2d: nil world")
@@ -29,26 +29,26 @@ func CreateBody(
 	if err := velocity.Validate(); err != nil {
 		return nil, fmt.Errorf("physics2d: velocity: %w", err)
 	}
-	if err := rigid.Validate(); err != nil {
-		return nil, fmt.Errorf("physics2d: rigidbody: %w", err)
+	if err := pb.Validate(); err != nil {
+		return nil, fmt.Errorf("physics2d: physics_body: %w", err)
 	}
 	def := box2d.MakeB2BodyDef()
-	def.Type = mapBodyType(rigid.BodyType)
+	def.Type = mapBodyType(pb.BodyType)
 	def.Position = box2d.MakeB2Vec2(transform.Position.X, transform.Position.Y)
 	def.Angle = transform.Rotation
 	// Manual bodies have zero velocity in Box2D; ECS Velocity2D is a gameplay concept for them.
-	if rigid.BodyType != component.BodyTypeManual {
+	if pb.BodyType != component.BodyTypeManual {
 		def.LinearVelocity = box2d.MakeB2Vec2(velocity.Linear.X, velocity.Linear.Y)
 		def.AngularVelocity = velocity.Angular
 	}
-	def.LinearDamping = rigid.LinearDamping
-	def.AngularDamping = rigid.AngularDamping
-	def.GravityScale = rigid.GravityScale
-	def.Active = rigid.Active
-	def.Awake = rigid.Awake
-	def.AllowSleep = rigid.SleepingAllowed
-	def.Bullet = rigid.Bullet
-	def.FixedRotation = rigid.FixedRotation
+	def.LinearDamping = pb.LinearDamping
+	def.AngularDamping = pb.AngularDamping
+	def.GravityScale = pb.GravityScale
+	def.Active = pb.Active
+	def.Awake = pb.Awake
+	def.AllowSleep = pb.SleepingAllowed
+	def.Bullet = pb.Bullet
+	def.FixedRotation = pb.FixedRotation
 	def.UserData = &query.BodyUserData{EntityID: entityID}
 
 	body := world.CreateBody(&def)
@@ -59,21 +59,23 @@ func CreateBody(
 }
 
 // AttachColliderFixtures creates one fixture per ColliderShape in order. ShapeIndex in
-// query.FixtureUserData is the slice index i in collider.Shapes. Local offsets and rotations are
+// query.FixtureUserData is the slice index i in shapes. Local offsets and rotations are
 // applied so geometry defined in shape space is placed correctly in body space.
-func AttachColliderFixtures(body *box2d.B2Body, entityID cardinal.EntityID, collider component.Collider2D) error {
+func AttachColliderFixtures(body *box2d.B2Body, entityID cardinal.EntityID, shapes []component.ColliderShape) error {
 	if body == nil {
 		return errors.New("physics2d: nil body")
 	}
-	if len(collider.Shapes) == 0 {
+	if len(shapes) == 0 {
 		return errors.New("physics2d: collider has no shapes")
 	}
-	if err := collider.Validate(); err != nil {
-		return fmt.Errorf("physics2d: collider: %w", err)
+	for i := range shapes {
+		if err := shapes[i].Validate(); err != nil {
+			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
+		}
 	}
 	bodyType := body.GetType()
-	for i := range collider.Shapes {
-		if err := attachFixture(body, entityID, i, collider.Shapes[i], bodyType); err != nil {
+	for i := range shapes {
+		if err := attachFixture(body, entityID, i, shapes[i], bodyType); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
@@ -87,14 +89,13 @@ func CreateBodyWithCollider(
 	entityID cardinal.EntityID,
 	transform component.Transform2D,
 	velocity component.Velocity2D,
-	rigid component.Rigidbody2D,
-	collider component.Collider2D,
+	pb component.PhysicsBody2D,
 ) (*box2d.B2Body, error) {
-	body, err := CreateBody(world, entityID, transform, velocity, rigid)
+	body, err := CreateBody(world, entityID, transform, velocity, pb)
 	if err != nil {
 		return nil, err
 	}
-	if err := AttachColliderFixtures(body, entityID, collider); err != nil {
+	if err := AttachColliderFixtures(body, entityID, pb.Shapes); err != nil {
 		world.DestroyBody(body)
 		return nil, err
 	}

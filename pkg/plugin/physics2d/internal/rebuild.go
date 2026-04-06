@@ -12,11 +12,10 @@ import (
 
 // PhysicsRebuildEntry is one entity’s authoritative physics components as read from ECS.
 type PhysicsRebuildEntry struct {
-	EntityID  cardinal.EntityID
-	Transform component.Transform2D
-	Velocity  component.Velocity2D
-	Rigidbody component.Rigidbody2D
-	Collider  component.Collider2D
+	EntityID    cardinal.EntityID
+	Transform   component.Transform2D
+	Velocity    component.Velocity2D
+	PhysicsBody component.PhysicsBody2D
 }
 
 // FullRebuildFromECS replaces all derived physics state for the package Runtime in one
@@ -78,8 +77,7 @@ func FullRebuildFromECS(gravity box2d.B2Vec2, entries []PhysicsRebuildEntry) err
 			e.EntityID,
 			e.Transform,
 			e.Velocity,
-			e.Rigidbody,
-			e.Collider,
+			e.PhysicsBody,
 		)
 		if err != nil {
 			destroyBodyMap(rt.World, newBodies)
@@ -91,8 +89,7 @@ func FullRebuildFromECS(gravity box2d.B2Vec2, entries []PhysicsRebuildEntry) err
 		newShadow[e.EntityID] = NewShadowState(
 			e.Transform,
 			e.Velocity,
-			e.Rigidbody,
-			e.Collider,
+			e.PhysicsBody,
 		)
 	}
 

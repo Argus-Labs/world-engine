@@ -9,7 +9,7 @@ type BodyUserData struct {
 }
 
 // FixtureUserData is stored on each B2Fixture (B2FixtureDef.UserData). ShapeIndex is the
-// index into Collider2D.Shapes for that entity (v1 identity: fixture order creation does not
+// index into PhysicsBody2D.Shapes for that entity (v1 identity: fixture order creation does not
 // match Box2D’s linked list order; always use this index, not fixture iteration order).
 type FixtureUserData struct {
 	EntityID   cardinal.EntityID

@@ -8,12 +8,11 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// physicsBodyRow is the component bundle matched by the Contains query for simulated bodies.
+// physicsBodyRowe matches entities that participate in 2D physics (ECS authoritative).
 type physicsBodyRow struct {
-	Transform cardinal.Ref[physicscomp.Transform2D]
-	Velocity  cardinal.Ref[physicscomp.Velocity2D]
-	Rigidbody cardinal.Ref[physicscomp.Rigidbody2D]
-	Collider  cardinal.Ref[physicscomp.Collider2D]
+	Transform   cardinal.Ref[physicscomp.Transform2D]
+	Velocity    cardinal.Ref[physicscomp.Velocity2D]
+	PhysicsBody cardinal.Ref[physicscomp.PhysicsBody2D]
 }
 
 // gatherRebuildEntries collects physics archetype rows for reconcile/rebuild.
@@ -24,11 +23,10 @@ func gatherRebuildEntries(iter cardinal.SearchResult[cardinal.EntityID, physicsB
 	entries := make([]internal.PhysicsRebuildEntry, 0, 64)
 	for eid, row := range iter {
 		entries = append(entries, internal.PhysicsRebuildEntry{
-			EntityID:  eid,
-			Transform: row.Transform.Get(),
-			Velocity:  row.Velocity.Get(),
-			Rigidbody: row.Rigidbody.Get(),
-			Collider:  row.Collider.Get(),
+			EntityID:    eid,
+			Transform:   row.Transform.Get(),
+			Velocity:    row.Velocity.Get(),
+			PhysicsBody: row.PhysicsBody.Get(),
 		})
 	}
 	return entries

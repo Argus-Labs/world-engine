@@ -7,10 +7,10 @@ import (
 
 // WritebackEntry holds the ECS refs needed to write Box2D results back to components.
 type WritebackEntry struct {
-	EntityID  cardinal.EntityID
-	Transform cardinal.Ref[component.Transform2D]
-	Velocity  cardinal.Ref[component.Velocity2D]
-	Rigidbody cardinal.Ref[component.Rigidbody2D]
+	EntityID    cardinal.EntityID
+	Transform   cardinal.Ref[component.Transform2D]
+	Velocity    cardinal.Ref[component.Velocity2D]
+	PhysicsBody cardinal.Ref[component.PhysicsBody2D]
 }
 
 // WritebackFromBox2D reads post-step positions, rotations, and velocities from Box2D bodies
@@ -33,7 +33,7 @@ func WritebackFromBox2D(entries []WritebackEntry) {
 			continue
 		}
 
-		ecsBodyType := e.Rigidbody.Get().BodyType
+		ecsBodyType := e.PhysicsBody.Get().BodyType
 		if ecsBodyType == component.BodyTypeStatic || ecsBodyType == component.BodyTypeManual {
 			continue
 		}

@@ -33,7 +33,7 @@ const (
 	ShapeTypeEdge
 )
 
-// ColliderShape is one child shape inside a compound Collider2D.
+// ColliderShape is one child shape inside a compound PhysicsBody2D.
 //
 // Each entry has its own local transform, sensor flag, material, and collision filter (category, mask, group).
 // Geometry fields are a tagged-union style: only the fields that match ShapeType are used.
@@ -63,36 +63,6 @@ type ColliderShape struct {
 	CategoryBits uint16  `json:"category_bits"`
 	MaskBits     uint16  `json:"mask_bits"`
 	GroupIndex   int16   `json:"group_index,omitempty"`
-}
-
-// Collider2D is the authoritative collider description for an entity.
-//
-// Cardinal allows one instance per component type per entity, so compound colliders are
-// modeled as multiple ColliderShape entries in Shapes.
-//
-// Shape identity (v1): index i in Shapes identifies fixture slot i. Reordering, inserting,
-// or removing entries is a structural change and requires fixture/body recreation during
-// reconciliation.
-type Collider2D struct {
-	Shapes []ColliderShape `json:"shapes"`
-}
-
-// Name returns the ECS component name.
-func (Collider2D) Name() string { return "collider_2d" }
-
-// Validate guards against NaN/Inf in float fields. Geometry correctness (convexity, vertex
-// count, winding) is enforced by Box2D at fixture creation time — duplicating those checks
-// here adds maintenance cost without value.
-func (c Collider2D) Validate() error {
-	if len(c.Shapes) == 0 {
-		return errors.New("collider_2d.shapes: at least one ColliderShape is required")
-	}
-	for i := range c.Shapes {
-		if err := c.Shapes[i].Validate(); err != nil {
-			return fmt.Errorf("collider_2d.shapes[%d]: %w", i, err)
-		}
-	}
-	return nil
 }
 
 // Validate checks for NaN/Inf in all float fields and a valid ShapeType tag.
