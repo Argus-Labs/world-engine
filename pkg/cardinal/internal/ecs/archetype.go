@@ -137,6 +137,9 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 	assert.That(exists, "new entity isn't created in the destination archetype")
 
 	// Move entity's components to the new archetype.
+	// Note: for disk-backed columns (diskColumn[T]), this performs a full disk read +
+	// msgpack deserialize + re-serialize + buffer. This is expensive. Disk components
+	// work best on entities with stable archetype composition (no frequent add/remove).
 	for _, dst := range destination.columns {
 		for _, src := range a.columns {
 			if dst.name() == src.name() {

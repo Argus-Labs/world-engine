@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/snapshot.proto.
  */
 export const file_worldengine_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEimQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASOAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlEg8KB3ZlcnNpb24YBCABKA0ifAoKV29ybGRTdGF0ZRIPCgduZXh0X2lkGAEgASgNEhAKCGZyZWVfaWRzGAIgAygNEhMKC2VudGl0eV9hcmNoGAMgAygDEjYKCmFyY2hldHlwZXMYBCADKAsyIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5BcmNoZXR5cGUihAEKCUFyY2hldHlwZRIKCgJpZBgBIAEoBRIZChFjb21wb25lbnRzX2JpdG1hcBgCIAEoDBIMCgRyb3dzGAMgAygDEhAKCGVudGl0aWVzGAQgAygNEjAKB2NvbHVtbnMYBSADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW4iPQoGQ29sdW1uEh8KDmNvbXBvbmVudF9uYW1lGAEgASgJQge6SARyAhABEhIKCmNvbXBvbmVudHMYAiADKAxCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiygEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASOAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlEg8KB3ZlcnNpb24YBCABKA0SEgoKZGlza19zdGF0ZRgFIAEoDBIbChNkaXNrX3N0YXRlX2NoZWNrc3VtGAYgASgMInwKCldvcmxkU3RhdGUSDwoHbmV4dF9pZBgBIAEoDRIQCghmcmVlX2lkcxgCIAMoDRITCgtlbnRpdHlfYXJjaBgDIAMoAxI2CgphcmNoZXR5cGVzGAQgAygLMiIud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJjaGV0eXBlIoQBCglBcmNoZXR5cGUSCgoCaWQYASABKAUSGQoRY29tcG9uZW50c19iaXRtYXAYAiABKAwSDAoEcm93cxgDIAMoAxIQCghlbnRpdGllcxgEIAMoDRIwCgdjb2x1bW5zGAUgAygLMh8ud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQ29sdW1uIj0KBkNvbHVtbhIfCg5jb21wb25lbnRfbmFtZRgBIAEoCUIHukgEcgIQARISCgpjb21wb25lbnRzGAIgAygMQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Snapshot represents a point-in-time capture of shard state.
@@ -40,6 +40,20 @@ export type Snapshot = Message<"worldengine.cardinal.v1.Snapshot"> & {
    * @generated from field: uint32 version = 4;
    */
   version: number;
+
+  /**
+   * Disk component file state. Raw Bitcask file bytes. Empty if disk storage not used.
+   *
+   * @generated from field: bytes disk_state = 5;
+   */
+  diskState: Uint8Array;
+
+  /**
+   * SHA-256 checksum of disk_state for integrity verification on restore.
+   *
+   * @generated from field: bytes disk_state_checksum = 6;
+   */
+  diskStateChecksum: Uint8Array;
 };
 
 /**

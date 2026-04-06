@@ -200,12 +200,17 @@ func setComponent[T Component](ws *worldState, eid EntityID, component T) error 
 
 	// Get the column from the archetype directly.
 	index := archetype.components.CountTo(cid)
-	column, ok := archetype.columns[index].(*column[T])
-	assert.That(ok, "unexpected column type")
-
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
-	column.set(row, component)
+
+	switch col := archetype.columns[index].(type) {
+	case *column[T]:
+		col.set(row, component)
+	case *diskColumn[T]:
+		col.set(row, component)
+	default:
+		assert.That(false, "unexpected column type")
+	}
 	return nil
 }
 
@@ -231,12 +236,18 @@ func getComponent[T Component](ws *worldState, eid EntityID) (T, error) {
 
 	// Get the column from the archetype directly.
 	index := archetype.components.CountTo(cid)
-	column, ok := archetype.columns[index].(*column[T])
-	assert.That(ok, "unexpected column type")
-
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
-	return column.get(row), nil
+
+	switch col := archetype.columns[index].(type) {
+	case *column[T]:
+		return col.get(row), nil
+	case *diskColumn[T]:
+		return col.get(row), nil
+	default:
+		assert.That(false, "unexpected column type")
+		return zero, eris.New("unexpected column type")
+	}
 }
 
 // removeComponent removes a component from the given entity. Returns an error if the entity or the

@@ -17,6 +17,12 @@ message Snapshot {
   WorldState world_state = 3;
 
   uint32 version = 4;
+
+  // Disk component file state. Raw Bitcask file bytes. Empty if disk storage not used.
+  bytes disk_state = 5;
+
+  // SHA-256 checksum of disk_state for integrity verification on restore.
+  bytes disk_state_checksum = 6;
 }
 
 // WorldState represents the ECS world state.

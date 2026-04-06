@@ -14,8 +14,10 @@ import (
 type Snapshot struct {
 	TickHeight uint64
 	Timestamp  time.Time
-	Data       []byte
-	Version    uint32
+	Data       []byte // ECS world state (protobuf-encoded WorldState)
+	DiskState         []byte // Disk component file bytes (nil if disk storage not used)
+	DiskStateChecksum []byte // SHA-256 of DiskState for integrity verification
+	Version           uint32
 }
 
 const CurrentVersion uint32 = 1

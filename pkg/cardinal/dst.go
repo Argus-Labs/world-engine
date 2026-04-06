@@ -192,6 +192,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	t.Setenv("LOG_LEVEL", "disabled")
 
 	debug := false
+	diskPath := t.TempDir()
 	w, err := NewWorld(WorldOptions{
 		Region:              "dst",
 		Organization:        "dst",
@@ -201,6 +202,8 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &debug,
+		DiskStoragePath:     diskPath,
+		CompactionRate:      50,
 	})
 	require.NoError(t, err)
 
@@ -382,6 +385,14 @@ func (m *memSnapshotStorage) Store(_ context.Context, s *snapshot.Snapshot) erro
 	cp := *s
 	cp.Data = make([]byte, len(s.Data))
 	copy(cp.Data, s.Data)
+	if s.DiskState != nil {
+		cp.DiskState = make([]byte, len(s.DiskState))
+		copy(cp.DiskState, s.DiskState)
+	}
+	if s.DiskStateChecksum != nil {
+		cp.DiskStateChecksum = make([]byte, len(s.DiskStateChecksum))
+		copy(cp.DiskStateChecksum, s.DiskStateChecksum)
+	}
 	m.snap = &cp
 	return nil
 }
@@ -395,6 +406,14 @@ func (m *memSnapshotStorage) Load(_ context.Context) (*snapshot.Snapshot, error)
 	cp := *m.snap
 	cp.Data = make([]byte, len(m.snap.Data))
 	copy(cp.Data, m.snap.Data)
+	if m.snap.DiskState != nil {
+		cp.DiskState = make([]byte, len(m.snap.DiskState))
+		copy(cp.DiskState, m.snap.DiskState)
+	}
+	if m.snap.DiskStateChecksum != nil {
+		cp.DiskStateChecksum = make([]byte, len(m.snap.DiskStateChecksum))
+		copy(cp.DiskStateChecksum, m.snap.DiskStateChecksum)
+	}
 
 	return &cp, nil
 }

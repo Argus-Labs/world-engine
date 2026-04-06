@@ -163,6 +163,12 @@ func (b *BaseSystemState) init(meta *systemInitMetadata) error {
 
 // TODO: pass init args (similar to boot info) to get system name in logger.
 // Logger returns the logger for the world.
+// World returns the cardinal World. Used for disk component operations
+// (CreateEntity, SetDiskComponent, GetDiskComponent).
+func (b *BaseSystemState) World() *World {
+	return b.world
+}
+
 func (b *BaseSystemState) Logger() *zerolog.Logger {
 	logger := b.world.tel.GetLogger("system")
 	return &logger
