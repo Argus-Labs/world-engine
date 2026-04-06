@@ -17,6 +17,8 @@ type World struct {
 	scheduler           [3]systemScheduler    // Systems schedulers (PreTick, Update, PostTick)
 	systemEvents        systemEventManager    // Manages system events
 	onComponentRegister func(Component) error // Callback called when a component is registered
+	disk                *diskStore            // Disk-backed component storage (nil if no disk components)
+	diskStoragePath     string                // Path for disk storage (from config)
 }
 
 // NewWorld creates a new World instance.
@@ -70,9 +72,13 @@ func (w *World) Tick() {
 
 // Reset clears the world state back to its initial empty state.
 // Components remain registered but all entities and archetypes are cleared.
+// Disk storage is also cleared to prevent stale data from reused entity IDs.
 func (w *World) Reset() {
 	w.state.reset()
 	w.initialized = false
+	if w.disk != nil {
+		w.disk.reset()
+	}
 }
 
 // SetOnSystemRun sets a callback invoked after each system execution.
@@ -110,6 +116,120 @@ func (w *World) LiveEntityIDs() []EntityID {
 
 func (w *World) OnComponentRegister(callback func(zero Component) error) {
 	w.onComponentRegister = callback
+}
+
+// SetDiskStoragePath configures the path for disk-backed components.
+// The disk store itself is created lazily when the first disk component is registered.
+func (w *World) SetDiskStoragePath(path string) {
+	w.diskStoragePath = path
+}
+
+// compactableDiskColumn is implemented by diskColumn[T] to support compaction.
+type compactableDiskColumn interface {
+	collectLiveRecords() ([]compactRecord, error)
+	applyCompactedOffsets(records []compactRecord)
+}
+
+// columnRecords tracks a column and its record range in the allRecords slice.
+type columnRecords struct {
+	col        compactableDiskColumn
+	start, end int
+}
+
+// CompactDisk rewrites the data file with only live entries from all disk columns.
+func (w *World) CompactDisk() error {
+	if w.disk == nil {
+		return nil
+	}
+
+	// Collect all live records from all disk columns, tracking per-column ranges.
+	var allRecords []compactRecord
+	var columns []columnRecords
+	for _, arch := range w.state.archetypes {
+		for _, col := range arch.columns {
+			if dc, ok := col.(compactableDiskColumn); ok {
+				start := len(allRecords)
+				records, err := dc.collectLiveRecords()
+				if err != nil {
+					return err
+				}
+				allRecords = append(allRecords, records...)
+				columns = append(columns, columnRecords{col: dc, start: start, end: len(allRecords)})
+			}
+		}
+	}
+
+	// Rewrite the file. compact() updates offset/size in each record.
+	if err := w.disk.compact(allRecords); err != nil {
+		return err
+	}
+
+	// Apply the new offsets back to each column's entries.
+	for _, cr := range columns {
+		cr.col.applyCompactedOffsets(allRecords[cr.start:cr.end])
+	}
+	return nil
+}
+
+// CloseDisk closes the disk store's data file.
+func (w *World) CloseDisk() error {
+	if w.disk == nil {
+		return nil
+	}
+	return w.disk.close()
+}
+
+// DiskStore returns the disk store, or nil if disk storage is not enabled.
+func (w *World) DiskStore() *diskStore {
+	return w.disk
+}
+
+// flushableDiskColumn is implemented by diskColumn[T] to support flushing pending writes.
+type flushableDiskColumn interface {
+	flush() error
+}
+
+// FlushDisk writes all modified disk components back to disk and clears pending buffers.
+// Called after all systems finish in a tick.
+func (w *World) FlushDisk() error {
+	if w.disk == nil {
+		return nil
+	}
+	// Walk all archetypes and flush any disk columns.
+	for _, arch := range w.state.archetypes {
+		for _, col := range arch.columns {
+			if dc, ok := col.(flushableDiskColumn); ok {
+				if err := dc.flush(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+
+// ExportDiskFile returns the raw Bitcask file bytes for inclusion in the snapshot.
+// Must flush before calling. Returns nil if disk storage is not enabled.
+func (w *World) ExportDiskFile() ([]byte, error) {
+	if w.disk == nil {
+		return nil, nil
+	}
+	return w.disk.readAll()
+}
+
+// ImportDiskFile writes the raw Bitcask file bytes from a snapshot.
+// Must be called BEFORE FromProto so that diskColumn offsets point to valid data.
+func (w *World) ImportDiskFile(data []byte) error {
+	if w.disk == nil {
+		return nil
+	}
+	// nil/empty data means snapshot had no disk state; reset the file to avoid stale offsets.
+	if len(data) == 0 {
+		w.disk.reset()
+		return nil
+	}
+	return w.disk.writeAll(data)
 }
 
 // -------------------------------------------------------------------------------------------------

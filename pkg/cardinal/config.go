@@ -20,6 +20,23 @@ type WorldOptions struct {
 	SnapshotRate        uint32               // Number of ticks per snapshot
 	Debug               *bool                // Enable debug server
 	NATSConfig          *micro.NATSConfig    // Optional NATS config override (nil = use env/defaults)
+	DiskStoragePath string // Local disk path for disk-backed components (empty = disabled)
+
+	// Number of ticks between disk compactions. Compaction rewrites the Bitcask file
+	// without dead entries (old versions from updates and deletes).
+	//
+	// Set to 0 to disable periodic compaction. Compaction still runs before every
+	// snapshot regardless of this setting, to ensure the snapshot file blob is clean.
+	//
+	// Formula for choosing a value based on 50% waste ratio threshold:
+	//   CompactionRate = total_live_entities / updates_per_tick
+	//
+	// Example: 10,000 entities, 100 updates per tick -> CompactionRate = 100
+	// Example: 10,000 entities, 10 updates per tick -> CompactionRate = 1,000
+	//
+	// For progression-based systems where data mostly grows and rarely updates,
+	// set to 0 and rely on pre-snapshot compaction.
+	CompactionRate uint32
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
@@ -66,6 +83,12 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.NATSConfig != nil {
 		opt.NATSConfig = newOpt.NATSConfig
+	}
+	if newOpt.DiskStoragePath != "" {
+		opt.DiskStoragePath = newOpt.DiskStoragePath
+	}
+	if newOpt.CompactionRate != 0 {
+		opt.CompactionRate = newOpt.CompactionRate
 	}
 }
 
@@ -142,6 +165,12 @@ type worldOptionsEnv struct {
 
 	// Enable debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
+
+	// Local disk path for disk-backed components (empty = disabled).
+	DiskStoragePath string `env:"CARDINAL_DISK_STORAGE_PATH"`
+
+	// Number of ticks per disk compaction (0 = disabled).
+	CompactionRate uint32 `env:"CARDINAL_COMPACTION_RATE"`
 }
 
 // loadWorldOptionsEnv loads the world options from environment variables.
@@ -180,5 +209,7 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		SnapshotStorageType: snapshotStorageType,
 		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &cfg.Debug,
+		DiskStoragePath:     cfg.DiskStoragePath,
+		CompactionRate:      cfg.CompactionRate,
 	}
 }

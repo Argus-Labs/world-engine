@@ -3,11 +3,17 @@ package ecs
 import (
 	"math"
 	"regexp"
+	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/rotisserie/eris"
 )
+
+// diskSuffix is the reserved suffix for disk-backed components.
+// Engineers signal disk storage by appending this to their component Name().
+// The '@' character is rejected by normal name validation, making collisions impossible.
+const diskSuffix = "@disk"
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
@@ -53,21 +59,41 @@ func newComponentManager() componentManager {
 var componentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // validateComponentName validates that a component name follows expr identifier rules.
+// Names may optionally end with "@disk" to signal disk-backed storage. The base name
+// (before the @) is validated against the standard identifier pattern.
 // See: https://expr-lang.org/docs/language-definition#variables
 func validateComponentName(name string) error {
 	if name == "" {
 		return eris.New("component name cannot be empty")
 	}
 
-	if !componentNamePattern.MatchString(name) {
+	baseName, _ := parseComponentName(name)
+
+	if !componentNamePattern.MatchString(baseName) {
 		return eris.Errorf(
-			"component name '%s' is invalid: must start with a letter or underscore, "+
+			"component name '%s' is invalid: base name must start with a letter or underscore, "+
 				"and contain only letters, digits, and underscores",
 			name,
 		)
 	}
 
 	return nil
+}
+
+// parseComponentName splits a component name into its base name and whether it's disk-backed.
+// "match_history@disk" → ("match_history", true)
+// "match_history"      → ("match_history", false)
+func parseComponentName(name string) (baseName string, isDisk bool) {
+	if strings.HasSuffix(name, diskSuffix) {
+		return strings.TrimSuffix(name, diskSuffix), true
+	}
+
+	// Reject any other use of '@' in the name.
+	if strings.Contains(name, "@") {
+		return name, false // will fail regex validation
+	}
+
+	return name, false
 }
 
 // register registers a new component type and returns its ID.
@@ -107,12 +133,34 @@ func (cm *componentManager) getID(name string) (ComponentID, error) {
 }
 
 // RegisterComponent registers a component type with the world.
+// Storage mode is determined by the component's Name() return value:
+//   - "match_history"       → in-memory (default)
+//   - "match_history@disk"  → disk-backed (requires DiskStoragePath in WorldOptions)
 func RegisterComponent[T Component](world *World) (ComponentID, error) {
 	var zero T
+	name := zero.Name()
+	_, isDisk := parseComponentName(name)
+
 	if world.onComponentRegister != nil {
 		if err := world.onComponentRegister(zero); err != nil {
 			return 0, eris.Wrap(err, "component registered callback failed")
 		}
 	}
-	return world.state.components.register(zero.Name(), newColumnFactory[T]())
+
+	if isDisk {
+		if world.diskStoragePath == "" {
+			return 0, eris.Errorf("DiskStoragePath must be set in WorldOptions to use disk component %q", name)
+		}
+		// Lazy-create disk store on first disk component registration.
+		if world.disk == nil {
+			ds, err := newDiskStore(world.diskStoragePath)
+			if err != nil {
+				return 0, eris.Wrap(err, "failed to create disk store")
+			}
+			world.disk = ds
+		}
+		return world.state.components.register(name, newDiskColumnFactory[T](world.disk))
+	}
+
+	return world.state.components.register(name, newColumnFactory[T]())
 }

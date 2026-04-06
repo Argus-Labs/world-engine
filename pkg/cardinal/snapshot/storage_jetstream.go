@@ -90,10 +90,12 @@ func (j *JetStreamStorage) Store(ctx context.Context, snapshot *Snapshot) error 
 		return eris.Wrap(err, "failed to unmarshal world state")
 	}
 	snapshotPb := &cardinalv1.Snapshot{
-		TickHeight: snapshot.TickHeight,
-		Timestamp:  timestamppb.New(snapshot.Timestamp),
-		WorldState: &worldState,
-		Version:    snapshot.Version,
+		TickHeight:        snapshot.TickHeight,
+		Timestamp:         timestamppb.New(snapshot.Timestamp),
+		WorldState:        &worldState,
+		Version:           snapshot.Version,
+		DiskState:         snapshot.DiskState,
+		DiskStateChecksum: snapshot.DiskStateChecksum,
 	}
 	data, err := proto.Marshal(snapshotPb)
 	if err != nil {
@@ -139,10 +141,12 @@ func (j *JetStreamStorage) Load(ctx context.Context) (*Snapshot, error) {
 	}
 
 	return &Snapshot{
-		TickHeight: snapshotPb.GetTickHeight(),
-		Timestamp:  snapshotPb.GetTimestamp().AsTime(),
-		Data:       worldStateBytes,
-		Version:    snapshotPb.GetVersion(),
+		TickHeight:        snapshotPb.GetTickHeight(),
+		Timestamp:         snapshotPb.GetTimestamp().AsTime(),
+		Data:              worldStateBytes,
+		DiskState:         snapshotPb.GetDiskState(),
+		DiskStateChecksum: snapshotPb.GetDiskStateChecksum(),
+		Version:           snapshotPb.GetVersion(),
 	}, nil
 }
 

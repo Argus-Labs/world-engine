@@ -19,8 +19,10 @@ func CreateWithArchetype(world *World, components bitmap.Bitmap) EntityID {
 }
 
 // Destroy deletes an entity and all its components from the world. Returns true if the entity is
-// deleted, false otherwise.
+// deleted, false otherwise. Also cleans up any disk component files for the entity.
 func Destroy(world *World, eid EntityID) bool {
+	// The archetype's removeEntity handles both in-memory and disk columns.
+	// Disk column entries are removed via the normal swap-remove path.
 	return world.state.removeEntity(eid)
 }
 
@@ -30,32 +32,37 @@ func Alive(world *World, eid EntityID) bool {
 	return exists
 }
 
-// Set sets a component on an entity. If the entity contains the component type, it will update the
-// value. If it doesn't, it will add the component.
+// Set sets a component on an entity. Routes through the archetype column,
+// which is either column[T] (in-memory) or diskColumn[T] (disk-backed).
 func Set[T Component](world *World, eid EntityID, component T) error {
 	return setComponent(world.state, eid, component)
 }
 
-// Get gets a component from an entity.
-// Returns an error if the entity doesn't exist or doesn't contain the component type.
+// Get gets a component from an entity. Routes through the archetype column,
+// which is either column[T] (in-memory) or diskColumn[T] (disk-backed).
 func Get[T Component](world *World, eid EntityID) (T, error) {
 	return getComponent[T](world.state, eid)
 }
 
 // Remove removes a component from an entity.
-// Returns an error if the entity or the component to remove doesn't exist.
 func Remove[T Component](world *World, eid EntityID) error {
 	return removeComponent[T](world.state, eid)
 }
 
 // Has checks if an entity has a specific component type.
+// Uses the archetype bitmap for O(1) lookup. No disk read for disk components.
 // Returns false if either the entity doesn't exist or doesn't have the component.
 func Has[T Component](world *World, eid EntityID) bool {
-	_, err := Get[T](world, eid)
-	if err == nil {
-		return true
+	var zero T
+	cid, err := world.state.components.getID(zero.Name())
+	if err != nil {
+		return false
 	}
-	return eris.Is(err, ErrComponentNotFound)
+	aid, exists := world.state.entityArch.get(eid)
+	if !exists {
+		return false
+	}
+	return world.state.archetypes[aid].components.Contains(cid)
 }
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.

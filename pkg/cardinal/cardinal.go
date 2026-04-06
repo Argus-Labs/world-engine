@@ -1,7 +1,9 @@
 package cardinal
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"os/signal"
 	"syscall"
 	"time"
@@ -73,6 +75,11 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		currentTick: Tick{height: 0}, // timestamp will be set by cardinal.Tick
 		options:     options,
 		tel:         tel,
+	}
+
+	// Configure disk storage path (disk store created lazily on first disk component registration).
+	if options.DiskStoragePath != "" {
+		world.world.SetDiskStoragePath(options.DiskStoragePath)
 	}
 
 	// Set ECS on componet register callback (used for introspect).
@@ -215,13 +222,41 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 
 	w.debug.recordTick(w.currentTick.height, timestamp)
 
+	// Flush disk components (writes modified disk components back to files, clears buffer).
+	// Note: we intentionally do not fsync after flush. The OS page cache holds the data until
+	// the next compaction (which does fsync). If the process crashes between flushes, the data
+	// is recovered from the last snapshot, not from the disk file. This avoids the ~1ms fsync
+	// latency per tick.
+	if err := w.world.FlushDisk(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("errors encountered flushing disk components")
+	}
+
 	// Emit events.
 	if err := w.events.Dispatch(); err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
+	// Compact disk store (remove dead entries from data file).
+	// Compaction triggers on two conditions:
+	//   1. CompactionRate reached (regular cleanup, configurable, 0 = disabled)
+	//   2. Before snapshot (always, to ensure the file blob in the snapshot has no dead data)
+	isCompactionTick := w.options.CompactionRate > 0 &&
+		w.currentTick.height > 0 &&
+		w.currentTick.height%uint64(w.options.CompactionRate) == 0
+	isSnapshotTick := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
+
+	if isCompactionTick || isSnapshotTick {
+		if err := w.world.CompactDisk(); err != nil {
+			// Compaction failure is fatal. The compact() path renames a new file over the old
+			// one and reopens it. If the reopen fails, the diskStore's file handle is permanently
+			// broken and all subsequent reads/writes will fail. Continuing would silently corrupt
+			// or lose data. Panicking triggers shutdown, which persists the last good snapshot.
+			panic(eris.Wrap(err, "fatal: disk compaction failed"))
+		}
+	}
+
 	// Publish snapshot.
-	if w.currentTick.height%uint64(w.options.SnapshotRate) == 0 {
+	if isSnapshotTick {
 		snapshotCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		w.snapshot(snapshotCtx, timestamp)
 		cancel()
@@ -246,11 +281,30 @@ func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
 		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
 		return
 	}
+
+	// Export raw Bitcask file blob for disk components.
+	// diskColumn[T].toProto() stores keyDirEntries (offsets) in the ECS proto.
+	// The actual data is this file blob. Both must be restored together.
+	diskData, err := w.world.ExportDiskFile()
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to export disk file")
+		return
+	}
+
+	// Compute SHA-256 checksum for integrity verification on restore.
+	var diskChecksum []byte
+	if len(diskData) > 0 {
+		hash := sha256.Sum256(diskData)
+		diskChecksum = hash[:]
+	}
+
 	snap := &snapshot.Snapshot{
-		TickHeight: w.currentTick.height,
-		Timestamp:  timestamp,
-		Data:       data,
-		Version:    snapshot.CurrentVersion,
+		TickHeight:        w.currentTick.height,
+		Timestamp:         timestamp,
+		Data:              data,
+		DiskState:         diskData,
+		DiskStateChecksum: diskChecksum,
+		Version:           snapshot.CurrentVersion,
 	}
 	if err := w.snapshotStorage.Store(ctx, snap); err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("failed to store snapshot")
@@ -272,7 +326,21 @@ func (w *World) restore(ctx context.Context) error {
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
+	// Verify disk state integrity before restoring.
+	if len(snap.DiskState) > 0 && len(snap.DiskStateChecksum) > 0 {
+		hash := sha256.Sum256(snap.DiskState)
+		if !bytes.Equal(hash[:], snap.DiskStateChecksum) {
+			return eris.New("disk state checksum mismatch: file blob corrupted or from a different snapshot")
+		}
+	}
+
+	// Restore disk file FIRST so that diskColumn offsets point to valid data.
+	if err := w.world.ImportDiskFile(snap.DiskState); err != nil {
+		return eris.Wrap(err, "failed to restore disk file from snapshot")
+	}
+
 	// Unmarshal snapshot bytes into proto and restore ECS world.
+	// diskColumn[T].fromProto() restores keyDirEntries that point into the file above.
 	var worldState cardinalv1.WorldState
 	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
 		return eris.Wrap(err, "failed to unmarshal snapshot data")
@@ -297,9 +365,22 @@ func (w *World) shutdown() {
 
 	w.tel.Logger.Info().Msg("Shutting down world")
 
+	// Flush and compact disk before final snapshot to ensure clean file blob.
+	if err := w.world.FlushDisk(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to flush disk on shutdown")
+	}
+	if err := w.world.CompactDisk(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to compact disk on shutdown")
+	}
+
 	snapshotCtx, snapshotCancel := context.WithTimeout(ctx, 2*time.Second)
 	w.snapshot(snapshotCtx, time.Now())
 	snapshotCancel()
+
+	// Close disk store file handle.
+	if err := w.world.CloseDisk(); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("disk store close error")
+	}
 
 	// Shutdown debug server.
 	if err := w.debug.Shutdown(ctx); err != nil {

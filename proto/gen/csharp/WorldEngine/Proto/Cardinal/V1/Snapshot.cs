@@ -26,28 +26,30 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           string.Concat(
             "CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29y",
             "bGRlbmdpbmUuY2FyZGluYWwudjEaG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5w",
-            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byLFAQoIU25h",
+            "cm90bxofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byKUAgoIU25h",
             "cHNob3QSHwoLdGlja19oZWlnaHQYASABKARSCnRpY2tIZWlnaHQSOAoJdGlt",
             "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
             "ZXN0YW1wEkQKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
             "ZGluYWwudjEuV29ybGRTdGF0ZVIKd29ybGRTdGF0ZRIYCgd2ZXJzaW9uGAQg",
-            "ASgNUgd2ZXJzaW9uIqUBCgpXb3JsZFN0YXRlEhcKB25leHRfaWQYASABKA1S",
-            "Bm5leHRJZBIZCghmcmVlX2lkcxgCIAMoDVIHZnJlZUlkcxIfCgtlbnRpdHlf",
-            "YXJjaBgDIAMoA1IKZW50aXR5QXJjaBJCCgphcmNoZXR5cGVzGAQgAygLMiIu",
-            "d29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJjaGV0eXBlUgphcmNoZXR5cGVz",
-            "IrMBCglBcmNoZXR5cGUSDgoCaWQYASABKAVSAmlkEisKEWNvbXBvbmVudHNf",
-            "Yml0bWFwGAIgASgMUhBjb21wb25lbnRzQml0bWFwEhIKBHJvd3MYAyADKANS",
-            "BHJvd3MSGgoIZW50aXRpZXMYBCADKA1SCGVudGl0aWVzEjkKB2NvbHVtbnMY",
-            "BSADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW5SB2NvbHVt",
-            "bnMiWAoGQ29sdW1uEi4KDmNvbXBvbmVudF9uYW1lGAEgASgJQge6SARyAhAB",
-            "Ug1jb21wb25lbnROYW1lEh4KCmNvbXBvbmVudHMYAiADKAxSCmNvbXBvbmVu",
-            "dHNCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90",
-            "by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoC",
-            "HVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
+            "ASgNUgd2ZXJzaW9uEh0KCmRpc2tfc3RhdGUYBSABKAxSCWRpc2tTdGF0ZRIu",
+            "ChNkaXNrX3N0YXRlX2NoZWNrc3VtGAYgASgMUhFkaXNrU3RhdGVDaGVja3N1",
+            "bSKlAQoKV29ybGRTdGF0ZRIXCgduZXh0X2lkGAEgASgNUgZuZXh0SWQSGQoI",
+            "ZnJlZV9pZHMYAiADKA1SB2ZyZWVJZHMSHwoLZW50aXR5X2FyY2gYAyADKANS",
+            "CmVudGl0eUFyY2gSQgoKYXJjaGV0eXBlcxgEIAMoCzIiLndvcmxkZW5naW5l",
+            "LmNhcmRpbmFsLnYxLkFyY2hldHlwZVIKYXJjaGV0eXBlcyKzAQoJQXJjaGV0",
+            "eXBlEg4KAmlkGAEgASgFUgJpZBIrChFjb21wb25lbnRzX2JpdG1hcBgCIAEo",
+            "DFIQY29tcG9uZW50c0JpdG1hcBISCgRyb3dzGAMgAygDUgRyb3dzEhoKCGVu",
+            "dGl0aWVzGAQgAygNUghlbnRpdGllcxI5Cgdjb2x1bW5zGAUgAygLMh8ud29y",
+            "bGRlbmdpbmUuY2FyZGluYWwudjEuQ29sdW1uUgdjb2x1bW5zIlgKBkNvbHVt",
+            "bhIuCg5jb21wb25lbnRfbmFtZRgBIAEoCUIHukgEcgIQAVINY29tcG9uZW50",
+            "TmFtZRIeCgpjb21wb25lbnRzGAIgAygMUgpjb21wb25lbnRzQnRaUmdpdGh1",
+            "Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dv",
+            "cmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2lu",
+            "ZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version", "DiskState", "DiskStateChecksum" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Rows", "Entities", "Columns" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Column), global::WorldEngine.Proto.Cardinal.V1.Column.Parser, new[]{ "ComponentName", "Components" }, null, null, null, null)
@@ -99,6 +101,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       timestamp_ = other.timestamp_ != null ? other.timestamp_.Clone() : null;
       worldState_ = other.worldState_ != null ? other.worldState_.Clone() : null;
       version_ = other.version_;
+      diskState_ = other.diskState_;
+      diskStateChecksum_ = other.diskStateChecksum_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -156,6 +160,36 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
+    /// <summary>Field number for the "disk_state" field.</summary>
+    public const int DiskStateFieldNumber = 5;
+    private pb::ByteString diskState_ = pb::ByteString.Empty;
+    /// <summary>
+    /// Disk component file state. Raw Bitcask file bytes. Empty if disk storage not used.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pb::ByteString DiskState {
+      get { return diskState_; }
+      set {
+        diskState_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "disk_state_checksum" field.</summary>
+    public const int DiskStateChecksumFieldNumber = 6;
+    private pb::ByteString diskStateChecksum_ = pb::ByteString.Empty;
+    /// <summary>
+    /// SHA-256 checksum of disk_state for integrity verification on restore.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pb::ByteString DiskStateChecksum {
+      get { return diskStateChecksum_; }
+      set {
+        diskStateChecksum_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -175,6 +209,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (!object.Equals(Timestamp, other.Timestamp)) return false;
       if (!object.Equals(WorldState, other.WorldState)) return false;
       if (Version != other.Version) return false;
+      if (DiskState != other.DiskState) return false;
+      if (DiskStateChecksum != other.DiskStateChecksum) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -186,6 +222,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (timestamp_ != null) hash ^= Timestamp.GetHashCode();
       if (worldState_ != null) hash ^= WorldState.GetHashCode();
       if (Version != 0) hash ^= Version.GetHashCode();
+      if (DiskState.Length != 0) hash ^= DiskState.GetHashCode();
+      if (DiskStateChecksum.Length != 0) hash ^= DiskStateChecksum.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -220,6 +258,14 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(32);
         output.WriteUInt32(Version);
       }
+      if (DiskState.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteBytes(DiskState);
+      }
+      if (DiskStateChecksum.Length != 0) {
+        output.WriteRawTag(50);
+        output.WriteBytes(DiskStateChecksum);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -246,6 +292,14 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(32);
         output.WriteUInt32(Version);
       }
+      if (DiskState.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteBytes(DiskState);
+      }
+      if (DiskStateChecksum.Length != 0) {
+        output.WriteRawTag(50);
+        output.WriteBytes(DiskStateChecksum);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -267,6 +321,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (Version != 0) {
         size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Version);
+      }
+      if (DiskState.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(DiskState);
+      }
+      if (DiskStateChecksum.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(DiskStateChecksum);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -297,6 +357,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (other.Version != 0) {
         Version = other.Version;
+      }
+      if (other.DiskState.Length != 0) {
+        DiskState = other.DiskState;
+      }
+      if (other.DiskStateChecksum.Length != 0) {
+        DiskStateChecksum = other.DiskStateChecksum;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -339,6 +405,14 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             Version = input.ReadUInt32();
             break;
           }
+          case 42: {
+            DiskState = input.ReadBytes();
+            break;
+          }
+          case 50: {
+            DiskStateChecksum = input.ReadBytes();
+            break;
+          }
         }
       }
     #endif
@@ -378,6 +452,14 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           }
           case 32: {
             Version = input.ReadUInt32();
+            break;
+          }
+          case 42: {
+            DiskState = input.ReadBytes();
+            break;
+          }
+          case 50: {
+            DiskStateChecksum = input.ReadBytes();
             break;
           }
         }
