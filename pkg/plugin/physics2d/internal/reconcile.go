@@ -157,6 +157,9 @@ func reconcileExistingBody(
 		if err := reconcileShapesChange(rt, body, e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
 			return err
 		}
+		// A fixture may have toggled IsSensor without body params changing; re-enforce the
+		// sensor-sleep policy so newly-sensored kinematic/manual bodies stay awake.
+		enforceSensorAwakePolicy(body, e.PhysicsBody)
 	}
 	// Manual bodies always have zero velocity in Box2D (ECS owns position, not velocity).
 	// For all other body types, push ECS velocity into Box2D when it changes.
@@ -210,10 +213,9 @@ func applyBodyParamsInPlace(body *box2d.B2Body, pb component.PhysicsBody2D) {
 	body.SetAngularDamping(pb.AngularDamping)
 	body.SetGravityScale(pb.GravityScale)
 	body.SetActive(pb.Active)
-	body.SetSleepingAllowed(pb.SleepingAllowed)
-	body.SetAwake(pb.Awake)
 	body.SetBullet(pb.Bullet)
 	body.SetFixedRotation(pb.FixedRotation)
+	enforceSensorAwakePolicy(body, pb)
 }
 
 // destroyAllFixtures removes every fixture from body (used before re-attaching a structurally changed collider).

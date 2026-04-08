@@ -55,7 +55,39 @@ func CreateBody(
 	if body == nil {
 		return nil, errors.New("physics2d: CreateBody returned nil (world may be locked)")
 	}
+
+	enforceSensorAwakePolicy(body, pb)
+
 	return body, nil
+}
+
+// enforceSensorAwakePolicy ensures kinematic/manual bodies with sensor fixtures never sleep.
+// Box2D's ContactManager.Collide skips contacts when both bodies are asleep, so a sleeping
+// kinematic/manual sensor would silently stop generating BeginContact/EndContact callbacks.
+// Static bodies are excluded (Collide always treats them as inactive regardless of awake state)
+// and dynamic bodies are excluded (their movement naturally keeps them awake).
+func enforceSensorAwakePolicy(body *box2d.B2Body, pb component.PhysicsBody2D) {
+	forceAwake := (pb.BodyType == component.BodyTypeKinematic || pb.BodyType == component.BodyTypeManual) &&
+		hasAnySensorShape(pb.Shapes)
+
+	if forceAwake {
+		body.SetSleepingAllowed(false)
+		body.SetAwake(true)
+		return
+	}
+
+	body.SetSleepingAllowed(pb.SleepingAllowed)
+	body.SetAwake(pb.Awake)
+}
+
+// hasAnySensorShape returns true if any shape in the slice has IsSensor set.
+func hasAnySensorShape(shapes []component.ColliderShape) bool {
+	for i := range shapes {
+		if shapes[i].IsSensor {
+			return true
+		}
+	}
+	return false
 }
 
 // AttachColliderFixtures creates one fixture per ColliderShape in order. ShapeIndex in
