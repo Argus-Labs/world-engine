@@ -38,56 +38,55 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             "dWxlUglzY2hlZHVsZXMiiAEKDlN5c3RlbVNjaGVkdWxlEjcKBGhvb2sYASAB",
             "KA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1Ib29rUgRob29r",
             "Ej0KB3N5c3RlbXMYAiADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5T",
-            "eXN0ZW1Ob2RlUgdzeXN0ZW1zIlAKClN5c3RlbU5vZGUSDgoCaWQYASABKA1S",
-            "AmlkEhIKBG5hbWUYAiABKAlSBG5hbWUSHgoKZGVwZW5kZW50cxgDIAMoDVIK",
-            "ZGVwZW5kZW50cyJRCgpUeXBlU2NoZW1hEhIKBG5hbWUYASABKAlSBG5hbWUS",
-            "LwoGc2NoZW1hGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdFIGc2No",
-            "ZW1hIg4KDFBhdXNlUmVxdWVzdCIwCg1QYXVzZVJlc3BvbnNlEh8KC3RpY2tf",
-            "aGVpZ2h0GAEgASgEUgp0aWNrSGVpZ2h0Ig8KDVJlc3VtZVJlcXVlc3QiEAoO",
-            "UmVzdW1lUmVzcG9uc2UiDQoLU3RlcFJlcXVlc3QiLwoMU3RlcFJlc3BvbnNl",
-            "Eh8KC3RpY2tfaGVpZ2h0GAEgASgEUgp0aWNrSGVpZ2h0Ig4KDFJlc2V0UmVx",
-            "dWVzdCIPCg1SZXNldFJlc3BvbnNlIhEKD0dldFN0YXRlUmVxdWVzdCJuChBH",
-            "ZXRTdGF0ZVJlc3BvbnNlEhsKCWlzX3BhdXNlZBgBIAEoCFIIaXNQYXVzZWQS",
-            "PQoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5T",
-            "bmFwc2hvdFIIc25hcHNob3QiEwoRU3RyZWFtUGVyZlJlcXVlc3QiSAoJUGVy",
-            "ZkJhdGNoEjsKBXRpY2tzGAEgAygLMiUud29ybGRlbmdpbmUuY2FyZGluYWwu",
-            "djEuVGlja1RpbWVsaW5lUgV0aWNrcyKlAQoMVGlja1RpbWVsaW5lEh8KC3Rp",
-            "Y2tfaGVpZ2h0GAEgASgEUgp0aWNrSGVpZ2h0EjkKCnRpY2tfc3RhcnQYAiAB",
-            "KAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgl0aWNrU3RhcnQSOQoF",
-            "c3BhbnMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1T",
-            "cGFuUgVzcGFucyKzAQoKU3lzdGVtU3BhbhJECgtzeXN0ZW1faG9vaxgBIAEo",
-            "DjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2tSCnN5c3Rl",
-            "bUhvb2sSFgoGc3lzdGVtGAIgASgJUgZzeXN0ZW0SJgoPc3RhcnRfb2Zmc2V0",
-            "X25zGAMgASgEUg1zdGFydE9mZnNldE5zEh8KC2R1cmF0aW9uX25zGAQgASgE",
-            "UgpkdXJhdGlvbk5zKpABCgpTeXN0ZW1Ib29rEhsKF1NZU1RFTV9IT09LX1VO",
-            "U1BFQ0lGSUVEEAASGgoWU1lTVEVNX0hPT0tfUFJFX1VQREFURRABEhYKElNZ",
-            "U1RFTV9IT09LX1VQREFURRACEhsKF1NZU1RFTV9IT09LX1BPU1RfVVBEQVRF",
-            "EAMSFAoQU1lTVEVNX0hPT0tfSU5JVBAEMpYFCgxEZWJ1Z1NlcnZpY2USZQoK",
-            "SW50cm9zcGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3Bl",
-            "Y3RSZXF1ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVj",
-            "dFJlc3BvbnNlElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEu",
-            "UGF1c2VSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VS",
-            "ZXNwb25zZRJZCgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5S",
-            "ZXN1bWVSZXF1ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1l",
-            "UmVzcG9uc2USUwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0",
-            "ZXBSZXF1ZXN0GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlc3Bv",
-            "bnNlElYKBVJlc2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRS",
-            "ZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXNwb25z",
-            "ZRJfCghHZXRTdGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0",
-            "YXRlUmVxdWVzdBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRl",
-            "UmVzcG9uc2USXgoKU3RyZWFtUGVyZhIqLndvcmxkZW5naW5lLmNhcmRpbmFs",
-            "LnYxLlN0cmVhbVBlcmZSZXF1ZXN0GiIud29ybGRlbmdpbmUuY2FyZGluYWwu",
-            "djEuUGVyZkJhdGNoMAFCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxk",
-            "LWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7",
-            "Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZw",
-            "cm90bzM="));
+            "eXN0ZW1Ob2RlUgdzeXN0ZW1zIjAKClN5c3RlbU5vZGUSDgoCaWQYASABKA1S",
+            "AmlkEhIKBG5hbWUYAiABKAlSBG5hbWUiUQoKVHlwZVNjaGVtYRISCgRuYW1l",
+            "GAEgASgJUgRuYW1lEi8KBnNjaGVtYRgCIAEoCzIXLmdvb2dsZS5wcm90b2J1",
+            "Zi5TdHJ1Y3RSBnNjaGVtYSIOCgxQYXVzZVJlcXVlc3QiMAoNUGF1c2VSZXNw",
+            "b25zZRIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlja0hlaWdodCIPCg1SZXN1",
+            "bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0Ii8K",
+            "DFN0ZXBSZXNwb25zZRIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlja0hlaWdo",
+            "dCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0",
+            "ZVJlcXVlc3QibgoQR2V0U3RhdGVSZXNwb25zZRIbCglpc19wYXVzZWQYASAB",
+            "KAhSCGlzUGF1c2VkEj0KCHNuYXBzaG90GAIgASgLMiEud29ybGRlbmdpbmUu",
+            "Y2FyZGluYWwudjEuU25hcHNob3RSCHNuYXBzaG90IhMKEVN0cmVhbVBlcmZS",
+            "ZXF1ZXN0IkgKCVBlcmZCYXRjaBI7CgV0aWNrcxgBIAMoCzIlLndvcmxkZW5n",
+            "aW5lLmNhcmRpbmFsLnYxLlRpY2tUaW1lbGluZVIFdGlja3MipQEKDFRpY2tU",
+            "aW1lbGluZRIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlja0hlaWdodBI5Cgp0",
+            "aWNrX3N0YXJ0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJ",
+            "dGlja1N0YXJ0EjkKBXNwYW5zGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGlu",
+            "YWwudjEuU3lzdGVtU3BhblIFc3BhbnMiswEKClN5c3RlbVNwYW4SRAoLc3lz",
+            "dGVtX2hvb2sYASABKA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0",
+            "ZW1Ib29rUgpzeXN0ZW1Ib29rEhYKBnN5c3RlbRgCIAEoCVIGc3lzdGVtEiYK",
+            "D3N0YXJ0X29mZnNldF9ucxgDIAEoBFINc3RhcnRPZmZzZXROcxIfCgtkdXJh",
+            "dGlvbl9ucxgEIAEoBFIKZHVyYXRpb25OcyqQAQoKU3lzdGVtSG9vaxIbChdT",
+            "WVNURU1fSE9PS19VTlNQRUNJRklFRBAAEhoKFlNZU1RFTV9IT09LX1BSRV9V",
+            "UERBVEUQARIWChJTWVNURU1fSE9PS19VUERBVEUQAhIbChdTWVNURU1fSE9P",
+            "S19QT1NUX1VQREFURRADEhQKEFNZU1RFTV9IT09LX0lOSVQQBDKWBQoMRGVi",
+            "dWdTZXJ2aWNlEmUKCkludHJvc3BlY3QSKi53b3JsZGVuZ2luZS5jYXJkaW5h",
+            "bC52MS5JbnRyb3NwZWN0UmVxdWVzdBorLndvcmxkZW5naW5lLmNhcmRpbmFs",
+            "LnYxLkludHJvc3BlY3RSZXNwb25zZRJWCgVQYXVzZRIlLndvcmxkZW5naW5l",
+            "LmNhcmRpbmFsLnYxLlBhdXNlUmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRp",
+            "bmFsLnYxLlBhdXNlUmVzcG9uc2USWQoGUmVzdW1lEiYud29ybGRlbmdpbmUu",
+            "Y2FyZGluYWwudjEuUmVzdW1lUmVxdWVzdBonLndvcmxkZW5naW5lLmNhcmRp",
+            "bmFsLnYxLlJlc3VtZVJlc3BvbnNlElMKBFN0ZXASJC53b3JsZGVuZ2luZS5j",
+            "YXJkaW5hbC52MS5TdGVwUmVxdWVzdBolLndvcmxkZW5naW5lLmNhcmRpbmFs",
+            "LnYxLlN0ZXBSZXNwb25zZRJWCgVSZXNldBIlLndvcmxkZW5naW5lLmNhcmRp",
+            "bmFsLnYxLlJlc2V0UmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYx",
+            "LlJlc2V0UmVzcG9uc2USXwoIR2V0U3RhdGUSKC53b3JsZGVuZ2luZS5jYXJk",
+            "aW5hbC52MS5HZXRTdGF0ZVJlcXVlc3QaKS53b3JsZGVuZ2luZS5jYXJkaW5h",
+            "bC52MS5HZXRTdGF0ZVJlc3BvbnNlEl4KClN0cmVhbVBlcmYSKi53b3JsZGVu",
+            "Z2luZS5jYXJkaW5hbC52MS5TdHJlYW1QZXJmUmVxdWVzdBoiLndvcmxkZW5n",
+            "aW5lLmNhcmRpbmFsLnYxLlBlcmZCYXRjaDABQnRaUmdpdGh1Yi5jb20vYXJn",
+            "dXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5l",
+            "L2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5D",
+            "YXJkaW5hbC5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::WorldEngine.Proto.Cardinal.V1.SystemHook), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest), global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse), global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse.Parser, new[]{ "Commands", "Components", "Events", "TickRateHz", "Schedules" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemSchedule), global::WorldEngine.Proto.Cardinal.V1.SystemSchedule.Parser, new[]{ "Hook", "Systems" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemNode), global::WorldEngine.Proto.Cardinal.V1.SystemNode.Parser, new[]{ "Id", "Name", "Dependents" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemNode), global::WorldEngine.Proto.Cardinal.V1.SystemNode.Parser, new[]{ "Id", "Name" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "Schema" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PauseRequest), global::WorldEngine.Proto.Cardinal.V1.PauseRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PauseResponse), global::WorldEngine.Proto.Cardinal.V1.PauseResponse.Parser, new[]{ "TickHeight" }, null, null, null, null),
@@ -608,7 +607,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// SystemSchedule describes the dependency graph for one execution phase.
+  /// SystemSchedule describes the systems for one execution phase.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class SystemSchedule : pb::IMessage<SystemSchedule>
@@ -835,7 +834,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// SystemNode describes a single system and its dependents within a schedule.
+  /// SystemNode describes a single system within a schedule.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class SystemNode : pb::IMessage<SystemNode>
@@ -874,7 +873,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public SystemNode(SystemNode other) : this() {
       id_ = other.id_;
       name_ = other.name_;
-      dependents_ = other.dependents_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -888,7 +886,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int IdFieldNumber = 1;
     private uint id_;
     /// <summary>
-    /// Index of this system within the schedule (used as the ID for dependency references).
+    /// Index of this system within the schedule.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -914,20 +912,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
-    /// <summary>Field number for the "dependents" field.</summary>
-    public const int DependentsFieldNumber = 3;
-    private static readonly pb::FieldCodec<uint> _repeated_dependents_codec
-        = pb::FieldCodec.ForUInt32(26);
-    private readonly pbc::RepeatedField<uint> dependents_ = new pbc::RepeatedField<uint>();
-    /// <summary>
-    /// Indices of systems that depend on this one (forward edges in the execution graph).
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<uint> Dependents {
-      get { return dependents_; }
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -945,7 +929,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (Id != other.Id) return false;
       if (Name != other.Name) return false;
-      if(!dependents_.Equals(other.dependents_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -955,7 +938,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       int hash = 1;
       if (Id != 0) hash ^= Id.GetHashCode();
       if (Name.Length != 0) hash ^= Name.GetHashCode();
-      hash ^= dependents_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -982,7 +964,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteString(Name);
       }
-      dependents_.WriteTo(output, _repeated_dependents_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -1001,7 +982,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteString(Name);
       }
-      dependents_.WriteTo(ref output, _repeated_dependents_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -1018,7 +998,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (Name.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
       }
-      size += dependents_.CalculateSize(_repeated_dependents_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -1037,7 +1016,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (other.Name.Length != 0) {
         Name = other.Name;
       }
-      dependents_.Add(other.dependents_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -1065,11 +1043,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             Name = input.ReadString();
             break;
           }
-          case 26:
-          case 24: {
-            dependents_.AddEntriesFrom(input, _repeated_dependents_codec);
-            break;
-          }
         }
       }
     #endif
@@ -1095,11 +1068,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           }
           case 18: {
             Name = input.ReadString();
-            break;
-          }
-          case 26:
-          case 24: {
-            dependents_.AddEntriesFrom(ref input, _repeated_dependents_codec);
             break;
           }
         }

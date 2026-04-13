@@ -62,20 +62,18 @@ message IntrospectResponse {
   repeated SystemSchedule schedules = 5;
 }
 
-// SystemSchedule describes the dependency graph for one execution phase.
+// SystemSchedule describes the systems for one execution phase.
 message SystemSchedule {
   SystemHook hook = 1;
   repeated SystemNode systems = 2;
 }
 
-// SystemNode describes a single system and its dependents within a schedule.
+// SystemNode describes a single system within a schedule.
 message SystemNode {
-  // Index of this system within the schedule (used as the ID for dependency references).
+  // Index of this system within the schedule.
   uint32 id = 1;
   // Name of the system.
   string name = 2;
-  // Indices of systems that depend on this one (forward edges in the execution graph).
-  repeated uint32 dependents = 3;
 }
 
 // TypeSchema represents the JSON schema for a registered type.

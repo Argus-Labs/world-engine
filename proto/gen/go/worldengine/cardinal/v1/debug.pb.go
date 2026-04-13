@@ -198,7 +198,7 @@ func (x *IntrospectResponse) GetSchedules() []*SystemSchedule {
 	return nil
 }
 
-// SystemSchedule describes the dependency graph for one execution phase.
+// SystemSchedule describes the systems for one execution phase.
 type SystemSchedule struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hook          SystemHook             `protobuf:"varint,1,opt,name=hook,proto3,enum=worldengine.cardinal.v1.SystemHook" json:"hook,omitempty"`
@@ -251,15 +251,13 @@ func (x *SystemSchedule) GetSystems() []*SystemNode {
 	return nil
 }
 
-// SystemNode describes a single system and its dependents within a schedule.
+// SystemNode describes a single system within a schedule.
 type SystemNode struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Index of this system within the schedule (used as the ID for dependency references).
+	// Index of this system within the schedule.
 	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Name of the system.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Indices of systems that depend on this one (forward edges in the execution graph).
-	Dependents    []uint32 `protobuf:"varint,3,rep,packed,name=dependents,proto3" json:"dependents,omitempty"`
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -306,13 +304,6 @@ func (x *SystemNode) GetName() string {
 		return x.Name
 	}
 	return ""
-}
-
-func (x *SystemNode) GetDependents() []uint32 {
-	if x != nil {
-		return x.Dependents
-	}
-	return nil
 }
 
 // TypeSchema represents the JSON schema for a registered type.
@@ -1005,14 +996,11 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\tschedules\x18\x05 \x03(\v2'.worldengine.cardinal.v1.SystemScheduleR\tschedules\"\x88\x01\n" +
 	"\x0eSystemSchedule\x127\n" +
 	"\x04hook\x18\x01 \x01(\x0e2#.worldengine.cardinal.v1.SystemHookR\x04hook\x12=\n" +
-	"\asystems\x18\x02 \x03(\v2#.worldengine.cardinal.v1.SystemNodeR\asystems\"P\n" +
+	"\asystems\x18\x02 \x03(\v2#.worldengine.cardinal.v1.SystemNodeR\asystems\"0\n" +
 	"\n" +
 	"SystemNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1e\n" +
-	"\n" +
-	"dependents\x18\x03 \x03(\rR\n" +
-	"dependents\"Q\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"Q\n" +
 	"\n" +
 	"TypeSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +

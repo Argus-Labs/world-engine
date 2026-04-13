@@ -745,7 +745,7 @@ func newBenchWorld() *World {
 
 func mustInitSystemFields[T any](b testing.TB, world *World, state *T) {
 	b.Helper()
-	_, _, err := initSystemFields(state, world)
+	err := initSystemFields(state, world)
 	if err != nil {
 		b.Fatalf("failed to initialize system fields: %v", err)
 	}

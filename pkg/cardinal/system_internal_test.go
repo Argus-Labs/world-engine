@@ -536,7 +536,7 @@ func newSearchFixture(t *testing.T) *searchFixture {
 
 	fixture := &searchFixture{}
 
-	_, _, err := initSystemFields(fixture, world)
+	err := initSystemFields(fixture, world)
 	require.NoError(t, err)
 
 	return fixture

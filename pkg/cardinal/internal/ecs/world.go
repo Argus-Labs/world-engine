@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"testing"
-	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -13,58 +12,43 @@ import (
 type World struct {
 	state               *worldState
 	initialized         bool                  // True once Init has completed; reset to false by Reset
-	initSystems         []initSystem          // Initialization systems, run once per world initialization
-	scheduler           [3]systemScheduler    // Systems schedulers (PreTick, Update, PostTick)
+	systems             [4][]systemMetadata   // Systems for each hook (PreUpdate, Update, PostUpdate, Init)
 	systemEvents        systemEventManager    // Manages system events
 	onComponentRegister func(Component) error // Callback called when a component is registered
 }
 
 // NewWorld creates a new World instance.
 func NewWorld() *World {
-	world := &World{
+	return &World{
 		state:        newWorldState(),
-		initSystems:  make([]initSystem, 0),
-		scheduler:    [3]systemScheduler{},
 		systemEvents: newSystemEventManager(),
 	}
-
-	systemHookNames := [3]SystemHook{PreUpdate, Update, PostUpdate}
-	for i := range world.scheduler {
-		world.scheduler[i] = newSystemScheduler()
-		world.scheduler[i].systemHook = systemHookNames[i]
-	}
-
-	return world
 }
 
-// Init initializes system schedulers by creating their schedules and runs init systems.
+// Init runs init systems once.
 func (w *World) Init() {
 	assert.That(!w.initialized, "Init called when world is already initialized")
 
-	for i := range w.scheduler {
-		w.scheduler[i].createSchedule()
-	}
-
-	for _, system := range w.initSystems {
+	for _, system := range w.systems[Init] {
 		system.fn()
 	}
 
 	w.initialized = true
 }
 
-// Tick passes external events into the event manager and executes the
-// registered systems in order. If any system returns an error, the entire tick is considered
-// failed, changes are discarded, and the error is returned. If the tick succeeds, the events
-// emmitted during the tick is returned.
+// Tick executes the registered systems in order: PreUpdate, Update, PostUpdate.
+// System events are cleared after each tick.
 func (w *World) Tick() {
 	assert.That(w.initialized, "Tick called before initialization")
 
 	// Clear system events after each tick.
 	defer w.systemEvents.clear()
 
-	// Run the systems.
-	for i := range w.scheduler {
-		w.scheduler[i].Run()
+	// Run the systems sequentially.
+	for _, hook := range []SystemHook{PreUpdate, Update, PostUpdate} {
+		for _, system := range w.systems[hook] {
+			system.fn()
+		}
 	}
 }
 
@@ -75,19 +59,18 @@ func (w *World) Reset() {
 	w.initialized = false
 }
 
-// SetOnSystemRun sets a callback invoked after each system execution.
-// Must be called before Init.
-func (w *World) OnSystemRun(fn func(name string, systemHook SystemHook, startTime, endTime time.Time)) {
-	for i := range w.scheduler {
-		w.scheduler[i].onSystemRun = fn
-	}
-}
-
-// Schedules returns the dependency graphs for all execution phases.
+// Schedules returns the systems for all execution phases.
 func (w *World) Schedules() []ScheduleInfo {
-	schedules := make([]ScheduleInfo, len(w.scheduler))
-	for i := range w.scheduler {
-		schedules[i] = w.scheduler[i].scheduleInfo()
+	schedules := make([]ScheduleInfo, 4)
+	for hook := range 4 {
+		systems := make([]SystemInfo, len(w.systems[hook]))
+		for i, sys := range w.systems[hook] {
+			systems[i] = SystemInfo{
+				ID:   i,
+				Name: sys.name,
+			}
+		}
+		schedules[hook] = ScheduleInfo{Hook: SystemHook(hook), Systems: systems} //nolint: gosec // it's ok
 	}
 	return schedules
 }

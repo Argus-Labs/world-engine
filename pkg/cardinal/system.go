@@ -10,6 +10,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
@@ -34,25 +35,37 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 	// Initialize the fields in the system state.
 	state := new(T)
 
-	deps1, deps2, err := initSystemFields(state, world)
-	if err != nil {
+	if err := initSystemFields(state, world); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
-	err = ecs.RegisterSystem(world.world, ecs.RegisterSystemOptions[T]{
-		Name:            fmt.Sprintf("%T", system),
-		State:           state,
-		System:          func() { system(state) },
-		Hook:            cfg.hook,
-		DepsComponent:   deps1,
-		DepsSystemEvent: deps2,
-	})
+	name := fmt.Sprintf("%T", system)
+	fn := func() { system(state) }
+
+	// If debug is enabled, wrap the system function with performance instrumentation.
+	if world.debug != nil {
+		fn = func() {
+			ts := world.currentTick.timestamp
+			startTime := ts.Add(time.Since(ts))
+			system(state)
+			endTime := ts.Add(time.Since(ts))
+			world.debug.recordSpan(performance.TickSpan{
+				TickHeight: world.currentTick.height,
+				SystemName: name,
+				SystemHook: uint8(cfg.hook),
+				StartTime:  startTime,
+				EndTime:    endTime,
+			})
+		}
+	}
+
+	err := ecs.RegisterSystem(world.world, name, cfg.hook, fn)
 	if err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
 }
 
-func initSystemFields[T any](state *T, world *World) (bitmap.Bitmap, bitmap.Bitmap, error) {
+func initSystemFields[T any](state *T, world *World) error {
 	meta := systemInitMetadata{
 		world:        world,
 		commands:     make(map[string]struct{}),
@@ -68,7 +81,7 @@ func initSystemFields[T any](state *T, world *World) (bitmap.Bitmap, bitmap.Bitm
 
 		// If the field is not exported, return an error.
 		if !field.CanAddr() {
-			return bitmap.Bitmap{}, bitmap.Bitmap{}, eris.Errorf("field %s must be exported", fieldType.Name)
+			return eris.Errorf("field %s must be exported", fieldType.Name)
 		}
 
 		fieldInstance := field.Addr().Interface()
@@ -76,22 +89,20 @@ func initSystemFields[T any](state *T, world *World) (bitmap.Bitmap, bitmap.Bitm
 		cardinalField, ok := fieldInstance.(systemField)
 		if ok {
 			if err := cardinalField.init(&meta); err != nil {
-				return bitmap.Bitmap{}, bitmap.Bitmap{}, eris.Wrapf(err, "failed to initialize field %s", fieldType.Name)
+				return eris.Wrapf(err, "failed to initialize field %s", fieldType.Name)
 			}
 		}
 		// For now we'll ignore other fields in the system state struct.
 	}
 
-	return meta.depsComponent, meta.depsSystemEvent, nil
+	return nil
 }
 
 type systemInitMetadata struct {
-	world           *World
-	commands        map[string]struct{}
-	events          map[string]struct{}
-	systemEvents    map[string]struct{}
-	depsComponent   bitmap.Bitmap
-	depsSystemEvent bitmap.Bitmap
+	world        *World
+	commands     map[string]struct{}
+	events       map[string]struct{}
+	systemEvents map[string]struct{}
 }
 
 type systemField interface {
@@ -361,14 +372,13 @@ func (s *WithSystemEventReceiver[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple system events of the same type: %s", name)
 	}
 
-	id, err := ecs.RegisterSystemEvent[T](meta.world.world)
+	_, err := ecs.RegisterSystemEvent[T](meta.world.world)
 	if err != nil {
 		return eris.Wrapf(err, "failed to register system event %s", name)
 	}
 	s.world = meta.world.world
 
 	meta.systemEvents[name] = struct{}{} // Add to system's system events set for duplicate field check
-	meta.depsSystemEvent.Set(id)         // Add the system event ID to the system event dependencies
 	return nil
 }
 
@@ -426,14 +436,13 @@ func (s *WithSystemEventEmitter[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple system events of the same type: %s", name)
 	}
 
-	id, err := ecs.RegisterSystemEvent[T](meta.world.world)
+	_, err := ecs.RegisterSystemEvent[T](meta.world.world)
 	if err != nil {
 		return eris.Wrapf(err, "failed to register system event %s", name)
 	}
 	s.world = meta.world.world
 
 	meta.systemEvents[name] = struct{}{} // Add to system's system events set for duplicate field check
-	meta.depsSystemEvent.Set(id)         // Add the system event ID to the system event dependencies
 	return nil
 }
 
@@ -494,9 +503,7 @@ func (s *search[T]) init(meta *systemInitMetadata) error {
 		if err != nil {
 			return eris.Wrapf(err, "failed to register component %d", cid)
 		}
-
-		s.components.Set(cid)       // Add to local component set (used for archetype lookups)
-		meta.depsComponent.Set(cid) // Add to system component deps (used by scheduler)
+		s.components.Set(cid) // Add to local component set (used for archetype lookups)
 	}
 	return nil
 }
