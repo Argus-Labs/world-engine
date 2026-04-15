@@ -471,6 +471,39 @@ type LobbyProvider interface {
 	GenerateInviteCode(lobby *component.LobbyComponent) string
 }
 
+// LobbyHooks lets consumers react to lobby lifecycle events.
+// Pass via Config.Hooks; nil falls back to NoopHooks.
+type LobbyHooks interface {
+	// PreSessionStart fires after session-start validation passes but before
+	// any state mutation, event emission, or cross-shard dispatch. May mutate
+	// lobby. Returning an error aborts session start; no state changes and no
+	// events are emitted.
+	//
+	// Runs on the lobby tick goroutine. Keep it fast; blocking I/O stalls the
+	// entire world.
+	//
+	// Use cases:
+	//   - Dynamic game-shard selection (set lobby.GameWorld.ShardID)
+	//   - Abort session start based on external state
+	//   - Session-start audit logging
+	PreSessionStart(lobby *component.LobbyComponent) error
+
+	// PostSessionEnd fires after session-end state transition.
+	// Fire-and-forget.
+	//
+	// Use cases:
+	//   - Release external locks or claims tied to the session
+	//   - Session-end metrics / audit logging
+	PostSessionEnd(lobby *component.LobbyComponent)
+}
+
+// NoopHooks is the default LobbyHooks implementation.
+// Embed it in a custom hooks type and override only the methods you need.
+type NoopHooks struct{}
+
+func (NoopHooks) PreSessionStart(*component.LobbyComponent) error { return nil }
+func (NoopHooks) PostSessionEnd(*component.LobbyComponent)        {}
+
 // DefaultProvider provides default implementations.
 type DefaultProvider struct{}
 
@@ -503,6 +536,19 @@ var storedProvider LobbyProvider = DefaultProvider{}
 func SetProvider(provider LobbyProvider) {
 	if provider != nil {
 		storedProvider = provider
+	}
+}
+
+// storedHooks holds the lobby hooks set by the Register function.
+//
+//nolint:gochecknoglobals // set once at initialization, read-only thereafter
+var storedHooks LobbyHooks = NoopHooks{}
+
+// SetHooks stores the hooks for the system to use.
+// Passing nil leaves the current hooks in place (default NoopHooks).
+func SetHooks(hooks LobbyHooks) {
+	if hooks != nil {
+		storedHooks = hooks
 	}
 }
 
@@ -1653,7 +1699,24 @@ func processStartSessionCommands(
 			continue
 		}
 
-		// Update session state
+		// Let consumers react to session start. Hooks may mutate the lobby
+		// (e.g., set lobby.GameWorld.ShardID dynamically) or abort by
+		// returning an error. Must run before any state mutation or event
+		// emission so aborted starts leave no observable trace.
+		if err := storedHooks.PreSessionStart(&lobby); err != nil {
+			state.Logger().Warn().
+				Str("lobby_id", lobbyID).
+				Err(err).
+				Msg("PreSessionStart hook aborted session start")
+			state.StartSessionResults.Emit(StartSessionResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "session start aborted: " + err.Error(),
+			})
+			continue
+		}
+
+		// Commit session state (includes any hook mutations).
 		lobby.Session.State = component.SessionStateInSession
 		result.lobbyRef.Set(lobby)
 
@@ -1666,29 +1729,7 @@ func processStartSessionCommands(
 			LobbyID: lobbyID,
 		})
 
-		// Send to game shard if GameWorld is configured on the lobby
-		if lobby.GameWorld.ShardID != "" {
-			gameWorld := cardinal.OtherWorld{
-				Region:       lobby.GameWorld.Region,
-				Organization: lobby.GameWorld.Organization,
-				Project:      lobby.GameWorld.Project,
-				ShardID:      lobby.GameWorld.ShardID,
-			}
-			lobbyWorld := cardinal.OtherWorld{
-				Region:       config.LobbyWorld.Region,
-				Organization: config.LobbyWorld.Organization,
-				Project:      config.LobbyWorld.Project,
-				ShardID:      config.LobbyWorld.ShardID,
-			}
-			gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
-				Lobby:      lobby,
-				LobbyWorld: lobbyWorld,
-			})
-			state.Logger().Info().
-				Str("lobby_id", lobbyID).
-				Str("game_shard", lobby.GameWorld.ShardID).
-				Msg("[CROSS-SHARD] Sent NotifySessionStartCommand to game shard")
-		}
+		dispatchSessionStart(state, config, &lobby, lobbyID)
 
 		state.StartSessionResults.Emit(StartSessionResult{
 			RequestID: payload.RequestID,
@@ -1696,6 +1737,42 @@ func processStartSessionCommands(
 			Message:   "session started",
 		})
 	}
+}
+
+// dispatchSessionStart sends NotifySessionStartCommand to the gameplay shard
+// configured on the lobby. No-op if no gameplay shard is configured.
+func dispatchSessionStart(
+	state *LobbySystemState,
+	config *component.ConfigComponent,
+	lobby *component.LobbyComponent,
+	lobbyID string,
+) {
+	if lobby.GameWorld.ShardID == "" {
+		state.Logger().Debug().
+			Str("lobby_id", lobbyID).
+			Msg("no game shard configured; skipping NotifySessionStartCommand dispatch")
+		return
+	}
+	gameWorld := cardinal.OtherWorld{
+		Region:       lobby.GameWorld.Region,
+		Organization: lobby.GameWorld.Organization,
+		Project:      lobby.GameWorld.Project,
+		ShardID:      lobby.GameWorld.ShardID,
+	}
+	lobbyWorld := cardinal.OtherWorld{
+		Region:       config.LobbyWorld.Region,
+		Organization: config.LobbyWorld.Organization,
+		Project:      config.LobbyWorld.Project,
+		ShardID:      config.LobbyWorld.ShardID,
+	}
+	gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
+		Lobby:      *lobby,
+		LobbyWorld: lobbyWorld,
+	})
+	state.Logger().Info().
+		Str("lobby_id", lobbyID).
+		Str("game_shard", lobby.GameWorld.ShardID).
+		Msg("[CROSS-SHARD] Sent NotifySessionStartCommand to game shard")
 }
 
 func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
@@ -1744,6 +1821,9 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 
 		// Emit broadcast event
 		state.SessionEndedEvents.Emit(SessionEndedEvent(payload))
+
+		// Let consumers react to session end (e.g., release external locks).
+		storedHooks.PostSessionEnd(&lobby)
 	}
 }
 

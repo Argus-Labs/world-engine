@@ -102,6 +102,10 @@ type (
 	// Provider.
 	Provider        = system.LobbyProvider
 	DefaultProvider = system.DefaultProvider
+
+	// Hooks.
+	Hooks     = system.LobbyHooks
+	NoopHooks = system.NoopHooks
 )
 
 // Session states.
@@ -119,6 +123,10 @@ type Config struct {
 	// Provider is the customizable provider for the lobby system.
 	// If nil, DefaultProvider is used.
 	Provider Provider
+
+	// Hooks lets consumers react to lobby lifecycle events.
+	// If nil, NoopHooks is used.
+	Hooks Hooks
 
 	// HeartbeatTimeout is how long (in seconds) before a player is removed for not sending heartbeats.
 	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).
@@ -147,6 +155,9 @@ func (p *Plugin) Register(world *cardinal.World) {
 
 	// Store provider
 	system.SetProvider(p.config.Provider)
+
+	// Store hooks (nil falls back to NoopHooks inside SetHooks).
+	system.SetHooks(p.config.Hooks)
 
 	// Register init system (runs once during world initialization)
 	cardinal.RegisterSystem(world, system.InitSystem, cardinal.WithHook(cardinal.Init))
