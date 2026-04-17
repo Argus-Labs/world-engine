@@ -6,8 +6,9 @@ import "github.com/argus-labs/world-engine/pkg/cardinal"
 type SessionState string
 
 const (
-	SessionStateIdle      SessionState = "idle"       // Lobby is waiting, not in a session
-	SessionStateInSession SessionState = "in_session" // Lobby is currently in a game session
+	SessionStateIdle               SessionState = "idle"                // Lobby is waiting, not in a session
+	SessionStateAwaitingAllocation SessionState = "awaiting_allocation" // Lobby is awaiting external shard assignment
+	SessionStateInSession          SessionState = "in_session"          // Lobby is currently in a game session
 )
 
 // PlayerComponent represents a player entity in a lobby.
@@ -36,6 +37,14 @@ type Team struct {
 type Session struct {
 	State           SessionState   `json:"state"`
 	PassthroughData map[string]any `json:"passthrough_data,omitempty"`
+	// PendingRequestID holds the StartSessionCommand RequestID while the
+	// lobby waits in SessionStateAwaitingAllocation for an external shard
+	// assignment. Empty in other states.
+	PendingRequestID string `json:"pending_request_id,omitempty"`
+	// PendingStartedAt records the unix timestamp (seconds) at which the
+	// lobby entered SessionStateAwaitingAllocation. Used by timeout
+	// enforcement. Zero in other states.
+	PendingStartedAt int64 `json:"pending_started_at,omitempty"`
 }
 
 // LobbyComponent represents a lobby where players gather.
@@ -403,6 +412,22 @@ type ConfigComponent struct {
 	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).
 	// Default: 30 seconds.
 	HeartbeatTimeout int64 `json:"heartbeat_timeout"`
+
+	// AssignmentAuthority is an accident-prevention filter, NOT an
+	// authentication boundary. The plugin compares it against cmd.Persona
+	// and drops mismatches. This prevents an unrelated system that
+	// happens to send AssignShardCommand from accidentally completing the
+	// wrong lobby's session start. It does NOT defend against a client
+	// that forges Persona, because cmd.Persona is not signature-verified
+	// at this layer. Real authentication must live above the plugin
+	// (NATS ACLs, gateway auth, signed commands). Empty = no filter.
+	AssignmentAuthority string `json:"assignment_authority,omitempty"`
+
+	// MaxAllocationTimeout bounds how long (in seconds) a lobby may remain
+	// in SessionStateAwaitingAllocation before the lobby shard fails the
+	// start itself and returns to Idle. Values <= 0 disable timeout
+	// enforcement entirely.
+	MaxAllocationTimeout int64 `json:"max_allocation_timeout,omitempty"`
 }
 
 // Name returns the component name for ECS registration.

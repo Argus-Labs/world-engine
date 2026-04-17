@@ -397,3 +397,51 @@ func TestLobbyIndexComponent_UpdateInviteCode(t *testing.T) {
 	assert.True(t, exists)
 	assert.Equal(t, "lobby1", lobbyID)
 }
+
+func TestSessionStateConstants(t *testing.T) {
+	t.Parallel()
+
+	// Stable wire values for the session state machine. External consumers
+	// (dashboards, audit logs) may persist these strings, so renames must
+	// be intentional.
+	assert.Equal(t, SessionStateIdle, SessionState("idle"))
+	assert.Equal(t, SessionStateAwaitingAllocation, SessionState("awaiting_allocation"))
+	assert.Equal(t, SessionStateInSession, SessionState("in_session"))
+}
+
+func TestSessionPendingFields(t *testing.T) {
+	t.Parallel()
+
+	// Session carries the correlation fields the AssignShardCommand
+	// handler validates against. Renaming or removing these would silently
+	// break orchestrators that echo PendingRequestID.
+	s := Session{
+		State:            SessionStateAwaitingAllocation,
+		PendingRequestID: "req-42",
+		PendingStartedAt: 100,
+	}
+	assert.Equal(t, SessionStateAwaitingAllocation, s.State)
+	assert.Equal(t, "req-42", s.PendingRequestID)
+	assert.Equal(t, int64(100), s.PendingStartedAt)
+}
+
+func TestConfigComponent_AssignmentFields(t *testing.T) {
+	t.Parallel()
+
+	// Assignment-related config fields. AssignmentAuthority is an
+	// accident-prevention filter (not authentication — cmd.Persona is
+	// not verified at this layer). MaxAllocationTimeout bounds the
+	// pending-allocation lifetime.
+	cfg := ConfigComponent{
+		AssignmentAuthority:  "region.world.org.project.lobby",
+		MaxAllocationTimeout: 300,
+	}
+	assert.Equal(t, "region.world.org.project.lobby", cfg.AssignmentAuthority)
+	assert.Equal(t, int64(300), cfg.MaxAllocationTimeout)
+
+	// MaxAllocationTimeout <= 0 is the documented "disabled" sentinel.
+	disabled := ConfigComponent{MaxAllocationTimeout: 0}
+	assert.LessOrEqual(t, disabled.MaxAllocationTimeout, int64(0))
+	negDisabled := ConfigComponent{MaxAllocationTimeout: -1}
+	assert.LessOrEqual(t, negDisabled.MaxAllocationTimeout, int64(0))
+}
