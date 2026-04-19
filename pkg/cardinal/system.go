@@ -690,11 +690,6 @@ func (r *Ref[T]) attach(ws *ecs.World, eid EntityID) {
 	r.entity = eid
 }
 
-// TODO: might be possible to get the read/write type of the component in the query so we can
-// optimize the scheduler by running read-only systems in parallel. e.g., we can have two different
-// ref types, ReadOnlyRef and ReadWriteRef. For the read-only ref, we don't have to set its ID in
-// the system bitmap.
-
 // register returns the registerAndGetComponent type for this Ref.
 func (r *Ref[T]) register(w *ecs.World) (ecs.ComponentID, error) {
 	return ecs.RegisterComponent[T](w)

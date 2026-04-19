@@ -382,6 +382,7 @@ func (d *debugModule) Reset(
 	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 }
 
+// TODO: this does unsynchronized concurrent access to ToProto. fix after snapshot rework.
 // GetState returns the current world state snapshot.
 func (d *debugModule) GetState(
 	_ context.Context,
