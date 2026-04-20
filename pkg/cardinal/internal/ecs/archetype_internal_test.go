@@ -82,21 +82,27 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			eid := entities[prng.IntN(len(entities))]
 			src := model[eid]
 			dst := pool[prng.IntN(len(pool))]
-			for dst == src { // Make sure dst != src
-				dst = pool[prng.IntN(len(pool))]
-			}
 
 			src.moveEntity(dst, eid)
-			model[eid] = dst
 
-			// Property: entity no longer exists in source.
-			_, exists := src.rows.get(eid)
-			assert.False(t, exists)
+			if src == dst {
+				// Property: self move is a no-op and the model remains unchanged.
+				row, exists := src.rows.get(eid)
+				assert.True(t, exists)
+				assert.Equal(t, eid, src.entities[row])
+				assert.Same(t, src, model[eid])
+			} else {
+				model[eid] = dst
 
-			// Property: entity exists in destination and bijection holds.
-			row, exists := dst.rows.get(eid)
-			assert.True(t, exists)
-			assert.Equal(t, eid, dst.entities[row])
+				// Property: entity no longer exists in source.
+				_, exists := src.rows.get(eid)
+				assert.False(t, exists)
+
+				// Property: entity exists in destination and bijection holds.
+				row, exists := dst.rows.get(eid)
+				assert.True(t, exists)
+				assert.Equal(t, eid, dst.entities[row])
+			}
 
 		default:
 			panic("unreachable")

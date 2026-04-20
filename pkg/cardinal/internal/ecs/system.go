@@ -1,10 +1,7 @@
 package ecs
 
 import (
-	"math"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
 
@@ -22,40 +19,31 @@ const (
 	Init SystemHook = 3
 )
 
-// initSystem represents a system that should be run once during world initialization.
-type initSystem struct {
+// systemMetadata contains the metadata for a system.
+type systemMetadata struct {
 	name string // The name of the system
 	fn   func() // Function that wraps a System
 }
 
-func RegisterSystem[T any](world *World, options RegisterSystemOptions[T]) error {
-	// TODO: maybe separate these so this error can never happen.
-	// Add system event deps to component deps.
-	deps := options.DepsComponent.Clone(nil)
-	n := world.state.components.nextID
-	assert.That(options.DepsSystemEvent.Count()+int(n) <= math.MaxUint32-1, "system dependencies exceed max limit")
-	options.DepsSystemEvent.Range(func(x uint32) {
-		deps.Set(n + x)
-	})
-
-	hook := options.Hook
+func RegisterSystem(world *World, name string, hook SystemHook, fn func()) error {
 	switch hook {
-	case Init:
-		world.initSystems = append(world.initSystems, initSystem{name: options.Name, fn: options.System})
-	case PreUpdate, Update, PostUpdate:
-		world.scheduler[hook].register(options.Name, deps, options.System)
+	case Init, PreUpdate, Update, PostUpdate:
+		assert.That(int(hook) < len(world.systems), "invalid system hook index")
+		world.systems[hook] = append(world.systems[hook], systemMetadata{name: name, fn: fn})
 	default:
 		return eris.Errorf("invalid system hook %d", hook)
 	}
-
 	return nil
 }
 
-type RegisterSystemOptions[T any] struct {
-	Name            string
-	State           *T
-	System          func()
-	Hook            SystemHook
-	DepsComponent   bitmap.Bitmap
-	DepsSystemEvent bitmap.Bitmap
+// SystemInfo describes a system for external introspection.
+type SystemInfo struct {
+	ID   int
+	Name string
+}
+
+// ScheduleInfo describes the systems for one execution phase.
+type ScheduleInfo struct {
+	Hook    SystemHook
+	Systems []SystemInfo
 }

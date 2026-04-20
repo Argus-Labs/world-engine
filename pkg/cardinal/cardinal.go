@@ -9,7 +9,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -121,16 +120,6 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	if *options.Debug {
 		debug := newDebugModule(world)
 		world.debug = &debug
-
-		world.world.OnSystemRun(func(name string, hook ecs.SystemHook, startTime, endTime time.Time) {
-			world.debug.recordSpan(performance.TickSpan{
-				TickHeight: world.currentTick.height,
-				SystemName: name,
-				SystemHook: uint8(hook),
-				StartTime:  startTime,
-				EndTime:    endTime,
-			})
-		})
 	}
 
 	return world, nil
@@ -161,7 +150,7 @@ func (w *World) StartGame() {
 }
 
 func (w *World) run(ctx context.Context) error {
-	// Initialize world schedulers and run init systems.
+	// Initialize world and run init systems.
 	w.world.Init()
 
 	if err := w.restore(ctx); err != nil {

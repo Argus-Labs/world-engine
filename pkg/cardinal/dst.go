@@ -228,7 +228,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	storage := &memSnapshotStorage{t: t}
 	w.snapshotStorage = storage
 
-	// Initialize ECS schedulers and run init systems.
+	// Initialize ECS and run init systems.
 	w.world.Init()
 
 	// Cache concrete payload types for random command generation.

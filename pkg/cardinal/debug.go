@@ -154,7 +154,7 @@ func (d *debugModule) Introspect(
 	}), nil
 }
 
-// buildSchedules converts the ECS scheduler dependency graphs to proto messages.
+// buildSchedules converts the ECS system lists to proto messages.
 func (d *debugModule) buildSchedules() []*cardinalv1.SystemSchedule {
 	ecsSchedules := d.world.world.Schedules()
 	schedules := make([]*cardinalv1.SystemSchedule, 0, len(ecsSchedules))
@@ -164,14 +164,9 @@ func (d *debugModule) buildSchedules() []*cardinalv1.SystemSchedule {
 		}
 		nodes := make([]*cardinalv1.SystemNode, len(s.Systems))
 		for i, sys := range s.Systems {
-			deps := make([]uint32, len(sys.Dependents))
-			for j, dep := range sys.Dependents {
-				deps[j] = uint32(dep) //nolint:gosec // bounded by system count
-			}
 			nodes[i] = &cardinalv1.SystemNode{
-				Id:         uint32(sys.ID), //nolint:gosec // bounded by system count
-				Name:       sys.Name,
-				Dependents: deps,
+				Id:   uint32(sys.ID), //nolint:gosec // bounded by system count
+				Name: sys.Name,
 			}
 		}
 		schedules = append(schedules, &cardinalv1.SystemSchedule{
@@ -181,10 +176,6 @@ func (d *debugModule) buildSchedules() []*cardinalv1.SystemSchedule {
 	}
 	return schedules
 }
-
-// -------------------------------------------------------------------------------------------------
-// Performance
-// -------------------------------------------------------------------------------------------------
 
 func ecsHookToProto(hook uint8) cardinalv1.SystemHook {
 	mapping := [4]cardinalv1.SystemHook{
@@ -198,6 +189,10 @@ func ecsHookToProto(hook uint8) cardinalv1.SystemHook {
 	}
 	return cardinalv1.SystemHook_SYSTEM_HOOK_UNSPECIFIED
 }
+
+// -------------------------------------------------------------------------------------------------
+// Performance
+// -------------------------------------------------------------------------------------------------
 
 // StreamPerf streams batches of per-tick timing data to connected clients.
 func (d *debugModule) StreamPerf(
@@ -387,6 +382,7 @@ func (d *debugModule) Reset(
 	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 }
 
+// TODO: this does unsynchronized concurrent access to ToProto. fix after snapshot rework.
 // GetState returns the current world state snapshot.
 func (d *debugModule) GetState(
 	_ context.Context,
