@@ -105,6 +105,31 @@ func TestCrossShardCommandNames(t *testing.T) {
 	// Verify cross-shard command names are correct
 	assert.Equal(t, "lobby_notify_session_start", NotifySessionStartCommand{}.Name())
 	assert.Equal(t, "lobby_notify_session_end", NotifySessionEndCommand{}.Name())
+	assert.Equal(t, "lobby_assign_shard", AssignShardCommand{}.Name())
+}
+
+func TestAssignShardCommand_Shape(t *testing.T) {
+	t.Parallel()
+
+	// Fields the handler reads — keep signatures stable so orchestrators
+	// can't break silently if a field is renamed.
+	cmd := AssignShardCommand{
+		LobbyID:   "lobby-1",
+		RequestID: "req-42",
+		GameWorld: cardinal.OtherWorld{ShardID: "game-shard-3"},
+	}
+	assert.Equal(t, "lobby-1", cmd.LobbyID)
+	assert.Equal(t, "req-42", cmd.RequestID)
+	assert.Equal(t, "game-shard-3", cmd.GameWorld.ShardID)
+	assert.Empty(t, cmd.Reason)
+
+	// Failure-path shape: empty GameWorld.ShardID + Reason triggers
+	// the handler's failure branch without hitting cross-shard dispatch.
+	fail := AssignShardCommand{
+		Reason: "pool full",
+	}
+	assert.Empty(t, fail.GameWorld.ShardID)
+	assert.Equal(t, "pool full", fail.Reason)
 }
 
 func TestEventNames(t *testing.T) {
@@ -120,6 +145,7 @@ func TestEventNames(t *testing.T) {
 	assert.Equal(t, "lobby_leader_changed", LeaderChangedEvent{}.Name())
 	assert.Equal(t, "lobby_session_started", SessionStartedEvent{}.Name())
 	assert.Equal(t, "lobby_session_ended", SessionEndedEvent{}.Name())
+	assert.Equal(t, "lobby_session_awaiting_allocation", SessionAwaitingAllocationEvent{}.Name())
 	assert.Equal(t, "lobby_invite_generated", InviteCodeGeneratedEvent{}.Name())
 	assert.Equal(t, "lobby_deleted", LobbyDeletedEvent{}.Name())
 	assert.Equal(t, "lobby_session_passthrough_updated", SessionPassthroughUpdatedEvent{}.Name())

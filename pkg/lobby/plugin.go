@@ -56,6 +56,7 @@ type (
 	KickPlayerCommand               = system.KickPlayerCommand
 	TransferLeaderCommand           = system.TransferLeaderCommand
 	StartSessionCommand             = system.StartSessionCommand
+	AssignShardCommand              = system.AssignShardCommand
 	GenerateInviteCodeCommand       = system.GenerateInviteCodeCommand
 	HeartbeatCommand                = system.HeartbeatCommand
 	UpdateSessionPassthroughCommand = system.UpdateSessionPassthroughCommand
@@ -72,6 +73,7 @@ type (
 	PlayerChangedTeamEvent         = system.PlayerChangedTeamEvent
 	LeaderChangedEvent             = system.LeaderChangedEvent
 	SessionStartedEvent            = system.SessionStartedEvent
+	SessionAwaitingAllocationEvent = system.SessionAwaitingAllocationEvent
 	SessionEndedEvent              = system.SessionEndedEvent
 	InviteCodeGeneratedEvent       = system.InviteCodeGeneratedEvent
 	DeletedEvent                   = system.LobbyDeletedEvent
@@ -106,8 +108,9 @@ type (
 
 // Session states.
 const (
-	SessionStateIdle      = component.SessionStateIdle
-	SessionStateInSession = component.SessionStateInSession
+	SessionStateIdle               = component.SessionStateIdle
+	SessionStateAwaitingAllocation = component.SessionStateAwaitingAllocation
+	SessionStateInSession          = component.SessionStateInSession
 )
 
 // Config holds configuration for the lobby package.
@@ -119,6 +122,18 @@ type Config struct {
 	// Provider is the customizable provider for the lobby system.
 	// If nil, DefaultProvider is used.
 	Provider Provider
+
+	// AssignmentAuthority is an accident-prevention filter — not
+	// authentication. Dropped commands whose cmd.Persona differs from
+	// this value. cmd.Persona is not signature-verified at this layer, so
+	// this does NOT protect against a malicious client; real auth belongs
+	// above the plugin (NATS ACLs, gateway auth). Empty = no filter.
+	AssignmentAuthority string
+
+	// MaxAllocationTimeout bounds how long (in seconds) a lobby may sit in
+	// SessionStateAwaitingAllocation before the lobby fails the start
+	// itself. Values <= 0 disable timeout enforcement.
+	MaxAllocationTimeout int64
 
 	// HeartbeatTimeout is how long (in seconds) before a player is removed for not sending heartbeats.
 	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).
@@ -141,8 +156,10 @@ func NewPlugin(config Config) *Plugin {
 // Register implements cardinal.Plugin.
 func (p *Plugin) Register(world *cardinal.World) {
 	system.SetConfig(component.ConfigComponent{
-		LobbyWorld:       p.config.LobbyWorld,
-		HeartbeatTimeout: p.config.HeartbeatTimeout,
+		LobbyWorld:           p.config.LobbyWorld,
+		HeartbeatTimeout:     p.config.HeartbeatTimeout,
+		AssignmentAuthority:  p.config.AssignmentAuthority,
+		MaxAllocationTimeout: p.config.MaxAllocationTimeout,
 	})
 
 	// Store provider

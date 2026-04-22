@@ -93,7 +93,11 @@ type TransferLeaderCommand struct {
 // Name returns the command name.
 func (TransferLeaderCommand) Name() string { return "lobby_transfer_leader" }
 
-// StartSessionCommand starts the session (leader only).
+// StartSessionCommand starts the session (leader only). The
+// corresponding StartSessionResult is emitted asynchronously, typically
+// several ticks after this command is accepted, once an orchestrator
+// responds with AssignShardCommand. Clients must not set short
+// timeouts on StartSessionResult.
 type StartSessionCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
 }
@@ -233,6 +237,16 @@ type SessionStartedEvent struct {
 // Name returns the event name.
 func (SessionStartedEvent) Name() string { return "lobby_session_started" }
 
+// SessionAwaitingAllocationEvent is emitted when a session is awaiting shard
+// assignment. External orchestrators listen for this event and respond
+// with an AssignShardCommand to complete the session start.
+type SessionAwaitingAllocationEvent struct {
+	LobbyID string `json:"lobby_id"`
+}
+
+// Name returns the event name.
+func (SessionAwaitingAllocationEvent) Name() string { return "lobby_session_awaiting_allocation" }
+
 // SessionEndedEvent is emitted when a session ends.
 type SessionEndedEvent struct {
 	LobbyID string `json:"lobby_id"`
@@ -366,6 +380,8 @@ type TransferLeaderResult struct {
 func (r TransferLeaderResult) Name() string { return r.RequestID + "_transfer_leader_result" }
 
 // StartSessionResult is sent back to the client after StartSessionCommand.
+// Emitted asynchronously — may arrive several ticks after the command,
+// once the orchestrator assigns a game shard via AssignShardCommand.
 type StartSessionResult struct {
 	RequestID string `json:"request_id"`
 	IsSuccess bool   `json:"is_success"`
@@ -457,6 +473,31 @@ type NotifySessionEndCommand struct {
 
 // Name returns the command name.
 func (NotifySessionEndCommand) Name() string { return "lobby_notify_session_end" }
+
+// AssignShardCommand is sent by an external orchestrator to complete a
+// session start that is waiting in SessionStateAwaitingAllocation. The
+// lobby writes GameWorld directly onto the lobby component, transitions
+// to SessionStateInSession, and dispatches NotifySessionStartCommand.
+// The orchestrator is responsible for providing a complete GameWorld
+// address (Region, Organization, Project, ShardID).
+//
+// If GameWorld.ShardID is empty, the assignment is treated as a failure:
+// the lobby returns to SessionStateIdle and a failure StartSessionResult
+// is emitted with Reason as the failure message.
+//
+// RequestID must equal the lobby's current Session.PendingRequestID (which
+// the orchestrator reads from the LobbyComponent). Mismatched RequestIDs
+// are rejected; this rejects late duplicate or stale commands that arrive
+// after the original pending cycle has already been completed or cancelled.
+type AssignShardCommand struct {
+	LobbyID   string              `json:"lobby_id"`
+	RequestID string              `json:"request_id"`
+	GameWorld cardinal.OtherWorld `json:"game_world"`
+	Reason    string              `json:"reason,omitempty"`
+}
+
+// Name returns the command name.
+func (AssignShardCommand) Name() string { return "lobby_assign_shard" }
 
 // StartSessionPayload is an alias for NotifySessionStartCommand for documentation clarity.
 type StartSessionPayload = NotifySessionStartCommand
@@ -566,6 +607,7 @@ type LobbySystemState struct {
 	TransferLeaderCmds           cardinal.WithCommand[TransferLeaderCommand]
 	StartSessionCmds             cardinal.WithCommand[StartSessionCommand]
 	NotifySessionEndCmds         cardinal.WithCommand[NotifySessionEndCommand]
+	AssignShardCmds              cardinal.WithCommand[AssignShardCommand]
 	GenerateInviteCodeCmds       cardinal.WithCommand[GenerateInviteCodeCommand]
 	UpdateSessionPassthroughCmds cardinal.WithCommand[UpdateSessionPassthroughCommand]
 	UpdatePlayerPassthroughCmds  cardinal.WithCommand[UpdatePlayerPassthroughCommand]
@@ -598,6 +640,7 @@ type LobbySystemState struct {
 	PlayerChangedTeamEvents         cardinal.WithEvent[PlayerChangedTeamEvent]
 	LeaderChangedEvents             cardinal.WithEvent[LeaderChangedEvent]
 	SessionStartedEvents            cardinal.WithEvent[SessionStartedEvent]
+	SessionAwaitingAllocationEvents cardinal.WithEvent[SessionAwaitingAllocationEvent]
 	SessionEndedEvents              cardinal.WithEvent[SessionEndedEvent]
 	InviteCodeGeneratedEvents       cardinal.WithEvent[InviteCodeGeneratedEvent]
 	LobbyDeletedEvents              cardinal.WithEvent[LobbyDeletedEvent]
@@ -694,7 +737,9 @@ func LobbySystem(state *LobbySystemState) {
 	processSetReadyCommands(state, &lobbyIndex)
 	processKickPlayerCommands(state, &lobbyIndex)
 	processTransferLeaderCommands(state, &lobbyIndex)
-	processStartSessionCommands(state, &lobbyIndex, &config)
+	processStartSessionCommands(state, &lobbyIndex)
+	processAssignShardCommands(state, &lobbyIndex, &config)
+	processAllocationTimeouts(state, &config)
 	processNotifySessionEndCommands(state, &lobbyIndex)
 	processGenerateInviteCodeCommands(state, &lobbyIndex)
 	processUpdateSessionPassthroughCommands(state, &lobbyIndex)
@@ -795,6 +840,10 @@ func createPlayerEntity(
 type lobbyToDestroy struct {
 	entityID cardinal.EntityID
 	lobbyID  string
+	// lobby is the last-read snapshot of the lobby component, used by the
+	// caller to emit a failure StartSessionResult if the lobby was in
+	// SessionStateAwaitingAllocation at destruction time.
+	lobby component.LobbyComponent
 }
 
 // processTimedOutLobby handles removing timed out players from a single lobby.
@@ -837,7 +886,11 @@ func processTimedOutLobby(
 		lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
 		state.Logger().Info().Str("lobby_id", lobbyID).Msg("Lobby marked for deletion (empty after timeout)")
 		state.LobbyDeletedEvents.Emit(LobbyDeletedEvent{LobbyID: lobbyID})
-		return playerEntities, &lobbyToDestroy{entityID: cardinal.EntityID(lobbyEntityID), lobbyID: lobbyID}
+		return playerEntities, &lobbyToDestroy{
+			entityID: cardinal.EntityID(lobbyEntityID),
+			lobbyID:  lobbyID,
+			lobby:    lobby,
+		}
 	}
 
 	// Handle leader timeout
@@ -1330,6 +1383,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 		// If lobby is empty, delete it - use index for O(1) check
 		if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
+			failPendingAssignment(&state.StartSessionResults, &lobby, "lobby deleted before shard assignment")
 			lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
 			state.Lobbies.Destroy(result.entityID)
 
@@ -1603,7 +1657,6 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 func processStartSessionCommands(
 	state *LobbySystemState,
 	lobbyIndex *component.LobbyIndexComponent,
-	config *component.ConfigComponent,
 ) {
 	for cmd := range state.StartSessionCmds.Iter() {
 		playerID := cmd.Persona
@@ -1632,12 +1685,20 @@ func processStartSessionCommands(
 			continue
 		}
 
-		// Already in session
+		// Already in session or awaiting assignment
 		if lobby.Session.State == component.SessionStateInSession {
 			state.StartSessionResults.Emit(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "session already in progress",
+			})
+			continue
+		}
+		if lobby.Session.State == component.SessionStateAwaitingAllocation {
+			state.StartSessionResults.Emit(StartSessionResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "session already pending shard assignment",
 			})
 			continue
 		}
@@ -1653,45 +1714,210 @@ func processStartSessionCommands(
 			continue
 		}
 
-		// Update session state
-		lobby.Session.State = component.SessionStateInSession
+		// Hand off to an external orchestrator via SessionAwaitingAllocationEvent. The
+		// lobby waits in SessionStateAwaitingAllocation until an AssignShardCommand
+		// arrives. Games that want immediate dispatch from a pre-configured
+		// GameWorld can wire a one-system orchestrator that observes
+		// SessionStateAwaitingAllocation lobbies and immediately sends AssignShardCommand
+		// with lobby.GameWorld.
+		lobby.Session.State = component.SessionStateAwaitingAllocation
+		lobby.Session.PendingRequestID = payload.RequestID
+		lobby.Session.PendingStartedAt = state.Timestamp().Unix()
 		result.lobbyRef.Set(lobby)
 
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
-			Msg("Session started")
+			Msg("Session pending shard assignment")
 
-		// Emit broadcast event
-		state.SessionStartedEvents.Emit(SessionStartedEvent{
+		state.SessionAwaitingAllocationEvents.Emit(SessionAwaitingAllocationEvent{
 			LobbyID: lobbyID,
 		})
+	}
+}
 
-		// Send to game shard if GameWorld is configured on the lobby
-		if lobby.GameWorld.ShardID != "" {
-			gameWorld := cardinal.OtherWorld{
-				Region:       lobby.GameWorld.Region,
-				Organization: lobby.GameWorld.Organization,
-				Project:      lobby.GameWorld.Project,
-				ShardID:      lobby.GameWorld.ShardID,
-			}
-			lobbyWorld := cardinal.OtherWorld{
-				Region:       config.LobbyWorld.Region,
-				Organization: config.LobbyWorld.Organization,
-				Project:      config.LobbyWorld.Project,
-				ShardID:      config.LobbyWorld.ShardID,
-			}
-			gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
-				Lobby:      lobby,
-				LobbyWorld: lobbyWorld,
-			})
-			state.Logger().Info().
-				Str("lobby_id", lobbyID).
-				Str("game_shard", lobby.GameWorld.ShardID).
-				Msg("[CROSS-SHARD] Sent NotifySessionStartCommand to game shard")
+// processAllocationTimeouts fails any lobby that has been waiting in
+// SessionStateAwaitingAllocation for more than config.MaxAllocationTimeout
+// seconds. Disabled when MaxAllocationTimeout <= 0. Runs once per tick.
+func processAllocationTimeouts(
+	state *LobbySystemState,
+	config *component.ConfigComponent,
+) {
+	if config.MaxAllocationTimeout <= 0 {
+		return
+	}
+	now := state.Timestamp().Unix()
+
+	for _, refs := range state.Lobbies.Iter() {
+		lob := refs.Lobby.Get()
+		if lob.Session.State != component.SessionStateAwaitingAllocation {
+			continue
+		}
+		if now-lob.Session.PendingStartedAt < config.MaxAllocationTimeout {
+			continue
 		}
 
+		state.Logger().Warn().
+			Str("lobby_id", lob.ID).
+			Int64("waited_seconds", now-lob.Session.PendingStartedAt).
+			Int64("max_seconds", config.MaxAllocationTimeout).
+			Msg("allocation timeout: failing pending session-start")
+
+		abortAwaitingAllocation(&state.StartSessionResults, refs.Lobby, &lob, "shard assignment timed out")
+	}
+}
+
+// failPendingAssignment emits a failure StartSessionResult for a lobby that
+// is being destroyed or reset while in SessionStateAwaitingAllocation. Without this,
+// the client that issued the original StartSessionCommand would never
+// receive a response and would hang on its RequestID.
+func failPendingAssignment(
+	results *cardinal.WithEvent[StartSessionResult],
+	lobby *component.LobbyComponent,
+	reason string,
+) {
+	if lobby.Session.State != component.SessionStateAwaitingAllocation {
+		return
+	}
+	if lobby.Session.PendingRequestID == "" {
+		return
+	}
+	results.Emit(StartSessionResult{
+		RequestID: lobby.Session.PendingRequestID,
+		IsSuccess: false,
+		Message:   reason,
+	})
+}
+
+// abortAwaitingAllocation fails a lobby currently in
+// SessionStateAwaitingAllocation: emits a failure StartSessionResult,
+// clears all pending fields, transitions to SessionStateIdle, and
+// persists the mutation via ref. Safe to call on lobbies not in
+// SessionStateAwaitingAllocation — returns without effect. Centralizes
+// the exit protocol so no caller can forget a field.
+func abortAwaitingAllocation(
+	results *cardinal.WithEvent[StartSessionResult],
+	ref cardinal.Ref[component.LobbyComponent],
+	lobby *component.LobbyComponent,
+	reason string,
+) {
+	if lobby.Session.State != component.SessionStateAwaitingAllocation {
+		return
+	}
+	if lobby.Session.PendingRequestID != "" {
+		results.Emit(StartSessionResult{
+			RequestID: lobby.Session.PendingRequestID,
+			IsSuccess: false,
+			Message:   reason,
+		})
+	}
+	lobby.Session.State = component.SessionStateIdle
+	lobby.Session.PendingRequestID = ""
+	lobby.Session.PendingStartedAt = 0
+	ref.Set(*lobby)
+}
+
+// dispatchSessionStart sends NotifySessionStartCommand to the game shard
+// configured on the lobby. No-op if no game shard is configured.
+func dispatchSessionStart(
+	state *LobbySystemState,
+	config *component.ConfigComponent,
+	lobby *component.LobbyComponent,
+	lobbyID string,
+) {
+	gameWorld := lobby.GameWorld
+	lobbyWorld := config.LobbyWorld
+	gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
+		Lobby:      *lobby,
+		LobbyWorld: lobbyWorld,
+	})
+	state.Logger().Info().
+		Str("lobby_id", lobbyID).
+		Str("game_shard", lobby.GameWorld.ShardID).
+		Msg("[CROSS-SHARD] Sent NotifySessionStartCommand to game shard")
+}
+
+// processAssignShardCommands completes the session start for lobbies that
+// are waiting in SessionStateAwaitingAllocation. An empty GameWorld.ShardID is treated
+// as an assignment failure: the lobby returns to Idle and a failure
+// StartSessionResult is emitted carrying the original RequestID.
+func processAssignShardCommands(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	config *component.ConfigComponent,
+) {
+	for cmd := range state.AssignShardCmds.Iter() {
+		payload := cmd.Payload
+
+		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.LobbyID)
+		if !exists {
+			state.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Msg("AssignShardCommand for unknown lobby; dropping")
+			continue
+		}
+		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+		if err != nil {
+			continue
+		}
+		lobby := lobbyEntity.Lobby.Get()
+
+		if lobby.Session.State != component.SessionStateAwaitingAllocation {
+			state.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Str("state", string(lobby.Session.State)).
+				Msg("AssignShardCommand received for lobby not in pending state; dropping")
+			continue
+		}
+
+		if authority := config.AssignmentAuthority; authority != "" && cmd.Persona != authority {
+			state.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Str("sender", cmd.Persona).
+				Str("expected", authority).
+				Msg("AssignShardCommand rejected: sender is not the configured AssignmentAuthority")
+			continue
+		}
+
+		if payload.RequestID != lobby.Session.PendingRequestID {
+			state.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Str("command_request_id", payload.RequestID).
+				Str("pending_request_id", lobby.Session.PendingRequestID).
+				Msg("AssignShardCommand rejected: RequestID does not match current pending cycle")
+			continue
+		}
+
+		// Failure path: empty ShardID means the orchestrator could not assign.
+		if payload.GameWorld.ShardID == "" {
+			reason := payload.Reason
+			if reason == "" {
+				reason = "no game shard available"
+			}
+			abortAwaitingAllocation(&state.StartSessionResults, lobbyEntity.Lobby, &lobby, reason)
+			continue
+		}
+
+		requestID := lobby.Session.PendingRequestID
+		lobby.Session.PendingRequestID = ""
+		lobby.Session.PendingStartedAt = 0
+
+		lobby.GameWorld = payload.GameWorld
+		lobby.Session.State = component.SessionStateInSession
+		lobbyEntity.Lobby.Set(lobby)
+
+		state.Logger().Info().
+			Str("lobby_id", payload.LobbyID).
+			Str("game_shard", lobby.GameWorld.ShardID).
+			Msg("Session started (async assignment)")
+
+		state.SessionStartedEvents.Emit(SessionStartedEvent{
+			LobbyID: payload.LobbyID,
+		})
+
+		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
+
 		state.StartSessionResults.Emit(StartSessionResult{
-			RequestID: payload.RequestID,
+			RequestID: requestID,
 			IsSuccess: true,
 			Message:   "session started",
 		})
@@ -1714,8 +1940,27 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 
 		lobby := lobbyEntity.Lobby.Get()
 
+		// If the lobby was awaiting allocation when NotifySessionEnd arrives,
+		// the session somehow ended before this shard ever assigned one.
+		// Fail the pending request so the client unblocks, transition to
+		// Idle, and continue. Without this, the lobby would stay stuck.
+		if lobby.Session.State == component.SessionStateAwaitingAllocation {
+			state.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Msg("NotifySessionEndCommand arrived while lobby was awaiting allocation; failing pending request")
+			abortAwaitingAllocation(
+				&state.StartSessionResults, lobbyEntity.Lobby, &lobby,
+				"session ended before shard assignment completed",
+			)
+			continue
+		}
+
 		// Only end if in session
 		if lobby.Session.State != component.SessionStateInSession {
+			state.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Str("state", string(lobby.Session.State)).
+				Msg("NotifySessionEndCommand dropped: lobby not in session")
 			continue
 		}
 
@@ -2056,6 +2301,7 @@ type HeartbeatSystemState struct {
 	PlayerTimedOutEvents cardinal.WithEvent[PlayerTimedOutEvent]
 	LeaderChangedEvents  cardinal.WithEvent[LeaderChangedEvent]
 	LobbyDeletedEvents   cardinal.WithEvent[LobbyDeletedEvent]
+	StartSessionResults  cardinal.WithEvent[StartSessionResult]
 }
 
 // HeartbeatSystem processes heartbeat commands and removes stale players.
@@ -2126,6 +2372,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 
 	// Destroy empty lobbies
 	for _, toDestroy := range lobbiesToDestroy {
+		failPendingAssignment(&state.StartSessionResults, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
 		state.Lobbies.Destroy(toDestroy.entityID)
 		state.Logger().Info().
 			Str("lobby_id", toDestroy.lobbyID).
