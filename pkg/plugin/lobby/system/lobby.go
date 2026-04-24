@@ -980,6 +980,28 @@ func validateUniqueTeamIDs(teams []TeamConfig) string {
 	return ""
 }
 
+// resolvePreset validates and looks up a preset in the server-owned
+// registry. Returns the team list on success, or nil and an
+// error message describing why the preset was rejected. The server is
+// the source of truth for team configuration; the client's preset
+// label must match an entry the operator registered.
+func resolvePreset(preset string, presets map[string][]TeamConfig) ([]TeamConfig, string) {
+	if preset == "" {
+		return nil, "preset is required"
+	}
+	teams, ok := presets[preset]
+	if !ok {
+		return nil, "unknown preset: " + preset
+	}
+	if len(teams) == 0 {
+		return nil, "preset misconfigured: no teams"
+	}
+	if duplicateID := validateUniqueTeamIDs(teams); duplicateID != "" {
+		return nil, "preset misconfigured: duplicate team id " + duplicateID
+	}
+	return teams, ""
+}
+
 // generateInviteCodeWithRetry generates an invite code with collision check.
 // Retries up to maxRetries times if collision detected.
 // Returns the code and whether generation succeeded.
@@ -1108,46 +1130,16 @@ func processCreateLobbyCommands(
 			CreatedAt: now,
 		}
 
-		// Resolve preset against the server-owned registry. Unknown or
-		// empty presets are rejected; the server is the source of truth
-		// for team configuration, not the client.
-		if payload.Preset == "" {
-			state.Logger().Warn().Str("player_id", playerID).Msg("create lobby rejected: empty preset")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "preset is required",
-			})
-			continue
-		}
-		presetTeams, ok := config.LobbyPresets[payload.Preset]
-		if !ok {
-			state.Logger().Warn().Str("preset", payload.Preset).Msg("create lobby rejected: unknown preset")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "unknown preset: " + payload.Preset,
-			})
-			continue
-		}
-		if duplicateID := validateUniqueTeamIDs(presetTeams); duplicateID != "" {
-			state.Logger().Error().
+		presetTeams, errMsg := resolvePreset(payload.Preset, config.LobbyPresets)
+		if errMsg != "" {
+			state.Logger().Warn().
+				Str("player_id", playerID).
 				Str("preset", payload.Preset).
-				Str("team_id", duplicateID).
-				Msg("preset has duplicate team id; rejecting create")
+				Msg("create lobby rejected: " + errMsg)
 			state.CreateLobbyResults.Emit(CreateLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "preset misconfigured: duplicate team id " + duplicateID,
-			})
-			continue
-		}
-		if len(presetTeams) == 0 {
-			state.Logger().Error().Str("preset", payload.Preset).Msg("preset has no teams")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "preset misconfigured: no teams",
+				Message:   errMsg,
 			})
 			continue
 		}
