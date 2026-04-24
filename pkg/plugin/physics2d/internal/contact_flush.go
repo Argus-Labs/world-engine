@@ -258,8 +258,8 @@ func lessBufferedContactEvent(a, b BufferedContactEvent) bool {
 		return a.Kind < b.Kind
 	}
 	return lessContactPairByEndpoints(
-		uint64(a.EntityA), a.ShapeIndexA, uint64(a.EntityB), a.ShapeIndexB,
-		uint64(b.EntityA), b.ShapeIndexA, uint64(b.EntityB), b.ShapeIndexB,
+		a.EntityA, a.ShapeIndexA, a.EntityB, a.ShapeIndexB,
+		b.EntityA, b.ShapeIndexA, b.EntityB, b.ShapeIndexB,
 	)
 }
 

@@ -1,5 +1,7 @@
 package component
 
+import "github.com/argus-labs/world-engine/pkg/cardinal"
+
 // PhysicsSingletonTag marks the single entity that holds physics plugin state (ActiveContacts).
 type PhysicsSingletonTag struct{}
 
@@ -8,11 +10,11 @@ func (PhysicsSingletonTag) Name() string { return "physics_singleton_tag" }
 // ContactPairEntry is one active contact pair tracked by the physics engine. Entries are
 // normalized: EntityA < EntityB (or if equal, ShapeIndexA <= ShapeIndexB).
 type ContactPairEntry struct {
-	EntityA     uint64 `json:"a"`
-	ShapeIndexA int    `json:"sa"`
-	EntityB     uint64 `json:"b"`
-	ShapeIndexB int    `json:"sb"`
-	IsSensor    bool   `json:"sensor"`
+	EntityA     cardinal.EntityID `json:"a"`
+	ShapeIndexA int               `json:"sa"`
+	EntityB     cardinal.EntityID `json:"b"`
+	ShapeIndexB int               `json:"sb"`
+	IsSensor    bool              `json:"sensor"`
 	// Fixture filters for normalized EntityA/B (recovery End / trigger vs contact routing).
 	// Omitempty keeps older snapshots valid.
 	FilterACategoryBits uint64 `json:"fa_cat,omitempty"`
