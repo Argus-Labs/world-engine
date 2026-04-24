@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/lobby/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,11 +74,11 @@ func TestTeamConfig(t *testing.T) {
 	t.Parallel()
 
 	config := TeamConfig{
-		Name:       "Team Alpha",
+		TeamID:     "alpha",
 		MaxPlayers: 5,
 	}
 
-	assert.Equal(t, "Team Alpha", config.Name)
+	assert.Equal(t, "alpha", config.TeamID)
 	assert.Equal(t, 5, config.MaxPlayers)
 }
 
@@ -297,7 +297,6 @@ func TestNotifySessionStartCommand(t *testing.T) {
 			Teams: []component.Team{
 				{
 					TeamID:    "team1",
-					Name:      "Team Alpha",
 					PlayerIDs: []string{"player1", "player2"},
 				},
 			},
@@ -344,10 +343,7 @@ func TestCreateLobbyCommand_WithGameWorld(t *testing.T) {
 
 	cmd := CreateLobbyCommand{
 		RequestID: "req-123",
-		Teams: []TeamConfig{
-			{Name: "Team 1", MaxPlayers: 4},
-			{Name: "Team 2", MaxPlayers: 4},
-		},
+		Preset:    "2v2",
 		GameWorld: cardinal.OtherWorld{
 			Region:       "us-west",
 			Organization: "myorg",
@@ -357,7 +353,7 @@ func TestCreateLobbyCommand_WithGameWorld(t *testing.T) {
 	}
 
 	assert.Equal(t, "req-123", cmd.RequestID)
-	assert.Len(t, cmd.Teams, 2)
+	assert.Equal(t, "2v2", cmd.Preset)
 	assert.Equal(t, "game-shard-1", cmd.GameWorld.ShardID)
 	assert.Equal(t, "lobby_create", cmd.Name())
 }
@@ -563,11 +559,11 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 
 	// Test PlayerJoinedEvent includes Player
 	joinedEvent := PlayerJoinedEvent{
-		TeamName: "Team Alpha",
-		Player:   player,
+		TeamID: "alpha",
+		Player: player,
 	}
 	assert.Equal(t, "player-123", joinedEvent.Player.PlayerID)
-	assert.Equal(t, "Team Alpha", joinedEvent.TeamName)
+	assert.Equal(t, "alpha", joinedEvent.TeamID)
 
 	// Test PlayerReadyEvent includes Player
 	readyEvent := PlayerReadyEvent{
@@ -578,13 +574,13 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 
 	// Test PlayerChangedTeamEvent includes Player
 	changedTeamEvent := PlayerChangedTeamEvent{
-		OldTeamName: "Team Alpha",
-		NewTeamName: "Team Beta",
-		Player:      player,
+		OldTeamID: "alpha",
+		NewTeamID: "beta",
+		Player:    player,
 	}
 	assert.Equal(t, "player-123", changedTeamEvent.Player.PlayerID)
-	assert.Equal(t, "Team Alpha", changedTeamEvent.OldTeamName)
-	assert.Equal(t, "Team Beta", changedTeamEvent.NewTeamName)
+	assert.Equal(t, "alpha", changedTeamEvent.OldTeamID)
+	assert.Equal(t, "beta", changedTeamEvent.NewTeamID)
 
 	// Test PlayerPassthroughUpdatedEvent includes Player
 	passthroughEvent := PlayerPassthroughUpdatedEvent{
@@ -599,40 +595,40 @@ func TestFindTargetTeam(t *testing.T) {
 
 	lobby := &component.LobbyComponent{
 		Teams: []component.Team{
-			{TeamID: "team1", Name: "Alpha", MaxPlayers: 2, PlayerIDs: []string{"p1", "p2"}}, // full
-			{TeamID: "team2", Name: "Beta", MaxPlayers: 2, PlayerIDs: []string{"p3"}},        // has space
-			{TeamID: "team3", Name: "Gamma", MaxPlayers: 0, PlayerIDs: []string{}},           // unlimited
+			{TeamID: "alpha", MaxPlayers: 2, PlayerIDs: []string{"p1", "p2"}}, // full
+			{TeamID: "beta", MaxPlayers: 2, PlayerIDs: []string{"p3"}},        // has space
+			{TeamID: "gamma", MaxPlayers: 0, PlayerIDs: []string{}},           // unlimited
 		},
 	}
 
 	tests := []struct {
 		name       string
-		teamName   string
+		teamID     string
 		wantTeamID string
 		wantErrMsg string
 	}{
 		{
-			name:       "find by name - exists with space",
-			teamName:   "Beta",
-			wantTeamID: "team2",
+			name:       "find by id - exists with space",
+			teamID:     "beta",
+			wantTeamID: "beta",
 			wantErrMsg: "",
 		},
 		{
-			name:       "find by name - team not found",
-			teamName:   "NonExistent",
+			name:       "find by id - team not found",
+			teamID:     "nonexistent",
 			wantTeamID: "",
 			wantErrMsg: "team not found",
 		},
 		{
-			name:       "find by name - team is full",
-			teamName:   "Alpha",
+			name:       "find by id - team is full",
+			teamID:     "alpha",
 			wantTeamID: "",
 			wantErrMsg: "team is full",
 		},
 		{
 			name:       "auto-assign - finds first with space",
-			teamName:   "",
-			wantTeamID: "team2",
+			teamID:     "",
+			wantTeamID: "beta",
 			wantErrMsg: "",
 		},
 	}
@@ -640,7 +636,7 @@ func TestFindTargetTeam(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			team, errMsg := findTargetTeam(lobby, tt.teamName)
+			team, errMsg := findTargetTeam(lobby, tt.teamID)
 			if tt.wantErrMsg != "" {
 				assert.Nil(t, team)
 				assert.Equal(t, tt.wantErrMsg, errMsg)
@@ -658,8 +654,8 @@ func TestFindTargetTeam_AllTeamsFull(t *testing.T) {
 
 	lobby := &component.LobbyComponent{
 		Teams: []component.Team{
-			{TeamID: "team1", Name: "Alpha", MaxPlayers: 1, PlayerIDs: []string{"p1"}},
-			{TeamID: "team2", Name: "Beta", MaxPlayers: 1, PlayerIDs: []string{"p2"}},
+			{TeamID: "alpha", MaxPlayers: 1, PlayerIDs: []string{"p1"}},
+			{TeamID: "beta", MaxPlayers: 1, PlayerIDs: []string{"p2"}},
 		},
 	}
 

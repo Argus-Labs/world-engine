@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/lobby/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	"github.com/google/uuid"
 )
 
@@ -16,10 +16,13 @@ import (
 // -----------------------------------------------------------------------------
 
 // CreateLobbyCommand creates a new lobby with the sender as leader.
+// The server resolves Preset against lobby.Config.LobbyPresets and
+// rejects unknown or empty preset labels. Clients cannot supply
+// arbitrary team configuration; the server is the source of truth.
 type CreateLobbyCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
-	// Teams is the initial team configuration for the lobby.
-	Teams []TeamConfig `json:"teams,omitempty"`
+	// Preset is the label of a server-registered team configuration.
+	Preset string `json:"preset"`
 	// GameWorld is the target game shard address for this lobby.
 	GameWorld cardinal.OtherWorld `json:"game_world"`
 	// PlayerPassthroughData is custom data for the creating player, forwarded to game shard.
@@ -28,20 +31,18 @@ type CreateLobbyCommand struct {
 	SessionPassthroughData map[string]any `json:"session_passthrough_data,omitempty"`
 }
 
-// TeamConfig defines initial team configuration.
-type TeamConfig struct {
-	Name       string `json:"name"`
-	MaxPlayers int    `json:"max_players"`
-}
+// TeamConfig is an alias for component.TeamConfig to preserve the
+// existing external type path (lobby.TeamConfig).
+type TeamConfig = component.TeamConfig
 
 // Name returns the command name.
 func (CreateLobbyCommand) Name() string { return "lobby_create" }
 
 // JoinLobbyCommand joins an existing lobby via invite code.
 type JoinLobbyCommand struct {
-	RequestID  string `json:"request_id"`          // For matching request/response
-	InviteCode string `json:"invite_code"`         // Required: invite code to join
-	TeamName   string `json:"team_name,omitempty"` // Optional: team to join by name (joins first available if empty)
+	RequestID  string `json:"request_id"`        // For matching request/response
+	InviteCode string `json:"invite_code"`       // Required: invite code to join
+	TeamID     string `json:"team_id,omitempty"` // Optional: team to join by ID (joins first available if empty)
 	// PlayerPassthroughData is custom data for the joining player, forwarded to game shard.
 	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
 }
@@ -52,7 +53,7 @@ func (JoinLobbyCommand) Name() string { return "lobby_join" }
 // JoinTeamCommand moves a player to a different team.
 type JoinTeamCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
-	TeamName  string `json:"team_name"`
+	TeamID    string `json:"team_id"`
 }
 
 // Name returns the command name.
@@ -156,6 +157,16 @@ type GetAllPlayersCommand struct {
 // Name returns the command name.
 func (GetAllPlayersCommand) Name() string { return "lobby_get_all_players" }
 
+// GetLobbyCommand fetches the caller's current lobby snapshot. Used by
+// reconnecting clients to restore their full view (teams, session
+// state, assigned GameWorld, etc.) in a single round-trip.
+type GetLobbyCommand struct {
+	RequestID string `json:"request_id"` // For matching request/response
+}
+
+// Name returns the command name.
+func (GetLobbyCommand) Name() string { return "lobby_get_lobby" }
+
 // -----------------------------------------------------------------------------
 // Events (Broadcast)
 // -----------------------------------------------------------------------------
@@ -172,9 +183,9 @@ func (LobbyCreatedEvent) Name() string { return "lobby_created" }
 
 // PlayerJoinedEvent is emitted when a player joins a lobby.
 type PlayerJoinedEvent struct {
-	LobbyID  string                    `json:"lobby_id"`
-	TeamName string                    `json:"team_name"`
-	Player   component.PlayerComponent `json:"player"`
+	LobbyID string                    `json:"lobby_id"`
+	TeamID  string                    `json:"team_id"`
+	Player  component.PlayerComponent `json:"player"`
 }
 
 // Name returns the event name.
@@ -210,10 +221,10 @@ func (PlayerReadyEvent) Name() string { return "lobby_player_ready" }
 
 // PlayerChangedTeamEvent is emitted when a player changes team.
 type PlayerChangedTeamEvent struct {
-	LobbyID     string                    `json:"lobby_id"`
-	OldTeamName string                    `json:"old_team_name"`
-	NewTeamName string                    `json:"new_team_name"`
-	Player      component.PlayerComponent `json:"player"`
+	LobbyID   string                    `json:"lobby_id"`
+	OldTeamID string                    `json:"old_team_id"`
+	NewTeamID string                    `json:"new_team_id"`
+	Player    component.PlayerComponent `json:"player"`
 }
 
 // Name returns the event name.
@@ -229,9 +240,13 @@ type LeaderChangedEvent struct {
 // Name returns the event name.
 func (LeaderChangedEvent) Name() string { return "lobby_leader_changed" }
 
-// SessionStartedEvent is emitted when a session starts.
+// SessionStartedEvent is emitted when a session starts. Carries the
+// assigned game shard address so every player in the lobby (not just
+// the session starter) learns which gameplay shard to connect to
+// without a follow-up query.
 type SessionStartedEvent struct {
-	LobbyID string `json:"lobby_id"`
+	LobbyID   string              `json:"lobby_id"`
+	GameWorld cardinal.OtherWorld `json:"game_world"`
 }
 
 // Name returns the event name.
@@ -382,10 +397,13 @@ func (r TransferLeaderResult) Name() string { return r.RequestID + "_transfer_le
 // StartSessionResult is sent back to the client after StartSessionCommand.
 // Emitted asynchronously — may arrive several ticks after the command,
 // once the orchestrator assigns a game shard via AssignShardCommand.
+// On success, GameWorld holds the assigned shard address so the client
+// can connect without an extra query. Zero-valued on failure.
 type StartSessionResult struct {
-	RequestID string `json:"request_id"`
-	IsSuccess bool   `json:"is_success"`
-	Message   string `json:"message"`
+	RequestID string              `json:"request_id"`
+	IsSuccess bool                `json:"is_success"`
+	Message   string              `json:"message"`
+	GameWorld cardinal.OtherWorld `json:"game_world,omitempty"`
 }
 
 // Name returns the request-prefixed event name.
@@ -451,6 +469,19 @@ type GetAllPlayersResult struct {
 // Name returns the request-prefixed event name.
 func (r GetAllPlayersResult) Name() string {
 	return r.RequestID + "_get_all_players_result"
+}
+
+// GetLobbyResult is sent back to the client after GetLobbyCommand.
+type GetLobbyResult struct {
+	RequestID string                   `json:"request_id"`
+	IsSuccess bool                     `json:"is_success"`
+	Message   string                   `json:"message"`
+	Lobby     component.LobbyComponent `json:"lobby,omitempty"`
+}
+
+// Name returns the request-prefixed event name.
+func (r GetLobbyResult) Name() string {
+	return r.RequestID + "_get_lobby_result"
 }
 
 // -----------------------------------------------------------------------------
@@ -613,6 +644,7 @@ type LobbySystemState struct {
 	UpdatePlayerPassthroughCmds  cardinal.WithCommand[UpdatePlayerPassthroughCommand]
 	GetPlayerCmds                cardinal.WithCommand[GetPlayerCommand]
 	GetAllPlayersCmds            cardinal.WithCommand[GetAllPlayersCommand]
+	GetLobbyCmds                 cardinal.WithCommand[GetLobbyCommand]
 
 	// Entities
 	Lobbies cardinal.Contains[struct {
@@ -661,6 +693,7 @@ type LobbySystemState struct {
 	UpdatePlayerPassthroughResults  cardinal.WithEvent[UpdatePlayerPassthroughResult]
 	GetPlayerResults                cardinal.WithEvent[GetPlayerResult]
 	GetAllPlayersResults            cardinal.WithEvent[GetAllPlayersResult]
+	GetLobbyResults                 cardinal.WithEvent[GetLobbyResult]
 }
 
 // lobbyLookupResult holds the result of looking up a player's lobby.
@@ -730,7 +763,7 @@ func LobbySystem(state *LobbySystemState) {
 	}
 
 	// Process all commands
-	processCreateLobbyCommands(state, &lobbyIndex, now, timeout)
+	processCreateLobbyCommands(state, &lobbyIndex, &config, now, timeout)
 	processJoinLobbyCommands(state, &lobbyIndex, now, timeout)
 	processJoinTeamCommands(state, &lobbyIndex)
 	processLeaveLobbyCommands(state, &lobbyIndex)
@@ -746,6 +779,7 @@ func LobbySystem(state *LobbySystemState) {
 	processUpdatePlayerPassthroughCommands(state, &lobbyIndex)
 	processGetPlayerCommands(state, &lobbyIndex)
 	processGetAllPlayersCommands(state, &lobbyIndex)
+	processGetLobbyCommands(state, &lobbyIndex)
 
 	// Save lobby index
 	if lobbyIndexEntity, err := state.LobbyIndexes.GetByID(lobbyIndexEntityID); err == nil {
@@ -933,15 +967,15 @@ func processHeartbeatCommands(
 	}
 }
 
-// validateUniqueTeamNames checks for duplicate team names in config.
-// Returns the duplicate name if found, empty string otherwise.
-func validateUniqueTeamNames(teams []TeamConfig) string {
-	teamNames := make(map[string]bool)
+// validateUniqueTeamIDs checks for duplicate team IDs in a preset.
+// Returns the duplicate ID if found, empty string otherwise.
+func validateUniqueTeamIDs(teams []TeamConfig) string {
+	teamIDs := make(map[string]bool)
 	for _, tc := range teams {
-		if teamNames[tc.Name] {
-			return tc.Name
+		if teamIDs[tc.TeamID] {
+			return tc.TeamID
 		}
-		teamNames[tc.Name] = true
+		teamIDs[tc.TeamID] = true
 	}
 	return ""
 }
@@ -1013,12 +1047,12 @@ func gatherLobbyPlayers(
 }
 
 // findTargetTeam finds the team for a player to join.
-// If teamName is provided, it finds that specific team.
+// If teamID is provided, it finds that specific team.
 // Otherwise, it finds the first team with available space.
 // Returns the team and an error message (empty string if successful).
-func findTargetTeam(lobby *component.LobbyComponent, teamName string) (*component.Team, string) {
-	if teamName != "" {
-		team := lobby.GetTeamByName(teamName)
+func findTargetTeam(lobby *component.LobbyComponent, teamID string) (*component.Team, string) {
+	if teamID != "" {
+		team := lobby.GetTeam(teamID)
 		if team == nil {
 			return nil, "team not found"
 		}
@@ -1040,6 +1074,7 @@ func findTargetTeam(lobby *component.LobbyComponent, teamName string) (*componen
 func processCreateLobbyCommands(
 	state *LobbySystemState,
 	lobbyIndex *component.LobbyIndexComponent,
+	config *component.ConfigComponent,
 	now, timeout int64,
 ) {
 	for cmd := range state.CreateLobbyCmds.Iter() {
@@ -1073,33 +1108,54 @@ func processCreateLobbyCommands(
 			CreatedAt: now,
 		}
 
-		// Create teams from config or default single team
-		if len(payload.Teams) > 0 {
-			// Validate unique team names
-			if duplicateName := validateUniqueTeamNames(payload.Teams); duplicateName != "" {
-				state.Logger().Warn().Str("team_name", duplicateName).Msg("duplicate team name")
-				state.CreateLobbyResults.Emit(CreateLobbyResult{
-					RequestID: payload.RequestID,
-					IsSuccess: false,
-					Message:   "duplicate team name: " + duplicateName,
-				})
-				continue
-			}
-
-			for i, tc := range payload.Teams {
-				lobby.Teams = append(lobby.Teams, component.Team{
-					TeamID:     fmt.Sprintf("team_%d", i),
-					Name:       tc.Name,
-					MaxPlayers: tc.MaxPlayers,
-				})
-			}
-		} else {
-			// Default: single team with no limit
-			lobby.Teams = []component.Team{{
-				TeamID:     "default",
-				Name:       "Default",
-				MaxPlayers: 0,
-			}}
+		// Resolve preset against the server-owned registry. Unknown or
+		// empty presets are rejected; the server is the source of truth
+		// for team configuration, not the client.
+		if payload.Preset == "" {
+			state.Logger().Warn().Str("player_id", playerID).Msg("create lobby rejected: empty preset")
+			state.CreateLobbyResults.Emit(CreateLobbyResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "preset is required",
+			})
+			continue
+		}
+		presetTeams, ok := config.LobbyPresets[payload.Preset]
+		if !ok {
+			state.Logger().Warn().Str("preset", payload.Preset).Msg("create lobby rejected: unknown preset")
+			state.CreateLobbyResults.Emit(CreateLobbyResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "unknown preset: " + payload.Preset,
+			})
+			continue
+		}
+		if duplicateID := validateUniqueTeamIDs(presetTeams); duplicateID != "" {
+			state.Logger().Error().
+				Str("preset", payload.Preset).
+				Str("team_id", duplicateID).
+				Msg("preset has duplicate team id; rejecting create")
+			state.CreateLobbyResults.Emit(CreateLobbyResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "preset misconfigured: duplicate team id " + duplicateID,
+			})
+			continue
+		}
+		if len(presetTeams) == 0 {
+			state.Logger().Error().Str("preset", payload.Preset).Msg("preset has no teams")
+			state.CreateLobbyResults.Emit(CreateLobbyResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "preset misconfigured: no teams",
+			})
+			continue
+		}
+		for _, tc := range presetTeams {
+			lobby.Teams = append(lobby.Teams, component.Team{
+				TeamID:     tc.TeamID,
+				MaxPlayers: tc.MaxPlayers,
+			})
 		}
 
 		// Generate invite code with collision check
@@ -1198,9 +1254,9 @@ func processJoinLobbyCommands(
 		}
 
 		// Find target team
-		targetTeam, errMsg := findTargetTeam(&lobby, payload.TeamName)
+		targetTeam, errMsg := findTargetTeam(&lobby, payload.TeamID)
 		if targetTeam == nil {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_name", payload.TeamName).Msg(errMsg)
+			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_id", payload.TeamID).Msg(errMsg)
 			emitJoinLobbyFailure(state, payload.RequestID, errMsg)
 			continue
 		}
@@ -1223,14 +1279,14 @@ func processJoinLobbyCommands(
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
-			Str("team_name", targetTeam.Name).
+			Str("team_id", targetTeam.TeamID).
 			Msg("Player joined lobby")
 
 		// Emit broadcast event
 		state.PlayerJoinedEvents.Emit(PlayerJoinedEvent{
-			LobbyID:  lobbyID,
-			TeamName: targetTeam.Name,
-			Player:   playerComp,
+			LobbyID: lobbyID,
+			TeamID:  targetTeam.TeamID,
+			Player:  playerComp,
 		})
 
 		// Gather all players in the lobby for the result
@@ -1284,12 +1340,12 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			})
 			continue
 		}
-		oldTeamName := oldTeam.Name
+		oldTeamID := oldTeam.TeamID
 
-		// Find target team by name
-		newTeam := lobby.GetTeamByName(payload.TeamName)
+		// Find target team by ID
+		newTeam := lobby.GetTeam(payload.TeamID)
 		if newTeam == nil {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_name", payload.TeamName).Msg("team not found")
+			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_id", payload.TeamID).Msg("team not found")
 			state.JoinTeamResults.Emit(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -1326,16 +1382,16 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
-			Str("old_team", oldTeamName).
-			Str("new_team", newTeam.Name).
+			Str("old_team", oldTeamID).
+			Str("new_team", newTeam.TeamID).
 			Msg("Player changed team")
 
 		// Emit broadcast event
 		state.PlayerChangedTeamEvents.Emit(PlayerChangedTeamEvent{
-			LobbyID:     lobbyID,
-			OldTeamName: oldTeamName,
-			NewTeamName: newTeam.Name,
-			Player:      playerComp,
+			LobbyID:   lobbyID,
+			OldTeamID: oldTeamID,
+			NewTeamID: newTeam.TeamID,
+			Player:    playerComp,
 		})
 
 		state.JoinTeamResults.Emit(JoinTeamResult{
@@ -1911,7 +1967,8 @@ func processAssignShardCommands(
 			Msg("Session started (async assignment)")
 
 		state.SessionStartedEvents.Emit(SessionStartedEvent{
-			LobbyID: payload.LobbyID,
+			LobbyID:   payload.LobbyID,
+			GameWorld: lobby.GameWorld,
 		})
 
 		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
@@ -1920,6 +1977,7 @@ func processAssignShardCommands(
 			RequestID: requestID,
 			IsSuccess: true,
 			Message:   "session started",
+			GameWorld: lobby.GameWorld,
 		})
 	}
 }
@@ -2219,6 +2277,30 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 			IsSuccess: true,
 			Message:   "player found",
 			Player:    playerComp,
+		})
+	}
+}
+
+func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *component.LobbyIndexComponent) {
+	for cmd := range state.GetLobbyCmds.Iter() {
+		playerID := cmd.Persona
+		payload := cmd.Payload
+
+		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		if result == nil {
+			state.GetLobbyResults.Emit(GetLobbyResult{
+				RequestID: payload.RequestID,
+				IsSuccess: false,
+				Message:   "player not in a lobby",
+			})
+			continue
+		}
+
+		state.GetLobbyResults.Emit(GetLobbyResult{
+			RequestID: payload.RequestID,
+			IsSuccess: true,
+			Message:   "lobby found",
+			Lobby:     result.lobby,
 		})
 	}
 }

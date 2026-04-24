@@ -5,7 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
-	"github.com/argus-labs/world-engine/pkg/lobby"
+	"github.com/argus-labs/world-engine/pkg/plugin/lobby"
 	"github.com/stretchr/testify/require"
 )
 
