@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"math"
 	"sort"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -125,15 +124,10 @@ func (rt *PhysicsRuntime) PruneActiveContactsInvolvingEntity(entityID cardinal.E
 func (rt *PhysicsRuntime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
 	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, len(ac.Pairs))
 	for _, p := range ac.Pairs {
-		entityA, okA := entityIDFromUint64(p.EntityA)
-		entityB, okB := entityIDFromUint64(p.EntityB)
-		if !okA || !okB {
-			continue
-		}
 		key := ContactPairKey{
-			EntityA:     entityA,
+			EntityA:     p.EntityA,
 			ShapeIndexA: p.ShapeIndexA,
-			EntityB:     entityB,
+			EntityB:     p.EntityB,
 			ShapeIndexB: p.ShapeIndexB,
 		}
 		rt.ActiveContacts[key] = ContactPairInfo{
@@ -153,15 +147,6 @@ func (rt *PhysicsRuntime) LoadActiveContactsFromComponent(ac component.ActiveCon
 	rt.ActiveContactsDirty = false
 }
 
-// entityIDFromUint64 maps persisted wire format (uint64) to cardinal.EntityID (uint32).
-// Oversized values are rejected so corrupt snapshots cannot truncate silently.
-func entityIDFromUint64(u uint64) (cardinal.EntityID, bool) {
-	if u > math.MaxUint32 {
-		return 0, false
-	}
-	return cardinal.EntityID(uint32(u)), true
-}
-
 // ActiveContactsToComponent converts the working map to the ECS component format (sorted
 // slice for deterministic snapshots).
 func (rt *PhysicsRuntime) ActiveContactsToComponent() component.ActiveContacts {
@@ -171,9 +156,9 @@ func (rt *PhysicsRuntime) ActiveContactsToComponent() component.ActiveContacts {
 	pairs := make([]component.ContactPairEntry, 0, len(rt.ActiveContacts))
 	for key, info := range rt.ActiveContacts {
 		pairs = append(pairs, component.ContactPairEntry{
-			EntityA:             uint64(key.EntityA),
+			EntityA:             key.EntityA,
 			ShapeIndexA:         key.ShapeIndexA,
-			EntityB:             uint64(key.EntityB),
+			EntityB:             key.EntityB,
 			ShapeIndexB:         key.ShapeIndexB,
 			IsSensor:            info.IsSensor,
 			FilterACategoryBits: info.FilterA.CategoryBits,
@@ -208,8 +193,8 @@ func lessContactPairEntry(a, b component.ContactPairEntry) bool {
 
 // lessContactPairByEndpoints compares (entityA, shapeIndexA, entityB, shapeIndexB) lexicographically.
 func lessContactPairByEndpoints(
-	aEA uint64, aSA int, aEB uint64, aSB int,
-	bEA uint64, bSA int, bEB uint64, bSB int,
+	aEA cardinal.EntityID, aSA int, aEB cardinal.EntityID, aSB int,
+	bEA cardinal.EntityID, bSA int, bEB cardinal.EntityID, bSB int,
 ) bool {
 	if aEA != bEA {
 		return aEA < bEA
