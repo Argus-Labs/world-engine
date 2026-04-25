@@ -39,14 +39,14 @@ func TestLobbyComponent_GetTeam(t *testing.T) {
 
 	lobby := &LobbyComponent{
 		Teams: []Team{
-			{TeamID: "team1", Name: "Team One"},
-			{TeamID: "team2", Name: "Team Two"},
+			{TeamID: "team1"},
+			{TeamID: "team2"},
 		},
 	}
 
 	team := lobby.GetTeam("team1")
 	require.NotNil(t, team)
-	assert.Equal(t, "Team One", team.Name)
+	assert.Equal(t, "team1", team.TeamID)
 
 	assert.Nil(t, lobby.GetTeam("unknown"))
 }

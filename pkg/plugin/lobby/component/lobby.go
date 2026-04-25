@@ -27,10 +27,20 @@ func (PlayerComponent) Name() string { return "player" }
 
 // Team represents a team within a lobby.
 type Team struct {
+	// TeamID is the stable identifier used to reference this team in all
+	// commands and events. Server-assigned at lobby creation from the
+	// preset registry and immutable afterward.
 	TeamID     string   `json:"team_id"`
-	Name       string   `json:"name"`
 	PlayerIDs  []string `json:"player_ids"` // References to player IDs (source of truth)
 	MaxPlayers int      `json:"max_players"`
+}
+
+// TeamConfig is a creation-time team specification used inside a lobby preset.
+// Server operators declare presets in lobby.Config.LobbyPresets; clients choose
+// a preset by name on CreateLobbyCommand. MaxPlayers <= 0 means unlimited.
+type TeamConfig struct {
+	TeamID     string `json:"team_id"`
+	MaxPlayers int    `json:"max_players"`
 }
 
 // Session represents the current session state of a lobby.
@@ -91,16 +101,6 @@ func (l *LobbyComponent) PlayerCount() int {
 func (l *LobbyComponent) GetTeam(teamID string) *Team {
 	for i := range l.Teams {
 		if l.Teams[i].TeamID == teamID {
-			return &l.Teams[i]
-		}
-	}
-	return nil
-}
-
-// GetTeamByName returns a team by its name.
-func (l *LobbyComponent) GetTeamByName(name string) *Team {
-	for i := range l.Teams {
-		if l.Teams[i].Name == name {
 			return &l.Teams[i]
 		}
 	}
@@ -428,6 +428,12 @@ type ConfigComponent struct {
 	// start itself and returns to Idle. Values <= 0 disable timeout
 	// enforcement entirely.
 	MaxAllocationTimeout int64 `json:"max_allocation_timeout,omitempty"`
+
+	// LobbyPresets is the server-owned registry of team configurations
+	// that clients can reference by label in CreateLobbyCommand.Preset.
+	// Server is the source of truth for team caps; clients cannot supply
+	// arbitrary TeamConfig values.
+	LobbyPresets map[string][]TeamConfig `json:"lobby_presets,omitempty"`
 }
 
 // Name returns the component name for ECS registration.

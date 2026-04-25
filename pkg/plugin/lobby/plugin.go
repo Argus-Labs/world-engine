@@ -30,8 +30,8 @@ package lobby
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/lobby/component"
-	"github.com/argus-labs/world-engine/pkg/lobby/system"
+	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/lobby/system"
 )
 
 // Re-export types for easier user access.
@@ -63,6 +63,7 @@ type (
 	UpdatePlayerPassthroughCommand  = system.UpdatePlayerPassthroughCommand
 	GetPlayerCommand                = system.GetPlayerCommand
 	GetAllPlayersCommand            = system.GetAllPlayersCommand
+	GetLobbyCommand                 = system.GetLobbyCommand
 
 	// Events (Broadcast).
 	CreatedEvent                   = system.LobbyCreatedEvent
@@ -95,6 +96,7 @@ type (
 	UpdatePlayerPassthroughResult  = system.UpdatePlayerPassthroughResult
 	GetPlayerResult                = system.GetPlayerResult
 	GetAllPlayersResult            = system.GetAllPlayersResult
+	GetLobbyResult                 = system.GetLobbyResult
 
 	// Cross-Shard Commands.
 	NotifySessionStartCommand = system.NotifySessionStartCommand
@@ -139,6 +141,14 @@ type Config struct {
 	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).
 	// Default: 30 seconds.
 	HeartbeatTimeout int64
+
+	// LobbyPresets is the server-owned registry of team configurations
+	// that clients can reference by label in CreateLobbyCommand.Preset.
+	// The map key is the preset label; the value is the ordered list of
+	// teams that a lobby created with that preset will contain. Server
+	// operators are the source of truth for team caps; clients cannot
+	// supply arbitrary team configurations.
+	LobbyPresets map[string][]TeamConfig
 }
 
 // Plugin implements cardinal.Plugin for the lobby system.
@@ -160,6 +170,7 @@ func (p *Plugin) Register(world *cardinal.World) {
 		HeartbeatTimeout:     p.config.HeartbeatTimeout,
 		AssignmentAuthority:  p.config.AssignmentAuthority,
 		MaxAllocationTimeout: p.config.MaxAllocationTimeout,
+		LobbyPresets:         p.config.LobbyPresets,
 	})
 
 	// Store provider
