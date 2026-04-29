@@ -19,12 +19,13 @@ import (
 // The server resolves Preset against lobby.Config.LobbyPresets and
 // rejects unknown or empty preset labels. Clients cannot supply
 // arbitrary team configuration; the server is the source of truth.
+//
+// The target game shard is not specified here: it is assigned later by
+// an external orchestrator via AssignShardCommand when the session starts.
 type CreateLobbyCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
 	// Preset is the label of a server-registered team configuration.
 	Preset string `json:"preset"`
-	// GameWorld is the target game shard address for this lobby.
-	GameWorld cardinal.OtherWorld `json:"game_world"`
 	// PlayerPassthroughData is custom data for the creating player, forwarded to game shard.
 	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
 	// SessionPassthroughData is custom data for the lobby session, forwarded to game shard.
@@ -490,8 +491,9 @@ func (r GetLobbyResult) Name() string {
 
 // NotifySessionStartCommand is sent to game shard when a session starts.
 type NotifySessionStartCommand struct {
-	Lobby      component.LobbyComponent `json:"lobby"`
-	LobbyWorld cardinal.OtherWorld      `json:"lobby_world"`
+	Lobby      component.LobbyComponent    `json:"lobby"`
+	LobbyWorld cardinal.OtherWorld         `json:"lobby_world"`
+	Players    []component.PlayerComponent `json:"players"`
 }
 
 // Name returns the command name.
@@ -1122,7 +1124,6 @@ func processCreateLobbyCommands(
 			ID:         lobbyID,
 			LeaderID:   playerID,
 			InviteCode: "", // Will be set after generation
-			GameWorld:  payload.GameWorld,
 			Session: component.Session{
 				State:           component.SessionStateIdle,
 				PassthroughData: payload.SessionPassthroughData,
@@ -1868,15 +1869,18 @@ func abortAwaitingAllocation(
 // configured on the lobby. No-op if no game shard is configured.
 func dispatchSessionStart(
 	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
 	config *component.ConfigComponent,
 	lobby *component.LobbyComponent,
 	lobbyID string,
 ) {
 	gameWorld := lobby.GameWorld
 	lobbyWorld := config.LobbyWorld
+	players := gatherLobbyPlayers(state, lobbyIndex, lobby)
 	gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
 		Lobby:      *lobby,
 		LobbyWorld: lobbyWorld,
+		Players:    players,
 	})
 	state.Logger().Info().
 		Str("lobby_id", lobbyID).
@@ -1963,7 +1967,7 @@ func processAssignShardCommands(
 			GameWorld: lobby.GameWorld,
 		})
 
-		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
+		dispatchSessionStart(state, lobbyIndex, config, &lobby, payload.LobbyID)
 
 		state.StartSessionResults.Emit(StartSessionResult{
 			RequestID: requestID,
@@ -2031,6 +2035,11 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			playerComp := playerEntity.Player.Get()
 			playerComp.IsReady = false
 			playerEntity.Player.Set(playerComp)
+
+			state.PlayerReadyEvents.Emit(PlayerReadyEvent{
+				LobbyID: payload.LobbyID,
+				Player:  playerComp,
+			})
 		}
 
 		state.Logger().Info().
