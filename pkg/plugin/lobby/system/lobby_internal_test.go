@@ -338,26 +338,6 @@ func TestGameWorld(t *testing.T) {
 	assert.Equal(t, "game-shard-1", gameWorld.ShardID)
 }
 
-func TestCreateLobbyCommand_WithGameWorld(t *testing.T) {
-	t.Parallel()
-
-	cmd := CreateLobbyCommand{
-		RequestID: "req-123",
-		Preset:    "2v2",
-		GameWorld: cardinal.OtherWorld{
-			Region:       "us-west",
-			Organization: "myorg",
-			Project:      "myproject",
-			ShardID:      "game-shard-1",
-		},
-	}
-
-	assert.Equal(t, "req-123", cmd.RequestID)
-	assert.Equal(t, "2v2", cmd.Preset)
-	assert.Equal(t, "game-shard-1", cmd.GameWorld.ShardID)
-	assert.Equal(t, "lobby_create", cmd.Name())
-}
-
 func TestLobbyComponent_WithGameWorld(t *testing.T) {
 	t.Parallel()
 

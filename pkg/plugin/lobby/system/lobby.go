@@ -19,12 +19,13 @@ import (
 // The server resolves Preset against lobby.Config.LobbyPresets and
 // rejects unknown or empty preset labels. Clients cannot supply
 // arbitrary team configuration; the server is the source of truth.
+//
+// The target game shard is not specified here: it is assigned later by
+// an external orchestrator via AssignShardCommand when the session starts.
 type CreateLobbyCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
 	// Preset is the label of a server-registered team configuration.
 	Preset string `json:"preset"`
-	// GameWorld is the target game shard address for this lobby.
-	GameWorld cardinal.OtherWorld `json:"game_world"`
 	// PlayerPassthroughData is custom data for the creating player, forwarded to game shard.
 	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
 	// SessionPassthroughData is custom data for the lobby session, forwarded to game shard.
@@ -1123,7 +1124,6 @@ func processCreateLobbyCommands(
 			ID:         lobbyID,
 			LeaderID:   playerID,
 			InviteCode: "", // Will be set after generation
-			GameWorld:  payload.GameWorld,
 			Session: component.Session{
 				State:           component.SessionStateIdle,
 				PassthroughData: payload.SessionPassthroughData,
