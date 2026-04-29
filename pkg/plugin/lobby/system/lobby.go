@@ -2035,6 +2035,11 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			playerComp := playerEntity.Player.Get()
 			playerComp.IsReady = false
 			playerEntity.Player.Set(playerComp)
+
+			state.PlayerReadyEvents.Emit(PlayerReadyEvent{
+				LobbyID: payload.LobbyID,
+				Player:  playerComp,
+			})
 		}
 
 		state.Logger().Info().
