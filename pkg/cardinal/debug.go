@@ -76,7 +76,12 @@ func (d *debugModule) Init(addr string) {
 	logger.Info().Str("addr", addr).Msg("Debug service initialized")
 
 	go func() {
-		_ = d.server.ListenAndServe()
+		// Surface bind failures and unexpected shutdown errors. ErrServerClosed
+		// is the normal exit path from Shutdown(); anything else is unexpected
+		// (port collision, OS-revoked socket).
+		if err := d.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Warn().Err(err).Msg("debug server stopped unexpectedly")
+		}
 	}()
 }
 
