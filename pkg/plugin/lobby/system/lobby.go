@@ -543,10 +543,23 @@ type StartSessionPayload = NotifySessionStartCommand
 type LobbyProvider interface {
 	// GenerateInviteCode generates a custom invite code for the lobby.
 	GenerateInviteCode(lobby *component.LobbyComponent) string
+
+	// ValidateJoin runs game-specific guards on a JoinLobbyCommand after
+	// the generic guards (already-in-lobby, invalid code, in-session)
+	// pass and before team selection. Return ok=false with a non-empty
+	// reason to reject the join; the plugin emits a JoinLobbyResult
+	// failure carrying that reason. Return ok=true to allow.
+	ValidateJoin(lobby *component.LobbyComponent, cmd JoinLobbyCommand) (ok bool, reason string)
 }
 
 // DefaultProvider provides default implementations.
 type DefaultProvider struct{}
+
+// ValidateJoin accepts all joins by default. Games override this to
+// enforce per-game requirements (version, region, level, etc.).
+func (DefaultProvider) ValidateJoin(*component.LobbyComponent, JoinLobbyCommand) (bool, string) {
+	return true, ""
+}
 
 // inviteCodeCharset contains uppercase alphanumeric characters excluding confusing ones (0, O, I, L, 1).
 const inviteCodeCharset = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -1243,6 +1256,13 @@ func processJoinLobbyCommands(
 		if lobby.Session.State == component.SessionStateInSession {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("lobby is in session")
 			emitJoinLobbyFailure(state, payload.RequestID, "lobby is in session")
+			continue
+		}
+
+		// Game-specific validation (version, region, level, etc.)
+		if ok, reason := storedProvider.ValidateJoin(&lobby, payload); !ok {
+			state.Logger().Warn().Str("lobby_id", lobbyID).Str("reason", reason).Msg("join rejected by provider")
+			emitJoinLobbyFailure(state, payload.RequestID, reason)
 			continue
 		}
 
