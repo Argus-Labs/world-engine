@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package worldengine.cardinal.v1;
+
+import "buf/validate/validate.proto";
+import "google/rpc/status.proto";
+import "worldengine/isc/v1/command.proto";
+import "worldengine/isc/v1/event.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
+
+service CardinalService {
+  // Stream opens a bidirectional session with a Cardinal shard. Clients send commands and event
+  // subscriptions; Cardinal sends subscribed events, heartbeats, and errors on the same stream.
+  rpc Stream(stream StreamRequest) returns (stream StreamResponse);
+}
+
+// StreamRequest is a client-to-Cardinal control or command message.
+message StreamRequest {
+  oneof payload {
+    option (buf.validate.oneof).required = true;
+
+    // Command to enqueue for execution on the Cardinal tick loop.
+    CommandRequest command = 1;
+
+    // Adds event subscriptions for this stream.
+    SubscribeEventsRequest subscribe_events = 2;
+
+    // Removes event subscriptions from this stream.
+    UnsubscribeEventsRequest unsubscribe_events = 3;
+
+    // Keeps the stream alive and checks liveness.
+    Heartbeat heartbeat = 4;
+  }
+}
+
+// CommandRequest asks Cardinal to enqueue a command.
+message CommandRequest {
+  // Command to enqueue. Cardinal should set or verify persona from auth context before enqueueing.
+  isc.v1.Command command = 1 [(buf.validate.field).required = true];
+}
+
+// SubscribeEventsRequest adds event names to this stream's subscriptions.
+message SubscribeEventsRequest {
+  // Event names to subscribe to. Use "*" to subscribe to all default events emitted by this shard.
+  repeated string event_names = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    items: {
+      string: {
+        max_len: 128
+        pattern: "^(\\*|[a-zA-Z0-9_-]+)$"
+      }
+    }
+  }];
+}
+
+// UnsubscribeEventsRequest removes event names from this stream's subscriptions.
+message UnsubscribeEventsRequest {
+  // Event names to unsubscribe from. Use "*" to remove an all-events subscription.
+  repeated string event_names = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    items: {
+      string: {
+        max_len: 128
+        pattern: "^(\\*|[a-zA-Z0-9_-]+)$"
+      }
+    }
+  }];
+}
+
+// Heartbeat is an explicit keepalive control frame.
+message Heartbeat {}
+
+// StreamResponse is a Cardinal-to-client stream message.
+message StreamResponse {
+  oneof payload {
+    option (buf.validate.oneof).required = true;
+
+    // Event emitted by Cardinal and matched to this stream's subscriptions.
+    EventMessage event = 1;
+
+    // Reports a stream error without necessarily closing the stream.
+    StreamError error = 2;
+
+    // Liveness response or server-initiated keepalive.
+    Heartbeat heartbeat = 3;
+  }
+}
+
+// EventMessage wraps an event emitted by Cardinal.
+message EventMessage {
+  // Event emitted by Cardinal.
+  isc.v1.Event event = 1 [(buf.validate.field).required = true];
+}
+
+// StreamError reports an error on the stream.
+message StreamError {
+  // Structured error status.
+  google.rpc.Status status = 1 [(buf.validate.field).required = true];
+}

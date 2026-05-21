@@ -5,7 +5,9 @@ go 1.25.5
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1
 	buf.build/go/protovalidate v1.0.0
+	connectrpc.com/authn v0.2.0
 	connectrpc.com/connect v1.19.1
+	connectrpc.com/otelconnect v0.9.0
 	connectrpc.com/validate v0.6.0
 	github.com/aws/aws-sdk-go-v2 v1.41.3
 	github.com/aws/aws-sdk-go-v2/config v1.32.11
@@ -15,6 +17,8 @@ require (
 	github.com/expr-lang/expr v1.17.7
 	github.com/getsentry/sentry-go v0.36.2
 	github.com/goccy/go-json v0.10.5
+	github.com/MicahParks/keyfunc/v3 v3.3.10
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/kelindar/bitmap v1.5.3
@@ -36,6 +40,7 @@ require (
 
 require (
 	cel.dev/expr v0.25.1 // indirect
+	github.com/MicahParks/jwkset v0.8.0 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.6.0-default-no-op // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.6 // indirect

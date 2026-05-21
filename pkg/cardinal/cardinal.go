@@ -25,7 +25,7 @@ type World struct {
 	commands        command.Manager       // Receives commands for systems
 	events          event.Manager         // Collects and dispatches events
 	address         *micro.ServiceAddress // This world's NATS address
-	service         *service              // micro.Service wrapper
+	service         *service2             // ConnectRPC direct client-facing service
 	snapshotStorage snapshot.Storage      // Snapshot storage
 	debug           *debugModule          // For debug only utils and services
 	pprof           *pprofModule          // Optional pprof HTTP server
@@ -80,13 +80,12 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		return world.debug.register("component", zero)
 	})
 
-	// Create the service.
-	service := newService(world)
-	world.service = service
+	// Create the ConnectRPC client-facing service.
+	world.service = newService2(world, options.AuthMode, options.ArgusAuthURL)
 
-	// Register event handlers with the service's (NATS) publishers.
-	world.events.RegisterHandler(event.KindDefault, service.publishDefaultEvent)
-	world.events.RegisterHandler(event.KindInterShardCommand, service.publishInterShardCommand)
+	// Register event handlers with the ConnectRPC service publishers.
+	world.events.RegisterHandler(event.KindDefault, world.service.publishDefaultEvent)
+	world.events.RegisterHandler(event.KindInterShardCommand, world.service.publishInterShardCommand)
 
 	// Setup snapshot storage.
 	switch options.SnapshotStorageType {
@@ -150,7 +149,8 @@ func (w *World) StartGame() {
 	// Start the NATS connection and handler. Failures here panic; observers
 	// above are already running, so a goroutine/stack profile is reachable
 	// during the panic window via the deferred shutdown chain.
-	if err := w.service.init(); err != nil {
+	// Start the ConnectRPC client-facing service.
+	if err := w.service.init(":8080"); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
 
@@ -313,7 +313,7 @@ func (w *World) shutdown() {
 
 	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
 	// but the producer side should stop before observers do.
-	if err := w.service.shutdown(); err != nil {
+	if err := w.service.shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
 	}
