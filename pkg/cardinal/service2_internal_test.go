@@ -245,7 +245,10 @@ func newService2Fixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints boo
 		svc.microService = microService
 
 		require.NoError(t, microService.AddEndpoint("ping", svc.handlePing))
-		require.NoError(t, microService.AddGroup("command").AddEndpoint(testutils.SimpleCommand{}.Name(), svc.handleInterShardCommand))
+		require.NoError(t, microService.AddGroup("command").AddEndpoint(
+			testutils.SimpleCommand{}.Name(),
+			svc.handleInterShardCommand,
+		))
 		require.NoError(t, client.Flush())
 	}
 

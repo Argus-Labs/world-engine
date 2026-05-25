@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/rotisserie/eris"
@@ -113,6 +113,8 @@ func (s *service2) init(address string) error {
 		mux.Handle("/dev-auth-sign-in", authenticator.signInHandler())
 	case AuthModePassthrough:
 		authenticate = authenticatorPassthrough{}.authenticate
+	case AuthModeUndefined:
+		fallthrough
 	default:
 		return eris.Errorf("invalid service2 auth mode: %s", s.authMode)
 	}
@@ -587,7 +589,11 @@ func (s *service2) handleInterShardCommand(ctx context.Context, req *micro.Reque
 		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
 	}
 	if micro.String(sender) == micro.String(s.world.address) {
-		return micro.NewErrorResponse(req, eris.New("inter-shard command sender must be another shard"), codes.InvalidArgument)
+		return micro.NewErrorResponse(
+			req,
+			eris.New("inter-shard command sender must be another shard"),
+			codes.InvalidArgument,
+		)
 	}
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
@@ -851,6 +857,6 @@ func (a *authenticatorDev) signInHandler() http.Handler {
 
 type authenticatorPassthrough struct{}
 
-func (a authenticatorPassthrough) authenticate(_ context.Context, req *http.Request) (any, error) {
+func (a authenticatorPassthrough) authenticate(_ context.Context, _ *http.Request) (any, error) {
 	return &User{ID: "test-user"}, nil
 }

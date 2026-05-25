@@ -258,7 +258,10 @@ package cardinal
 // 	// Register endpoints.
 // 	require.NoError(t, microService.AddEndpoint("ping", svc.handlePing))
 // 	require.NoError(t, microService.AddEndpoint("query", svc.handleQuery))
-// 	require.NoError(t, microService.AddGroup("command").AddEndpoint(testutils.SimpleCommand{}.Name(), svc.handleCommand))
+// 	require.NoError(t, microService.AddGroup("command").AddEndpoint(
+// 		testutils.SimpleCommand{}.Name(),
+// 		svc.handleCommand,
+// 	))
 //
 // 	// Flush to ensure all subscriptions are active before tests send requests.
 // 	require.NoError(t, client.Flush())
