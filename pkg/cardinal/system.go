@@ -216,7 +216,7 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 	// Register the command handler with NATS. NOTE: this just adds to the service's command name set,
 	// it doesn't create the NATS subscription/request handler immediately. This method is free of
 	// side effects so we can test without NATS.
-	// meta.world.service.registerCommandHandler(name)
+	meta.world.service.registerCommandHandler(name)
 
 	if err := meta.world.debug.register("command", zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)

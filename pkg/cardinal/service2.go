@@ -31,6 +31,7 @@ import (
 	"github.com/shamaton/msgpack/v3"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc/codes"
 )
 
 // service2 will host the direct client-facing Cardinal service.
@@ -40,6 +41,9 @@ type service2 struct {
 	log          zerolog.Logger
 	authMode     AuthMode
 	argusAuthURL string
+	client       *micro.Client
+	microService *micro.Service
+	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
 	replyWaiters map[string][]chan *iscv1.Event
 	mu           sync.RWMutex
@@ -54,12 +58,39 @@ func newService2(world *World, authMode AuthMode, argusAuthURL string) *service2
 		log:          world.tel.GetLogger("service"),
 		authMode:     authMode,
 		argusAuthURL: argusAuthURL,
+		commands:     make(map[string]struct{}),
 		subscribers:  make(map[string]*streamSubscriber),
 		replyWaiters: make(map[string][]chan *iscv1.Event),
 	}
 }
 
 func (s *service2) init(address string) error {
+	clientOpts := []micro.ClientOption{micro.WithLogger(s.world.tel.GetLogger("service"))}
+	if cfg := s.world.options.NATSConfig; cfg != nil {
+		clientOpts = append(clientOpts, micro.WithNATSConfig(*cfg))
+	}
+	client, err := micro.NewClient(clientOpts...)
+	if err != nil {
+		return eris.Wrap(err, "failed to initialize micro client")
+	}
+	s.client = client
+	microService, err := micro.NewService(client, s.world.address, &s.world.tel)
+	if err != nil {
+		return eris.Wrap(err, "failed to create micro service")
+	}
+	s.microService = microService
+
+	// Keep these for now cuz ISC requires a bit more work than client connections. Will need another
+	// refactor after the current clients are migrated to connect directly to the shards.
+	if err = s.microService.AddEndpoint("ping", s.handlePing); err != nil {
+		return eris.Wrap(err, "failed to register ping handler")
+	}
+	for cmd := range s.commands {
+		if err := s.microService.AddGroup("command").AddEndpoint(cmd, s.handleInterShardCommand); err != nil {
+			return eris.Wrapf(err, "failed to register %s command handler", cmd)
+		}
+	}
+
 	otelInterceptor, err := otelconnect.NewInterceptor()
 	if err != nil {
 		return eris.Wrap(err, "failed to create otel interceptor")
@@ -113,10 +144,18 @@ func (s *service2) init(address string) error {
 
 func (s *service2) shutdown(ctx context.Context) error {
 	assert.That(s.server != nil, "Don't call shutdown before you init server")
+	assert.That(s.client != nil, "Don't call shutdown before you init server")
 
 	if err := s.server.Shutdown(ctx); err != nil {
 		return eris.Wrap(err, "failed to shutdown service2 server")
 	}
+	if s.microService != nil {
+		if err := s.microService.Close(); err != nil {
+			return eris.Wrap(err, "failed to close micro service")
+		}
+	}
+	s.client.Close()
+
 	return nil
 }
 
@@ -153,7 +192,7 @@ func (s *service2) SendCommand(
 
 	cmd.Persona.Id = user.ID
 
-	if !s.isValidAddress(cmd.GetAddress()) {
+	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
@@ -177,7 +216,7 @@ func (s *service2) SendCommandWithReply(
 
 	cmd.Persona.Id = user.ID
 
-	if !s.isValidAddress(cmd.GetAddress()) {
+	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
@@ -236,7 +275,7 @@ func (s *service2) Query(
 	default:
 	}
 
-	if !s.isValidAddress(req.Msg.GetAddress()) {
+	if micro.String(s.world.address) != micro.String(req.Msg.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
@@ -309,7 +348,7 @@ func (s *service2) StartEventStream(
 	defer s.removeSubscriber(user)
 
 	for _, subscription := range req.Msg.GetSubscriptions() {
-		if !s.isValidAddress(subscription.GetAddress()) {
+		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
@@ -351,7 +390,7 @@ func (s *service2) SubscribeEvents(
 	}
 
 	for _, subscription := range req.Msg.GetSubscriptions() {
-		if !s.isValidAddress(subscription.GetAddress()) {
+		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
@@ -372,7 +411,7 @@ func (s *service2) UnsubscribeEvents(
 	}
 
 	for _, subscription := range req.Msg.GetSubscriptions() {
-		if !s.isValidAddress(subscription.GetAddress()) {
+		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
@@ -509,18 +548,87 @@ func (s *service2) publishDefaultEvent(evt event.Event) error {
 	return nil
 }
 
-func (s *service2) publishInterShardCommand(evt event.Event) error {
-	if _, ok := evt.Payload.(command.Command); !ok {
-		return eris.Errorf("invalid inter shard command %v", evt.Payload)
-	}
-	panic("unimplemented")
-}
-
 func matchesEvent(subscription string, eventName string) bool {
 	return subscription == eventName ||
 		subscription == "*" ||
 		subscription == ">" ||
 		(strings.HasSuffix(subscription, ".>") && strings.HasPrefix(eventName, strings.TrimSuffix(subscription, ">")))
+}
+
+// -------------------------------------------------------------------------------------------------
+// ISC
+// -------------------------------------------------------------------------------------------------
+
+func (s *service2) registerCommandHandler(name string) {
+	s.commands[name] = struct{}{}
+}
+
+func (s *service2) handlePing(_ context.Context, req *micro.Request) *micro.Response {
+	return micro.NewSuccessResponse(req, nil)
+}
+
+func (s *service2) handleInterShardCommand(ctx context.Context, req *micro.Request) *micro.Response {
+	select {
+	case <-ctx.Done():
+		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
+	default:
+	}
+
+	cmd := &iscv1.Command{}
+	if err := req.Payload.UnmarshalTo(cmd); err != nil {
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
+	}
+
+	if err := protovalidate.Validate(cmd); err != nil {
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
+	}
+	sender, err := micro.ParseAddress(cmd.GetPersona().GetId())
+	if err != nil {
+		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
+	}
+	if micro.String(sender) == micro.String(s.world.address) {
+		return micro.NewErrorResponse(req, eris.New("inter-shard command sender must be another shard"), codes.InvalidArgument)
+	}
+
+	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
+		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
+	}
+
+	if err := s.world.commands.Enqueue(cmd); err != nil {
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
+	}
+
+	return micro.NewSuccessResponse(req, nil)
+}
+
+func (s *service2) publishInterShardCommand(evt event.Event) error {
+	isc, ok := evt.Payload.(command.Command)
+	if !ok {
+		return eris.Errorf("invalid inter shard command %v", evt.Payload)
+	}
+	assert.That(isc.Address != nil, "inter shard command has nil address")
+
+	payload, err := schema.Serialize(isc.Payload)
+	if err != nil {
+		return eris.Wrap(err, "failed to marshal command payload")
+	}
+
+	commandPb := &iscv1.Command{
+		Name:    isc.Payload.Name(),
+		Address: isc.Address,
+		Persona: &iscv1.Persona{Id: isc.Persona},
+		Payload: payload,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
+	if err != nil {
+		return eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Payload.Name())
+	}
+
+	return nil
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -745,12 +853,4 @@ type authenticatorPassthrough struct{}
 
 func (a authenticatorPassthrough) authenticate(_ context.Context, req *http.Request) (any, error) {
 	return &User{ID: "test-user"}, nil
-}
-
-// -------------------------------------------------------------------------------------------------
-// Helpers
-// -------------------------------------------------------------------------------------------------
-
-func (s *service2) isValidAddress(address *micro.ServiceAddress) bool {
-	return micro.String(s.world.address) == micro.String(address)
 }
