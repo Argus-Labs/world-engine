@@ -5,79 +5,30 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Status } from "../../../google/rpc/status_pb";
-import { file_google_rpc_status } from "../../../google/rpc/status_pb";
 import type { Command } from "../../isc/v1/command_pb";
 import { file_worldengine_isc_v1_command } from "../../isc/v1/command_pb";
 import type { Event } from "../../isc/v1/event_pb";
 import { file_worldengine_isc_v1_event } from "../../isc/v1/event_pb";
+import type { Query, QueryResult } from "../../isc/v1/query_pb";
+import { file_worldengine_isc_v1_query } from "../../isc/v1/query_pb";
+import type { ServiceAddress } from "../../micro/v1/service_pb";
+import { file_worldengine_micro_v1_service } from "../../micro/v1/service_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/cardinal/v1/cardinal.proto.
  */
 export const file_worldengine_cardinal_v1_cardinal: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9jYXJkaW5hbC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEitAIKDVN0cmVhbVJlcXVlc3QSOgoHY29tbWFuZBgBIAEoCzInLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNvbW1hbmRSZXF1ZXN0SAASSwoQc3Vic2NyaWJlX2V2ZW50cxgCIAEoCzIvLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN1YnNjcmliZUV2ZW50c1JlcXVlc3RIABJPChJ1bnN1YnNjcmliZV9ldmVudHMYAyABKAsyMS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5VbnN1YnNjcmliZUV2ZW50c1JlcXVlc3RIABI3CgloZWFydGJlYXQYBCABKAsyIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5IZWFydGJlYXRIAEIQCgdwYXlsb2FkEgW6SAIIASJGCg5Db21tYW5kUmVxdWVzdBI0Cgdjb21tYW5kGAEgASgLMhsud29ybGRlbmdpbmUuaXNjLnYxLkNvbW1hbmRCBrpIA8gBASJVChZTdWJzY3JpYmVFdmVudHNSZXF1ZXN0EjsKC2V2ZW50X25hbWVzGAEgAygJQia6SCOSASAIASIcchoYgAEyFV4oXCp8W2EtekEtWjAtOV8tXSspJCJXChhVbnN1YnNjcmliZUV2ZW50c1JlcXVlc3QSOwoLZXZlbnRfbmFtZXMYASADKAlCJrpII5IBIAgBIhxyGhiAATIVXihcKnxbYS16QS1aMC05Xy1dKykkIgsKCUhlYXJ0YmVhdCLKAQoOU3RyZWFtUmVzcG9uc2USNgoFZXZlbnQYASABKAsyJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5FdmVudE1lc3NhZ2VIABI1CgVlcnJvchgCIAEoCzIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0cmVhbUVycm9ySAASNwoJaGVhcnRiZWF0GAMgASgLMiIud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSGVhcnRiZWF0SABCEAoHcGF5bG9hZBIFukgCCAEiQAoMRXZlbnRNZXNzYWdlEjAKBWV2ZW50GAEgASgLMhkud29ybGRlbmdpbmUuaXNjLnYxLkV2ZW50Qga6SAPIAQEiOQoLU3RyZWFtRXJyb3ISKgoGc3RhdHVzGAEgASgLMhIuZ29vZ2xlLnJwYy5TdGF0dXNCBrpIA8gBATJwCg9DYXJkaW5hbFNlcnZpY2USXQoGU3RyZWFtEiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RyZWFtUmVxdWVzdBonLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0cmVhbVJlc3BvbnNlKAEwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_rpc_status, file_worldengine_isc_v1_command, file_worldengine_isc_v1_event]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9jYXJkaW5hbC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiSgoSU2VuZENvbW1hbmRSZXF1ZXN0EjQKB2NvbW1hbmQYASABKAsyGy53b3JsZGVuZ2luZS5pc2MudjEuQ29tbWFuZEIGukgDyAEBIhUKE1NlbmRDb21tYW5kUmVzcG9uc2UiiAEKG1NlbmRDb21tYW5kV2l0aFJlcGx5UmVxdWVzdBI0Cgdjb21tYW5kGAEgASgLMhsud29ybGRlbmdpbmUuaXNjLnYxLkNvbW1hbmRCBrpIA8gBARIzCgpldmVudF9uYW1lGAIgASgJQh+6SBzIAQFyFxABGIABMhBeW2EtekEtWjAtOV8tXSskIkgKHFNlbmRDb21tYW5kV2l0aFJlcGx5UmVzcG9uc2USKAoFZXZlbnQYASABKAsyGS53b3JsZGVuZ2luZS5pc2MudjEuRXZlbnQifwoMUXVlcnlSZXF1ZXN0Ej0KB2FkZHJlc3MYASABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBEjAKBXF1ZXJ5GAIgASgLMhkud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Qga6SAPIAQEiQQoNUXVlcnlSZXNwb25zZRIwCgdyZXN1bHRzGAEgASgLMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5UmVzdWx0IooBChFFdmVudFN1YnNjcmlwdGlvbhI9CgdhZGRyZXNzGAEgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBARI2CgZldmVudHMYAiADKAlCJrpII5IBIAgBIhxyGhABGIABMhNeW2EtekEtWjAtOS4qPl8tXSskIlwKF1N0YXJ0RXZlbnRTdHJlYW1SZXF1ZXN0EkEKDXN1YnNjcmlwdGlvbnMYASADKAsyKi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5FdmVudFN1YnNjcmlwdGlvbiJ7ChhTdGFydEV2ZW50U3RyZWFtUmVzcG9uc2USNQoHYWRkcmVzcxgBIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzEigKBWV2ZW50GAIgASgLMhkud29ybGRlbmdpbmUuaXNjLnYxLkV2ZW50ImUKFlN1YnNjcmliZUV2ZW50c1JlcXVlc3QSSwoNc3Vic2NyaXB0aW9ucxgBIAMoCzIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkV2ZW50U3Vic2NyaXB0aW9uQgi6SAWSAQIIASIZChdTdWJzY3JpYmVFdmVudHNSZXNwb25zZSJnChhVbnN1YnNjcmliZUV2ZW50c1JlcXVlc3QSSwoNc3Vic2NyaXB0aW9ucxgBIAMoCzIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkV2ZW50U3Vic2NyaXB0aW9uQgi6SAWSAQIIASIbChlVbnN1YnNjcmliZUV2ZW50c1Jlc3BvbnNlMtIFCg9DYXJkaW5hbFNlcnZpY2USagoLU2VuZENvbW1hbmQSKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TZW5kQ29tbWFuZFJlcXVlc3QaLC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TZW5kQ29tbWFuZFJlc3BvbnNlIgAShQEKFFNlbmRDb21tYW5kV2l0aFJlcGx5EjQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU2VuZENvbW1hbmRXaXRoUmVwbHlSZXF1ZXN0GjUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU2VuZENvbW1hbmRXaXRoUmVwbHlSZXNwb25zZSIAElgKBVF1ZXJ5EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUXVlcnlSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUXVlcnlSZXNwb25zZSIAEnsKEFN0YXJ0RXZlbnRTdHJlYW0SMC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGFydEV2ZW50U3RyZWFtUmVxdWVzdBoxLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0YXJ0RXZlbnRTdHJlYW1SZXNwb25zZSIAMAESdgoPU3Vic2NyaWJlRXZlbnRzEi8ud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3Vic2NyaWJlRXZlbnRzUmVxdWVzdBowLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN1YnNjcmliZUV2ZW50c1Jlc3BvbnNlIgASfAoRVW5zdWJzY3JpYmVFdmVudHMSMS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5VbnN1YnNjcmliZUV2ZW50c1JlcXVlc3QaMi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5VbnN1YnNjcmliZUV2ZW50c1Jlc3BvbnNlIgBCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_buf_validate_validate, file_worldengine_isc_v1_command, file_worldengine_isc_v1_event, file_worldengine_isc_v1_query, file_worldengine_micro_v1_service]);
 
 /**
- * StreamRequest is a client-to-Cardinal control or command message.
+ * SendCommandRequest represents a request to execute a command on a specific shard.
  *
- * @generated from message worldengine.cardinal.v1.StreamRequest
+ * @generated from message worldengine.cardinal.v1.SendCommandRequest
  */
-export type StreamRequest = Message<"worldengine.cardinal.v1.StreamRequest"> & {
+export type SendCommandRequest = Message<"worldengine.cardinal.v1.SendCommandRequest"> & {
   /**
-   * @generated from oneof worldengine.cardinal.v1.StreamRequest.payload
-   */
-  payload: {
-    /**
-     * Command to enqueue for execution on the Cardinal tick loop.
-     *
-     * @generated from field: worldengine.cardinal.v1.CommandRequest command = 1;
-     */
-    value: CommandRequest;
-    case: "command";
-  } | {
-    /**
-     * Adds event subscriptions for this stream.
-     *
-     * @generated from field: worldengine.cardinal.v1.SubscribeEventsRequest subscribe_events = 2;
-     */
-    value: SubscribeEventsRequest;
-    case: "subscribeEvents";
-  } | {
-    /**
-     * Removes event subscriptions from this stream.
-     *
-     * @generated from field: worldengine.cardinal.v1.UnsubscribeEventsRequest unsubscribe_events = 3;
-     */
-    value: UnsubscribeEventsRequest;
-    case: "unsubscribeEvents";
-  } | {
-    /**
-     * Keeps the stream alive and checks liveness.
-     *
-     * @generated from field: worldengine.cardinal.v1.Heartbeat heartbeat = 4;
-     */
-    value: Heartbeat;
-    case: "heartbeat";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.StreamRequest.
- * Use `create(StreamRequestSchema)` to create a new message.
- */
-export const StreamRequestSchema: GenMessage<StreamRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 0);
-
-/**
- * CommandRequest asks Cardinal to enqueue a command.
- *
- * @generated from message worldengine.cardinal.v1.CommandRequest
- */
-export type CommandRequest = Message<"worldengine.cardinal.v1.CommandRequest"> & {
-  /**
-   * Command to enqueue. Cardinal should set or verify persona from auth context before enqueueing.
+   * The address of the cardinal shard to send the command to.
    *
    * @generated from field: worldengine.isc.v1.Command command = 1;
    */
@@ -85,120 +36,63 @@ export type CommandRequest = Message<"worldengine.cardinal.v1.CommandRequest"> &
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.CommandRequest.
- * Use `create(CommandRequestSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.SendCommandRequest.
+ * Use `create(SendCommandRequestSchema)` to create a new message.
  */
-export const CommandRequestSchema: GenMessage<CommandRequest> = /*@__PURE__*/
+export const SendCommandRequestSchema: GenMessage<SendCommandRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 0);
+
+/**
+ * SendCommandResponse is returned upon successful command execution.
+ *
+ * @generated from message worldengine.cardinal.v1.SendCommandResponse
+ */
+export type SendCommandResponse = Message<"worldengine.cardinal.v1.SendCommandResponse"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SendCommandResponse.
+ * Use `create(SendCommandResponseSchema)` to create a new message.
+ */
+export const SendCommandResponseSchema: GenMessage<SendCommandResponse> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_cardinal, 1);
 
 /**
- * SubscribeEventsRequest adds event names to this stream's subscriptions.
+ * SendCommandWithReplyRequest represents a request to execute a command and wait for an event response.
  *
- * @generated from message worldengine.cardinal.v1.SubscribeEventsRequest
+ * @generated from message worldengine.cardinal.v1.SendCommandWithReplyRequest
  */
-export type SubscribeEventsRequest = Message<"worldengine.cardinal.v1.SubscribeEventsRequest"> & {
+export type SendCommandWithReplyRequest = Message<"worldengine.cardinal.v1.SendCommandWithReplyRequest"> & {
   /**
-   * Event names to subscribe to. Use "*" to subscribe to all default events emitted by this shard.
+   * The command to execute on the shard.
    *
-   * @generated from field: repeated string event_names = 1;
+   * @generated from field: worldengine.isc.v1.Command command = 1;
    */
-  eventNames: string[];
+  command?: Command;
+
+  /**
+   * The name of the event to wait for after the command is executed.
+   *
+   * @generated from field: string event_name = 2;
+   */
+  eventName: string;
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.SubscribeEventsRequest.
- * Use `create(SubscribeEventsRequestSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.SendCommandWithReplyRequest.
+ * Use `create(SendCommandWithReplyRequestSchema)` to create a new message.
  */
-export const SubscribeEventsRequestSchema: GenMessage<SubscribeEventsRequest> = /*@__PURE__*/
+export const SendCommandWithReplyRequestSchema: GenMessage<SendCommandWithReplyRequest> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_cardinal, 2);
 
 /**
- * UnsubscribeEventsRequest removes event names from this stream's subscriptions.
+ * SendCommandWithReplyResponse is returned with the event from the command execution.
  *
- * @generated from message worldengine.cardinal.v1.UnsubscribeEventsRequest
+ * @generated from message worldengine.cardinal.v1.SendCommandWithReplyResponse
  */
-export type UnsubscribeEventsRequest = Message<"worldengine.cardinal.v1.UnsubscribeEventsRequest"> & {
+export type SendCommandWithReplyResponse = Message<"worldengine.cardinal.v1.SendCommandWithReplyResponse"> & {
   /**
-   * Event names to unsubscribe from. Use "*" to remove an all-events subscription.
-   *
-   * @generated from field: repeated string event_names = 1;
-   */
-  eventNames: string[];
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.UnsubscribeEventsRequest.
- * Use `create(UnsubscribeEventsRequestSchema)` to create a new message.
- */
-export const UnsubscribeEventsRequestSchema: GenMessage<UnsubscribeEventsRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 3);
-
-/**
- * Heartbeat is an explicit keepalive control frame.
- *
- * @generated from message worldengine.cardinal.v1.Heartbeat
- */
-export type Heartbeat = Message<"worldengine.cardinal.v1.Heartbeat"> & {
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.Heartbeat.
- * Use `create(HeartbeatSchema)` to create a new message.
- */
-export const HeartbeatSchema: GenMessage<Heartbeat> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 4);
-
-/**
- * StreamResponse is a Cardinal-to-client stream message.
- *
- * @generated from message worldengine.cardinal.v1.StreamResponse
- */
-export type StreamResponse = Message<"worldengine.cardinal.v1.StreamResponse"> & {
-  /**
-   * @generated from oneof worldengine.cardinal.v1.StreamResponse.payload
-   */
-  payload: {
-    /**
-     * Event emitted by Cardinal and matched to this stream's subscriptions.
-     *
-     * @generated from field: worldengine.cardinal.v1.EventMessage event = 1;
-     */
-    value: EventMessage;
-    case: "event";
-  } | {
-    /**
-     * Reports a stream error without necessarily closing the stream.
-     *
-     * @generated from field: worldengine.cardinal.v1.StreamError error = 2;
-     */
-    value: StreamError;
-    case: "error";
-  } | {
-    /**
-     * Liveness response or server-initiated keepalive.
-     *
-     * @generated from field: worldengine.cardinal.v1.Heartbeat heartbeat = 3;
-     */
-    value: Heartbeat;
-    case: "heartbeat";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.StreamResponse.
- * Use `create(StreamResponseSchema)` to create a new message.
- */
-export const StreamResponseSchema: GenMessage<StreamResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 5);
-
-/**
- * EventMessage wraps an event emitted by Cardinal.
- *
- * @generated from message worldengine.cardinal.v1.EventMessage
- */
-export type EventMessage = Message<"worldengine.cardinal.v1.EventMessage"> & {
-  /**
-   * Event emitted by Cardinal.
+   * The event received from the shard after command execution.
    *
    * @generated from field: worldengine.isc.v1.Event event = 1;
    */
@@ -206,50 +100,268 @@ export type EventMessage = Message<"worldengine.cardinal.v1.EventMessage"> & {
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.EventMessage.
- * Use `create(EventMessageSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.SendCommandWithReplyResponse.
+ * Use `create(SendCommandWithReplyResponseSchema)` to create a new message.
  */
-export const EventMessageSchema: GenMessage<EventMessage> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 6);
+export const SendCommandWithReplyResponseSchema: GenMessage<SendCommandWithReplyResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 3);
 
 /**
- * StreamError reports an error on the stream.
+ * QueryRequest represents a request to retrieve information from a specific shard.
  *
- * @generated from message worldengine.cardinal.v1.StreamError
+ * @generated from message worldengine.cardinal.v1.QueryRequest
  */
-export type StreamError = Message<"worldengine.cardinal.v1.StreamError"> & {
+export type QueryRequest = Message<"worldengine.cardinal.v1.QueryRequest"> & {
   /**
-   * Structured error status.
+   * The address of the cardinal shard to send the query to.
    *
-   * @generated from field: google.rpc.Status status = 1;
+   * @generated from field: worldengine.micro.v1.ServiceAddress address = 1;
    */
-  status?: Status;
+  address?: ServiceAddress;
+
+  /**
+   * The actual query to execute.
+   *
+   * @generated from field: worldengine.isc.v1.Query query = 2;
+   */
+  query?: Query;
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.StreamError.
- * Use `create(StreamErrorSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.QueryRequest.
+ * Use `create(QueryRequestSchema)` to create a new message.
  */
-export const StreamErrorSchema: GenMessage<StreamError> = /*@__PURE__*/
+export const QueryRequestSchema: GenMessage<QueryRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 4);
+
+/**
+ * QueryResponse contains the results of a query operation.
+ *
+ * @generated from message worldengine.cardinal.v1.QueryResponse
+ */
+export type QueryResponse = Message<"worldengine.cardinal.v1.QueryResponse"> & {
+  /**
+   * The results of the query.
+   *
+   * @generated from field: worldengine.isc.v1.QueryResult results = 1;
+   */
+  results?: QueryResult;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.QueryResponse.
+ * Use `create(QueryResponseSchema)` to create a new message.
+ */
+export const QueryResponseSchema: GenMessage<QueryResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 5);
+
+/**
+ * @generated from message worldengine.cardinal.v1.EventSubscription
+ */
+export type EventSubscription = Message<"worldengine.cardinal.v1.EventSubscription"> & {
+  /**
+   * Specifies the target shard address from which to stream events.
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress address = 1;
+   */
+  address?: ServiceAddress;
+
+  /**
+   * A list of events to subscribe to. If the event belongs to a group, use the `<group>.<event>`
+   * format. This also supports the '*' and '>' wildcards.
+   *
+   * @generated from field: repeated string events = 2;
+   */
+  events: string[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.EventSubscription.
+ * Use `create(EventSubscriptionSchema)` to create a new message.
+ */
+export const EventSubscriptionSchema: GenMessage<EventSubscription> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 6);
+
+/**
+ * StartEventStreamRequest represents a request to establish a stream of events from Cardinal.
+ * This enables real-time monitoring of system events through a server-side streaming connection.
+ *
+ * @generated from message worldengine.cardinal.v1.StartEventStreamRequest
+ */
+export type StartEventStreamRequest = Message<"worldengine.cardinal.v1.StartEventStreamRequest"> & {
+  /**
+   * TODO: remove this.
+   *
+   * @generated from field: repeated worldengine.cardinal.v1.EventSubscription subscriptions = 1;
+   */
+  subscriptions: EventSubscription[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.StartEventStreamRequest.
+ * Use `create(StartEventStreamRequestSchema)` to create a new message.
+ */
+export const StartEventStreamRequestSchema: GenMessage<StartEventStreamRequest> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_cardinal, 7);
 
 /**
- * CardinalService is the public client-facing Cardinal API.
+ * @generated from message worldengine.cardinal.v1.StartEventStreamResponse
+ */
+export type StartEventStreamResponse = Message<"worldengine.cardinal.v1.StartEventStreamResponse"> & {
+  /**
+   * Specifies the publisher's service address.
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress address = 1;
+   */
+  address?: ServiceAddress;
+
+  /**
+   * The event payload.
+   *
+   * @generated from field: worldengine.isc.v1.Event event = 2;
+   */
+  event?: Event;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.StartEventStreamResponse.
+ * Use `create(StartEventStreamResponseSchema)` to create a new message.
+ */
+export const StartEventStreamResponseSchema: GenMessage<StartEventStreamResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 8);
+
+/**
+ * SubscribeEventsRequest represents a request to add new event types to an existing stream.
  *
+ * @generated from message worldengine.cardinal.v1.SubscribeEventsRequest
+ */
+export type SubscribeEventsRequest = Message<"worldengine.cardinal.v1.SubscribeEventsRequest"> & {
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.EventSubscription subscriptions = 1;
+   */
+  subscriptions: EventSubscription[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SubscribeEventsRequest.
+ * Use `create(SubscribeEventsRequestSchema)` to create a new message.
+ */
+export const SubscribeEventsRequestSchema: GenMessage<SubscribeEventsRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 9);
+
+/**
+ * SubscribeEventsResponse is returned when the request is successfully handled.
+ *
+ * @generated from message worldengine.cardinal.v1.SubscribeEventsResponse
+ */
+export type SubscribeEventsResponse = Message<"worldengine.cardinal.v1.SubscribeEventsResponse"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SubscribeEventsResponse.
+ * Use `create(SubscribeEventsResponseSchema)` to create a new message.
+ */
+export const SubscribeEventsResponseSchema: GenMessage<SubscribeEventsResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 10);
+
+/**
+ * UnsubscribeEventsRequest represents a request to remove event types from an existing stream.
+ *
+ * @generated from message worldengine.cardinal.v1.UnsubscribeEventsRequest
+ */
+export type UnsubscribeEventsRequest = Message<"worldengine.cardinal.v1.UnsubscribeEventsRequest"> & {
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.EventSubscription subscriptions = 1;
+   */
+  subscriptions: EventSubscription[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.UnsubscribeEventsRequest.
+ * Use `create(UnsubscribeEventsRequestSchema)` to create a new message.
+ */
+export const UnsubscribeEventsRequestSchema: GenMessage<UnsubscribeEventsRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 11);
+
+/**
+ * UnsubscribeEventsResponse is returned when the request is successfully handled.
+ *
+ * @generated from message worldengine.cardinal.v1.UnsubscribeEventsResponse
+ */
+export type UnsubscribeEventsResponse = Message<"worldengine.cardinal.v1.UnsubscribeEventsResponse"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.UnsubscribeEventsResponse.
+ * Use `create(UnsubscribeEventsResponseSchema)` to create a new message.
+ */
+export const UnsubscribeEventsResponseSchema: GenMessage<UnsubscribeEventsResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 12);
+
+/**
  * @generated from service worldengine.cardinal.v1.CardinalService
  */
 export const CardinalService: GenService<{
   /**
-   * Stream opens a bidirectional session with a Cardinal shard.
-   * Clients send commands and subscription updates; Cardinal sends subscribed events,
-   * heartbeats, and stream errors on the same stream.
+   * SendCommand sends a command to a specific shard (fire-and-forget).
    *
-   * @generated from rpc worldengine.cardinal.v1.CardinalService.Stream
+   * @generated from rpc worldengine.cardinal.v1.CardinalService.SendCommand
    */
-  stream: {
-    methodKind: "bidi_streaming";
-    input: typeof StreamRequestSchema;
-    output: typeof StreamResponseSchema;
+  sendCommand: {
+    methodKind: "unary";
+    input: typeof SendCommandRequestSchema;
+    output: typeof SendCommandResponseSchema;
+  },
+  /**
+   * SendCommandWithReply sends a command and waits for an event response from the shard.
+   *
+   * @generated from rpc worldengine.cardinal.v1.CardinalService.SendCommandWithReply
+   */
+  sendCommandWithReply: {
+    methodKind: "unary";
+    input: typeof SendCommandWithReplyRequestSchema;
+    output: typeof SendCommandWithReplyResponseSchema;
+  },
+  /**
+   * Query retrieves the current state or information from a specific shard.
+   *
+   * @generated from rpc worldengine.cardinal.v1.CardinalService.Query
+   */
+  query: {
+    methodKind: "unary";
+    input: typeof QueryRequestSchema;
+    output: typeof QueryResponseSchema;
+  },
+  /**
+   * StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
+   * specific event types and receive real-time updates.
+   *
+   * @generated from rpc worldengine.cardinal.v1.CardinalService.StartEventStream
+   */
+  startEventStream: {
+    methodKind: "server_streaming";
+    input: typeof StartEventStreamRequestSchema;
+    output: typeof StartEventStreamResponseSchema;
+  },
+  /**
+   * SubscribeEvents adds new event types to an existing event stream.
+   *
+   * @generated from rpc worldengine.cardinal.v1.CardinalService.SubscribeEvents
+   */
+  subscribeEvents: {
+    methodKind: "unary";
+    input: typeof SubscribeEventsRequestSchema;
+    output: typeof SubscribeEventsResponseSchema;
+  },
+  /**
+   * UnsubscribeEvents removes event types from an existing event stream.
+   *
+   * @generated from rpc worldengine.cardinal.v1.CardinalService.UnsubscribeEvents
+   */
+  unsubscribeEvents: {
+    methodKind: "unary";
+    input: typeof UnsubscribeEventsRequestSchema;
+    output: typeof UnsubscribeEventsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_cardinal, 0);

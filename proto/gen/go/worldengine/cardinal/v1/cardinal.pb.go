@@ -9,7 +9,7 @@ package cardinalv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	status "google.golang.org/genproto/googleapis/rpc/status"
+	v11 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -24,149 +24,30 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// StreamRequest is a client-to-Cardinal control or command message.
-type StreamRequest struct {
+// SendCommandRequest represents a request to execute a command on a specific shard.
+type SendCommandRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Payload:
-	//
-	//	*StreamRequest_Command
-	//	*StreamRequest_SubscribeEvents
-	//	*StreamRequest_UnsubscribeEvents
-	//	*StreamRequest_Heartbeat
-	Payload       isStreamRequest_Payload `protobuf_oneof:"payload"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamRequest) Reset() {
-	*x = StreamRequest{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamRequest) ProtoMessage() {}
-
-func (x *StreamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamRequest.ProtoReflect.Descriptor instead.
-func (*StreamRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *StreamRequest) GetPayload() isStreamRequest_Payload {
-	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-func (x *StreamRequest) GetCommand() *CommandRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamRequest_Command); ok {
-			return x.Command
-		}
-	}
-	return nil
-}
-
-func (x *StreamRequest) GetSubscribeEvents() *SubscribeEventsRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamRequest_SubscribeEvents); ok {
-			return x.SubscribeEvents
-		}
-	}
-	return nil
-}
-
-func (x *StreamRequest) GetUnsubscribeEvents() *UnsubscribeEventsRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamRequest_UnsubscribeEvents); ok {
-			return x.UnsubscribeEvents
-		}
-	}
-	return nil
-}
-
-func (x *StreamRequest) GetHeartbeat() *Heartbeat {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamRequest_Heartbeat); ok {
-			return x.Heartbeat
-		}
-	}
-	return nil
-}
-
-type isStreamRequest_Payload interface {
-	isStreamRequest_Payload()
-}
-
-type StreamRequest_Command struct {
-	// Command to enqueue for execution on the Cardinal tick loop.
-	Command *CommandRequest `protobuf:"bytes,1,opt,name=command,proto3,oneof"`
-}
-
-type StreamRequest_SubscribeEvents struct {
-	// Adds event subscriptions for this stream.
-	SubscribeEvents *SubscribeEventsRequest `protobuf:"bytes,2,opt,name=subscribe_events,json=subscribeEvents,proto3,oneof"`
-}
-
-type StreamRequest_UnsubscribeEvents struct {
-	// Removes event subscriptions from this stream.
-	UnsubscribeEvents *UnsubscribeEventsRequest `protobuf:"bytes,3,opt,name=unsubscribe_events,json=unsubscribeEvents,proto3,oneof"`
-}
-
-type StreamRequest_Heartbeat struct {
-	// Keeps the stream alive and checks liveness.
-	Heartbeat *Heartbeat `protobuf:"bytes,4,opt,name=heartbeat,proto3,oneof"`
-}
-
-func (*StreamRequest_Command) isStreamRequest_Payload() {}
-
-func (*StreamRequest_SubscribeEvents) isStreamRequest_Payload() {}
-
-func (*StreamRequest_UnsubscribeEvents) isStreamRequest_Payload() {}
-
-func (*StreamRequest_Heartbeat) isStreamRequest_Payload() {}
-
-// CommandRequest asks Cardinal to enqueue a command.
-type CommandRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Command to enqueue. Cardinal should set or verify persona from auth context before enqueueing.
+	// The address of the cardinal shard to send the command to.
 	Command       *v1.Command `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CommandRequest) Reset() {
-	*x = CommandRequest{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[1]
+func (x *SendCommandRequest) Reset() {
+	*x = SendCommandRequest{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CommandRequest) String() string {
+func (x *SendCommandRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CommandRequest) ProtoMessage() {}
+func (*SendCommandRequest) ProtoMessage() {}
 
-func (x *CommandRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[1]
+func (x *SendCommandRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -177,30 +58,424 @@ func (x *CommandRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CommandRequest.ProtoReflect.Descriptor instead.
-func (*CommandRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{1}
+// Deprecated: Use SendCommandRequest.ProtoReflect.Descriptor instead.
+func (*SendCommandRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *CommandRequest) GetCommand() *v1.Command {
+func (x *SendCommandRequest) GetCommand() *v1.Command {
 	if x != nil {
 		return x.Command
 	}
 	return nil
 }
 
-// SubscribeEventsRequest adds event names to this stream's subscriptions.
-type SubscribeEventsRequest struct {
+// SendCommandResponse is returned upon successful command execution.
+type SendCommandResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendCommandResponse) Reset() {
+	*x = SendCommandResponse{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendCommandResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendCommandResponse) ProtoMessage() {}
+
+func (x *SendCommandResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendCommandResponse.ProtoReflect.Descriptor instead.
+func (*SendCommandResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{1}
+}
+
+// SendCommandWithReplyRequest represents a request to execute a command and wait for an event response.
+type SendCommandWithReplyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Event names to subscribe to. Use "*" to subscribe to all default events emitted by this shard.
-	EventNames    []string `protobuf:"bytes,1,rep,name=event_names,json=eventNames,proto3" json:"event_names,omitempty"`
+	// The command to execute on the shard.
+	Command *v1.Command `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
+	// The name of the event to wait for after the command is executed.
+	EventName     string `protobuf:"bytes,2,opt,name=event_name,json=eventName,proto3" json:"event_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendCommandWithReplyRequest) Reset() {
+	*x = SendCommandWithReplyRequest{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendCommandWithReplyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendCommandWithReplyRequest) ProtoMessage() {}
+
+func (x *SendCommandWithReplyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendCommandWithReplyRequest.ProtoReflect.Descriptor instead.
+func (*SendCommandWithReplyRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SendCommandWithReplyRequest) GetCommand() *v1.Command {
+	if x != nil {
+		return x.Command
+	}
+	return nil
+}
+
+func (x *SendCommandWithReplyRequest) GetEventName() string {
+	if x != nil {
+		return x.EventName
+	}
+	return ""
+}
+
+// SendCommandWithReplyResponse is returned with the event from the command execution.
+type SendCommandWithReplyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The event received from the shard after command execution.
+	Event         *v1.Event `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendCommandWithReplyResponse) Reset() {
+	*x = SendCommandWithReplyResponse{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendCommandWithReplyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendCommandWithReplyResponse) ProtoMessage() {}
+
+func (x *SendCommandWithReplyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendCommandWithReplyResponse.ProtoReflect.Descriptor instead.
+func (*SendCommandWithReplyResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SendCommandWithReplyResponse) GetEvent() *v1.Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+// QueryRequest represents a request to retrieve information from a specific shard.
+type QueryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The address of the cardinal shard to send the query to.
+	Address *v11.ServiceAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	// The actual query to execute.
+	Query         *v1.Query `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRequest) Reset() {
+	*x = QueryRequest{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRequest) ProtoMessage() {}
+
+func (x *QueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRequest.ProtoReflect.Descriptor instead.
+func (*QueryRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *QueryRequest) GetAddress() *v11.ServiceAddress {
+	if x != nil {
+		return x.Address
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetQuery() *v1.Query {
+	if x != nil {
+		return x.Query
+	}
+	return nil
+}
+
+// QueryResponse contains the results of a query operation.
+type QueryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The results of the query.
+	Results       *v1.QueryResult `protobuf:"bytes,1,opt,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryResponse) Reset() {
+	*x = QueryResponse{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryResponse) ProtoMessage() {}
+
+func (x *QueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
+func (*QueryResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *QueryResponse) GetResults() *v1.QueryResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+type EventSubscription struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Specifies the target shard address from which to stream events.
+	Address *v11.ServiceAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	// A list of events to subscribe to. If the event belongs to a group, use the `<group>.<event>`
+	// format. This also supports the '*' and '>' wildcards.
+	Events        []string `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventSubscription) Reset() {
+	*x = EventSubscription{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventSubscription) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventSubscription) ProtoMessage() {}
+
+func (x *EventSubscription) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventSubscription.ProtoReflect.Descriptor instead.
+func (*EventSubscription) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *EventSubscription) GetAddress() *v11.ServiceAddress {
+	if x != nil {
+		return x.Address
+	}
+	return nil
+}
+
+func (x *EventSubscription) GetEvents() []string {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+// StartEventStreamRequest represents a request to establish a stream of events from Cardinal.
+// This enables real-time monitoring of system events through a server-side streaming connection.
+type StartEventStreamRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// TODO: remove this.
+	Subscriptions []*EventSubscription `protobuf:"bytes,1,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartEventStreamRequest) Reset() {
+	*x = StartEventStreamRequest{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartEventStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartEventStreamRequest) ProtoMessage() {}
+
+func (x *StartEventStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartEventStreamRequest.ProtoReflect.Descriptor instead.
+func (*StartEventStreamRequest) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *StartEventStreamRequest) GetSubscriptions() []*EventSubscription {
+	if x != nil {
+		return x.Subscriptions
+	}
+	return nil
+}
+
+type StartEventStreamResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Specifies the publisher's service address.
+	Address *v11.ServiceAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	// The event payload.
+	Event         *v1.Event `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartEventStreamResponse) Reset() {
+	*x = StartEventStreamResponse{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartEventStreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartEventStreamResponse) ProtoMessage() {}
+
+func (x *StartEventStreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartEventStreamResponse.ProtoReflect.Descriptor instead.
+func (*StartEventStreamResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *StartEventStreamResponse) GetAddress() *v11.ServiceAddress {
+	if x != nil {
+		return x.Address
+	}
+	return nil
+}
+
+func (x *StartEventStreamResponse) GetEvent() *v1.Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+// SubscribeEventsRequest represents a request to add new event types to an existing stream.
+type SubscribeEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Subscriptions []*EventSubscription   `protobuf:"bytes,1,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubscribeEventsRequest) Reset() {
 	*x = SubscribeEventsRequest{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[2]
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -212,7 +487,7 @@ func (x *SubscribeEventsRequest) String() string {
 func (*SubscribeEventsRequest) ProtoMessage() {}
 
 func (x *SubscribeEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[2]
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,28 +500,64 @@ func (x *SubscribeEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeEventsRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeEventsRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{2}
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SubscribeEventsRequest) GetEventNames() []string {
+func (x *SubscribeEventsRequest) GetSubscriptions() []*EventSubscription {
 	if x != nil {
-		return x.EventNames
+		return x.Subscriptions
 	}
 	return nil
 }
 
-// UnsubscribeEventsRequest removes event names from this stream's subscriptions.
+// SubscribeEventsResponse is returned when the request is successfully handled.
+type SubscribeEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeEventsResponse) Reset() {
+	*x = SubscribeEventsResponse{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeEventsResponse) ProtoMessage() {}
+
+func (x *SubscribeEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeEventsResponse.ProtoReflect.Descriptor instead.
+func (*SubscribeEventsResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{10}
+}
+
+// UnsubscribeEventsRequest represents a request to remove event types from an existing stream.
 type UnsubscribeEventsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Event names to unsubscribe from. Use "*" to remove an all-events subscription.
-	EventNames    []string `protobuf:"bytes,1,rep,name=event_names,json=eventNames,proto3" json:"event_names,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Subscriptions []*EventSubscription   `protobuf:"bytes,1,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UnsubscribeEventsRequest) Reset() {
 	*x = UnsubscribeEventsRequest{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[3]
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -258,7 +569,7 @@ func (x *UnsubscribeEventsRequest) String() string {
 func (*UnsubscribeEventsRequest) ProtoMessage() {}
 
 func (x *UnsubscribeEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[3]
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,38 +582,38 @@ func (x *UnsubscribeEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnsubscribeEventsRequest.ProtoReflect.Descriptor instead.
 func (*UnsubscribeEventsRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{3}
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *UnsubscribeEventsRequest) GetEventNames() []string {
+func (x *UnsubscribeEventsRequest) GetSubscriptions() []*EventSubscription {
 	if x != nil {
-		return x.EventNames
+		return x.Subscriptions
 	}
 	return nil
 }
 
-// Heartbeat is an explicit keepalive control frame.
-type Heartbeat struct {
+// UnsubscribeEventsResponse is returned when the request is successfully handled.
+type UnsubscribeEventsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Heartbeat) Reset() {
-	*x = Heartbeat{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[4]
+func (x *UnsubscribeEventsResponse) Reset() {
+	*x = UnsubscribeEventsResponse{}
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Heartbeat) String() string {
+func (x *UnsubscribeEventsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Heartbeat) ProtoMessage() {}
+func (*UnsubscribeEventsResponse) ProtoMessage() {}
 
-func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[4]
+func (x *UnsubscribeEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,236 +624,51 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
-func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{4}
-}
-
-// StreamResponse is a Cardinal-to-client stream message.
-type StreamResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Payload:
-	//
-	//	*StreamResponse_Event
-	//	*StreamResponse_Error
-	//	*StreamResponse_Heartbeat
-	Payload       isStreamResponse_Payload `protobuf_oneof:"payload"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamResponse) Reset() {
-	*x = StreamResponse{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamResponse) ProtoMessage() {}
-
-func (x *StreamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamResponse.ProtoReflect.Descriptor instead.
-func (*StreamResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *StreamResponse) GetPayload() isStreamResponse_Payload {
-	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-func (x *StreamResponse) GetEvent() *EventMessage {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamResponse_Event); ok {
-			return x.Event
-		}
-	}
-	return nil
-}
-
-func (x *StreamResponse) GetError() *StreamError {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamResponse_Error); ok {
-			return x.Error
-		}
-	}
-	return nil
-}
-
-func (x *StreamResponse) GetHeartbeat() *Heartbeat {
-	if x != nil {
-		if x, ok := x.Payload.(*StreamResponse_Heartbeat); ok {
-			return x.Heartbeat
-		}
-	}
-	return nil
-}
-
-type isStreamResponse_Payload interface {
-	isStreamResponse_Payload()
-}
-
-type StreamResponse_Event struct {
-	// Event emitted by Cardinal and matched to this stream's subscriptions.
-	Event *EventMessage `protobuf:"bytes,1,opt,name=event,proto3,oneof"`
-}
-
-type StreamResponse_Error struct {
-	// Reports a stream error without necessarily closing the stream.
-	Error *StreamError `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-type StreamResponse_Heartbeat struct {
-	// Liveness response or server-initiated keepalive.
-	Heartbeat *Heartbeat `protobuf:"bytes,3,opt,name=heartbeat,proto3,oneof"`
-}
-
-func (*StreamResponse_Event) isStreamResponse_Payload() {}
-
-func (*StreamResponse_Error) isStreamResponse_Payload() {}
-
-func (*StreamResponse_Heartbeat) isStreamResponse_Payload() {}
-
-// EventMessage wraps an event emitted by Cardinal.
-type EventMessage struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Event emitted by Cardinal.
-	Event         *v1.Event `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EventMessage) Reset() {
-	*x = EventMessage{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EventMessage) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EventMessage) ProtoMessage() {}
-
-func (x *EventMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EventMessage.ProtoReflect.Descriptor instead.
-func (*EventMessage) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *EventMessage) GetEvent() *v1.Event {
-	if x != nil {
-		return x.Event
-	}
-	return nil
-}
-
-// StreamError reports an error on the stream.
-type StreamError struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Structured error status.
-	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamError) Reset() {
-	*x = StreamError{}
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamError) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamError) ProtoMessage() {}
-
-func (x *StreamError) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_cardinal_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamError.ProtoReflect.Descriptor instead.
-func (*StreamError) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *StreamError) GetStatus() *status.Status {
-	if x != nil {
-		return x.Status
-	}
-	return nil
+// Deprecated: Use UnsubscribeEventsResponse.ProtoReflect.Descriptor instead.
+func (*UnsubscribeEventsResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP(), []int{12}
 }
 
 var File_worldengine_cardinal_v1_cardinal_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_cardinal_proto_rawDesc = "" +
 	"\n" +
-	"&worldengine/cardinal/v1/cardinal.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a\x17google/rpc/status.proto\x1a worldengine/isc/v1/command.proto\x1a\x1eworldengine/isc/v1/event.proto\"\xec\x02\n" +
-	"\rStreamRequest\x12C\n" +
-	"\acommand\x18\x01 \x01(\v2'.worldengine.cardinal.v1.CommandRequestH\x00R\acommand\x12\\\n" +
-	"\x10subscribe_events\x18\x02 \x01(\v2/.worldengine.cardinal.v1.SubscribeEventsRequestH\x00R\x0fsubscribeEvents\x12b\n" +
-	"\x12unsubscribe_events\x18\x03 \x01(\v21.worldengine.cardinal.v1.UnsubscribeEventsRequestH\x00R\x11unsubscribeEvents\x12B\n" +
-	"\theartbeat\x18\x04 \x01(\v2\".worldengine.cardinal.v1.HeartbeatH\x00R\theartbeatB\x10\n" +
-	"\apayload\x12\x05\xbaH\x02\b\x01\"O\n" +
-	"\x0eCommandRequest\x12=\n" +
-	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\"a\n" +
-	"\x16SubscribeEventsRequest\x12G\n" +
-	"\vevent_names\x18\x01 \x03(\tB&\xbaH#\x92\x01 \b\x01\"\x1cr\x1a\x18\x80\x012\x15^(\\*|[a-zA-Z0-9_-]+)$R\n" +
-	"eventNames\"c\n" +
-	"\x18UnsubscribeEventsRequest\x12G\n" +
-	"\vevent_names\x18\x01 \x03(\tB&\xbaH#\x92\x01 \b\x01\"\x1cr\x1a\x18\x80\x012\x15^(\\*|[a-zA-Z0-9_-]+)$R\n" +
-	"eventNames\"\v\n" +
-	"\tHeartbeat\"\xe3\x01\n" +
-	"\x0eStreamResponse\x12=\n" +
-	"\x05event\x18\x01 \x01(\v2%.worldengine.cardinal.v1.EventMessageH\x00R\x05event\x12<\n" +
-	"\x05error\x18\x02 \x01(\v2$.worldengine.cardinal.v1.StreamErrorH\x00R\x05error\x12B\n" +
-	"\theartbeat\x18\x03 \x01(\v2\".worldengine.cardinal.v1.HeartbeatH\x00R\theartbeatB\x10\n" +
-	"\apayload\x12\x05\xbaH\x02\b\x01\"G\n" +
-	"\fEventMessage\x127\n" +
-	"\x05event\x18\x01 \x01(\v2\x19.worldengine.isc.v1.EventB\x06\xbaH\x03\xc8\x01\x01R\x05event\"A\n" +
-	"\vStreamError\x122\n" +
-	"\x06status\x18\x01 \x01(\v2\x12.google.rpc.StatusB\x06\xbaH\x03\xc8\x01\x01R\x06status2p\n" +
-	"\x0fCardinalService\x12]\n" +
-	"\x06Stream\x12&.worldengine.cardinal.v1.StreamRequest\x1a'.worldengine.cardinal.v1.StreamResponse(\x010\x01BtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
+	"&worldengine/cardinal/v1/cardinal.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a worldengine/isc/v1/command.proto\x1a\x1eworldengine/isc/v1/event.proto\x1a\x1eworldengine/isc/v1/query.proto\x1a\"worldengine/micro/v1/service.proto\"S\n" +
+	"\x12SendCommandRequest\x12=\n" +
+	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\"\x15\n" +
+	"\x13SendCommandResponse\"\x9c\x01\n" +
+	"\x1bSendCommandWithReplyRequest\x12=\n" +
+	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\x12>\n" +
+	"\n" +
+	"event_name\x18\x02 \x01(\tB\x1f\xbaH\x1c\xc8\x01\x01r\x17\x10\x01\x18\x80\x012\x10^[a-zA-Z0-9_-]+$R\teventName\"O\n" +
+	"\x1cSendCommandWithReplyResponse\x12/\n" +
+	"\x05event\x18\x01 \x01(\v2\x19.worldengine.isc.v1.EventR\x05event\"\x8f\x01\n" +
+	"\fQueryRequest\x12F\n" +
+	"\aaddress\x18\x01 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x127\n" +
+	"\x05query\x18\x02 \x01(\v2\x19.worldengine.isc.v1.QueryB\x06\xbaH\x03\xc8\x01\x01R\x05query\"J\n" +
+	"\rQueryResponse\x129\n" +
+	"\aresults\x18\x01 \x01(\v2\x1f.worldengine.isc.v1.QueryResultR\aresults\"\x9b\x01\n" +
+	"\x11EventSubscription\x12F\n" +
+	"\aaddress\x18\x01 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12>\n" +
+	"\x06events\x18\x02 \x03(\tB&\xbaH#\x92\x01 \b\x01\"\x1cr\x1a\x10\x01\x18\x80\x012\x13^[a-zA-Z0-9.*>_-]+$R\x06events\"k\n" +
+	"\x17StartEventStreamRequest\x12P\n" +
+	"\rsubscriptions\x18\x01 \x03(\v2*.worldengine.cardinal.v1.EventSubscriptionR\rsubscriptions\"\x8b\x01\n" +
+	"\x18StartEventStreamResponse\x12>\n" +
+	"\aaddress\x18\x01 \x01(\v2$.worldengine.micro.v1.ServiceAddressR\aaddress\x12/\n" +
+	"\x05event\x18\x02 \x01(\v2\x19.worldengine.isc.v1.EventR\x05event\"t\n" +
+	"\x16SubscribeEventsRequest\x12Z\n" +
+	"\rsubscriptions\x18\x01 \x03(\v2*.worldengine.cardinal.v1.EventSubscriptionB\b\xbaH\x05\x92\x01\x02\b\x01R\rsubscriptions\"\x19\n" +
+	"\x17SubscribeEventsResponse\"v\n" +
+	"\x18UnsubscribeEventsRequest\x12Z\n" +
+	"\rsubscriptions\x18\x01 \x03(\v2*.worldengine.cardinal.v1.EventSubscriptionB\b\xbaH\x05\x92\x01\x02\b\x01R\rsubscriptions\"\x1b\n" +
+	"\x19UnsubscribeEventsResponse2\xd2\x05\n" +
+	"\x0fCardinalService\x12j\n" +
+	"\vSendCommand\x12+.worldengine.cardinal.v1.SendCommandRequest\x1a,.worldengine.cardinal.v1.SendCommandResponse\"\x00\x12\x85\x01\n" +
+	"\x14SendCommandWithReply\x124.worldengine.cardinal.v1.SendCommandWithReplyRequest\x1a5.worldengine.cardinal.v1.SendCommandWithReplyResponse\"\x00\x12X\n" +
+	"\x05Query\x12%.worldengine.cardinal.v1.QueryRequest\x1a&.worldengine.cardinal.v1.QueryResponse\"\x00\x12{\n" +
+	"\x10StartEventStream\x120.worldengine.cardinal.v1.StartEventStreamRequest\x1a1.worldengine.cardinal.v1.StartEventStreamResponse\"\x000\x01\x12v\n" +
+	"\x0fSubscribeEvents\x12/.worldengine.cardinal.v1.SubscribeEventsRequest\x1a0.worldengine.cardinal.v1.SubscribeEventsResponse\"\x00\x12|\n" +
+	"\x11UnsubscribeEvents\x121.worldengine.cardinal.v1.UnsubscribeEventsRequest\x1a2.worldengine.cardinal.v1.UnsubscribeEventsResponse\"\x00BtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
 
 var (
 	file_worldengine_cardinal_v1_cardinal_proto_rawDescOnce sync.Once
@@ -556,38 +682,57 @@ func file_worldengine_cardinal_v1_cardinal_proto_rawDescGZIP() []byte {
 	return file_worldengine_cardinal_v1_cardinal_proto_rawDescData
 }
 
-var file_worldengine_cardinal_v1_cardinal_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_worldengine_cardinal_v1_cardinal_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_worldengine_cardinal_v1_cardinal_proto_goTypes = []any{
-	(*StreamRequest)(nil),            // 0: worldengine.cardinal.v1.StreamRequest
-	(*CommandRequest)(nil),           // 1: worldengine.cardinal.v1.CommandRequest
-	(*SubscribeEventsRequest)(nil),   // 2: worldengine.cardinal.v1.SubscribeEventsRequest
-	(*UnsubscribeEventsRequest)(nil), // 3: worldengine.cardinal.v1.UnsubscribeEventsRequest
-	(*Heartbeat)(nil),                // 4: worldengine.cardinal.v1.Heartbeat
-	(*StreamResponse)(nil),           // 5: worldengine.cardinal.v1.StreamResponse
-	(*EventMessage)(nil),             // 6: worldengine.cardinal.v1.EventMessage
-	(*StreamError)(nil),              // 7: worldengine.cardinal.v1.StreamError
-	(*v1.Command)(nil),               // 8: worldengine.isc.v1.Command
-	(*v1.Event)(nil),                 // 9: worldengine.isc.v1.Event
-	(*status.Status)(nil),            // 10: google.rpc.Status
+	(*SendCommandRequest)(nil),           // 0: worldengine.cardinal.v1.SendCommandRequest
+	(*SendCommandResponse)(nil),          // 1: worldengine.cardinal.v1.SendCommandResponse
+	(*SendCommandWithReplyRequest)(nil),  // 2: worldengine.cardinal.v1.SendCommandWithReplyRequest
+	(*SendCommandWithReplyResponse)(nil), // 3: worldengine.cardinal.v1.SendCommandWithReplyResponse
+	(*QueryRequest)(nil),                 // 4: worldengine.cardinal.v1.QueryRequest
+	(*QueryResponse)(nil),                // 5: worldengine.cardinal.v1.QueryResponse
+	(*EventSubscription)(nil),            // 6: worldengine.cardinal.v1.EventSubscription
+	(*StartEventStreamRequest)(nil),      // 7: worldengine.cardinal.v1.StartEventStreamRequest
+	(*StartEventStreamResponse)(nil),     // 8: worldengine.cardinal.v1.StartEventStreamResponse
+	(*SubscribeEventsRequest)(nil),       // 9: worldengine.cardinal.v1.SubscribeEventsRequest
+	(*SubscribeEventsResponse)(nil),      // 10: worldengine.cardinal.v1.SubscribeEventsResponse
+	(*UnsubscribeEventsRequest)(nil),     // 11: worldengine.cardinal.v1.UnsubscribeEventsRequest
+	(*UnsubscribeEventsResponse)(nil),    // 12: worldengine.cardinal.v1.UnsubscribeEventsResponse
+	(*v1.Command)(nil),                   // 13: worldengine.isc.v1.Command
+	(*v1.Event)(nil),                     // 14: worldengine.isc.v1.Event
+	(*v11.ServiceAddress)(nil),           // 15: worldengine.micro.v1.ServiceAddress
+	(*v1.Query)(nil),                     // 16: worldengine.isc.v1.Query
+	(*v1.QueryResult)(nil),               // 17: worldengine.isc.v1.QueryResult
 }
 var file_worldengine_cardinal_v1_cardinal_proto_depIdxs = []int32{
-	1,  // 0: worldengine.cardinal.v1.StreamRequest.command:type_name -> worldengine.cardinal.v1.CommandRequest
-	2,  // 1: worldengine.cardinal.v1.StreamRequest.subscribe_events:type_name -> worldengine.cardinal.v1.SubscribeEventsRequest
-	3,  // 2: worldengine.cardinal.v1.StreamRequest.unsubscribe_events:type_name -> worldengine.cardinal.v1.UnsubscribeEventsRequest
-	4,  // 3: worldengine.cardinal.v1.StreamRequest.heartbeat:type_name -> worldengine.cardinal.v1.Heartbeat
-	8,  // 4: worldengine.cardinal.v1.CommandRequest.command:type_name -> worldengine.isc.v1.Command
-	6,  // 5: worldengine.cardinal.v1.StreamResponse.event:type_name -> worldengine.cardinal.v1.EventMessage
-	7,  // 6: worldengine.cardinal.v1.StreamResponse.error:type_name -> worldengine.cardinal.v1.StreamError
-	4,  // 7: worldengine.cardinal.v1.StreamResponse.heartbeat:type_name -> worldengine.cardinal.v1.Heartbeat
-	9,  // 8: worldengine.cardinal.v1.EventMessage.event:type_name -> worldengine.isc.v1.Event
-	10, // 9: worldengine.cardinal.v1.StreamError.status:type_name -> google.rpc.Status
-	0,  // 10: worldengine.cardinal.v1.CardinalService.Stream:input_type -> worldengine.cardinal.v1.StreamRequest
-	5,  // 11: worldengine.cardinal.v1.CardinalService.Stream:output_type -> worldengine.cardinal.v1.StreamResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	13, // 0: worldengine.cardinal.v1.SendCommandRequest.command:type_name -> worldengine.isc.v1.Command
+	13, // 1: worldengine.cardinal.v1.SendCommandWithReplyRequest.command:type_name -> worldengine.isc.v1.Command
+	14, // 2: worldengine.cardinal.v1.SendCommandWithReplyResponse.event:type_name -> worldengine.isc.v1.Event
+	15, // 3: worldengine.cardinal.v1.QueryRequest.address:type_name -> worldengine.micro.v1.ServiceAddress
+	16, // 4: worldengine.cardinal.v1.QueryRequest.query:type_name -> worldengine.isc.v1.Query
+	17, // 5: worldengine.cardinal.v1.QueryResponse.results:type_name -> worldengine.isc.v1.QueryResult
+	15, // 6: worldengine.cardinal.v1.EventSubscription.address:type_name -> worldengine.micro.v1.ServiceAddress
+	6,  // 7: worldengine.cardinal.v1.StartEventStreamRequest.subscriptions:type_name -> worldengine.cardinal.v1.EventSubscription
+	15, // 8: worldengine.cardinal.v1.StartEventStreamResponse.address:type_name -> worldengine.micro.v1.ServiceAddress
+	14, // 9: worldengine.cardinal.v1.StartEventStreamResponse.event:type_name -> worldengine.isc.v1.Event
+	6,  // 10: worldengine.cardinal.v1.SubscribeEventsRequest.subscriptions:type_name -> worldengine.cardinal.v1.EventSubscription
+	6,  // 11: worldengine.cardinal.v1.UnsubscribeEventsRequest.subscriptions:type_name -> worldengine.cardinal.v1.EventSubscription
+	0,  // 12: worldengine.cardinal.v1.CardinalService.SendCommand:input_type -> worldengine.cardinal.v1.SendCommandRequest
+	2,  // 13: worldengine.cardinal.v1.CardinalService.SendCommandWithReply:input_type -> worldengine.cardinal.v1.SendCommandWithReplyRequest
+	4,  // 14: worldengine.cardinal.v1.CardinalService.Query:input_type -> worldengine.cardinal.v1.QueryRequest
+	7,  // 15: worldengine.cardinal.v1.CardinalService.StartEventStream:input_type -> worldengine.cardinal.v1.StartEventStreamRequest
+	9,  // 16: worldengine.cardinal.v1.CardinalService.SubscribeEvents:input_type -> worldengine.cardinal.v1.SubscribeEventsRequest
+	11, // 17: worldengine.cardinal.v1.CardinalService.UnsubscribeEvents:input_type -> worldengine.cardinal.v1.UnsubscribeEventsRequest
+	1,  // 18: worldengine.cardinal.v1.CardinalService.SendCommand:output_type -> worldengine.cardinal.v1.SendCommandResponse
+	3,  // 19: worldengine.cardinal.v1.CardinalService.SendCommandWithReply:output_type -> worldengine.cardinal.v1.SendCommandWithReplyResponse
+	5,  // 20: worldengine.cardinal.v1.CardinalService.Query:output_type -> worldengine.cardinal.v1.QueryResponse
+	8,  // 21: worldengine.cardinal.v1.CardinalService.StartEventStream:output_type -> worldengine.cardinal.v1.StartEventStreamResponse
+	10, // 22: worldengine.cardinal.v1.CardinalService.SubscribeEvents:output_type -> worldengine.cardinal.v1.SubscribeEventsResponse
+	12, // 23: worldengine.cardinal.v1.CardinalService.UnsubscribeEvents:output_type -> worldengine.cardinal.v1.UnsubscribeEventsResponse
+	18, // [18:24] is the sub-list for method output_type
+	12, // [12:18] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_cardinal_proto_init() }
@@ -595,24 +740,13 @@ func file_worldengine_cardinal_v1_cardinal_proto_init() {
 	if File_worldengine_cardinal_v1_cardinal_proto != nil {
 		return
 	}
-	file_worldengine_cardinal_v1_cardinal_proto_msgTypes[0].OneofWrappers = []any{
-		(*StreamRequest_Command)(nil),
-		(*StreamRequest_SubscribeEvents)(nil),
-		(*StreamRequest_UnsubscribeEvents)(nil),
-		(*StreamRequest_Heartbeat)(nil),
-	}
-	file_worldengine_cardinal_v1_cardinal_proto_msgTypes[5].OneofWrappers = []any{
-		(*StreamResponse_Event)(nil),
-		(*StreamResponse_Error)(nil),
-		(*StreamResponse_Heartbeat)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_cardinal_v1_cardinal_proto_rawDesc), len(file_worldengine_cardinal_v1_cardinal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

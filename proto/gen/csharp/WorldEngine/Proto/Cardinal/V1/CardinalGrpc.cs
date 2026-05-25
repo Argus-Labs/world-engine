@@ -8,9 +8,6 @@
 using grpc = global::Grpc.Core;
 
 namespace WorldEngine.Proto.Cardinal.V1 {
-  /// <summary>
-  /// CardinalService is the public client-facing Cardinal API.
-  /// </summary>
   public static partial class CardinalService
   {
     static readonly string __ServiceName = "worldengine.cardinal.v1.CardinalService";
@@ -49,17 +46,77 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StreamRequest> __Marshaller_worldengine_cardinal_v1_StreamRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StreamRequest.Parser));
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest> __Marshaller_worldengine_cardinal_v1_SendCommandRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StreamResponse> __Marshaller_worldengine_cardinal_v1_StreamResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StreamResponse.Parser));
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse> __Marshaller_worldengine_cardinal_v1_SendCommandResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest> __Marshaller_worldengine_cardinal_v1_SendCommandWithReplyRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse> __Marshaller_worldengine_cardinal_v1_SendCommandWithReplyResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.QueryRequest> __Marshaller_worldengine_cardinal_v1_QueryRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.QueryRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.QueryResponse> __Marshaller_worldengine_cardinal_v1_QueryResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.QueryResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest> __Marshaller_worldengine_cardinal_v1_StartEventStreamRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse> __Marshaller_worldengine_cardinal_v1_StartEventStreamResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest> __Marshaller_worldengine_cardinal_v1_SubscribeEventsRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse> __Marshaller_worldengine_cardinal_v1_SubscribeEventsResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest> __Marshaller_worldengine_cardinal_v1_UnsubscribeEventsRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse> __Marshaller_worldengine_cardinal_v1_UnsubscribeEventsResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse.Parser));
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StreamRequest, global::WorldEngine.Proto.Cardinal.V1.StreamResponse> __Method_Stream = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StreamRequest, global::WorldEngine.Proto.Cardinal.V1.StreamResponse>(
-        grpc::MethodType.DuplexStreaming,
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest, global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse> __Method_SendCommand = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest, global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse>(
+        grpc::MethodType.Unary,
         __ServiceName,
-        "Stream",
-        __Marshaller_worldengine_cardinal_v1_StreamRequest,
-        __Marshaller_worldengine_cardinal_v1_StreamResponse);
+        "SendCommand",
+        __Marshaller_worldengine_cardinal_v1_SendCommandRequest,
+        __Marshaller_worldengine_cardinal_v1_SendCommandResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest, global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse> __Method_SendCommandWithReply = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest, global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "SendCommandWithReply",
+        __Marshaller_worldengine_cardinal_v1_SendCommandWithReplyRequest,
+        __Marshaller_worldengine_cardinal_v1_SendCommandWithReplyResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.QueryRequest, global::WorldEngine.Proto.Cardinal.V1.QueryResponse> __Method_Query = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.QueryRequest, global::WorldEngine.Proto.Cardinal.V1.QueryResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "Query",
+        __Marshaller_worldengine_cardinal_v1_QueryRequest,
+        __Marshaller_worldengine_cardinal_v1_QueryResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest, global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse> __Method_StartEventStream = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest, global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse>(
+        grpc::MethodType.ServerStreaming,
+        __ServiceName,
+        "StartEventStream",
+        __Marshaller_worldengine_cardinal_v1_StartEventStreamRequest,
+        __Marshaller_worldengine_cardinal_v1_StartEventStreamResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest, global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse> __Method_SubscribeEvents = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest, global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "SubscribeEvents",
+        __Marshaller_worldengine_cardinal_v1_SubscribeEventsRequest,
+        __Marshaller_worldengine_cardinal_v1_SubscribeEventsResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest, global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse> __Method_UnsubscribeEvents = new grpc::Method<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest, global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "UnsubscribeEvents",
+        __Marshaller_worldengine_cardinal_v1_UnsubscribeEventsRequest,
+        __Marshaller_worldengine_cardinal_v1_UnsubscribeEventsResponse);
 
     /// <summary>Service descriptor</summary>
     public static global::Google.Protobuf.Reflection.ServiceDescriptor Descriptor
@@ -72,16 +129,75 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public abstract partial class CardinalServiceBase
     {
       /// <summary>
-      /// Stream opens a bidirectional session with a Cardinal shard.
-      /// Clients send commands and subscription updates; Cardinal sends subscribed events,
-      /// heartbeats, and stream errors on the same stream.
+      /// SendCommand sends a command to a specific shard (fire-and-forget).
       /// </summary>
-      /// <param name="requestStream">Used for reading requests from the client.</param>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse> SendCommand(global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// SendCommandWithReply sends a command and waits for an event response from the shard.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse> SendCommandWithReply(global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// Query retrieves the current state or information from a specific shard.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.QueryResponse> Query(global::WorldEngine.Proto.Cardinal.V1.QueryRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
+      /// specific event types and receive real-time updates.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
       /// <param name="responseStream">Used for sending responses back to the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
       /// <returns>A task indicating completion of the handler.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual global::System.Threading.Tasks.Task Stream(grpc::IAsyncStreamReader<global::WorldEngine.Proto.Cardinal.V1.StreamRequest> requestStream, grpc::IServerStreamWriter<global::WorldEngine.Proto.Cardinal.V1.StreamResponse> responseStream, grpc::ServerCallContext context)
+      public virtual global::System.Threading.Tasks.Task StartEventStream(global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest request, grpc::IServerStreamWriter<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse> responseStream, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// SubscribeEvents adds new event types to an existing event stream.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse> SubscribeEvents(global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      /// UnsubscribeEvents removes event types from an existing event stream.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse> UnsubscribeEvents(global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest request, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
@@ -116,30 +232,270 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
 
       /// <summary>
-      /// Stream opens a bidirectional session with a Cardinal shard.
-      /// Clients send commands and subscription updates; Cardinal sends subscribed events,
-      /// heartbeats, and stream errors on the same stream.
+      /// SendCommand sends a command to a specific shard (fire-and-forget).
       /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse SendCommand(global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return SendCommand(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// SendCommand sends a command to a specific shard (fire-and-forget).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse SendCommand(global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_SendCommand, null, options, request);
+      }
+      /// <summary>
+      /// SendCommand sends a command to a specific shard (fire-and-forget).
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
       /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
       /// <param name="cancellationToken">An optional token for canceling the call.</param>
       /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncDuplexStreamingCall<global::WorldEngine.Proto.Cardinal.V1.StreamRequest, global::WorldEngine.Proto.Cardinal.V1.StreamResponse> Stream(grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse> SendCommandAsync(global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
       {
-        return Stream(new grpc::CallOptions(headers, deadline, cancellationToken));
+        return SendCommandAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
       /// <summary>
-      /// Stream opens a bidirectional session with a Cardinal shard.
-      /// Clients send commands and subscription updates; Cardinal sends subscribed events,
-      /// heartbeats, and stream errors on the same stream.
+      /// SendCommand sends a command to a specific shard (fire-and-forget).
       /// </summary>
+      /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
       /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
-      public virtual grpc::AsyncDuplexStreamingCall<global::WorldEngine.Proto.Cardinal.V1.StreamRequest, global::WorldEngine.Proto.Cardinal.V1.StreamResponse> Stream(grpc::CallOptions options)
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse> SendCommandAsync(global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest request, grpc::CallOptions options)
       {
-        return CallInvoker.AsyncDuplexStreamingCall(__Method_Stream, null, options);
+        return CallInvoker.AsyncUnaryCall(__Method_SendCommand, null, options, request);
+      }
+      /// <summary>
+      /// SendCommandWithReply sends a command and waits for an event response from the shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse SendCommandWithReply(global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return SendCommandWithReply(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// SendCommandWithReply sends a command and waits for an event response from the shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse SendCommandWithReply(global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_SendCommandWithReply, null, options, request);
+      }
+      /// <summary>
+      /// SendCommandWithReply sends a command and waits for an event response from the shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse> SendCommandWithReplyAsync(global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return SendCommandWithReplyAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// SendCommandWithReply sends a command and waits for an event response from the shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse> SendCommandWithReplyAsync(global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_SendCommandWithReply, null, options, request);
+      }
+      /// <summary>
+      /// Query retrieves the current state or information from a specific shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.QueryResponse Query(global::WorldEngine.Proto.Cardinal.V1.QueryRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return Query(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Query retrieves the current state or information from a specific shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.QueryResponse Query(global::WorldEngine.Proto.Cardinal.V1.QueryRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_Query, null, options, request);
+      }
+      /// <summary>
+      /// Query retrieves the current state or information from a specific shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.QueryResponse> QueryAsync(global::WorldEngine.Proto.Cardinal.V1.QueryRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return QueryAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// Query retrieves the current state or information from a specific shard.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.QueryResponse> QueryAsync(global::WorldEngine.Proto.Cardinal.V1.QueryRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_Query, null, options, request);
+      }
+      /// <summary>
+      /// StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
+      /// specific event types and receive real-time updates.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncServerStreamingCall<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse> StartEventStream(global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return StartEventStream(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
+      /// specific event types and receive real-time updates.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncServerStreamingCall<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse> StartEventStream(global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncServerStreamingCall(__Method_StartEventStream, null, options, request);
+      }
+      /// <summary>
+      /// SubscribeEvents adds new event types to an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse SubscribeEvents(global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return SubscribeEvents(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// SubscribeEvents adds new event types to an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse SubscribeEvents(global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_SubscribeEvents, null, options, request);
+      }
+      /// <summary>
+      /// SubscribeEvents adds new event types to an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse> SubscribeEventsAsync(global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return SubscribeEventsAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// SubscribeEvents adds new event types to an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse> SubscribeEventsAsync(global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_SubscribeEvents, null, options, request);
+      }
+      /// <summary>
+      /// UnsubscribeEvents removes event types from an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse UnsubscribeEvents(global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return UnsubscribeEvents(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// UnsubscribeEvents removes event types from an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse UnsubscribeEvents(global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_UnsubscribeEvents, null, options, request);
+      }
+      /// <summary>
+      /// UnsubscribeEvents removes event types from an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse> UnsubscribeEventsAsync(global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return UnsubscribeEventsAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      /// UnsubscribeEvents removes event types from an existing event stream.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse> UnsubscribeEventsAsync(global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_UnsubscribeEvents, null, options, request);
       }
       /// <summary>Creates a new instance of client from given <c>ClientBaseConfiguration</c>.</summary>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
@@ -155,7 +511,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public static grpc::ServerServiceDefinition BindService(CardinalServiceBase serviceImpl)
     {
       return grpc::ServerServiceDefinition.CreateBuilder()
-          .AddMethod(__Method_Stream, serviceImpl.Stream).Build();
+          .AddMethod(__Method_SendCommand, serviceImpl.SendCommand)
+          .AddMethod(__Method_SendCommandWithReply, serviceImpl.SendCommandWithReply)
+          .AddMethod(__Method_Query, serviceImpl.Query)
+          .AddMethod(__Method_StartEventStream, serviceImpl.StartEventStream)
+          .AddMethod(__Method_SubscribeEvents, serviceImpl.SubscribeEvents)
+          .AddMethod(__Method_UnsubscribeEvents, serviceImpl.UnsubscribeEvents).Build();
     }
 
     /// <summary>Register service method with a service binder with or without implementation. Useful when customizing the service binding logic.
@@ -165,7 +526,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     public static void BindService(grpc::ServiceBinderBase serviceBinder, CardinalServiceBase serviceImpl)
     {
-      serviceBinder.AddMethod(__Method_Stream, serviceImpl == null ? null : new grpc::DuplexStreamingServerMethod<global::WorldEngine.Proto.Cardinal.V1.StreamRequest, global::WorldEngine.Proto.Cardinal.V1.StreamResponse>(serviceImpl.Stream));
+      serviceBinder.AddMethod(__Method_SendCommand, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.SendCommandRequest, global::WorldEngine.Proto.Cardinal.V1.SendCommandResponse>(serviceImpl.SendCommand));
+      serviceBinder.AddMethod(__Method_SendCommandWithReply, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyRequest, global::WorldEngine.Proto.Cardinal.V1.SendCommandWithReplyResponse>(serviceImpl.SendCommandWithReply));
+      serviceBinder.AddMethod(__Method_Query, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.QueryRequest, global::WorldEngine.Proto.Cardinal.V1.QueryResponse>(serviceImpl.Query));
+      serviceBinder.AddMethod(__Method_StartEventStream, serviceImpl == null ? null : new grpc::ServerStreamingServerMethod<global::WorldEngine.Proto.Cardinal.V1.StartEventStreamRequest, global::WorldEngine.Proto.Cardinal.V1.StartEventStreamResponse>(serviceImpl.StartEventStream));
+      serviceBinder.AddMethod(__Method_SubscribeEvents, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsRequest, global::WorldEngine.Proto.Cardinal.V1.SubscribeEventsResponse>(serviceImpl.SubscribeEvents));
+      serviceBinder.AddMethod(__Method_UnsubscribeEvents, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsRequest, global::WorldEngine.Proto.Cardinal.V1.UnsubscribeEventsResponse>(serviceImpl.UnsubscribeEvents));
     }
 
   }
