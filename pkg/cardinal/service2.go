@@ -159,6 +159,10 @@ func (s *service2) shutdown(ctx context.Context) error {
 	return nil
 }
 
+func (s *service2) registerCommandHandler(name string) {
+	s.commands[name] = struct{}{}
+}
+
 // -------------------------------------------------------------------------------------------------
 // Command handlers
 // -------------------------------------------------------------------------------------------------
@@ -558,10 +562,6 @@ func matchesEvent(subscription string, eventName string) bool {
 // -------------------------------------------------------------------------------------------------
 // ISC
 // -------------------------------------------------------------------------------------------------
-
-func (s *service2) registerCommandHandler(name string) {
-	s.commands[name] = struct{}{}
-}
 
 func (s *service2) handlePing(_ context.Context, req *micro.Request) *micro.Response {
 	return micro.NewSuccessResponse(req, nil)

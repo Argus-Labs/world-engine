@@ -98,8 +98,8 @@ func newCommandFixture(t *testing.T) *commandFixture {
 
 	world := &World{
 		commands: command.NewManager(),
-		service:  newService(nil),
 	}
+	world.service = newService2(world, AuthModePassthrough, "")
 
 	fixture := &commandFixture{world: world}
 
