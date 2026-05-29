@@ -19,6 +19,7 @@ type WorldOptions struct {
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotRate        uint32               // Number of ticks per snapshot
 	Debug               *bool                // Enable debug server
+	Pprof               *bool                // Enable pprof server
 	NATSConfig          *micro.NATSConfig    // Optional NATS config override (nil = use env/defaults)
 }
 
@@ -35,6 +36,7 @@ func newDefaultWorldOptions() WorldOptions {
 		SnapshotStorageType: snapshot.StorageTypeNop, // Default to nop snapshot
 		SnapshotRate:        0,
 		Debug:               nil,
+		Pprof:               nil,
 	}
 }
 
@@ -63,6 +65,9 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.Debug != nil {
 		opt.Debug = newOpt.Debug
+	}
+	if newOpt.Pprof != nil {
+		opt.Pprof = newOpt.Pprof
 	}
 	if newOpt.NATSConfig != nil {
 		opt.NATSConfig = newOpt.NATSConfig
@@ -94,6 +99,9 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.Debug == nil {
 		return eris.New("debug must be specified")
+	}
+	if opt.Pprof == nil {
+		return eris.New("pprof must be specified")
 	}
 	return nil
 }
@@ -142,6 +150,9 @@ type worldOptionsEnv struct {
 
 	// Enable debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
+
+	// Enable pprof server.
+	Pprof bool `env:"CARDINAL_PPROF" envDefault:"false"`
 }
 
 // loadWorldOptionsEnv loads the world options from environment variables.
@@ -180,5 +191,6 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		SnapshotStorageType: snapshotStorageType,
 		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &cfg.Debug,
+		Pprof:               &cfg.Pprof,
 	}
 }

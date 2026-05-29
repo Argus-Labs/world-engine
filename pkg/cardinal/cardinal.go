@@ -28,6 +28,7 @@ type World struct {
 	service         *service              // micro.Service wrapper
 	snapshotStorage snapshot.Storage      // Snapshot storage
 	debug           *debugModule          // For debug only utils and services
+	pprof           *pprofModule          // Optional pprof HTTP server
 	currentTick     Tick                  // The current tick
 	options         WorldOptions          // Options
 	tel             telemetry.Telemetry   // Telemetry for logging and tracing
@@ -122,6 +123,11 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		world.debug = &debug
 	}
 
+	// Create the pprof module only if pprof is on.
+	if *options.Pprof {
+		world.pprof = newPprofModule(tel)
+	}
+
 	return world, nil
 }
 
@@ -133,13 +139,20 @@ func (w *World) StartGame() {
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
 
-	// Start the NATS connection and handler.
+	// Observers bracket the lifecycle: telemetry is up from NewWorld; debug
+	// and pprof come up here, BEFORE any producer (NATS, tick loop), so they
+	// remain available during boot failures (e.g. NATS connect hangs/retries).
+	// The mirror is in shutdown(): observers torn down LAST so they outlive
+	// the producers' teardown — see the comment block there.
+	w.debug.Init(":8080")
+	w.pprof.Init(":6060")
+
+	// Start the NATS connection and handler. Failures here panic; observers
+	// above are already running, so a goroutine/stack profile is reachable
+	// during the panic window via the deferred shutdown chain.
 	if err := w.service.init(); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
-
-	// Start the debug server.
-	w.debug.Init(":8080")
 
 	w.tel.CaptureEvent(ctx, "Start Game", nil)
 
@@ -286,23 +299,43 @@ func (w *World) shutdown() {
 
 	w.tel.Logger.Info().Msg("Shutting down world")
 
+	// Shutdown order matters: every step below shares the same 10s ctx budget.
+	// We tear down producers (snapshot, NATS) BEFORE observers (debug, pprof)
+	// so that an in-flight introspection call — e.g. a 30s CPU profile or a
+	// pod-log tail — has a chance to drain during the NATS shutdown phase
+	// instead of being severed on the first cleanup step. Telemetry goes last
+	// so it can flush log lines emitted by every preceding step.
+
+	// 1. Final snapshot. Producer-side, fixed 2s sub-budget.
 	snapshotCtx, snapshotCancel := context.WithTimeout(ctx, 2*time.Second)
 	w.snapshot(snapshotCtx, time.Now())
 	snapshotCancel()
 
-	// Shutdown debug server.
-	if err := w.debug.Shutdown(ctx); err != nil {
-		w.tel.Logger.Error().Err(err).Msg("debug server shutdown error")
-		w.tel.CaptureException(ctx, err)
-	}
-
-	// Shutdown shard service.
+	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
+	// but the producer side should stop before observers do.
 	if err := w.service.shutdown(); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
 	}
 
-	// Shutdown telemetry.
+	// 3. Debug server — observer; cheap to drain because in-flight ConnectRPC
+	// debug calls (Pause/Step/etc.) are short-lived. Doing this BEFORE pprof
+	// gives the more-likely-long-running pprof captures the rest of the budget.
+	if err := w.debug.Shutdown(ctx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("debug server shutdown error")
+		w.tel.CaptureException(ctx, err)
+	}
+
+	// 4. Pprof server — observer; in-flight captures (especially /profile and
+	// /trace, both up to seconds=N) may legitimately take tens of seconds.
+	// http.Server.Shutdown blocks until they complete or until the shared ctx
+	// expires; whatever budget is left after steps 1-3 is what they get.
+	if err := w.pprof.Shutdown(ctx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("pprof server shutdown error")
+		w.tel.CaptureException(ctx, err)
+	}
+
+	// 5. Telemetry last so log lines from steps 1-4 are flushed.
 	if err := w.tel.Shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("telemetry shutdown error")
 	}
