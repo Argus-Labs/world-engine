@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	otelTrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -82,7 +82,9 @@ func newResource(opts Options) (*resource.Resource, error) {
 		resource.NewWithAttributes(semconv.SchemaURL, attrs...))
 }
 
-// resolveServiceVersion picks the value for the service.version resource attribute. OTEL_SERVICE_VERSION wins; otherwise the binary's main-module version, then vcs.revision from build info. Empty result = attribute omitted.
+// resolveServiceVersion picks the value for the service.version resource attribute.
+// OTEL_SERVICE_VERSION wins; otherwise the binary's main-module version, then
+// vcs.revision from build info. Empty result = attribute omitted.
 func resolveServiceVersion() string {
 	if v := os.Getenv("OTEL_SERVICE_VERSION"); v != "" {
 		return v
@@ -91,7 +93,8 @@ func resolveServiceVersion() string {
 	if !ok {
 		return ""
 	}
-	// "(devel)" is what the Go toolchain emits for an untagged main module; treat it as no-version and fall through to vcs.revision.
+	// "(devel)" is what the Go toolchain emits for an untagged main module;
+	// treat it as no-version and fall through to vcs.revision.
 	if v := info.Main.Version; v != "" && v != "(devel)" {
 		return v
 	}
