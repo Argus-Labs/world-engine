@@ -584,16 +584,8 @@ func (s *service2) handleInterShardCommand(ctx context.Context, req *micro.Reque
 	if err := protovalidate.Validate(cmd); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
 	}
-	sender, err := micro.ParseAddress(cmd.GetPersona().GetId())
-	if err != nil {
+	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
-	}
-	if micro.String(sender) == micro.String(s.world.address) {
-		return micro.NewErrorResponse(
-			req,
-			eris.New("inter-shard command sender must be another shard"),
-			codes.InvalidArgument,
-		)
 	}
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
