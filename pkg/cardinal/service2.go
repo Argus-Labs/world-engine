@@ -136,7 +136,7 @@ func (s *service2) init(address string) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	listener, err := net.Listen("tcp", address)
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
 	if err != nil {
 		return eris.Wrap(err, "failed to listen for service2 server")
 	}
