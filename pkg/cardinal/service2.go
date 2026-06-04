@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -135,8 +136,13 @@ func (s *service2) init(address string) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return eris.Wrap(err, "failed to listen for service2 server")
+	}
+
 	go func() {
-		if err := s.server.ListenAndServe(); err != nil && !eris.Is(err, http.ErrServerClosed) {
+		if err := s.server.Serve(listener); err != nil && !eris.Is(err, http.ErrServerClosed) {
 			s.log.Error().Err(err).Msg("service2 server error")
 		}
 	}()
@@ -547,7 +553,8 @@ func (s *service2) publishDefaultEvent(evt event.Event) error {
 		})
 		subscriber.mu.Unlock()
 		if err != nil {
-			return eris.Wrap(err, "failed to send event to subscriber")
+			s.log.Error().Err(err).Str("event", eventPb.GetName()).Msg("failed to send event to subscriber")
+			continue
 		}
 	}
 

@@ -99,7 +99,7 @@ message EventSubscription {
 // StartEventStreamRequest represents a request to establish a stream of events from Cardinal.
 // This enables real-time monitoring of system events through a server-side streaming connection.
 message StartEventStreamRequest {
-  // TODO: remove this.
+  // TODO: replace this with bidi streams.
   repeated EventSubscription subscriptions = 1;
 }
 
