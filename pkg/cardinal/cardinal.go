@@ -25,7 +25,7 @@ type World struct {
 	commands        command.Manager       // Receives commands for systems
 	events          event.Manager         // Collects and dispatches events
 	address         *micro.ServiceAddress // This world's NATS address
-	service         *service2             // ConnectRPC direct client-facing service
+	service         *service              // ConnectRPC direct client-facing service
 	snapshotStorage snapshot.Storage      // Snapshot storage
 	debug           *debugModule          // For debug only utils and services
 	pprof           *pprofModule          // Optional pprof HTTP server
@@ -81,7 +81,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	})
 
 	// Create the ConnectRPC client-facing service.
-	world.service = newService2(world, options.AuthMode, options.ArgusAuthURL)
+	world.service = newService(world, options.AuthMode, options.ArgusAuthURL)
 
 	// Register event handlers with the ConnectRPC service publishers.
 	world.events.RegisterHandler(event.KindDefault, world.service.publishDefaultEvent)
