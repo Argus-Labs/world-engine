@@ -35,6 +35,29 @@ func TestSerialize_RoundTrip(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+// binaryCommand is a command that carries its own wire encoding.
+type binaryCommand struct{ payload string }
+
+func (binaryCommand) Name() string                      { return "binary_command" }
+func (c binaryCommand) MarshalBinary() ([]byte, error)  { return []byte(c.payload), nil }
+func (c *binaryCommand) UnmarshalBinary(b []byte) error { c.payload = string(b); return nil }
+
+func TestMarshalCommand(t *testing.T) {
+	t.Parallel()
+
+	// A command with a wire layer round-trips through its own marshaler.
+	data, err := schema.MarshalCommand(binaryCommand{payload: "abc"})
+	require.NoError(t, err)
+
+	var actual binaryCommand
+	require.NoError(t, schema.UnmarshalCommand(&actual, data))
+	assert.Equal(t, "abc", actual.payload)
+
+	// A Serializable without a wire layer (here a component) is rejected, not msgpack'd.
+	_, err = schema.MarshalCommand(testutils.ComponentMixed{})
+	require.Error(t, err)
+}
+
 // -------------------------------------------------------------------------------------------------
 // Deserialization robustness fuzz
 // -------------------------------------------------------------------------------------------------

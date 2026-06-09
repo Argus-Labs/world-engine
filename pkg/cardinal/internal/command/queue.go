@@ -47,13 +47,13 @@ func (q *sliceQueue[T]) Enqueue(command *iscv1.Command) error {
 		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), command.GetName())
 	}
 
-	if err := schema.Deserialize(command.GetPayload(), &zero); err != nil {
+	if err := schema.UnmarshalCommand(&zero, command.GetPayload()); err != nil {
 		return eris.Wrap(err, "failed to deserialize command payload")
 	}
 
 	q.mu.Lock()
 	q.commands = append(q.commands, Command{
-		Name:    zero.Name(),
+		Name:    command.GetName(),
 		Address: command.GetAddress(),
 		Persona: command.GetPersona().GetId(),
 		Payload: zero,
