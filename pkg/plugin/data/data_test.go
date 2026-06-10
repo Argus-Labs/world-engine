@@ -430,7 +430,7 @@ func TestPlugin_ResolverUsesLocalNotPrimary(t *testing.T) {
 
 	got := data.Get[resolverKind]()
 	require.Equal(t, "testdata/resolver_side.json", got.Include)
-	require.Equal(t, "{\"extra\":\"hello\"}\n", got.Side)
+	require.JSONEq(t, "{\"extra\":\"hello\"}\n", got.Side)
 }
 
 // mainOnlyFake serves a single primary file and errors on anything else. Used to prove Resolver

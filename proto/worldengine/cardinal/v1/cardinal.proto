@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package worldengine.cardinal.v1;
+
+import "buf/validate/validate.proto";
+import "worldengine/isc/v1/command.proto";
+import "worldengine/isc/v1/event.proto";
+import "worldengine/isc/v1/query.proto";
+import "worldengine/micro/v1/service.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
+
+service CardinalService {
+  // SendCommand sends a command to a specific shard (fire-and-forget).
+  rpc SendCommand(SendCommandRequest) returns (SendCommandResponse) {}
+
+  // SendCommandWithReply sends a command and waits for an event response from the shard.
+  rpc SendCommandWithReply(SendCommandWithReplyRequest) returns (SendCommandWithReplyResponse) {}
+
+  // Query retrieves the current state or information from a specific shard.
+  rpc Query(QueryRequest) returns (QueryResponse) {}
+
+  // StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
+  // specific event types and receive real-time updates.
+  rpc StartEventStream(StartEventStreamRequest) returns (stream StartEventStreamResponse) {}
+
+  // SubscribeEvents adds new event types to an existing event stream.
+  rpc SubscribeEvents(SubscribeEventsRequest) returns (SubscribeEventsResponse) {}
+
+  // UnsubscribeEvents removes event types from an existing event stream.
+  rpc UnsubscribeEvents(UnsubscribeEventsRequest) returns (UnsubscribeEventsResponse) {}
+}
+
+// SendCommandRequest represents a request to execute a command on a specific shard.
+message SendCommandRequest {
+  // The address of the cardinal shard to send the command to.
+  isc.v1.Command command = 1 [(buf.validate.field).required = true];
+}
+
+// SendCommandResponse is returned upon successful command execution.
+message SendCommandResponse {}
+
+// SendCommandWithReplyRequest represents a request to execute a command and wait for an event response.
+message SendCommandWithReplyRequest {
+  // The command to execute on the shard.
+  isc.v1.Command command = 1 [(buf.validate.field).required = true];
+
+  // The name of the event to wait for after the command is executed.
+  string event_name = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-zA-Z0-9_-]+$"
+    }
+  ];
+}
+
+// SendCommandWithReplyResponse is returned with the event from the command execution.
+message SendCommandWithReplyResponse {
+  // The event received from the shard after command execution.
+  isc.v1.Event event = 1;
+}
+
+// QueryRequest represents a request to retrieve information from a specific shard.
+message QueryRequest {
+  // The address of the cardinal shard to send the query to.
+  worldengine.micro.v1.ServiceAddress address = 1 [(buf.validate.field).required = true];
+
+  // The actual query to execute.
+  isc.v1.Query query = 2 [(buf.validate.field).required = true];
+}
+
+// QueryResponse contains the results of a query operation.
+message QueryResponse {
+  // The results of the query.
+  isc.v1.QueryResult results = 1;
+}
+
+message EventSubscription {
+  // Specifies the target shard address from which to stream events.
+  worldengine.micro.v1.ServiceAddress address = 1 [(buf.validate.field).required = true];
+
+  // A list of events to subscribe to. If the event belongs to a group, use the `<group>.<event>`
+  // format. This also supports the '*' and '>' wildcards.
+  repeated string events = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    items: {
+      string: {
+        min_len: 1
+        max_len: 128
+        pattern: "^[a-zA-Z0-9.*>_-]+$"
+      }
+    }
+  }];
+}
+
+// StartEventStreamRequest represents a request to establish a stream of events from Cardinal.
+// This enables real-time monitoring of system events through a server-side streaming connection.
+message StartEventStreamRequest {
+  // TODO: replace this with bidi streams.
+  repeated EventSubscription subscriptions = 1;
+}
+
+message StartEventStreamResponse {
+  // Specifies the publisher's service address.
+  worldengine.micro.v1.ServiceAddress address = 1;
+
+  // The event payload.
+  isc.v1.Event event = 2;
+}
+
+// SubscribeEventsRequest represents a request to add new event types to an existing stream.
+message SubscribeEventsRequest {
+  repeated EventSubscription subscriptions = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// SubscribeEventsResponse is returned when the request is successfully handled.
+message SubscribeEventsResponse {}
+
+// UnsubscribeEventsRequest represents a request to remove event types from an existing stream.
+message UnsubscribeEventsRequest {
+  repeated EventSubscription subscriptions = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// UnsubscribeEventsResponse is returned when the request is successfully handled.
+message UnsubscribeEventsResponse {}

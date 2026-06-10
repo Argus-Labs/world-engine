@@ -1,13 +1,16 @@
 // E2E test helper with real (in-memory) NATS. Similar to the DST harness in dst.go, but
 // runs the full World.run loop (ticking, snapshotting, restoring) while a separate goroutine
-// sends randomized commands through real NATS subjects.
+// sends randomized commands through the real ConnectRPC service.
 package cardinal
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"math/rand/v2"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,18 +19,21 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 )
 
 //nolint:gochecknoglobals // test flags registered via flag package
@@ -44,8 +50,8 @@ const e2eCommandTimeout = 2 * time.Second
 
 // RunE2E executes an end-to-end test. The setup function creates the world the same way production
 // does; the harness transparently injects the in-memory test NATS URL. The harness starts the
-// world's run loop in a background goroutine and sends randomized commands over NATS from the test
-// goroutine.
+// world's run loop in a background goroutine and sends randomized commands over ConnectRPC from the
+// test goroutine.
 //
 // E2E tests are skipped by default. Use the -e2e.run flag to enable them:
 //
@@ -164,7 +170,7 @@ func (c *e2eConfig) log(t *testing.T) {
 
 type e2eFixture struct {
 	world    *World
-	client   *micro.Client // Separate NATS client for sending commands/queries
+	client   cardinalv1connect.CardinalServiceClient
 	cmdTypes map[string]reflect.Type
 }
 
@@ -190,9 +196,17 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	} else {
 		w.options.NATSConfig.URL = natsURL
 	}
+	w.options.AuthMode = AuthModePassthrough
+	w.service = newService(w, w.options.AuthMode, w.options.ArgusAuthURL)
+	w.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 
-	// Initialize the world's NATS service (client, micro.Service, endpoints).
-	require.NoError(t, w.service.init())
+	connectAddr := "127.0.0.1:5000"
+	require.NoError(t, w.service.init(connectAddr))
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		require.NoError(t, w.service.shutdown(ctx))
+	})
 
 	// Replace inter-shard event handler with local assertions.
 	// E2E runs a single world instance, so cross-shard requests would otherwise fail with
@@ -208,13 +222,16 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 		return nil
 	})
 
-	// Create a separate NATS client for sending commands (acts as an external caller).
-	client, err := micro.NewClient(
-		micro.WithNATSConfig(micro.NATSConfig{Name: "e2e-client", URL: natsURL}),
-		micro.WithLogger(zerolog.Nop()),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { client.Close() })
+	// Create a separate ConnectRPC client for sending commands (acts as an external caller).
+	client := cardinalv1connect.NewCardinalServiceClient(&http.Client{
+		Transport: &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var dialer net.Dialer
+				return dialer.DialContext(ctx, network, addr)
+			},
+		},
+	}, "http://"+connectAddr)
 
 	// Cache concrete payload types for random command generation.
 	cmdTypes := make(map[string]reflect.Type)
@@ -245,13 +262,13 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	}
 }
 
-// sendCommand sends a command to the world's service over NATS.
+// sendCommand sends a command to the world's ConnectRPC service.
 func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
 	t.Helper()
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
-	_, err := f.client.Request(ctx, f.world.address, "command."+cmd.GetName(), cmd)
+	_, err := f.client.SendCommand(ctx, connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd}))
 	require.NoError(t, err)
 }
 

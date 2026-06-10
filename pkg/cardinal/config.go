@@ -21,6 +21,8 @@ type WorldOptions struct {
 	Debug               *bool                // Enable debug server
 	Pprof               *bool                // Enable pprof server
 	NATSConfig          *micro.NATSConfig    // Optional NATS config override (nil = use env/defaults)
+	AuthMode            AuthMode             // Auth mode for the client-facing ConnectRPC service
+	ArgusAuthURL        string               // URL of the Argus Auth service when AuthMode is ARGUS
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
@@ -37,6 +39,8 @@ func newDefaultWorldOptions() WorldOptions {
 		SnapshotRate:        0,
 		Debug:               nil,
 		Pprof:               nil,
+		AuthMode:            AuthModePassthrough,
+		ArgusAuthURL:        "",
 	}
 }
 
@@ -72,6 +76,12 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.NATSConfig != nil {
 		opt.NATSConfig = newOpt.NATSConfig
 	}
+	if newOpt.AuthMode.IsValid() {
+		opt.AuthMode = newOpt.AuthMode
+	}
+	if newOpt.ArgusAuthURL != "" {
+		opt.ArgusAuthURL = newOpt.ArgusAuthURL
+	}
 }
 
 // validate checks that all required options are set and valid.
@@ -102,6 +112,12 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.Pprof == nil {
 		return eris.New("pprof must be specified")
+	}
+	if !opt.AuthMode.IsValid() {
+		return eris.Errorf("invalid auth mode: %s (must be one of: ARGUS, DEV, PASSTHROUGH)", opt.AuthMode)
+	}
+	if opt.AuthMode == AuthModeArgus && opt.ArgusAuthURL == "" {
+		return eris.New("argus auth URL cannot be empty when auth mode is ARGUS")
 	}
 	return nil
 }
@@ -153,6 +169,12 @@ type worldOptionsEnv struct {
 
 	// Enable pprof server.
 	Pprof bool `env:"CARDINAL_PPROF" envDefault:"false"`
+
+	// Auth mode for the client-facing ConnectRPC service (ARGUS, DEV, or PASSTHROUGH).
+	AuthModeStr string `env:"CARDINAL_AUTH_MODE" envDefault:"PASSTHROUGH"`
+
+	// URL of the Argus Auth service when AuthMode is ARGUS.
+	ArgusAuthURL string `env:"CARDINAL_ARGUS_AUTH_URL"`
 }
 
 // loadWorldOptionsEnv loads the world options from environment variables.
@@ -175,12 +197,22 @@ func (cfg *worldOptionsEnv) validate() error {
 	if _, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr); err != nil {
 		return err
 	}
+	authMode, err := ParseAuthMode(cfg.AuthModeStr)
+	if err != nil {
+		return eris.Wrap(err, "failed to parse auth mode")
+	}
+	if authMode == AuthModeArgus && cfg.ArgusAuthURL == "" {
+		return eris.New("CARDINAL_ARGUS_AUTH_URL cannot be empty when CARDINAL_AUTH_MODE is ARGUS")
+	}
 	return nil
 }
 
 // toOptions converts the worldOptionsEnv to WorldOptions.
 func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 	snapshotStorageType, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr)
+	assert.That(err == nil, "config not validated")
+
+	authMode, err := ParseAuthMode(cfg.AuthModeStr)
 	assert.That(err == nil, "config not validated")
 
 	return WorldOptions{
@@ -192,5 +224,7 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &cfg.Debug,
 		Pprof:               &cfg.Pprof,
+		AuthMode:            authMode,
+		ArgusAuthURL:        cfg.ArgusAuthURL,
 	}
 }

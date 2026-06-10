@@ -95,6 +95,11 @@ func initSystemFields[T any](state *T, world *World) error {
 		// For now we'll ignore other fields in the system state struct.
 	}
 
+	// Register commands to the service.
+	for name := range meta.commands {
+		world.service.registerCommandHandler(name)
+	}
+
 	return nil
 }
 
@@ -212,11 +217,6 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 	if err != nil {
 		return eris.Wrapf(err, "failed to register command %s", name)
 	}
-
-	// Register the command handler with NATS. NOTE: this just adds to the service's command name set,
-	// it doesn't create the NATS subscription/request handler immediately. This method is free of
-	// side effects so we can test without NATS.
-	meta.world.service.registerCommandHandler(name)
 
 	if err := meta.world.debug.register("command", zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
