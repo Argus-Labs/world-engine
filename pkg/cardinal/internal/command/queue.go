@@ -3,7 +3,6 @@ package command
 import (
 	"sync"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 )
@@ -40,23 +39,24 @@ func NewQueue[T Payload]() Queue {
 // Enqueue validates and adds a command to the queue. It performs type checking to ensure the
 // command matches the expected type T, unmarshals the command payload, and appends it to the queue.
 // Returns an error if validation fails or marshaling/unmarshaling operations fail.
-func (q *sliceQueue[T]) Enqueue(command *iscv1.Command) error {
+func (q *sliceQueue[T]) Enqueue(cmd *iscv1.Command) error {
 	var zero T
 
-	if command.GetName() != zero.Name() {
-		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), command.GetName())
+	if cmd.GetName() != zero.Name() {
+		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), cmd.GetName())
 	}
 
-	if err := schema.UnmarshalCommand(&zero, command.GetPayload()); err != nil {
-		return eris.Wrap(err, "failed to deserialize command payload")
+	payload, err := unmarshal(cmd.GetName(), cmd.GetPayload())
+	if err != nil {
+		return eris.Wrapf(err, "failed to decode command payload for %q", zero.Name())
 	}
 
 	q.mu.Lock()
 	q.commands = append(q.commands, Command{
-		Name:    command.GetName(),
-		Address: command.GetAddress(),
-		Persona: command.GetPersona().GetId(),
-		Payload: zero,
+		Name:    cmd.GetName(),
+		Address: cmd.GetAddress(),
+		Persona: cmd.GetPersona().GetId(),
+		Payload: payload,
 	})
 	q.mu.Unlock()
 	return nil

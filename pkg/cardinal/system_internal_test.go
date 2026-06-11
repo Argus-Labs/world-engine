@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	_ "github.com/argus-labs/world-engine/pkg/cardinal/internal/commandtest"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -110,11 +110,11 @@ func newCommandFixture(t *testing.T) *commandFixture {
 	return fixture
 }
 
-// enqueueCommand is a helper that marshals a command payload to protobuf and enqueues it.
+// enqueueCommand is a helper that marshals a command payload through its wire layer and enqueues it.
 func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, persona string) {
 	t.Helper()
 
-	bytes, err := schema.Serialize(payload)
+	bytes, err := command.Marshal(payload)
 	require.NoError(t, err)
 
 	cmdpb := &iscv1.Command{

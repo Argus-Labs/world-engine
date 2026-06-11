@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"encoding"
 	"fmt"
 
 	"github.com/rotisserie/eris"
@@ -11,31 +10,6 @@ import (
 // Serializable is the interface that all user-defined types (components, commands, events) must implement.
 type Serializable interface {
 	Name() string
-}
-
-// MarshalCommand serializes a command for transport across a shard or process boundary. The engine cannot know a
-// user-defined command's shape, so each command supplies its own binary encoding via the standard
-// encoding.BinaryMarshaler. A command that does not implement it cannot be transported and returns an error.
-func MarshalCommand(s Serializable) ([]byte, error) {
-	m, ok := s.(encoding.BinaryMarshaler)
-	if !ok {
-		return nil, eris.Errorf("command %q has no wire layer (run the generator)", s.Name())
-	}
-	return m.MarshalBinary()
-}
-
-// UnmarshalCommand reconstructs a command from its transported bytes into v (a pointer to the command type)
-// via the standard encoding.BinaryUnmarshaler.
-func UnmarshalCommand(v any, data []byte) error {
-	u, ok := v.(encoding.BinaryUnmarshaler)
-	if !ok {
-		name := "?"
-		if s, ok := v.(Serializable); ok {
-			name = s.Name()
-		}
-		return eris.Errorf("command %q has no wire layer (run the generator)", name)
-	}
-	return u.UnmarshalBinary(data)
 }
 
 // Serialize converts a Serializable (component/event) to bytes via msgpack.

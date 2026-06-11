@@ -42,7 +42,7 @@ func TestService_HandleCommand(t *testing.T) {
 		// Send a valid command over NATS.
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
 		persona := testutils.RandString(prng, 8)
-		payloadBytes, err := schema.Serialize(payload)
+		payloadBytes, err := command.Marshal(payload)
 		require.NoError(t, err)
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
@@ -70,7 +70,7 @@ func TestService_HandleCommand(t *testing.T) {
 
 		// Build a command with a different shard address than the fixture's.
 		payload := testutils.SimpleCommand{Value: 42}
-		payloadBytes, err := schema.Serialize(payload)
+		payloadBytes, err := command.Marshal(payload)
 		require.NoError(t, err)
 		wrongAddress := RandServiceAddress(prng)
 		cmdPb := &iscv1.Command{
