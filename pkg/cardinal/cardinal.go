@@ -19,6 +19,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	addressService = ":8080"
+	addressDebug   = ":8081"
+	addressPProf   = ":6060"
+)
+
 // World represents your game world and serves as the main entry point for Cardinal.
 type World struct {
 	world           *ecs.World            // The ECS world storing the game's state and systems
@@ -143,14 +149,14 @@ func (w *World) StartGame() {
 	// remain available during boot failures (e.g. NATS connect hangs/retries).
 	// The mirror is in shutdown(): observers torn down LAST so they outlive
 	// the producers' teardown — see the comment block there.
-	w.debug.Init(":8080")
-	w.pprof.Init(":6060")
+	w.debug.Init(addressDebug)
+	w.pprof.Init(addressPProf)
 
 	// Start the NATS connection and handler. Failures here panic; observers
 	// above are already running, so a goroutine/stack profile is reachable
 	// during the panic window via the deferred shutdown chain.
 	// Start the ConnectRPC client-facing service.
-	if err := w.service.init(":5050"); err != nil {
+	if err := w.service.init(addressService); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
 
