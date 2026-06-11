@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	_ "github.com/argus-labs/world-engine/pkg/cardinal/internal/commandtest"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -53,7 +53,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 			// Pick a random command type and enqueue.
 			payload := generators[prng.IntN(len(generators))]()
-			pbPayload, err := schema.Serialize(payload)
+			pbPayload, err := command.Marshal(payload)
 			require.NoError(t, err)
 
 			persona := testutils.RandString(prng, 8)
@@ -315,7 +315,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
 				}
 
-				pbPayload, err := schema.Serialize(payload)
+				pbPayload, err := command.Marshal(payload)
 				if err != nil {
 					t.Errorf("Serialize failed: %v", err)
 					return

@@ -116,7 +116,7 @@ func TestAssignShardCommand_Shape(t *testing.T) {
 	cmd := AssignShardCommand{
 		LobbyID:   "lobby-1",
 		RequestID: "req-42",
-		GameWorld: cardinal.OtherWorld{ShardID: "game-shard-3"},
+		GameWorld: ShardAddress{ShardID: "game-shard-3"},
 	}
 	assert.Equal(t, "lobby-1", cmd.LobbyID)
 	assert.Equal(t, "req-42", cmd.RequestID)

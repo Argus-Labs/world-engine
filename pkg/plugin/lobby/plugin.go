@@ -57,6 +57,7 @@ type (
 	TransferLeaderCommand           = system.TransferLeaderCommand
 	StartSessionCommand             = system.StartSessionCommand
 	AssignShardCommand              = system.AssignShardCommand
+	ShardAddress                    = system.ShardAddress
 	GenerateInviteCodeCommand       = system.GenerateInviteCodeCommand
 	HeartbeatCommand                = system.HeartbeatCommand
 	UpdateSessionPassthroughCommand = system.UpdateSessionPassthroughCommand

@@ -8,6 +8,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
+	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 )
 
@@ -26,10 +27,10 @@ type CreateLobbyCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
 	// Preset is the label of a server-registered team configuration.
 	Preset string `json:"preset"`
-	// PlayerPassthroughData is custom data for the creating player, forwarded to game shard.
-	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
-	// SessionPassthroughData is custom data for the lobby session, forwarded to game shard.
-	SessionPassthroughData map[string]any `json:"session_passthrough_data,omitempty"`
+	// PlayerPassthroughData is opaque JSON for the creating player, forwarded to the game shard.
+	PlayerPassthroughData []byte `json:"player_passthrough_data,omitempty"`
+	// SessionPassthroughData is opaque JSON for the lobby session, forwarded to the game shard.
+	SessionPassthroughData []byte `json:"session_passthrough_data,omitempty"`
 }
 
 // TeamConfig is an alias for component.TeamConfig to preserve the
@@ -44,8 +45,8 @@ type JoinLobbyCommand struct {
 	RequestID  string `json:"request_id"`        // For matching request/response
 	InviteCode string `json:"invite_code"`       // Required: invite code to join
 	TeamID     string `json:"team_id,omitempty"` // Optional: team to join by ID (joins first available if empty)
-	// PlayerPassthroughData is custom data for the joining player, forwarded to game shard.
-	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
+	// PlayerPassthroughData is opaque JSON for the joining player, forwarded to the game shard.
+	PlayerPassthroughData []byte `json:"player_passthrough_data,omitempty"`
 }
 
 // Name returns the command name.
@@ -125,8 +126,8 @@ func (HeartbeatCommand) Name() string { return "lobby_heartbeat" }
 
 // UpdateSessionPassthroughCommand updates the session passthrough data (leader only).
 type UpdateSessionPassthroughCommand struct {
-	RequestID       string         `json:"request_id"` // For matching request/response
-	PassthroughData map[string]any `json:"passthrough_data"`
+	RequestID       string `json:"request_id"` // For matching request/response
+	PassthroughData []byte `json:"passthrough_data"`
 }
 
 // Name returns the command name.
@@ -134,8 +135,8 @@ func (UpdateSessionPassthroughCommand) Name() string { return "lobby_update_sess
 
 // UpdatePlayerPassthroughCommand updates the player's own passthrough data.
 type UpdatePlayerPassthroughCommand struct {
-	RequestID       string         `json:"request_id"` // For matching request/response
-	PassthroughData map[string]any `json:"passthrough_data"`
+	RequestID       string `json:"request_id"` // For matching request/response
+	PassthroughData []byte `json:"passthrough_data"`
 }
 
 // Name returns the command name.
@@ -522,11 +523,22 @@ func (NotifySessionEndCommand) Name() string { return "lobby_notify_session_end"
 // the orchestrator reads from the LobbyComponent). Mismatched RequestIDs
 // are rejected; this rejects late duplicate or stale commands that arrive
 // after the original pending cycle has already been completed or cancelled.
+// ShardAddress mirrors cardinal.OtherWorld for use in commands. A plugin command can't carry the
+// core cardinal.OtherWorld directly: generating its proto in the plugin would require cardinal to
+// import the plugin's generated package, a dependency cycle. The fields match, so the two convert
+// directly with a Go struct conversion.
+type ShardAddress struct {
+	Region       string
+	Organization string
+	Project      string
+	ShardID      string
+}
+
 type AssignShardCommand struct {
-	LobbyID   string              `json:"lobby_id"`
-	RequestID string              `json:"request_id"`
-	GameWorld cardinal.OtherWorld `json:"game_world"`
-	Reason    string              `json:"reason,omitempty"`
+	LobbyID   string       `json:"lobby_id"`
+	RequestID string       `json:"request_id"`
+	GameWorld ShardAddress `json:"game_world"`
+	Reason    string       `json:"reason,omitempty"`
 }
 
 // Name returns the command name.
@@ -865,6 +877,20 @@ func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
 	})
 }
 
+// DecodePassthrough turns a command's opaque JSON passthrough bytes into the map that components and
+// events store and that downstream systems read. Empty or malformed input yields a nil map; the
+// passthrough is best-effort forwarded data, not something the lobby validates.
+func DecodePassthrough(b []byte) map[string]any {
+	if len(b) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil
+	}
+	return m
+}
+
 // createPlayerEntity creates a player entity and returns the component and entity ID.
 func createPlayerEntity(
 	state *LobbySystemState,
@@ -1139,7 +1165,7 @@ func processCreateLobbyCommands(
 			InviteCode: "", // Will be set after generation
 			Session: component.Session{
 				State:           component.SessionStateIdle,
-				PassthroughData: payload.SessionPassthroughData,
+				PassthroughData: DecodePassthrough(payload.SessionPassthroughData),
 			},
 			CreatedAt: now,
 		}
@@ -1186,7 +1212,7 @@ func processCreateLobbyCommands(
 
 		// Create player entity and update index
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, lobby.Teams[0].TeamID, payload.PlayerPassthroughData, now,
+			state, playerID, lobbyID, lobby.Teams[0].TeamID, DecodePassthrough(payload.PlayerPassthroughData), now,
 		)
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
@@ -1285,7 +1311,7 @@ func processJoinLobbyCommands(
 
 		// Create player entity
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, targetTeam.TeamID, payload.PlayerPassthroughData, now,
+			state, playerID, lobbyID, targetTeam.TeamID, DecodePassthrough(payload.PlayerPassthroughData), now,
 		)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, targetTeam.TeamID, uint32(playerEntityID), now+timeout)
 
@@ -1973,7 +1999,7 @@ func processAssignShardCommands(
 		lobby.Session.PendingRequestID = ""
 		lobby.Session.PendingStartedAt = 0
 
-		lobby.GameWorld = payload.GameWorld
+		lobby.GameWorld = cardinal.OtherWorld(payload.GameWorld)
 		lobby.Session.State = component.SessionStateInSession
 		lobbyEntity.Lobby.Set(lobby)
 
@@ -2177,7 +2203,7 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 			continue
 		}
 
-		lobby.Session.PassthroughData = payload.PassthroughData
+		lobby.Session.PassthroughData = DecodePassthrough(payload.PassthroughData)
 		result.lobbyRef.Set(lobby)
 
 		state.Logger().Info().
@@ -2236,7 +2262,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		}
 
 		playerComp := playerEntity.Player.Get()
-		playerComp.PassthroughData = payload.PassthroughData
+		playerComp.PassthroughData = DecodePassthrough(payload.PassthroughData)
 		playerEntity.Player.Set(playerComp)
 
 		state.Logger().Info().

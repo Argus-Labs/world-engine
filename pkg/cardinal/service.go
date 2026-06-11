@@ -613,7 +613,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	payload, err := schema.MarshalCommand(isc.Payload)
+	payload, err := command.Marshal(isc.Payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal command payload")
 	}
