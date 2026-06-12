@@ -651,6 +651,59 @@ func (x *NotifySessionEndCommand) GetLobbyID() string {
 	return ""
 }
 
+// wire name: "lobby_notify_session_start"
+type NotifySessionStartCommand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LobbyID       string                 `protobuf:"bytes,1,opt,name=LobbyID,proto3" json:"LobbyID,omitempty"`
+	LobbyWorld    *ShardAddress          `protobuf:"bytes,2,opt,name=LobbyWorld,proto3" json:"LobbyWorld,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifySessionStartCommand) Reset() {
+	*x = NotifySessionStartCommand{}
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifySessionStartCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifySessionStartCommand) ProtoMessage() {}
+
+func (x *NotifySessionStartCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifySessionStartCommand.ProtoReflect.Descriptor instead.
+func (*NotifySessionStartCommand) Descriptor() ([]byte, []int) {
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *NotifySessionStartCommand) GetLobbyID() string {
+	if x != nil {
+		return x.LobbyID
+	}
+	return ""
+}
+
+func (x *NotifySessionStartCommand) GetLobbyWorld() *ShardAddress {
+	if x != nil {
+		return x.LobbyWorld
+	}
+	return nil
+}
+
 // wire name: "lobby_set_ready"
 type SetReadyCommand struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -662,7 +715,7 @@ type SetReadyCommand struct {
 
 func (x *SetReadyCommand) Reset() {
 	*x = SetReadyCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[12]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +727,7 @@ func (x *SetReadyCommand) String() string {
 func (*SetReadyCommand) ProtoMessage() {}
 
 func (x *SetReadyCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[12]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +740,7 @@ func (x *SetReadyCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetReadyCommand.ProtoReflect.Descriptor instead.
 func (*SetReadyCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{12}
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SetReadyCommand) GetRequestID() string {
@@ -716,7 +769,7 @@ type ShardAddress struct {
 
 func (x *ShardAddress) Reset() {
 	*x = ShardAddress{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[13]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +781,7 @@ func (x *ShardAddress) String() string {
 func (*ShardAddress) ProtoMessage() {}
 
 func (x *ShardAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[13]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +794,7 @@ func (x *ShardAddress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardAddress.ProtoReflect.Descriptor instead.
 func (*ShardAddress) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{13}
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ShardAddress) GetRegion() string {
@@ -782,7 +835,7 @@ type StartSessionCommand struct {
 
 func (x *StartSessionCommand) Reset() {
 	*x = StartSessionCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[14]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -794,7 +847,7 @@ func (x *StartSessionCommand) String() string {
 func (*StartSessionCommand) ProtoMessage() {}
 
 func (x *StartSessionCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[14]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -807,7 +860,7 @@ func (x *StartSessionCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSessionCommand.ProtoReflect.Descriptor instead.
 func (*StartSessionCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{14}
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StartSessionCommand) GetRequestID() string {
@@ -828,7 +881,7 @@ type TransferLeaderCommand struct {
 
 func (x *TransferLeaderCommand) Reset() {
 	*x = TransferLeaderCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[15]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +893,7 @@ func (x *TransferLeaderCommand) String() string {
 func (*TransferLeaderCommand) ProtoMessage() {}
 
 func (x *TransferLeaderCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[15]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +906,7 @@ func (x *TransferLeaderCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferLeaderCommand.ProtoReflect.Descriptor instead.
 func (*TransferLeaderCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{15}
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TransferLeaderCommand) GetRequestID() string {
@@ -881,7 +934,7 @@ type UpdatePlayerPassthroughCommand struct {
 
 func (x *UpdatePlayerPassthroughCommand) Reset() {
 	*x = UpdatePlayerPassthroughCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[16]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +946,7 @@ func (x *UpdatePlayerPassthroughCommand) String() string {
 func (*UpdatePlayerPassthroughCommand) ProtoMessage() {}
 
 func (x *UpdatePlayerPassthroughCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[16]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +959,7 @@ func (x *UpdatePlayerPassthroughCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePlayerPassthroughCommand.ProtoReflect.Descriptor instead.
 func (*UpdatePlayerPassthroughCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{16}
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdatePlayerPassthroughCommand) GetRequestID() string {
@@ -934,7 +987,7 @@ type UpdateSessionPassthroughCommand struct {
 
 func (x *UpdateSessionPassthroughCommand) Reset() {
 	*x = UpdateSessionPassthroughCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[17]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -946,7 +999,7 @@ func (x *UpdateSessionPassthroughCommand) String() string {
 func (*UpdateSessionPassthroughCommand) ProtoMessage() {}
 
 func (x *UpdateSessionPassthroughCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[17]
+	mi := &file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -959,7 +1012,7 @@ func (x *UpdateSessionPassthroughCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSessionPassthroughCommand.ProtoReflect.Descriptor instead.
 func (*UpdateSessionPassthroughCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{17}
+	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateSessionPassthroughCommand) GetRequestID() string {
@@ -1017,7 +1070,12 @@ const file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDesc
 	"\x11LeaveLobbyCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"3\n" +
 	"\x17NotifySessionEndCommand\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"I\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"\x9c\x01\n" +
+	"\x19NotifySessionStartCommand\x12\x18\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12e\n" +
+	"\n" +
+	"LobbyWorld\x18\x02 \x01(\v2E.github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.ShardAddressR\n" +
+	"LobbyWorld\"I\n" +
 	"\x0fSetReadyCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x18\n" +
 	"\aIsReady\x18\x02 \x01(\bR\aIsReady\"~\n" +
@@ -1036,7 +1094,7 @@ const file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDesc
 	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"i\n" +
 	"\x1fUpdateSessionPassthroughCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughDataBHZ;github.com/argus-labs/world-engine/pkg/plugin/lobby/gen;gen\xaa\x02\bcommandsb\x06proto3"
+	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughDataBEZ;github.com/argus-labs/world-engine/pkg/plugin/lobby/gen;gen\xaa\x02\x05lobbyb\x06proto3"
 
 var (
 	file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescOnce sync.Once
@@ -1050,7 +1108,7 @@ func file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescG
 	return file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDescData
 }
 
-var file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_goTypes = []any{
 	(*AssignShardCommand)(nil),              // 0: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.AssignShardCommand
 	(*CreateLobbyCommand)(nil),              // 1: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.CreateLobbyCommand
@@ -1064,20 +1122,22 @@ var file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_goTypes =
 	(*KickPlayerCommand)(nil),               // 9: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.KickPlayerCommand
 	(*LeaveLobbyCommand)(nil),               // 10: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.LeaveLobbyCommand
 	(*NotifySessionEndCommand)(nil),         // 11: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.NotifySessionEndCommand
-	(*SetReadyCommand)(nil),                 // 12: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.SetReadyCommand
-	(*ShardAddress)(nil),                    // 13: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.ShardAddress
-	(*StartSessionCommand)(nil),             // 14: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.StartSessionCommand
-	(*TransferLeaderCommand)(nil),           // 15: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.TransferLeaderCommand
-	(*UpdatePlayerPassthroughCommand)(nil),  // 16: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.UpdatePlayerPassthroughCommand
-	(*UpdateSessionPassthroughCommand)(nil), // 17: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.UpdateSessionPassthroughCommand
+	(*NotifySessionStartCommand)(nil),       // 12: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.NotifySessionStartCommand
+	(*SetReadyCommand)(nil),                 // 13: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.SetReadyCommand
+	(*ShardAddress)(nil),                    // 14: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.ShardAddress
+	(*StartSessionCommand)(nil),             // 15: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.StartSessionCommand
+	(*TransferLeaderCommand)(nil),           // 16: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.TransferLeaderCommand
+	(*UpdatePlayerPassthroughCommand)(nil),  // 17: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.UpdatePlayerPassthroughCommand
+	(*UpdateSessionPassthroughCommand)(nil), // 18: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.UpdateSessionPassthroughCommand
 }
 var file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_depIdxs = []int32{
-	13, // 0: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.AssignShardCommand.GameWorld:type_name -> github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.ShardAddress
-	1,  // [1:1] is the sub-list for method output_type
-	1,  // [1:1] is the sub-list for method input_type
-	1,  // [1:1] is the sub-list for extension type_name
-	1,  // [1:1] is the sub-list for extension extendee
-	0,  // [0:1] is the sub-list for field type_name
+	14, // 0: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.AssignShardCommand.GameWorld:type_name -> github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.ShardAddress
+	14, // 1: github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.NotifySessionStartCommand.LobbyWorld:type_name -> github_com_argus_labs_world_engine_pkg_plugin_lobby_gen.ShardAddress
+	2,  // [2:2] is the sub-list for method output_type
+	2,  // [2:2] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_init() }
@@ -1091,7 +1151,7 @@ func file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDesc), len(file_github_com_argus_labs_world_engine_pkg_plugin_lobby_gen_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

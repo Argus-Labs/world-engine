@@ -491,10 +491,12 @@ func (r GetLobbyResult) Name() string {
 // -----------------------------------------------------------------------------
 
 // NotifySessionStartCommand is sent to game shard when a session starts.
+// NotifySessionStartCommand tells the game shard a session is starting. It's a wire DTO: it carries
+// only what the receiver needs (the lobby id and this lobby shard's address to reply to), not the live
+// LobbyComponent/PlayerComponent — those are domain types and never go on the wire.
 type NotifySessionStartCommand struct {
-	Lobby      component.LobbyComponent    `json:"lobby"`
-	LobbyWorld cardinal.OtherWorld         `json:"lobby_world"`
-	Players    []component.PlayerComponent `json:"players"`
+	LobbyID    string       `json:"lobby_id"`
+	LobbyWorld ShardAddress `json:"lobby_world"`
 }
 
 // Name returns the command name.
@@ -532,6 +534,12 @@ type ShardAddress struct {
 	Organization string
 	Project      string
 	ShardID      string
+}
+
+// SendCommand forwards to the underlying cardinal.OtherWorld, so a command field of type ShardAddress
+// can dispatch directly (e.g. the game shard replying to the lobby via NotifySessionStart.LobbyWorld).
+func (a ShardAddress) SendCommand(state *cardinal.BaseSystemState, cmd cardinal.Command) {
+	cardinal.OtherWorld(a).SendCommand(state, cmd)
 }
 
 type AssignShardCommand struct {
@@ -1921,12 +1929,9 @@ func dispatchSessionStart(
 	lobbyID string,
 ) {
 	gameWorld := lobby.GameWorld
-	lobbyWorld := config.LobbyWorld
-	players := gatherLobbyPlayers(state, lobbyIndex, lobby)
 	gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
-		Lobby:      *lobby,
-		LobbyWorld: lobbyWorld,
-		Players:    players,
+		LobbyID:    lobbyID,
+		LobbyWorld: ShardAddress(config.LobbyWorld),
 	})
 	state.Logger().Info().
 		Str("lobby_id", lobbyID).
