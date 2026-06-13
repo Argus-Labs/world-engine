@@ -127,7 +127,7 @@ func (r pgxReader) readTableJSON(ctx context.Context, table string, singleton bo
 	if singleton {
 		query = "SELECT doc::text FROM " + ident + " AS t LIMIT 1"
 	} else {
-		query = "SELECT coalesce(json_agg(doc ORDER BY id), '[]'::jsonb)::text FROM " + ident + " AS t"
+		query = "SELECT coalesce(json_agg(doc ORDER BY id), '[]'::json)::text FROM " + ident + " AS t"
 	}
 	var out string
 	if err := r.pool.QueryRow(ctx, query).Scan(&out); err != nil {
