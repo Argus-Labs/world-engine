@@ -4,26 +4,19 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"path"
 	"strings"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rotisserie/eris"
 )
 
-// ErrTableNotFound reports that a kind's config table does not exist in the database (Postgres
-// SQLSTATE 42P01). It is the signal HybridSource uses to fall back to embedded JSON for that one
-// kind; every other read error fails loud.
-var ErrTableNotFound = eris.New("data: config table not found")
-
-// PostgresSource reads each config kind's rows from a Postgres database as JSON bytes. Like
-// EmbedSource it is single-version: it ignores the requested hash and returns the current rows, so
-// a snapshot restore resumes on current config (Reconcile's warn path) instead of erroring (the
-// panic path).
+// PostgresSource reads each config kind's rows from a Postgres database as JSON bytes. Every config
+// table has the uniform shape (id text PRIMARY KEY, doc jsonb): one row per record, the record's
+// JSON in doc. Like EmbedSource it is single-version: it ignores the requested hash and returns the
+// current rows, so a snapshot restore resumes on current config (Reconcile's warn path) instead of
+// erroring (the panic path).
 //
 // A kind may be registered as a singleton (RegisterSingleton) — its table holds at most one row and
 // Fetch returns one JSON object instead of an array — and may be given an explicit table name
@@ -43,8 +36,7 @@ var (
 // configReader is the DB seam, extracted so Fetch is unit-testable without a live database.
 type configReader interface {
 	// readTableJSON returns table's rows as JSON: a single object when singleton is true (the first
-	// row), otherwise a deterministic JSON array ("[]" when empty). A missing table surfaces as
-	// ErrTableNotFound.
+	// row), otherwise a deterministic JSON array ("[]" when empty).
 	readTableJSON(ctx context.Context, table string, singleton bool) ([]byte, error)
 }
 
@@ -100,8 +92,8 @@ func (p *PostgresSource) tableFor(file string) string {
 }
 
 // Fetch returns the current contents of file's table as JSON plus their sha256 hex. hash is ignored.
-// A missing table surfaces as ErrTableNotFound (eris-wrapped) so HybridSource can fall back to the
-// embedded copy.
+// A missing or empty table surfaces as a read error and propagates (fail loud) — config is read from
+// Postgres only.
 func (p *PostgresSource) Fetch(ctx context.Context, file, _ string) ([]byte, string, error) {
 	table := p.tableFor(file)
 	raw, err := p.reader.readTableJSON(ctx, table, p.singletons[file])
@@ -122,29 +114,23 @@ type pgxReader struct {
 	pool *pgxpool.Pool
 }
 
-// readTableJSON reads table as JSON. For a singleton it returns the first row as a JSON object;
-// otherwise it aggregates every row into one array ordered by JSON text for a stable hash. table is
-// a trusted kind identifier but is quoted via pgx.Identifier.
+// readTableJSON reads table's doc column as JSON. For a singleton it returns the first row's doc as a
+// JSON object; otherwise it aggregates every row's doc into one array ordered by id for a stable
+// hash. table is a trusted kind identifier but is quoted via pgx.Identifier.
 //
-// A missing table (SQLSTATE 42P01) is translated to ErrTableNotFound so callers can distinguish
-// "this kind isn't in the database yet" from a real failure. An existing-but-empty singleton table
-// surfaces as pgx.ErrNoRows and is left untouched — that is a genuine error (fail loud), not a
-// missing table.
+// A missing table or an empty singleton table surfaces as a query error (SQLSTATE 42P01 /
+// pgx.ErrNoRows respectively) and is left to propagate — there is no fallback, so an unreadable
+// table is a genuine boot failure.
 func (r pgxReader) readTableJSON(ctx context.Context, table string, singleton bool) ([]byte, error) {
 	ident := pgx.Identifier{table}.Sanitize()
 	var query string
 	if singleton {
-		query = "SELECT to_jsonb(t)::text FROM " + ident + " AS t LIMIT 1"
+		query = "SELECT doc::text FROM " + ident + " AS t LIMIT 1"
 	} else {
-		query = "SELECT coalesce(json_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text), '[]'::json)::text " +
-			"FROM " + ident + " AS t"
+		query = "SELECT coalesce(json_agg(doc ORDER BY id), '[]'::jsonb)::text FROM " + ident + " AS t"
 	}
 	var out string
 	if err := r.pool.QueryRow(ctx, query).Scan(&out); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UndefinedTable {
-			return nil, ErrTableNotFound
-		}
 		return nil, err
 	}
 	return []byte(out), nil
