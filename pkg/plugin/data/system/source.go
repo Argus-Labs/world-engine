@@ -47,17 +47,18 @@ func (e EmbedSource) Fetch(_ context.Context, file, _ string) ([]byte, string, e
 
 // PickSource returns the Source the plugin should use given the current environment.
 //
-// If CONFIG_DB_DSN is set (a read-only config-database DSN) the plugin reads config rows live
-// from Postgres via PostgresSource; otherwise it serves the shard's build-time embedded JSON via
-// EmbedSource. Source selection happens here so every shard's main.go stays unchanged. A
-// set-but-unusable CONFIG_DB_DSN is a fatal misconfiguration — fail loud.
+// If CONFIG_DB_DSN is set (a read-only config-database DSN) the plugin reads config rows live from
+// Postgres via a HybridSource — Postgres for every kind whose table exists, falling back to the
+// shard's embedded JSON per-kind for tables not yet present in the database. Otherwise it serves
+// the embedded JSON directly via EmbedSource. Source selection happens here so every shard's
+// main.go stays unchanged. A set-but-unusable CONFIG_DB_DSN is a fatal misconfiguration — fail loud.
 func PickSource(fs embed.FS) Source {
 	if dsn := os.Getenv("CONFIG_DB_DSN"); dsn != "" {
 		src, err := NewPostgresSource(context.Background(), dsn)
 		if err != nil {
 			panic(eris.Wrap(err, "data: CONFIG_DB_DSN is set but the postgres config source failed to initialise"))
 		}
-		return src
+		return &HybridSource{pg: src, embed: EmbedSource{FS: fs}}
 	}
 	return EmbedSource{FS: fs}
 }

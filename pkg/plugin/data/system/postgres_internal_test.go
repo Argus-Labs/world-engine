@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"crypto/sha256"
+	"embed"
 	"encoding/hex"
 	"errors"
 	"testing"
@@ -10,17 +11,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeReader is a configReader stub for exercising the Fetch contract without a database.
+//go:embed testdata/fallback.json
+var systemTestFS embed.FS
+
+// fakeReader is a configReader stub for exercising the Fetch contract without a database. rows holds
+// array-mode payloads and singleton holds single-object payloads, both keyed by table; the reader
+// picks between them on the singleton flag and records every call.
 type fakeReader struct {
-	rows  map[string][]byte
-	err   error
-	calls []string
+	rows       map[string][]byte
+	singleton  map[string][]byte
+	err        error
+	calls      []string
+	lastSingle bool
 }
 
-func (f *fakeReader) readTableJSON(_ context.Context, table string) ([]byte, error) {
+func (f *fakeReader) readTableJSON(_ context.Context, table string, singleton bool) ([]byte, error) {
 	f.calls = append(f.calls, table)
+	f.lastSingle = singleton
 	if f.err != nil {
 		return nil, f.err
+	}
+	if singleton {
+		return f.singleton[table], nil
 	}
 	return f.rows[table], nil
 }
@@ -45,8 +57,7 @@ func TestTableFromFile(t *testing.T) {
 func TestPostgresSourceFetchReturnsRowsAndHash(t *testing.T) {
 	body := []byte(`[{"id":"fireball","cooldown":3}]`)
 	src := &PostgresSource{
-		reader:   &fakeReader{rows: map[string][]byte{"abilities": body}},
-		tableFor: tableFromFile,
+		reader: &fakeReader{rows: map[string][]byte{"abilities": body}},
 	}
 
 	got, hash, err := src.Fetch(context.Background(), "testdata/abilities.json", "")
@@ -61,8 +72,7 @@ func TestPostgresSourceFetchReturnsRowsAndHash(t *testing.T) {
 func TestPostgresSourceFetchIgnoresRequestedHash(t *testing.T) {
 	body := []byte(`[{"id":"a"}]`)
 	src := &PostgresSource{
-		reader:   &fakeReader{rows: map[string][]byte{"abilities": body}},
-		tableFor: tableFromFile,
+		reader: &fakeReader{rows: map[string][]byte{"abilities": body}},
 	}
 
 	got, hash, err := src.Fetch(context.Background(), "abilities.json", "some-old-snapshot-hash")
@@ -75,7 +85,7 @@ func TestPostgresSourceFetchIgnoresRequestedHash(t *testing.T) {
 
 func TestPostgresSourceFetchResolvesTableFromFile(t *testing.T) {
 	fr := &fakeReader{rows: map[string][]byte{"mobs": []byte("[]")}}
-	src := &PostgresSource{reader: fr, tableFor: tableFromFile}
+	src := &PostgresSource{reader: fr}
 
 	_, _, err := src.Fetch(context.Background(), "config/mobs.json", "")
 
@@ -86,12 +96,85 @@ func TestPostgresSourceFetchResolvesTableFromFile(t *testing.T) {
 func TestPostgresSourceFetchWrapsReaderError(t *testing.T) {
 	sentinel := errors.New("connection refused")
 	src := &PostgresSource{
-		reader:   &fakeReader{err: sentinel},
-		tableFor: tableFromFile,
+		reader: &fakeReader{err: sentinel},
 	}
 
 	_, _, err := src.Fetch(context.Background(), "abilities.json", "")
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, sentinel, "reader errors must propagate (a boot-time load failure), not be swallowed")
+}
+
+// (a) A singleton kind reads as a single JSON object via the singleton query path, not the array
+// aggregate, and hashes the returned object bytes like every other source.
+func TestPostgresSourceFetchSingletonReturnsObject(t *testing.T) {
+	obj := []byte(`{"maxPlayers":8,"roundSeconds":90}`)
+	fr := &fakeReader{singleton: map[string][]byte{"match_settings": obj}}
+	src := &PostgresSource{reader: fr}
+	src.RegisterSingleton("match_settings.json")
+
+	got, hash, err := src.Fetch(context.Background(), "match_settings.json", "")
+
+	require.NoError(t, err)
+	require.True(t, fr.lastSingle, "a registered singleton must take the single-object read path")
+	require.Equal(t, obj, got, "singleton Fetch must return one JSON object, not an array")
+	require.Equal(t, sha256Hex(obj), hash)
+}
+
+// A kind that was not registered as a singleton must take the array read path.
+func TestPostgresSourceFetchNonSingletonReadsArray(t *testing.T) {
+	arr := []byte(`[{"id":"a"}]`)
+	fr := &fakeReader{rows: map[string][]byte{"abilities": arr}}
+	src := &PostgresSource{reader: fr}
+
+	got, _, err := src.Fetch(context.Background(), "abilities.json", "")
+
+	require.NoError(t, err)
+	require.False(t, fr.lastSingle, "an unregistered kind must take the array read path")
+	require.Equal(t, arr, got)
+}
+
+// (c) RegisterKind maps file→table so tableFor returns the registered table; unregistered files
+// fall back to the name derived from the file.
+func TestPostgresSourceTableFor(t *testing.T) {
+	src := &PostgresSource{}
+
+	require.Equal(t, "abilities", src.tableFor("testdata/abilities.json"),
+		"an unregistered file must fall back to tableFromFile")
+
+	src.RegisterKind("powerups.json", "powerups_definitions")
+
+	require.Equal(t, "powerups_definitions", src.tableFor("powerups.json"),
+		"a registered file must resolve to its explicit table")
+	require.Equal(t, "mobs", src.tableFor("data/mobs.json"),
+		"other files keep falling back to tableFromFile")
+}
+
+// (b) HybridSource falls back to the embedded copy when the Postgres reader reports the kind's table
+// does not exist (ErrTableNotFound survives Fetch's eris wrap and is matched via errors.Is).
+func TestHybridSourceFallsBackToEmbedOnMissingTable(t *testing.T) {
+	pg := &PostgresSource{reader: &fakeReader{err: ErrTableNotFound}}
+	h := &HybridSource{pg: pg, embed: EmbedSource{FS: systemTestFS}}
+
+	got, hash, err := h.Fetch(context.Background(), "testdata/fallback.json", "")
+
+	require.NoError(t, err, "a missing table must fall back to embed, not surface an error")
+	want, readErr := systemTestFS.ReadFile("testdata/fallback.json")
+	require.NoError(t, readErr)
+	require.Equal(t, want, got, "fallback must return the embedded bytes")
+	require.Equal(t, sha256Hex(want), hash)
+}
+
+// (d) A non-ErrTableNotFound Postgres error fails loud through HybridSource: no fallback, the
+// original error propagates.
+func TestHybridSourcePropagatesNonMissingTableError(t *testing.T) {
+	boom := errors.New("connection refused")
+	pg := &PostgresSource{reader: &fakeReader{err: boom}}
+	h := &HybridSource{pg: pg, embed: EmbedSource{FS: systemTestFS}}
+
+	_, _, err := h.Fetch(context.Background(), "testdata/fallback.json", "")
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, boom, "a non-missing-table error must propagate, not be swallowed by fallback")
+	require.NotErrorIs(t, err, ErrTableNotFound)
 }
