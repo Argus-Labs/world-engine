@@ -27,15 +27,14 @@ namespace WorldEngine.Proto.Isc.V1 {
             "CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdp",
             "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aIHdvcmxk",
             "ZW5naW5lL2lzYy92MS9wZXJzb25hLnByb3RvGiJ3b3JsZGVuZ2luZS9taWNy",
-            "by92MS9zZXJ2aWNlLnByb3RvIucBCgdDb21tYW5kEjMKBG5hbWUYASABKAlC",
+            "by92MS9zZXJ2aWNlLnByb3RvIt8BCgdDb21tYW5kEjMKBG5hbWUYASABKAlC",
             "H7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRk",
             "cmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRy",
             "ZXNzQga6SAPIAQFSB2FkZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxk",
-            "ZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQFSB3BlcnNvbmESIAoHcGF5",
-            "bG9hZBgEIAEoDEIGukgDyAEBUgdwYXlsb2FkQmVaSGdpdGh1Yi5jb20vYXJn",
-            "dXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5l",
-            "L2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJv",
-            "dG8z"));
+            "ZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQFSB3BlcnNvbmESGAoHcGF5",
+            "bG9hZBgEIAEoDFIHcGF5bG9hZEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMv",
+            "d29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7",
+            "aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -146,7 +145,8 @@ namespace WorldEngine.Proto.Isc.V1 {
     public const int PayloadFieldNumber = 4;
     private pb::ByteString payload_ = pb::ByteString.Empty;
     /// <summary>
-    /// The command payload serialized as MessagePack bytes.
+    /// The serialized command payload. May be empty: a command whose proto message
+    /// has no set fields serializes to zero bytes, so this is not marked required.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

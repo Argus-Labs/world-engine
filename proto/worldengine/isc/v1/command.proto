@@ -27,6 +27,7 @@ message Command {
   // The persona sending the command.
   Persona persona = 3 [(buf.validate.field).required = true];
 
-  // The command payload serialized as MessagePack bytes.
-  bytes payload = 4 [(buf.validate.field).required = true];
+  // The serialized command payload. May be empty: a command whose proto message
+  // has no set fields serializes to zero bytes, so this is not marked required.
+  bytes payload = 4;
 }
