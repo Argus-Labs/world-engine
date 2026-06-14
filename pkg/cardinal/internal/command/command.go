@@ -93,7 +93,9 @@ func (m *Manager) Enqueue(command *iscv1.Command) error {
 	assert.That(command.GetName() != "", "command has empty name")
 	assert.That(command.GetAddress() != nil, "command has nil address")
 	assert.That(command.GetPersona() != nil, "command has nil persona")
-	assert.That(command.GetPayload() != nil, "command has nil payload")
+	// Payload may be empty: a command whose proto message has no set fields serializes to zero
+	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/persona, so an empty payload
+	// is valid — only those three are real invariants.
 
 	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
 	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the
