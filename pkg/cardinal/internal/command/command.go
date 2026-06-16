@@ -157,9 +157,9 @@ func (m *Manager) Names() []string {
 	return names
 }
 
-// ZeroPayload returns a zero-value instance of the named command's payload type.
+// Zero returns a zero-value instance of the named command's payload type.
 func (m *Manager) Zero(name string) Payload {
 	id, exists := m.catalog[name]
-	assert.That(exists, "command doens't exist")
+	assert.That(exists, "command doesn't exist")
 	return m.queues[id].Zero()
 }

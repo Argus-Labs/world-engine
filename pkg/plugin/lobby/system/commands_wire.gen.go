@@ -19,14 +19,15 @@ func (c AssignShardCommand) ToProto() *gen.AssignShardCommand {
 	return p
 }
 
-func (c *AssignShardCommand) FromProto(p *gen.AssignShardCommand) {
+func (c AssignShardCommand) FromProto(p *gen.AssignShardCommand) AssignShardCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.LobbyID = string(p.LobbyID)
 	c.RequestID = string(p.RequestID)
-	c.GameWorld.FromProto(p.GameWorld)
+	c.GameWorld = c.GameWorld.FromProto(p.GameWorld)
 	c.Reason = string(p.Reason)
+	return c
 }
 
 type assignShardCommandCodec struct{}
@@ -45,7 +46,7 @@ func (assignShardCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) 
 		return nil, err
 	}
 	var c AssignShardCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -58,14 +59,15 @@ func (c CreateLobbyCommand) ToProto() *gen.CreateLobbyCommand {
 	return p
 }
 
-func (c *CreateLobbyCommand) FromProto(p *gen.CreateLobbyCommand) {
+func (c CreateLobbyCommand) FromProto(p *gen.CreateLobbyCommand) CreateLobbyCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.Preset = string(p.Preset)
 	c.PlayerPassthroughData = []byte(p.PlayerPassthroughData)
 	c.SessionPassthroughData = []byte(p.SessionPassthroughData)
+	return c
 }
 
 type createLobbyCommandCodec struct{}
@@ -84,7 +86,7 @@ func (createLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) 
 		return nil, err
 	}
 	var c CreateLobbyCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -94,11 +96,12 @@ func (c GenerateInviteCodeCommand) ToProto() *gen.GenerateInviteCodeCommand {
 	return p
 }
 
-func (c *GenerateInviteCodeCommand) FromProto(p *gen.GenerateInviteCodeCommand) {
+func (c GenerateInviteCodeCommand) FromProto(p *gen.GenerateInviteCodeCommand) GenerateInviteCodeCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
+	return c
 }
 
 type generateInviteCodeCommandCodec struct{}
@@ -117,7 +120,7 @@ func (generateInviteCodeCommandCodec) Unmarshal(data []byte) (cardinal.Command, 
 		return nil, err
 	}
 	var c GenerateInviteCodeCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -127,11 +130,12 @@ func (c GetAllPlayersCommand) ToProto() *gen.GetAllPlayersCommand {
 	return p
 }
 
-func (c *GetAllPlayersCommand) FromProto(p *gen.GetAllPlayersCommand) {
+func (c GetAllPlayersCommand) FromProto(p *gen.GetAllPlayersCommand) GetAllPlayersCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
+	return c
 }
 
 type getAllPlayersCommandCodec struct{}
@@ -150,7 +154,7 @@ func (getAllPlayersCommandCodec) Unmarshal(data []byte) (cardinal.Command, error
 		return nil, err
 	}
 	var c GetAllPlayersCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -160,11 +164,12 @@ func (c GetLobbyCommand) ToProto() *gen.GetLobbyCommand {
 	return p
 }
 
-func (c *GetLobbyCommand) FromProto(p *gen.GetLobbyCommand) {
+func (c GetLobbyCommand) FromProto(p *gen.GetLobbyCommand) GetLobbyCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
+	return c
 }
 
 type getLobbyCommandCodec struct{}
@@ -183,7 +188,7 @@ func (getLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c GetLobbyCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -194,12 +199,13 @@ func (c GetPlayerCommand) ToProto() *gen.GetPlayerCommand {
 	return p
 }
 
-func (c *GetPlayerCommand) FromProto(p *gen.GetPlayerCommand) {
+func (c GetPlayerCommand) FromProto(p *gen.GetPlayerCommand) GetPlayerCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.PlayerID = string(p.PlayerID)
+	return c
 }
 
 type getPlayerCommandCodec struct{}
@@ -218,7 +224,7 @@ func (getPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c GetPlayerCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -227,10 +233,11 @@ func (c HeartbeatCommand) ToProto() *gen.HeartbeatCommand {
 	return p
 }
 
-func (c *HeartbeatCommand) FromProto(p *gen.HeartbeatCommand) {
+func (c HeartbeatCommand) FromProto(p *gen.HeartbeatCommand) HeartbeatCommand {
 	if p == nil {
-		return
+		return c
 	}
+	return c
 }
 
 type heartbeatCommandCodec struct{}
@@ -249,7 +256,7 @@ func (heartbeatCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c HeartbeatCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -262,14 +269,15 @@ func (c JoinLobbyCommand) ToProto() *gen.JoinLobbyCommand {
 	return p
 }
 
-func (c *JoinLobbyCommand) FromProto(p *gen.JoinLobbyCommand) {
+func (c JoinLobbyCommand) FromProto(p *gen.JoinLobbyCommand) JoinLobbyCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.InviteCode = string(p.InviteCode)
 	c.TeamID = string(p.TeamID)
 	c.PlayerPassthroughData = []byte(p.PlayerPassthroughData)
+	return c
 }
 
 type joinLobbyCommandCodec struct{}
@@ -288,7 +296,7 @@ func (joinLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c JoinLobbyCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -299,12 +307,13 @@ func (c JoinTeamCommand) ToProto() *gen.JoinTeamCommand {
 	return p
 }
 
-func (c *JoinTeamCommand) FromProto(p *gen.JoinTeamCommand) {
+func (c JoinTeamCommand) FromProto(p *gen.JoinTeamCommand) JoinTeamCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.TeamID = string(p.TeamID)
+	return c
 }
 
 type joinTeamCommandCodec struct{}
@@ -323,7 +332,7 @@ func (joinTeamCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c JoinTeamCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -334,12 +343,13 @@ func (c KickPlayerCommand) ToProto() *gen.KickPlayerCommand {
 	return p
 }
 
-func (c *KickPlayerCommand) FromProto(p *gen.KickPlayerCommand) {
+func (c KickPlayerCommand) FromProto(p *gen.KickPlayerCommand) KickPlayerCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.TargetPlayerID = string(p.TargetPlayerID)
+	return c
 }
 
 type kickPlayerCommandCodec struct{}
@@ -358,7 +368,7 @@ func (kickPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c KickPlayerCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -368,11 +378,12 @@ func (c LeaveLobbyCommand) ToProto() *gen.LeaveLobbyCommand {
 	return p
 }
 
-func (c *LeaveLobbyCommand) FromProto(p *gen.LeaveLobbyCommand) {
+func (c LeaveLobbyCommand) FromProto(p *gen.LeaveLobbyCommand) LeaveLobbyCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
+	return c
 }
 
 type leaveLobbyCommandCodec struct{}
@@ -391,7 +402,7 @@ func (leaveLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c LeaveLobbyCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -401,11 +412,12 @@ func (c NotifySessionEndCommand) ToProto() *gen.NotifySessionEndCommand {
 	return p
 }
 
-func (c *NotifySessionEndCommand) FromProto(p *gen.NotifySessionEndCommand) {
+func (c NotifySessionEndCommand) FromProto(p *gen.NotifySessionEndCommand) NotifySessionEndCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.LobbyID = string(p.LobbyID)
+	return c
 }
 
 type notifySessionEndCommandCodec struct{}
@@ -424,7 +436,7 @@ func (notifySessionEndCommandCodec) Unmarshal(data []byte) (cardinal.Command, er
 		return nil, err
 	}
 	var c NotifySessionEndCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -435,12 +447,13 @@ func (c NotifySessionStartCommand) ToProto() *gen.NotifySessionStartCommand {
 	return p
 }
 
-func (c *NotifySessionStartCommand) FromProto(p *gen.NotifySessionStartCommand) {
+func (c NotifySessionStartCommand) FromProto(p *gen.NotifySessionStartCommand) NotifySessionStartCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.LobbyID = string(p.LobbyID)
-	c.LobbyWorld.FromProto(p.LobbyWorld)
+	c.LobbyWorld = c.LobbyWorld.FromProto(p.LobbyWorld)
+	return c
 }
 
 type notifySessionStartCommandCodec struct{}
@@ -459,7 +472,7 @@ func (notifySessionStartCommandCodec) Unmarshal(data []byte) (cardinal.Command, 
 		return nil, err
 	}
 	var c NotifySessionStartCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -470,12 +483,13 @@ func (c SetReadyCommand) ToProto() *gen.SetReadyCommand {
 	return p
 }
 
-func (c *SetReadyCommand) FromProto(p *gen.SetReadyCommand) {
+func (c SetReadyCommand) FromProto(p *gen.SetReadyCommand) SetReadyCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.IsReady = bool(p.IsReady)
+	return c
 }
 
 type setReadyCommandCodec struct{}
@@ -494,7 +508,7 @@ func (setReadyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 		return nil, err
 	}
 	var c SetReadyCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -507,14 +521,15 @@ func (c ShardAddress) ToProto() *gen.ShardAddress {
 	return p
 }
 
-func (c *ShardAddress) FromProto(p *gen.ShardAddress) {
+func (c ShardAddress) FromProto(p *gen.ShardAddress) ShardAddress {
 	if p == nil {
-		return
+		return c
 	}
 	c.Region = string(p.Region)
 	c.Organization = string(p.Organization)
 	c.Project = string(p.Project)
 	c.ShardID = string(p.ShardID)
+	return c
 }
 
 func (c StartSessionCommand) ToProto() *gen.StartSessionCommand {
@@ -523,11 +538,12 @@ func (c StartSessionCommand) ToProto() *gen.StartSessionCommand {
 	return p
 }
 
-func (c *StartSessionCommand) FromProto(p *gen.StartSessionCommand) {
+func (c StartSessionCommand) FromProto(p *gen.StartSessionCommand) StartSessionCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
+	return c
 }
 
 type startSessionCommandCodec struct{}
@@ -546,7 +562,7 @@ func (startSessionCommandCodec) Unmarshal(data []byte) (cardinal.Command, error)
 		return nil, err
 	}
 	var c StartSessionCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -557,12 +573,13 @@ func (c TransferLeaderCommand) ToProto() *gen.TransferLeaderCommand {
 	return p
 }
 
-func (c *TransferLeaderCommand) FromProto(p *gen.TransferLeaderCommand) {
+func (c TransferLeaderCommand) FromProto(p *gen.TransferLeaderCommand) TransferLeaderCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.TargetPlayerID = string(p.TargetPlayerID)
+	return c
 }
 
 type transferLeaderCommandCodec struct{}
@@ -581,7 +598,7 @@ func (transferLeaderCommandCodec) Unmarshal(data []byte) (cardinal.Command, erro
 		return nil, err
 	}
 	var c TransferLeaderCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -592,12 +609,13 @@ func (c UpdatePlayerPassthroughCommand) ToProto() *gen.UpdatePlayerPassthroughCo
 	return p
 }
 
-func (c *UpdatePlayerPassthroughCommand) FromProto(p *gen.UpdatePlayerPassthroughCommand) {
+func (c UpdatePlayerPassthroughCommand) FromProto(p *gen.UpdatePlayerPassthroughCommand) UpdatePlayerPassthroughCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.PassthroughData = []byte(p.PassthroughData)
+	return c
 }
 
 type updatePlayerPassthroughCommandCodec struct{}
@@ -616,7 +634,7 @@ func (updatePlayerPassthroughCommandCodec) Unmarshal(data []byte) (cardinal.Comm
 		return nil, err
 	}
 	var c UpdatePlayerPassthroughCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 
@@ -627,12 +645,13 @@ func (c UpdateSessionPassthroughCommand) ToProto() *gen.UpdateSessionPassthrough
 	return p
 }
 
-func (c *UpdateSessionPassthroughCommand) FromProto(p *gen.UpdateSessionPassthroughCommand) {
+func (c UpdateSessionPassthroughCommand) FromProto(p *gen.UpdateSessionPassthroughCommand) UpdateSessionPassthroughCommand {
 	if p == nil {
-		return
+		return c
 	}
 	c.RequestID = string(p.RequestID)
 	c.PassthroughData = []byte(p.PassthroughData)
+	return c
 }
 
 type updateSessionPassthroughCommandCodec struct{}
@@ -651,7 +670,7 @@ func (updateSessionPassthroughCommandCodec) Unmarshal(data []byte) (cardinal.Com
 		return nil, err
 	}
 	var c UpdateSessionPassthroughCommand
-	c.FromProto(&p)
+	c = c.FromProto(&p)
 	return c, nil
 }
 

@@ -138,6 +138,11 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 // StartGame launches your game and runs it until stopped.
 func (w *World) StartGame() {
+	// Freeze the command codec registry: all codecs register from generated init() (before now), so
+	// any later RegisterCommandCodec is a bug. Sealing turns that into a clear panic instead of an
+	// unrecoverable concurrent-map write against the tick loop's hot-path reads.
+	command.Seal()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

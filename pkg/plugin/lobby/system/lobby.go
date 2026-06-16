@@ -885,18 +885,34 @@ func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
 	})
 }
 
+// emitCreateLobbyFailure emits a failure result for CreateLobby command.
+func emitCreateLobbyFailure(state *LobbySystemState, requestID, message string) {
+	state.CreateLobbyResults.Emit(CreateLobbyResult{
+		RequestID: requestID,
+		IsSuccess: false,
+		Message:   message,
+	})
+}
+
 // DecodePassthrough turns a command's opaque JSON passthrough bytes into the map that components and
-// events store and that downstream systems read. Empty or malformed input yields a nil map; the
-// passthrough is best-effort forwarded data, not something the lobby validates.
-func DecodePassthrough(b []byte) map[string]any {
-	if len(b) == 0 {
-		return nil
-	}
+// events store and that downstream systems read. Empty input yields (nil, nil). Malformed input yields
+// a non-nil error; passthrough is best-effort forwarded data the lobby does not validate, so callers
+// log the error and proceed with a nil map rather than failing the command.
+func DecodePassthrough(b []byte) (map[string]any, error) {
 	var m map[string]any
-	if err := json.Unmarshal(b, &m); err != nil {
-		return nil
+	if len(b) == 0 {
+		return m, nil // absent passthrough: nil map, no error
 	}
-	return m
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// logDroppedPassthrough records that malformed passthrough was dropped; field names which one. Callers
+// own the error (capture it from DecodePassthrough and decide to drop); this just emits the breadcrumb.
+func logDroppedPassthrough(state *LobbySystemState, field string, err error) {
+	state.Logger().Warn().Err(err).Str("field", field).Msg("dropping malformed passthrough data")
 }
 
 // createPlayerEntity creates a player entity and returns the component and entity ID.
@@ -1155,11 +1171,7 @@ func processCreateLobbyCommands(
 		// Check if player is already in a lobby
 		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
 			state.Logger().Warn().Str("player_id", playerID).Msg("player already in a lobby")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "player already in a lobby",
-			})
+			emitCreateLobbyFailure(state, payload.RequestID, "player already in a lobby")
 			continue
 		}
 
@@ -1167,13 +1179,17 @@ func processCreateLobbyCommands(
 		lobbyID := generateID()
 
 		// Create lobby with initial data for invite code generation
+		sessionPassthrough, err := DecodePassthrough(payload.SessionPassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "session_passthrough", err)
+		}
 		lobby := component.LobbyComponent{
 			ID:         lobbyID,
 			LeaderID:   playerID,
 			InviteCode: "", // Will be set after generation
 			Session: component.Session{
 				State:           component.SessionStateIdle,
-				PassthroughData: DecodePassthrough(payload.SessionPassthroughData),
+				PassthroughData: sessionPassthrough,
 			},
 			CreatedAt: now,
 		}
@@ -1184,11 +1200,7 @@ func processCreateLobbyCommands(
 				Str("player_id", playerID).
 				Str("preset", payload.Preset).
 				Msg("create lobby rejected: " + errMsg)
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   errMsg,
-			})
+			emitCreateLobbyFailure(state, payload.RequestID, errMsg)
 			continue
 		}
 		for _, tc := range presetTeams {
@@ -1202,11 +1214,7 @@ func processCreateLobbyCommands(
 		inviteCode, ok := generateInviteCodeWithRetry(lobbyIndex, &lobby, 3)
 		if !ok {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "invite code collision",
-			})
+			emitCreateLobbyFailure(state, payload.RequestID, "invite code collision")
 			continue
 		}
 		lobby.InviteCode = inviteCode
@@ -1219,8 +1227,12 @@ func processCreateLobbyCommands(
 		lobbyEntity.Lobby.Set(lobby)
 
 		// Create player entity and update index
+		playerPassthrough, err := DecodePassthrough(payload.PlayerPassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "player_passthrough", err)
+		}
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, lobby.Teams[0].TeamID, DecodePassthrough(payload.PlayerPassthroughData), now,
+			state, playerID, lobbyID, lobby.Teams[0].TeamID, playerPassthrough, now,
 		)
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
@@ -1318,8 +1330,12 @@ func processJoinLobbyCommands(
 		lobbyEntity.Lobby.Set(lobby)
 
 		// Create player entity
+		playerPassthrough, err := DecodePassthrough(payload.PlayerPassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "player_passthrough", err)
+		}
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, targetTeam.TeamID, DecodePassthrough(payload.PlayerPassthroughData), now,
+			state, playerID, lobbyID, targetTeam.TeamID, playerPassthrough, now,
 		)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, targetTeam.TeamID, uint32(playerEntityID), now+timeout)
 
@@ -1923,7 +1939,6 @@ func abortAwaitingAllocation(
 // configured on the lobby. No-op if no game shard is configured.
 func dispatchSessionStart(
 	state *LobbySystemState,
-	lobbyIndex *component.LobbyIndexComponent,
 	config *component.ConfigComponent,
 	lobby *component.LobbyComponent,
 	lobbyID string,
@@ -2018,7 +2033,7 @@ func processAssignShardCommands(
 			GameWorld: lobby.GameWorld,
 		})
 
-		dispatchSessionStart(state, lobbyIndex, config, &lobby, payload.LobbyID)
+		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
 
 		state.StartSessionResults.Emit(StartSessionResult{
 			RequestID: requestID,
@@ -2208,7 +2223,11 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 			continue
 		}
 
-		lobby.Session.PassthroughData = DecodePassthrough(payload.PassthroughData)
+		sessionPassthrough, err := DecodePassthrough(payload.PassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "session_passthrough", err)
+		}
+		lobby.Session.PassthroughData = sessionPassthrough
 		result.lobbyRef.Set(lobby)
 
 		state.Logger().Info().
@@ -2267,7 +2286,11 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		}
 
 		playerComp := playerEntity.Player.Get()
-		playerComp.PassthroughData = DecodePassthrough(payload.PassthroughData)
+		playerPassthrough, err := DecodePassthrough(payload.PassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "player_passthrough", err)
+		}
+		playerComp.PassthroughData = playerPassthrough
 		playerEntity.Player.Set(playerComp)
 
 		state.Logger().Info().

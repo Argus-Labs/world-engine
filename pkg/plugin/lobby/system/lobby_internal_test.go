@@ -279,38 +279,6 @@ func TestCommandResultFailure(t *testing.T) {
 	assert.Empty(t, result.Lobby.ID) // Lobby should be empty on failure
 }
 
-func TestNotifySessionStartCommand(t *testing.T) {
-	t.Parallel()
-
-	// Test NotifySessionStartCommand contains all required fields
-	cmd := NotifySessionStartCommand{
-		Lobby: component.LobbyComponent{
-			ID:         "lobby-123",
-			LeaderID:   "player1",
-			InviteCode: "ABC123",
-			GameWorld: cardinal.OtherWorld{
-				Region:       "us-west",
-				Organization: "myorg",
-				Project:      "myproject",
-				ShardID:      "game-shard-1",
-			},
-			Teams: []component.Team{
-				{
-					TeamID:    "team1",
-					PlayerIDs: []string{"player1", "player2"},
-				},
-			},
-		},
-		// LobbyWorld would be cardinal.OtherWorld in real usage
-	}
-
-	assert.Equal(t, "lobby-123", cmd.Lobby.ID)
-	assert.Equal(t, "player1", cmd.Lobby.LeaderID)
-	assert.Equal(t, "game-shard-1", cmd.Lobby.GameWorld.ShardID)
-	assert.Len(t, cmd.Lobby.Teams, 1)
-	assert.Equal(t, 2, cmd.Lobby.PlayerCount())
-}
-
 func TestNotifySessionEndCommand(t *testing.T) {
 	t.Parallel()
 
@@ -354,18 +322,6 @@ func TestLobbyComponent_WithGameWorld(t *testing.T) {
 	assert.Equal(t, "game-eu-1", lobby.GameWorld.ShardID)
 	assert.Equal(t, "eu-central", lobby.GameWorld.Region)
 	assert.Equal(t, component.SessionStateIdle, lobby.Session.State)
-}
-
-func TestStartSessionPayloadAlias(t *testing.T) {
-	t.Parallel()
-
-	// StartSessionPayload is an alias for NotifySessionStartCommand
-	var payload StartSessionPayload
-	payload.Lobby = component.LobbyComponent{ID: "lobby-1"}
-
-	// Should be assignable to NotifySessionStartCommand
-	var cmd = payload
-	assert.Equal(t, "lobby-1", cmd.Lobby.ID)
 }
 
 func TestGetPlayerCommand(t *testing.T) {
