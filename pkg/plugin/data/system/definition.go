@@ -26,13 +26,12 @@ type Definition interface {
 	JSONFile() string
 }
 
-// Singleton is an optional marker a Definition may implement to declare that its config is a single
-// object rather than a collection of records. A singleton kind's source returns one JSON object
-// (e.g. {"maxPlayers":8,"roundSeconds":90}) and its backing table holds at most one row, whereas a
-// non-singleton kind's source returns a JSON array of records.
+// Singleton is an optional marker a Definition may implement to declare its config is a single JSON
+// object (e.g. {"maxPlayers":8}) rather than a collection of records: its source returns one object
+// and its backing table holds at most one row.
 //
-// SingleObject is a pure marker — it is never called. Implementing it (on a value receiver, like
-// Name/JSONFile) is the entire signal.
+// SingleObject is never called — implementing it (on a value receiver, like Name/JSONFile) is the
+// entire signal.
 type Singleton interface {
 	SingleObject()
 }
