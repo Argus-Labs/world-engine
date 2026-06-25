@@ -56,6 +56,10 @@ type (
 	// Source after the primary JSON has been unmarshaled.
 	Resolver = system.Resolver
 
+	// Singleton is an optional Definition marker: the kind's config is a single JSON object rather
+	// than a collection, so its source returns one object instead of an array.
+	Singleton = system.Singleton
+
 	// Validator is an optional Definition interface for enforcing post-load invariants. A
 	// non-nil error panics.
 	Validator = system.Validator
@@ -121,6 +125,16 @@ func (p *Plugin) Source() Source {
 func Register[T Definition](p *Plugin) {
 	var zero T
 	p.state.AddKind(zero.Name(), zero.JSONFile(), system.MakeAssemble[T]())
+
+	// Tell a Postgres source how to read this kind: the file→table mapping and, for a Singleton
+	// kind, that the table is read as a single object. EmbedSource and the test fakes key off the
+	// file path, so this is skipped for them.
+	if src, ok := p.config.Source.(*system.PostgresSource); ok {
+		src.RegisterKind(zero.JSONFile(), zero.Name())
+		if _, isSingleton := any(zero).(system.Singleton); isSingleton {
+			src.RegisterSingleton(zero.JSONFile())
+		}
+	}
 }
 
 // registered is the process-global plugin instance set by Plugin.Register(world). It lets

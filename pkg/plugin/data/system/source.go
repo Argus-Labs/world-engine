@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
+	"os"
+
+	"github.com/rotisserie/eris"
 )
 
 // Source supplies the raw bytes for a named file along with the content hash the source attaches
-// to those bytes. Implementations are how the plugin stays dev/prod portable: tests use
-// EmbedSource, local dev runs against the embed FS, and a future OperatorSource pulls from the
-// operator/forge control plane.
+// to those bytes. Implementations keep the plugin dev/prod portable: tests and local dev use
+// EmbedSource (build-time JSON), while PostgresSource reads config rows live from a database.
 //
 // The hash argument selects which version to return:
 //   - ""        — the version the source currently serves.
@@ -44,10 +46,17 @@ func (e EmbedSource) Fetch(_ context.Context, file, _ string) ([]byte, string, e
 
 // PickSource returns the Source the plugin should use given the current environment.
 //
-// Today there is only one path: EmbedSource backed by the shard's build-time embedded
-// filesystem. When operator/forge integration ships, this function gains an OPERATOR_ADDR
-// branch that returns an OperatorSource — every shard's main.go stays unchanged because
-// source selection happens here, not in the caller.
+// If DB_DSN is set (a read-only database DSN) the plugin reads config rows live from Postgres via a
+// PostgresSource — no embedded fallback, so a missing or empty config table is a fatal boot error.
+// Otherwise it serves the embedded JSON via EmbedSource. Selecting here keeps every shard's main.go
+// unchanged. A set-but-unusable DB_DSN is a fatal misconfiguration — fail loud.
 func PickSource(fs embed.FS) Source {
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		src, err := NewPostgresSource(context.Background(), dsn)
+		if err != nil {
+			panic(eris.Wrap(err, "data: DB_DSN is set but the postgres config source failed to initialise"))
+		}
+		return src
+	}
 	return EmbedSource{FS: fs}
 }
