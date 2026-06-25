@@ -126,15 +126,13 @@ func Register[T Definition](p *Plugin) {
 	var zero T
 	p.state.AddKind(zero.Name(), zero.JSONFile(), system.MakeAssemble[T]())
 
-	// Tell the source how to read this kind, if it supports it. EmbedSource and the test fakes key
-	// off the file path, so these are no-ops for them; a Postgres source records the file→table
-	// mapping and, for a Singleton kind, that the table is read as a single object.
-	if r, ok := p.config.Source.(system.KindRegistrar); ok {
-		r.RegisterKind(zero.JSONFile(), zero.Name())
-	}
-	if _, isSingleton := any(zero).(system.Singleton); isSingleton {
-		if r, ok := p.config.Source.(system.SingletonRegistrar); ok {
-			r.RegisterSingleton(zero.JSONFile())
+	// Tell a Postgres source how to read this kind: the file→table mapping and, for a Singleton
+	// kind, that the table is read as a single object. EmbedSource and the test fakes key off the
+	// file path, so this is skipped for them.
+	if src, ok := p.config.Source.(*system.PostgresSource); ok {
+		src.RegisterKind(zero.JSONFile(), zero.Name())
+		if _, isSingleton := any(zero).(system.Singleton); isSingleton {
+			src.RegisterSingleton(zero.JSONFile())
 		}
 	}
 }

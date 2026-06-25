@@ -23,7 +23,7 @@ import (
 type PostgresSource struct {
 	reader     configReader
 	singletons map[string]bool   // jsonFile → read as a single object instead of an array
-	tables     map[string]string // jsonFile → table name (overrides tableFromFile)
+	tables     map[string]string // jsonFile → table name (overrides the name derived from the file)
 }
 
 // configReader is the DB seam, so Fetch is unit-testable without a live database.
@@ -33,26 +33,11 @@ type configReader interface {
 	readTableJSON(ctx context.Context, table string, singleton bool) ([]byte, error)
 }
 
-// SingletonRegistrar is implemented by sources that can be told a kind's config is a single object
-// rather than a collection of records.
-type SingletonRegistrar interface {
-	RegisterSingleton(file string)
-}
-
-// KindRegistrar is implemented by sources that accept an explicit table name for a kind's JSON file.
-type KindRegistrar interface {
-	RegisterKind(file, table string)
-}
-
 type pgxReader struct {
 	pool *pgxpool.Pool
 }
 
-var (
-	_ Source             = (*PostgresSource)(nil)
-	_ SingletonRegistrar = (*PostgresSource)(nil)
-	_ KindRegistrar      = (*PostgresSource)(nil)
-)
+var _ Source = (*PostgresSource)(nil)
 
 // NewPostgresSource opens a pgx pool against dsn (a read-only config-database DSN). The pool
 // connects lazily: a malformed dsn fails here, connectivity fails on the first Fetch.
@@ -86,31 +71,23 @@ func (p *PostgresSource) RegisterKind(file, table string) {
 	p.tables[file] = table
 }
 
-// tableFor returns the table registered for file, falling back to the name derived from the file.
-func (p *PostgresSource) tableFor(file string) string {
-	if t, ok := p.tables[file]; ok {
-		return t
-	}
-	return tableFromFile(file)
-}
-
 // Fetch returns the current contents of file's table as JSON plus their sha256 hex. hash is ignored.
 // A missing or empty table surfaces as a read error and propagates (fail loud) — config is read from
 // Postgres only.
 func (p *PostgresSource) Fetch(ctx context.Context, file, _ string) ([]byte, string, error) {
-	table := p.tableFor(file)
+	// Resolve the table: an explicit RegisterKind mapping, else the name derived from the JSON file
+	// ("testdata/abilities.json" → "abilities").
+	table, ok := p.tables[file]
+	if !ok {
+		base := path.Base(file)
+		table = strings.TrimSuffix(base, path.Ext(base))
+	}
 	raw, err := p.reader.readTableJSON(ctx, table, p.singletons[file])
 	if err != nil {
 		return nil, "", eris.Wrapf(err, "data: postgres source reading table %q for %q", table, file)
 	}
 	sum := sha256.Sum256(raw)
 	return raw, hex.EncodeToString(sum[:]), nil
-}
-
-// tableFromFile maps a kind's JSONFile() ("testdata/abilities.json") to its table ("abilities").
-func tableFromFile(file string) string {
-	base := path.Base(file)
-	return strings.TrimSuffix(base, path.Ext(base))
 }
 
 // readTableJSON reads table's doc column as JSON. For a singleton it returns the first row's doc as a
