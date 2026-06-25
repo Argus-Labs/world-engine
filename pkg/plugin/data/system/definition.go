@@ -26,6 +26,16 @@ type Definition interface {
 	JSONFile() string
 }
 
+// Singleton is an optional marker a Definition may implement to declare its config is a single JSON
+// object (e.g. {"maxPlayers":8}) rather than a collection of records: its source returns one object
+// and its backing table holds at most one row.
+//
+// SingleObject is never called — implementing it (on a value receiver, like Name/JSONFile) is the
+// entire signal.
+type Singleton interface {
+	SingleObject()
+}
+
 // Resolver is an optional interface a Definition may implement to perform a second-stage load
 // after the primary JSON has been unmarshaled — typically to fetch additional designer-bundled
 // files the JSON references (e.g. Tiled .tmj tilemaps that map_levels.json points at).
