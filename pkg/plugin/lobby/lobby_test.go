@@ -36,7 +36,7 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 		self.SendCommand(&state.BaseSystemState, lobby.AssignShardCommand{
 			LobbyID:   lob.ID,
 			RequestID: lob.Session.PendingRequestID,
-			GameWorld: cardinal.OtherWorld{
+			GameWorld: lobby.ShardAddress{
 				Region:       "local",
 				Organization: "organization",
 				Project:      "project",

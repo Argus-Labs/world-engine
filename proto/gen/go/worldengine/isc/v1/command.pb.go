@@ -32,7 +32,8 @@ type Command struct {
 	Address *v1.ServiceAddress `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
 	// The persona sending the command.
 	Persona *Persona `protobuf:"bytes,3,opt,name=persona,proto3" json:"persona,omitempty"`
-	// The command payload serialized as MessagePack bytes.
+	// The serialized command payload. May be empty: a command whose proto message
+	// has no set fields serializes to zero bytes, so this is not marked required.
 	Payload       []byte `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -100,12 +101,12 @@ var File_worldengine_isc_v1_command_proto protoreflect.FileDescriptor
 
 const file_worldengine_isc_v1_command_proto_rawDesc = "" +
 	"\n" +
-	" worldengine/isc/v1/command.proto\x12\x12worldengine.isc.v1\x1a\x1bbuf/validate/validate.proto\x1a worldengine/isc/v1/persona.proto\x1a\"worldengine/micro/v1/service.proto\"\xe7\x01\n" +
+	" worldengine/isc/v1/command.proto\x12\x12worldengine.isc.v1\x1a\x1bbuf/validate/validate.proto\x1a worldengine/isc/v1/persona.proto\x1a\"worldengine/micro/v1/service.proto\"\xdf\x01\n" +
 	"\aCommand\x123\n" +
 	"\x04name\x18\x01 \x01(\tB\x1f\xbaH\x1c\xc8\x01\x01r\x17\x10\x01\x18\x80\x012\x10^[a-zA-Z0-9_-]+$R\x04name\x12F\n" +
 	"\aaddress\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12=\n" +
-	"\apersona\x18\x03 \x01(\v2\x1b.worldengine.isc.v1.PersonaB\x06\xbaH\x03\xc8\x01\x01R\apersona\x12 \n" +
-	"\apayload\x18\x04 \x01(\fB\x06\xbaH\x03\xc8\x01\x01R\apayloadBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
+	"\apersona\x18\x03 \x01(\v2\x1b.worldengine.isc.v1.PersonaB\x06\xbaH\x03\xc8\x01\x01R\apersona\x12\x18\n" +
+	"\apayload\x18\x04 \x01(\fR\apayloadBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
 
 var (
 	file_worldengine_isc_v1_command_proto_rawDescOnce sync.Once

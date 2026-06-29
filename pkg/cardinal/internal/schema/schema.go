@@ -12,7 +12,7 @@ type Serializable interface {
 	Name() string
 }
 
-// Serialize converts a Serializable to bytes.
+// Serialize converts a Serializable (component/event) to bytes via msgpack.
 // The underlying format is an implementation detail and may change.
 func Serialize(s Serializable) ([]byte, error) {
 	data, err := msgpack.Marshal(s)
@@ -22,8 +22,7 @@ func Serialize(s Serializable) ([]byte, error) {
 	return data, nil
 }
 
-// Deserialize converts bytes back into a value.
-// The underlying format is an implementation detail and may change.
+// Deserialize converts bytes back into a value (component/event) via msgpack.
 // The value v must be a pointer to the target type.
 func Deserialize(data []byte, v any) (err error) {
 	defer func() {

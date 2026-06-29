@@ -8,6 +8,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
+	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 )
 
@@ -26,10 +27,10 @@ type CreateLobbyCommand struct {
 	RequestID string `json:"request_id"` // For matching request/response
 	// Preset is the label of a server-registered team configuration.
 	Preset string `json:"preset"`
-	// PlayerPassthroughData is custom data for the creating player, forwarded to game shard.
-	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
-	// SessionPassthroughData is custom data for the lobby session, forwarded to game shard.
-	SessionPassthroughData map[string]any `json:"session_passthrough_data,omitempty"`
+	// PlayerPassthroughData is opaque JSON for the creating player, forwarded to the game shard.
+	PlayerPassthroughData []byte `json:"player_passthrough_data,omitempty"`
+	// SessionPassthroughData is opaque JSON for the lobby session, forwarded to the game shard.
+	SessionPassthroughData []byte `json:"session_passthrough_data,omitempty"`
 }
 
 // TeamConfig is an alias for component.TeamConfig to preserve the
@@ -44,8 +45,8 @@ type JoinLobbyCommand struct {
 	RequestID  string `json:"request_id"`        // For matching request/response
 	InviteCode string `json:"invite_code"`       // Required: invite code to join
 	TeamID     string `json:"team_id,omitempty"` // Optional: team to join by ID (joins first available if empty)
-	// PlayerPassthroughData is custom data for the joining player, forwarded to game shard.
-	PlayerPassthroughData map[string]any `json:"player_passthrough_data,omitempty"`
+	// PlayerPassthroughData is opaque JSON for the joining player, forwarded to the game shard.
+	PlayerPassthroughData []byte `json:"player_passthrough_data,omitempty"`
 }
 
 // Name returns the command name.
@@ -125,8 +126,8 @@ func (HeartbeatCommand) Name() string { return "lobby_heartbeat" }
 
 // UpdateSessionPassthroughCommand updates the session passthrough data (leader only).
 type UpdateSessionPassthroughCommand struct {
-	RequestID       string         `json:"request_id"` // For matching request/response
-	PassthroughData map[string]any `json:"passthrough_data"`
+	RequestID       string `json:"request_id"` // For matching request/response
+	PassthroughData []byte `json:"passthrough_data"`
 }
 
 // Name returns the command name.
@@ -134,8 +135,8 @@ func (UpdateSessionPassthroughCommand) Name() string { return "lobby_update_sess
 
 // UpdatePlayerPassthroughCommand updates the player's own passthrough data.
 type UpdatePlayerPassthroughCommand struct {
-	RequestID       string         `json:"request_id"` // For matching request/response
-	PassthroughData map[string]any `json:"passthrough_data"`
+	RequestID       string `json:"request_id"` // For matching request/response
+	PassthroughData []byte `json:"passthrough_data"`
 }
 
 // Name returns the command name.
@@ -490,10 +491,12 @@ func (r GetLobbyResult) Name() string {
 // -----------------------------------------------------------------------------
 
 // NotifySessionStartCommand is sent to game shard when a session starts.
+// NotifySessionStartCommand tells the game shard a session is starting. It's a wire DTO: it carries
+// only what the receiver needs (the lobby id and this lobby shard's address to reply to), not the live
+// LobbyComponent/PlayerComponent — those are domain types and never go on the wire.
 type NotifySessionStartCommand struct {
-	Lobby      component.LobbyComponent    `json:"lobby"`
-	LobbyWorld cardinal.OtherWorld         `json:"lobby_world"`
-	Players    []component.PlayerComponent `json:"players"`
+	LobbyID    string       `json:"lobby_id"`
+	LobbyWorld ShardAddress `json:"lobby_world"`
 }
 
 // Name returns the command name.
@@ -522,11 +525,28 @@ func (NotifySessionEndCommand) Name() string { return "lobby_notify_session_end"
 // the orchestrator reads from the LobbyComponent). Mismatched RequestIDs
 // are rejected; this rejects late duplicate or stale commands that arrive
 // after the original pending cycle has already been completed or cancelled.
+// ShardAddress mirrors cardinal.OtherWorld for use in commands. A plugin command can't carry the
+// core cardinal.OtherWorld directly: generating its proto in the plugin would require cardinal to
+// import the plugin's generated package, a dependency cycle. The fields match, so the two convert
+// directly with a Go struct conversion.
+type ShardAddress struct {
+	Region       string
+	Organization string
+	Project      string
+	ShardID      string
+}
+
+// SendCommand forwards to the underlying cardinal.OtherWorld, so a command field of type ShardAddress
+// can dispatch directly (e.g. the game shard replying to the lobby via NotifySessionStart.LobbyWorld).
+func (a ShardAddress) SendCommand(state *cardinal.BaseSystemState, cmd cardinal.Command) {
+	cardinal.OtherWorld(a).SendCommand(state, cmd)
+}
+
 type AssignShardCommand struct {
-	LobbyID   string              `json:"lobby_id"`
-	RequestID string              `json:"request_id"`
-	GameWorld cardinal.OtherWorld `json:"game_world"`
-	Reason    string              `json:"reason,omitempty"`
+	LobbyID   string       `json:"lobby_id"`
+	RequestID string       `json:"request_id"`
+	GameWorld ShardAddress `json:"game_world"`
+	Reason    string       `json:"reason,omitempty"`
 }
 
 // Name returns the command name.
@@ -865,6 +885,36 @@ func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
 	})
 }
 
+// emitCreateLobbyFailure emits a failure result for CreateLobby command.
+func emitCreateLobbyFailure(state *LobbySystemState, requestID, message string) {
+	state.CreateLobbyResults.Emit(CreateLobbyResult{
+		RequestID: requestID,
+		IsSuccess: false,
+		Message:   message,
+	})
+}
+
+// DecodePassthrough turns a command's opaque JSON passthrough bytes into the map that components and
+// events store and that downstream systems read. Empty input yields (nil, nil). Malformed input yields
+// a non-nil error; passthrough is best-effort forwarded data the lobby does not validate, so callers
+// log the error and proceed with a nil map rather than failing the command.
+func DecodePassthrough(b []byte) (map[string]any, error) {
+	var m map[string]any
+	if len(b) == 0 {
+		return m, nil // absent passthrough: nil map, no error
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// logDroppedPassthrough records that malformed passthrough was dropped; field names which one. Callers
+// own the error (capture it from DecodePassthrough and decide to drop); this just emits the breadcrumb.
+func logDroppedPassthrough(state *LobbySystemState, field string, err error) {
+	state.Logger().Warn().Err(err).Str("field", field).Msg("dropping malformed passthrough data")
+}
+
 // createPlayerEntity creates a player entity and returns the component and entity ID.
 func createPlayerEntity(
 	state *LobbySystemState,
@@ -1121,11 +1171,7 @@ func processCreateLobbyCommands(
 		// Check if player is already in a lobby
 		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
 			state.Logger().Warn().Str("player_id", playerID).Msg("player already in a lobby")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "player already in a lobby",
-			})
+			emitCreateLobbyFailure(state, payload.RequestID, "player already in a lobby")
 			continue
 		}
 
@@ -1133,13 +1179,17 @@ func processCreateLobbyCommands(
 		lobbyID := generateID()
 
 		// Create lobby with initial data for invite code generation
+		sessionPassthrough, err := DecodePassthrough(payload.SessionPassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "session_passthrough", err)
+		}
 		lobby := component.LobbyComponent{
 			ID:         lobbyID,
 			LeaderID:   playerID,
 			InviteCode: "", // Will be set after generation
 			Session: component.Session{
 				State:           component.SessionStateIdle,
-				PassthroughData: payload.SessionPassthroughData,
+				PassthroughData: sessionPassthrough,
 			},
 			CreatedAt: now,
 		}
@@ -1150,11 +1200,7 @@ func processCreateLobbyCommands(
 				Str("player_id", playerID).
 				Str("preset", payload.Preset).
 				Msg("create lobby rejected: " + errMsg)
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   errMsg,
-			})
+			emitCreateLobbyFailure(state, payload.RequestID, errMsg)
 			continue
 		}
 		for _, tc := range presetTeams {
@@ -1168,11 +1214,7 @@ func processCreateLobbyCommands(
 		inviteCode, ok := generateInviteCodeWithRetry(lobbyIndex, &lobby, 3)
 		if !ok {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
-			state.CreateLobbyResults.Emit(CreateLobbyResult{
-				RequestID: payload.RequestID,
-				IsSuccess: false,
-				Message:   "invite code collision",
-			})
+			emitCreateLobbyFailure(state, payload.RequestID, "invite code collision")
 			continue
 		}
 		lobby.InviteCode = inviteCode
@@ -1185,8 +1227,12 @@ func processCreateLobbyCommands(
 		lobbyEntity.Lobby.Set(lobby)
 
 		// Create player entity and update index
+		playerPassthrough, err := DecodePassthrough(payload.PlayerPassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "player_passthrough", err)
+		}
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, lobby.Teams[0].TeamID, payload.PlayerPassthroughData, now,
+			state, playerID, lobbyID, lobby.Teams[0].TeamID, playerPassthrough, now,
 		)
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
@@ -1284,8 +1330,12 @@ func processJoinLobbyCommands(
 		lobbyEntity.Lobby.Set(lobby)
 
 		// Create player entity
+		playerPassthrough, err := DecodePassthrough(payload.PlayerPassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "player_passthrough", err)
+		}
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, targetTeam.TeamID, payload.PlayerPassthroughData, now,
+			state, playerID, lobbyID, targetTeam.TeamID, playerPassthrough, now,
 		)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, targetTeam.TeamID, uint32(playerEntityID), now+timeout)
 
@@ -1889,18 +1939,14 @@ func abortAwaitingAllocation(
 // configured on the lobby. No-op if no game shard is configured.
 func dispatchSessionStart(
 	state *LobbySystemState,
-	lobbyIndex *component.LobbyIndexComponent,
 	config *component.ConfigComponent,
 	lobby *component.LobbyComponent,
 	lobbyID string,
 ) {
 	gameWorld := lobby.GameWorld
-	lobbyWorld := config.LobbyWorld
-	players := gatherLobbyPlayers(state, lobbyIndex, lobby)
 	gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
-		Lobby:      *lobby,
-		LobbyWorld: lobbyWorld,
-		Players:    players,
+		LobbyID:    lobbyID,
+		LobbyWorld: ShardAddress(config.LobbyWorld),
 	})
 	state.Logger().Info().
 		Str("lobby_id", lobbyID).
@@ -1973,7 +2019,7 @@ func processAssignShardCommands(
 		lobby.Session.PendingRequestID = ""
 		lobby.Session.PendingStartedAt = 0
 
-		lobby.GameWorld = payload.GameWorld
+		lobby.GameWorld = cardinal.OtherWorld(payload.GameWorld)
 		lobby.Session.State = component.SessionStateInSession
 		lobbyEntity.Lobby.Set(lobby)
 
@@ -1987,7 +2033,7 @@ func processAssignShardCommands(
 			GameWorld: lobby.GameWorld,
 		})
 
-		dispatchSessionStart(state, lobbyIndex, config, &lobby, payload.LobbyID)
+		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
 
 		state.StartSessionResults.Emit(StartSessionResult{
 			RequestID: requestID,
@@ -2177,7 +2223,11 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 			continue
 		}
 
-		lobby.Session.PassthroughData = payload.PassthroughData
+		sessionPassthrough, err := DecodePassthrough(payload.PassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "session_passthrough", err)
+		}
+		lobby.Session.PassthroughData = sessionPassthrough
 		result.lobbyRef.Set(lobby)
 
 		state.Logger().Info().
@@ -2236,7 +2286,11 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		}
 
 		playerComp := playerEntity.Player.Get()
-		playerComp.PassthroughData = payload.PassthroughData
+		playerPassthrough, err := DecodePassthrough(payload.PassthroughData)
+		if err != nil {
+			logDroppedPassthrough(state, "player_passthrough", err)
+		}
+		playerComp.PassthroughData = playerPassthrough
 		playerEntity.Player.Set(playerComp)
 
 		state.Logger().Info().

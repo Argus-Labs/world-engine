@@ -200,6 +200,16 @@ func (b *BaseSystemState) Timestamp() time.Time {
 
 type Command = command.Payload
 
+// CommandCodec encodes and decodes a command payload to and from its wire bytes. Generated code
+// implements one per command type and registers it via RegisterCommandCodec.
+type CommandCodec = command.Codec
+
+// RegisterCommandCodec registers the wire codec for a command name. Generated code calls this from an
+// init() in the command's package, so the codec is available once that package is imported.
+func RegisterCommandCodec(name string, c CommandCodec) {
+	command.RegisterCodec(name, c)
+}
+
 type WithCommand[T Command] struct {
 	manager *command.Manager
 	id      command.ID
@@ -208,6 +218,10 @@ type WithCommand[T Command] struct {
 func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 	var zero T
 	name := zero.Name()
+
+	if !command.HasCodec(name) {
+		return eris.Errorf("command %q has no registered codec (run the generator)", name)
+	}
 
 	if _, ok := meta.commands[name]; ok {
 		return eris.Errorf("systems cannot process multiple commands of the same type: %s", name)

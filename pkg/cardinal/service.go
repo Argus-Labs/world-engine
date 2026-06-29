@@ -30,8 +30,6 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/shamaton/msgpack/v3"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc/codes"
 )
 
@@ -63,6 +61,16 @@ func newService(world *World, authMode AuthMode, argusAuthURL string) *service {
 		subscribers:  make(map[string]*streamSubscriber),
 		replyWaiters: make(map[string][]chan *iscv1.Event),
 	}
+}
+
+// h2cProtocols enables HTTP/1.1 and unencrypted HTTP/2 (h2c), matching the
+// previous h2c.NewHandler(mux, &http2.Server{}) behavior without the deprecated
+// golang.org/x/net/http2/h2c package.
+func h2cProtocols() *http.Protocols {
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	return p
 }
 
 func (s *service) init(address string) error {
@@ -132,8 +140,9 @@ func (s *service) init(address string) error {
 
 	s.server = &http.Server{
 		Addr:              address,
-		Handler:           h2c.NewHandler(mux, &http2.Server{}),
+		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		Protocols:         h2cProtocols(),
 	}
 
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
@@ -613,7 +622,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	payload, err := schema.Serialize(isc.Payload)
+	payload, err := command.Marshal(isc.Payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal command payload")
 	}

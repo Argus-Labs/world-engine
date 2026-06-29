@@ -124,6 +124,9 @@ func (SystemEventC) Name() string {
 // -------------------------------------------------------------------------------------------------
 // Commands
 // -------------------------------------------------------------------------------------------------
+// Command fixtures are plain value structs (just Name); their wire codec lives in the commandtest
+// package, which registers it with the command package the same way the generator does for real
+// commands. testutils can't import the internal command package, so the codec can't live here.
 
 type SimpleCommand struct {
 	Value int
