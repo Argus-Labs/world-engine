@@ -48,11 +48,15 @@ func newDebugModule(world *World) debugModule {
 		commands:   make(map[string]*structpb.Struct),
 		events:     make(map[string]*structpb.Struct),
 		components: make(map[string]*structpb.Struct),
-		reflector: &jsonschema.Reflector{
+		reflector:  &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
+			// FieldNameTag="msgpack" makes advertised field names match the shamaton wire
+			// format (msgpack tag, else Go field name; see internal/schema); the json-tag
+			// default would mismatch and silently drop fields on decode.
+			FieldNameTag:   "msgpack",
 		},
-		perf: perf,
+		perf:       perf,
 	}
 }
 
