@@ -26,7 +26,6 @@ import (
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/shamaton/msgpack/v3"
@@ -117,11 +116,7 @@ func (s *service) init(address string) error {
 		}
 		authenticate = authenticator.authenticate
 	case AuthModeDev:
-		authenticator := newAuthenticatorDev()
-		authenticate = authenticator.authenticate
-		mux.Handle("/dev-auth-sign-in", authenticator.signInHandler())
-	case AuthModePassthrough:
-		authenticate = authenticatorPassthrough{}.authenticate
+		authenticate = authenticatorDev{}.authenticate
 	case AuthModeUndefined:
 		fallthrough
 	default:
@@ -664,14 +659,12 @@ const (
 	AuthModeUndefined AuthMode = iota
 	AuthModeArgus
 	AuthModeDev
-	AuthModePassthrough
 )
 
 const (
-	argusAuthModeString       = "ARGUS"
-	devAuthModeString         = "DEV"
-	passthroughAuthModeString = "PASSTHROUGH"
-	undefinedAuthModeString   = "UNDEFINED"
+	argusAuthModeString     = "ARGUS"
+	devAuthModeString       = "DEV"
+	undefinedAuthModeString = "UNDEFINED"
 )
 
 func (a AuthMode) String() string {
@@ -682,15 +675,13 @@ func (a AuthMode) String() string {
 		return argusAuthModeString
 	case AuthModeDev:
 		return devAuthModeString
-	case AuthModePassthrough:
-		return passthroughAuthModeString
 	default:
 		return undefinedAuthModeString
 	}
 }
 
 func (a AuthMode) IsValid() bool {
-	return a == AuthModeArgus || a == AuthModeDev || a == AuthModePassthrough
+	return a == AuthModeArgus || a == AuthModeDev
 }
 
 func ParseAuthMode(s string) (AuthMode, error) {
@@ -699,8 +690,6 @@ func ParseAuthMode(s string) (AuthMode, error) {
 		return AuthModeArgus, nil
 	case devAuthModeString:
 		return AuthModeDev, nil
-	case passthroughAuthModeString:
-		return AuthModePassthrough, nil
 	default:
 		return AuthModeUndefined, eris.Errorf("invalid auth mode: %s", s)
 	}
@@ -789,82 +778,13 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 // Dev Auth
 // -------------------------------------------------------------------------------------------------
 
-type authenticatorDev struct {
-	sessions map[string]string
-	mu       sync.Mutex
-}
+type authenticatorDev struct{}
 
-func newAuthenticatorDev() *authenticatorDev {
-	return &authenticatorDev{
-		sessions: make(map[string]string),
-	}
-}
-
-func (a *authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
+func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
 	email := strings.TrimSpace(req.Header.Get("X-Email"))
 	if email == "" {
-		return nil, authn.Errorf("X-Email header is required. Have you called sign in?")
+		return nil, authn.Errorf("X-Email header is required")
 	}
 
-	email = strings.TrimSpace(email)
-	a.mu.Lock()
-	userID, exists := a.sessions[email]
-	if !exists {
-		a.mu.Unlock()
-		return "", eris.Errorf("persona ID not found for email %s", email)
-	}
-	a.mu.Unlock()
-
-	return &User{ID: userID, Email: email}, nil
-}
-
-func (a *authenticatorDev) signInHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var signIn struct {
-			Email string `json:"email"`
-		}
-		if err := json.NewDecoder(req.Body).Decode(&signIn); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		email := strings.TrimSpace(signIn.Email)
-		if email == "" {
-			http.Error(w, "email is required", http.StatusBadRequest)
-			return
-		}
-
-		a.mu.Lock()
-		userID, exists := a.sessions[email]
-		if !exists {
-			userID = uuid.New().String()
-			a.sessions[email] = userID
-		}
-		a.mu.Unlock()
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(struct {
-			PersonaID string `json:"personaId"`
-			Email     string `json:"email"`
-		}{
-			PersonaID: userID,
-			Email:     email,
-		})
-	})
-}
-
-// -------------------------------------------------------------------------------------------------
-// Passthrough
-// -------------------------------------------------------------------------------------------------
-
-type authenticatorPassthrough struct{}
-
-func (a authenticatorPassthrough) authenticate(_ context.Context, _ *http.Request) (any, error) {
-	return &User{ID: "test-user"}, nil
+	return &User{ID: email, Email: email}, nil
 }

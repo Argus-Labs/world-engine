@@ -39,7 +39,7 @@ func newDefaultWorldOptions() WorldOptions {
 		SnapshotRate:        0,
 		Debug:               nil,
 		Pprof:               nil,
-		AuthMode:            AuthModePassthrough,
+		AuthMode:            AuthModeDev,
 		ArgusAuthURL:        "",
 	}
 }
@@ -114,7 +114,7 @@ func (opt *WorldOptions) validate() error {
 		return eris.New("pprof must be specified")
 	}
 	if !opt.AuthMode.IsValid() {
-		return eris.Errorf("invalid auth mode: %s (must be one of: ARGUS, DEV, PASSTHROUGH)", opt.AuthMode)
+		return eris.Errorf("invalid auth mode: %s (must be one of: ARGUS, DEV)", opt.AuthMode)
 	}
 	if opt.AuthMode == AuthModeArgus && opt.ArgusAuthURL == "" {
 		return eris.New("argus auth URL cannot be empty when auth mode is ARGUS")
@@ -170,8 +170,8 @@ type worldOptionsEnv struct {
 	// Enable pprof server.
 	Pprof bool `env:"CARDINAL_PPROF" envDefault:"false"`
 
-	// Auth mode for the client-facing ConnectRPC service (ARGUS, DEV, or PASSTHROUGH).
-	AuthModeStr string `env:"CARDINAL_AUTH_MODE" envDefault:"PASSTHROUGH"`
+	// Auth mode for the client-facing ConnectRPC service (ARGUS or DEV).
+	AuthModeStr string `env:"CARDINAL_AUTH_MODE" envDefault:"DEV"`
 
 	// URL of the Argus Auth service when AuthMode is ARGUS.
 	ArgusAuthURL string `env:"CARDINAL_ARGUS_AUTH_URL"`

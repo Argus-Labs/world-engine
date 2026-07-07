@@ -195,7 +195,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	} else {
 		w.options.NATSConfig.URL = natsURL
 	}
-	w.options.AuthMode = AuthModePassthrough
+	w.options.AuthMode = AuthModeDev
 	w.service = newService(w, w.options.AuthMode, w.options.ArgusAuthURL)
 	w.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 

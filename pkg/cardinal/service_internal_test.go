@@ -224,7 +224,7 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 	cmdID, err := w.commands.Register(testutils.SimpleCommand{}.Name(), queue)
 	require.NoError(t, err)
 
-	svc := newService(w, AuthModePassthrough, "")
+	svc := newService(w, AuthModeDev, "")
 	svc.registerCommandHandler(testutils.SimpleCommand{}.Name())
 	w.service = svc
 
