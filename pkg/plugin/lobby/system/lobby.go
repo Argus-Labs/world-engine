@@ -2,7 +2,6 @@ package system
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -585,17 +584,19 @@ func (DefaultProvider) ValidateJoin(*component.LobbyComponent, JoinLobbyCommand)
 const inviteCodeCharset = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 // GenerateInviteCode generates a 6-character invite code using Hash(LobbyID + Now()).
+// The timestamp is what makes repeated calls for the same lobby yield different
+// codes, which generateInviteCodeWithRetry relies on to escape a collision.
 func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent) string {
 	// Create hash from lobby ID + current timestamp
 	data := fmt.Sprintf("%s:%d", lobby.ID, time.Now().UnixNano())
 	hash := sha256.Sum256([]byte(data))
-	hexStr := hex.EncodeToString(hash[:])
 
-	// Convert to 6-char code using our charset
+	// Convert to 6-char code using our charset. Index the raw hash bytes: hex
+	// text holds only 16 distinct values, which would shrink the reachable
+	// charset from 31 characters to 16.
 	code := make([]byte, 6)
 	for i := range 6 {
-		// Use each hex byte to index into charset
-		idx := int(hexStr[i]) % len(inviteCodeCharset)
+		idx := int(hash[i]) % len(inviteCodeCharset)
 		code[i] = inviteCodeCharset[idx]
 	}
 	return string(code)

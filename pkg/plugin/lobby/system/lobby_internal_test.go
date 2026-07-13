@@ -38,6 +38,29 @@ func TestDefaultProvider_GenerateInviteCode(t *testing.T) {
 	assert.GreaterOrEqual(t, len(codes), 50, "too many duplicate codes generated")
 }
 
+// TestDefaultProvider_GenerateInviteCode_CharsetIsReachable asserts the inverse
+// of the charset check above: not just that every emitted character is in the
+// charset, but that every character in the charset can actually be emitted.
+// Indexing the hex rendering of the hash rather than its bytes silently limits
+// the generator to 16 of the 31 characters, which only this direction catches.
+func TestDefaultProvider_GenerateInviteCode_CharsetIsReachable(t *testing.T) {
+	t.Parallel()
+
+	provider := DefaultProvider{}
+	lobby := &component.LobbyComponent{ID: "test-lobby-id"}
+
+	seen := make(map[rune]bool, len(inviteCodeCharset))
+	for range 20000 {
+		for _, c := range provider.GenerateInviteCode(lobby) {
+			seen[c] = true
+		}
+	}
+
+	for _, c := range inviteCodeCharset {
+		assert.True(t, seen[c], "generator can never emit %q despite it being in the charset", c)
+	}
+}
+
 func TestDefaultProvider_GenerateInviteCode_DifferentLobbies(t *testing.T) {
 	t.Parallel()
 
