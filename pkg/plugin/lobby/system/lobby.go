@@ -561,7 +561,12 @@ type StartSessionPayload = NotifySessionStartCommand
 // LobbyProvider defines customizable behavior for the lobby system.
 type LobbyProvider interface {
 	// GenerateInviteCode generates a custom invite code for the lobby.
-	GenerateInviteCode(lobby *component.LobbyComponent) string
+	//
+	// seed is the only source of variation between calls for the same lobby, and
+	// the caller must vary it per attempt: generateInviteCodeWithRetry retries on
+	// collision and depends on each attempt yielding a different code.
+	// Implementations should be pure in (lobby, seed).
+	GenerateInviteCode(lobby *component.LobbyComponent, seed int64) string
 
 	// ValidateJoin runs game-specific guards on a JoinLobbyCommand after
 	// the generic guards (already-in-lobby, invalid code, in-session)
@@ -583,21 +588,24 @@ func (DefaultProvider) ValidateJoin(*component.LobbyComponent, JoinLobbyCommand)
 // inviteCodeCharset contains uppercase alphanumeric characters excluding confusing ones (0, O, I, L, 1).
 const inviteCodeCharset = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
-// GenerateInviteCode generates a 6-character invite code using Hash(LobbyID + Now()).
-// The timestamp is what makes repeated calls for the same lobby yield different
-// codes, which generateInviteCodeWithRetry relies on to escape a collision.
-func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent) string {
-	// Create hash from lobby ID + current timestamp
-	data := fmt.Sprintf("%s:%d", lobby.ID, time.Now().UnixNano())
+// inviteCodeLength is the number of characters in an invite code.
+const inviteCodeLength = 6
+
+// inviteCodeMaxRetries bounds how many codes generateInviteCodeWithRetry will try
+// before giving up on finding an unused one.
+const inviteCodeMaxRetries = 3
+
+// GenerateInviteCode generates a 6-character invite code from Hash(LobbyID + seed).
+// Pure in (lobby, seed): the caller owns the clock and must vary seed per attempt.
+func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent, seed int64) string {
+	data := fmt.Sprintf("%s:%d", lobby.ID, seed)
 	hash := sha256.Sum256([]byte(data))
 
-	// Convert to 6-char code using our charset. Index the raw hash bytes: hex
-	// text holds only 16 distinct values, which would shrink the reachable
-	// charset from 31 characters to 16.
-	code := make([]byte, 6)
-	for i, b := range hash[:6] {
-		idx := int(b) % len(inviteCodeCharset)
-		code[i] = inviteCodeCharset[idx]
+	// Index the hash bytes, not their hex encoding: a hex digit takes only 16
+	// distinct values, which would limit codes to 16 of the 31 charset characters.
+	code := make([]byte, inviteCodeLength)
+	for i, b := range hash[:inviteCodeLength] {
+		code[i] = inviteCodeCharset[int(b)%len(inviteCodeCharset)]
 	}
 	return string(code)
 }
@@ -1071,14 +1079,25 @@ func resolvePreset(preset string, presets map[string][]TeamConfig) ([]TeamConfig
 // generateInviteCodeWithRetry generates an invite code with collision check.
 // Retries up to maxRetries times if collision detected.
 // Returns the code and whether generation succeeded.
+//
+// A code already owned by this lobby is not a collision, so regeneration can keep
+// its current code. On create the lobby is not yet in the index, so that case
+// cannot arise and this reduces to a plain "code is unused" check.
+//
+// The attempt index is mixed into the seed so each retry is guaranteed a distinct
+// code. Reading the clock once per attempt instead would leave the retry at the
+// mercy of clock resolution: two reads a few nanoseconds apart can return the same
+// value, and every attempt would then hash the same input and collide identically.
 func generateInviteCodeWithRetry(
 	lobbyIndex *component.LobbyIndexComponent,
 	lobby *component.LobbyComponent,
 	maxRetries int,
 ) (string, bool) {
-	for range maxRetries {
-		code := storedProvider.GenerateInviteCode(lobby)
-		if _, exists := lobbyIndex.GetLobbyByInviteCode(code); !exists {
+	seed := time.Now().UnixNano()
+	for attempt := range maxRetries {
+		code := storedProvider.GenerateInviteCode(lobby, seed+int64(attempt))
+		owner, exists := lobbyIndex.GetLobbyByInviteCode(code)
+		if !exists || owner == lobby.ID {
 			return code, true
 		}
 	}
@@ -1212,7 +1231,7 @@ func processCreateLobbyCommands(
 		}
 
 		// Generate invite code with collision check
-		inviteCode, ok := generateInviteCodeWithRetry(lobbyIndex, &lobby, 3)
+		inviteCode, ok := generateInviteCodeWithRetry(lobbyIndex, &lobby, inviteCodeMaxRetries)
 		if !ok {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
 			emitCreateLobbyFailure(state, payload.RequestID, "invite code collision")
@@ -2149,17 +2168,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 		oldCode := lobby.InviteCode
 
 		// Generate new invite code with collision check (max 3 retries)
-		var newCode string
-		newCodeValid := false
-		for range 3 {
-			newCode = storedProvider.GenerateInviteCode(&lobby)
-			// Check collision (but allow same code as current)
-			existingLobby, exists := lobbyIndex.GetLobbyByInviteCode(newCode)
-			if !exists || existingLobby == lobbyID {
-				newCodeValid = true
-				break
-			}
-		}
+		newCode, newCodeValid := generateInviteCodeWithRetry(lobbyIndex, &lobby, inviteCodeMaxRetries)
 		if !newCodeValid {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
 			state.GenerateInviteCodeResults.Emit(GenerateInviteCodeResult{

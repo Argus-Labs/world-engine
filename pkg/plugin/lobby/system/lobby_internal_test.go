@@ -8,57 +8,53 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestDefaultProvider_GenerateInviteCode checks the generator against its spec:
+// codes are inviteCodeLength characters drawn from inviteCodeCharset, and every
+// character in the charset is actually usable. Deterministic — the generator is
+// pure in (lobby, seed), so the seeds are fixed and no clock is involved.
 func TestDefaultProvider_GenerateInviteCode(t *testing.T) {
-	t.Parallel()
-
-	provider := DefaultProvider{}
-	lobby := &component.LobbyComponent{
-		ID: "test-lobby-id",
-	}
-
-	// Generate multiple codes
-	codes := make(map[string]bool)
-	for i := 0; i < 100; i++ {
-		code := provider.GenerateInviteCode(lobby)
-
-		// Check length
-		assert.Len(t, code, 6)
-
-		// Check charset (should only contain valid characters)
-		for _, c := range code {
-			assert.Contains(t, inviteCodeCharset, string(c), "invalid character in code: %c", c)
-		}
-
-		// Store for uniqueness check (note: may have some collisions due to timing)
-		codes[code] = true
-	}
-
-	// Should have generated mostly unique codes
-	// (allowing some collisions due to fast iteration)
-	assert.GreaterOrEqual(t, len(codes), 50, "too many duplicate codes generated")
-}
-
-// TestDefaultProvider_GenerateInviteCode_CharsetIsReachable asserts the inverse
-// of the charset check above: not just that every emitted character is in the
-// charset, but that every character in the charset can actually be emitted.
-// Indexing the hex rendering of the hash rather than its bytes silently limits
-// the generator to 16 of the 31 characters, which only this direction catches.
-func TestDefaultProvider_GenerateInviteCode_CharsetIsReachable(t *testing.T) {
 	t.Parallel()
 
 	provider := DefaultProvider{}
 	lobby := &component.LobbyComponent{ID: "test-lobby-id"}
 
-	seen := make(map[rune]bool, len(inviteCodeCharset))
-	for range 20000 {
-		for _, c := range provider.GenerateInviteCode(lobby) {
-			seen[c] = true
+	// Enough seeds that every charset character has occurred; the set below is the
+	// exact output, so a generator that cannot reach all 31 characters fails here.
+	used := make(map[rune]bool, len(inviteCodeCharset))
+	for seed := range int64(500) {
+		code := provider.GenerateInviteCode(lobby, seed)
+
+		assert.Len(t, code, inviteCodeLength)
+		for _, c := range code {
+			assert.Contains(t, inviteCodeCharset, string(c), "seed %d produced invalid character %q", seed, c)
+			used[c] = true
 		}
 	}
 
 	for _, c := range inviteCodeCharset {
-		assert.True(t, seen[c], "generator can never emit %q despite it being in the charset", c)
+		assert.True(t, used[c], "generator never emits %q; the charset is not fully usable", c)
 	}
+}
+
+// TestDefaultProvider_GenerateInviteCode_IsPure pins the contract the retry loop
+// depends on: same inputs give the same code, and a different seed gives a
+// different one. Without the latter, generateInviteCodeWithRetry could never
+// escape a collision.
+func TestDefaultProvider_GenerateInviteCode_IsPure(t *testing.T) {
+	t.Parallel()
+
+	provider := DefaultProvider{}
+	lobby := &component.LobbyComponent{ID: "test-lobby-id"}
+
+	// Same seed, same code.
+	sameSeedA := provider.GenerateInviteCode(lobby, 42)
+	sameSeedB := provider.GenerateInviteCode(lobby, 42)
+	assert.Equal(t, sameSeedA, sameSeedB)
+
+	// Consecutive seeds are what generateInviteCodeWithRetry feeds each attempt,
+	// so they must differ or a collision could never be escaped.
+	nextSeed := provider.GenerateInviteCode(lobby, 43)
+	assert.NotEqual(t, sameSeedA, nextSeed)
 }
 
 func TestDefaultProvider_GenerateInviteCode_DifferentLobbies(t *testing.T) {
@@ -69,10 +65,10 @@ func TestDefaultProvider_GenerateInviteCode_DifferentLobbies(t *testing.T) {
 	lobby1 := &component.LobbyComponent{ID: "lobby-1"}
 	lobby2 := &component.LobbyComponent{ID: "lobby-2"}
 
-	code1 := provider.GenerateInviteCode(lobby1)
-	code2 := provider.GenerateInviteCode(lobby2)
+	// Same seed: the lobby ID alone must be enough to separate them.
+	code1 := provider.GenerateInviteCode(lobby1, 1)
+	code2 := provider.GenerateInviteCode(lobby2, 1)
 
-	// Different lobbies should generate different codes
 	assert.NotEqual(t, code1, code2)
 }
 
