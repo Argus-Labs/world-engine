@@ -595,8 +595,8 @@ func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent) strin
 	// text holds only 16 distinct values, which would shrink the reachable
 	// charset from 31 characters to 16.
 	code := make([]byte, 6)
-	for i := range 6 {
-		idx := int(hash[i]) % len(inviteCodeCharset)
+	for i, b := range hash[:6] {
+		idx := int(b) % len(inviteCodeCharset)
 		code[i] = inviteCodeCharset[idx]
 	}
 	return string(code)
