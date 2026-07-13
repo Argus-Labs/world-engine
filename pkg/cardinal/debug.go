@@ -3,12 +3,10 @@ package cardinal
 import (
 	"context"
 	"math"
-	"net/http"
 	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
-	"connectrpc.com/validate"
 	"github.com/goccy/go-json"
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
@@ -24,9 +22,9 @@ import (
 const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches.
 
 // debugModule provides introspection and debugging capabilities for a World instance.
+// Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
 	world      *World
-	server     *http.Server
 	control    *tickControl
 	reflector  *jsonschema.Reflector
 	commands   map[string]*structpb.Struct
@@ -48,53 +46,16 @@ func newDebugModule(world *World) debugModule {
 		commands:   make(map[string]*structpb.Struct),
 		events:     make(map[string]*structpb.Struct),
 		components: make(map[string]*structpb.Struct),
-		reflector:  &jsonschema.Reflector{
+		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
 			// FieldNameTag="msgpack" makes advertised field names match the shamaton wire
 			// format (msgpack tag, else Go field name; see internal/schema); the json-tag
 			// default would mismatch and silently drop fields on decode.
-			FieldNameTag:   "msgpack",
+			FieldNameTag: "msgpack",
 		},
-		perf:       perf,
+		perf: perf,
 	}
-}
-
-// Init initializes and starts the connect server for the debug service.
-func (d *debugModule) Init(addr string) {
-	if d == nil {
-		return
-	}
-
-	logger := d.world.tel.GetLogger("debug")
-
-	mux := http.NewServeMux()
-	mux.Handle(cardinalv1connect.NewDebugServiceHandler(d, connect.WithInterceptors(validate.NewInterceptor())))
-
-	d.server = &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	logger.Info().Str("addr", addr).Msg("Debug service initialized")
-
-	go func() {
-		// Surface bind failures and unexpected shutdown errors. ErrServerClosed
-		// is the normal exit path from Shutdown(); anything else is unexpected
-		// (port collision, OS-revoked socket).
-		if err := d.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Warn().Err(err).Msg("debug server stopped unexpectedly")
-		}
-	}()
-}
-
-// Shutdown gracefully shuts down the debug server.
-func (d *debugModule) Shutdown(ctx context.Context) error {
-	if d == nil || d.server == nil {
-		return nil
-	}
-	return d.server.Shutdown(ctx)
 }
 
 // -------------------------------------------------------------------------------------------------
