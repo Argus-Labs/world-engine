@@ -133,6 +133,15 @@ func (s *service) init(address string) error {
 	)
 	mux.Handle(cardinalPath, authMiddleware.Wrap(cardinalHandler))
 
+	if s.world.debug != nil {
+		debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
+			s.world.debug,
+			connect.WithInterceptors(otelInterceptor, validateInterceptor),
+		)
+		mux.Handle(debugPath, debugHandler)
+		s.log.Info().Msg("DebugService mounted on client-facing port (dev)")
+	}
+
 	s.server = &http.Server{
 		Addr:              address,
 		Handler:           mux,

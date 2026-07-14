@@ -21,7 +21,6 @@ import (
 
 const (
 	addressService = ":8080"
-	addressDebug   = ":8081"
 	addressPProf   = ":6060"
 )
 
@@ -149,12 +148,9 @@ func (w *World) StartGame() {
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
 
-	// Observers bracket the lifecycle: telemetry is up from NewWorld; debug
-	// and pprof come up here, BEFORE any producer (NATS, tick loop), so they
-	// remain available during boot failures (e.g. NATS connect hangs/retries).
-	// The mirror is in shutdown(): observers torn down LAST so they outlive
-	// the producers' teardown — see the comment block there.
-	w.debug.Init(addressDebug)
+	// pprof comes up before any producer (NATS, tick loop) so a profile stays
+	// reachable during boot hangs. DebugService is no longer started here — it
+	// mounts on the service port in w.service.init (dev-only), below.
 	w.pprof.Init(addressPProf)
 
 	// Start the NATS connection and handler. Failures here panic; observers
@@ -329,24 +325,16 @@ func (w *World) shutdown() {
 		w.tel.CaptureException(ctx, err)
 	}
 
-	// 3. Debug server — observer; cheap to drain because in-flight ConnectRPC
-	// debug calls (Pause/Step/etc.) are short-lived. Doing this BEFORE pprof
-	// gives the more-likely-long-running pprof captures the rest of the budget.
-	if err := w.debug.Shutdown(ctx); err != nil {
-		w.tel.Logger.Error().Err(err).Msg("debug server shutdown error")
-		w.tel.CaptureException(ctx, err)
-	}
-
-	// 4. Pprof server — observer; in-flight captures (especially /profile and
-	// /trace, both up to seconds=N) may legitimately take tens of seconds.
-	// http.Server.Shutdown blocks until they complete or until the shared ctx
-	// expires; whatever budget is left after steps 1-3 is what they get.
+	// 3. Pprof server — observer; in-flight /profile and /trace captures (up to
+	// seconds=N) can take tens of seconds, so it drains last on the leftover
+	// budget. (DebugService has no server to drain — it rode the service server,
+	// step 2.)
 	if err := w.pprof.Shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("pprof server shutdown error")
 		w.tel.CaptureException(ctx, err)
 	}
 
-	// 5. Telemetry last so log lines from steps 1-4 are flushed.
+	// 4. Telemetry last so log lines from steps 1-3 are flushed.
 	if err := w.tel.Shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("telemetry shutdown error")
 	}
