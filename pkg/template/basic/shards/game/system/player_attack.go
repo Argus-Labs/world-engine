@@ -9,7 +9,6 @@ import (
 )
 
 type AttackPlayerCommand struct {
-	cardinal.BaseCommand
 	Target string
 	Damage uint32
 }
@@ -26,9 +25,9 @@ type AttackPlayerSystemState struct {
 	Players                 PlayerSearch
 }
 
-func AttackPlayerSystem(state *AttackPlayerSystemState) error {
+func AttackPlayerSystem(state *AttackPlayerSystemState) {
 	for cmd := range state.AttackPlayerCommands.Iter() {
-		command := cmd.Payload()
+		command := cmd.Payload
 		for entity, player := range state.Players.Iter() {
 			tag := player.Tag.Get()
 
@@ -54,5 +53,4 @@ func AttackPlayerSystem(state *AttackPlayerSystemState) error {
 			}
 		}
 	}
-	return nil
 }

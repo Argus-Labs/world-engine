@@ -2,41 +2,58 @@ package cardinal
 
 import (
 	"context"
-	"crypto/sha256"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/cardinal/ecs"
-	"github.com/argus-labs/world-engine/pkg/cardinal/service"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
+	"google.golang.org/protobuf/proto"
+)
+
+const (
+	addressService = ":8080"
+	addressPProf   = ":6060"
 )
 
 // World represents your game world and serves as the main entry point for Cardinal.
 type World struct {
-	*micro.Shard                     // Embedded base shard functionalities
-	tel          telemetry.Telemetry // Telemetry for logging and tracing
+	world           *ecs.World            // The ECS world storing the game's state and systems
+	commands        command.Manager       // Receives commands for systems
+	events          event.Manager         // Collects and dispatches events
+	address         *micro.ServiceAddress // This world's NATS address
+	service         *service              // ConnectRPC direct client-facing service
+	snapshotStorage snapshot.Storage      // Snapshot storage
+	debug           *debugModule          // For debug only utils and services
+	pprof           *pprofModule          // Optional pprof HTTP server
+	currentTick     Tick                  // The current tick
+	options         WorldOptions          // Options
+	tel             telemetry.Telemetry   // Telemetry for logging and tracing
 }
 
 // NewWorld creates a new game world with the specified configuration.
 func NewWorld(opts WorldOptions) (*World, error) {
-	config, err := loadWorldConfig()
+	// Load and validate options.
+	envs, err := loadWorldOptionsEnv()
 	if err != nil {
-		return nil, eris.Wrap(err, "failed to load world config")
+		return nil, eris.Wrap(err, "failed to load world options env vars")
 	}
-
 	options := newDefaultWorldOptions()
-	config.applyToOptions(&options)
+	options.apply(envs.toOptions())
 	options.apply(opts)
 	if err := options.validate(); err != nil {
 		return nil, eris.Wrap(err, "invalid world options")
 	}
 
+	// Setup telemetry.
 	tel, err := telemetry.New(telemetry.Options{
 		ServiceName: "cardinal",
 		SentryOptions: sentry.Options{
@@ -52,63 +69,232 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 	defer tel.RecoverAndFlush(true)
 
-	client, err := micro.NewClient(micro.WithLogger(tel.GetLogger("client")))
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to initialize micro client")
+	world := &World{
+		world:    ecs.NewWorld(),
+		commands: command.NewManager(),
+		events:   event.NewManager(1024), // Default event channel capacity
+		address: micro.GetAddress(
+			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
+		currentTick: Tick{height: 0}, // timestamp will be set by cardinal.Tick
+		options:     options,
+		tel:         tel,
 	}
 
-	address := micro.GetAddress(options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID)
-
-	cardinal := newCardinal()
-
-	cardinalShard, err := micro.NewShard(cardinal, micro.ShardOptions{
-		Client:                 client,
-		Address:                address,
-		EpochFrequency:         options.EpochFrequency,
-		TickRate:               options.TickRate,
-		Telemetry:              &tel,
-		SnapshotStorageType:    options.SnapshotStorageType,
-		SnapshotStorageOptions: options.SnapshotStorageOptions,
+	// Set ECS on componet register callback (used for introspect).
+	world.world.OnComponentRegister(func(zero ecs.Component) error {
+		return world.debug.register("component", zero)
 	})
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to initialize shard")
-	}
 
-	// Initialize service only if we're in leader mode.
-	if cardinalShard.Mode() == micro.ModeLeader {
-		err := cardinal.initService(client, address, options.PrivateKey, &tel, cardinalShard.IsDisablePersona())
+	// Create the ConnectRPC client-facing service.
+	world.service = newService(world, options.AuthMode, options.ArgusAuthURL)
+
+	// Register event handlers with the ConnectRPC service publishers.
+	world.events.RegisterHandler(event.KindDefault, world.service.publishDefaultEvent)
+	world.events.RegisterHandler(event.KindInterShardCommand, world.service.publishInterShardCommand)
+
+	// Setup snapshot storage.
+	switch options.SnapshotStorageType {
+	case snapshot.StorageTypeJetStream:
+		snapshotJS, err := snapshot.NewJetStreamStorage(snapshot.JetStreamStorageOptions{
+			Logger:     tel.GetLogger("snapshot"),
+			Address:    world.address,
+			NATSConfig: options.NATSConfig,
+		})
 		if err != nil {
-			return nil, eris.Wrap(err, "failed to initialize cardinal service")
+			return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
 		}
+		world.snapshotStorage = snapshotJS
+	case snapshot.StorageTypeS3:
+		snapshotS3, err := snapshot.NewS3Storage(snapshot.S3StorageOptions{
+			Logger:  tel.GetLogger("snapshot"),
+			Address: world.address,
+		})
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create S3 snapshot storage")
+		}
+		world.snapshotStorage = snapshotS3
+	case snapshot.StorageTypeNop:
+		world.snapshotStorage = snapshot.NewNopStorage()
+	case snapshot.StorageTypeUndefined:
+		fallthrough
+	default:
+		panic("unreachable")
 	}
 
-	return &World{
-		Shard: cardinalShard,
-		tel:   tel,
-	}, nil
+	// Create the debug module only if debug is on.
+	if *options.Debug {
+		debug := newDebugModule(world)
+		world.debug = &debug
+	}
+
+	// Create the pprof module only if pprof is on.
+	if *options.Pprof {
+		world.pprof = newPprofModule(tel)
+	}
+
+	return world, nil
 }
 
 // StartGame launches your game and runs it until stopped.
 func (w *World) StartGame() {
+	// Freeze the command codec registry: all codecs register from generated init() (before now), so
+	// any later RegisterCommandCodec is a bug. Sealing turns that into a clear panic instead of an
+	// unrecoverable concurrent-map write against the tick loop's hot-path reads.
+	command.Seal()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
 
+	// pprof comes up before any producer (NATS, tick loop) so a profile stays
+	// reachable during boot hangs. DebugService is no longer started here — it
+	// mounts on the service port in w.service.init (dev-only), below.
+	w.pprof.Init(addressPProf)
+
+	// Start the NATS connection and handler. Failures here panic; observers
+	// above are already running, so a goroutine/stack profile is reachable
+	// during the panic window via the deferred shutdown chain.
+	// Start the ConnectRPC client-facing service.
+	if err := w.service.init(addressService); err != nil {
+		panic(eris.Wrap(err, "failed to initialize service"))
+	}
+
 	w.tel.CaptureEvent(ctx, "Start Game", nil)
 
-	if err := w.Run(ctx); err != nil {
+	if err := w.run(ctx); err != nil {
 		w.tel.CaptureException(ctx, err)
 		w.tel.Logger.Error().Err(err).Msg("failed running world")
 	}
 }
 
-func (w *World) getWorld() *ecs.World {
-	base, ok := w.Base().(*cardinal)
-	assert.That(ok, "cardinal shard didn't embed cardinal")
+func (w *World) run(ctx context.Context) error {
+	// Initialize world and run init systems.
+	w.world.Init()
 
-	return base.world
+	if err := w.restore(ctx); err != nil {
+		return eris.Wrap(err, "failed to restore state from snapshot")
+	}
+
+	logger := w.tel.GetLogger("shard")
+	logger.Info().Msg("starting core shard loop")
+
+	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
+	defer ticker.Stop()
+
+	for {
+		if w.debug.isPaused() {
+			select {
+			case <-w.debug.resumeChan():
+				w.debug.setPaused(false)
+			case replyCh := <-w.debug.stepChan():
+				w.Tick(ctx, time.Now())
+				replyCh <- w.currentTick.height
+			case replyCh := <-w.debug.resetChan():
+				w.reset()
+				replyCh <- struct{}{}
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			continue
+		}
+
+		select {
+		case <-ticker.C:
+			w.Tick(ctx, time.Now())
+		case replyCh := <-w.debug.pauseChan():
+			w.debug.setPaused(true)
+			replyCh <- w.currentTick.height
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (w *World) Tick(ctx context.Context, timestamp time.Time) {
+	// TODO: commands returned to be used for debug epoch log.
+	_ = w.commands.Drain()
+
+	w.currentTick.timestamp = timestamp
+	w.debug.startPerfTick()
+
+	// Tick ECS world.
+	w.world.Tick()
+
+	w.debug.recordTick(w.currentTick.height, timestamp)
+
+	// Emit events.
+	if err := w.events.Dispatch(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
+	}
+
+	// Publish snapshot.
+	if w.currentTick.height%uint64(w.options.SnapshotRate) == 0 {
+		snapshotCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		w.snapshot(snapshotCtx, timestamp)
+		cancel()
+	}
+
+	// Increment tick height.
+	w.currentTick.height++
+}
+
+// snapshot persists the world state as a best-effort operation. Snapshots are best effort only, and
+// we just log errors instead of returning it, which would cause the world to stop and restart,
+// effectively losing unsaved state. If a snapshot fails, the main loop still continues and we retry
+// in the next snapshot call.
+func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
+	worldState, err := w.world.ToProto()
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for snapshot")
+		return
+	}
+	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
+		return
+	}
+	snap := &snapshot.Snapshot{
+		TickHeight: w.currentTick.height,
+		Timestamp:  timestamp,
+		Data:       data,
+		Version:    snapshot.CurrentVersion,
+	}
+	if err := w.snapshotStorage.Store(ctx, snap); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to store snapshot")
+		return
+	}
+	w.tel.Logger.Debug().Msg("published snapshot")
+}
+
+func (w *World) restore(ctx context.Context) error {
+	logger := w.tel.GetLogger("snapshot")
+
+	logger.Debug().Msg("restoring from snapshot")
+	snap, err := w.snapshotStorage.Load(ctx)
+	if err != nil {
+		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
+			logger.Debug().Msg("no snapshot found")
+			return nil
+		}
+		return eris.Wrap(err, "failed to load snapshot")
+	}
+
+	// Unmarshal snapshot bytes into proto and restore ECS world.
+	var worldState cardinalv1.WorldState
+	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
+		return eris.Wrap(err, "failed to unmarshal snapshot data")
+	}
+	if err := w.world.FromProto(&worldState); err != nil {
+		return eris.Wrap(err, "failed to restore world from snapshot")
+	}
+
+	// Only update shard state after successful restoration and validation.
+	w.currentTick.height = snap.TickHeight + 1
+	w.debug.resetPerf()
+
+	return nil
 }
 
 // shutdown performs graceful cleanup of world resources, such as closing services
@@ -120,15 +306,35 @@ func (w *World) shutdown() {
 
 	w.tel.Logger.Info().Msg("Shutting down world")
 
-	base, ok := w.Base().(*cardinal)
-	assert.That(ok, "cardinal shard didn't embed cardinal")
+	// Shutdown order matters: every step below shares the same 10s ctx budget.
+	// We tear down producers (snapshot, NATS) BEFORE observers (debug, pprof)
+	// so that an in-flight introspection call — e.g. a 30s CPU profile or a
+	// pod-log tail — has a chance to drain during the NATS shutdown phase
+	// instead of being severed on the first cleanup step. Telemetry goes last
+	// so it can flush log lines emitted by every preceding step.
 
-	if err := base.shutdown(); err != nil {
-		w.tel.Logger.Error().Err(err).Msg("cardinal shutdown error")
+	// 1. Final snapshot. Producer-side, fixed 2s sub-budget.
+	snapshotCtx, snapshotCancel := context.WithTimeout(ctx, 2*time.Second)
+	w.snapshot(snapshotCtx, time.Now())
+	snapshotCancel()
+
+	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
+	// but the producer side should stop before observers do.
+	if err := w.service.shutdown(ctx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
 	}
 
-	// Shutdown telemetry.
+	// 3. Pprof server — observer; in-flight /profile and /trace captures (up to
+	// seconds=N) can take tens of seconds, so it drains last on the leftover
+	// budget. (DebugService has no server to drain — it rode the service server,
+	// step 2.)
+	if err := w.pprof.Shutdown(ctx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("pprof server shutdown error")
+		w.tel.CaptureException(ctx, err)
+	}
+
+	// 4. Telemetry last so log lines from steps 1-3 are flushed.
 	if err := w.tel.Shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("telemetry shutdown error")
 	}
@@ -136,141 +342,24 @@ func (w *World) shutdown() {
 	w.tel.Logger.Info().Msg("World shutdown complete")
 }
 
-// -------------------------------------------------------------------------------------------------
-// Cardinal shard implementation
-// -------------------------------------------------------------------------------------------------
+func (w *World) reset() {
+	// Reset ECS world and rerun the init systems.
+	w.world.Reset()
+	w.world.Init()
 
-// cardinal implements the methods for the micro.ShardEngine interface.
-type cardinal struct {
-	world   *ecs.World            // The ECS world storing the game's state and systems
-	service *service.ShardService // Microservice for handling network communication
+	// Clear command and event buffers from previous tick.
+	w.commands.Clear()
+	w.events.Clear()
 
-	// Snapshot caching for performance optimization. This is here so we don't have to reserialize
-	// the world state when it hasn't changed.
-	cachedSnapshot []byte // Cached serialized state
-	isDirty        bool   // True if state has changed since last snapshot
+	// Reset tick bookkeeping fields.
+	w.currentTick.height = 0
+	w.currentTick.timestamp = time.Time{}
+
+	// Reset perf collector.
+	w.debug.resetPerf()
 }
 
-var _ micro.ShardEngine = &cardinal{}
-
-// newCardinal creates a new cardinal instance.
-func newCardinal() *cardinal {
-	return &cardinal{
-		world:          ecs.NewWorld(),
-		service:        nil, // Will be initialized only in leader mode
-		cachedSnapshot: nil,
-		isDirty:        true, // Start as dirty to force initial snapshot generation
-	}
-}
-
-func (c *cardinal) Init() error {
-	c.world.Init()
-	return nil
-}
-
-func (c *cardinal) StateHash() ([]byte, error) {
-	snapshot, err := c.Snapshot()
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create snapshot for state hash")
-	}
-
-	hash := sha256.Sum256(snapshot)
-	return hash[:], nil
-}
-
-func (c *cardinal) Tick(tick micro.Tick) error {
-	events, err := c.world.Tick(tick.Data.Commands)
-	if err != nil {
-		return eris.Wrap(err, "one or more systems failed")
-	}
-
-	c.invalidateCache() // Mark state as dirty since it has changed
-
-	// Publish events only if systems completed successfully and service is initialized.
-	if c.service != nil {
-		c.service.Publish(events)
-	}
-
-	return nil
-}
-
-func (c *cardinal) Replay(tick micro.Tick) error {
-	_, err := c.world.Tick(tick.Data.Commands)
-	if err != nil {
-		return eris.Wrap(err, "one or more systems failed")
-	}
-
-	c.invalidateCache() // Mark state as dirty since it has changed
-	return nil
-}
-
-func (c *cardinal) Snapshot() ([]byte, error) {
-	if !c.isDirty && c.cachedSnapshot != nil {
-		return c.cachedSnapshot, nil
-	}
-
-	data, err := c.world.Serialize()
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to serialize world state")
-	}
-
-	// Cache the snapshot and mark as clean.
-	c.cachedSnapshot = data
-	c.isDirty = false
-	return data, nil
-}
-
-func (c *cardinal) Restore(data []byte) error {
-	if err := c.world.Deserialize(data); err != nil {
-		return eris.Wrap(err, "failed to restore world state")
-	}
-
-	// Re-initialize schedulers since we don't call Init to do it for us.
-	c.world.Init()
-
-	c.invalidateCache() // Mark state as dirty since it has changed
-	return nil
-}
-
-func (c *cardinal) Reset() {
-	c.world = ecs.NewWorld()
-	c.invalidateCache() // Mark state as dirty since it has changed
-}
-
-func (c *cardinal) shutdown() error {
-	if c.service != nil {
-		if err := c.service.Close(); err != nil {
-			return eris.Wrap(err, "failed to close service")
-		}
-	}
-	return nil
-}
-
-// initService initializes the cardinal service for leader mode.
-func (c *cardinal) initService(
-	client *micro.Client,
-	address *micro.ServiceAddress,
-	privateKey string,
-	tel *telemetry.Telemetry,
-	disablePersona bool,
-) error {
-	microService, err := service.NewShardService(service.ShardServiceOptions{
-		Client:         client,
-		Address:        address,
-		World:          c.world,
-		Telemetry:      tel,
-		PrivateKey:     privateKey,
-		DisablePersona: disablePersona,
-	})
-	if err != nil {
-		return eris.Wrap(err, "failed to create micro service")
-	}
-	c.service = microService
-	return nil
-}
-
-// invalidateCache invalidates the snapshot cache and marks the state as dirty.
-func (c *cardinal) invalidateCache() {
-	c.cachedSnapshot = nil
-	c.isDirty = true
+type Tick struct {
+	height    uint64
+	timestamp time.Time
 }

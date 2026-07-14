@@ -3,12 +3,24 @@ syntax = "proto3";
 package worldengine.cardinal.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
 
-// CardinalSnapshot represents a complete snapshot of the world state.
-message CardinalSnapshot {
+// Snapshot represents a point-in-time capture of shard state.
+message Snapshot {
+  uint64 tick_height = 1;
+
+  google.protobuf.Timestamp timestamp = 2;
+
+  WorldState world_state = 3;
+
+  uint32 version = 4;
+}
+
+// WorldState represents the ECS world state.
+message WorldState {
   // Entity manager state
   uint32 next_id = 1;
 

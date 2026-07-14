@@ -25,15 +25,14 @@ namespace WorldEngine.Proto.Isc.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Ch53b3JsZGVuZ2luZS9pc2MvdjEvZXZlbnQucHJvdG8SEndvcmxkZW5naW5l",
-            "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvGhxnb29nbGUv",
-            "cHJvdG9idWYvc3RydWN0LnByb3RvIncKBUV2ZW50EjMKBG5hbWUYASABKAlC",
-            "H7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSOQoHcGF5",
-            "bG9hZBgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCBrpIA8gBAVIH",
-            "cGF5bG9hZEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5l",
-            "L3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3Js",
-            "ZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw=="));
+            "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvIl4KBUV2ZW50",
+            "EjMKBG5hbWUYASABKAlCH7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTI",
+            "AQFSBG5hbWUSIAoHcGF5bG9hZBgCIAEoDEIGukgDyAEBUgdwYXlsb2FkQmVa",
+            "SGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2Vu",
+            "L2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlBy",
+            "b3RvLklzYy5WMWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Event), global::WorldEngine.Proto.Isc.V1.Event.Parser, new[]{ "Name", "Payload" }, null, null, null, null)
           }));
@@ -81,7 +80,7 @@ namespace WorldEngine.Proto.Isc.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public Event(Event other) : this() {
       name_ = other.name_;
-      payload_ = other.payload_ != null ? other.payload_.Clone() : null;
+      payload_ = other.payload_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -108,16 +107,16 @@ namespace WorldEngine.Proto.Isc.V1 {
 
     /// <summary>Field number for the "payload" field.</summary>
     public const int PayloadFieldNumber = 2;
-    private global::Google.Protobuf.WellKnownTypes.Struct payload_;
+    private pb::ByteString payload_ = pb::ByteString.Empty;
     /// <summary>
-    /// The payload of the event.
+    /// The event payload serialized as MessagePack bytes.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Google.Protobuf.WellKnownTypes.Struct Payload {
+    public pb::ByteString Payload {
       get { return payload_; }
       set {
-        payload_ = value;
+        payload_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
     }
 
@@ -137,7 +136,7 @@ namespace WorldEngine.Proto.Isc.V1 {
         return true;
       }
       if (Name != other.Name) return false;
-      if (!object.Equals(Payload, other.Payload)) return false;
+      if (Payload != other.Payload) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -146,7 +145,7 @@ namespace WorldEngine.Proto.Isc.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (Name.Length != 0) hash ^= Name.GetHashCode();
-      if (payload_ != null) hash ^= Payload.GetHashCode();
+      if (Payload.Length != 0) hash ^= Payload.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -169,9 +168,9 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(10);
         output.WriteString(Name);
       }
-      if (payload_ != null) {
+      if (Payload.Length != 0) {
         output.WriteRawTag(18);
-        output.WriteMessage(Payload);
+        output.WriteBytes(Payload);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -187,9 +186,9 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(10);
         output.WriteString(Name);
       }
-      if (payload_ != null) {
+      if (Payload.Length != 0) {
         output.WriteRawTag(18);
-        output.WriteMessage(Payload);
+        output.WriteBytes(Payload);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -204,8 +203,8 @@ namespace WorldEngine.Proto.Isc.V1 {
       if (Name.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
       }
-      if (payload_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Payload);
+      if (Payload.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeBytesSize(Payload);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -222,11 +221,8 @@ namespace WorldEngine.Proto.Isc.V1 {
       if (other.Name.Length != 0) {
         Name = other.Name;
       }
-      if (other.payload_ != null) {
-        if (payload_ == null) {
-          Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-        }
-        Payload.MergeFrom(other.Payload);
+      if (other.Payload.Length != 0) {
+        Payload = other.Payload;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -252,10 +248,7 @@ namespace WorldEngine.Proto.Isc.V1 {
             break;
           }
           case 18: {
-            if (payload_ == null) {
-              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Payload);
+            Payload = input.ReadBytes();
             break;
           }
         }
@@ -282,10 +275,7 @@ namespace WorldEngine.Proto.Isc.V1 {
             break;
           }
           case 18: {
-            if (payload_ == null) {
-              Payload = new global::Google.Protobuf.WellKnownTypes.Struct();
-            }
-            input.ReadMessage(Payload);
+            Payload = input.ReadBytes();
             break;
           }
         }

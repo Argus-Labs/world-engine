@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "id": "fireball", "cooldown": 2.5 },
+    { "id": "frostbolt", "cooldown": 3.0 }
+  ]
+}

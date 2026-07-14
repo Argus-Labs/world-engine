@@ -62,10 +62,12 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	}
 
 	// Init NATS options with validated configuration.
+	// Reconnection strategy mirrors the NATS CLI: infinite retries with exponential backoff.
 	natsOpts := []nats.Option{
 		nats.Name(c.natsConfig.Name),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(time.Second * 5),
+		nats.MaxReconnects(-1),
+		nats.IgnoreAuthErrorAbort(),
+		nats.CustomReconnectDelay(reconnectDelay),
 		nats.DisconnectErrHandler(c.handleDisconnect),
 		nats.ReconnectHandler(c.handleReconnect),
 		nats.ClosedHandler(c.handleClosed),
@@ -93,43 +95,6 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
-// NewTestClient creates a NATS client specifically for testing without authentication.
-// This should only be used in test environments with unauthenticated NATS servers.
-func NewTestClient(natsURL string) (*Client, error) {
-	c := &Client{
-		natsConfig: NATSConfig{
-			Name: "test-client",
-			URL:  natsURL,
-		},
-		log: zerolog.Nop(),
-	}
-
-	// Create basic NATS options without authentication
-	natsOpts := []nats.Option{
-		nats.Name(c.natsConfig.Name),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(time.Second * 5),
-		nats.DisconnectErrHandler(c.handleDisconnect),
-		nats.ReconnectHandler(c.handleReconnect),
-		nats.ClosedHandler(c.handleClosed),
-		nats.ErrorHandler(c.handleError),
-	}
-
-	// Connect without authentication (for test NATS servers).
-	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to connect to NATS server")
-	}
-	c.Conn = conn
-
-	c.log.Info().
-		Str("url", c.ConnectedUrl()).
-		Str("name", c.natsConfig.Name).
-		Msg("Connected to test NATS server")
-
-	return c, nil
-}
-
 // Request sends a request to a subject and waits for a response (request-reply pattern).
 // The timeout should be set in ctx.
 func (c *Client) Request(
@@ -138,9 +103,14 @@ func (c *Client) Request(
 	endpoint string,
 	payload proto.Message,
 ) (*microv1.Response, error) {
-	anyPayload, err := anypb.New(payload)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create Any payload")
+	var anyPayload *anypb.Any
+	var err error
+
+	if payload != nil {
+		anyPayload, err = anypb.New(payload)
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to create Any payload")
+		}
 	}
 
 	req := &microv1.Request{
@@ -196,10 +166,6 @@ func (c *Client) RequestAndSubscribe(
 			c.log.Warn().Err(err).Str("subject", receiveSubject).Msg("Failed to unsubscribe")
 		}
 	}()
-
-	if err := sub.AutoUnsubscribe(1); err != nil {
-		return nil, eris.Wrap(err, "failed to set auto-unsubscribe")
-	}
 
 	// Send request. If it fails, return early without waiting for response.
 	_, err = c.Request(ctx, sendAddress, sendEndpoint, payload)
@@ -261,15 +227,42 @@ func (c *Client) handleClosed(nc *nats.Conn) {
 
 // handleError handles NATS subscription errors.
 func (c *Client) handleError(_ *nats.Conn, sub *nats.Subscription, err error) {
-	c.log.Error().
-		Err(err).
-		Str("subject", sub.Subject).
-		Msg("NATS subscription error occurred")
+	logEvent := c.log.Error().Err(err)
+	if sub != nil {
+		logEvent = logEvent.Str("subject", sub.Subject)
+	}
+	logEvent.Msg("NATS subscription error occurred")
 }
 
-// ----------------------------------------------------------------------------
+// reconnectBackoff defines the exponential backoff delays in milliseconds.
+// Copied from the NATS CLI's DefaultBackoff: https://github.com/nats-io/natscli/blob/main/internal/util/backoff.go
+// Starts at 500ms and ramps up to 20s over 44 steps.
+//
+//nolint:gochecknoglobals // package-level lookup table is appropriate here.
+var reconnectBackoff = []int{
+	500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
+	5500, 5750, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000,
+	10500, 10750, 11000, 11500, 12000, 12500, 13000, 13500, 14000, 14500, 15000,
+	15500, 15750, 16000, 16500, 17000, 17500, 18000, 18500, 19000, 19500, 20000,
+}
+
+// reconnectDelay returns a backoff duration for the given reconnect attempt.
+// Backoff table copied from NATS CLI: https://github.com/nats-io/natscli/blob/main/internal/util/backoff.go
+// Note: NATS increments the attempt counter before calling this function, so the first
+// real call is reconnectDelay(1). Index 0 is never used in practice.
+func reconnectDelay(attempts int) time.Duration {
+	if attempts < 0 {
+		attempts = 0
+	}
+	if attempts >= len(reconnectBackoff) {
+		attempts = len(reconnectBackoff) - 1
+	}
+	return time.Duration(reconnectBackoff[attempts]) * time.Millisecond
+}
+
+// -------------------------------------------------------------------------------------------------
 // Options
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 
 // ClientOption defines a function that can modify a Client.
 type ClientOption func(*Client)

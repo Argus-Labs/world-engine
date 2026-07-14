@@ -5,14 +5,13 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/isc/v1/event.proto.
  */
 export const file_worldengine_isc_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvZXZlbnQucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSJoCgVFdmVudBItCgRuYW1lGAEgASgJQh+6SBzIAQFyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEjAKB3BheWxvYWQYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Qga6SAPIAQFCZVpIZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvaXNjL3YxO2lzY3YxqgIYV29ybGRFbmdpbmUuUHJvdG8uSXNjLlYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvZXZlbnQucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSJPCgVFdmVudBItCgRuYW1lGAEgASgJQh+6SBzIAQFyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEhcKB3BheWxvYWQYAiABKAxCBrpIA8gBAUJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * Event represents a game event emitted by Cardinal.
@@ -28,11 +27,11 @@ export type Event = Message<"worldengine.isc.v1.Event"> & {
   name: string;
 
   /**
-   * The payload of the event.
+   * The event payload serialized as MessagePack bytes.
    *
-   * @generated from field: google.protobuf.Struct payload = 2;
+   * @generated from field: bytes payload = 2;
    */
-  payload?: JsonObject;
+  payload: Uint8Array;
 };
 
 /**

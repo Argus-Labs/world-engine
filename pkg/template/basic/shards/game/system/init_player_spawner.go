@@ -13,7 +13,7 @@ type PlayerSpawnerSystemState struct {
 	Players PlayerSearch
 }
 
-func PlayerSpawnerSystem(state *PlayerSpawnerSystemState) error {
+func PlayerSpawnerSystem(state *PlayerSpawnerSystemState) {
 	for i := range 10 {
 		name := fmt.Sprintf("default-%d", i)
 
@@ -23,5 +23,4 @@ func PlayerSpawnerSystem(state *PlayerSpawnerSystemState) error {
 
 		state.Logger().Info().Uint32("entity", uint32(id)).Msgf("Created player %s", name)
 	}
-	return nil
 }

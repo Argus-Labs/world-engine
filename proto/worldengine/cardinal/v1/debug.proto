@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package worldengine.cardinal.v1;
+
+import "google/protobuf/struct.proto";
+import "worldengine/cardinal/v1/snapshot.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
+
+// DebugService provides debugging and introspection endpoints for Cardinal.
+// This service is intended for dev tooling (e.g., AI agents, debugging tools).
+service DebugService {
+  // Introspect returns metadata about the registered types in the world.
+  // The result includes JSON schemas for commands, components, and events.
+  rpc Introspect(IntrospectRequest) returns (IntrospectResponse);
+
+  // Pause stops tick execution. The world remains running but no ticks are processed.
+  rpc Pause(PauseRequest) returns (PauseResponse);
+
+  // Resume continues tick execution after a pause.
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+
+  // Step executes a single tick. Only works when paused.
+  rpc Step(StepRequest) returns (StepResponse);
+
+  // Reset restores the world to its initial state (before tick 0).
+  rpc Reset(ResetRequest) returns (ResetResponse);
+
+  // GetState returns the current world state snapshot.
+  rpc GetState(GetStateRequest) returns (GetStateResponse);
+
+  // StreamPerf streams batches of per-tick timing data to clients.
+  // The server pushes a PerfBatch every N ticks; clients accumulate the full
+  // history and compute their own aggregations (avg, P95, etc.).
+  rpc StreamPerf(StreamPerfRequest) returns (stream PerfBatch);
+}
+
+// -------------------------------------------------------------------------------------------------
+// Introspect
+// -------------------------------------------------------------------------------------------------
+
+// IntrospectRequest is the request message for the Introspect RPC.
+message IntrospectRequest {}
+
+// IntrospectResponse contains introspection metadata about the world.
+message IntrospectResponse {
+  // JSON schemas for registered commands.
+  repeated TypeSchema commands = 1;
+
+  // JSON schemas for registered components.
+  repeated TypeSchema components = 2;
+
+  // JSON schemas for registered events.
+  repeated TypeSchema events = 3;
+
+  // Tick rate in Hz (e.g. 20.0). Clients derive tick_budget_ms as 1000/tick_rate_hz.
+  double tick_rate_hz = 4;
+
+  // System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
+  repeated SystemSchedule schedules = 5;
+}
+
+// SystemSchedule describes the systems for one execution phase.
+message SystemSchedule {
+  SystemHook hook = 1;
+  repeated SystemNode systems = 2;
+}
+
+// SystemNode describes a single system within a schedule.
+message SystemNode {
+  // Index of this system within the schedule.
+  uint32 id = 1;
+  // Name of the system.
+  string name = 2;
+}
+
+// TypeSchema represents the JSON schema for a registered type.
+message TypeSchema {
+  // Name of the type.
+  string name = 1;
+
+  // JSON schema for the type.
+  google.protobuf.Struct schema = 2;
+}
+
+// PauseRequest is the request message for the Pause RPC.
+message PauseRequest {}
+
+// PauseResponse is the response message for the Pause RPC.
+message PauseResponse {
+  // The tick height at which the world was paused.
+  uint64 tick_height = 1;
+}
+
+// ResumeRequest is the request message for the Resume RPC.
+message ResumeRequest {}
+
+// ResumeResponse is the response message for the Resume RPC.
+message ResumeResponse {}
+
+// StepRequest is the request message for the Step RPC.
+message StepRequest {}
+
+// StepResponse is the response message for the Step RPC.
+message StepResponse {
+  // The tick height after stepping.
+  uint64 tick_height = 1;
+}
+
+// ResetRequest is the request message for the Reset RPC.
+message ResetRequest {}
+
+// ResetResponse is the response message for the Reset RPC.
+message ResetResponse {}
+
+// GetStateRequest is the request message for the GetState RPC.
+message GetStateRequest {}
+
+// GetStateResponse is the response message for the GetState RPC.
+message GetStateResponse {
+  // Whether the world is currently paused.
+  bool is_paused = 1;
+
+  // The current world state snapshot (includes tick_height).
+  Snapshot snapshot = 2;
+}
+
+// -------------------------------------------------------------------------------------------------
+// StreamPerf
+// -------------------------------------------------------------------------------------------------
+
+// StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
+message StreamPerfRequest {}
+
+// PerfBatch is a batch of completed tick timelines pushed to the client.
+message PerfBatch {
+  repeated TickTimeline ticks = 1;
+}
+
+message TickTimeline {
+  uint64 tick_height = 1;
+  google.protobuf.Timestamp tick_start = 2;
+  repeated SystemSpan spans = 3;
+}
+
+// SystemHook defines when a system executes in the tick lifecycle.
+enum SystemHook {
+  SYSTEM_HOOK_UNSPECIFIED = 0;
+  SYSTEM_HOOK_PRE_UPDATE = 1;
+  SYSTEM_HOOK_UPDATE = 2;
+  SYSTEM_HOOK_POST_UPDATE = 3;
+  SYSTEM_HOOK_INIT = 4;
+}
+
+message SystemSpan {
+  SystemHook system_hook = 1;
+  string system = 2;
+  // Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+  uint64 start_offset_ns = 3;
+  // Duration of this span in nanoseconds.
+  uint64 duration_ns = 4;
+}

@@ -8,7 +8,6 @@ import (
 )
 
 type CreatePlayerCommand struct {
-	cardinal.BaseCommand
 	Nickname string `json:"nickname"`
 }
 
@@ -23,9 +22,9 @@ type CreatePlayerSystemState struct {
 	Players              PlayerSearch
 }
 
-func CreatePlayerSystem(state *CreatePlayerSystemState) error {
+func CreatePlayerSystem(state *CreatePlayerSystemState) {
 	for cmd := range state.CreatePlayerCommands.Iter() {
-		command := cmd.Payload()
+		command := cmd.Payload
 
 		_, entity := state.Players.Create()
 
@@ -33,8 +32,7 @@ func CreatePlayerSystem(state *CreatePlayerSystemState) error {
 		entity.Health.Set(component.Health{HP: 100})
 
 		state.NewPlayerEvents.Emit(event.NewPlayer{Nickname: command.Nickname})
-		state.Logger().Info().Uint32("entity", uint32(0)).Str("persona", cmd.Persona()).
+		state.Logger().Info().Uint32("entity", uint32(0)).Str("persona", cmd.Persona).
 			Msgf("Created player %s", command.Nickname)
 	}
-	return nil
 }

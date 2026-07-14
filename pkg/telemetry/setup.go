@@ -5,17 +5,19 @@ import (
 	"errors"
 	"io"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	otelTrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -72,11 +74,36 @@ func setupOpenTelemetry(
 }
 
 func newResource(opts Options) (*resource.Resource, error) {
+	attrs := []attribute.KeyValue{semconv.ServiceName(opts.ServiceName)}
+	if v := resolveServiceVersion(); v != "" {
+		attrs = append(attrs, semconv.ServiceVersion(v))
+	}
 	return resource.Merge(resource.Default(),
-		resource.NewWithAttributes(semconv.SchemaURL,
-			semconv.ServiceName(opts.ServiceName),
-			semconv.ServiceVersion("dev"), // TODO: make configurable
-		))
+		resource.NewWithAttributes(semconv.SchemaURL, attrs...))
+}
+
+// resolveServiceVersion picks the value for the service.version resource attribute.
+// OTEL_SERVICE_VERSION wins; otherwise the binary's main-module version, then
+// vcs.revision from build info. Empty result = attribute omitted.
+func resolveServiceVersion() string {
+	if v := os.Getenv("OTEL_SERVICE_VERSION"); v != "" {
+		return v
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	// "(devel)" is what the Go toolchain emits for an untagged main module;
+	// treat it as no-version and fall through to vcs.revision.
+	if v := info.Main.Version; v != "" && v != "(devel)" {
+		return v
+	}
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			return s.Value
+		}
+	}
+	return ""
 }
 
 func newPropagator() propagation.TextMapPropagator {

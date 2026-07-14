@@ -18,9 +18,9 @@ type MovePlayerSystemState struct {
 	Players             PlayerSearch
 }
 
-func MovePlayerSystem(state *MovePlayerSystemState) error {
+func MovePlayerSystem(state *MovePlayerSystemState) {
 	for cmd := range state.MovePlayerCommands.Iter() {
-		command := cmd.Payload()
+		command := cmd.Payload
 
 		for entity, player := range state.Players.Iter() {
 			tag := player.Tag.Get()
@@ -56,5 +56,4 @@ func MovePlayerSystem(state *MovePlayerSystemState) error {
 				Msgf("Player %s (id: %s) moved to %d, %d", name, tag.ArgusAuthID, command.X, command.Y)
 		}
 	}
-	return nil
 }

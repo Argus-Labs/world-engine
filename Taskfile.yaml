@@ -71,16 +71,22 @@ tasks:
     deps: [_deps:gotestsum]
     requires:
       vars: [CI]
+    vars:
+      TEST_SEED: '{{default (now | unixEpoch) .TEST_SEED}}'
     cmds:
-      - gotestsum {{if .CI}}--junitfile=junit.xml -- -coverprofile=coverage.out -covermode=atomic{{end}} ./pkg/... -tags="!integration"
+      - printf "to reproduce{{":"}} TEST_SEED=0x%x task test:unit\n" {{.TEST_SEED}}
+      - TEST_SEED={{.TEST_SEED}} gotestsum {{if .CI}}--junitfile=junit.xml -- -coverprofile=coverage.out -covermode=atomic{{end}} ./pkg/... -tags="!integration"
 
   _test:go:all:
     internal: true
     deps: [_deps:gotestsum]
     requires:
       vars: [CI]
+    vars:
+      TEST_SEED: '{{default (now | unixEpoch) .TEST_SEED}}'
     cmds:
-      - gotestsum {{if .CI}}--junitfile=junit.xml -- -coverprofile=coverage.out -covermode=atomic{{end}} ./pkg/...
+      - printf "to reproduce{{":"}} TEST_SEED=0x%x task test\n" {{.TEST_SEED}}
+      - TEST_SEED={{.TEST_SEED}} gotestsum {{if .CI}}--junitfile=junit.xml -- -coverprofile=coverage.out -covermode=atomic{{end}} ./pkg/...
 
   _deps:golangci-lint:
     internal: true
