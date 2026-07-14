@@ -60,6 +60,11 @@ message IntrospectResponse {
 
   // System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
   repeated SystemSchedule schedules = 5;
+
+  // Serialized google.protobuf.FileDescriptorSet covering every proto message referenced by
+  // commands[].proto_message_name, plus transitive dependencies. Decode with any standard protobuf
+  // runtime (e.g. protobufjs's Root.fromDescriptor). Empty if no command resolved a proto message.
+  bytes proto_descriptor_set = 6;
 }
 
 // SystemSchedule describes the systems for one execution phase.
@@ -83,6 +88,9 @@ message TypeSchema {
 
   // JSON schema for the type.
   google.protobuf.Struct schema = 2;
+
+  // Fully-qualified proto message name for a command that resolved a proto descriptor.
+  string proto_message_name = 3;
 }
 
 // PauseRequest is the request message for the Pause RPC.
