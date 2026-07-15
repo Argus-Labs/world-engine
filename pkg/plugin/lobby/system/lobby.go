@@ -3,7 +3,6 @@ package system
 import (
 	"crypto/sha256"
 	"fmt"
-	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
@@ -1084,16 +1083,17 @@ func resolvePreset(preset string, presets map[string][]TeamConfig) ([]TeamConfig
 // its current code. On create the lobby is not yet in the index, so that case
 // cannot arise and this reduces to a plain "code is unused" check.
 //
-// The attempt index is mixed into the seed so each retry is guaranteed a distinct
-// code. Reading the clock once per attempt instead would leave the retry at the
-// mercy of clock resolution: two reads a few nanoseconds apart can return the same
-// value, and every attempt would then hash the same input and collide identically.
+// seed comes from the tick timestamp rather than the wall clock: a system should
+// read the tick's clock, not time.Now(). The attempt index is mixed in so each
+// retry is guaranteed a distinct code even though the tick timestamp does not
+// advance between attempts. Two lobbies created in the same tick still differ,
+// because the lobby ID is part of the hash.
 func generateInviteCodeWithRetry(
 	lobbyIndex *component.LobbyIndexComponent,
 	lobby *component.LobbyComponent,
 	maxRetries int,
+	seed int64,
 ) (string, bool) {
-	seed := time.Now().UnixNano()
 	for attempt := range maxRetries {
 		code := storedProvider.GenerateInviteCode(lobby, seed+int64(attempt))
 		owner, exists := lobbyIndex.GetLobbyByInviteCode(code)
@@ -1231,7 +1231,9 @@ func processCreateLobbyCommands(
 		}
 
 		// Generate invite code with collision check
-		inviteCode, ok := generateInviteCodeWithRetry(lobbyIndex, &lobby, inviteCodeMaxRetries)
+		inviteCode, ok := generateInviteCodeWithRetry(
+			lobbyIndex, &lobby, inviteCodeMaxRetries, state.Timestamp().UnixNano(),
+		)
 		if !ok {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
 			emitCreateLobbyFailure(state, payload.RequestID, "invite code collision")
@@ -2168,7 +2170,9 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 		oldCode := lobby.InviteCode
 
 		// Generate new invite code with collision check (max 3 retries)
-		newCode, newCodeValid := generateInviteCodeWithRetry(lobbyIndex, &lobby, inviteCodeMaxRetries)
+		newCode, newCodeValid := generateInviteCodeWithRetry(
+			lobbyIndex, &lobby, inviteCodeMaxRetries, state.Timestamp().UnixNano(),
+		)
 		if !newCodeValid {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
 			state.GenerateInviteCodeResults.Emit(GenerateInviteCodeResult{
