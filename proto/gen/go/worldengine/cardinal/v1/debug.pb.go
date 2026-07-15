@@ -128,9 +128,13 @@ type IntrospectResponse struct {
 	// Tick rate in Hz (e.g. 20.0). Clients derive tick_budget_ms as 1000/tick_rate_hz.
 	TickRateHz float64 `protobuf:"fixed64,4,opt,name=tick_rate_hz,json=tickRateHz,proto3" json:"tick_rate_hz,omitempty"`
 	// System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
-	Schedules     []*SystemSchedule `protobuf:"bytes,5,rep,name=schedules,proto3" json:"schedules,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Schedules []*SystemSchedule `protobuf:"bytes,5,rep,name=schedules,proto3" json:"schedules,omitempty"`
+	// Serialized google.protobuf.FileDescriptorSet covering every proto message referenced by
+	// commands[].proto_message_name, plus transitive dependencies. Decode with any standard protobuf
+	// runtime (e.g. protobufjs's Root.fromDescriptor). Empty if no command resolved a proto message.
+	ProtoDescriptorSet []byte `protobuf:"bytes,6,opt,name=proto_descriptor_set,json=protoDescriptorSet,proto3" json:"proto_descriptor_set,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *IntrospectResponse) Reset() {
@@ -194,6 +198,13 @@ func (x *IntrospectResponse) GetTickRateHz() float64 {
 func (x *IntrospectResponse) GetSchedules() []*SystemSchedule {
 	if x != nil {
 		return x.Schedules
+	}
+	return nil
+}
+
+func (x *IntrospectResponse) GetProtoDescriptorSet() []byte {
+	if x != nil {
+		return x.ProtoDescriptorSet
 	}
 	return nil
 }
@@ -312,9 +323,11 @@ type TypeSchema struct {
 	// Name of the type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// JSON schema for the type.
-	Schema        *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Schema *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
+	// Fully-qualified proto message name for a command that resolved a proto descriptor.
+	ProtoMessageName string `protobuf:"bytes,3,opt,name=proto_message_name,json=protoMessageName,proto3" json:"proto_message_name,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TypeSchema) Reset() {
@@ -359,6 +372,13 @@ func (x *TypeSchema) GetSchema() *structpb.Struct {
 		return x.Schema
 	}
 	return nil
+}
+
+func (x *TypeSchema) GetProtoMessageName() string {
+	if x != nil {
+		return x.ProtoMessageName
+	}
+	return ""
 }
 
 // PauseRequest is the request message for the Pause RPC.
@@ -984,7 +1004,7 @@ var File_worldengine_cardinal_v1_debug_proto protoreflect.FileDescriptor
 const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
 	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a&worldengine/cardinal/v1/snapshot.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
-	"\x11IntrospectRequest\"\xc0\x02\n" +
+	"\x11IntrospectRequest\"\xf2\x02\n" +
 	"\x12IntrospectResponse\x12?\n" +
 	"\bcommands\x18\x01 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\bcommands\x12C\n" +
 	"\n" +
@@ -993,18 +1013,20 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\x06events\x18\x03 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\x06events\x12 \n" +
 	"\ftick_rate_hz\x18\x04 \x01(\x01R\n" +
 	"tickRateHz\x12E\n" +
-	"\tschedules\x18\x05 \x03(\v2'.worldengine.cardinal.v1.SystemScheduleR\tschedules\"\x88\x01\n" +
+	"\tschedules\x18\x05 \x03(\v2'.worldengine.cardinal.v1.SystemScheduleR\tschedules\x120\n" +
+	"\x14proto_descriptor_set\x18\x06 \x01(\fR\x12protoDescriptorSet\"\x88\x01\n" +
 	"\x0eSystemSchedule\x127\n" +
 	"\x04hook\x18\x01 \x01(\x0e2#.worldengine.cardinal.v1.SystemHookR\x04hook\x12=\n" +
 	"\asystems\x18\x02 \x03(\v2#.worldengine.cardinal.v1.SystemNodeR\asystems\"0\n" +
 	"\n" +
 	"SystemNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"Q\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x7f\n" +
 	"\n" +
 	"TypeSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\x06schema\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06schema\"\x0e\n" +
+	"\x06schema\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06schema\x12,\n" +
+	"\x12proto_message_name\x18\x03 \x01(\tR\x10protoMessageName\"\x0e\n" +
 	"\fPauseRequest\"0\n" +
 	"\rPauseResponse\x12\x1f\n" +
 	"\vtick_height\x18\x01 \x01(\x04R\n" +
