@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	gen "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c MovePlayer) ToProto() *gen.MovePlayer {
@@ -29,6 +30,10 @@ func (c MovePlayer) FromProto(p *gen.MovePlayer) MovePlayer {
 }
 
 type movePlayerCodec struct{}
+
+func (movePlayerCodec) MessageDescriptor() protoreflect.MessageDescriptor {
+	return (&gen.MovePlayer{}).ProtoReflect().Descriptor()
+}
 
 func (movePlayerCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(MovePlayer)
@@ -63,6 +68,10 @@ func (c PlayerLeave) FromProto(p *gen.PlayerLeave) PlayerLeave {
 }
 
 type playerLeaveCodec struct{}
+
+func (playerLeaveCodec) MessageDescriptor() protoreflect.MessageDescriptor {
+	return (&gen.PlayerLeave{}).ProtoReflect().Descriptor()
+}
 
 func (playerLeaveCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(PlayerLeave)
@@ -103,6 +112,10 @@ func (c PlayerSpawn) FromProto(p *gen.PlayerSpawn) PlayerSpawn {
 }
 
 type playerSpawnCodec struct{}
+
+func (playerSpawnCodec) MessageDescriptor() protoreflect.MessageDescriptor {
+	return (&gen.PlayerSpawn{}).ProtoReflect().Descriptor()
+}
 
 func (playerSpawnCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(PlayerSpawn)

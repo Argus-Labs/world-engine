@@ -73,9 +73,8 @@ export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResp
   schedules: SystemSchedule[];
 
   /**
-   * Serialized google.protobuf.FileDescriptorSet covering every proto message referenced by
-   * commands[].proto_message_name, plus transitive dependencies. Decode with any standard protobuf
-   * runtime (e.g. protobufjs's Root.fromDescriptor). Empty if no command resolved a proto message.
+   * Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
+   * this response, plus transitive dependencies. Empty if no registered type uses protobuf wire.
    *
    * @generated from field: bytes proto_descriptor_set = 6;
    */
@@ -162,7 +161,7 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   schema?: JsonObject;
 
   /**
-   * Fully-qualified proto message name for a command that resolved a proto descriptor.
+   * Fully-qualified protobuf message name. Empty while this type still uses a different wire format.
    *
    * @generated from field: string proto_message_name = 3;
    */
@@ -568,4 +567,3 @@ export const DebugService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
-

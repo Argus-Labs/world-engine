@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	gen "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c UserChat) ToProto() *gen.UserChat {
@@ -29,6 +30,10 @@ func (c UserChat) FromProto(p *gen.UserChat) UserChat {
 }
 
 type userChatCodec struct{}
+
+func (userChatCodec) MessageDescriptor() protoreflect.MessageDescriptor {
+	return (&gen.UserChat{}).ProtoReflect().Descriptor()
+}
 
 func (userChatCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(UserChat)

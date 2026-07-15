@@ -27,6 +27,16 @@ type schemaSample struct {
 
 func (schemaSample) Name() string { return "schema-sample" }
 
+type schemaSampleCodec struct{}
+
+func (schemaSampleCodec) Marshal(Command) ([]byte, error) { return nil, nil }
+
+func (schemaSampleCodec) Unmarshal([]byte) (Command, error) { return schemaSample{}, nil }
+
+func (schemaSampleCodec) MessageDescriptor() protoreflect.MessageDescriptor {
+	return (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
+}
+
 // TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize
 // contract for components/events (which are still msgpack): the field names the
 // introspection schema advertises must equal the keys shamaton/msgpack actually
@@ -70,7 +80,7 @@ func TestIntrospectSchemaNamesMatchWireFormat(t *testing.T) {
 // proto wire, whose field names are the Go field names, so their advertised schema must use Go names
 // (never the msgpack tag) to line up with the resolved proto message's field names on the client.
 func TestCommandSchemaUsesProtoFieldNames(t *testing.T) {
-	t.Parallel()
+	RegisterCommandCodec(schemaSample{}.Name(), schemaSampleCodec{})
 
 	d := &debugModule{
 		commands:          make(map[string]*structpb.Struct),
@@ -82,6 +92,12 @@ func TestCommandSchemaUsesProtoFieldNames(t *testing.T) {
 		},
 	}
 	require.NoError(t, d.register("command", schemaSample{}))
+	assert.Equal(
+		t,
+		protoreflect.FullName("worldengine.cardinal.v1.Snapshot"),
+		d.commandProtoTypes[schemaSample{}.Name()].FullName(),
+		"registration must use the descriptor supplied by the codec, not reflect on the command type",
+	)
 	props, ok := d.commands["schema-sample"].AsMap()["properties"].(map[string]any)
 	require.True(t, ok, "schema should have properties")
 
@@ -100,8 +116,6 @@ func mapKeys(m map[string]any) []string {
 	return out
 }
 
-// systemNodeDescriptor returns SystemNode's descriptor directly off a concrete instance, the same way
-// commandProtoDescriptor resolves one via ToProto() — no registry search.
 func systemNodeDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
 }
@@ -111,7 +125,7 @@ func systemNodeDescriptor() protoreflect.MessageDescriptor {
 func TestCollectDescriptorSetFromRegistry(t *testing.T) {
 	md := systemNodeDescriptor()
 
-	set := collectDescriptorSet(map[string]protoreflect.MessageDescriptor{"SystemNode": md})
+	set := collectDescriptorSet([]protoreflect.MessageDescriptor{md})
 	require.NotNil(t, set)
 
 	dp := findMessageDescriptor(set, "SystemNode")
@@ -134,7 +148,7 @@ func TestCollectDescriptorSetFromRegistry(t *testing.T) {
 func TestMarshalDescriptorSetRoundTrips(t *testing.T) {
 	md := systemNodeDescriptor()
 
-	data, err := marshalDescriptorSet(map[string]protoreflect.MessageDescriptor{"SystemNode": md})
+	data, err := marshalDescriptorSet([]protoreflect.MessageDescriptor{md})
 	require.NoError(t, err)
 	require.NotEmpty(t, data)
 
@@ -168,14 +182,14 @@ func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
 }
 
 // TestCollectDescriptorSetDedupsSharedFiles guards against a duplicated FileDescriptorProto when two
-// commands resolve to messages from the same file — duplicate paths break protobufjs's
-// Root.fromDescriptor.
+// commands resolve to messages from the same file — duplicate paths make the descriptor catalog
+// ambiguous for dynamic clients.
 func TestCollectDescriptorSetDedupsSharedFiles(t *testing.T) {
 	systemNode := systemNodeDescriptor()
 
-	set := collectDescriptorSet(map[string]protoreflect.MessageDescriptor{
-		"commandA": systemNode,
-		"commandB": systemNode, // same descriptor resolved for a second command name
+	set := collectDescriptorSet([]protoreflect.MessageDescriptor{
+		systemNode,
+		systemNode,
 	})
 
 	seen := map[string]bool{}
@@ -190,9 +204,9 @@ func TestCollectDescriptorSetDedupsSharedFiles(t *testing.T) {
 // FileDescriptorSet.File order every call, not just per-process. Uses SystemNode (debug.proto) and
 // Snapshot (snapshot.proto) so there are two distinct files to potentially reorder.
 func TestCollectDescriptorSetIsDeterministic(t *testing.T) {
-	types := map[string]protoreflect.MessageDescriptor{
-		"a": systemNodeDescriptor(),
-		"b": (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor(),
+	types := []protoreflect.MessageDescriptor{
+		systemNodeDescriptor(),
+		(&cardinalv1.Snapshot{}).ProtoReflect().Descriptor(),
 	}
 
 	want := collectDescriptorSet(types)
@@ -211,79 +225,17 @@ func TestCollectDescriptorSetIsDeterministic(t *testing.T) {
 	}
 }
 
-// fakeCommandWithProto stands in for generated code: a ToProto() method returning a real proto.Message.
-type fakeCommandWithProto struct{}
+func TestProtoDescriptorSetIsCached(t *testing.T) {
+	d := &debugModule{commandProtoTypes: map[string]protoreflect.MessageDescriptor{
+		"system-node": systemNodeDescriptor(),
+	}}
 
-func (fakeCommandWithProto) Name() string { return "fake-command" }
+	first, err := d.protoDescriptorSet()
+	require.NoError(t, err)
+	require.NotEmpty(t, first)
 
-func (fakeCommandWithProto) ToProto() *cardinalv1.SystemNode { return &cardinalv1.SystemNode{} }
-
-type fakeCommandNoProto struct{}
-
-func (fakeCommandNoProto) Name() string { return "fake-command-no-proto" }
-
-// fakeCommandWrongSignature's ToProto takes an argument — not the zero-arg shape generated code emits.
-type fakeCommandWrongSignature struct{}
-
-func (fakeCommandWrongSignature) Name() string { return "fake-command-wrong-signature" }
-
-func (fakeCommandWrongSignature) ToProto(int) *cardinalv1.SystemNode { return &cardinalv1.SystemNode{} }
-
-// fakeCommandBadReturn has a zero-arg ToProto that doesn't return a proto.Message.
-type fakeCommandBadReturn struct{}
-
-func (fakeCommandBadReturn) Name() string { return "fake-command-bad-return" }
-
-func (fakeCommandBadReturn) ToProto() string { return "not a proto message" }
-
-// fakeCommandPointerReceiver's ToProto has a pointer receiver, unlike the rest of these fakes — a
-// command is typically registered by value (see WithCommand[T].init's `var zero T`), so this exercises
-// the pointer-method-set fallback.
-type fakeCommandPointerReceiver struct{}
-
-func (*fakeCommandPointerReceiver) Name() string { return "fake-command-pointer-receiver" }
-
-func (*fakeCommandPointerReceiver) ToProto() *cardinalv1.SystemNode { return &cardinalv1.SystemNode{} }
-
-// fakeCommandPanicsIfCalled's ToProto panics if invoked — it exists to prove commandProtoDescriptor
-// resolves the descriptor from the method's return type without ever calling it.
-type fakeCommandPanicsIfCalled struct{}
-
-func (fakeCommandPanicsIfCalled) Name() string { return "fake-command-panics-if-called" }
-
-func (fakeCommandPanicsIfCalled) ToProto() *cardinalv1.SystemNode {
-	panic("ToProto must never be called by commandProtoDescriptor")
-}
-
-// TestCommandProtoDescriptorFromToProto checks descriptors are resolved from ToProto()'s return type,
-// not a proto-registry name search, so a colliding proto name can't produce a wrong or missing result.
-func TestCommandProtoDescriptorFromToProto(t *testing.T) {
-	md := commandProtoDescriptor(fakeCommandWithProto{})
-	require.NotNil(t, md)
-	assert.Equal(t, protoreflect.FullName("worldengine.cardinal.v1.SystemNode"), md.FullName())
-
-	assert.Nil(t, commandProtoDescriptor(fakeCommandNoProto{}), "no ToProto method")
-	assert.Nil(t, commandProtoDescriptor(fakeCommandWrongSignature{}), "ToProto takes an argument")
-	assert.Nil(t, commandProtoDescriptor(fakeCommandBadReturn{}), "ToProto doesn't return a proto.Message")
-	assert.Nil(t, commandProtoDescriptor(nil))
-}
-
-// TestCommandProtoDescriptorPointerReceiver guards the pointer-method-set fallback: a command whose
-// ToProto() has a pointer receiver must still resolve even though commands are registered by value.
-func TestCommandProtoDescriptorPointerReceiver(t *testing.T) {
-	md := commandProtoDescriptor(fakeCommandPointerReceiver{})
-	require.NotNil(t, md)
-	assert.Equal(t, protoreflect.FullName("worldengine.cardinal.v1.SystemNode"), md.FullName())
-}
-
-// TestCommandProtoDescriptorNeverCallsToProto guards against regressing to invoking ToProto(): a
-// command is resolved from its zero value at registration time, and a future ToProto() implementation
-// isn't guaranteed to be safe to call on an uninitialized receiver.
-func TestCommandProtoDescriptorNeverCallsToProto(t *testing.T) {
-	assert.NotPanics(t, func() {
-		commandProtoDescriptor(fakeCommandPanicsIfCalled{})
-	})
-	md := commandProtoDescriptor(fakeCommandPanicsIfCalled{})
-	require.NotNil(t, md)
-	assert.Equal(t, protoreflect.FullName("worldengine.cardinal.v1.SystemNode"), md.FullName())
+	d.commandProtoTypes["snapshot"] = (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
+	second, err := d.protoDescriptorSet()
+	require.NoError(t, err)
+	assert.Equal(t, first, second, "descriptor bytes should be built once after registration")
 }

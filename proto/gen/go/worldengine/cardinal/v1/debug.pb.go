@@ -129,9 +129,8 @@ type IntrospectResponse struct {
 	TickRateHz float64 `protobuf:"fixed64,4,opt,name=tick_rate_hz,json=tickRateHz,proto3" json:"tick_rate_hz,omitempty"`
 	// System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
 	Schedules []*SystemSchedule `protobuf:"bytes,5,rep,name=schedules,proto3" json:"schedules,omitempty"`
-	// Serialized google.protobuf.FileDescriptorSet covering every proto message referenced by
-	// commands[].proto_message_name, plus transitive dependencies. Decode with any standard protobuf
-	// runtime (e.g. protobufjs's Root.fromDescriptor). Empty if no command resolved a proto message.
+	// Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
+	// this response, plus transitive dependencies. Empty if no registered type uses protobuf wire.
 	ProtoDescriptorSet []byte `protobuf:"bytes,6,opt,name=proto_descriptor_set,json=protoDescriptorSet,proto3" json:"proto_descriptor_set,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
@@ -324,7 +323,7 @@ type TypeSchema struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// JSON schema for the type.
 	Schema *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
-	// Fully-qualified proto message name for a command that resolved a proto descriptor.
+	// Fully-qualified protobuf message name. Empty while this type still uses a different wire format.
 	ProtoMessageName string `protobuf:"bytes,3,opt,name=proto_message_name,json=protoMessageName,proto3" json:"proto_message_name,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache

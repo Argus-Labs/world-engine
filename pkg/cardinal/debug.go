@@ -3,8 +3,8 @@ package cardinal
 import (
 	"context"
 	"math"
-	"reflect"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -37,9 +38,12 @@ type debugModule struct {
 	commands         map[string]*structpb.Struct
 	events           map[string]*structpb.Struct
 	components       map[string]*structpb.Struct
-	// commandProtoTypes holds each command's resolved proto descriptor (see commandProtoDescriptor),
-	// keyed by command name. Introspect ships these via IntrospectResponse.proto_descriptor_set.
+	// commandProtoTypes holds the exact descriptor supplied by each registered command codec, keyed by
+	// command name. Introspect ships these via IntrospectResponse.proto_descriptor_set.
 	commandProtoTypes map[string]protoreflect.MessageDescriptor
+	descriptorSetOnce sync.Once
+	descriptorSet     []byte
+	descriptorSetErr  error
 	perf              *performance.Collector
 }
 
@@ -127,9 +131,14 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 
 	// Commands decode from proto wire; record the resolved descriptor for Introspect to advertise.
 	if isCommand {
-		if md := commandProtoDescriptor(value); md != nil {
-			d.commandProtoTypes[name] = md
+		md := command.MessageDescriptor(name)
+		if md == nil {
+			return eris.Errorf(
+				"command %q has no registered protobuf message descriptor (regenerate it with world sdk generate)",
+				name,
+			)
 		}
+		d.commandProtoTypes[name] = md
 	}
 
 	schemaStruct, err := structpb.NewStruct(schemaMap)
@@ -141,37 +150,18 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	return nil
 }
 
-// commandProtoDescriptor resolves a command's proto descriptor from its ToProto() method's return
-// type — found by reflection (each command's ToProto() returns a different concrete type), and never
-// invoked.
-func commandProtoDescriptor(value any) protoreflect.MessageDescriptor {
-	if value == nil {
+// collectDescriptorSet gathers the files containing the supplied message descriptors plus their
+// transitive imports. It is independent of the command registry so component and event descriptors
+// can feed the same catalog when those wire formats move to protobuf.
+func collectDescriptorSet(messages []protoreflect.MessageDescriptor) *descriptorpb.FileDescriptorSet {
+	if len(messages) == 0 {
 		return nil
 	}
 
-	t := reflect.TypeOf(value)
-	m, ok := t.MethodByName("ToProto")
-	if !ok && t.Kind() != reflect.Pointer {
-		m, ok = reflect.PointerTo(t).MethodByName("ToProto")
-	}
-	if !ok || m.Type.NumIn() != 1 || m.Type.NumOut() != 1 {
-		return nil
-	}
-
-	pm, ok := reflect.Zero(m.Type.Out(0)).Interface().(proto.Message)
-	if !ok {
-		return nil
-	}
-	return pm.ProtoReflect().Descriptor()
-}
-
-// collectDescriptorSet gathers the FileDescriptorProto for every command's resolved proto message,
-// plus transitive imports, deduplicated by file path. Returns nil if none resolved. Sorted by command
-// name so output is byte-identical across calls (map iteration order isn't stable).
-func collectDescriptorSet(types map[string]protoreflect.MessageDescriptor) *descriptorpb.FileDescriptorSet {
-	if len(types) == 0 {
-		return nil
-	}
+	sortedMessages := append([]protoreflect.MessageDescriptor(nil), messages...)
+	sort.Slice(sortedMessages, func(i, j int) bool {
+		return sortedMessages[i].FullName() < sortedMessages[j].FullName()
+	})
 
 	seen := make(map[string]bool)
 	var files []*descriptorpb.FileDescriptorProto
@@ -190,14 +180,8 @@ func collectDescriptorSet(types map[string]protoreflect.MessageDescriptor) *desc
 		files = append(files, protodesc.ToFileDescriptorProto(fd))
 	}
 
-	names := make([]string, 0, len(types))
-	for name := range types {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		addFile(types[name].ParentFile())
+	for _, message := range sortedMessages {
+		addFile(message.ParentFile())
 	}
 
 	return &descriptorpb.FileDescriptorSet{File: files}
@@ -208,9 +192,12 @@ func (d *debugModule) Introspect(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
-	descriptorSetBytes, err := marshalDescriptorSet(d.commandProtoTypes)
+	descriptorSet, err := d.protoDescriptorSet()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to marshal proto descriptor set"))
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			eris.Wrap(err, "failed to marshal proto descriptor set"),
+		)
 	}
 
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
@@ -219,18 +206,29 @@ func (d *debugModule) Introspect(
 		Events:             d.buildTypeSchemas(d.events, nil),
 		TickRateHz:         d.world.options.TickRate,
 		Schedules:          d.buildSchedules(),
-		ProtoDescriptorSet: descriptorSetBytes,
+		ProtoDescriptorSet: descriptorSet,
 	}), nil
 }
 
 // marshalDescriptorSet serializes collectDescriptorSet's result to wire bytes. Returns nil, nil if no
 // command resolved a descriptor.
-func marshalDescriptorSet(types map[string]protoreflect.MessageDescriptor) ([]byte, error) {
-	set := collectDescriptorSet(types)
+func marshalDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
+	set := collectDescriptorSet(messages)
 	if set == nil {
 		return nil, nil
 	}
 	return proto.Marshal(set)
+}
+
+func (d *debugModule) protoDescriptorSet() ([]byte, error) {
+	d.descriptorSetOnce.Do(func() {
+		descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commandProtoTypes))
+		for _, descriptor := range d.commandProtoTypes {
+			descriptors = append(descriptors, descriptor)
+		}
+		d.descriptorSet, d.descriptorSetErr = marshalDescriptorSet(descriptors)
+	})
+	return d.descriptorSet, d.descriptorSetErr
 }
 
 // buildSchedules converts the ECS system lists to proto messages.

@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rotisserie/eris"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // Codec encodes and decodes a command payload to and from its wire bytes. Each command type has its
@@ -13,6 +14,7 @@ import (
 type Codec interface {
 	Marshal(Payload) ([]byte, error)
 	Unmarshal([]byte) (Payload, error)
+	MessageDescriptor() protoreflect.MessageDescriptor
 }
 
 // codecs maps a command name to its wire codec. It is populated once at init time by generated code
@@ -50,6 +52,12 @@ func RegisterCodec(name string, c Codec) {
 	if _, exists := codecs[name]; exists {
 		panic(eris.Errorf("command %q already has a registered codec (duplicate or stale generated code)", name))
 	}
+	if c.MessageDescriptor() == nil {
+		panic(eris.Errorf(
+			"command %q codec has no protobuf message descriptor (regenerate it with world sdk generate)",
+			name,
+		))
+	}
 	codecs[name] = c
 }
 
@@ -57,6 +65,15 @@ func RegisterCodec(name string, c Codec) {
 func HasCodec(name string) bool {
 	_, ok := codecs[name]
 	return ok
+}
+
+// MessageDescriptor returns the exact protobuf message descriptor used by the named command codec.
+func MessageDescriptor(name string) protoreflect.MessageDescriptor {
+	c, ok := codecs[name]
+	if !ok {
+		return nil
+	}
+	return c.MessageDescriptor()
 }
 
 // Marshal encodes a command payload using its registered codec.

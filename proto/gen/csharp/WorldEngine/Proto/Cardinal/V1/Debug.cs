@@ -416,9 +416,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoDescriptorSetFieldNumber = 6;
     private pb::ByteString protoDescriptorSet_ = pb::ByteString.Empty;
     /// <summary>
-    /// Serialized google.protobuf.FileDescriptorSet covering every proto message referenced by
-    /// commands[].proto_message_name, plus transitive dependencies. Decode with any standard protobuf
-    /// runtime (e.g. protobufjs's Root.fromDescriptor). Empty if no command resolved a proto message.
+    /// Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
+    /// this response, plus transitive dependencies. Empty if no registered type uses protobuf wire.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1205,7 +1204,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoMessageNameFieldNumber = 3;
     private string protoMessageName_ = "";
     /// <summary>
-    /// Fully-qualified proto message name for a command that resolved a proto descriptor.
+    /// Fully-qualified protobuf message name. Empty while this type still uses a different wire format.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
