@@ -33,7 +33,7 @@ func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
 
 		state.Players.Destroy(entityID)
 
-		state.PlayerDepartureEvent.Emit(event.PlayerDeparture{
+		state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
 			ArgusAuthID: command.ArgusAuthID,
 		})
 	}

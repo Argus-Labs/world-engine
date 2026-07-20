@@ -150,7 +150,7 @@ func TestWithEvent_Smoke(t *testing.T) {
 		}
 
 		for _, evt := range model {
-			fixture.Event.Emit(evt)
+			fixture.Event.Broadcast(evt)
 		}
 
 		// Dispatch collects events and calls registered handlers.

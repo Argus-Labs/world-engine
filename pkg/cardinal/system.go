@@ -339,10 +339,26 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 	return nil
 }
 
-func (e *WithEvent[T]) Emit(evt T) {
+func (e *WithEvent[T]) Broadcast(evt T) {
 	e.manager.Enqueue(event.Event{
 		Kind:    event.KindDefault,
 		Payload: evt,
+	})
+}
+
+// SendTo enqueues a targeted event that is delivered only to the named recipient (a user ID),
+// provided they have an open event stream subscribed to this event. If the recipient has no open
+// stream, the event is silently dropped.
+//
+// Example:
+//
+//	state.Results.SendTo(cmdCtx.Persona, Result{OK: true})
+func (e *WithEvent[T]) SendTo(recipient string, evt T) {
+	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
+	e.manager.Enqueue(event.Event{
+		Kind:      event.KindDefault,
+		Payload:   evt,
+		Recipient: recipient,
 	})
 }
 

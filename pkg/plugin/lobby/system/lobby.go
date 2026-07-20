@@ -886,7 +886,7 @@ func isLeaderInList(leaderID string, players []timedOutPlayer) bool {
 
 // emitJoinLobbyFailure emits a failure result for JoinLobby command.
 func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
-	state.JoinLobbyResults.Emit(JoinLobbyResult{
+	state.JoinLobbyResults.Broadcast(JoinLobbyResult{
 		RequestID: requestID,
 		IsSuccess: false,
 		Message:   message,
@@ -895,7 +895,7 @@ func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
 
 // emitCreateLobbyFailure emits a failure result for CreateLobby command.
 func emitCreateLobbyFailure(state *LobbySystemState, requestID, message string) {
-	state.CreateLobbyResults.Emit(CreateLobbyResult{
+	state.CreateLobbyResults.Broadcast(CreateLobbyResult{
 		RequestID: requestID,
 		IsSuccess: false,
 		Message:   message,
@@ -985,14 +985,14 @@ func processTimedOutLobby(
 			Str("player_id", p.playerID).
 			Msg("Player timed out due to missed heartbeats")
 
-		state.PlayerTimedOutEvents.Emit(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
+		state.PlayerTimedOutEvents.Broadcast(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
 	}
 
 	// Check if lobby is empty
 	if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
 		lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
 		state.Logger().Info().Str("lobby_id", lobbyID).Msg("Lobby marked for deletion (empty after timeout)")
-		state.LobbyDeletedEvents.Emit(LobbyDeletedEvent{LobbyID: lobbyID})
+		state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{LobbyID: lobbyID})
 		return playerEntities, &lobbyToDestroy{
 			entityID: cardinal.EntityID(lobbyEntityID),
 			lobbyID:  lobbyID,
@@ -1009,7 +1009,7 @@ func processTimedOutLobby(
 			Str("old_leader", oldLeaderID).
 			Str("new_leader", lobby.LeaderID).
 			Msg("Leadership auto-transferred after timeout")
-		state.LeaderChangedEvents.Emit(LeaderChangedEvent{
+		state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
 			LobbyID: lobbyID, OldLeaderID: oldLeaderID, NewLeaderID: lobby.LeaderID,
 		})
 	}
@@ -1265,14 +1265,14 @@ func processCreateLobbyCommands(
 			Msg("Lobby created")
 
 		// Emit broadcast event
-		state.LobbyCreatedEvents.Emit(LobbyCreatedEvent{
+		state.LobbyCreatedEvents.Broadcast(LobbyCreatedEvent{
 			LobbyID:    lobbyID,
 			LeaderID:   playerID,
 			InviteCode: inviteCode,
 		})
 
 		// Emit success result
-		state.CreateLobbyResults.Emit(CreateLobbyResult{
+		state.CreateLobbyResults.Broadcast(CreateLobbyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "lobby created",
@@ -1368,7 +1368,7 @@ func processJoinLobbyCommands(
 			Msg("Player joined lobby")
 
 		// Emit broadcast event
-		state.PlayerJoinedEvents.Emit(PlayerJoinedEvent{
+		state.PlayerJoinedEvents.Broadcast(PlayerJoinedEvent{
 			LobbyID: lobbyID,
 			TeamID:  targetTeam.TeamID,
 			Player:  playerComp,
@@ -1378,7 +1378,7 @@ func processJoinLobbyCommands(
 		playersList := gatherLobbyPlayers(state, lobbyIndex, &lobby)
 
 		// Emit success result
-		state.JoinLobbyResults.Emit(JoinLobbyResult{
+		state.JoinLobbyResults.Broadcast(JoinLobbyResult{
 			RequestID:   payload.RequestID,
 			IsSuccess:   true,
 			Message:     "joined lobby",
@@ -1395,7 +1395,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.JoinTeamResults.Emit(JoinTeamResult{
+			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -1407,7 +1407,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 		// Can't change team during session
 		if lobby.Session.State == component.SessionStateInSession {
-			state.JoinTeamResults.Emit(JoinTeamResult{
+			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "cannot change team during session",
@@ -1418,7 +1418,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		// Get current team
 		oldTeam := lobby.GetPlayerTeam(playerID)
 		if oldTeam == nil {
-			state.JoinTeamResults.Emit(JoinTeamResult{
+			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in any team",
@@ -1431,7 +1431,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		newTeam := lobby.GetTeam(payload.TeamID)
 		if newTeam == nil {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_id", payload.TeamID).Msg("team not found")
-			state.JoinTeamResults.Emit(JoinTeamResult{
+			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "team not found",
@@ -1442,7 +1442,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		// Move to new team
 		if !lobby.MovePlayerToTeam(playerID, newTeam.TeamID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("failed to change team")
-			state.JoinTeamResults.Emit(JoinTeamResult{
+			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "failed to change team (team may be full)",
@@ -1472,14 +1472,14 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			Msg("Player changed team")
 
 		// Emit broadcast event
-		state.PlayerChangedTeamEvents.Emit(PlayerChangedTeamEvent{
+		state.PlayerChangedTeamEvents.Broadcast(PlayerChangedTeamEvent{
 			LobbyID:   lobbyID,
 			OldTeamID: oldTeamID,
 			NewTeamID: newTeam.TeamID,
 			Player:    playerComp,
 		})
 
-		state.JoinTeamResults.Emit(JoinTeamResult{
+		state.JoinTeamResults.Broadcast(JoinTeamResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "changed team",
@@ -1495,7 +1495,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.LeaveLobbyResults.Emit(LeaveLobbyResult{
+			state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -1517,7 +1517,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 		lobbyIndex.RemovePlayerFromLobby(playerID)
 
 		// Emit broadcast event for player leaving
-		state.PlayerLeftEvents.Emit(PlayerLeftEvent{
+		state.PlayerLeftEvents.Broadcast(PlayerLeftEvent{
 			LobbyID:  lobbyID,
 			PlayerID: playerID,
 		})
@@ -1533,7 +1533,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 				Msg("Lobby deleted (empty)")
 
 			// Emit broadcast event for lobby deletion
-			state.LobbyDeletedEvents.Emit(LobbyDeletedEvent{
+			state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{
 				LobbyID: lobbyID,
 			})
 		} else {
@@ -1555,7 +1555,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 					Msg("Leadership auto-transferred")
 
 				// Emit broadcast event for leader change
-				state.LeaderChangedEvents.Emit(LeaderChangedEvent{
+				state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
 					LobbyID:     lobbyID,
 					OldLeaderID: oldLeaderID,
 					NewLeaderID: lobby.LeaderID,
@@ -1570,7 +1570,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 			Str("player_id", playerID).
 			Msg("Player left lobby")
 
-		state.LeaveLobbyResults.Emit(LeaveLobbyResult{
+		state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "left lobby",
@@ -1585,7 +1585,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.SetReadyResults.Emit(SetReadyResult{
+			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -1597,7 +1597,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 		// Can't change ready during session
 		if lobby.Session.State == component.SessionStateInSession {
-			state.SetReadyResults.Emit(SetReadyResult{
+			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "cannot change ready status during session",
@@ -1608,7 +1608,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		// Update player entity's IsReady
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if !exists {
-			state.SetReadyResults.Emit(SetReadyResult{
+			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player entity not found",
@@ -1617,7 +1617,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 		}
 		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
-			state.SetReadyResults.Emit(SetReadyResult{
+			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player entity not found",
@@ -1635,12 +1635,12 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			Msg("Player ready status changed")
 
 		// Emit broadcast event
-		state.PlayerReadyEvents.Emit(PlayerReadyEvent{
+		state.PlayerReadyEvents.Broadcast(PlayerReadyEvent{
 			LobbyID: lobbyID,
 			Player:  playerComp,
 		})
 
-		state.SetReadyResults.Emit(SetReadyResult{
+		state.SetReadyResults.Broadcast(SetReadyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "ready status updated",
@@ -1656,7 +1656,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.KickPlayerResults.Emit(KickPlayerResult{
+			state.KickPlayerResults.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -1669,7 +1669,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 		// Only leader can kick
 		if !lobby.IsLeader(playerID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can kick players")
-			state.KickPlayerResults.Emit(KickPlayerResult{
+			state.KickPlayerResults.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can kick players",
@@ -1679,7 +1679,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 		// Can't kick self
 		if payload.TargetPlayerID == playerID {
-			state.KickPlayerResults.Emit(KickPlayerResult{
+			state.KickPlayerResults.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "cannot kick yourself",
@@ -1689,7 +1689,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 		// Check if target is in lobby
 		if !lobby.HasPlayer(payload.TargetPlayerID) {
-			state.KickPlayerResults.Emit(KickPlayerResult{
+			state.KickPlayerResults.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "target player not in lobby",
@@ -1716,13 +1716,13 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 			Msg("Player kicked from lobby")
 
 		// Emit broadcast event
-		state.PlayerKickedEvents.Emit(PlayerKickedEvent{
+		state.PlayerKickedEvents.Broadcast(PlayerKickedEvent{
 			LobbyID:  lobbyID,
 			PlayerID: payload.TargetPlayerID,
 			KickerID: playerID,
 		})
 
-		state.KickPlayerResults.Emit(KickPlayerResult{
+		state.KickPlayerResults.Broadcast(KickPlayerResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "player kicked",
@@ -1737,7 +1737,7 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.TransferLeaderResults.Emit(TransferLeaderResult{
+			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -1750,7 +1750,7 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 		// Only leader can transfer
 		if !lobby.IsLeader(playerID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can transfer leadership")
-			state.TransferLeaderResults.Emit(TransferLeaderResult{
+			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can transfer leadership",
@@ -1762,7 +1762,7 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 		if !lobby.HasPlayer(payload.TargetPlayerID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("target", payload.TargetPlayerID).
 				Msg("target player not in lobby")
-			state.TransferLeaderResults.Emit(TransferLeaderResult{
+			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "target player not in lobby",
@@ -1781,13 +1781,13 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 			Msg("Leadership transferred")
 
 		// Emit broadcast event
-		state.LeaderChangedEvents.Emit(LeaderChangedEvent{
+		state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
 			LobbyID:     lobbyID,
 			OldLeaderID: oldLeaderID,
 			NewLeaderID: payload.TargetPlayerID,
 		})
 
-		state.TransferLeaderResults.Emit(TransferLeaderResult{
+		state.TransferLeaderResults.Broadcast(TransferLeaderResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "leadership transferred",
@@ -1805,7 +1805,7 @@ func processStartSessionCommands(
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.StartSessionResults.Emit(StartSessionResult{
+			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -1818,7 +1818,7 @@ func processStartSessionCommands(
 		// Only leader can start
 		if !lobby.IsLeader(playerID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can start session")
-			state.StartSessionResults.Emit(StartSessionResult{
+			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can start session",
@@ -1828,7 +1828,7 @@ func processStartSessionCommands(
 
 		// Already in session or awaiting assignment
 		if lobby.Session.State == component.SessionStateInSession {
-			state.StartSessionResults.Emit(StartSessionResult{
+			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "session already in progress",
@@ -1836,7 +1836,7 @@ func processStartSessionCommands(
 			continue
 		}
 		if lobby.Session.State == component.SessionStateAwaitingAllocation {
-			state.StartSessionResults.Emit(StartSessionResult{
+			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "session already pending shard assignment",
@@ -1847,7 +1847,7 @@ func processStartSessionCommands(
 		// Check all ready
 		if !areAllPlayersReady(state, lobbyIndex, &lobby) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("not all players are ready")
-			state.StartSessionResults.Emit(StartSessionResult{
+			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "not all players are ready",
@@ -1870,7 +1870,7 @@ func processStartSessionCommands(
 			Str("lobby_id", lobbyID).
 			Msg("Session pending shard assignment")
 
-		state.SessionAwaitingAllocationEvents.Emit(SessionAwaitingAllocationEvent{
+		state.SessionAwaitingAllocationEvents.Broadcast(SessionAwaitingAllocationEvent{
 			LobbyID: lobbyID,
 		})
 	}
@@ -1922,7 +1922,7 @@ func failPendingAssignment(
 	if lobby.Session.PendingRequestID == "" {
 		return
 	}
-	results.Emit(StartSessionResult{
+	results.Broadcast(StartSessionResult{
 		RequestID: lobby.Session.PendingRequestID,
 		IsSuccess: false,
 		Message:   reason,
@@ -1945,7 +1945,7 @@ func abortAwaitingAllocation(
 		return
 	}
 	if lobby.Session.PendingRequestID != "" {
-		results.Emit(StartSessionResult{
+		results.Broadcast(StartSessionResult{
 			RequestID: lobby.Session.PendingRequestID,
 			IsSuccess: false,
 			Message:   reason,
@@ -2050,14 +2050,14 @@ func processAssignShardCommands(
 			Str("game_shard", lobby.GameWorld.ShardID).
 			Msg("Session started (async assignment)")
 
-		state.SessionStartedEvents.Emit(SessionStartedEvent{
+		state.SessionStartedEvents.Broadcast(SessionStartedEvent{
 			LobbyID:   payload.LobbyID,
 			GameWorld: lobby.GameWorld,
 		})
 
 		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
 
-		state.StartSessionResults.Emit(StartSessionResult{
+		state.StartSessionResults.Broadcast(StartSessionResult{
 			RequestID: requestID,
 			IsSuccess: true,
 			Message:   "session started",
@@ -2124,7 +2124,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			playerComp.IsReady = false
 			playerEntity.Player.Set(playerComp)
 
-			state.PlayerReadyEvents.Emit(PlayerReadyEvent{
+			state.PlayerReadyEvents.Broadcast(PlayerReadyEvent{
 				LobbyID: payload.LobbyID,
 				Player:  playerComp,
 			})
@@ -2135,7 +2135,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 			Msg("Session ended")
 
 		// Emit broadcast event
-		state.SessionEndedEvents.Emit(SessionEndedEvent(payload))
+		state.SessionEndedEvents.Broadcast(SessionEndedEvent(payload))
 	}
 }
 
@@ -2146,7 +2146,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.GenerateInviteCodeResults.Emit(GenerateInviteCodeResult{
+			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -2159,7 +2159,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 		// Only leader can generate
 		if !lobby.IsLeader(playerID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can generate invite code")
-			state.GenerateInviteCodeResults.Emit(GenerateInviteCodeResult{
+			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can generate invite code",
@@ -2175,7 +2175,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 		)
 		if !newCodeValid {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
-			state.GenerateInviteCodeResults.Emit(GenerateInviteCodeResult{
+			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "invite code collision",
@@ -2194,12 +2194,12 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 			Msg("New invite code generated")
 
 		// Emit broadcast event
-		state.InviteCodeGeneratedEvents.Emit(InviteCodeGeneratedEvent{
+		state.InviteCodeGeneratedEvents.Broadcast(InviteCodeGeneratedEvent{
 			LobbyID:    lobbyID,
 			InviteCode: newCode,
 		})
 
-		state.GenerateInviteCodeResults.Emit(GenerateInviteCodeResult{
+		state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
 			RequestID:  payload.RequestID,
 			IsSuccess:  true,
 			Message:    "invite code generated",
@@ -2215,7 +2215,7 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.UpdateSessionPassthroughResults.Emit(UpdateSessionPassthroughResult{
+			state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -2229,7 +2229,7 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 		if !lobby.IsLeader(playerID) {
 			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).
 				Msg("only leader can update session passthrough data")
-			state.UpdateSessionPassthroughResults.Emit(UpdateSessionPassthroughResult{
+			state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can update session passthrough data",
@@ -2250,12 +2250,12 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 			Msg("Session passthrough data updated")
 
 		// Emit broadcast event
-		state.SessionPassthroughUpdatedEvents.Emit(SessionPassthroughUpdatedEvent{
+		state.SessionPassthroughUpdatedEvents.Broadcast(SessionPassthroughUpdatedEvent{
 			LobbyID:         lobbyID,
 			PassthroughData: lobby.Session.PassthroughData,
 		})
 
-		state.UpdateSessionPassthroughResults.Emit(UpdateSessionPassthroughResult{
+		state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "session passthrough data updated",
@@ -2270,7 +2270,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.UpdatePlayerPassthroughResults.Emit(UpdatePlayerPassthroughResult{
+			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -2282,7 +2282,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		// Update player entity's passthrough data
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if !exists {
-			state.UpdatePlayerPassthroughResults.Emit(UpdatePlayerPassthroughResult{
+			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player entity not found",
@@ -2291,7 +2291,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		}
 		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
-			state.UpdatePlayerPassthroughResults.Emit(UpdatePlayerPassthroughResult{
+			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player entity not found",
@@ -2313,12 +2313,12 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			Msg("Player passthrough data updated")
 
 		// Emit broadcast event
-		state.PlayerPassthroughUpdatedEvents.Emit(PlayerPassthroughUpdatedEvent{
+		state.PlayerPassthroughUpdatedEvents.Broadcast(PlayerPassthroughUpdatedEvent{
 			LobbyID: lobbyID,
 			Player:  playerComp,
 		})
 
-		state.UpdatePlayerPassthroughResults.Emit(UpdatePlayerPassthroughResult{
+		state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "player passthrough data updated",
@@ -2341,7 +2341,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 		// Check if target player exists
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(targetPlayerID)
 		if !exists {
-			state.GetPlayerResults.Emit(GetPlayerResult{
+			state.GetPlayerResults.Broadcast(GetPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not found",
@@ -2351,7 +2351,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 
 		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
-			state.GetPlayerResults.Emit(GetPlayerResult{
+			state.GetPlayerResults.Broadcast(GetPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player entity not found",
@@ -2361,7 +2361,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lob
 
 		playerComp := playerEntity.Player.Get()
 
-		state.GetPlayerResults.Emit(GetPlayerResult{
+		state.GetPlayerResults.Broadcast(GetPlayerResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "player found",
@@ -2377,7 +2377,7 @@ func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.GetLobbyResults.Emit(GetLobbyResult{
+			state.GetLobbyResults.Broadcast(GetLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -2385,7 +2385,7 @@ func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			continue
 		}
 
-		state.GetLobbyResults.Emit(GetLobbyResult{
+		state.GetLobbyResults.Broadcast(GetLobbyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "lobby found",
@@ -2402,7 +2402,7 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *component
 		// Get caller's lobby
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
-			state.GetAllPlayersResults.Emit(GetAllPlayersResult{
+			state.GetAllPlayersResults.Broadcast(GetAllPlayersResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in a lobby",
@@ -2426,7 +2426,7 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *component
 			players = append(players, playerEntity.Player.Get())
 		}
 
-		state.GetAllPlayersResults.Emit(GetAllPlayersResult{
+		state.GetAllPlayersResults.Broadcast(GetAllPlayersResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "players found",

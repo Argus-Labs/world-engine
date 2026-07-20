@@ -531,12 +531,26 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 	}
 
 	s.mu.RLock()
-	subscribers := make([]*streamSubscriber, 0, len(s.subscribers))
-	for _, subscriber := range s.subscribers {
-		for subscription := range subscriber.events {
-			if matchesEvent(subscription, eventPb.GetName()) {
-				subscribers = append(subscribers, subscriber)
-				break
+	var subscribers []*streamSubscriber
+	if evt.Recipient != "" {
+		if subscriber, ok := s.subscribers[evt.Recipient]; ok {
+			for subscription := range subscriber.events {
+				if matchesEvent(subscription, eventPb.GetName()) {
+					subscribers = []*streamSubscriber{subscriber}
+					break
+				}
+			}
+		} else {
+			s.log.Debug().Str("recipient", evt.Recipient).Str("event", eventPb.GetName()).Msg("recipient has no open stream")
+		}
+	} else {
+		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
+		for _, subscriber := range s.subscribers {
+			for subscription := range subscriber.events {
+				if matchesEvent(subscription, eventPb.GetName()) {
+					subscribers = append(subscribers, subscriber)
+					break
+				}
 			}
 		}
 	}
