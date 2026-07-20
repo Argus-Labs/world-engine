@@ -15,10 +15,14 @@ import (
 //nolint:gochecknoinits // registers test-fixture codecs on package load, mirroring generated code
 func init() {
 	descriptors := testMessageDescriptors()
-	command.RegisterCodec("simple_command", simpleCodec{descriptors.ByName("SimpleCommand")})
-	command.RegisterCodec("command_a", aCodec{descriptors.ByName("CommandA")})
-	command.RegisterCodec("command_b", bCodec{descriptors.ByName("CommandB")})
-	command.RegisterCodec("command_c", cCodec{descriptors.ByName("CommandC")})
+	simple := descriptors.ByName("SimpleCommand")
+	a := descriptors.ByName("CommandA")
+	b := descriptors.ByName("CommandB")
+	c := descriptors.ByName("CommandC")
+	command.RegisterCodec("simple_command", simpleCodec{simple}, simple)
+	command.RegisterCodec("command_a", aCodec{a}, a)
+	command.RegisterCodec("command_b", bCodec{b}, b)
+	command.RegisterCodec("command_c", cCodec{c}, c)
 }
 
 func testMessageDescriptors() protoreflect.MessageDescriptors {
@@ -83,8 +87,6 @@ type simpleCodec struct {
 	descriptor protoreflect.MessageDescriptor
 }
 
-func (c simpleCodec) MessageDescriptor() protoreflect.MessageDescriptor { return c.descriptor }
-
 func (c simpleCodec) Marshal(payload command.Payload) ([]byte, error) {
 	value, ok := payload.(testutils.SimpleCommand)
 	if !ok {
@@ -106,8 +108,6 @@ func (c simpleCodec) Unmarshal(data []byte) (command.Payload, error) {
 type aCodec struct {
 	descriptor protoreflect.MessageDescriptor
 }
-
-func (c aCodec) MessageDescriptor() protoreflect.MessageDescriptor { return c.descriptor }
 
 func (c aCodec) Marshal(payload command.Payload) ([]byte, error) {
 	value, ok := payload.(testutils.CommandA)
@@ -137,8 +137,6 @@ type bCodec struct {
 	descriptor protoreflect.MessageDescriptor
 }
 
-func (c bCodec) MessageDescriptor() protoreflect.MessageDescriptor { return c.descriptor }
-
 func (c bCodec) Marshal(payload command.Payload) ([]byte, error) {
 	value, ok := payload.(testutils.CommandB)
 	if !ok {
@@ -166,8 +164,6 @@ func (c bCodec) Unmarshal(data []byte) (command.Payload, error) {
 type cCodec struct {
 	descriptor protoreflect.MessageDescriptor
 }
-
-func (c cCodec) MessageDescriptor() protoreflect.MessageDescriptor { return c.descriptor }
 
 func (c cCodec) Marshal(payload command.Payload) ([]byte, error) {
 	value, ok := payload.(testutils.CommandC)

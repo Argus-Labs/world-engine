@@ -19,7 +19,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -28,19 +27,21 @@ import (
 
 const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches.
 
+type introspectedType struct {
+	schema     *structpb.Struct
+	descriptor protoreflect.MessageDescriptor
+}
+
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
-	world            *World
-	control          *tickControl
-	reflector        *jsonschema.Reflector // components/events
-	commandReflector *jsonschema.Reflector
-	commands         map[string]*structpb.Struct
-	events           map[string]*structpb.Struct
-	components       map[string]*structpb.Struct
-	// commandProtoTypes holds the exact descriptor supplied by each registered command codec, keyed by
-	// command name. Introspect ships these via IntrospectResponse.proto_descriptor_set.
-	commandProtoTypes map[string]protoreflect.MessageDescriptor
+	world             *World
+	control           *tickControl
+	reflector         *jsonschema.Reflector // components/events
+	commandReflector  *jsonschema.Reflector
+	commands          map[string]introspectedType
+	events            map[string]introspectedType
+	components        map[string]introspectedType
 	descriptorSetOnce sync.Once
 	descriptorSet     []byte
 	descriptorSetErr  error
@@ -55,12 +56,11 @@ func newDebugModule(world *World) debugModule {
 	perf := performance.NewCollector(batchSize)
 
 	return debugModule{
-		world:             world,
-		control:           newTickControl(),
-		commands:          make(map[string]*structpb.Struct),
-		events:            make(map[string]*structpb.Struct),
-		components:        make(map[string]*structpb.Struct),
-		commandProtoTypes: make(map[string]protoreflect.MessageDescriptor),
+		world:      world,
+		control:    newTickControl(),
+		commands:   make(map[string]introspectedType),
+		events:     make(map[string]introspectedType),
+		components: make(map[string]introspectedType),
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
@@ -84,12 +84,16 @@ func newDebugModule(world *World) debugModule {
 // -------------------------------------------------------------------------------------------------
 
 // register records the JSON schema of a command, event, or component type for introspection.
-func (d *debugModule) register(kind string, value schema.Serializable) error {
+func (d *debugModule) register(
+	kind string,
+	value schema.Serializable,
+	descriptor protoreflect.MessageDescriptor,
+) error {
 	if d == nil {
 		return nil
 	}
 
-	var catalog map[string]*structpb.Struct
+	var catalog map[string]introspectedType
 	switch kind {
 	case "command":
 		catalog = d.commands
@@ -107,6 +111,12 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	}
 
 	isCommand := kind == "command"
+	if isCommand && descriptor == nil {
+		return eris.Errorf(
+			"command %q has no registered protobuf message descriptor (regenerate it with world sdk generate)",
+			name,
+		)
+	}
 
 	reflector := d.reflector
 	if isCommand {
@@ -129,24 +139,12 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
 
-	// Commands decode from proto wire; record the resolved descriptor for Introspect to advertise.
-	if isCommand {
-		md := command.MessageDescriptor(name)
-		if md == nil {
-			return eris.Errorf(
-				"command %q has no registered protobuf message descriptor (regenerate it with world sdk generate)",
-				name,
-			)
-		}
-		d.commandProtoTypes[name] = md
-	}
-
 	schemaStruct, err := structpb.NewStruct(schemaMap)
 	if err != nil {
 		return eris.Wrap(err, "failed to create struct from schema")
 	}
 
-	catalog[name] = schemaStruct
+	catalog[name] = introspectedType{schema: schemaStruct, descriptor: descriptor}
 	return nil
 }
 
@@ -201,9 +199,9 @@ func (d *debugModule) Introspect(
 	}
 
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
-		Commands:           d.buildTypeSchemas(d.commands, d.commandProtoTypes),
-		Components:         d.buildTypeSchemas(d.components, nil),
-		Events:             d.buildTypeSchemas(d.events, nil),
+		Commands:           d.buildTypeSchemas(d.commands),
+		Components:         d.buildTypeSchemas(d.components),
+		Events:             d.buildTypeSchemas(d.events),
 		TickRateHz:         d.world.options.TickRate,
 		Schedules:          d.buildSchedules(),
 		ProtoDescriptorSet: descriptorSet,
@@ -217,14 +215,14 @@ func marshalDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, er
 	if set == nil {
 		return nil, nil
 	}
-	return proto.Marshal(set)
+	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
 }
 
 func (d *debugModule) protoDescriptorSet() ([]byte, error) {
 	d.descriptorSetOnce.Do(func() {
-		descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commandProtoTypes))
-		for _, descriptor := range d.commandProtoTypes {
-			descriptors = append(descriptors, descriptor)
+		descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commands))
+		for _, command := range d.commands {
+			descriptors = append(descriptors, command.descriptor)
 		}
 		d.descriptorSet, d.descriptorSetErr = marshalDescriptorSet(descriptors)
 	})
@@ -356,20 +354,16 @@ func (d *debugModule) recordSpan(span performance.TickSpan) {
 	d.perf.RecordSpan(span)
 }
 
-// buildTypeSchemas converts the internal schema cache to proto TypeSchema messages. protoTypes is
-// optional (nil for components/events); when present, it sets each schema's proto message name.
-func (d *debugModule) buildTypeSchemas(
-	cache map[string]*structpb.Struct,
-	protoTypes map[string]protoreflect.MessageDescriptor,
-) []*cardinalv1.TypeSchema {
+// buildTypeSchemas converts the introspection catalog to proto TypeSchema messages.
+func (d *debugModule) buildTypeSchemas(cache map[string]introspectedType) []*cardinalv1.TypeSchema {
 	schemas := make([]*cardinalv1.TypeSchema, 0, len(cache))
-	for name, schemaStruct := range cache {
+	for name, entry := range cache {
 		ts := &cardinalv1.TypeSchema{
 			Name:   name,
-			Schema: schemaStruct,
+			Schema: entry.schema,
 		}
-		if md, ok := protoTypes[name]; ok {
-			ts.ProtoMessageName = string(md.FullName())
+		if entry.descriptor != nil {
+			ts.ProtoMessageName = string(entry.descriptor.FullName())
 		}
 		schemas = append(schemas, ts)
 	}

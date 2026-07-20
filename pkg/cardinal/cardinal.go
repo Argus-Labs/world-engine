@@ -82,7 +82,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Set ECS on componet register callback (used for introspect).
 	world.world.OnComponentRegister(func(zero ecs.Component) error {
-		return world.debug.register("component", zero)
+		return world.debug.register("component", zero, nil)
 	})
 
 	// Create the ConnectRPC client-facing service.

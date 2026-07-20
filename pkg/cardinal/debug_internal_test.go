@@ -1,17 +1,19 @@
 package cardinal
 
 import (
+	"context"
 	"testing"
 
-	"github.com/invopop/jsonschema"
+	"connectrpc.com/connect"
 	"github.com/shamaton/msgpack/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
@@ -27,91 +29,109 @@ type schemaSample struct {
 
 func (schemaSample) Name() string { return "schema-sample" }
 
-type schemaSampleCodec struct{}
+func schemaSampleDescriptor(t *testing.T) protoreflect.MessageDescriptor {
+	t.Helper()
 
-func (schemaSampleCodec) Marshal(Command) ([]byte, error) { return nil, nil }
-
-func (schemaSampleCodec) Unmarshal([]byte) (Command, error) { return schemaSample{}, nil }
-
-func (schemaSampleCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
+	field := func(
+		name string,
+		number int32,
+		typeName descriptorpb.FieldDescriptorProto_Type,
+	) *descriptorpb.FieldDescriptorProto {
+		return &descriptorpb.FieldDescriptorProto{
+			Name:     proto.String(name),
+			JsonName: proto.String(name),
+			Number:   proto.Int32(number),
+			Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+			Type:     typeName.Enum(),
+		}
+	}
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Name:    proto.String("cardinal/schema_sample.proto"),
+		Package: proto.String("cardinal.test"),
+		Syntax:  proto.String("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{{
+			Name: proto.String("SchemaSample"),
+			Field: []*descriptorpb.FieldDescriptorProto{
+				field("Tagged", 1, descriptorpb.FieldDescriptorProto_TYPE_STRING),
+				field("JSONOnly", 2, descriptorpb.FieldDescriptorProto_TYPE_STRING),
+				field("Plain", 3, descriptorpb.FieldDescriptorProto_TYPE_INT64),
+				field("Skipped", 4, descriptorpb.FieldDescriptorProto_TYPE_STRING),
+			},
+		}},
+	}, nil)
+	require.NoError(t, err)
+	return file.Messages().ByName("SchemaSample")
 }
 
-// TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize
-// contract for components/events (which are still msgpack): the field names the
-// introspection schema advertises must equal the keys shamaton/msgpack actually
-// reads and writes, so a client that fills one from the schema isn't silently
-// dropped on the wire. Regression for the create-player "nickname" mismatch.
+func newIntrospectionTestModule() *debugModule {
+	world := &World{world: ecs.NewWorld(), options: WorldOptions{TickRate: 20}}
+	debug := newDebugModule(world)
+	world.debug = &debug
+	return &debug
+}
+
+// TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize contract for
+// components/events, which still use msgpack.
 func TestIntrospectSchemaNamesMatchWireFormat(t *testing.T) {
 	t.Parallel()
 
-	// Names the wire format actually uses.
 	encoded, err := msgpack.Marshal(schemaSample{Tagged: "a", JSONOnly: "b", Plain: 1, Skipped: "x"})
 	require.NoError(t, err)
 	var wire map[string]any
 	require.NoError(t, msgpack.Unmarshal(encoded, &wire))
 
-	// Names introspection advertises, via the real register() path.
-	d := &debugModule{
-		components: make(map[string]*structpb.Struct),
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true, // Don't add $id based on package path
-			ExpandedStruct: true, // Inline the struct fields directly
-			FieldNameTag:   "msgpack",
-		},
-	}
-	require.NoError(t, d.register("component", schemaSample{}))
-	schemaMap := d.components["schema-sample"].AsMap()
-	props, ok := schemaMap["properties"].(map[string]any)
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register("component", schemaSample{}, nil))
+	props, ok := d.components["schema-sample"].schema.AsMap()["properties"].(map[string]any)
 	require.True(t, ok, "schema should have properties")
 
-	assert.ElementsMatch(t, mapKeys(wire), mapKeys(props),
-		"introspect schema field names must match the msgpack wire keys")
-
-	// Spot-check the specifics the fix turns on.
-	assert.Contains(t, props, "nickname")   // msgpack tag wins over json
-	assert.Contains(t, props, "JSONOnly")   // json tag ignored; Go field name used
-	assert.Contains(t, props, "Plain")      // untagged -> field name
-	assert.NotContains(t, props, "Skipped") // msgpack:"-" excluded
-	assert.NotContains(t, props, "tagged")  // the json tag value must not leak through
+	assert.ElementsMatch(t, mapKeys(wire), mapKeys(props))
+	assert.Contains(t, props, "nickname")
+	assert.Contains(t, props, "JSONOnly")
+	assert.Contains(t, props, "Plain")
+	assert.NotContains(t, props, "Skipped")
+	assert.NotContains(t, props, "tagged")
 }
 
-// TestCommandSchemaUsesProtoFieldNames guards the command contract, which is different: commands are
-// proto wire, whose field names are the Go field names, so their advertised schema must use Go names
-// (never the msgpack tag) to line up with the resolved proto message's field names on the client.
-func TestCommandSchemaUsesProtoFieldNames(t *testing.T) {
-	RegisterCommandCodec(schemaSample{}.Name(), schemaSampleCodec{})
+// TestIntrospectAdvertisesCommandWireMetadata exercises the observable response contract: command
+// schemas use Go/protobuf field names, identify their message, and ship a loadable descriptor set.
+func TestIntrospectAdvertisesCommandWireMetadata(t *testing.T) {
+	t.Parallel()
 
-	d := &debugModule{
-		commands:          make(map[string]*structpb.Struct),
-		commandProtoTypes: make(map[string]protoreflect.MessageDescriptor),
-		commandReflector: &jsonschema.Reflector{
-			Anonymous:      true,
-			ExpandedStruct: true,
-			FieldNameTag:   "protowire",
-		},
-	}
-	require.NoError(t, d.register("command", schemaSample{}))
-	assert.Equal(
-		t,
-		protoreflect.FullName("worldengine.cardinal.v1.Snapshot"),
-		d.commandProtoTypes[schemaSample{}.Name()].FullName(),
-		"registration must use the descriptor supplied by the codec, not reflect on the command type",
+	d := newIntrospectionTestModule()
+	descriptor := schemaSampleDescriptor(t)
+	require.NoError(t, d.register("command", schemaSample{}, descriptor))
+
+	response, err := d.Introspect(
+		context.Background(),
+		connect.NewRequest(&cardinalv1.IntrospectRequest{}),
 	)
-	props, ok := d.commands["schema-sample"].AsMap()["properties"].(map[string]any)
-	require.True(t, ok, "schema should have properties")
+	require.NoError(t, err)
+	require.Len(t, response.Msg.GetCommands(), 1)
 
-	assert.Contains(t, props, "Tagged")      // Go field name, NOT the msgpack "nickname"
-	assert.Contains(t, props, "JSONOnly")    // json tag ignored
-	assert.Contains(t, props, "Plain")       // untagged
-	assert.Contains(t, props, "Skipped")     // exported => in the proto message => advertised
-	assert.NotContains(t, props, "nickname") // the msgpack tag must not drive proto field names
+	commandSchema := response.Msg.GetCommands()[0]
+	assert.Equal(t, string(descriptor.FullName()), commandSchema.GetProtoMessageName())
+	props, ok := commandSchema.GetSchema().AsMap()["properties"].(map[string]any)
+	require.True(t, ok, "schema should have properties")
+	descriptorFieldNames := make([]string, descriptor.Fields().Len())
+	for i := range descriptor.Fields().Len() {
+		descriptorFieldNames[i] = string(descriptor.Fields().Get(i).Name())
+	}
+	assert.ElementsMatch(t, descriptorFieldNames, mapKeys(props))
+
+	var set descriptorpb.FileDescriptorSet
+	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
+	files, err := protodesc.NewFiles(&set)
+	require.NoError(t, err)
+	resolved, err := files.FindDescriptorByName(descriptor.FullName())
+	require.NoError(t, err)
+	assert.Equal(t, descriptor.FullName(), resolved.FullName())
 }
 
 func mapKeys(m map[string]any) []string {
 	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
+	for key := range m {
+		out = append(out, key)
 	}
 	return out
 }
@@ -120,122 +140,28 @@ func systemNodeDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
 }
 
-// TestCollectDescriptorSetFromRegistry checks collectDescriptorSet against SystemNode's real compiled
-// fields, standing in for a generated command message.
-func TestCollectDescriptorSetFromRegistry(t *testing.T) {
-	md := systemNodeDescriptor()
-
-	set := collectDescriptorSet([]protoreflect.MessageDescriptor{md})
-	require.NotNil(t, set)
-
-	dp := findMessageDescriptor(set, "SystemNode")
-	require.NotNil(t, dp, "descriptor set must contain SystemNode's real message descriptor")
-	require.Len(t, dp.GetField(), 2)
-	assert.Equal(t, "id", dp.GetField()[0].GetName())
-	assert.Equal(t, int32(1), dp.GetField()[0].GetNumber())
-	assert.Equal(t, "name", dp.GetField()[1].GetName())
-	assert.Equal(t, int32(2), dp.GetField()[1].GetNumber())
-
-	// debug.proto imports google/protobuf/struct.proto transitively; the walk must pull it in too.
-	assert.True(t, hasFile(set, "google/protobuf/struct.proto"), "transitive import must be included")
-
-	assert.Nil(t, collectDescriptorSet(nil), "no resolved commands should yield no descriptor set")
-}
-
-// TestMarshalDescriptorSetRoundTrips checks the bytes Introspect ships decode back to the same
-// descriptor, and that no resolved commands means nil (not an empty FileDescriptorSet's encoding,
-// which happens to look the same, but nil is the honest value).
-func TestMarshalDescriptorSetRoundTrips(t *testing.T) {
-	md := systemNodeDescriptor()
-
-	data, err := marshalDescriptorSet([]protoreflect.MessageDescriptor{md})
-	require.NoError(t, err)
-	require.NotEmpty(t, data)
-
-	var decoded descriptorpb.FileDescriptorSet
-	require.NoError(t, proto.Unmarshal(data, &decoded))
-	require.NotNil(t, findMessageDescriptor(&decoded, "SystemNode"))
-
-	nilData, err := marshalDescriptorSet(nil)
-	require.NoError(t, err)
-	assert.Nil(t, nilData)
-}
-
-func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *descriptorpb.DescriptorProto {
-	for _, f := range set.GetFile() {
-		for _, m := range f.GetMessageType() {
-			if m.GetName() == name {
-				return m
-			}
-		}
-	}
-	return nil
-}
-
-func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
-	for _, f := range set.GetFile() {
-		if f.GetName() == path {
-			return true
-		}
-	}
-	return false
-}
-
-// TestCollectDescriptorSetDedupsSharedFiles guards against a duplicated FileDescriptorProto when two
-// commands resolve to messages from the same file — duplicate paths make the descriptor catalog
-// ambiguous for dynamic clients.
 func TestCollectDescriptorSetDedupsSharedFiles(t *testing.T) {
+	descriptor := systemNodeDescriptor()
+	set := collectDescriptorSet([]protoreflect.MessageDescriptor{descriptor, descriptor})
+
+	seen := make(map[string]bool, len(set.GetFile()))
+	for _, file := range set.GetFile() {
+		require.False(t, seen[file.GetName()], "duplicate file in descriptor set: %s", file.GetName())
+		seen[file.GetName()] = true
+	}
+}
+
+func TestMarshalDescriptorSetIsInputOrderIndependent(t *testing.T) {
 	systemNode := systemNodeDescriptor()
+	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
 
-	set := collectDescriptorSet([]protoreflect.MessageDescriptor{
-		systemNode,
-		systemNode,
-	})
-
-	seen := map[string]bool{}
-	for _, f := range set.GetFile() {
-		require.False(t, seen[f.GetName()], "duplicate file in descriptor set: %s", f.GetName())
-		seen[f.GetName()] = true
-	}
-}
-
-// TestCollectDescriptorSetIsDeterministic guards against Go's randomized map iteration leaking into
-// the marshaled bytes: two commands resolving to messages in different files must produce the same
-// FileDescriptorSet.File order every call, not just per-process. Uses SystemNode (debug.proto) and
-// Snapshot (snapshot.proto) so there are two distinct files to potentially reorder.
-func TestCollectDescriptorSetIsDeterministic(t *testing.T) {
-	types := []protoreflect.MessageDescriptor{
-		systemNodeDescriptor(),
-		(&cardinalv1.Snapshot{}).ProtoReflect().Descriptor(),
-	}
-
-	want := collectDescriptorSet(types)
-	var wantNames []string
-	for _, f := range want.GetFile() {
-		wantNames = append(wantNames, f.GetName())
-	}
-
-	for range 20 {
-		got := collectDescriptorSet(types)
-		var gotNames []string
-		for _, f := range got.GetFile() {
-			gotNames = append(gotNames, f.GetName())
-		}
-		require.Equal(t, wantNames, gotNames)
-	}
-}
-
-func TestProtoDescriptorSetIsCached(t *testing.T) {
-	d := &debugModule{commandProtoTypes: map[string]protoreflect.MessageDescriptor{
-		"system-node": systemNodeDescriptor(),
-	}}
-
-	first, err := d.protoDescriptorSet()
+	forward, err := marshalDescriptorSet([]protoreflect.MessageDescriptor{systemNode, snapshot})
 	require.NoError(t, err)
-	require.NotEmpty(t, first)
-
-	d.commandProtoTypes["snapshot"] = (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
-	second, err := d.protoDescriptorSet()
+	reverse, err := marshalDescriptorSet([]protoreflect.MessageDescriptor{snapshot, systemNode})
 	require.NoError(t, err)
-	assert.Equal(t, first, second, "descriptor bytes should be built once after registration")
+	assert.Equal(t, forward, reverse)
+
+	empty, err := marshalDescriptorSet(nil)
+	require.NoError(t, err)
+	assert.Nil(t, empty)
 }

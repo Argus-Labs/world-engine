@@ -14,14 +14,18 @@ import (
 type Codec interface {
 	Marshal(Payload) ([]byte, error)
 	Unmarshal([]byte) (Payload, error)
-	MessageDescriptor() protoreflect.MessageDescriptor
+}
+
+type registeredCodec struct {
+	codec      Codec
+	descriptor protoreflect.MessageDescriptor
 }
 
 // codecs maps a command name to its wire codec. It is populated once at init time by generated code
 // (command package imported wherever the command is used), then only read, so it needs no locking.
 //
 //nolint:gochecknoglobals // command codec registry: set once at init, read-only thereafter
-var codecs = map[string]Codec{}
+var codecs = map[string]registeredCodec{}
 
 // sealed freezes the registry once the world starts. After that the map is immutable, so the hot-path
 // reads in Marshal/unmarshal stay lock-free; a register attempt after sealing is a programming error.
@@ -42,7 +46,7 @@ func Seal() {
 // (e.g. a stale commands_wire.gen.go left behind after a command moved packages), so we fail loudly at
 // startup rather than let a last-wins map write silently shadow the correct codec. Registration must
 // happen before the world starts (Seal); a later call panics rather than racing the hot-path reads.
-func RegisterCodec(name string, c Codec) {
+func RegisterCodec(name string, codec Codec, descriptor protoreflect.MessageDescriptor) {
 	if sealed.Load() {
 		panic(eris.Errorf(
 			"command codec registry is sealed: register %q from generated init(), not after the world starts",
@@ -52,13 +56,13 @@ func RegisterCodec(name string, c Codec) {
 	if _, exists := codecs[name]; exists {
 		panic(eris.Errorf("command %q already has a registered codec (duplicate or stale generated code)", name))
 	}
-	if c.MessageDescriptor() == nil {
+	if descriptor == nil {
 		panic(eris.Errorf(
 			"command %q codec has no protobuf message descriptor (regenerate it with world sdk generate)",
 			name,
 		))
 	}
-	codecs[name] = c
+	codecs[name] = registeredCodec{codec: codec, descriptor: descriptor}
 }
 
 // HasCodec reports whether a codec is registered for the command name.
@@ -73,7 +77,7 @@ func MessageDescriptor(name string) protoreflect.MessageDescriptor {
 	if !ok {
 		return nil
 	}
-	return c.MessageDescriptor()
+	return c.descriptor
 }
 
 // Marshal encodes a command payload using its registered codec.
@@ -82,7 +86,7 @@ func Marshal(p Payload) ([]byte, error) {
 	if !ok {
 		return nil, eris.Errorf("command %q has no registered codec (run the generator)", p.Name())
 	}
-	return c.Marshal(p)
+	return c.codec.Marshal(p)
 }
 
 // unmarshal decodes wire bytes for the named command using its registered codec.
@@ -91,5 +95,5 @@ func unmarshal(name string, data []byte) (Payload, error) {
 	if !ok {
 		return nil, eris.Errorf("command %q has no registered codec (run the generator)", name)
 	}
-	return c.Unmarshal(data)
+	return c.codec.Unmarshal(data)
 }

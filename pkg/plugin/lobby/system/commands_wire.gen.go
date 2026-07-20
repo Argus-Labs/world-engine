@@ -8,7 +8,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	gen "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c AssignShardCommand) ToProto() *gen.AssignShardCommand {
@@ -32,10 +31,6 @@ func (c AssignShardCommand) FromProto(p *gen.AssignShardCommand) AssignShardComm
 }
 
 type assignShardCommandCodec struct{}
-
-func (assignShardCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.AssignShardCommand{}).ProtoReflect().Descriptor()
-}
 
 func (assignShardCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(AssignShardCommand)
@@ -77,10 +72,6 @@ func (c CreateLobbyCommand) FromProto(p *gen.CreateLobbyCommand) CreateLobbyComm
 
 type createLobbyCommandCodec struct{}
 
-func (createLobbyCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.CreateLobbyCommand{}).ProtoReflect().Descriptor()
-}
-
 func (createLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(CreateLobbyCommand)
 	if !ok {
@@ -114,10 +105,6 @@ func (c GenerateInviteCodeCommand) FromProto(p *gen.GenerateInviteCodeCommand) G
 }
 
 type generateInviteCodeCommandCodec struct{}
-
-func (generateInviteCodeCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.GenerateInviteCodeCommand{}).ProtoReflect().Descriptor()
-}
 
 func (generateInviteCodeCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(GenerateInviteCodeCommand)
@@ -153,10 +140,6 @@ func (c GetAllPlayersCommand) FromProto(p *gen.GetAllPlayersCommand) GetAllPlaye
 
 type getAllPlayersCommandCodec struct{}
 
-func (getAllPlayersCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.GetAllPlayersCommand{}).ProtoReflect().Descriptor()
-}
-
 func (getAllPlayersCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(GetAllPlayersCommand)
 	if !ok {
@@ -190,10 +173,6 @@ func (c GetLobbyCommand) FromProto(p *gen.GetLobbyCommand) GetLobbyCommand {
 }
 
 type getLobbyCommandCodec struct{}
-
-func (getLobbyCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.GetLobbyCommand{}).ProtoReflect().Descriptor()
-}
 
 func (getLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(GetLobbyCommand)
@@ -231,10 +210,6 @@ func (c GetPlayerCommand) FromProto(p *gen.GetPlayerCommand) GetPlayerCommand {
 
 type getPlayerCommandCodec struct{}
 
-func (getPlayerCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.GetPlayerCommand{}).ProtoReflect().Descriptor()
-}
-
 func (getPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(GetPlayerCommand)
 	if !ok {
@@ -266,10 +241,6 @@ func (c HeartbeatCommand) FromProto(p *gen.HeartbeatCommand) HeartbeatCommand {
 }
 
 type heartbeatCommandCodec struct{}
-
-func (heartbeatCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.HeartbeatCommand{}).ProtoReflect().Descriptor()
-}
 
 func (heartbeatCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(HeartbeatCommand)
@@ -311,10 +282,6 @@ func (c JoinLobbyCommand) FromProto(p *gen.JoinLobbyCommand) JoinLobbyCommand {
 
 type joinLobbyCommandCodec struct{}
 
-func (joinLobbyCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.JoinLobbyCommand{}).ProtoReflect().Descriptor()
-}
-
 func (joinLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(JoinLobbyCommand)
 	if !ok {
@@ -350,10 +317,6 @@ func (c JoinTeamCommand) FromProto(p *gen.JoinTeamCommand) JoinTeamCommand {
 }
 
 type joinTeamCommandCodec struct{}
-
-func (joinTeamCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.JoinTeamCommand{}).ProtoReflect().Descriptor()
-}
 
 func (joinTeamCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(JoinTeamCommand)
@@ -391,10 +354,6 @@ func (c KickPlayerCommand) FromProto(p *gen.KickPlayerCommand) KickPlayerCommand
 
 type kickPlayerCommandCodec struct{}
 
-func (kickPlayerCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.KickPlayerCommand{}).ProtoReflect().Descriptor()
-}
-
 func (kickPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(KickPlayerCommand)
 	if !ok {
@@ -429,10 +388,6 @@ func (c LeaveLobbyCommand) FromProto(p *gen.LeaveLobbyCommand) LeaveLobbyCommand
 
 type leaveLobbyCommandCodec struct{}
 
-func (leaveLobbyCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.LeaveLobbyCommand{}).ProtoReflect().Descriptor()
-}
-
 func (leaveLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(LeaveLobbyCommand)
 	if !ok {
@@ -466,10 +421,6 @@ func (c NotifySessionEndCommand) FromProto(p *gen.NotifySessionEndCommand) Notif
 }
 
 type notifySessionEndCommandCodec struct{}
-
-func (notifySessionEndCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.NotifySessionEndCommand{}).ProtoReflect().Descriptor()
-}
 
 func (notifySessionEndCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(NotifySessionEndCommand)
@@ -507,10 +458,6 @@ func (c NotifySessionStartCommand) FromProto(p *gen.NotifySessionStartCommand) N
 
 type notifySessionStartCommandCodec struct{}
 
-func (notifySessionStartCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.NotifySessionStartCommand{}).ProtoReflect().Descriptor()
-}
-
 func (notifySessionStartCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(NotifySessionStartCommand)
 	if !ok {
@@ -546,10 +493,6 @@ func (c SetReadyCommand) FromProto(p *gen.SetReadyCommand) SetReadyCommand {
 }
 
 type setReadyCommandCodec struct{}
-
-func (setReadyCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.SetReadyCommand{}).ProtoReflect().Descriptor()
-}
 
 func (setReadyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(SetReadyCommand)
@@ -605,10 +548,6 @@ func (c StartSessionCommand) FromProto(p *gen.StartSessionCommand) StartSessionC
 
 type startSessionCommandCodec struct{}
 
-func (startSessionCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.StartSessionCommand{}).ProtoReflect().Descriptor()
-}
-
 func (startSessionCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(StartSessionCommand)
 	if !ok {
@@ -644,10 +583,6 @@ func (c TransferLeaderCommand) FromProto(p *gen.TransferLeaderCommand) TransferL
 }
 
 type transferLeaderCommandCodec struct{}
-
-func (transferLeaderCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.TransferLeaderCommand{}).ProtoReflect().Descriptor()
-}
 
 func (transferLeaderCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(TransferLeaderCommand)
@@ -685,10 +620,6 @@ func (c UpdatePlayerPassthroughCommand) FromProto(p *gen.UpdatePlayerPassthrough
 
 type updatePlayerPassthroughCommandCodec struct{}
 
-func (updatePlayerPassthroughCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.UpdatePlayerPassthroughCommand{}).ProtoReflect().Descriptor()
-}
-
 func (updatePlayerPassthroughCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(UpdatePlayerPassthroughCommand)
 	if !ok {
@@ -725,10 +656,6 @@ func (c UpdateSessionPassthroughCommand) FromProto(p *gen.UpdateSessionPassthrou
 
 type updateSessionPassthroughCommandCodec struct{}
 
-func (updateSessionPassthroughCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.UpdateSessionPassthroughCommand{}).ProtoReflect().Descriptor()
-}
-
 func (updateSessionPassthroughCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(UpdateSessionPassthroughCommand)
 	if !ok {
@@ -748,22 +675,22 @@ func (updateSessionPassthroughCommandCodec) Unmarshal(data []byte) (cardinal.Com
 }
 
 func init() {
-	cardinal.RegisterCommandCodec("lobby_assign_shard", assignShardCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_create", createLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_generate_invite", generateInviteCodeCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_get_all_players", getAllPlayersCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_get_lobby", getLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_get_player", getPlayerCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_heartbeat", heartbeatCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_join", joinLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_join_team", joinTeamCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_kick", kickPlayerCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_leave", leaveLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_notify_session_end", notifySessionEndCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_notify_session_start", notifySessionStartCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_set_ready", setReadyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_start_session", startSessionCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_transfer_leader", transferLeaderCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_update_player_passthrough", updatePlayerPassthroughCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_update_session_passthrough", updateSessionPassthroughCommandCodec{})
+	cardinal.RegisterCommandCodec("lobby_assign_shard", assignShardCommandCodec{}, &gen.AssignShardCommand{})
+	cardinal.RegisterCommandCodec("lobby_create", createLobbyCommandCodec{}, &gen.CreateLobbyCommand{})
+	cardinal.RegisterCommandCodec("lobby_generate_invite", generateInviteCodeCommandCodec{}, &gen.GenerateInviteCodeCommand{})
+	cardinal.RegisterCommandCodec("lobby_get_all_players", getAllPlayersCommandCodec{}, &gen.GetAllPlayersCommand{})
+	cardinal.RegisterCommandCodec("lobby_get_lobby", getLobbyCommandCodec{}, &gen.GetLobbyCommand{})
+	cardinal.RegisterCommandCodec("lobby_get_player", getPlayerCommandCodec{}, &gen.GetPlayerCommand{})
+	cardinal.RegisterCommandCodec("lobby_heartbeat", heartbeatCommandCodec{}, &gen.HeartbeatCommand{})
+	cardinal.RegisterCommandCodec("lobby_join", joinLobbyCommandCodec{}, &gen.JoinLobbyCommand{})
+	cardinal.RegisterCommandCodec("lobby_join_team", joinTeamCommandCodec{}, &gen.JoinTeamCommand{})
+	cardinal.RegisterCommandCodec("lobby_kick", kickPlayerCommandCodec{}, &gen.KickPlayerCommand{})
+	cardinal.RegisterCommandCodec("lobby_leave", leaveLobbyCommandCodec{}, &gen.LeaveLobbyCommand{})
+	cardinal.RegisterCommandCodec("lobby_notify_session_end", notifySessionEndCommandCodec{}, &gen.NotifySessionEndCommand{})
+	cardinal.RegisterCommandCodec("lobby_notify_session_start", notifySessionStartCommandCodec{}, &gen.NotifySessionStartCommand{})
+	cardinal.RegisterCommandCodec("lobby_set_ready", setReadyCommandCodec{}, &gen.SetReadyCommand{})
+	cardinal.RegisterCommandCodec("lobby_start_session", startSessionCommandCodec{}, &gen.StartSessionCommand{})
+	cardinal.RegisterCommandCodec("lobby_transfer_leader", transferLeaderCommandCodec{}, &gen.TransferLeaderCommand{})
+	cardinal.RegisterCommandCodec("lobby_update_player_passthrough", updatePlayerPassthroughCommandCodec{}, &gen.UpdatePlayerPassthroughCommand{})
+	cardinal.RegisterCommandCodec("lobby_update_session_passthrough", updateSessionPassthroughCommandCodec{}, &gen.UpdateSessionPassthroughCommand{})
 }

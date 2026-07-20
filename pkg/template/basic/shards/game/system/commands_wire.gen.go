@@ -8,7 +8,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	gen "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c AttackPlayerCommand) ToProto() *gen.AttackPlayerCommand {
@@ -28,10 +27,6 @@ func (c AttackPlayerCommand) FromProto(p *gen.AttackPlayerCommand) AttackPlayerC
 }
 
 type attackPlayerCommandCodec struct{}
-
-func (attackPlayerCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.AttackPlayerCommand{}).ProtoReflect().Descriptor()
-}
 
 func (attackPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(AttackPlayerCommand)
@@ -67,10 +62,6 @@ func (c CallExternalCommand) FromProto(p *gen.CallExternalCommand) CallExternalC
 
 type callExternalCommandCodec struct{}
 
-func (callExternalCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.CallExternalCommand{}).ProtoReflect().Descriptor()
-}
-
 func (callExternalCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(CallExternalCommand)
 	if !ok {
@@ -105,10 +96,6 @@ func (c CreatePlayerCommand) FromProto(p *gen.CreatePlayerCommand) CreatePlayerC
 
 type createPlayerCommandCodec struct{}
 
-func (createPlayerCommandCodec) MessageDescriptor() protoreflect.MessageDescriptor {
-	return (&gen.CreatePlayerCommand{}).ProtoReflect().Descriptor()
-}
-
 func (createPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 	c, ok := p.(CreatePlayerCommand)
 	if !ok {
@@ -128,7 +115,7 @@ func (createPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error)
 }
 
 func init() {
-	cardinal.RegisterCommandCodec("attack-player", attackPlayerCommandCodec{})
-	cardinal.RegisterCommandCodec("call-external", callExternalCommandCodec{})
-	cardinal.RegisterCommandCodec("create-player", createPlayerCommandCodec{})
+	cardinal.RegisterCommandCodec("attack-player", attackPlayerCommandCodec{}, &gen.AttackPlayerCommand{})
+	cardinal.RegisterCommandCodec("call-external", callExternalCommandCodec{}, &gen.CallExternalCommand{})
+	cardinal.RegisterCommandCodec("create-player", createPlayerCommandCodec{}, &gen.CreatePlayerCommand{})
 }
