@@ -6,6 +6,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	"github.com/shamaton/msgpack/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,8 +14,8 @@ import (
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
 // -------------------------------------------------------------------------------------------------
-// We don't extensively test Serialize/Deserialize because:
-// 1. The implementation is a thin wrapper around msgpack.Marshal/Unmarshal (well-tested library).
+// We don't extensively test Serialize because:
+// 1. The implementation is a thin wrapper around msgpack.Marshal (a well-tested library).
 // 2. Heavy property-based testing would mostly exercise the msgpack package, not our code.
 // -------------------------------------------------------------------------------------------------
 
@@ -28,83 +29,11 @@ func TestSerialize_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var actual testutils.ComponentMixed
-	err = schema.Deserialize(data, &actual)
+	err = msgpack.Unmarshal(data, &actual)
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
 	assert.Equal(t, expected, actual)
-}
-
-// -------------------------------------------------------------------------------------------------
-// Deserialization robustness fuzz
-// -------------------------------------------------------------------------------------------------
-// Verifies Deserialize never panics on corrupted input — it must return an error or succeed.
-// This does NOT assert correctness: msgpack can silently skip corrupted field names, e.g. when a
-// struct field name is corrupted ("Value" -> "value"), it will parse the field and set it to its
-// zero value instead of returning an error.
-//
-// If we want correctness, we have to either:
-// - Incorporate checksums at the serialization layer and check it when deserializing, or
-// - Rely on the storage layer to enforce correctness, e.g. JetStream object store stores a sha256
-//   hash of the object in its metadata.
-// -------------------------------------------------------------------------------------------------
-
-func TestDeserialize_NegativeFuzz(t *testing.T) {
-	t.Parallel()
-	prng := testutils.NewRand(t)
-
-	const opsMax = 1 << 11 // 2048 iterations
-
-	valid, invalid := 0, 0
-
-	for range opsMax {
-		expected := randComponentMixed(prng)
-		data, err := schema.Serialize(expected)
-		require.NoError(t, err)
-
-		if prng.Float64() < 0.75 && len(data) > 0 {
-			// Flip a random bit to corrupt the data.
-			bit := uint(prng.IntN(8))
-			data[prng.IntN(len(data))] ^= 1 << bit
-		}
-
-		var actual testutils.ComponentMixed
-		err = schema.Deserialize(data, &actual)
-		if err != nil {
-			invalid++
-		} else {
-			valid++
-		}
-	}
-	assert.Equal(t, opsMax, valid+invalid, "valid + invalid should equal total iterations")
-}
-
-// TestDeserialize_RecoversFromMsgpackPanic_Regression is a regression test for
-// github.com/shamaton/msgpack/v3 panicking with:
-// "reflect.Value.SetBytes of non-byte slice".
-//
-// Payload shape:
-// - The target field is []int.
-// - The msgpack payload encodes that field as BIN8 (raw bytes), not ARRAY.
-func TestDeserialize_RecoversFromMsgpackPanic_Regression(t *testing.T) {
-	t.Parallel()
-
-	type target struct {
-		Ints []int `msgpack:"ints"`
-	}
-
-	// msgpack bytes:
-	// 0x81                -> fixmap(1)
-	// 0xa4 'i''n''t''s'   -> key "ints"
-	// 0xc4 0x03 'a''b''c' -> BIN8 len=3, payload "abc"
-	data := []byte{
-		0x81,
-		0xa4, 'i', 'n', 't', 's',
-		0xc4, 0x03, 'a', 'b', 'c',
-	}
-
-	var v target
-	require.ErrorContains(t, schema.Deserialize(data, &v), "failed to deserialize")
 }
 
 func randComponentMixed(prng *rand.Rand) testutils.ComponentMixed {
@@ -228,7 +157,7 @@ func TestSerialize_TypeCoverage(t *testing.T) {
 		require.NoError(t, err)
 
 		var actual testutils.ComponentMixed
-		err = schema.Deserialize(data, &actual)
+		err = msgpack.Unmarshal(data, &actual)
 		require.NoError(t, err)
 
 		// Integer types
