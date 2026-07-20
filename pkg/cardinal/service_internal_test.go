@@ -10,13 +10,13 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
+	"github.com/shamaton/msgpack/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -145,7 +145,7 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 		eventPb := <-waiter
 		assert.Equal(t, payload.Name(), eventPb.GetName())
 		var decoded testutils.SimpleEvent
-		require.NoError(t, schema.Deserialize(eventPb.GetPayload(), &decoded))
+		require.NoError(t, msgpack.Unmarshal(eventPb.GetPayload(), &decoded))
 		assert.Equal(t, payload, decoded)
 	})
 }
