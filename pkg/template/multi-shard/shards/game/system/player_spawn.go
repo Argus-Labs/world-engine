@@ -26,7 +26,7 @@ func PlayerSpawnSystem(state *SpawnPlayerSystemState) {
 
 		// Regardless of whether the player exists or not, we emit a spawn event
 		// Because the act of spawning is also creating (if they don’t already exist)
-		state.PlayerSpawnEvent.Emit(event.PlayerSpawn{
+		state.PlayerSpawnEvent.Broadcast(event.PlayerSpawn{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 			X:             command.X,

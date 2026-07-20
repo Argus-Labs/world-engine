@@ -27,7 +27,7 @@ func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
 		if isOnline && time.Since(lastActive) > 5*time.Minute {
 			player.OnlineStatus.Set(component.OnlineStatus{Online: false, LastActive: lastActive})
 
-			state.PlayerDepartureEvent.Emit(event.PlayerDeparture{
+			state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
 				ArgusAuthID: player.PlayerTag.Get().ArgusAuthID,
 			})
 

@@ -37,7 +37,7 @@ func UserChatSystem(state *UserChatSystemState) {
 			Uint32("entity", uint32(id)).
 			Msgf("Created chat message %s (id: %s)", command.Message, command.ArgusAuthID)
 
-		state.UserChatEvent.Emit(event.UserChat{
+		state.UserChatEvent.Broadcast(event.UserChat{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 			Message:       command.Message,
