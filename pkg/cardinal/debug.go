@@ -148,12 +148,12 @@ func (d *debugModule) register(
 	return nil
 }
 
-// collectDescriptorSet gathers the files containing the supplied message descriptors plus their
+// buildDescriptorSet serializes the files containing the supplied message descriptors and their
 // transitive imports. It is independent of the command registry so component and event descriptors
 // can feed the same catalog when those wire formats move to protobuf.
-func collectDescriptorSet(messages []protoreflect.MessageDescriptor) *descriptorpb.FileDescriptorSet {
+func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
 	if len(messages) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	sortedMessages := append([]protoreflect.MessageDescriptor(nil), messages...)
@@ -182,7 +182,8 @@ func collectDescriptorSet(messages []protoreflect.MessageDescriptor) *descriptor
 		addFile(message.ParentFile())
 	}
 
-	return &descriptorpb.FileDescriptorSet{File: files}
+	set := &descriptorpb.FileDescriptorSet{File: files}
+	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
 }
 
 // Introspect returns metadata about the registered types in the world.
@@ -208,23 +209,13 @@ func (d *debugModule) Introspect(
 	}), nil
 }
 
-// marshalDescriptorSet serializes collectDescriptorSet's result to wire bytes. Returns nil, nil if no
-// command resolved a descriptor.
-func marshalDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
-	set := collectDescriptorSet(messages)
-	if set == nil {
-		return nil, nil
-	}
-	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
-}
-
 func (d *debugModule) protoDescriptorSet() ([]byte, error) {
 	d.descriptorSetOnce.Do(func() {
 		descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commands))
 		for _, command := range d.commands {
 			descriptors = append(descriptors, command.descriptor)
 		}
-		d.descriptorSet, d.descriptorSetErr = marshalDescriptorSet(descriptors)
+		d.descriptorSet, d.descriptorSetErr = buildDescriptorSet(descriptors)
 	})
 	return d.descriptorSet, d.descriptorSetErr
 }

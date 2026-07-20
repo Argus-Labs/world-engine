@@ -140,9 +140,12 @@ func systemNodeDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
 }
 
-func TestCollectDescriptorSetDedupsSharedFiles(t *testing.T) {
+func TestBuildDescriptorSetDedupsSharedFiles(t *testing.T) {
 	descriptor := systemNodeDescriptor()
-	set := collectDescriptorSet([]protoreflect.MessageDescriptor{descriptor, descriptor})
+	data, err := buildDescriptorSet([]protoreflect.MessageDescriptor{descriptor, descriptor})
+	require.NoError(t, err)
+	var set descriptorpb.FileDescriptorSet
+	require.NoError(t, proto.Unmarshal(data, &set))
 
 	seen := make(map[string]bool, len(set.GetFile()))
 	for _, file := range set.GetFile() {
@@ -151,17 +154,17 @@ func TestCollectDescriptorSetDedupsSharedFiles(t *testing.T) {
 	}
 }
 
-func TestMarshalDescriptorSetIsInputOrderIndependent(t *testing.T) {
+func TestBuildDescriptorSetIsInputOrderIndependent(t *testing.T) {
 	systemNode := systemNodeDescriptor()
 	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
 
-	forward, err := marshalDescriptorSet([]protoreflect.MessageDescriptor{systemNode, snapshot})
+	forward, err := buildDescriptorSet([]protoreflect.MessageDescriptor{systemNode, snapshot})
 	require.NoError(t, err)
-	reverse, err := marshalDescriptorSet([]protoreflect.MessageDescriptor{snapshot, systemNode})
+	reverse, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, systemNode})
 	require.NoError(t, err)
 	assert.Equal(t, forward, reverse)
 
-	empty, err := marshalDescriptorSet(nil)
+	empty, err := buildDescriptorSet(nil)
 	require.NoError(t, err)
 	assert.Nil(t, empty)
 }
