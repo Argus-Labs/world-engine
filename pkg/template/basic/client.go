@@ -1,4 +1,4 @@
-//nolint:forbidigo // This is an interactive example client.
+//nolint:forbidigo,gocognit // This is an interactive example client.
 package main
 
 import (

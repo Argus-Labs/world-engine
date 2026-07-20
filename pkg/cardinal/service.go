@@ -514,6 +514,7 @@ func (s *service) hasSubscriber(user *User) bool {
 
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
+//nolint:gocognit // Put everything here so you can understand the logic in one place.
 func (s *service) publishDefaultEvent(evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
@@ -532,8 +533,9 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 
 	s.mu.RLock()
 	var subscribers []*streamSubscriber
+	//nolint:nestif // It's fine
 	if evt.Recipient != "" {
-		if subscriber, ok := s.subscribers[evt.Recipient]; ok {
+		if subscriber, exists := s.subscribers[evt.Recipient]; exists {
 			for subscription := range subscriber.events {
 				if matchesEvent(subscription, eventPb.GetName()) {
 					subscribers = []*streamSubscriber{subscriber}
