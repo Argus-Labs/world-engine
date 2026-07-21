@@ -3,8 +3,8 @@ package cardinal
 import (
 	"context"
 	"math"
-	"reflect"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -27,6 +27,11 @@ import (
 
 const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches.
 
+type introspectedType struct {
+	schema     *structpb.Struct
+	descriptor protoreflect.MessageDescriptor
+}
+
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
@@ -34,13 +39,13 @@ type debugModule struct {
 	control          *tickControl
 	reflector        *jsonschema.Reflector // components/events
 	commandReflector *jsonschema.Reflector
-	commands         map[string]*structpb.Struct
-	events           map[string]*structpb.Struct
-	components       map[string]*structpb.Struct
-	// commandProtoTypes holds each command's resolved proto descriptor (see commandProtoDescriptor),
-	// keyed by command name. Introspect ships these via IntrospectResponse.proto_descriptor_set.
-	commandProtoTypes map[string]protoreflect.MessageDescriptor
-	perf              *performance.Collector
+	catalogMu        sync.Mutex
+	catalogFinalized bool
+	commands         map[string]introspectedType
+	events           map[string]introspectedType
+	components       map[string]introspectedType
+	descriptorSet    []byte
+	perf             *performance.Collector
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -51,12 +56,11 @@ func newDebugModule(world *World) debugModule {
 	perf := performance.NewCollector(batchSize)
 
 	return debugModule{
-		world:             world,
-		control:           newTickControl(),
-		commands:          make(map[string]*structpb.Struct),
-		events:            make(map[string]*structpb.Struct),
-		components:        make(map[string]*structpb.Struct),
-		commandProtoTypes: make(map[string]protoreflect.MessageDescriptor),
+		world:      world,
+		control:    newTickControl(),
+		commands:   make(map[string]introspectedType),
+		events:     make(map[string]introspectedType),
+		components: make(map[string]introspectedType),
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
@@ -80,12 +84,21 @@ func newDebugModule(world *World) debugModule {
 // -------------------------------------------------------------------------------------------------
 
 // register records the JSON schema of a command, event, or component type for introspection.
-func (d *debugModule) register(kind string, value schema.Serializable) error {
+func (d *debugModule) register(
+	kind string,
+	value schema.Serializable,
+	descriptor protoreflect.MessageDescriptor,
+) error {
 	if d == nil {
 		return nil
 	}
+	d.catalogMu.Lock()
+	defer d.catalogMu.Unlock()
+	if d.catalogFinalized {
+		return eris.New("introspection catalog is finalized")
+	}
 
-	var catalog map[string]*structpb.Struct
+	var catalog map[string]introspectedType
 	switch kind {
 	case "command":
 		catalog = d.commands
@@ -103,6 +116,12 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	}
 
 	isCommand := kind == "command"
+	if isCommand && descriptor == nil {
+		return eris.Errorf(
+			"command %q has no registered protobuf message descriptor (regenerate it with world sdk generate)",
+			name,
+		)
+	}
 
 	reflector := d.reflector
 	if isCommand {
@@ -125,53 +144,58 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
 
-	// Commands decode from proto wire; record the resolved descriptor for Introspect to advertise.
-	if isCommand {
-		if md := commandProtoDescriptor(value); md != nil {
-			d.commandProtoTypes[name] = md
-		}
-	}
-
 	schemaStruct, err := structpb.NewStruct(schemaMap)
 	if err != nil {
 		return eris.Wrap(err, "failed to create struct from schema")
 	}
 
-	catalog[name] = schemaStruct
+	catalog[name] = introspectedType{schema: schemaStruct, descriptor: descriptor}
 	return nil
 }
 
-// commandProtoDescriptor resolves a command's proto descriptor from its ToProto() method's return
-// type — found by reflection (each command's ToProto() returns a different concrete type), and never
-// invoked.
-func commandProtoDescriptor(value any) protoreflect.MessageDescriptor {
-	if value == nil {
+// finalizeCatalog builds the immutable protobuf descriptor catalog before the debug service becomes
+// reachable. Registrations after this point are rejected.
+func (d *debugModule) finalizeCatalog() error {
+	if d == nil {
 		return nil
 	}
 
-	t := reflect.TypeOf(value)
-	m, ok := t.MethodByName("ToProto")
-	if !ok && t.Kind() != reflect.Pointer {
-		m, ok = reflect.PointerTo(t).MethodByName("ToProto")
-	}
-	if !ok || m.Type.NumIn() != 1 || m.Type.NumOut() != 1 {
+	d.catalogMu.Lock()
+	defer d.catalogMu.Unlock()
+	if d.catalogFinalized {
 		return nil
 	}
 
-	pm, ok := reflect.Zero(m.Type.Out(0)).Interface().(proto.Message)
-	if !ok {
-		return nil
+	descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commands))
+	for _, catalog := range []map[string]introspectedType{d.commands, d.components, d.events} {
+		for _, entry := range catalog {
+			if entry.descriptor != nil {
+				descriptors = append(descriptors, entry.descriptor)
+			}
+		}
 	}
-	return pm.ProtoReflect().Descriptor()
+
+	descriptorSet, err := buildDescriptorSet(descriptors)
+	if err != nil {
+		return err
+	}
+	d.descriptorSet = descriptorSet
+	d.catalogFinalized = true
+	return nil
 }
 
-// collectDescriptorSet gathers the FileDescriptorProto for every command's resolved proto message,
-// plus transitive imports, deduplicated by file path. Returns nil if none resolved. Sorted by command
-// name so output is byte-identical across calls (map iteration order isn't stable).
-func collectDescriptorSet(types map[string]protoreflect.MessageDescriptor) *descriptorpb.FileDescriptorSet {
-	if len(types) == 0 {
-		return nil
+// buildDescriptorSet serializes the files containing the supplied message descriptors and their
+// transitive imports. It is independent of the command registry so component and event descriptors
+// can feed the same catalog when those wire formats move to protobuf.
+func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
+	if len(messages) == 0 {
+		return nil, nil
 	}
+
+	sortedMessages := append([]protoreflect.MessageDescriptor(nil), messages...)
+	sort.Slice(sortedMessages, func(i, j int) bool {
+		return sortedMessages[i].FullName() < sortedMessages[j].FullName()
+	})
 
 	seen := make(map[string]bool)
 	var files []*descriptorpb.FileDescriptorProto
@@ -190,17 +214,12 @@ func collectDescriptorSet(types map[string]protoreflect.MessageDescriptor) *desc
 		files = append(files, protodesc.ToFileDescriptorProto(fd))
 	}
 
-	names := make([]string, 0, len(types))
-	for name := range types {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		addFile(types[name].ParentFile())
+	for _, message := range sortedMessages {
+		addFile(message.ParentFile())
 	}
 
-	return &descriptorpb.FileDescriptorSet{File: files}
+	set := &descriptorpb.FileDescriptorSet{File: files}
+	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
 }
 
 // Introspect returns metadata about the registered types in the world.
@@ -208,29 +227,21 @@ func (d *debugModule) Introspect(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
-	descriptorSetBytes, err := marshalDescriptorSet(d.commandProtoTypes)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to marshal proto descriptor set"))
+	d.catalogMu.Lock()
+	finalized := d.catalogFinalized
+	d.catalogMu.Unlock()
+	if !finalized {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("introspection catalog is not finalized"))
 	}
 
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
-		Commands:           d.buildTypeSchemas(d.commands, d.commandProtoTypes),
-		Components:         d.buildTypeSchemas(d.components, nil),
-		Events:             d.buildTypeSchemas(d.events, nil),
+		Commands:           d.buildTypeSchemas(d.commands),
+		Components:         d.buildTypeSchemas(d.components),
+		Events:             d.buildTypeSchemas(d.events),
 		TickRateHz:         d.world.options.TickRate,
 		Schedules:          d.buildSchedules(),
-		ProtoDescriptorSet: descriptorSetBytes,
+		ProtoDescriptorSet: d.descriptorSet,
 	}), nil
-}
-
-// marshalDescriptorSet serializes collectDescriptorSet's result to wire bytes. Returns nil, nil if no
-// command resolved a descriptor.
-func marshalDescriptorSet(types map[string]protoreflect.MessageDescriptor) ([]byte, error) {
-	set := collectDescriptorSet(types)
-	if set == nil {
-		return nil, nil
-	}
-	return proto.Marshal(set)
 }
 
 // buildSchedules converts the ECS system lists to proto messages.
@@ -358,20 +369,16 @@ func (d *debugModule) recordSpan(span performance.TickSpan) {
 	d.perf.RecordSpan(span)
 }
 
-// buildTypeSchemas converts the internal schema cache to proto TypeSchema messages. protoTypes is
-// optional (nil for components/events); when present, it sets each schema's proto message name.
-func (d *debugModule) buildTypeSchemas(
-	cache map[string]*structpb.Struct,
-	protoTypes map[string]protoreflect.MessageDescriptor,
-) []*cardinalv1.TypeSchema {
+// buildTypeSchemas converts the introspection catalog to proto TypeSchema messages.
+func (d *debugModule) buildTypeSchemas(cache map[string]introspectedType) []*cardinalv1.TypeSchema {
 	schemas := make([]*cardinalv1.TypeSchema, 0, len(cache))
-	for name, schemaStruct := range cache {
+	for name, entry := range cache {
 		ts := &cardinalv1.TypeSchema{
 			Name:   name,
-			Schema: schemaStruct,
+			Schema: entry.schema,
 		}
-		if md, ok := protoTypes[name]; ok {
-			ts.ProtoMessageName = string(md.FullName())
+		if entry.descriptor != nil {
+			ts.ProtoMessageName = string(entry.descriptor.FullName())
 		}
 		schemas = append(schemas, ts)
 	}

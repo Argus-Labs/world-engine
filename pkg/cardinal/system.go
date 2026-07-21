@@ -15,6 +15,7 @@ import (
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/proto"
 )
 
 type EntityID = ecs.EntityID
@@ -204,10 +205,12 @@ type Command = command.Payload
 // implements one per command type and registers it via RegisterCommandCodec.
 type CommandCodec = command.Codec
 
-// RegisterCommandCodec registers the wire codec for a command name. Generated code calls this from an
-// init() in the command's package, so the codec is available once that package is imported.
-func RegisterCommandCodec(name string, c CommandCodec) {
-	command.RegisterCodec(name, c)
+// RegisterCommandCodec associates a generated codec with its exact protobuf message type.
+func RegisterCommandCodec(name string, codec CommandCodec, prototype proto.Message) {
+	if prototype == nil {
+		panic(eris.Errorf("command %q protobuf message prototype is nil", name))
+	}
+	command.RegisterCodec(name, codec, prototype.ProtoReflect().Descriptor())
 }
 
 type WithCommand[T Command] struct {
@@ -232,7 +235,7 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 		return eris.Wrapf(err, "failed to register command %s", name)
 	}
 
-	if err := meta.world.debug.register("command", zero); err != nil {
+	if err := meta.world.debug.register("command", zero, command.MessageDescriptor(name)); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 
@@ -329,7 +332,7 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
 	}
 
-	if err := meta.world.debug.register("event", zero); err != nil {
+	if err := meta.world.debug.register("event", zero, nil); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 

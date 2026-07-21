@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package cardinal.commandtest;
+
+option go_package = "github.com/argus-labs/world-engine/pkg/cardinal/internal/commandtest/commandtestpb";
+
+message SimpleCommand {
+  int64 value = 1;
+}
+
+message CommandA {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message CommandB {
+  uint64 id = 1;
+  string label = 2;
+  bool enabled = 3;
+}
+
+message CommandC {
+  repeated int32 values = 1;
+  uint32 counter = 2;
+}

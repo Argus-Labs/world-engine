@@ -115,7 +115,7 @@ func (createPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error)
 }
 
 func init() {
-	cardinal.RegisterCommandCodec("attack-player", attackPlayerCommandCodec{})
-	cardinal.RegisterCommandCodec("call-external", callExternalCommandCodec{})
-	cardinal.RegisterCommandCodec("create-player", createPlayerCommandCodec{})
+	cardinal.RegisterCommandCodec("attack-player", attackPlayerCommandCodec{}, &gen.AttackPlayerCommand{})
+	cardinal.RegisterCommandCodec("call-external", callExternalCommandCodec{}, &gen.CallExternalCommand{})
+	cardinal.RegisterCommandCodec("create-player", createPlayerCommandCodec{}, &gen.CreatePlayerCommand{})
 }

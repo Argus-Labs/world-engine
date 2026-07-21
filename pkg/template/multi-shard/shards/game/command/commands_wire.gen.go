@@ -123,7 +123,7 @@ func (playerSpawnCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 }
 
 func init() {
-	cardinal.RegisterCommandCodec("move-player", movePlayerCodec{})
-	cardinal.RegisterCommandCodec("player-leave", playerLeaveCodec{})
-	cardinal.RegisterCommandCodec("player-spawn", playerSpawnCodec{})
+	cardinal.RegisterCommandCodec("move-player", movePlayerCodec{}, &gen.MovePlayer{})
+	cardinal.RegisterCommandCodec("player-leave", playerLeaveCodec{}, &gen.PlayerLeave{})
+	cardinal.RegisterCommandCodec("player-spawn", playerSpawnCodec{}, &gen.PlayerSpawn{})
 }

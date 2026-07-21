@@ -82,7 +82,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Set ECS on componet register callback (used for introspect).
 	world.world.OnComponentRegister(func(zero ecs.Component) error {
-		return world.debug.register("component", zero)
+		return world.debug.register("component", zero, nil)
 	})
 
 	// Create the ConnectRPC client-facing service.
@@ -141,6 +141,9 @@ func (w *World) StartGame() {
 	// any later RegisterCommandCodec is a bug. Sealing turns that into a clear panic instead of an
 	// unrecoverable concurrent-map write against the tick loop's hot-path reads.
 	command.Seal()
+	if err := w.debug.finalizeCatalog(); err != nil {
+		panic(eris.Wrap(err, "failed to finalize introspection catalog"))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

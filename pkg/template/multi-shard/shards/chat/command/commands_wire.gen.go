@@ -49,5 +49,5 @@ func (userChatCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 }
 
 func init() {
-	cardinal.RegisterCommandCodec("user-chat", userChatCodec{})
+	cardinal.RegisterCommandCodec("user-chat", userChatCodec{}, &gen.UserChat{})
 }
