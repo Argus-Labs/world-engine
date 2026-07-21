@@ -101,6 +101,7 @@ func TestIntrospectAdvertisesCommandWireMetadata(t *testing.T) {
 	d := newIntrospectionTestModule()
 	descriptor := schemaSampleDescriptor(t)
 	require.NoError(t, d.register("command", schemaSample{}, descriptor))
+	require.NoError(t, d.finalizeCatalog())
 
 	response, err := d.Introspect(
 		context.Background(),
@@ -126,6 +127,30 @@ func TestIntrospectAdvertisesCommandWireMetadata(t *testing.T) {
 	resolved, err := files.FindDescriptorByName(descriptor.FullName())
 	require.NoError(t, err)
 	assert.Equal(t, descriptor.FullName(), resolved.FullName())
+}
+
+func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register("command", schemaSample{}, schemaSampleDescriptor(t)))
+	require.NoError(t, d.finalizeCatalog())
+	require.NoError(t, d.finalizeCatalog(), "finalization should be idempotent")
+
+	err := d.register("component", schemaSample{}, nil)
+	assert.EqualError(t, err, "introspection catalog is finalized")
+}
+
+func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	_, err := d.Introspect(
+		context.Background(),
+		connect.NewRequest(&cardinalv1.IntrospectRequest{}),
+	)
+	require.Error(t, err)
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
 func mapKeys(m map[string]any) []string {

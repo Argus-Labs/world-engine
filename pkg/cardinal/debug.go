@@ -35,17 +35,17 @@ type introspectedType struct {
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
-	world             *World
-	control           *tickControl
-	reflector         *jsonschema.Reflector // components/events
-	commandReflector  *jsonschema.Reflector
-	commands          map[string]introspectedType
-	events            map[string]introspectedType
-	components        map[string]introspectedType
-	descriptorSetOnce sync.Once
-	descriptorSet     []byte
-	descriptorSetErr  error
-	perf              *performance.Collector
+	world            *World
+	control          *tickControl
+	reflector        *jsonschema.Reflector // components/events
+	commandReflector *jsonschema.Reflector
+	catalogMu        sync.Mutex
+	catalogFinalized bool
+	commands         map[string]introspectedType
+	events           map[string]introspectedType
+	components       map[string]introspectedType
+	descriptorSet    []byte
+	perf             *performance.Collector
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -91,6 +91,11 @@ func (d *debugModule) register(
 ) error {
 	if d == nil {
 		return nil
+	}
+	d.catalogMu.Lock()
+	defer d.catalogMu.Unlock()
+	if d.catalogFinalized {
+		return eris.New("introspection catalog is finalized")
 	}
 
 	var catalog map[string]introspectedType
@@ -148,6 +153,37 @@ func (d *debugModule) register(
 	return nil
 }
 
+// finalizeCatalog builds the immutable protobuf descriptor catalog before the debug service becomes
+// reachable. Registrations after this point are rejected.
+func (d *debugModule) finalizeCatalog() error {
+	if d == nil {
+		return nil
+	}
+
+	d.catalogMu.Lock()
+	defer d.catalogMu.Unlock()
+	if d.catalogFinalized {
+		return nil
+	}
+
+	descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commands))
+	for _, catalog := range []map[string]introspectedType{d.commands, d.components, d.events} {
+		for _, entry := range catalog {
+			if entry.descriptor != nil {
+				descriptors = append(descriptors, entry.descriptor)
+			}
+		}
+	}
+
+	descriptorSet, err := buildDescriptorSet(descriptors)
+	if err != nil {
+		return err
+	}
+	d.descriptorSet = descriptorSet
+	d.catalogFinalized = true
+	return nil
+}
+
 // buildDescriptorSet serializes the files containing the supplied message descriptors and their
 // transitive imports. It is independent of the command registry so component and event descriptors
 // can feed the same catalog when those wire formats move to protobuf.
@@ -191,12 +227,11 @@ func (d *debugModule) Introspect(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
-	descriptorSet, err := d.protoDescriptorSet()
-	if err != nil {
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			eris.Wrap(err, "failed to marshal proto descriptor set"),
-		)
+	d.catalogMu.Lock()
+	finalized := d.catalogFinalized
+	d.catalogMu.Unlock()
+	if !finalized {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("introspection catalog is not finalized"))
 	}
 
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
@@ -205,19 +240,8 @@ func (d *debugModule) Introspect(
 		Events:             d.buildTypeSchemas(d.events),
 		TickRateHz:         d.world.options.TickRate,
 		Schedules:          d.buildSchedules(),
-		ProtoDescriptorSet: descriptorSet,
+		ProtoDescriptorSet: d.descriptorSet,
 	}), nil
-}
-
-func (d *debugModule) protoDescriptorSet() ([]byte, error) {
-	d.descriptorSetOnce.Do(func() {
-		descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commands))
-		for _, command := range d.commands {
-			descriptors = append(descriptors, command.descriptor)
-		}
-		d.descriptorSet, d.descriptorSetErr = buildDescriptorSet(descriptors)
-	})
-	return d.descriptorSet, d.descriptorSetErr
 }
 
 // buildSchedules converts the ECS system lists to proto messages.

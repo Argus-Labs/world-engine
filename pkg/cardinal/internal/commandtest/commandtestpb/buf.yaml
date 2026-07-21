@@ -1,0 +1,10 @@
+# Keep this internal test schema separate from the root public proto module, whose generation targets
+# Go, TypeScript, and C#. This fixture only needs a local Go package.
+version: v2
+modules:
+  - path: .
+lint:
+  use:
+    - MINIMAL
+  except:
+    - PACKAGE_DIRECTORY_MATCH

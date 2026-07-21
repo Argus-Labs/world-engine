@@ -48,6 +48,12 @@ tasks:
         vars:
           CI: false
 
+  # Code generation.
+  generate:commandtest-proto:
+    desc: Generate the protobuf-backed command test fixtures
+    dir: pkg/cardinal/internal/commandtest/commandtestpb
+    cmds:
+      - buf generate
 
   # Utilities.
   clean:

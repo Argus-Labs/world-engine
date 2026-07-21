@@ -141,6 +141,9 @@ func (w *World) StartGame() {
 	// any later RegisterCommandCodec is a bug. Sealing turns that into a clear panic instead of an
 	// unrecoverable concurrent-map write against the tick loop's hot-path reads.
 	command.Seal()
+	if err := w.debug.finalizeCatalog(); err != nil {
+		panic(eris.Wrap(err, "failed to finalize introspection catalog"))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
