@@ -45,7 +45,7 @@ func AttackPlayerSystem(state *AttackPlayerSystemState) {
 			} else {
 				state.Players.Destroy(entity)
 
-				state.PlayerDeathEvents.Emit(event.PlayerDeath{Nickname: tag.Nickname})
+				state.PlayerDeathEvents.SendTo(cmd.Persona, event.PlayerDeath{Nickname: tag.Nickname})
 
 				state.PlayerDeathSystemEvents.Emit(systemevent.PlayerDeath{Nickname: tag.Nickname})
 

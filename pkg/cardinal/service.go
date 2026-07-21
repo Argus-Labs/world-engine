@@ -514,6 +514,7 @@ func (s *service) hasSubscriber(user *User) bool {
 
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
+//nolint:gocognit // Put everything here so you can understand the logic in one place.
 func (s *service) publishDefaultEvent(evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
@@ -531,12 +532,27 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 	}
 
 	s.mu.RLock()
-	subscribers := make([]*streamSubscriber, 0, len(s.subscribers))
-	for _, subscriber := range s.subscribers {
-		for subscription := range subscriber.events {
-			if matchesEvent(subscription, eventPb.GetName()) {
-				subscribers = append(subscribers, subscriber)
-				break
+	var subscribers []*streamSubscriber
+	//nolint:nestif // It's fine
+	if evt.Recipient != "" {
+		if subscriber, exists := s.subscribers[evt.Recipient]; exists {
+			for subscription := range subscriber.events {
+				if matchesEvent(subscription, eventPb.GetName()) {
+					subscribers = []*streamSubscriber{subscriber}
+					break
+				}
+			}
+		} else {
+			s.log.Debug().Str("recipient", evt.Recipient).Str("event", eventPb.GetName()).Msg("recipient has no open stream")
+		}
+	} else {
+		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
+		for _, subscriber := range s.subscribers {
+			for subscription := range subscriber.events {
+				if matchesEvent(subscription, eventPb.GetName()) {
+					subscribers = append(subscribers, subscriber)
+					break
+				}
 			}
 		}
 	}

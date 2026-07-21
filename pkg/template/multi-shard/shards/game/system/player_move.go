@@ -32,7 +32,7 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 			isOnline := player.Online.Get().Online
 
 			if !isOnline {
-				state.PlayerSpawnEvent.Emit(event.PlayerSpawn{
+				state.PlayerSpawnEvent.Broadcast(event.PlayerSpawn{
 					ArgusAuthID:   tag.ArgusAuthID,
 					ArgusAuthName: tag.ArgusAuthName,
 					X:             command.X,
@@ -43,7 +43,7 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 			player.Position.Set(component.Position{X: int(command.X), Y: int(command.Y)})
 			player.Online.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
 
-			state.PlayerMovementEvent.Emit(event.PlayerMovement{
+			state.PlayerMovementEvent.Broadcast(event.PlayerMovement{
 				ArgusAuthID: tag.ArgusAuthID,
 				X:           command.X,
 				Y:           command.Y,

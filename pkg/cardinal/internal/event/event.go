@@ -11,8 +11,9 @@ import (
 
 // Event represents an event emitted from a system.
 type Event struct {
-	Kind    Kind // The event kind
-	Payload any  // The event payload itself
+	Kind      Kind   // The event kind
+	Payload   any    // The event payload itself
+	Recipient string // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
 }
 
 // Payload is the interface all default event payloads must implement.
