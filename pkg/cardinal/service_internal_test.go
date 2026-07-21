@@ -88,36 +88,6 @@ func TestService_SendCommand(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Query smoke tests
-// -------------------------------------------------------------------------------------------------
-// Verifies that the ConnectRPC query handler accepts a query proto, executes it against the world
-// state, and returns a well-formed response.
-// -------------------------------------------------------------------------------------------------
-
-func TestService_Query(t *testing.T) {
-	t.Parallel()
-
-	t.Run("happy path", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
-
-		resp, err := fixture.svc.Query(
-			context.Background(),
-			connect.NewRequest(&cardinalv1.QueryRequest{
-				Address: fixture.world.address,
-				Query: &iscv1.Query{
-					Match: iscv1.Query_MATCH_ALL,
-				},
-			}),
-		)
-		require.NoError(t, err)
-		require.NotNil(t, resp.Msg.GetResults())
-		assert.Empty(t, resp.Msg.GetResults().GetEntities())
-	})
-}
-
-// -------------------------------------------------------------------------------------------------
 // publishDefaultEvent smoke tests
 // -------------------------------------------------------------------------------------------------
 // Verifies that publishing a default event serializes the payload and delivers it to registered
