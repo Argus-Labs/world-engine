@@ -132,6 +132,18 @@ func MatchArchetype(world *World, eid EntityID, components bitmap.Bitmap, match 
 	return nil
 }
 
+// SearchMatch is the type of archetype match to use when selecting entities.
+type SearchMatch string
+
+const (
+	// MatchExact matches entities that have exactly the specified components.
+	MatchExact SearchMatch = "exact"
+	// MatchContains matches entities that contain the specified components and may have others.
+	MatchContains SearchMatch = "contains"
+	// MatchAll matches all entities regardless of components.
+	MatchAll SearchMatch = "all"
+)
+
 // -------------------------------------------------------------------------------------------------
 // System Event Functions
 // -------------------------------------------------------------------------------------------------

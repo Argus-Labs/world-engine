@@ -5,7 +5,6 @@ package worldengine.cardinal.v1;
 import "buf/validate/validate.proto";
 import "worldengine/isc/v1/command.proto";
 import "worldengine/isc/v1/event.proto";
-import "worldengine/isc/v1/query.proto";
 import "worldengine/micro/v1/service.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
@@ -17,9 +16,6 @@ service CardinalService {
 
   // SendCommandWithReply sends a command and waits for an event response from the shard.
   rpc SendCommandWithReply(SendCommandWithReplyRequest) returns (SendCommandWithReplyResponse) {}
-
-  // Query retrieves the current state or information from a specific shard.
-  rpc Query(QueryRequest) returns (QueryResponse) {}
 
   // StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
   // specific event types and receive real-time updates.
@@ -61,21 +57,6 @@ message SendCommandWithReplyRequest {
 message SendCommandWithReplyResponse {
   // The event received from the shard after command execution.
   isc.v1.Event event = 1;
-}
-
-// QueryRequest represents a request to retrieve information from a specific shard.
-message QueryRequest {
-  // The address of the cardinal shard to send the query to.
-  worldengine.micro.v1.ServiceAddress address = 1 [(buf.validate.field).required = true];
-
-  // The actual query to execute.
-  isc.v1.Query query = 2 [(buf.validate.field).required = true];
-}
-
-// QueryResponse contains the results of a query operation.
-message QueryResponse {
-  // The results of the query.
-  isc.v1.QueryResult results = 1;
 }
 
 message EventSubscription {
