@@ -4,9 +4,9 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen.proto
+// source: pkg/template/basic/shards/game/system/system.proto
 
-package gen
+package system
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -34,7 +34,7 @@ type AttackPlayerCommand struct {
 
 func (x *AttackPlayerCommand) Reset() {
 	*x = AttackPlayerCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes[0]
+	mi := &file_pkg_template_basic_shards_game_system_system_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +46,7 @@ func (x *AttackPlayerCommand) String() string {
 func (*AttackPlayerCommand) ProtoMessage() {}
 
 func (x *AttackPlayerCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes[0]
+	mi := &file_pkg_template_basic_shards_game_system_system_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *AttackPlayerCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttackPlayerCommand.ProtoReflect.Descriptor instead.
 func (*AttackPlayerCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescGZIP(), []int{0}
+	return file_pkg_template_basic_shards_game_system_system_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AttackPlayerCommand) GetTarget() string {
@@ -86,7 +86,7 @@ type CallExternalCommand struct {
 
 func (x *CallExternalCommand) Reset() {
 	*x = CallExternalCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes[1]
+	mi := &file_pkg_template_basic_shards_game_system_system_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -98,7 +98,7 @@ func (x *CallExternalCommand) String() string {
 func (*CallExternalCommand) ProtoMessage() {}
 
 func (x *CallExternalCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes[1]
+	mi := &file_pkg_template_basic_shards_game_system_system_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -111,7 +111,7 @@ func (x *CallExternalCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallExternalCommand.ProtoReflect.Descriptor instead.
 func (*CallExternalCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescGZIP(), []int{1}
+	return file_pkg_template_basic_shards_game_system_system_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CallExternalCommand) GetMessage() string {
@@ -131,7 +131,7 @@ type CreatePlayerCommand struct {
 
 func (x *CreatePlayerCommand) Reset() {
 	*x = CreatePlayerCommand{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes[2]
+	mi := &file_pkg_template_basic_shards_game_system_system_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -143,7 +143,7 @@ func (x *CreatePlayerCommand) String() string {
 func (*CreatePlayerCommand) ProtoMessage() {}
 
 func (x *CreatePlayerCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes[2]
+	mi := &file_pkg_template_basic_shards_game_system_system_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -156,7 +156,7 @@ func (x *CreatePlayerCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlayerCommand.ProtoReflect.Descriptor instead.
 func (*CreatePlayerCommand) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescGZIP(), []int{2}
+	return file_pkg_template_basic_shards_game_system_system_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreatePlayerCommand) GetNickname() string {
@@ -166,38 +166,38 @@ func (x *CreatePlayerCommand) GetNickname() string {
 	return ""
 }
 
-var File_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto protoreflect.FileDescriptor
+var File_pkg_template_basic_shards_game_system_system_proto protoreflect.FileDescriptor
 
-const file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDesc = "" +
+const file_pkg_template_basic_shards_game_system_system_proto_rawDesc = "" +
 	"\n" +
-	"Kgithub_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen.proto\x12Egithub_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen\"E\n" +
+	"2pkg/template/basic/shards/game/system/system.proto\x122world_engine.pkg.template.basic.shards.game.system\"E\n" +
 	"\x13AttackPlayerCommand\x12\x16\n" +
 	"\x06Target\x18\x01 \x01(\tR\x06Target\x12\x16\n" +
 	"\x06Damage\x18\x02 \x01(\rR\x06Damage\"/\n" +
 	"\x13CallExternalCommand\x12\x18\n" +
 	"\aMessage\x18\x01 \x01(\tR\aMessage\"1\n" +
 	"\x13CreatePlayerCommand\x12\x1a\n" +
-	"\bNickname\x18\x01 \x01(\tR\bNicknameBVZIgithub.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen;gen\xaa\x02\bcommandsb\x06proto3"
+	"\bNickname\x18\x01 \x01(\tR\bNicknameB\xa9\x01Zrgithub.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system;system\xaa\x022World_engine.Pkg.Template.Basic.Shards.Game.Systemb\x06proto3"
 
 var (
-	file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescOnce sync.Once
-	file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescData []byte
+	file_pkg_template_basic_shards_game_system_system_proto_rawDescOnce sync.Once
+	file_pkg_template_basic_shards_game_system_system_proto_rawDescData []byte
 )
 
-func file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescGZIP() []byte {
-	file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescOnce.Do(func() {
-		file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDesc), len(file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDesc)))
+func file_pkg_template_basic_shards_game_system_system_proto_rawDescGZIP() []byte {
+	file_pkg_template_basic_shards_game_system_system_proto_rawDescOnce.Do(func() {
+		file_pkg_template_basic_shards_game_system_system_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_pkg_template_basic_shards_game_system_system_proto_rawDesc), len(file_pkg_template_basic_shards_game_system_system_proto_rawDesc)))
 	})
-	return file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDescData
+	return file_pkg_template_basic_shards_game_system_system_proto_rawDescData
 }
 
-var file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_goTypes = []any{
-	(*AttackPlayerCommand)(nil), // 0: github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen.AttackPlayerCommand
-	(*CallExternalCommand)(nil), // 1: github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen.CallExternalCommand
-	(*CreatePlayerCommand)(nil), // 2: github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen.CreatePlayerCommand
+var file_pkg_template_basic_shards_game_system_system_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_pkg_template_basic_shards_game_system_system_proto_goTypes = []any{
+	(*AttackPlayerCommand)(nil), // 0: world_engine.pkg.template.basic.shards.game.system.AttackPlayerCommand
+	(*CallExternalCommand)(nil), // 1: world_engine.pkg.template.basic.shards.game.system.CallExternalCommand
+	(*CreatePlayerCommand)(nil), // 2: world_engine.pkg.template.basic.shards.game.system.CreatePlayerCommand
 }
-var file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_depIdxs = []int32{
+var file_pkg_template_basic_shards_game_system_system_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -205,26 +205,26 @@ var file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_p
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_init() }
-func file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_init() {
-	if File_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto != nil {
+func init() { file_pkg_template_basic_shards_game_system_system_proto_init() }
+func file_pkg_template_basic_shards_game_system_system_proto_init() {
+	if File_pkg_template_basic_shards_game_system_system_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDesc), len(file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_template_basic_shards_game_system_system_proto_rawDesc), len(file_pkg_template_basic_shards_game_system_system_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_goTypes,
-		DependencyIndexes: file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_depIdxs,
-		MessageInfos:      file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_msgTypes,
+		GoTypes:           file_pkg_template_basic_shards_game_system_system_proto_goTypes,
+		DependencyIndexes: file_pkg_template_basic_shards_game_system_system_proto_depIdxs,
+		MessageInfos:      file_pkg_template_basic_shards_game_system_system_proto_msgTypes,
 	}.Build()
-	File_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto = out.File
-	file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_goTypes = nil
-	file_github_com_argus_labs_world_engine_pkg_template_basic_shards_game_gen_proto_depIdxs = nil
+	File_pkg_template_basic_shards_game_system_system_proto = out.File
+	file_pkg_template_basic_shards_game_system_system_proto_goTypes = nil
+	file_pkg_template_basic_shards_game_system_system_proto_depIdxs = nil
 }

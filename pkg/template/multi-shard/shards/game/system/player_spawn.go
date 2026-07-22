@@ -50,7 +50,7 @@ func PlayerSpawnSystem(state *SpawnPlayerSystemState) {
 			Msgf("Created player %s (id: %s)", command.ArgusAuthName, command.ArgusAuthID)
 
 		// Inform chat shard about the spawn
-		otherworld.Chat.SendCommand(&state.BaseSystemState, chatcommand.UserChat{
+		state.SendToShard(otherworld.Chat, chatcommand.UserChat{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 			Message:       fmt.Sprintf("%s joined at (%s)", command.ArgusAuthName, state.Timestamp().Format(time.RFC3339)),

@@ -32,7 +32,7 @@ func CallExternalSystem(state *CallExternalSystemState) {
 	for cmd := range state.CallExternalCommands.Iter() {
 		state.Logger().Info().Msg("Received call-external message")
 
-		otherworld.Matchmaking.SendCommand(&state.BaseSystemState, CreatePlayerCommand{
+		state.SendToShard(otherworld.Matchmaking, CreatePlayerCommand{
 			Nickname: cmd.Payload.Message,
 		})
 	}

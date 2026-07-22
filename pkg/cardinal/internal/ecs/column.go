@@ -4,8 +4,16 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
-	"github.com/shamaton/msgpack/v3"
 )
+
+// wireComponent is the codec every component must carry to cross the snapshot wire. The generator emits
+// MarshalWire/UnmarshalWire (proto under the hood) on each component; UnmarshalWire returns the concrete
+// type, so the interface is parameterized by T. A component without these is a hard error — no msgpack
+// fallback — enforced at registration (RegisterComponent) and again here when a snapshot is taken.
+type wireComponent[T any] interface {
+	MarshalWire() ([]byte, error)
+	UnmarshalWire([]byte) (T, error)
+}
 
 // columnFactory is a function that creates a new abstractColumn instance.
 type columnFactory func() abstractColumn
@@ -121,12 +129,16 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// toProto converts the column to a protobuf message for serialization.
-// Uses MessagePack to preserve uint64 precision.
+// toProto converts the column to a protobuf message for serialization. Each component is encoded through
+// its generated MarshalWire (proto) — no msgpack. A component lacking the codec is a hard error.
 func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	componentData := make([][]byte, len(c.components))
 	for i, component := range c.components {
-		data, err := msgpack.Marshal(component)
+		codec, ok := any(component).(wireComponent[T])
+		if !ok {
+			return nil, eris.Errorf("component %q has no generated wire codec (run the generator)", c.compName)
+		}
+		data, err := codec.MarshalWire()
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to serialize component at index %d", i)
 		}
@@ -139,8 +151,8 @@ func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	}, nil
 }
 
-// fromProto populates the column from a protobuf message.
-// Uses MessagePack to preserve uint64 precision.
+// fromProto populates the column from a protobuf message. Each component is decoded through its generated
+// UnmarshalWire (proto) — no msgpack. A component lacking the codec is a hard error.
 func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	if pb == nil {
 		return eris.New("protobuf column is nil")
@@ -150,10 +162,16 @@ func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 		return eris.Errorf("component name mismatch: expected %s, got %s", c.compName, pb.GetComponentName())
 	}
 
+	var zero T
+	codec, ok := any(zero).(wireComponent[T])
+	if !ok {
+		return eris.Errorf("component %q has no generated wire codec (run the generator)", c.compName)
+	}
+
 	components := make([]T, len(pb.GetComponents()))
 	for i, data := range pb.GetComponents() {
-		var component T
-		if err := msgpack.Unmarshal(data, &component); err != nil {
+		component, err := codec.UnmarshalWire(data)
+		if err != nil {
 			return eris.Wrapf(err, "failed to deserialize component at index %d", i)
 		}
 		components[i] = component

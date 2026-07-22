@@ -38,7 +38,7 @@ func TestIntrospectSchemaNamesMatchWireFormat(t *testing.T) {
 
 	// Names introspection advertises, via the real register() path.
 	d := &debugModule{
-		commands:  make(map[string]*structpb.Struct),
+		commands: make(map[string]*structpb.Struct),
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly

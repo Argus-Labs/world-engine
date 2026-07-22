@@ -1,5 +1,16 @@
 package testutils
 
+import (
+	"bytes"
+	"encoding/binary"
+	"encoding/gob"
+	"errors"
+)
+
+// Test components use gob for their wire codec — real components get generated proto codecs, but test
+// doubles only need something that round-trips. gob (not json) so no struct tags are needed: json tags
+// would rename the fields the search engine resolves by (it keys on the Go field name).
+
 // -------------------------------------------------------------------------------------------------
 // Components
 // -------------------------------------------------------------------------------------------------
@@ -39,47 +50,32 @@ func (ComponentC) Name() string {
 	return "component_c"
 }
 
-// ComponentMixed is a comprehensive test component with all common field types.
-// Used to verify MessagePack correctly handles the full range of Go types.
-type ComponentMixed struct {
-	// Integer types
-	Int8Val   int8
-	Int16Val  int16
-	Int32Val  int32
-	Int64Val  int64
-	Uint8Val  uint8
-	Uint16Val uint16
-	Uint32Val uint32
-	Uint64Val uint64 // Critical: values > 2^53-1 lose precision in JSON
-
-	// Floating point
-	Float32Val float32
-	Float64Val float64
-
-	// String and bool
-	StringVal string
-	BoolVal   bool
-
-	// Slice and array
-	IntSlice   []int
-	ByteSlice  []byte
-	FloatArray [3]float64
-
-	// Nested struct
-	Nested NestedData
-
-	// Map
-	Metadata map[string]int
+func (c SimpleComponent) MarshalWire() ([]byte, error) { return gobMarshal(c) }
+func (SimpleComponent) UnmarshalWire(b []byte) (SimpleComponent, error) {
+	return gobUnmarshal[SimpleComponent](b)
 }
 
-type NestedData struct {
-	ID    uint64
-	Name  string
-	Score float64
+func (c ComponentA) MarshalWire() ([]byte, error)             { return gobMarshal(c) }
+func (ComponentA) UnmarshalWire(b []byte) (ComponentA, error) { return gobUnmarshal[ComponentA](b) }
+
+func (c ComponentB) MarshalWire() ([]byte, error)             { return gobMarshal(c) }
+func (ComponentB) UnmarshalWire(b []byte) (ComponentB, error) { return gobUnmarshal[ComponentB](b) }
+
+func (c ComponentC) MarshalWire() ([]byte, error)             { return gobMarshal(c) }
+func (ComponentC) UnmarshalWire(b []byte) (ComponentC, error) { return gobUnmarshal[ComponentC](b) }
+
+func gobMarshal(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-func (ComponentMixed) Name() string {
-	return "component_mixed"
+func gobUnmarshal[T any](b []byte) (T, error) {
+	var v T
+	err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v)
+	return v, err
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -175,10 +171,30 @@ func (SimpleEvent) Name() string {
 	return "simple_event"
 }
 
+// MarshalWire / UnmarshalWire are a test double for generated event wire code — the engine requires the
+// wire codec (no msgpack fallback). Deliberately an explicit encoding, not a serialization library, so
+// testutils stays free of any wire-format dependency.
+func (s SimpleEvent) MarshalWire() ([]byte, error) {
+	return binary.AppendVarint(nil, int64(s.Value)), nil
+}
+
+func (SimpleEvent) UnmarshalWire(b []byte) (SimpleEvent, error) {
+	v, n := binary.Varint(b)
+	if n <= 0 {
+		return SimpleEvent{}, errors.New("SimpleEvent: malformed wire bytes")
+	}
+	return SimpleEvent{Value: int(v)}, nil
+}
+
 type AnotherEvent struct {
 	Data string
 }
 
 func (AnotherEvent) Name() string {
 	return "another_event"
+}
+
+// MarshalWire is a test double for generated event wire code (explicit encoding, no serialization lib).
+func (e AnotherEvent) MarshalWire() ([]byte, error) {
+	return []byte(e.Data), nil
 }

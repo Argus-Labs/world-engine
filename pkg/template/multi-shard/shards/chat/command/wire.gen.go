@@ -6,19 +6,19 @@ import (
 	"fmt"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	gen "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen"
+	command "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command"
 	"google.golang.org/protobuf/proto"
 )
 
-func (c UserChat) ToProto() *gen.UserChat {
-	p := &gen.UserChat{}
+func (c UserChat) ToProto() *command.UserChat {
+	p := &command.UserChat{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.Message = string(c.Message)
 	return p
 }
 
-func (c UserChat) FromProto(p *gen.UserChat) UserChat {
+func (c UserChat) FromProto(p *command.UserChat) UserChat {
 	if p == nil {
 		return c
 	}
@@ -39,7 +39,7 @@ func (userChatCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (userChatCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.UserChat
+	var p command.UserChat
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}

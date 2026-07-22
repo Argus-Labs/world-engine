@@ -4,9 +4,9 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen.proto
+// source: pkg/template/multi-shard/shards/game/command/command.proto
 
-package gen
+package command
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -35,7 +35,7 @@ type MovePlayer struct {
 
 func (x *MovePlayer) Reset() {
 	*x = MovePlayer{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes[0]
+	mi := &file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +47,7 @@ func (x *MovePlayer) String() string {
 func (*MovePlayer) ProtoMessage() {}
 
 func (x *MovePlayer) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes[0]
+	mi := &file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +60,7 @@ func (x *MovePlayer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MovePlayer.ProtoReflect.Descriptor instead.
 func (*MovePlayer) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescGZIP(), []int{0}
+	return file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *MovePlayer) GetArgusAuthID() string {
@@ -94,7 +94,7 @@ type PlayerLeave struct {
 
 func (x *PlayerLeave) Reset() {
 	*x = PlayerLeave{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes[1]
+	mi := &file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -106,7 +106,7 @@ func (x *PlayerLeave) String() string {
 func (*PlayerLeave) ProtoMessage() {}
 
 func (x *PlayerLeave) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes[1]
+	mi := &file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -119,7 +119,7 @@ func (x *PlayerLeave) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerLeave.ProtoReflect.Descriptor instead.
 func (*PlayerLeave) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescGZIP(), []int{1}
+	return file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PlayerLeave) GetArgusAuthID() string {
@@ -142,7 +142,7 @@ type PlayerSpawn struct {
 
 func (x *PlayerSpawn) Reset() {
 	*x = PlayerSpawn{}
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes[2]
+	mi := &file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -154,7 +154,7 @@ func (x *PlayerSpawn) String() string {
 func (*PlayerSpawn) ProtoMessage() {}
 
 func (x *PlayerSpawn) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes[2]
+	mi := &file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -167,7 +167,7 @@ func (x *PlayerSpawn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerSpawn.ProtoReflect.Descriptor instead.
 func (*PlayerSpawn) Descriptor() ([]byte, []int) {
-	return file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescGZIP(), []int{2}
+	return file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PlayerSpawn) GetArgusAuthID() string {
@@ -198,11 +198,11 @@ func (x *PlayerSpawn) GetY() uint32 {
 	return 0
 }
 
-var File_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto protoreflect.FileDescriptor
+var File_pkg_template_multi_shard_shards_game_command_command_proto protoreflect.FileDescriptor
 
-const file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDesc = "" +
+const file_pkg_template_multi_shard_shards_game_command_command_proto_rawDesc = "" +
 	"\n" +
-	"Qgithub_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen.proto\x12Kgithub_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen\"J\n" +
+	":pkg/template/multi-shard/shards/game/command/command.proto\x129world_engine.pkg.template.multi_shard.shards.game.command\"J\n" +
 	"\n" +
 	"MovePlayer\x12 \n" +
 	"\vArgusAuthID\x18\x01 \x01(\tR\vArgusAuthID\x12\f\n" +
@@ -214,27 +214,27 @@ const file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_ga
 	"\vArgusAuthID\x18\x01 \x01(\tR\vArgusAuthID\x12$\n" +
 	"\rArgusAuthName\x18\x02 \x01(\tR\rArgusAuthName\x12\f\n" +
 	"\x01X\x18\x03 \x01(\rR\x01X\x12\f\n" +
-	"\x01Y\x18\x04 \x01(\rR\x01YB\\ZOgithub.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen;gen\xaa\x02\bcommandsb\x06proto3"
+	"\x01Y\x18\x04 \x01(\rR\x01YB\xbf\x01Z\x80\x01github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command;command\xaa\x029World_engine.Pkg.Template.Multi_shard.Shards.Game.Commandb\x06proto3"
 
 var (
-	file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescOnce sync.Once
-	file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescData []byte
+	file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescOnce sync.Once
+	file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescData []byte
 )
 
-func file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescGZIP() []byte {
-	file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescOnce.Do(func() {
-		file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDesc), len(file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDesc)))
+func file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescGZIP() []byte {
+	file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescOnce.Do(func() {
+		file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_pkg_template_multi_shard_shards_game_command_command_proto_rawDesc), len(file_pkg_template_multi_shard_shards_game_command_command_proto_rawDesc)))
 	})
-	return file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDescData
+	return file_pkg_template_multi_shard_shards_game_command_command_proto_rawDescData
 }
 
-var file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_goTypes = []any{
-	(*MovePlayer)(nil),  // 0: github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen.MovePlayer
-	(*PlayerLeave)(nil), // 1: github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen.PlayerLeave
-	(*PlayerSpawn)(nil), // 2: github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen.PlayerSpawn
+var file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_pkg_template_multi_shard_shards_game_command_command_proto_goTypes = []any{
+	(*MovePlayer)(nil),  // 0: world_engine.pkg.template.multi_shard.shards.game.command.MovePlayer
+	(*PlayerLeave)(nil), // 1: world_engine.pkg.template.multi_shard.shards.game.command.PlayerLeave
+	(*PlayerSpawn)(nil), // 2: world_engine.pkg.template.multi_shard.shards.game.command.PlayerSpawn
 }
-var file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_depIdxs = []int32{
+var file_pkg_template_multi_shard_shards_game_command_command_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -242,28 +242,26 @@ var file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() {
-	file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_init()
-}
-func file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_init() {
-	if File_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto != nil {
+func init() { file_pkg_template_multi_shard_shards_game_command_command_proto_init() }
+func file_pkg_template_multi_shard_shards_game_command_command_proto_init() {
+	if File_pkg_template_multi_shard_shards_game_command_command_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDesc), len(file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_template_multi_shard_shards_game_command_command_proto_rawDesc), len(file_pkg_template_multi_shard_shards_game_command_command_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_goTypes,
-		DependencyIndexes: file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_depIdxs,
-		MessageInfos:      file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_msgTypes,
+		GoTypes:           file_pkg_template_multi_shard_shards_game_command_command_proto_goTypes,
+		DependencyIndexes: file_pkg_template_multi_shard_shards_game_command_command_proto_depIdxs,
+		MessageInfos:      file_pkg_template_multi_shard_shards_game_command_command_proto_msgTypes,
 	}.Build()
-	File_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto = out.File
-	file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_goTypes = nil
-	file_github_com_argus_labs_world_engine_pkg_template_multi_shard_shards_game_gen_proto_depIdxs = nil
+	File_pkg_template_multi_shard_shards_game_command_command_proto = out.File
+	file_pkg_template_multi_shard_shards_game_command_command_proto_goTypes = nil
+	file_pkg_template_multi_shard_shards_game_command_command_proto_depIdxs = nil
 }

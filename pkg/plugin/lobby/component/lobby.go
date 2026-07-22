@@ -1,6 +1,18 @@
 package component
 
-import "github.com/argus-labs/world-engine/pkg/cardinal"
+// ShardAddress mirrors cardinal.OtherWorld for wire types (commands, events, components). A wire type
+// can't carry cardinal.OtherWorld directly — it's cross-module to the generator, which would block. The
+// fields are identical, so the two convert with a plain Go struct cast: cardinal.OtherWorld(a) and back.
+//
+// TODO(cross-module): this mirror duplicates cardinal.OtherWorld. Since the wire is proto, the cleaner
+// long-term fix is to import world-engine's committed other_world.proto instead of mirroring — deferred,
+// the import path (per-module type→proto manifest + buf staging) is high effort. See sdkgen.go.
+type ShardAddress struct {
+	Region       string
+	Organization string
+	Project      string
+	ShardID      string
+}
 
 // SessionState represents the current state of a lobby session.
 type SessionState string
@@ -76,7 +88,7 @@ type LobbyComponent struct {
 	InviteCode string `json:"invite_code"`
 
 	// GameWorld is the target game shard address.
-	GameWorld cardinal.OtherWorld `json:"game_world"`
+	GameWorld ShardAddress `json:"game_world"`
 
 	// Session is the current session state.
 	Session Session `json:"session"`
@@ -233,7 +245,7 @@ func (l *LobbyComponent) GetAllPlayerIDs() []string {
 }
 
 // IsTeamFull returns true if the team is at max capacity.
-func (t *Team) IsFull() bool {
+func (t Team) IsFull() bool {
 	return t.MaxPlayers > 0 && len(t.PlayerIDs) >= t.MaxPlayers
 }
 
@@ -406,7 +418,7 @@ func (idx *LobbyIndexComponent) UpdateInviteCode(lobbyID, oldCode, newCode strin
 // ConfigComponent stores lobby configuration.
 type ConfigComponent struct {
 	// LobbyWorld is this lobby shard's address (for game shard to send NotifySessionEndCommand back).
-	LobbyWorld cardinal.OtherWorld `json:"lobby_world"`
+	LobbyWorld ShardAddress `json:"lobby_world"`
 
 	// HeartbeatTimeout is how long (in seconds) before a player is removed for not sending heartbeats.
 	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).

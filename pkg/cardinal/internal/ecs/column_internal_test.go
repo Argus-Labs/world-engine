@@ -107,9 +107,9 @@ func TestColumn_ModelFuzz(t *testing.T) {
 // Serialization smoke test
 // -------------------------------------------------------------------------------------------------
 // We don't extensively test toProto/fromProto because:
-// 1. The implementation is a thin wrapper around json.Marshal/Unmarshal (well-tested stdlib).
+// 1. The implementation is a thin wrapper around each component's generated MarshalWire/UnmarshalWire.
 // 2. The loop logic is trivial with no complex branching.
-// 3. Heavy property-based testing would mostly exercise the json package, not our code.
+// 3. Heavy property-based testing would mostly exercise the component codec, not our code.
 // -------------------------------------------------------------------------------------------------
 
 func TestColumn_SerializationSmoke(t *testing.T) {

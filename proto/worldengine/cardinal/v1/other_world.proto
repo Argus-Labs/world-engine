@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package worldengine.cardinal.v1;
+
+option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
+option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
+
+// OtherWorld is the wire form of the cardinal.OtherWorld Go type — the address of another cardinal shard
+// (region / organization / project / shard). Commands can carry it directly (e.g. a reply-to field), so no
+// backend needs to mirror the address locally.
+message OtherWorld {
+  string region = 1;
+  string organization = 2;
+  string project = 3;
+  string shard_id = 4;
+}

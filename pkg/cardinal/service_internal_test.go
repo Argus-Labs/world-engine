@@ -10,7 +10,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -144,8 +143,8 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 
 		eventPb := <-waiter
 		assert.Equal(t, payload.Name(), eventPb.GetName())
-		var decoded testutils.SimpleEvent
-		require.NoError(t, schema.Deserialize(eventPb.GetPayload(), &decoded))
+		decoded, err := testutils.SimpleEvent{}.UnmarshalWire(eventPb.GetPayload())
+		require.NoError(t, err)
 		assert.Equal(t, payload, decoded)
 	})
 }
