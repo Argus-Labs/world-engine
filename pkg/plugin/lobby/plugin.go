@@ -45,6 +45,7 @@ type (
 	GameWorld       = cardinal.OtherWorld
 	IndexComponent  = component.LobbyIndexComponent
 	ConfigComponent = component.ConfigComponent
+	ShardAddress    = component.ShardAddress
 
 	// Commands.
 	CreateLobbyCommand              = system.CreateLobbyCommand
@@ -57,7 +58,6 @@ type (
 	TransferLeaderCommand           = system.TransferLeaderCommand
 	StartSessionCommand             = system.StartSessionCommand
 	AssignShardCommand              = system.AssignShardCommand
-	ShardAddress                    = system.ShardAddress
 	GenerateInviteCodeCommand       = system.GenerateInviteCodeCommand
 	HeartbeatCommand                = system.HeartbeatCommand
 	UpdateSessionPassthroughCommand = system.UpdateSessionPassthroughCommand
@@ -167,7 +167,7 @@ func NewPlugin(config Config) *Plugin {
 // Register implements cardinal.Plugin.
 func (p *Plugin) Register(world *cardinal.World) {
 	system.SetConfig(component.ConfigComponent{
-		LobbyWorld:           p.config.LobbyWorld,
+		LobbyWorld:           component.ShardAddress(p.config.LobbyWorld),
 		HeartbeatTimeout:     p.config.HeartbeatTimeout,
 		AssignmentAuthority:  p.config.AssignmentAuthority,
 		MaxAllocationTimeout: p.config.MaxAllocationTimeout,

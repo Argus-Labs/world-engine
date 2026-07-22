@@ -6,18 +6,18 @@ import (
 	"fmt"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	gen "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen"
+	system "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system"
 	"google.golang.org/protobuf/proto"
 )
 
-func (c AttackPlayerCommand) ToProto() *gen.AttackPlayerCommand {
-	p := &gen.AttackPlayerCommand{}
+func (c AttackPlayerCommand) ToProto() *system.AttackPlayerCommand {
+	p := &system.AttackPlayerCommand{}
 	p.Target = string(c.Target)
 	p.Damage = uint32(c.Damage)
 	return p
 }
 
-func (c AttackPlayerCommand) FromProto(p *gen.AttackPlayerCommand) AttackPlayerCommand {
+func (c AttackPlayerCommand) FromProto(p *system.AttackPlayerCommand) AttackPlayerCommand {
 	if p == nil {
 		return c
 	}
@@ -37,7 +37,7 @@ func (attackPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (attackPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.AttackPlayerCommand
+	var p system.AttackPlayerCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -46,13 +46,13 @@ func (attackPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error)
 	return c, nil
 }
 
-func (c CallExternalCommand) ToProto() *gen.CallExternalCommand {
-	p := &gen.CallExternalCommand{}
+func (c CallExternalCommand) ToProto() *system.CallExternalCommand {
+	p := &system.CallExternalCommand{}
 	p.Message = string(c.Message)
 	return p
 }
 
-func (c CallExternalCommand) FromProto(p *gen.CallExternalCommand) CallExternalCommand {
+func (c CallExternalCommand) FromProto(p *system.CallExternalCommand) CallExternalCommand {
 	if p == nil {
 		return c
 	}
@@ -71,7 +71,7 @@ func (callExternalCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (callExternalCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.CallExternalCommand
+	var p system.CallExternalCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -80,13 +80,13 @@ func (callExternalCommandCodec) Unmarshal(data []byte) (cardinal.Command, error)
 	return c, nil
 }
 
-func (c CreatePlayerCommand) ToProto() *gen.CreatePlayerCommand {
-	p := &gen.CreatePlayerCommand{}
+func (c CreatePlayerCommand) ToProto() *system.CreatePlayerCommand {
+	p := &system.CreatePlayerCommand{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c CreatePlayerCommand) FromProto(p *gen.CreatePlayerCommand) CreatePlayerCommand {
+func (c CreatePlayerCommand) FromProto(p *system.CreatePlayerCommand) CreatePlayerCommand {
 	if p == nil {
 		return c
 	}
@@ -105,7 +105,7 @@ func (createPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (createPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.CreatePlayerCommand
+	var p system.CreatePlayerCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}

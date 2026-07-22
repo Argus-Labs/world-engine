@@ -12,6 +12,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -284,27 +285,52 @@ type OtherWorld struct {
 	ShardID      string
 }
 
-// SendCommand sends a command to an external service.
+// ToProto converts the address to its committed wire form (cardinalv1.OtherWorld). The command generator
+// treats OtherWorld as a well-known type and calls this when a command carries an OtherWorld field, so no
+// backend has to mirror the address locally.
+func (o OtherWorld) ToProto() *cardinalv1.OtherWorld {
+	return &cardinalv1.OtherWorld{
+		Region:       o.Region,
+		Organization: o.Organization,
+		Project:      o.Project,
+		ShardId:      o.ShardID,
+	}
+}
+
+// FromProto rebuilds an OtherWorld from its wire form (nil-safe). Value receiver so it matches the codec
+// convention the generator emits (c.Field = c.Field.FromProto(p.Field)).
+func (OtherWorld) FromProto(p *cardinalv1.OtherWorld) OtherWorld {
+	if p == nil {
+		return OtherWorld{}
+	}
+	return OtherWorld{
+		Region:       p.GetRegion(),
+		Organization: p.GetOrganization(),
+		Project:      p.GetProject(),
+		ShardID:      p.GetShardId(),
+	}
+}
+
+// SendToShard sends cmd to another shard, addressed by to. This is the first-class shard-to-shard send: the
+// world performs the send (it owns the event queue) and the address `to` is plain data with no behavior of
+// its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
+// initiated in-engine.
 //
-// Example:
-//
-// import external "another-game-shard/system"
-//
-// // Define a shard address of one of your game shards.
-// const MatchmakingService ecs.ServiceAddress = "world.argus.rampage.matchmaking"
-//
-//	func GameSystem(state *GameSystem) error {
-//	  MatchmakingService.Send(state, &external.EndGameCommand{
-//	    Winner: "Team 1",
-//	  })
-//	}
-func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.Payload) {
-	serviceAddress := micro.GetAddress(o.Region, micro.RealmWorld, o.Organization, o.Project, o.ShardID)
-	state.world.events.Enqueue(event.Event{
+// Fire-and-forget: the actual network send happens when events flush at end-of-tick, so cmd must not be
+// mutated after this call — a *Command whose fields change before the flush would send the mutated value.
+// A send that fails is not returned (it must not block the tick) but is logged at error level, because a
+// dropped shard-to-shard command is serious.
+func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
+	if to.ShardID == "" {
+		b.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
+		return
+	}
+	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
+	b.world.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(state.world.address),
+			Persona: micro.String(b.world.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},
@@ -327,6 +353,12 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 
 	if _, ok := meta.events[name]; ok {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
+	}
+
+	// Fail at boot, not mid-tick: events marshal via a generated MarshalWire (no registry, unlike
+	// commands), so presence is the method existing. Without it the event drops silently at emit time.
+	if _, ok := any(zero).(event.WireMarshaler); !ok {
+		return eris.Errorf("event %q has no generated wire codec (run the generator)", name)
 	}
 
 	if err := meta.world.debug.register("event", zero); err != nil {
