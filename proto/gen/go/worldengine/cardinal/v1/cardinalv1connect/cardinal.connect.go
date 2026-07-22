@@ -39,8 +39,6 @@ const (
 	// CardinalServiceSendCommandWithReplyProcedure is the fully-qualified name of the CardinalService's
 	// SendCommandWithReply RPC.
 	CardinalServiceSendCommandWithReplyProcedure = "/worldengine.cardinal.v1.CardinalService/SendCommandWithReply"
-	// CardinalServiceQueryProcedure is the fully-qualified name of the CardinalService's Query RPC.
-	CardinalServiceQueryProcedure = "/worldengine.cardinal.v1.CardinalService/Query"
 	// CardinalServiceStartEventStreamProcedure is the fully-qualified name of the CardinalService's
 	// StartEventStream RPC.
 	CardinalServiceStartEventStreamProcedure = "/worldengine.cardinal.v1.CardinalService/StartEventStream"
@@ -58,8 +56,6 @@ type CardinalServiceClient interface {
 	SendCommand(context.Context, *connect.Request[v1.SendCommandRequest]) (*connect.Response[v1.SendCommandResponse], error)
 	// SendCommandWithReply sends a command and waits for an event response from the shard.
 	SendCommandWithReply(context.Context, *connect.Request[v1.SendCommandWithReplyRequest]) (*connect.Response[v1.SendCommandWithReplyResponse], error)
-	// Query retrieves the current state or information from a specific shard.
-	Query(context.Context, *connect.Request[v1.QueryRequest]) (*connect.Response[v1.QueryResponse], error)
 	// StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
 	// specific event types and receive real-time updates.
 	StartEventStream(context.Context, *connect.Request[v1.StartEventStreamRequest]) (*connect.ServerStreamForClient[v1.StartEventStreamResponse], error)
@@ -92,12 +88,6 @@ func NewCardinalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(cardinalServiceMethods.ByName("SendCommandWithReply")),
 			connect.WithClientOptions(opts...),
 		),
-		query: connect.NewClient[v1.QueryRequest, v1.QueryResponse](
-			httpClient,
-			baseURL+CardinalServiceQueryProcedure,
-			connect.WithSchema(cardinalServiceMethods.ByName("Query")),
-			connect.WithClientOptions(opts...),
-		),
 		startEventStream: connect.NewClient[v1.StartEventStreamRequest, v1.StartEventStreamResponse](
 			httpClient,
 			baseURL+CardinalServiceStartEventStreamProcedure,
@@ -123,7 +113,6 @@ func NewCardinalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type cardinalServiceClient struct {
 	sendCommand          *connect.Client[v1.SendCommandRequest, v1.SendCommandResponse]
 	sendCommandWithReply *connect.Client[v1.SendCommandWithReplyRequest, v1.SendCommandWithReplyResponse]
-	query                *connect.Client[v1.QueryRequest, v1.QueryResponse]
 	startEventStream     *connect.Client[v1.StartEventStreamRequest, v1.StartEventStreamResponse]
 	subscribeEvents      *connect.Client[v1.SubscribeEventsRequest, v1.SubscribeEventsResponse]
 	unsubscribeEvents    *connect.Client[v1.UnsubscribeEventsRequest, v1.UnsubscribeEventsResponse]
@@ -137,11 +126,6 @@ func (c *cardinalServiceClient) SendCommand(ctx context.Context, req *connect.Re
 // SendCommandWithReply calls worldengine.cardinal.v1.CardinalService.SendCommandWithReply.
 func (c *cardinalServiceClient) SendCommandWithReply(ctx context.Context, req *connect.Request[v1.SendCommandWithReplyRequest]) (*connect.Response[v1.SendCommandWithReplyResponse], error) {
 	return c.sendCommandWithReply.CallUnary(ctx, req)
-}
-
-// Query calls worldengine.cardinal.v1.CardinalService.Query.
-func (c *cardinalServiceClient) Query(ctx context.Context, req *connect.Request[v1.QueryRequest]) (*connect.Response[v1.QueryResponse], error) {
-	return c.query.CallUnary(ctx, req)
 }
 
 // StartEventStream calls worldengine.cardinal.v1.CardinalService.StartEventStream.
@@ -166,8 +150,6 @@ type CardinalServiceHandler interface {
 	SendCommand(context.Context, *connect.Request[v1.SendCommandRequest]) (*connect.Response[v1.SendCommandResponse], error)
 	// SendCommandWithReply sends a command and waits for an event response from the shard.
 	SendCommandWithReply(context.Context, *connect.Request[v1.SendCommandWithReplyRequest]) (*connect.Response[v1.SendCommandWithReplyResponse], error)
-	// Query retrieves the current state or information from a specific shard.
-	Query(context.Context, *connect.Request[v1.QueryRequest]) (*connect.Response[v1.QueryResponse], error)
 	// StartEventStream establishes a stream of events from specified shards. Clients can subscribe to
 	// specific event types and receive real-time updates.
 	StartEventStream(context.Context, *connect.Request[v1.StartEventStreamRequest], *connect.ServerStream[v1.StartEventStreamResponse]) error
@@ -196,12 +178,6 @@ func NewCardinalServiceHandler(svc CardinalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(cardinalServiceMethods.ByName("SendCommandWithReply")),
 		connect.WithHandlerOptions(opts...),
 	)
-	cardinalServiceQueryHandler := connect.NewUnaryHandler(
-		CardinalServiceQueryProcedure,
-		svc.Query,
-		connect.WithSchema(cardinalServiceMethods.ByName("Query")),
-		connect.WithHandlerOptions(opts...),
-	)
 	cardinalServiceStartEventStreamHandler := connect.NewServerStreamHandler(
 		CardinalServiceStartEventStreamProcedure,
 		svc.StartEventStream,
@@ -226,8 +202,6 @@ func NewCardinalServiceHandler(svc CardinalServiceHandler, opts ...connect.Handl
 			cardinalServiceSendCommandHandler.ServeHTTP(w, r)
 		case CardinalServiceSendCommandWithReplyProcedure:
 			cardinalServiceSendCommandWithReplyHandler.ServeHTTP(w, r)
-		case CardinalServiceQueryProcedure:
-			cardinalServiceQueryHandler.ServeHTTP(w, r)
 		case CardinalServiceStartEventStreamProcedure:
 			cardinalServiceStartEventStreamHandler.ServeHTTP(w, r)
 		case CardinalServiceSubscribeEventsProcedure:
@@ -249,10 +223,6 @@ func (UnimplementedCardinalServiceHandler) SendCommand(context.Context, *connect
 
 func (UnimplementedCardinalServiceHandler) SendCommandWithReply(context.Context, *connect.Request[v1.SendCommandWithReplyRequest]) (*connect.Response[v1.SendCommandWithReplyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.CardinalService.SendCommandWithReply is not implemented"))
-}
-
-func (UnimplementedCardinalServiceHandler) Query(context.Context, *connect.Request[v1.QueryRequest]) (*connect.Response[v1.QueryResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.CardinalService.Query is not implemented"))
 }
 
 func (UnimplementedCardinalServiceHandler) StartEventStream(context.Context, *connect.Request[v1.StartEventStreamRequest], *connect.ServerStream[v1.StartEventStreamResponse]) error {

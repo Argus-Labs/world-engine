@@ -9,8 +9,6 @@ import type { Command } from "../../isc/v1/command_pb";
 import { file_worldengine_isc_v1_command } from "../../isc/v1/command_pb";
 import type { Event } from "../../isc/v1/event_pb";
 import { file_worldengine_isc_v1_event } from "../../isc/v1/event_pb";
-import type { Query, QueryResult } from "../../isc/v1/query_pb";
-import { file_worldengine_isc_v1_query } from "../../isc/v1/query_pb";
 import type { ServiceAddress } from "../../micro/v1/service_pb";
 import { file_worldengine_micro_v1_service } from "../../micro/v1/service_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -19,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/cardinal.proto.
  */
 export const file_worldengine_cardinal_v1_cardinal: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9jYXJkaW5hbC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiSgoSU2VuZENvbW1hbmRSZXF1ZXN0EjQKB2NvbW1hbmQYASABKAsyGy53b3JsZGVuZ2luZS5pc2MudjEuQ29tbWFuZEIGukgDyAEBIhUKE1NlbmRDb21tYW5kUmVzcG9uc2UiiAEKG1NlbmRDb21tYW5kV2l0aFJlcGx5UmVxdWVzdBI0Cgdjb21tYW5kGAEgASgLMhsud29ybGRlbmdpbmUuaXNjLnYxLkNvbW1hbmRCBrpIA8gBARIzCgpldmVudF9uYW1lGAIgASgJQh+6SBzIAQFyFxABGIABMhBeW2EtekEtWjAtOV8tXSskIkgKHFNlbmRDb21tYW5kV2l0aFJlcGx5UmVzcG9uc2USKAoFZXZlbnQYASABKAsyGS53b3JsZGVuZ2luZS5pc2MudjEuRXZlbnQifwoMUXVlcnlSZXF1ZXN0Ej0KB2FkZHJlc3MYASABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBEjAKBXF1ZXJ5GAIgASgLMhkud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5Qga6SAPIAQEiQQoNUXVlcnlSZXNwb25zZRIwCgdyZXN1bHRzGAEgASgLMh8ud29ybGRlbmdpbmUuaXNjLnYxLlF1ZXJ5UmVzdWx0IooBChFFdmVudFN1YnNjcmlwdGlvbhI9CgdhZGRyZXNzGAEgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBARI2CgZldmVudHMYAiADKAlCJrpII5IBIAgBIhxyGhABGIABMhNeW2EtekEtWjAtOS4qPl8tXSskIlwKF1N0YXJ0RXZlbnRTdHJlYW1SZXF1ZXN0EkEKDXN1YnNjcmlwdGlvbnMYASADKAsyKi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5FdmVudFN1YnNjcmlwdGlvbiJ7ChhTdGFydEV2ZW50U3RyZWFtUmVzcG9uc2USNQoHYWRkcmVzcxgBIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzEigKBWV2ZW50GAIgASgLMhkud29ybGRlbmdpbmUuaXNjLnYxLkV2ZW50ImUKFlN1YnNjcmliZUV2ZW50c1JlcXVlc3QSSwoNc3Vic2NyaXB0aW9ucxgBIAMoCzIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkV2ZW50U3Vic2NyaXB0aW9uQgi6SAWSAQIIASIZChdTdWJzY3JpYmVFdmVudHNSZXNwb25zZSJnChhVbnN1YnNjcmliZUV2ZW50c1JlcXVlc3QSSwoNc3Vic2NyaXB0aW9ucxgBIAMoCzIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkV2ZW50U3Vic2NyaXB0aW9uQgi6SAWSAQIIASIbChlVbnN1YnNjcmliZUV2ZW50c1Jlc3BvbnNlMtIFCg9DYXJkaW5hbFNlcnZpY2USagoLU2VuZENvbW1hbmQSKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TZW5kQ29tbWFuZFJlcXVlc3QaLC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TZW5kQ29tbWFuZFJlc3BvbnNlIgAShQEKFFNlbmRDb21tYW5kV2l0aFJlcGx5EjQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU2VuZENvbW1hbmRXaXRoUmVwbHlSZXF1ZXN0GjUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU2VuZENvbW1hbmRXaXRoUmVwbHlSZXNwb25zZSIAElgKBVF1ZXJ5EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUXVlcnlSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUXVlcnlSZXNwb25zZSIAEnsKEFN0YXJ0RXZlbnRTdHJlYW0SMC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGFydEV2ZW50U3RyZWFtUmVxdWVzdBoxLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0YXJ0RXZlbnRTdHJlYW1SZXNwb25zZSIAMAESdgoPU3Vic2NyaWJlRXZlbnRzEi8ud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3Vic2NyaWJlRXZlbnRzUmVxdWVzdBowLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN1YnNjcmliZUV2ZW50c1Jlc3BvbnNlIgASfAoRVW5zdWJzY3JpYmVFdmVudHMSMS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5VbnN1YnNjcmliZUV2ZW50c1JlcXVlc3QaMi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5VbnN1YnNjcmliZUV2ZW50c1Jlc3BvbnNlIgBCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_buf_validate_validate, file_worldengine_isc_v1_command, file_worldengine_isc_v1_event, file_worldengine_isc_v1_query, file_worldengine_micro_v1_service]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9jYXJkaW5hbC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiSgoSU2VuZENvbW1hbmRSZXF1ZXN0EjQKB2NvbW1hbmQYASABKAsyGy53b3JsZGVuZ2luZS5pc2MudjEuQ29tbWFuZEIGukgDyAEBIhUKE1NlbmRDb21tYW5kUmVzcG9uc2UiiAEKG1NlbmRDb21tYW5kV2l0aFJlcGx5UmVxdWVzdBI0Cgdjb21tYW5kGAEgASgLMhsud29ybGRlbmdpbmUuaXNjLnYxLkNvbW1hbmRCBrpIA8gBARIzCgpldmVudF9uYW1lGAIgASgJQh+6SBzIAQFyFxABGIABMhBeW2EtekEtWjAtOV8tXSskIkgKHFNlbmRDb21tYW5kV2l0aFJlcGx5UmVzcG9uc2USKAoFZXZlbnQYASABKAsyGS53b3JsZGVuZ2luZS5pc2MudjEuRXZlbnQiigEKEUV2ZW50U3Vic2NyaXB0aW9uEj0KB2FkZHJlc3MYASABKAsyJC53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBEjYKBmV2ZW50cxgCIAMoCUImukgjkgEgCAEiHHIaEAEYgAEyE15bYS16QS1aMC05Lio+Xy1dKyQiXAoXU3RhcnRFdmVudFN0cmVhbVJlcXVlc3QSQQoNc3Vic2NyaXB0aW9ucxgBIAMoCzIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkV2ZW50U3Vic2NyaXB0aW9uInsKGFN0YXJ0RXZlbnRTdHJlYW1SZXNwb25zZRI1CgdhZGRyZXNzGAEgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3MSKAoFZXZlbnQYAiABKAsyGS53b3JsZGVuZ2luZS5pc2MudjEuRXZlbnQiZQoWU3Vic2NyaWJlRXZlbnRzUmVxdWVzdBJLCg1zdWJzY3JpcHRpb25zGAEgAygLMioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuRXZlbnRTdWJzY3JpcHRpb25CCLpIBZIBAggBIhkKF1N1YnNjcmliZUV2ZW50c1Jlc3BvbnNlImcKGFVuc3Vic2NyaWJlRXZlbnRzUmVxdWVzdBJLCg1zdWJzY3JpcHRpb25zGAEgAygLMioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuRXZlbnRTdWJzY3JpcHRpb25CCLpIBZIBAggBIhsKGVVuc3Vic2NyaWJlRXZlbnRzUmVzcG9uc2Uy+AQKD0NhcmRpbmFsU2VydmljZRJqCgtTZW5kQ29tbWFuZBIrLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlNlbmRDb21tYW5kUmVxdWVzdBosLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlNlbmRDb21tYW5kUmVzcG9uc2UiABKFAQoUU2VuZENvbW1hbmRXaXRoUmVwbHkSNC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TZW5kQ29tbWFuZFdpdGhSZXBseVJlcXVlc3QaNS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TZW5kQ29tbWFuZFdpdGhSZXBseVJlc3BvbnNlIgASewoQU3RhcnRFdmVudFN0cmVhbRIwLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0YXJ0RXZlbnRTdHJlYW1SZXF1ZXN0GjEud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RhcnRFdmVudFN0cmVhbVJlc3BvbnNlIgAwARJ2Cg9TdWJzY3JpYmVFdmVudHMSLy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdWJzY3JpYmVFdmVudHNSZXF1ZXN0GjAud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3Vic2NyaWJlRXZlbnRzUmVzcG9uc2UiABJ8ChFVbnN1YnNjcmliZUV2ZW50cxIxLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlVuc3Vic2NyaWJlRXZlbnRzUmVxdWVzdBoyLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlVuc3Vic2NyaWJlRXZlbnRzUmVzcG9uc2UiAEJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate, file_worldengine_isc_v1_command, file_worldengine_isc_v1_event, file_worldengine_micro_v1_service]);
 
 /**
  * SendCommandRequest represents a request to execute a command on a specific shard.
@@ -107,55 +105,6 @@ export const SendCommandWithReplyResponseSchema: GenMessage<SendCommandWithReply
   messageDesc(file_worldengine_cardinal_v1_cardinal, 3);
 
 /**
- * QueryRequest represents a request to retrieve information from a specific shard.
- *
- * @generated from message worldengine.cardinal.v1.QueryRequest
- */
-export type QueryRequest = Message<"worldengine.cardinal.v1.QueryRequest"> & {
-  /**
-   * The address of the cardinal shard to send the query to.
-   *
-   * @generated from field: worldengine.micro.v1.ServiceAddress address = 1;
-   */
-  address?: ServiceAddress;
-
-  /**
-   * The actual query to execute.
-   *
-   * @generated from field: worldengine.isc.v1.Query query = 2;
-   */
-  query?: Query;
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.QueryRequest.
- * Use `create(QueryRequestSchema)` to create a new message.
- */
-export const QueryRequestSchema: GenMessage<QueryRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 4);
-
-/**
- * QueryResponse contains the results of a query operation.
- *
- * @generated from message worldengine.cardinal.v1.QueryResponse
- */
-export type QueryResponse = Message<"worldengine.cardinal.v1.QueryResponse"> & {
-  /**
-   * The results of the query.
-   *
-   * @generated from field: worldengine.isc.v1.QueryResult results = 1;
-   */
-  results?: QueryResult;
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.QueryResponse.
- * Use `create(QueryResponseSchema)` to create a new message.
- */
-export const QueryResponseSchema: GenMessage<QueryResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 5);
-
-/**
  * @generated from message worldengine.cardinal.v1.EventSubscription
  */
 export type EventSubscription = Message<"worldengine.cardinal.v1.EventSubscription"> & {
@@ -180,7 +129,7 @@ export type EventSubscription = Message<"worldengine.cardinal.v1.EventSubscripti
  * Use `create(EventSubscriptionSchema)` to create a new message.
  */
 export const EventSubscriptionSchema: GenMessage<EventSubscription> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 6);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 4);
 
 /**
  * StartEventStreamRequest represents a request to establish a stream of events from Cardinal.
@@ -190,7 +139,7 @@ export const EventSubscriptionSchema: GenMessage<EventSubscription> = /*@__PURE_
  */
 export type StartEventStreamRequest = Message<"worldengine.cardinal.v1.StartEventStreamRequest"> & {
   /**
-   * TODO: remove this.
+   * TODO: replace this with bidi streams.
    *
    * @generated from field: repeated worldengine.cardinal.v1.EventSubscription subscriptions = 1;
    */
@@ -202,7 +151,7 @@ export type StartEventStreamRequest = Message<"worldengine.cardinal.v1.StartEven
  * Use `create(StartEventStreamRequestSchema)` to create a new message.
  */
 export const StartEventStreamRequestSchema: GenMessage<StartEventStreamRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 7);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 5);
 
 /**
  * @generated from message worldengine.cardinal.v1.StartEventStreamResponse
@@ -228,7 +177,7 @@ export type StartEventStreamResponse = Message<"worldengine.cardinal.v1.StartEve
  * Use `create(StartEventStreamResponseSchema)` to create a new message.
  */
 export const StartEventStreamResponseSchema: GenMessage<StartEventStreamResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 8);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 6);
 
 /**
  * SubscribeEventsRequest represents a request to add new event types to an existing stream.
@@ -247,7 +196,7 @@ export type SubscribeEventsRequest = Message<"worldengine.cardinal.v1.SubscribeE
  * Use `create(SubscribeEventsRequestSchema)` to create a new message.
  */
 export const SubscribeEventsRequestSchema: GenMessage<SubscribeEventsRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 9);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 7);
 
 /**
  * SubscribeEventsResponse is returned when the request is successfully handled.
@@ -262,7 +211,7 @@ export type SubscribeEventsResponse = Message<"worldengine.cardinal.v1.Subscribe
  * Use `create(SubscribeEventsResponseSchema)` to create a new message.
  */
 export const SubscribeEventsResponseSchema: GenMessage<SubscribeEventsResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 10);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 8);
 
 /**
  * UnsubscribeEventsRequest represents a request to remove event types from an existing stream.
@@ -281,7 +230,7 @@ export type UnsubscribeEventsRequest = Message<"worldengine.cardinal.v1.Unsubscr
  * Use `create(UnsubscribeEventsRequestSchema)` to create a new message.
  */
 export const UnsubscribeEventsRequestSchema: GenMessage<UnsubscribeEventsRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 11);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 9);
 
 /**
  * UnsubscribeEventsResponse is returned when the request is successfully handled.
@@ -296,7 +245,7 @@ export type UnsubscribeEventsResponse = Message<"worldengine.cardinal.v1.Unsubsc
  * Use `create(UnsubscribeEventsResponseSchema)` to create a new message.
  */
 export const UnsubscribeEventsResponseSchema: GenMessage<UnsubscribeEventsResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_cardinal, 12);
+  messageDesc(file_worldengine_cardinal_v1_cardinal, 10);
 
 /**
  * @generated from service worldengine.cardinal.v1.CardinalService
@@ -321,16 +270,6 @@ export const CardinalService: GenService<{
     methodKind: "unary";
     input: typeof SendCommandWithReplyRequestSchema;
     output: typeof SendCommandWithReplyResponseSchema;
-  },
-  /**
-   * Query retrieves the current state or information from a specific shard.
-   *
-   * @generated from rpc worldengine.cardinal.v1.CardinalService.Query
-   */
-  query: {
-    methodKind: "unary";
-    input: typeof QueryRequestSchema;
-    output: typeof QueryResponseSchema;
   },
   /**
    * StartEventStream establishes a stream of events from specified shards. Clients can subscribe to

@@ -17,7 +17,6 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -28,7 +27,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"github.com/shamaton/msgpack/v3"
 	"google.golang.org/grpc/codes"
 )
 
@@ -283,75 +281,6 @@ func (s *service) removeReplyWaiter(eventName string, waiter chan *iscv1.Event) 
 	}
 	if len(s.replyWaiters[eventName]) == 0 {
 		delete(s.replyWaiters, eventName)
-	}
-}
-
-// -------------------------------------------------------------------------------------------------
-// Query handler
-// -------------------------------------------------------------------------------------------------
-
-func (s *service) Query(
-	ctx context.Context,
-	req *connect.Request[cardinalv1.QueryRequest],
-) (*connect.Response[cardinalv1.QueryResponse], error) {
-	select {
-	case <-ctx.Done():
-		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "context cancelled"))
-	default:
-	}
-
-	if micro.String(s.world.address) != micro.String(req.Msg.GetAddress()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
-	}
-
-	queryPb := req.Msg.GetQuery()
-	if err := protovalidate.Validate(queryPb); err != nil {
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			eris.Wrap(eris.Wrap(err, "failed to validate query"), "failed to parse request payload"),
-		)
-	}
-
-	results, err := s.world.world.NewSearch(ecs.SearchParam{
-		Find:   queryPb.GetFind(),
-		Match:  ecs.SearchMatch(iscv1MatchToString(queryPb.GetMatch())),
-		Where:  queryPb.GetWhere(),
-		Limit:  queryPb.GetLimit(),
-		Offset: queryPb.GetOffset(),
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to search entities"))
-	}
-
-	entities := make([][]byte, 0, len(results))
-	for _, result := range results {
-		data, err := msgpack.Marshal(result)
-		if err != nil {
-			return nil, connect.NewError(
-				connect.CodeInternal,
-				eris.Wrap(eris.Wrap(err, "failed to marshal entity to msgpack"), "failed to serialize results"),
-			)
-		}
-		entities = append(entities, data)
-	}
-
-	return connect.NewResponse(
-		&cardinalv1.QueryResponse{Results: &iscv1.QueryResult{Entities: entities}},
-	), nil
-}
-
-func iscv1MatchToString(m iscv1.Query_Match) string {
-	switch m {
-	case iscv1.Query_MATCH_EXACT:
-		return "exact"
-	case iscv1.Query_MATCH_CONTAINS:
-		return "contains"
-	case iscv1.Query_MATCH_ALL:
-		return "all"
-	case iscv1.Query_MATCH_UNSPECIFIED:
-		fallthrough
-	default:
-		return "" // This will be validated again in ecs.NewSearch
 	}
 }
 
