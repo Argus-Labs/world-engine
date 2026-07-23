@@ -752,6 +752,42 @@ func (notifySessionEndCommandCodec) Unmarshal(data []byte) (cardinal.Command, er
 	return c, nil
 }
 
+func (c NotifySessionStartCommand) ToProto() *system.NotifySessionStartCommand {
+	p := &system.NotifySessionStartCommand{}
+	p.LobbyID = string(c.LobbyID)
+	p.LobbyWorld = c.LobbyWorld.ToProto()
+	return p
+}
+
+func (c NotifySessionStartCommand) FromProto(p *system.NotifySessionStartCommand) NotifySessionStartCommand {
+	if p == nil {
+		return c
+	}
+	c.LobbyID = string(p.LobbyID)
+	c.LobbyWorld = c.LobbyWorld.FromProto(p.LobbyWorld)
+	return c
+}
+
+type notifySessionStartCommandCodec struct{}
+
+func (notifySessionStartCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
+	c, ok := p.(NotifySessionStartCommand)
+	if !ok {
+		return nil, fmt.Errorf("expected NotifySessionStartCommand, got %T", p)
+	}
+	return proto.Marshal(c.ToProto())
+}
+
+func (notifySessionStartCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+	var p system.NotifySessionStartCommand
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	var c NotifySessionStartCommand
+	c = c.FromProto(&p)
+	return c, nil
+}
+
 func (c PlayerChangedTeamEvent) ToProto() *system.PlayerChangedTeamEvent {
 	p := &system.PlayerChangedTeamEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -1287,6 +1323,7 @@ func init() {
 	cardinal.RegisterCommandCodec("lobby_kick", kickPlayerCommandCodec{})
 	cardinal.RegisterCommandCodec("lobby_leave", leaveLobbyCommandCodec{})
 	cardinal.RegisterCommandCodec("lobby_notify_session_end", notifySessionEndCommandCodec{})
+	cardinal.RegisterCommandCodec("lobby_notify_session_start", notifySessionStartCommandCodec{})
 	cardinal.RegisterCommandCodec("lobby_set_ready", setReadyCommandCodec{})
 	cardinal.RegisterCommandCodec("lobby_start_session", startSessionCommandCodec{})
 	cardinal.RegisterCommandCodec("lobby_transfer_leader", transferLeaderCommandCodec{})
