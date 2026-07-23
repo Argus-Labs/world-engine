@@ -1484,6 +1484,59 @@ func (x *NotifySessionEndCommand) GetLobbyID() string {
 	return ""
 }
 
+// wire name: "lobby_notify_session_start"
+type NotifySessionStartCommand struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	LobbyID       string                  `protobuf:"bytes,1,opt,name=LobbyID,proto3" json:"LobbyID,omitempty"`
+	LobbyWorld    *component.ShardAddress `protobuf:"bytes,2,opt,name=LobbyWorld,proto3" json:"LobbyWorld,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifySessionStartCommand) Reset() {
+	*x = NotifySessionStartCommand{}
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifySessionStartCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifySessionStartCommand) ProtoMessage() {}
+
+func (x *NotifySessionStartCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifySessionStartCommand.ProtoReflect.Descriptor instead.
+func (*NotifySessionStartCommand) Descriptor() ([]byte, []int) {
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *NotifySessionStartCommand) GetLobbyID() string {
+	if x != nil {
+		return x.LobbyID
+	}
+	return ""
+}
+
+func (x *NotifySessionStartCommand) GetLobbyWorld() *component.ShardAddress {
+	if x != nil {
+		return x.LobbyWorld
+	}
+	return nil
+}
+
 // wire name: "lobby_player_changed_team"
 type PlayerChangedTeamEvent struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
@@ -1497,7 +1550,7 @@ type PlayerChangedTeamEvent struct {
 
 func (x *PlayerChangedTeamEvent) Reset() {
 	*x = PlayerChangedTeamEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[25]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1509,7 +1562,7 @@ func (x *PlayerChangedTeamEvent) String() string {
 func (*PlayerChangedTeamEvent) ProtoMessage() {}
 
 func (x *PlayerChangedTeamEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[25]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1522,7 +1575,7 @@ func (x *PlayerChangedTeamEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerChangedTeamEvent.ProtoReflect.Descriptor instead.
 func (*PlayerChangedTeamEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{25}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PlayerChangedTeamEvent) GetLobbyID() string {
@@ -1565,7 +1618,7 @@ type PlayerJoinedEvent struct {
 
 func (x *PlayerJoinedEvent) Reset() {
 	*x = PlayerJoinedEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[26]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1577,7 +1630,7 @@ func (x *PlayerJoinedEvent) String() string {
 func (*PlayerJoinedEvent) ProtoMessage() {}
 
 func (x *PlayerJoinedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[26]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1590,7 +1643,7 @@ func (x *PlayerJoinedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerJoinedEvent.ProtoReflect.Descriptor instead.
 func (*PlayerJoinedEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{26}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PlayerJoinedEvent) GetLobbyID() string {
@@ -1626,7 +1679,7 @@ type PlayerKickedEvent struct {
 
 func (x *PlayerKickedEvent) Reset() {
 	*x = PlayerKickedEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[27]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1638,7 +1691,7 @@ func (x *PlayerKickedEvent) String() string {
 func (*PlayerKickedEvent) ProtoMessage() {}
 
 func (x *PlayerKickedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[27]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,7 +1704,7 @@ func (x *PlayerKickedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerKickedEvent.ProtoReflect.Descriptor instead.
 func (*PlayerKickedEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{27}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PlayerKickedEvent) GetLobbyID() string {
@@ -1686,7 +1739,7 @@ type PlayerLeftEvent struct {
 
 func (x *PlayerLeftEvent) Reset() {
 	*x = PlayerLeftEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[28]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1698,7 +1751,7 @@ func (x *PlayerLeftEvent) String() string {
 func (*PlayerLeftEvent) ProtoMessage() {}
 
 func (x *PlayerLeftEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[28]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1711,7 +1764,7 @@ func (x *PlayerLeftEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerLeftEvent.ProtoReflect.Descriptor instead.
 func (*PlayerLeftEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{28}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PlayerLeftEvent) GetLobbyID() string {
@@ -1739,7 +1792,7 @@ type PlayerPassthroughUpdatedEvent struct {
 
 func (x *PlayerPassthroughUpdatedEvent) Reset() {
 	*x = PlayerPassthroughUpdatedEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[29]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1751,7 +1804,7 @@ func (x *PlayerPassthroughUpdatedEvent) String() string {
 func (*PlayerPassthroughUpdatedEvent) ProtoMessage() {}
 
 func (x *PlayerPassthroughUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[29]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1764,7 +1817,7 @@ func (x *PlayerPassthroughUpdatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerPassthroughUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*PlayerPassthroughUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{29}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *PlayerPassthroughUpdatedEvent) GetLobbyID() string {
@@ -1792,7 +1845,7 @@ type PlayerReadyEvent struct {
 
 func (x *PlayerReadyEvent) Reset() {
 	*x = PlayerReadyEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[30]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1804,7 +1857,7 @@ func (x *PlayerReadyEvent) String() string {
 func (*PlayerReadyEvent) ProtoMessage() {}
 
 func (x *PlayerReadyEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[30]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1817,7 +1870,7 @@ func (x *PlayerReadyEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerReadyEvent.ProtoReflect.Descriptor instead.
 func (*PlayerReadyEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{30}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *PlayerReadyEvent) GetLobbyID() string {
@@ -1845,7 +1898,7 @@ type PlayerTimedOutEvent struct {
 
 func (x *PlayerTimedOutEvent) Reset() {
 	*x = PlayerTimedOutEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[31]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1857,7 +1910,7 @@ func (x *PlayerTimedOutEvent) String() string {
 func (*PlayerTimedOutEvent) ProtoMessage() {}
 
 func (x *PlayerTimedOutEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[31]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1870,7 +1923,7 @@ func (x *PlayerTimedOutEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerTimedOutEvent.ProtoReflect.Descriptor instead.
 func (*PlayerTimedOutEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{31}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *PlayerTimedOutEvent) GetLobbyID() string {
@@ -1897,7 +1950,7 @@ type SessionAwaitingAllocationEvent struct {
 
 func (x *SessionAwaitingAllocationEvent) Reset() {
 	*x = SessionAwaitingAllocationEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[32]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1909,7 +1962,7 @@ func (x *SessionAwaitingAllocationEvent) String() string {
 func (*SessionAwaitingAllocationEvent) ProtoMessage() {}
 
 func (x *SessionAwaitingAllocationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[32]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1922,7 +1975,7 @@ func (x *SessionAwaitingAllocationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionAwaitingAllocationEvent.ProtoReflect.Descriptor instead.
 func (*SessionAwaitingAllocationEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{32}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *SessionAwaitingAllocationEvent) GetLobbyID() string {
@@ -1942,7 +1995,7 @@ type SessionEndedEvent struct {
 
 func (x *SessionEndedEvent) Reset() {
 	*x = SessionEndedEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[33]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1954,7 +2007,7 @@ func (x *SessionEndedEvent) String() string {
 func (*SessionEndedEvent) ProtoMessage() {}
 
 func (x *SessionEndedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[33]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1967,7 +2020,7 @@ func (x *SessionEndedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionEndedEvent.ProtoReflect.Descriptor instead.
 func (*SessionEndedEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{33}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SessionEndedEvent) GetLobbyID() string {
@@ -1988,7 +2041,7 @@ type SessionPassthroughUpdatedEvent struct {
 
 func (x *SessionPassthroughUpdatedEvent) Reset() {
 	*x = SessionPassthroughUpdatedEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[34]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2000,7 +2053,7 @@ func (x *SessionPassthroughUpdatedEvent) String() string {
 func (*SessionPassthroughUpdatedEvent) ProtoMessage() {}
 
 func (x *SessionPassthroughUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[34]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2013,7 +2066,7 @@ func (x *SessionPassthroughUpdatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionPassthroughUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*SessionPassthroughUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{34}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SessionPassthroughUpdatedEvent) GetLobbyID() string {
@@ -2041,7 +2094,7 @@ type SessionStartedEvent struct {
 
 func (x *SessionStartedEvent) Reset() {
 	*x = SessionStartedEvent{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[35]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2053,7 +2106,7 @@ func (x *SessionStartedEvent) String() string {
 func (*SessionStartedEvent) ProtoMessage() {}
 
 func (x *SessionStartedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[35]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2066,7 +2119,7 @@ func (x *SessionStartedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionStartedEvent.ProtoReflect.Descriptor instead.
 func (*SessionStartedEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{35}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SessionStartedEvent) GetLobbyID() string {
@@ -2094,7 +2147,7 @@ type SetReadyCommand struct {
 
 func (x *SetReadyCommand) Reset() {
 	*x = SetReadyCommand{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[36]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2106,7 +2159,7 @@ func (x *SetReadyCommand) String() string {
 func (*SetReadyCommand) ProtoMessage() {}
 
 func (x *SetReadyCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[36]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2119,7 +2172,7 @@ func (x *SetReadyCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetReadyCommand.ProtoReflect.Descriptor instead.
 func (*SetReadyCommand) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{36}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SetReadyCommand) GetRequestID() string {
@@ -2148,7 +2201,7 @@ type SetReadyResult struct {
 
 func (x *SetReadyResult) Reset() {
 	*x = SetReadyResult{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[37]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2160,7 +2213,7 @@ func (x *SetReadyResult) String() string {
 func (*SetReadyResult) ProtoMessage() {}
 
 func (x *SetReadyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[37]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2173,7 +2226,7 @@ func (x *SetReadyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetReadyResult.ProtoReflect.Descriptor instead.
 func (*SetReadyResult) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{37}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *SetReadyResult) GetRequestID() string {
@@ -2214,7 +2267,7 @@ type StartSessionCommand struct {
 
 func (x *StartSessionCommand) Reset() {
 	*x = StartSessionCommand{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[38]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2226,7 +2279,7 @@ func (x *StartSessionCommand) String() string {
 func (*StartSessionCommand) ProtoMessage() {}
 
 func (x *StartSessionCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[38]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2239,7 +2292,7 @@ func (x *StartSessionCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSessionCommand.ProtoReflect.Descriptor instead.
 func (*StartSessionCommand) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{38}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *StartSessionCommand) GetRequestID() string {
@@ -2261,7 +2314,7 @@ type StartSessionResult struct {
 
 func (x *StartSessionResult) Reset() {
 	*x = StartSessionResult{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[39]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2273,7 +2326,7 @@ func (x *StartSessionResult) String() string {
 func (*StartSessionResult) ProtoMessage() {}
 
 func (x *StartSessionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[39]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2286,7 +2339,7 @@ func (x *StartSessionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSessionResult.ProtoReflect.Descriptor instead.
 func (*StartSessionResult) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{39}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StartSessionResult) GetRequestID() string {
@@ -2328,7 +2381,7 @@ type TransferLeaderCommand struct {
 
 func (x *TransferLeaderCommand) Reset() {
 	*x = TransferLeaderCommand{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[40]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2340,7 +2393,7 @@ func (x *TransferLeaderCommand) String() string {
 func (*TransferLeaderCommand) ProtoMessage() {}
 
 func (x *TransferLeaderCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[40]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2353,7 +2406,7 @@ func (x *TransferLeaderCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferLeaderCommand.ProtoReflect.Descriptor instead.
 func (*TransferLeaderCommand) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{40}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TransferLeaderCommand) GetRequestID() string {
@@ -2381,7 +2434,7 @@ type TransferLeaderResult struct {
 
 func (x *TransferLeaderResult) Reset() {
 	*x = TransferLeaderResult{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[41]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2393,7 +2446,7 @@ func (x *TransferLeaderResult) String() string {
 func (*TransferLeaderResult) ProtoMessage() {}
 
 func (x *TransferLeaderResult) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[41]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2406,7 +2459,7 @@ func (x *TransferLeaderResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferLeaderResult.ProtoReflect.Descriptor instead.
 func (*TransferLeaderResult) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{41}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *TransferLeaderResult) GetRequestID() string {
@@ -2441,7 +2494,7 @@ type UpdatePlayerPassthroughCommand struct {
 
 func (x *UpdatePlayerPassthroughCommand) Reset() {
 	*x = UpdatePlayerPassthroughCommand{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[42]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2453,7 +2506,7 @@ func (x *UpdatePlayerPassthroughCommand) String() string {
 func (*UpdatePlayerPassthroughCommand) ProtoMessage() {}
 
 func (x *UpdatePlayerPassthroughCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[42]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2466,7 +2519,7 @@ func (x *UpdatePlayerPassthroughCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePlayerPassthroughCommand.ProtoReflect.Descriptor instead.
 func (*UpdatePlayerPassthroughCommand) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{42}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *UpdatePlayerPassthroughCommand) GetRequestID() string {
@@ -2495,7 +2548,7 @@ type UpdatePlayerPassthroughResult struct {
 
 func (x *UpdatePlayerPassthroughResult) Reset() {
 	*x = UpdatePlayerPassthroughResult{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[43]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2507,7 +2560,7 @@ func (x *UpdatePlayerPassthroughResult) String() string {
 func (*UpdatePlayerPassthroughResult) ProtoMessage() {}
 
 func (x *UpdatePlayerPassthroughResult) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[43]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2520,7 +2573,7 @@ func (x *UpdatePlayerPassthroughResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePlayerPassthroughResult.ProtoReflect.Descriptor instead.
 func (*UpdatePlayerPassthroughResult) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{43}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *UpdatePlayerPassthroughResult) GetRequestID() string {
@@ -2562,7 +2615,7 @@ type UpdateSessionPassthroughCommand struct {
 
 func (x *UpdateSessionPassthroughCommand) Reset() {
 	*x = UpdateSessionPassthroughCommand{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[44]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2574,7 +2627,7 @@ func (x *UpdateSessionPassthroughCommand) String() string {
 func (*UpdateSessionPassthroughCommand) ProtoMessage() {}
 
 func (x *UpdateSessionPassthroughCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[44]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2587,7 +2640,7 @@ func (x *UpdateSessionPassthroughCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSessionPassthroughCommand.ProtoReflect.Descriptor instead.
 func (*UpdateSessionPassthroughCommand) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{44}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UpdateSessionPassthroughCommand) GetRequestID() string {
@@ -2615,7 +2668,7 @@ type UpdateSessionPassthroughResult struct {
 
 func (x *UpdateSessionPassthroughResult) Reset() {
 	*x = UpdateSessionPassthroughResult{}
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[45]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2627,7 +2680,7 @@ func (x *UpdateSessionPassthroughResult) String() string {
 func (*UpdateSessionPassthroughResult) ProtoMessage() {}
 
 func (x *UpdateSessionPassthroughResult) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[45]
+	mi := &file_pkg_plugin_lobby_system_system_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2640,7 +2693,7 @@ func (x *UpdateSessionPassthroughResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSessionPassthroughResult.ProtoReflect.Descriptor instead.
 func (*UpdateSessionPassthroughResult) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{45}
+	return file_pkg_plugin_lobby_system_system_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *UpdateSessionPassthroughResult) GetRequestID() string {
@@ -2769,7 +2822,12 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\x11LobbyDeletedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"3\n" +
 	"\x17NotifySessionEndCommand\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"\xc0\x01\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"\x8c\x01\n" +
+	"\x19NotifySessionStartCommand\x12\x18\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12U\n" +
+	"\n" +
+	"LobbyWorld\x18\x02 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\n" +
+	"LobbyWorld\"\xc0\x01\n" +
 	"\x16PlayerChangedTeamEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1c\n" +
 	"\tOldTeamID\x18\x02 \x01(\tR\tOldTeamID\x12\x1c\n" +
@@ -2855,7 +2913,7 @@ func file_pkg_plugin_lobby_system_system_proto_rawDescGZIP() []byte {
 	return file_pkg_plugin_lobby_system_system_proto_rawDescData
 }
 
-var file_pkg_plugin_lobby_system_system_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_pkg_plugin_lobby_system_system_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_pkg_plugin_lobby_system_system_proto_goTypes = []any{
 	(*AssignShardCommand)(nil),              // 0: world_engine.pkg.plugin.lobby.system.AssignShardCommand
 	(*CreateLobbyCommand)(nil),              // 1: world_engine.pkg.plugin.lobby.system.CreateLobbyCommand
@@ -2882,54 +2940,56 @@ var file_pkg_plugin_lobby_system_system_proto_goTypes = []any{
 	(*LobbyCreatedEvent)(nil),               // 22: world_engine.pkg.plugin.lobby.system.LobbyCreatedEvent
 	(*LobbyDeletedEvent)(nil),               // 23: world_engine.pkg.plugin.lobby.system.LobbyDeletedEvent
 	(*NotifySessionEndCommand)(nil),         // 24: world_engine.pkg.plugin.lobby.system.NotifySessionEndCommand
-	(*PlayerChangedTeamEvent)(nil),          // 25: world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent
-	(*PlayerJoinedEvent)(nil),               // 26: world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent
-	(*PlayerKickedEvent)(nil),               // 27: world_engine.pkg.plugin.lobby.system.PlayerKickedEvent
-	(*PlayerLeftEvent)(nil),                 // 28: world_engine.pkg.plugin.lobby.system.PlayerLeftEvent
-	(*PlayerPassthroughUpdatedEvent)(nil),   // 29: world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent
-	(*PlayerReadyEvent)(nil),                // 30: world_engine.pkg.plugin.lobby.system.PlayerReadyEvent
-	(*PlayerTimedOutEvent)(nil),             // 31: world_engine.pkg.plugin.lobby.system.PlayerTimedOutEvent
-	(*SessionAwaitingAllocationEvent)(nil),  // 32: world_engine.pkg.plugin.lobby.system.SessionAwaitingAllocationEvent
-	(*SessionEndedEvent)(nil),               // 33: world_engine.pkg.plugin.lobby.system.SessionEndedEvent
-	(*SessionPassthroughUpdatedEvent)(nil),  // 34: world_engine.pkg.plugin.lobby.system.SessionPassthroughUpdatedEvent
-	(*SessionStartedEvent)(nil),             // 35: world_engine.pkg.plugin.lobby.system.SessionStartedEvent
-	(*SetReadyCommand)(nil),                 // 36: world_engine.pkg.plugin.lobby.system.SetReadyCommand
-	(*SetReadyResult)(nil),                  // 37: world_engine.pkg.plugin.lobby.system.SetReadyResult
-	(*StartSessionCommand)(nil),             // 38: world_engine.pkg.plugin.lobby.system.StartSessionCommand
-	(*StartSessionResult)(nil),              // 39: world_engine.pkg.plugin.lobby.system.StartSessionResult
-	(*TransferLeaderCommand)(nil),           // 40: world_engine.pkg.plugin.lobby.system.TransferLeaderCommand
-	(*TransferLeaderResult)(nil),            // 41: world_engine.pkg.plugin.lobby.system.TransferLeaderResult
-	(*UpdatePlayerPassthroughCommand)(nil),  // 42: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughCommand
-	(*UpdatePlayerPassthroughResult)(nil),   // 43: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult
-	(*UpdateSessionPassthroughCommand)(nil), // 44: world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughCommand
-	(*UpdateSessionPassthroughResult)(nil),  // 45: world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughResult
-	(*component.ShardAddress)(nil),          // 46: world_engine.pkg.plugin.lobby.component.ShardAddress
-	(*component.LobbyComponent)(nil),        // 47: world_engine.pkg.plugin.lobby.component.LobbyComponent
-	(*component.PlayerComponent)(nil),       // 48: world_engine.pkg.plugin.lobby.component.PlayerComponent
+	(*NotifySessionStartCommand)(nil),       // 25: world_engine.pkg.plugin.lobby.system.NotifySessionStartCommand
+	(*PlayerChangedTeamEvent)(nil),          // 26: world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent
+	(*PlayerJoinedEvent)(nil),               // 27: world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent
+	(*PlayerKickedEvent)(nil),               // 28: world_engine.pkg.plugin.lobby.system.PlayerKickedEvent
+	(*PlayerLeftEvent)(nil),                 // 29: world_engine.pkg.plugin.lobby.system.PlayerLeftEvent
+	(*PlayerPassthroughUpdatedEvent)(nil),   // 30: world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent
+	(*PlayerReadyEvent)(nil),                // 31: world_engine.pkg.plugin.lobby.system.PlayerReadyEvent
+	(*PlayerTimedOutEvent)(nil),             // 32: world_engine.pkg.plugin.lobby.system.PlayerTimedOutEvent
+	(*SessionAwaitingAllocationEvent)(nil),  // 33: world_engine.pkg.plugin.lobby.system.SessionAwaitingAllocationEvent
+	(*SessionEndedEvent)(nil),               // 34: world_engine.pkg.plugin.lobby.system.SessionEndedEvent
+	(*SessionPassthroughUpdatedEvent)(nil),  // 35: world_engine.pkg.plugin.lobby.system.SessionPassthroughUpdatedEvent
+	(*SessionStartedEvent)(nil),             // 36: world_engine.pkg.plugin.lobby.system.SessionStartedEvent
+	(*SetReadyCommand)(nil),                 // 37: world_engine.pkg.plugin.lobby.system.SetReadyCommand
+	(*SetReadyResult)(nil),                  // 38: world_engine.pkg.plugin.lobby.system.SetReadyResult
+	(*StartSessionCommand)(nil),             // 39: world_engine.pkg.plugin.lobby.system.StartSessionCommand
+	(*StartSessionResult)(nil),              // 40: world_engine.pkg.plugin.lobby.system.StartSessionResult
+	(*TransferLeaderCommand)(nil),           // 41: world_engine.pkg.plugin.lobby.system.TransferLeaderCommand
+	(*TransferLeaderResult)(nil),            // 42: world_engine.pkg.plugin.lobby.system.TransferLeaderResult
+	(*UpdatePlayerPassthroughCommand)(nil),  // 43: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughCommand
+	(*UpdatePlayerPassthroughResult)(nil),   // 44: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult
+	(*UpdateSessionPassthroughCommand)(nil), // 45: world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughCommand
+	(*UpdateSessionPassthroughResult)(nil),  // 46: world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughResult
+	(*component.ShardAddress)(nil),          // 47: world_engine.pkg.plugin.lobby.component.ShardAddress
+	(*component.LobbyComponent)(nil),        // 48: world_engine.pkg.plugin.lobby.component.LobbyComponent
+	(*component.PlayerComponent)(nil),       // 49: world_engine.pkg.plugin.lobby.component.PlayerComponent
 }
 var file_pkg_plugin_lobby_system_system_proto_depIdxs = []int32{
-	46, // 0: world_engine.pkg.plugin.lobby.system.AssignShardCommand.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	47, // 1: world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
-	48, // 2: world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 3: world_engine.pkg.plugin.lobby.system.GetAllPlayersResult.Players:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	47, // 4: world_engine.pkg.plugin.lobby.system.GetLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
-	48, // 5: world_engine.pkg.plugin.lobby.system.GetPlayerResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	47, // 6: world_engine.pkg.plugin.lobby.system.JoinLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
-	48, // 7: world_engine.pkg.plugin.lobby.system.JoinLobbyResult.PlayersList:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 8: world_engine.pkg.plugin.lobby.system.JoinTeamResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 9: world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 10: world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 11: world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 12: world_engine.pkg.plugin.lobby.system.PlayerReadyEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	46, // 13: world_engine.pkg.plugin.lobby.system.SessionStartedEvent.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	48, // 14: world_engine.pkg.plugin.lobby.system.SetReadyResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	46, // 15: world_engine.pkg.plugin.lobby.system.StartSessionResult.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	48, // 16: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	47, // 0: world_engine.pkg.plugin.lobby.system.AssignShardCommand.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
+	48, // 1: world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
+	49, // 2: world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 3: world_engine.pkg.plugin.lobby.system.GetAllPlayersResult.Players:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	48, // 4: world_engine.pkg.plugin.lobby.system.GetLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
+	49, // 5: world_engine.pkg.plugin.lobby.system.GetPlayerResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	48, // 6: world_engine.pkg.plugin.lobby.system.JoinLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
+	49, // 7: world_engine.pkg.plugin.lobby.system.JoinLobbyResult.PlayersList:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 8: world_engine.pkg.plugin.lobby.system.JoinTeamResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 9: world_engine.pkg.plugin.lobby.system.NotifySessionStartCommand.LobbyWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
+	49, // 10: world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 11: world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 12: world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 13: world_engine.pkg.plugin.lobby.system.PlayerReadyEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 14: world_engine.pkg.plugin.lobby.system.SessionStartedEvent.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
+	49, // 15: world_engine.pkg.plugin.lobby.system.SetReadyResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 16: world_engine.pkg.plugin.lobby.system.StartSessionResult.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
+	49, // 17: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_pkg_plugin_lobby_system_system_proto_init() }
@@ -2943,7 +3003,7 @@ func file_pkg_plugin_lobby_system_system_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_plugin_lobby_system_system_proto_rawDesc), len(file_pkg_plugin_lobby_system_system_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   46,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
