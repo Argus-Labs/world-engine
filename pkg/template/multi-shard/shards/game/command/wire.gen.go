@@ -6,19 +6,19 @@ import (
 	"fmt"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	gen "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen"
+	command "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
 	"google.golang.org/protobuf/proto"
 )
 
-func (c MovePlayer) ToProto() *gen.MovePlayer {
-	p := &gen.MovePlayer{}
+func (c MovePlayer) ToProto() *command.MovePlayer {
+	p := &command.MovePlayer{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.X = uint32(c.X)
 	p.Y = uint32(c.Y)
 	return p
 }
 
-func (c MovePlayer) FromProto(p *gen.MovePlayer) MovePlayer {
+func (c MovePlayer) FromProto(p *command.MovePlayer) MovePlayer {
 	if p == nil {
 		return c
 	}
@@ -39,7 +39,7 @@ func (movePlayerCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (movePlayerCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.MovePlayer
+	var p command.MovePlayer
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -48,13 +48,13 @@ func (movePlayerCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 	return c, nil
 }
 
-func (c PlayerLeave) ToProto() *gen.PlayerLeave {
-	p := &gen.PlayerLeave{}
+func (c PlayerLeave) ToProto() *command.PlayerLeave {
+	p := &command.PlayerLeave{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	return p
 }
 
-func (c PlayerLeave) FromProto(p *gen.PlayerLeave) PlayerLeave {
+func (c PlayerLeave) FromProto(p *command.PlayerLeave) PlayerLeave {
 	if p == nil {
 		return c
 	}
@@ -73,7 +73,7 @@ func (playerLeaveCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (playerLeaveCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.PlayerLeave
+	var p command.PlayerLeave
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -82,8 +82,8 @@ func (playerLeaveCodec) Unmarshal(data []byte) (cardinal.Command, error) {
 	return c, nil
 }
 
-func (c PlayerSpawn) ToProto() *gen.PlayerSpawn {
-	p := &gen.PlayerSpawn{}
+func (c PlayerSpawn) ToProto() *command.PlayerSpawn {
+	p := &command.PlayerSpawn{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.X = uint32(c.X)
@@ -91,7 +91,7 @@ func (c PlayerSpawn) ToProto() *gen.PlayerSpawn {
 	return p
 }
 
-func (c PlayerSpawn) FromProto(p *gen.PlayerSpawn) PlayerSpawn {
+func (c PlayerSpawn) FromProto(p *command.PlayerSpawn) PlayerSpawn {
 	if p == nil {
 		return c
 	}
@@ -113,7 +113,7 @@ func (playerSpawnCodec) Marshal(p cardinal.Command) ([]byte, error) {
 }
 
 func (playerSpawnCodec) Unmarshal(data []byte) (cardinal.Command, error) {
-	var p gen.PlayerSpawn
+	var p command.PlayerSpawn
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}

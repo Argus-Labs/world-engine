@@ -284,27 +284,33 @@ type OtherWorld struct {
 	ShardID      string
 }
 
-// SendCommand sends a command to an external service.
+// SendToShard sends cmd to another shard, addressed by to. This is the first-class shard-to-shard send: the
+// world performs the send (it owns the event queue) and the address `to` is plain data with no behavior of
+// its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
+// initiated in-engine.
 //
-// Example:
-//
-// import external "another-game-shard/system"
-//
-// // Define a shard address of one of your game shards.
-// const MatchmakingService ecs.ServiceAddress = "world.argus.rampage.matchmaking"
-//
-//	func GameSystem(state *GameSystem) error {
-//	  MatchmakingService.Send(state, &external.EndGameCommand{
-//	    Winner: "Team 1",
-//	  })
-//	}
-func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.Payload) {
-	serviceAddress := micro.GetAddress(o.Region, micro.RealmWorld, o.Organization, o.Project, o.ShardID)
-	state.world.events.Enqueue(event.Event{
+// Fire-and-forget: the actual network send happens when events flush at end-of-tick, so cmd must not be
+// mutated after this call — a *Command whose fields change before the flush would send the mutated value.
+// A send that fails is not returned (it must not block the tick) but is logged at error level, because a
+// dropped shard-to-shard command is serious.
+func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
+	if to.ShardID == "" {
+		b.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
+		return
+	}
+	// Uphold "no codec = hard error" on the send path. A command sent only via SendToShard (never a
+	// WithCommand field on any system) is otherwise never boot-checked, so a missing codec would degrade
+	// to a silent drop when publishInterShardCommand marshals it. Fail loud at the send site instead —
+	// this is a "forgot to run the generator" programming error, caught the first time the path runs.
+	if !command.HasCodec(cmd.Name()) {
+		panic(eris.Errorf("SendToShard: command %q has no registered codec (run the generator)", cmd.Name()))
+	}
+	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
+	b.world.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(state.world.address),
+			Persona: micro.String(b.world.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},
@@ -327,6 +333,12 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 
 	if _, ok := meta.events[name]; ok {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
+	}
+
+	// Fail at boot, not mid-tick: events marshal via a generated MarshalWire (no registry, unlike
+	// commands), so presence is the method existing. Without it the event drops silently at emit time.
+	if _, ok := any(zero).(event.WireMarshaler); !ok {
+		return eris.Errorf("event %q has no generated wire codec (run the generator)", name)
 	}
 
 	if err := meta.world.debug.register("event", zero); err != nil {

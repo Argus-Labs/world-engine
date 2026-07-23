@@ -135,7 +135,7 @@ func TestAssignShardCommand_Shape(t *testing.T) {
 	cmd := AssignShardCommand{
 		LobbyID:   "lobby-1",
 		RequestID: "req-42",
-		GameWorld: ShardAddress{ShardID: "game-shard-3"},
+		GameWorld: component.ShardAddress{ShardID: "game-shard-3"},
 	}
 	assert.Equal(t, "lobby-1", cmd.LobbyID)
 	assert.Equal(t, "req-42", cmd.RequestID)
@@ -329,7 +329,7 @@ func TestLobbyComponent_WithGameWorld(t *testing.T) {
 	t.Parallel()
 
 	lobby := component.LobbyComponent{
-		GameWorld: cardinal.OtherWorld{
+		GameWorld: component.ShardAddress{
 			Region:  "eu-central",
 			ShardID: "game-eu-1",
 		},

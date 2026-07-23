@@ -33,7 +33,7 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 		if lob.Session.State != lobby.SessionStateAwaitingAllocation {
 			continue
 		}
-		self.SendCommand(&state.BaseSystemState, lobby.AssignShardCommand{
+		state.SendToShard(self, lobby.AssignShardCommand{
 			LobbyID:   lob.ID,
 			RequestID: lob.Session.PendingRequestID,
 			GameWorld: lobby.ShardAddress{

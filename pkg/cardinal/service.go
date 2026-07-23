@@ -19,7 +19,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -514,13 +513,25 @@ func (s *service) hasSubscriber(user *User) bool {
 
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
+// marshalEventPayload encodes an event payload for the wire via its generated MarshalWire. An event
+// without generated wire code is a hard error — run the generator; there is no msgpack fallback.
+func marshalEventPayload(payload event.Payload) ([]byte, error) {
+	wm, ok := payload.(event.WireMarshaler)
+	if !ok {
+		return nil, eris.Errorf("event %q has no generated wire codec — run `world sdk generate`", payload.Name())
+	}
+	return wm.MarshalWire()
+}
+
 func (s *service) publishDefaultEvent(evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
 
-	payloadPb, err := schema.Serialize(payload)
+	// Proto via the event's generated MarshalWire (dispatch by type, no registry). No fallback: an event
+	// without generated wire code is a hard error.
+	payloadPb, err := marshalEventPayload(payload)
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal event payload")
 	}
@@ -628,7 +639,10 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 
 	payload, err := command.Marshal(isc.Payload)
 	if err != nil {
-		return eris.Wrap(err, "failed to marshal command payload")
+		// Non-blocking but serious: a dropped shard-to-shard command must not halt the tick, so log at
+		// error level and move on rather than propagate (which would surface only as an aggregated warn).
+		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: marshal failed")
+		return nil
 	}
 
 	commandPb := &iscv1.Command{
@@ -641,9 +655,13 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
+	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
+	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
 	_, err = s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
 	if err != nil {
-		return eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Payload.Name())
+		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
+		return nil
 	}
 
 	return nil

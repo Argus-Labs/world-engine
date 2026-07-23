@@ -245,8 +245,8 @@ func (LeaderChangedEvent) Name() string { return "lobby_leader_changed" }
 // the session starter) learns which gameplay shard to connect to
 // without a follow-up query.
 type SessionStartedEvent struct {
-	LobbyID   string              `json:"lobby_id"`
-	GameWorld cardinal.OtherWorld `json:"game_world"`
+	LobbyID   string                 `json:"lobby_id"`
+	GameWorld component.ShardAddress `json:"game_world"`
 }
 
 // Name returns the event name.
@@ -400,10 +400,10 @@ func (r TransferLeaderResult) Name() string { return r.RequestID + "_transfer_le
 // On success, GameWorld holds the assigned shard address so the client
 // can connect without an extra query. Zero-valued on failure.
 type StartSessionResult struct {
-	RequestID string              `json:"request_id"`
-	IsSuccess bool                `json:"is_success"`
-	Message   string              `json:"message"`
-	GameWorld cardinal.OtherWorld `json:"game_world,omitempty"`
+	RequestID string                 `json:"request_id"`
+	IsSuccess bool                   `json:"is_success"`
+	Message   string                 `json:"message"`
+	GameWorld component.ShardAddress `json:"game_world,omitempty"`
 }
 
 // Name returns the request-prefixed event name.
@@ -493,8 +493,8 @@ func (r GetLobbyResult) Name() string {
 // only what the receiver needs (the lobby id and this lobby shard's address to reply to), not the live
 // LobbyComponent/PlayerComponent — those are domain types and never go on the wire.
 type NotifySessionStartCommand struct {
-	LobbyID    string       `json:"lobby_id"`
-	LobbyWorld ShardAddress `json:"lobby_world"`
+	LobbyID    string                 `json:"lobby_id"`
+	LobbyWorld component.ShardAddress `json:"lobby_world"`
 }
 
 // Name returns the command name.
@@ -523,28 +523,11 @@ func (NotifySessionEndCommand) Name() string { return "lobby_notify_session_end"
 // the orchestrator reads from the LobbyComponent). Mismatched RequestIDs
 // are rejected; this rejects late duplicate or stale commands that arrive
 // after the original pending cycle has already been completed or cancelled.
-// ShardAddress mirrors cardinal.OtherWorld for use in commands. A plugin command can't carry the
-// core cardinal.OtherWorld directly: generating its proto in the plugin would require cardinal to
-// import the plugin's generated package, a dependency cycle. The fields match, so the two convert
-// directly with a Go struct conversion.
-type ShardAddress struct {
-	Region       string
-	Organization string
-	Project      string
-	ShardID      string
-}
-
-// SendCommand forwards to the underlying cardinal.OtherWorld, so a command field of type ShardAddress
-// can dispatch directly (e.g. the game shard replying to the lobby via NotifySessionStart.LobbyWorld).
-func (a ShardAddress) SendCommand(state *cardinal.BaseSystemState, cmd cardinal.Command) {
-	cardinal.OtherWorld(a).SendCommand(state, cmd)
-}
-
 type AssignShardCommand struct {
-	LobbyID   string       `json:"lobby_id"`
-	RequestID string       `json:"request_id"`
-	GameWorld ShardAddress `json:"game_world"`
-	Reason    string       `json:"reason,omitempty"`
+	LobbyID   string                 `json:"lobby_id"`
+	RequestID string                 `json:"request_id"`
+	GameWorld component.ShardAddress `json:"game_world"`
+	Reason    string                 `json:"reason,omitempty"`
 }
 
 // Name returns the command name.
@@ -1966,9 +1949,9 @@ func dispatchSessionStart(
 	lobbyID string,
 ) {
 	gameWorld := lobby.GameWorld
-	gameWorld.SendCommand(&state.BaseSystemState, NotifySessionStartCommand{
+	state.SendToShard(cardinal.OtherWorld(gameWorld), NotifySessionStartCommand{
 		LobbyID:    lobbyID,
-		LobbyWorld: ShardAddress(config.LobbyWorld),
+		LobbyWorld: config.LobbyWorld,
 	})
 	state.Logger().Info().
 		Str("lobby_id", lobbyID).
@@ -2041,7 +2024,7 @@ func processAssignShardCommands(
 		lobby.Session.PendingRequestID = ""
 		lobby.Session.PendingStartedAt = 0
 
-		lobby.GameWorld = cardinal.OtherWorld(payload.GameWorld)
+		lobby.GameWorld = payload.GameWorld
 		lobby.Session.State = component.SessionStateInSession
 		lobbyEntity.Lobby.Set(lobby)
 
@@ -2107,7 +2090,6 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 		}
 
 		lobby.Session.State = component.SessionStateIdle
-		lobby.Session.PassthroughData = nil
 		lobbyEntity.Lobby.Set(lobby)
 
 		// Reset ready status for all player entities

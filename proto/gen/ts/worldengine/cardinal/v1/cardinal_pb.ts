@@ -190,7 +190,7 @@ export const EventSubscriptionSchema: GenMessage<EventSubscription> = /*@__PURE_
  */
 export type StartEventStreamRequest = Message<"worldengine.cardinal.v1.StartEventStreamRequest"> & {
   /**
-   * TODO: remove this.
+   * TODO: replace this with bidi streams.
    *
    * @generated from field: repeated worldengine.cardinal.v1.EventSubscription subscriptions = 1;
    */
