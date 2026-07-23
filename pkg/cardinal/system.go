@@ -12,7 +12,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -285,32 +284,6 @@ type OtherWorld struct {
 	ShardID      string
 }
 
-// ToProto converts the address to its committed wire form (cardinalv1.OtherWorld). The command generator
-// treats OtherWorld as a well-known type and calls this when a command carries an OtherWorld field, so no
-// backend has to mirror the address locally.
-func (o OtherWorld) ToProto() *cardinalv1.OtherWorld {
-	return &cardinalv1.OtherWorld{
-		Region:       o.Region,
-		Organization: o.Organization,
-		Project:      o.Project,
-		ShardId:      o.ShardID,
-	}
-}
-
-// FromProto rebuilds an OtherWorld from its wire form (nil-safe). Value receiver so it matches the codec
-// convention the generator emits (c.Field = c.Field.FromProto(p.Field)).
-func (OtherWorld) FromProto(p *cardinalv1.OtherWorld) OtherWorld {
-	if p == nil {
-		return OtherWorld{}
-	}
-	return OtherWorld{
-		Region:       p.GetRegion(),
-		Organization: p.GetOrganization(),
-		Project:      p.GetProject(),
-		ShardID:      p.GetShardId(),
-	}
-}
-
 // SendToShard sends cmd to another shard, addressed by to. This is the first-class shard-to-shard send: the
 // world performs the send (it owns the event queue) and the address `to` is plain data with no behavior of
 // its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
@@ -324,6 +297,13 @@ func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
 	if to.ShardID == "" {
 		b.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
 		return
+	}
+	// Uphold "no codec = hard error" on the send path. A command sent only via SendToShard (never a
+	// WithCommand field on any system) is otherwise never boot-checked, so a missing codec would degrade
+	// to a silent drop when publishInterShardCommand marshals it. Fail loud at the send site instead —
+	// this is a "forgot to run the generator" programming error, caught the first time the path runs.
+	if !command.HasCodec(cmd.Name()) {
+		panic(eris.Errorf("SendToShard: command %q has no registered codec (run the generator)", cmd.Name()))
 	}
 	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
 	b.world.events.Enqueue(event.Event{
