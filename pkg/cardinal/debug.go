@@ -267,22 +267,20 @@ func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*car
 
 // tickControl coordinates pause, resume, step, and reset signaling for the tick loop.
 type tickControl struct {
-	pauseCh   chan chan uint64   // Request pause, receives tick height when paused
-	resumeCh  chan struct{}      // Signal to resume
-	stepCh    chan chan uint64   // Request step, receives tick height after step
-	resetCh   chan chan struct{} // Request reset
-	isPaused  atomic.Bool        // Current pause state
-	stepReady chan struct{}      // Signals that step result is ready to be read
+	pauseCh  chan chan uint64   // Request pause, receives tick height when paused
+	resumeCh chan struct{}      // Signal to resume
+	stepCh   chan chan uint64   // Request step, receives tick height after step
+	resetCh  chan chan struct{} // Request reset
+	isPaused atomic.Bool        // Current pause state
 }
 
 // newTickControl creates a tickControl with initialized channels.
 func newTickControl() *tickControl {
 	return &tickControl{
-		pauseCh:   make(chan chan uint64),
-		resumeCh:  make(chan struct{}),
-		stepCh:    make(chan chan uint64),
-		resetCh:   make(chan chan struct{}),
-		stepReady: make(chan struct{}),
+		pauseCh:  make(chan chan uint64),
+		resumeCh: make(chan struct{}),
+		stepCh:   make(chan chan uint64),
+		resetCh:  make(chan chan struct{}),
 	}
 }
 
