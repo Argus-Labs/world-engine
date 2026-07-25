@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"bytes"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
@@ -156,7 +158,7 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 
 // toProto converts the archetype to a protobuf message for serialization.
 func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
-	componentsBitmap := a.components.ToBytes()
+	componentsBitmap := bytes.Clone(a.components.ToBytes())
 
 	entities := make([]uint32, len(a.entities))
 	for i, eid := range a.entities {

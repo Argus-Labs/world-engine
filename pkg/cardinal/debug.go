@@ -3,7 +3,6 @@ package cardinal
 import (
 	"context"
 	"math"
-	"slices"
 	"sync/atomic"
 	"time"
 
@@ -32,17 +31,6 @@ type debugModule struct {
 	events     map[string]*structpb.Struct
 	components map[string]*structpb.Struct
 	perf       *performance.Collector
-	// view is the latest world state snapshot, published by the tick goroutine.
-	// Handlers only Load it, so the single writer needs no further synchronization.
-	view atomic.Pointer[stateView]
-}
-
-// stateView is an immutable, fully-owned snapshot of the world at a tick boundary.
-type stateView struct {
-	ws        *cardinalv1.WorldState
-	height    uint64 // tick height that produced this state.
-	timestamp time.Time
-	paused    bool
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -52,7 +40,7 @@ func newDebugModule(world *World) *debugModule {
 	batchSize := max(int(math.Round(world.options.TickRate))*perfBatchIntervalSec, 1)
 	perf := performance.NewCollector(batchSize)
 
-	return &debugModule{
+	d := &debugModule{
 		world:      world,
 		control:    newTickControl(),
 		commands:   make(map[string]*structpb.Struct),
@@ -68,6 +56,7 @@ func newDebugModule(world *World) *debugModule {
 		},
 		perf: perf,
 	}
+	return d
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -279,22 +268,20 @@ func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*car
 
 // tickControl coordinates pause, resume, step, and reset signaling for the tick loop.
 type tickControl struct {
-	pauseCh   chan chan uint64   // Request pause, receives tick height when paused
-	resumeCh  chan struct{}      // Signal to resume
-	stepCh    chan chan uint64   // Request step, receives tick height after step
-	resetCh   chan chan struct{} // Request reset
-	isPaused  atomic.Bool        // Current pause state
-	stepReady chan struct{}      // Signals that step result is ready to be read
+	pauseCh  chan chan uint64   // Request pause, receives tick height when paused
+	resumeCh chan struct{}      // Signal to resume
+	stepCh   chan chan uint64   // Request step, receives tick height after step
+	resetCh  chan chan struct{} // Request reset
+	isPaused atomic.Bool        // Current pause state
 }
 
 // newTickControl creates a tickControl with initialized channels.
 func newTickControl() *tickControl {
 	return &tickControl{
-		pauseCh:   make(chan chan uint64),
-		resumeCh:  make(chan struct{}),
-		stepCh:    make(chan chan uint64),
-		resetCh:   make(chan chan struct{}),
-		stepReady: make(chan struct{}),
+		pauseCh:  make(chan chan uint64),
+		resumeCh: make(chan struct{}),
+		stepCh:   make(chan chan uint64),
+		resetCh:  make(chan chan struct{}),
 	}
 }
 
@@ -364,60 +351,15 @@ func (d *debugModule) Reset(
 	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 }
 
-// GetState returns the most recent world state view.
-// The view is at most one tick old.
-// Unavailable means the world has not completed a tick yet.
+// GetState returns the most recent published world state, at most one tick old.
 func (d *debugModule) GetState(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.GetStateRequest],
 ) (*connect.Response[cardinalv1.GetStateResponse], error) {
-	v := d.view.Load()
-	if v == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, eris.New("world state not available yet"))
-	}
-
 	return connect.NewResponse(&cardinalv1.GetStateResponse{
-		IsPaused: v.paused,
-		Snapshot: &cardinalv1.Snapshot{
-			TickHeight: v.height,
-			Timestamp:  timestamppb.New(v.timestamp),
-			WorldState: v.ws,
-		},
+		IsPaused: d.control.isPaused.Load(),
+		Snapshot: d.world.state.Load(),
 	}), nil
-}
-
-// publishState stores an immutable state view for GetState. Tick goroutine only. Nil-safe.
-//
-// ComponentsBitmap aliases live ECS memory (bitmap.ToBytes is zero-copy; see archetype.toProto).
-// ConnectRPC marshals this view off-tick while later ticks mutate that memory, so clone it before
-// publishing.
-func (d *debugModule) publishState(ws *cardinalv1.WorldState, height uint64, timestamp time.Time) {
-	if d == nil {
-		return
-	}
-	for _, arch := range ws.GetArchetypes() {
-		arch.ComponentsBitmap = slices.Clone(arch.GetComponentsBitmap())
-	}
-	d.view.Store(&stateView{
-		ws:        ws,
-		height:    height,
-		timestamp: timestamp,
-		paused:    d.control.isPaused.Load(),
-	})
-}
-
-// captureState serializes the world and publishes the state view. Use it for state
-// changes outside a tick (currently reset). Tick goroutine only: it reads live ECS.
-func (d *debugModule) captureState(height uint64, timestamp time.Time) {
-	if d == nil {
-		return
-	}
-	worldState, err := d.world.world.ToProto()
-	if err != nil {
-		d.world.tel.Logger.Warn().Err(err).Msg("failed to serialize world state for debug view")
-		return
-	}
-	d.publishState(worldState, height, timestamp)
 }
 
 // isPaused returns whether the world is currently paused. Returns false if d is nil.
@@ -428,21 +370,12 @@ func (d *debugModule) isPaused() bool {
 	return d.control.isPaused.Load()
 }
 
-// setPaused sets the paused state and mirrors it onto the published view, so
-// GetState reflects the change immediately. Tick goroutine only. No-op if d is nil.
+// setPaused sets the paused state. No-op if d is nil.
 func (d *debugModule) setPaused(v bool) {
 	if d == nil {
 		return
 	}
 	d.control.isPaused.Store(v)
-
-	view := d.view.Load()
-	if view == nil || view.paused == v {
-		return
-	}
-	cp := *view
-	cp.paused = v
-	d.view.Store(&cp)
 }
 
 // pauseChan returns the pause request channel, or nil if d is nil.
