@@ -123,8 +123,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Create the debug module only if debug is on.
 	if *options.Debug {
-		debug := newDebugModule(world)
-		world.debug = &debug
+		world.debug = newDebugModule(world)
 	}
 
 	// Create the pprof module only if pprof is on.
@@ -176,6 +175,9 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
+
+	// Publish an initial view so GetState works before the first tick. Nil-safe: no-op when debug is off.
+	w.debug.captureState(w.currentTick.height, w.currentTick.timestamp)
 
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
@@ -229,27 +231,41 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
-	// Publish snapshot.
-	if w.currentTick.height%uint64(w.options.SnapshotRate) == 0 {
-		snapshotCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		w.snapshot(snapshotCtx, timestamp)
-		cancel()
-	}
+	// Publish state to snapshot and debug module.
+	w.persistState(ctx, timestamp)
 
 	// Increment tick height.
 	w.currentTick.height++
 }
 
-// snapshot persists the world state as a best-effort operation. Snapshots are best effort only, and
-// we just log errors instead of returning it, which would cause the world to stop and restart,
-// effectively losing unsaved state. If a snapshot fails, the main loop still continues and we retry
-// in the next snapshot call.
-func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
-	worldState, err := w.world.ToProto()
-	if err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for snapshot")
+// persistState serializes world state and does best effort to publish snapshot and debug state view.
+// We just log errors instead of returning it, which would cause the world to stop and restart,
+// effectively losing unsaved state. If a state serialization fails, the main loop still
+// continues and we retry in the next persistState call.
+func (w *World) persistState(ctx context.Context, timestamp time.Time) {
+	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
+	if !snapshotDue && w.debug == nil {
 		return
 	}
+
+	worldState, err := w.world.ToProto()
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world state")
+		return
+	}
+
+	w.debug.publishState(worldState, w.currentTick.height, timestamp)
+	if snapshotDue {
+		w.snapshot(ctx, timestamp, worldState)
+	}
+}
+
+// snapshot writes an already-serialized world state to storage, best-effort: errors are logged, not
+// returned, so a failed write doesn't stop the world and lose unsaved state — the next snapshot retries.
+func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *cardinalv1.WorldState) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
 	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 	if err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
@@ -313,10 +329,12 @@ func (w *World) shutdown() {
 	// instead of being severed on the first cleanup step. Telemetry goes last
 	// so it can flush log lines emitted by every preceding step.
 
-	// 1. Final snapshot. Producer-side, fixed 2s sub-budget.
-	snapshotCtx, snapshotCancel := context.WithTimeout(ctx, 2*time.Second)
-	w.snapshot(snapshotCtx, time.Now())
-	snapshotCancel()
+	// 1. Final snapshot. Producer-side; serialize world state for snapshot.
+	if worldState, err := w.world.ToProto(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
+	} else {
+		w.snapshot(ctx, time.Now(), worldState)
+	}
 
 	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
 	// but the producer side should stop before observers do.
@@ -355,8 +373,9 @@ func (w *World) reset() {
 	w.currentTick.height = 0
 	w.currentTick.timestamp = time.Time{}
 
-	// Reset perf collector.
+	// Reset perf collector and refresh the state view.
 	w.debug.resetPerf()
+	w.debug.captureState(w.currentTick.height, w.currentTick.timestamp)
 }
 
 type Tick struct {
