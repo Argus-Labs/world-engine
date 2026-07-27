@@ -15,17 +15,12 @@ type Event struct {
 	Payload any  // The event payload itself
 }
 
-// Payload is the interface all default event payloads must implement.
+// Payload is the interface all default event payloads must implement. It is schema.Serializable — the
+// same single interface commands and components use. Events dispatch by concrete type (no codec
+// registry); the generated MarshalWire encodes the event, and consumers know the type on decode. An
+// event without generated wire code doesn't satisfy this interface, so it fails to compile.
 type Payload interface {
 	schema.Serializable
-}
-
-// WireMarshaler is implemented by generated event code to encode a payload over the proto wire format.
-// Events dispatch by concrete type — there is no codec registry — because the generated MarshalWire
-// already knows the event's proto shape, and every consumer (a reply waiter or a subscriber) knows the
-// type on decode. An event without generated wire code is a hard error — there is no msgpack fallback.
-type WireMarshaler interface {
-	MarshalWire() ([]byte, error)
 }
 
 // Kind is a type that represents the kind of event.

@@ -270,7 +270,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload, err := command.Marshal(p)
+	payload, err := p.MarshalWire()
 	require.NoError(t, err)
 	return &iscv1.Command{
 		Name:    name,
@@ -281,7 +281,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 }
 
 func (f *dstFixture) enqueueCommand(cmd Command) error {
-	payload, err := command.Marshal(cmd)
+	payload, err := cmd.MarshalWire()
 	if err != nil {
 		return err
 	}

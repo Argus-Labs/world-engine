@@ -2,18 +2,10 @@ package ecs
 
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 )
-
-// wireComponent is the codec every component must carry to cross the snapshot wire. The generator emits
-// MarshalWire/UnmarshalWire (proto under the hood) on each component; UnmarshalWire returns the concrete
-// type, so the interface is parameterized by T. A component without these is a hard error — no msgpack
-// fallback — enforced at registration (RegisterComponent) and again here when a snapshot is taken.
-type wireComponent[T any] interface {
-	MarshalWire() ([]byte, error)
-	UnmarshalWire([]byte) (T, error)
-}
 
 // columnFactory is a function that creates a new abstractColumn instance.
 type columnFactory func() abstractColumn
@@ -134,7 +126,7 @@ func (c *column[T]) remove(row int) {
 func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	componentData := make([][]byte, len(c.components))
 	for i, component := range c.components {
-		codec, ok := any(component).(wireComponent[T])
+		codec, ok := any(component).(schema.Serializable)
 		if !ok {
 			return nil, eris.Errorf("component %q has no generated wire codec (run the generator)", c.compName)
 		}
@@ -163,18 +155,22 @@ func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	}
 
 	var zero T
-	codec, ok := any(zero).(wireComponent[T])
+	codec, ok := any(zero).(schema.Serializable)
 	if !ok {
 		return eris.Errorf("component %q has no generated wire codec (run the generator)", c.compName)
 	}
 
 	components := make([]T, len(pb.GetComponents()))
 	for i, data := range pb.GetComponents() {
-		component, err := codec.UnmarshalWire(data)
+		decoded, err := codec.UnmarshalWire(data)
 		if err != nil {
 			return eris.Wrapf(err, "failed to deserialize component at index %d", i)
 		}
-		components[i] = component
+		typed, ok := decoded.(T)
+		if !ok {
+			return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
+		}
+		components[i] = typed
 	}
 
 	c.components = components

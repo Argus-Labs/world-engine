@@ -516,11 +516,9 @@ func (s *service) hasSubscriber(user *User) bool {
 // marshalEventPayload encodes an event payload for the wire via its generated MarshalWire. An event
 // without generated wire code is a hard error — run the generator; there is no msgpack fallback.
 func marshalEventPayload(payload event.Payload) ([]byte, error) {
-	wm, ok := payload.(event.WireMarshaler)
-	if !ok {
-		return nil, eris.Errorf("event %q has no generated wire codec — run `world sdk generate`", payload.Name())
-	}
-	return wm.MarshalWire()
+	// payload is an event.Payload (schema.Serializable), so MarshalWire is guaranteed by the type — an
+	// ungenerated event wouldn't satisfy the interface at the emit site.
+	return payload.MarshalWire()
 }
 
 func (s *service) publishDefaultEvent(evt event.Event) error {
@@ -637,7 +635,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	payload, err := command.Marshal(isc.Payload)
+	payload, err := isc.Payload.MarshalWire()
 	if err != nil {
 		// Non-blocking but serious: a dropped shard-to-shard command must not halt the tick, so log at
 		// error level and move on rather than propagate (which would surface only as an aggregated warn).

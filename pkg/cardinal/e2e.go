@@ -251,7 +251,7 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload, err := command.Marshal(p)
+	payload, err := p.MarshalWire()
 	require.NoError(t, err)
 	return &iscv1.Command{
 		Name:    name,

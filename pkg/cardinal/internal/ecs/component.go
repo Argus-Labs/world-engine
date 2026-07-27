@@ -110,8 +110,9 @@ func (cm *componentManager) getID(name string) (ComponentID, error) {
 func RegisterComponent[T Component](world *World) (ComponentID, error) {
 	var zero T
 	// Fail at registration, not when a snapshot is first taken: a component must carry its generated
-	// wire codec (proto MarshalWire/UnmarshalWire) to be snapshotted. No msgpack fallback.
-	if _, ok := any(zero).(wireComponent[T]); !ok {
+	// wire codec (proto MarshalWire/UnmarshalWire) to be snapshotted. No msgpack fallback. Component
+	// already embeds schema.Serializable, so this is a belt-and-suspenders check that the generator ran.
+	if _, ok := any(zero).(schema.Serializable); !ok {
 		return 0, eris.Errorf("component %q has no generated wire codec (run the generator)", zero.Name())
 	}
 	if world.onComponentRegister != nil {

@@ -37,7 +37,7 @@ func TestService_SendCommand(t *testing.T) {
 		fixture := newServiceFixture(t, prng, false)
 
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-		payloadBytes, err := command.Marshal(payload)
+		payloadBytes, err := payload.MarshalWire()
 		require.NoError(t, err)
 		userID := testutils.RandString(prng, 8)
 		cmdPb := &iscv1.Command{
@@ -67,7 +67,7 @@ func TestService_SendCommand(t *testing.T) {
 		fixture := newServiceFixture(t, prng, false)
 
 		payload := testutils.SimpleCommand{Value: 42}
-		payloadBytes, err := command.Marshal(payload)
+		payloadBytes, err := payload.MarshalWire()
 		require.NoError(t, err)
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),

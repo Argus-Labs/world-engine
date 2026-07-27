@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"bytes"
+	"encoding/gob"
 	"strconv"
 	"testing"
 
@@ -119,6 +121,18 @@ type modelFuzzSystemEvent struct {
 
 func (s modelFuzzSystemEvent) Name() string {
 	return s.EventName
+}
+
+func (s modelFuzzSystemEvent) MarshalWire() ([]byte, error) {
+	var b bytes.Buffer
+	err := gob.NewEncoder(&b).Encode(s)
+	return b.Bytes(), err
+}
+
+func (modelFuzzSystemEvent) UnmarshalWire(b []byte) (any, error) {
+	var v modelFuzzSystemEvent
+	err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v)
+	return v, err
 }
 
 // -------------------------------------------------------------------------------------------------

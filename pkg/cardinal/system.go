@@ -200,28 +200,17 @@ func (b *BaseSystemState) Timestamp() time.Time {
 
 type Command = command.Payload
 
-// CommandCodec encodes and decodes a command payload to and from its wire bytes. Generated code
-// implements one per command type and registers it via RegisterCommandCodec.
-type CommandCodec = command.Codec
-
-// RegisterCommandCodec registers the wire codec for a command name. Generated code calls this from an
-// init() in the command's package, so the codec is available once that package is imported.
-func RegisterCommandCodec(name string, c CommandCodec) {
-	command.RegisterCodec(name, c)
-}
-
 type WithCommand[T Command] struct {
 	manager *command.Manager
 	id      command.ID
 }
 
 func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
+	// No codec check: T is constrained to Command (schema.Serializable), so an ungenerated command —
+	// one missing its generated wire methods — does not satisfy the constraint and fails to compile
+	// here. There is no codec registry to consult.
 	var zero T
 	name := zero.Name()
-
-	if !command.HasCodec(name) {
-		return eris.Errorf("command %q has no registered codec (run the generator)", name)
-	}
 
 	if _, ok := meta.commands[name]; ok {
 		return eris.Errorf("systems cannot process multiple commands of the same type: %s", name)
@@ -263,6 +252,8 @@ type CommandContext[T Command] struct {
 }
 
 func newCommandContext[T Command](cmd command.Command) CommandContext[T] {
+	// The queue stores the decoded value as a Payload; recover the concrete type. Value semantics —
+	// no pointer, because Serializable is satisfied by the value type (all value receivers).
 	payload, ok := cmd.Payload.(T)
 	assert.That(ok, "mismatched command type passed to command context")
 
@@ -298,13 +289,8 @@ func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
 		b.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
 		return
 	}
-	// Uphold "no codec = hard error" on the send path. A command sent only via SendToShard (never a
-	// WithCommand field on any system) is otherwise never boot-checked, so a missing codec would degrade
-	// to a silent drop when publishInterShardCommand marshals it. Fail loud at the send site instead —
-	// this is a "forgot to run the generator" programming error, caught the first time the path runs.
-	if !command.HasCodec(cmd.Name()) {
-		panic(eris.Errorf("SendToShard: command %q has no registered codec (run the generator)", cmd.Name()))
-	}
+	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
+	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
 	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
 	b.world.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
@@ -337,7 +323,7 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 
 	// Fail at boot, not mid-tick: events marshal via a generated MarshalWire (no registry, unlike
 	// commands), so presence is the method existing. Without it the event drops silently at emit time.
-	if _, ok := any(zero).(event.WireMarshaler); !ok {
+	if _, ok := any(zero).(event.Payload); !ok {
 		return eris.Errorf("event %q has no generated wire codec (run the generator)", name)
 	}
 

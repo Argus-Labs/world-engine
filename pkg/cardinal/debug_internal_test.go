@@ -22,6 +22,13 @@ type schemaSample struct {
 
 func (schemaSample) Name() string { return "schema-sample" }
 
+func (c schemaSample) MarshalWire() ([]byte, error) { return msgpack.Marshal(c) }
+func (schemaSample) UnmarshalWire(b []byte) (any, error) {
+	var v schemaSample
+	err := msgpack.Unmarshal(b, &v)
+	return v, err
+}
+
 // TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize
 // contract: the field names advertised by the introspection schema must equal
 // the keys shamaton/msgpack actually reads and writes, so a client that fills a
