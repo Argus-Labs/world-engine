@@ -1,0 +1,50 @@
+name: CI (C# Runtime)
+
+on:
+  push:
+    paths:
+      - 'sdk/csharp/**'
+      - 'pkg/cardinal/runtime/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/common-csharp-runtime-ci.yaml'
+  pull_request:
+    paths:
+      - 'sdk/csharp/**'
+      - 'pkg/cardinal/runtime/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/common-csharp-runtime-ci.yaml'
+
+env:
+  GO_VERSION: 1.25.5
+
+jobs:
+  nativeaot:
+    name: Pack, publish, and load NativeAOT
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build packaged C# fixture
+        run: |
+          docker build \
+            --file sdk/csharp/testapps/CounterModule/Dockerfile \
+            --target artifact \
+            --output type=local,dest=/tmp/nativeaot-artifact \
+            .
+
+      - name: Test Go host against packaged fixture
+        env:
+          CARDINAL_NATIVEAOT_TEST_LIBRARY: /tmp/nativeaot-artifact/libcounter_fixture.so
+        run: go test -race ./pkg/cardinal/runtime/... -count=1
+
+      - name: Test no-cgo portability
+        env:
+          CGO_ENABLED: 0
+        run: go test ./pkg/cardinal/runtime/... -count=1
