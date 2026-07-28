@@ -15,6 +15,64 @@ import (
 
 // TODO: test system registration, e.g. duplicate field detection, etc.
 
+type privateStateSystem struct {
+	BaseSystemState
+
+	dependency *int
+	scratch    []int
+}
+
+type privateDependencySystem struct {
+	BaseSystemState
+
+	events WithEvent[testutils.SimpleEvent]
+}
+
+func TestRegisterSystem_AllowsPersistentPrivateState(t *testing.T) {
+	t.Parallel()
+
+	dependency := 40
+	world := &World{world: ecs.NewWorld()}
+	var firstState *privateStateSystem
+
+	RegisterSystem(world, func(state *privateStateSystem) {
+		if state.dependency == nil {
+			state.dependency = &dependency
+		}
+		if firstState == nil {
+			firstState = state
+		}
+
+		assert.Same(t, firstState, state)
+		(*state.dependency)++
+		state.scratch = append(state.scratch, *state.dependency)
+	})
+	world.world.Init()
+	world.world.Tick()
+	world.world.Tick()
+
+	require.NotNil(t, firstState)
+	assert.Same(t, world, firstState.world)
+	assert.Equal(t, 42, dependency)
+	assert.Equal(t, []int{41, 42}, firstState.scratch)
+}
+
+func TestRegisterSystem_RejectsPrivateCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	world := &World{world: ecs.NewWorld()}
+
+	require.PanicsWithError(
+		t,
+		"error initializing system fields: field events must be exported",
+		func() {
+			RegisterSystem(world, func(state *privateDependencySystem) {
+				_ = state.events
+			})
+		},
+	)
+}
+
 // -------------------------------------------------------------------------------------------------
 // WithCommand smoke tests
 // -------------------------------------------------------------------------------------------------
