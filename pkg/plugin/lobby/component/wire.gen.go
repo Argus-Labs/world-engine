@@ -38,10 +38,10 @@ func (c ConfigComponent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c ConfigComponent) UnmarshalWire(data []byte) (ConfigComponent, error) {
+func (c ConfigComponent) UnmarshalWire(data []byte) (any, error) {
 	var p component.ConfigComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return ConfigComponent{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -82,10 +82,10 @@ func (c LobbyComponent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c LobbyComponent) UnmarshalWire(data []byte) (LobbyComponent, error) {
+func (c LobbyComponent) UnmarshalWire(data []byte) (any, error) {
 	var p component.LobbyComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return LobbyComponent{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -190,10 +190,10 @@ func (c LobbyIndexComponent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c LobbyIndexComponent) UnmarshalWire(data []byte) (LobbyIndexComponent, error) {
+func (c LobbyIndexComponent) UnmarshalWire(data []byte) (any, error) {
 	var p component.LobbyIndexComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return LobbyIndexComponent{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -230,10 +230,10 @@ func (c PlayerComponent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c PlayerComponent) UnmarshalWire(data []byte) (PlayerComponent, error) {
+func (c PlayerComponent) UnmarshalWire(data []byte) (any, error) {
 	var p component.PlayerComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return PlayerComponent{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }

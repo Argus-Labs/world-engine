@@ -4,9 +4,6 @@ package system
 
 import (
 	"encoding/json"
-	"fmt"
-
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 	lobby_component "github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	system "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/system"
 	"google.golang.org/protobuf/proto"
@@ -32,24 +29,16 @@ func (c AssignShardCommand) FromProto(p *system.AssignShardCommand) AssignShardC
 	return c
 }
 
-type assignShardCommandCodec struct{}
-
-func (assignShardCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(AssignShardCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected AssignShardCommand, got %T", p)
-	}
+func (c AssignShardCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (assignShardCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c AssignShardCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.AssignShardCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c AssignShardCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c CreateLobbyCommand) ToProto() *system.CreateLobbyCommand {
@@ -72,24 +61,16 @@ func (c CreateLobbyCommand) FromProto(p *system.CreateLobbyCommand) CreateLobbyC
 	return c
 }
 
-type createLobbyCommandCodec struct{}
-
-func (createLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(CreateLobbyCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected CreateLobbyCommand, got %T", p)
-	}
+func (c CreateLobbyCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (createLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c CreateLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.CreateLobbyCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c CreateLobbyCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c CreateLobbyResult) ToProto() *system.CreateLobbyResult {
@@ -118,6 +99,14 @@ func (c CreateLobbyResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c CreateLobbyResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.CreateLobbyResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c GenerateInviteCodeCommand) ToProto() *system.GenerateInviteCodeCommand {
 	p := &system.GenerateInviteCodeCommand{}
 	p.RequestID = string(c.RequestID)
@@ -132,24 +121,16 @@ func (c GenerateInviteCodeCommand) FromProto(p *system.GenerateInviteCodeCommand
 	return c
 }
 
-type generateInviteCodeCommandCodec struct{}
-
-func (generateInviteCodeCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(GenerateInviteCodeCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected GenerateInviteCodeCommand, got %T", p)
-	}
+func (c GenerateInviteCodeCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (generateInviteCodeCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c GenerateInviteCodeCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.GenerateInviteCodeCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c GenerateInviteCodeCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c GenerateInviteCodeResult) ToProto() *system.GenerateInviteCodeResult {
@@ -176,6 +157,14 @@ func (c GenerateInviteCodeResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c GenerateInviteCodeResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.GenerateInviteCodeResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c GetAllPlayersCommand) ToProto() *system.GetAllPlayersCommand {
 	p := &system.GetAllPlayersCommand{}
 	p.RequestID = string(c.RequestID)
@@ -190,24 +179,16 @@ func (c GetAllPlayersCommand) FromProto(p *system.GetAllPlayersCommand) GetAllPl
 	return c
 }
 
-type getAllPlayersCommandCodec struct{}
-
-func (getAllPlayersCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(GetAllPlayersCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected GetAllPlayersCommand, got %T", p)
-	}
+func (c GetAllPlayersCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (getAllPlayersCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c GetAllPlayersCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.GetAllPlayersCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c GetAllPlayersCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c GetAllPlayersResult) ToProto() *system.GetAllPlayersResult {
@@ -240,6 +221,14 @@ func (c GetAllPlayersResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c GetAllPlayersResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.GetAllPlayersResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c GetLobbyCommand) ToProto() *system.GetLobbyCommand {
 	p := &system.GetLobbyCommand{}
 	p.RequestID = string(c.RequestID)
@@ -254,24 +243,16 @@ func (c GetLobbyCommand) FromProto(p *system.GetLobbyCommand) GetLobbyCommand {
 	return c
 }
 
-type getLobbyCommandCodec struct{}
-
-func (getLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(GetLobbyCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected GetLobbyCommand, got %T", p)
-	}
+func (c GetLobbyCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (getLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c GetLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.GetLobbyCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c GetLobbyCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c GetLobbyResult) ToProto() *system.GetLobbyResult {
@@ -298,6 +279,14 @@ func (c GetLobbyResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c GetLobbyResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.GetLobbyResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c GetPlayerCommand) ToProto() *system.GetPlayerCommand {
 	p := &system.GetPlayerCommand{}
 	p.RequestID = string(c.RequestID)
@@ -314,24 +303,16 @@ func (c GetPlayerCommand) FromProto(p *system.GetPlayerCommand) GetPlayerCommand
 	return c
 }
 
-type getPlayerCommandCodec struct{}
-
-func (getPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(GetPlayerCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected GetPlayerCommand, got %T", p)
-	}
+func (c GetPlayerCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (getPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c GetPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.GetPlayerCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c GetPlayerCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c GetPlayerResult) ToProto() *system.GetPlayerResult {
@@ -358,6 +339,14 @@ func (c GetPlayerResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c GetPlayerResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.GetPlayerResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c HeartbeatCommand) ToProto() *system.HeartbeatCommand {
 	p := &system.HeartbeatCommand{}
 	return p
@@ -370,24 +359,16 @@ func (c HeartbeatCommand) FromProto(p *system.HeartbeatCommand) HeartbeatCommand
 	return c
 }
 
-type heartbeatCommandCodec struct{}
-
-func (heartbeatCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(HeartbeatCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected HeartbeatCommand, got %T", p)
-	}
+func (c HeartbeatCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (heartbeatCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c HeartbeatCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.HeartbeatCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c HeartbeatCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c InviteCodeGeneratedEvent) ToProto() *system.InviteCodeGeneratedEvent {
@@ -410,6 +391,14 @@ func (c InviteCodeGeneratedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c InviteCodeGeneratedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.InviteCodeGeneratedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c JoinLobbyCommand) ToProto() *system.JoinLobbyCommand {
 	p := &system.JoinLobbyCommand{}
 	p.RequestID = string(c.RequestID)
@@ -430,24 +419,16 @@ func (c JoinLobbyCommand) FromProto(p *system.JoinLobbyCommand) JoinLobbyCommand
 	return c
 }
 
-type joinLobbyCommandCodec struct{}
-
-func (joinLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(JoinLobbyCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected JoinLobbyCommand, got %T", p)
-	}
+func (c JoinLobbyCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (joinLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c JoinLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.JoinLobbyCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c JoinLobbyCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c JoinLobbyResult) ToProto() *system.JoinLobbyResult {
@@ -482,6 +463,14 @@ func (c JoinLobbyResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c JoinLobbyResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.JoinLobbyResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c JoinTeamCommand) ToProto() *system.JoinTeamCommand {
 	p := &system.JoinTeamCommand{}
 	p.RequestID = string(c.RequestID)
@@ -498,24 +487,16 @@ func (c JoinTeamCommand) FromProto(p *system.JoinTeamCommand) JoinTeamCommand {
 	return c
 }
 
-type joinTeamCommandCodec struct{}
-
-func (joinTeamCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(JoinTeamCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected JoinTeamCommand, got %T", p)
-	}
+func (c JoinTeamCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (joinTeamCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c JoinTeamCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.JoinTeamCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c JoinTeamCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c JoinTeamResult) ToProto() *system.JoinTeamResult {
@@ -542,6 +523,14 @@ func (c JoinTeamResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c JoinTeamResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.JoinTeamResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c KickPlayerCommand) ToProto() *system.KickPlayerCommand {
 	p := &system.KickPlayerCommand{}
 	p.RequestID = string(c.RequestID)
@@ -558,24 +547,16 @@ func (c KickPlayerCommand) FromProto(p *system.KickPlayerCommand) KickPlayerComm
 	return c
 }
 
-type kickPlayerCommandCodec struct{}
-
-func (kickPlayerCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(KickPlayerCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected KickPlayerCommand, got %T", p)
-	}
+func (c KickPlayerCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (kickPlayerCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c KickPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.KickPlayerCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c KickPlayerCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c KickPlayerResult) ToProto() *system.KickPlayerResult {
@@ -600,6 +581,14 @@ func (c KickPlayerResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c KickPlayerResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.KickPlayerResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c LeaderChangedEvent) ToProto() *system.LeaderChangedEvent {
 	p := &system.LeaderChangedEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -622,6 +611,14 @@ func (c LeaderChangedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c LeaderChangedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.LeaderChangedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c LeaveLobbyCommand) ToProto() *system.LeaveLobbyCommand {
 	p := &system.LeaveLobbyCommand{}
 	p.RequestID = string(c.RequestID)
@@ -636,24 +633,16 @@ func (c LeaveLobbyCommand) FromProto(p *system.LeaveLobbyCommand) LeaveLobbyComm
 	return c
 }
 
-type leaveLobbyCommandCodec struct{}
-
-func (leaveLobbyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(LeaveLobbyCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected LeaveLobbyCommand, got %T", p)
-	}
+func (c LeaveLobbyCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (leaveLobbyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c LeaveLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.LeaveLobbyCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c LeaveLobbyCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c LeaveLobbyResult) ToProto() *system.LeaveLobbyResult {
@@ -678,6 +667,14 @@ func (c LeaveLobbyResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c LeaveLobbyResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.LeaveLobbyResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c LobbyCreatedEvent) ToProto() *system.LobbyCreatedEvent {
 	p := &system.LobbyCreatedEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -700,6 +697,14 @@ func (c LobbyCreatedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c LobbyCreatedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.LobbyCreatedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c LobbyDeletedEvent) ToProto() *system.LobbyDeletedEvent {
 	p := &system.LobbyDeletedEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -718,6 +723,14 @@ func (c LobbyDeletedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c LobbyDeletedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.LobbyDeletedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c NotifySessionEndCommand) ToProto() *system.NotifySessionEndCommand {
 	p := &system.NotifySessionEndCommand{}
 	p.LobbyID = string(c.LobbyID)
@@ -732,24 +745,16 @@ func (c NotifySessionEndCommand) FromProto(p *system.NotifySessionEndCommand) No
 	return c
 }
 
-type notifySessionEndCommandCodec struct{}
-
-func (notifySessionEndCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(NotifySessionEndCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected NotifySessionEndCommand, got %T", p)
-	}
+func (c NotifySessionEndCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (notifySessionEndCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c NotifySessionEndCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.NotifySessionEndCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c NotifySessionEndCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c NotifySessionStartCommand) ToProto() *system.NotifySessionStartCommand {
@@ -768,24 +773,16 @@ func (c NotifySessionStartCommand) FromProto(p *system.NotifySessionStartCommand
 	return c
 }
 
-type notifySessionStartCommandCodec struct{}
-
-func (notifySessionStartCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(NotifySessionStartCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected NotifySessionStartCommand, got %T", p)
-	}
+func (c NotifySessionStartCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (notifySessionStartCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c NotifySessionStartCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.NotifySessionStartCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c NotifySessionStartCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c PlayerChangedTeamEvent) ToProto() *system.PlayerChangedTeamEvent {
@@ -812,6 +809,14 @@ func (c PlayerChangedTeamEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c PlayerChangedTeamEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerChangedTeamEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c PlayerJoinedEvent) ToProto() *system.PlayerJoinedEvent {
 	p := &system.PlayerJoinedEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -832,6 +837,14 @@ func (c PlayerJoinedEvent) FromProto(p *system.PlayerJoinedEvent) PlayerJoinedEv
 
 func (c PlayerJoinedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
+}
+
+func (c PlayerJoinedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerJoinedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
 }
 
 func (c PlayerKickedEvent) ToProto() *system.PlayerKickedEvent {
@@ -856,6 +869,14 @@ func (c PlayerKickedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c PlayerKickedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerKickedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c PlayerLeftEvent) ToProto() *system.PlayerLeftEvent {
 	p := &system.PlayerLeftEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -874,6 +895,14 @@ func (c PlayerLeftEvent) FromProto(p *system.PlayerLeftEvent) PlayerLeftEvent {
 
 func (c PlayerLeftEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
+}
+
+func (c PlayerLeftEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerLeftEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
 }
 
 func (c PlayerPassthroughUpdatedEvent) ToProto() *system.PlayerPassthroughUpdatedEvent {
@@ -896,6 +925,14 @@ func (c PlayerPassthroughUpdatedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c PlayerPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerPassthroughUpdatedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c PlayerReadyEvent) ToProto() *system.PlayerReadyEvent {
 	p := &system.PlayerReadyEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -914,6 +951,14 @@ func (c PlayerReadyEvent) FromProto(p *system.PlayerReadyEvent) PlayerReadyEvent
 
 func (c PlayerReadyEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
+}
+
+func (c PlayerReadyEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerReadyEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
 }
 
 func (c PlayerTimedOutEvent) ToProto() *system.PlayerTimedOutEvent {
@@ -936,6 +981,14 @@ func (c PlayerTimedOutEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c PlayerTimedOutEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.PlayerTimedOutEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c SessionAwaitingAllocationEvent) ToProto() *system.SessionAwaitingAllocationEvent {
 	p := &system.SessionAwaitingAllocationEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -954,6 +1007,14 @@ func (c SessionAwaitingAllocationEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c SessionAwaitingAllocationEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.SessionAwaitingAllocationEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c SessionEndedEvent) ToProto() *system.SessionEndedEvent {
 	p := &system.SessionEndedEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -970,6 +1031,14 @@ func (c SessionEndedEvent) FromProto(p *system.SessionEndedEvent) SessionEndedEv
 
 func (c SessionEndedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
+}
+
+func (c SessionEndedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.SessionEndedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
 }
 
 func (c SessionPassthroughUpdatedEvent) ToProto() *system.SessionPassthroughUpdatedEvent {
@@ -996,6 +1065,14 @@ func (c SessionPassthroughUpdatedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c SessionPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.SessionPassthroughUpdatedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c SessionStartedEvent) ToProto() *system.SessionStartedEvent {
 	p := &system.SessionStartedEvent{}
 	p.LobbyID = string(c.LobbyID)
@@ -1016,6 +1093,14 @@ func (c SessionStartedEvent) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c SessionStartedEvent) UnmarshalWire(data []byte) (any, error) {
+	var p system.SessionStartedEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c SetReadyCommand) ToProto() *system.SetReadyCommand {
 	p := &system.SetReadyCommand{}
 	p.RequestID = string(c.RequestID)
@@ -1032,24 +1117,16 @@ func (c SetReadyCommand) FromProto(p *system.SetReadyCommand) SetReadyCommand {
 	return c
 }
 
-type setReadyCommandCodec struct{}
-
-func (setReadyCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(SetReadyCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected SetReadyCommand, got %T", p)
-	}
+func (c SetReadyCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (setReadyCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c SetReadyCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.SetReadyCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c SetReadyCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c SetReadyResult) ToProto() *system.SetReadyResult {
@@ -1076,6 +1153,14 @@ func (c SetReadyResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c SetReadyResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.SetReadyResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c StartSessionCommand) ToProto() *system.StartSessionCommand {
 	p := &system.StartSessionCommand{}
 	p.RequestID = string(c.RequestID)
@@ -1090,24 +1175,16 @@ func (c StartSessionCommand) FromProto(p *system.StartSessionCommand) StartSessi
 	return c
 }
 
-type startSessionCommandCodec struct{}
-
-func (startSessionCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(StartSessionCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected StartSessionCommand, got %T", p)
-	}
+func (c StartSessionCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (startSessionCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c StartSessionCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.StartSessionCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c StartSessionCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c StartSessionResult) ToProto() *system.StartSessionResult {
@@ -1134,6 +1211,14 @@ func (c StartSessionResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c StartSessionResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.StartSessionResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c TransferLeaderCommand) ToProto() *system.TransferLeaderCommand {
 	p := &system.TransferLeaderCommand{}
 	p.RequestID = string(c.RequestID)
@@ -1150,24 +1235,16 @@ func (c TransferLeaderCommand) FromProto(p *system.TransferLeaderCommand) Transf
 	return c
 }
 
-type transferLeaderCommandCodec struct{}
-
-func (transferLeaderCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(TransferLeaderCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected TransferLeaderCommand, got %T", p)
-	}
+func (c TransferLeaderCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (transferLeaderCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c TransferLeaderCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.TransferLeaderCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c TransferLeaderCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c TransferLeaderResult) ToProto() *system.TransferLeaderResult {
@@ -1192,6 +1269,14 @@ func (c TransferLeaderResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c TransferLeaderResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.TransferLeaderResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c UpdatePlayerPassthroughCommand) ToProto() *system.UpdatePlayerPassthroughCommand {
 	p := &system.UpdatePlayerPassthroughCommand{}
 	p.RequestID = string(c.RequestID)
@@ -1208,24 +1293,16 @@ func (c UpdatePlayerPassthroughCommand) FromProto(p *system.UpdatePlayerPassthro
 	return c
 }
 
-type updatePlayerPassthroughCommandCodec struct{}
-
-func (updatePlayerPassthroughCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(UpdatePlayerPassthroughCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected UpdatePlayerPassthroughCommand, got %T", p)
-	}
+func (c UpdatePlayerPassthroughCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (updatePlayerPassthroughCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c UpdatePlayerPassthroughCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.UpdatePlayerPassthroughCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c UpdatePlayerPassthroughCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c UpdatePlayerPassthroughResult) ToProto() *system.UpdatePlayerPassthroughResult {
@@ -1252,6 +1329,14 @@ func (c UpdatePlayerPassthroughResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c UpdatePlayerPassthroughResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.UpdatePlayerPassthroughResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c UpdateSessionPassthroughCommand) ToProto() *system.UpdateSessionPassthroughCommand {
 	p := &system.UpdateSessionPassthroughCommand{}
 	p.RequestID = string(c.RequestID)
@@ -1268,24 +1353,16 @@ func (c UpdateSessionPassthroughCommand) FromProto(p *system.UpdateSessionPassth
 	return c
 }
 
-type updateSessionPassthroughCommandCodec struct{}
-
-func (updateSessionPassthroughCommandCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(UpdateSessionPassthroughCommand)
-	if !ok {
-		return nil, fmt.Errorf("expected UpdateSessionPassthroughCommand, got %T", p)
-	}
+func (c UpdateSessionPassthroughCommand) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (updateSessionPassthroughCommandCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c UpdateSessionPassthroughCommand) UnmarshalWire(data []byte) (any, error) {
 	var p system.UpdateSessionPassthroughCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c UpdateSessionPassthroughCommand
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c UpdateSessionPassthroughResult) ToProto() *system.UpdateSessionPassthroughResult {
@@ -1310,23 +1387,10 @@ func (c UpdateSessionPassthroughResult) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func init() {
-	cardinal.RegisterCommandCodec("lobby_assign_shard", assignShardCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_create", createLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_generate_invite", generateInviteCodeCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_get_all_players", getAllPlayersCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_get_lobby", getLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_get_player", getPlayerCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_heartbeat", heartbeatCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_join", joinLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_join_team", joinTeamCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_kick", kickPlayerCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_leave", leaveLobbyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_notify_session_end", notifySessionEndCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_notify_session_start", notifySessionStartCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_set_ready", setReadyCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_start_session", startSessionCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_transfer_leader", transferLeaderCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_update_player_passthrough", updatePlayerPassthroughCommandCodec{})
-	cardinal.RegisterCommandCodec("lobby_update_session_passthrough", updateSessionPassthroughCommandCodec{})
+func (c UpdateSessionPassthroughResult) UnmarshalWire(data []byte) (any, error) {
+	var p system.UpdateSessionPassthroughResult
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
 }

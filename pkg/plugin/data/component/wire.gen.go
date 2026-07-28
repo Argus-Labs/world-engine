@@ -35,10 +35,10 @@ func (c ConfigManifest) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c ConfigManifest) UnmarshalWire(data []byte) (ConfigManifest, error) {
+func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
 	var p component.ConfigManifest
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return ConfigManifest{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }

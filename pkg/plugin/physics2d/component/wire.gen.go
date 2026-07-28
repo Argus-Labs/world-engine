@@ -33,10 +33,10 @@ func (c ActiveContacts) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c ActiveContacts) UnmarshalWire(data []byte) (ActiveContacts, error) {
+func (c ActiveContacts) UnmarshalWire(data []byte) (any, error) {
 	var p component.ActiveContacts
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return ActiveContacts{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -179,10 +179,10 @@ func (c PhysicsBody2D) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c PhysicsBody2D) UnmarshalWire(data []byte) (PhysicsBody2D, error) {
+func (c PhysicsBody2D) UnmarshalWire(data []byte) (any, error) {
 	var p component.PhysicsBody2D
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return PhysicsBody2D{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -203,10 +203,10 @@ func (c PhysicsSingletonTag) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (PhysicsSingletonTag, error) {
+func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (any, error) {
 	var p component.PhysicsSingletonTag
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return PhysicsSingletonTag{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -231,10 +231,10 @@ func (c Transform2D) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c Transform2D) UnmarshalWire(data []byte) (Transform2D, error) {
+func (c Transform2D) UnmarshalWire(data []byte) (any, error) {
 	var p component.Transform2D
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return Transform2D{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -275,10 +275,10 @@ func (c Velocity2D) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c Velocity2D) UnmarshalWire(data []byte) (Velocity2D, error) {
+func (c Velocity2D) UnmarshalWire(data []byte) (any, error) {
 	var p component.Velocity2D
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return Velocity2D{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
