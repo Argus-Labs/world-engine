@@ -79,8 +79,12 @@ func initSystemFields[T any](state *T, world *World) error {
 		field := value.Field(i)
 		fieldType := value.Type().Field(i)
 
-		// Private fields are implementation state, not Cardinal dependencies.
+		// Ignore private implementation state, but keep private Cardinal dependencies
+		// as fail-fast configuration errors.
 		if !fieldType.IsExported() {
+			if field.Addr().Type().Implements(reflect.TypeFor[systemField]()) {
+				return eris.Errorf("field %s must be exported", fieldType.Name)
+			}
 			continue
 		}
 

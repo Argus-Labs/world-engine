@@ -23,6 +23,12 @@ type privateStateSystem struct {
 	scratch    []int
 }
 
+type privateDependencySystem struct {
+	BaseSystemState
+
+	events WithEvent[testutils.SimpleEvent]
+}
+
 func TestRegisterSystem_AllowsPersistentPrivateState(t *testing.T) {
 	t.Parallel()
 
@@ -50,6 +56,22 @@ func TestRegisterSystem_AllowsPersistentPrivateState(t *testing.T) {
 	assert.Same(t, world, firstState.world)
 	assert.Equal(t, 42, dependency)
 	assert.Equal(t, []int{41, 42}, firstState.scratch)
+}
+
+func TestRegisterSystem_RejectsPrivateCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	world := &World{world: ecs.NewWorld()}
+
+	require.PanicsWithError(
+		t,
+		"error initializing system fields: field events must be exported",
+		func() {
+			RegisterSystem(world, func(state *privateDependencySystem) {
+				_ = state.events
+			})
+		},
+	)
 }
 
 // -------------------------------------------------------------------------------------------------
