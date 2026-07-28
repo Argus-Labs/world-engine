@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <WorldEngineNativeExportsSource Condition="'$(WorldEngineNativeExportsSource)' == ''">$(MSBuildThisFileDirectory)..\contentFiles\cs\any\WorldEngine.Runtime.NativeAot\NativeExports.cs</WorldEngineNativeExportsSource>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(WorldEngineNativeExportsSource)"
+             Link="WorldEngine.Runtime.NativeAot.g.cs"
+             Visible="false" />
+  </ItemGroup>
+
+  <Target Name="ValidateWorldEngineNativeAotProject"
+          BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(TargetFramework)' != 'net8.0'"
+           Text="WorldEngine.Runtime.NativeAot currently supports only the net8.0 target framework used by World CLI." />
+    <Error Condition="'$(PublishAot)' != 'true'"
+           Text="WorldEngine.Runtime.NativeAot requires PublishAot=true in the host project." />
+    <Error Condition="'$(NativeLib)' != 'Shared'"
+           Text="WorldEngine.Runtime.NativeAot supports only NativeLib=Shared." />
+    <Error Condition="'$(SelfContained)' != 'true'"
+           Text="WorldEngine.Runtime.NativeAot requires SelfContained=true in the host project." />
+    <Error Condition="!Exists('$(WorldEngineNativeExportsSource)')"
+           Text="World Engine NativeAOT export source was not found at $(WorldEngineNativeExportsSource)." />
+  </Target>
+</Project>
