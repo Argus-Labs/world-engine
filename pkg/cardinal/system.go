@@ -321,12 +321,6 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
 	}
 
-	// Fail at boot, not mid-tick: events marshal via a generated MarshalWire (no registry, unlike
-	// commands), so presence is the method existing. Without it the event drops silently at emit time.
-	if _, ok := any(zero).(event.Payload); !ok {
-		return eris.Errorf("event %q has no generated wire codec (run the generator)", name)
-	}
-
 	if err := meta.world.debug.register("event", zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
