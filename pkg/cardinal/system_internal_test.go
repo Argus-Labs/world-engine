@@ -16,6 +16,69 @@ import (
 
 // TODO: test system registration, e.g. duplicate field detection, etc.
 
+type instanceRegistrationSystem struct {
+	BaseSystemState
+
+	dependency *int
+	scratch    []int
+}
+
+func (s *instanceRegistrationSystem) Run() {
+	(*s.dependency)++
+	s.scratch = append(s.scratch, *s.dependency)
+}
+
+func TestRegisterSystemInstance_UsesProvidedState(t *testing.T) {
+	t.Parallel()
+
+	dependency := 40
+	system := &instanceRegistrationSystem{
+		dependency: &dependency,
+		scratch:    make([]int, 0, 2),
+	}
+	world := &World{world: ecs.NewWorld()}
+
+	RegisterSystemInstance(world, system)
+	world.world.Init()
+	world.world.Tick()
+	world.world.Tick()
+
+	assert.Same(t, world, system.world)
+	assert.Equal(t, 42, dependency)
+	assert.Equal(t, []int{41, 42}, system.scratch)
+}
+
+func TestRegisterSystemInstance_HonorsHook(t *testing.T) {
+	t.Parallel()
+
+	dependency := 0
+	system := &instanceRegistrationSystem{dependency: &dependency}
+	world := &World{world: ecs.NewWorld()}
+
+	RegisterSystemInstance(world, system, WithHook(Init))
+	world.world.Init()
+	world.world.Tick()
+
+	assert.Equal(t, 1, dependency)
+	assert.Equal(t, []int{1}, system.scratch)
+}
+
+func TestRegisterSystemInstance_RejectsNilState(t *testing.T) {
+	t.Parallel()
+
+	var system *instanceRegistrationSystem
+	world := &World{world: ecs.NewWorld()}
+
+	require.PanicsWithError(
+		t,
+		"system *cardinal.instanceRegistrationSystem must use a non-nil struct pointer "+
+			"embedding cardinal.BaseSystemState",
+		func() {
+			RegisterSystemInstance(world, system)
+		},
+	)
+}
+
 // -------------------------------------------------------------------------------------------------
 // WithCommand smoke tests
 // -------------------------------------------------------------------------------------------------

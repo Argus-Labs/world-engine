@@ -19,35 +19,48 @@ import (
 
 type EntityID = ecs.EntityID
 
+// System is a caller-owned Cardinal system instance.
+//
+// Cardinal initializes exported system fields before the first run. Unexported fields are ignored,
+// so implementations can keep injected dependencies and reusable scratch memory private. A System
+// instance must only be registered once.
+type System interface {
+	Run()
+}
+
 func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) {
+	state := new(T)
+	validateSystemState(state, system)
+	registerSystem(world, state, system, func() { system(state) }, opts...)
+}
+
+// RegisterSystemInstance registers a caller-constructed System.
+//
+// The instance is initialized once and reused for every execution at the configured hook.
+func RegisterSystemInstance(world *World, system System, opts ...SystemOption) {
+	validateSystemState(system, system)
+	registerSystem(world, system, system, system.Run, opts...)
+}
+
+func registerSystem(world *World, state any, system any, run func(), opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-
-	// Check that the system stateType embeds BaseSystemState.
-	var zero T
-	stateType := reflect.TypeOf(zero)
-	if _, ok := stateType.FieldByName("BaseSystemState"); !ok {
-		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", system))
-	}
-
-	// Initialize the fields in the system state.
-	state := new(T)
 
 	if err := initSystemFields(state, world); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
 	name := fmt.Sprintf("%T", system)
-	fn := func() { system(state) }
+	fn := run
 
 	// If debug is enabled, wrap the system function with performance instrumentation.
 	if world.debug != nil {
 		fn = func() {
 			ts := world.currentTick.timestamp
 			startTime := ts.Add(time.Since(ts))
-			system(state)
+			run()
 			endTime := ts.Add(time.Since(ts))
 			world.debug.recordSpan(performance.TickSpan{
 				TickHeight: world.currentTick.height,
@@ -65,7 +78,22 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 	}
 }
 
-func initSystemFields[T any](state *T, world *World) error {
+func validateSystemState(state any, system any) {
+	value := reflect.ValueOf(state)
+	if !value.IsValid() || value.Kind() != reflect.Pointer || value.IsNil() ||
+		value.Elem().Kind() != reflect.Struct {
+		panic(eris.Errorf(
+			"system %T must use a non-nil struct pointer embedding cardinal.BaseSystemState",
+			system,
+		))
+	}
+
+	if _, ok := value.Elem().Type().FieldByName("BaseSystemState"); !ok {
+		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", system))
+	}
+}
+
+func initSystemFields(state any, world *World) error {
 	meta := systemInitMetadata{
 		world:        world,
 		commands:     make(map[string]struct{}),
@@ -79,9 +107,9 @@ func initSystemFields[T any](state *T, world *World) error {
 		field := value.Field(i)
 		fieldType := value.Type().Field(i)
 
-		// If the field is not exported, return an error.
-		if !field.CanAddr() {
-			return eris.Errorf("field %s must be exported", fieldType.Name)
+		// Private fields belong to caller-owned state and are not Cardinal dependencies.
+		if !fieldType.IsExported() {
+			continue
 		}
 
 		fieldInstance := field.Addr().Interface()
