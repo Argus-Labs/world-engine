@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../../WorldEngine.Runtime.NativeAot/build/WorldEngine.Runtime.NativeAot.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WorldEngine.Runtime.CounterFixture</AssemblyName>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <SelfContained>true</SelfContained>
+    <WorldEngineNativeExportsSource>../../WorldEngine.Runtime.NativeAot/src/NativeExports.cs</WorldEngineNativeExportsSource>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../WorldEngine.Runtime.Abstractions/WorldEngine.Runtime.Abstractions.csproj" />
+  </ItemGroup>
+
+  <Import Project="../../WorldEngine.Runtime.NativeAot/build/WorldEngine.Runtime.NativeAot.targets" />
+
+</Project>
