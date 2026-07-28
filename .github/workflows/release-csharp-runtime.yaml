@@ -1,0 +1,93 @@
+name: Release C# Runtime
+
+on:
+  push:
+    tags:
+      - 'csharp-runtime/v*'
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: 1.25.5
+
+jobs:
+  publish:
+    name: Pack and publish NuGet packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#csharp-runtime/v}"
+          package_version="$(
+            python3 -c \
+              "import json; print(json.load(open('sdk/csharp/WorldEngine.Runtime.Abstractions/package.json'))['version'])"
+          )"
+          test "${version}" = "${package_version}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build packaged NativeAOT fixture
+        run: |
+          docker build \
+            --file sdk/csharp/testapps/CounterModule/Dockerfile \
+            --target artifact \
+            --build-arg PACKAGE_VERSION=${{ steps.version.outputs.version }} \
+            --output type=local,dest=/tmp/nativeaot-artifact \
+            .
+
+      - name: Test Go host against packaged fixture
+        env:
+          CARDINAL_NATIVEAOT_TEST_LIBRARY: /tmp/nativeaot-artifact/libcounter_fixture.so
+        run: go test -race ./pkg/cardinal/runtime/... -count=1
+
+      - name: Test no-cgo portability
+        env:
+          CGO_ENABLED: 0
+        run: go test ./pkg/cardinal/runtime/... -count=1
+
+      - name: Pack runtime contracts
+        run: >-
+          dotnet pack
+          sdk/csharp/WorldEngine.Runtime.Abstractions/WorldEngine.Runtime.Abstractions.csproj
+          --configuration Release
+          --output artifacts
+          -p:PackageVersion=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Pack NativeAOT adapter
+        run: >-
+          dotnet pack
+          sdk/csharp/WorldEngine.Runtime.NativeAot/WorldEngine.Runtime.NativeAot.csproj
+          --configuration Release
+          --output artifacts
+          -p:PackageVersion=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Publish packages
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: >-
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${NUGET_API_KEY}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: world-engine-csharp-runtime-${{ steps.version.outputs.version }}
+          path: artifacts/*.nupkg
+          if-no-files-found: error
