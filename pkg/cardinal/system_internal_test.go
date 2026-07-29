@@ -22,9 +22,9 @@ type privateStateSystem struct {
 	scratch    []int
 }
 
-func (system *privateStateSystem) Run() {
-	(*system.dependency)++
-	system.scratch = append(system.scratch, *system.dependency)
+func (s *privateStateSystem) Run() {
+	(*s.dependency)++
+	s.scratch = append(s.scratch, *s.dependency)
 }
 
 type privateDependencySystem struct {
@@ -33,8 +33,8 @@ type privateDependencySystem struct {
 	events WithEvent[testutils.SimpleEvent]
 }
 
-func (system *privateDependencySystem) Run() {
-	_ = system.events
+func (s *privateDependencySystem) Run() {
+	_ = s.events
 }
 
 type privatePointerDependencySystem struct {
@@ -43,8 +43,8 @@ type privatePointerDependencySystem struct {
 	events *WithEvent[testutils.SimpleEvent]
 }
 
-func (system *privatePointerDependencySystem) Run() {
-	_ = system.events
+func (s *privatePointerDependencySystem) Run() {
+	_ = s.events
 }
 
 type exportedPointerDependencySystem struct {
@@ -53,8 +53,8 @@ type exportedPointerDependencySystem struct {
 	Events *WithEvent[testutils.SimpleEvent]
 }
 
-func (system *exportedPointerDependencySystem) Run() {
-	_ = system.Events
+func (s *exportedPointerDependencySystem) Run() {
+	_ = s.Events
 }
 
 type valueSystem struct {
@@ -78,16 +78,16 @@ func TestRegisterSystemV2_UsesCallerOwnedInstance(t *testing.T) {
 
 	dependency := 40
 	world := &World{world: ecs.NewWorld()}
-	system := &privateStateSystem{dependency: &dependency}
+	s := &privateStateSystem{dependency: &dependency}
 
-	RegisterSystemV2(world, system)
+	RegisterSystemV2(world, s)
 	world.world.Init()
 	world.world.Tick()
 	world.world.Tick()
 
-	assert.Same(t, world, system.world)
+	assert.Same(t, world, s.world)
 	assert.Equal(t, 42, dependency)
-	assert.Equal(t, []int{41, 42}, system.scratch)
+	assert.Equal(t, []int{41, 42}, s.scratch)
 }
 
 func TestRegisterSystemV2_HonorsHook(t *testing.T) {
@@ -95,9 +95,9 @@ func TestRegisterSystemV2_HonorsHook(t *testing.T) {
 
 	dependency := 40
 	world := &World{world: ecs.NewWorld()}
-	system := &privateStateSystem{dependency: &dependency}
+	s := &privateStateSystem{dependency: &dependency}
 
-	RegisterSystemV2(world, system, WithHook(Init))
+	RegisterSystemV2(world, s, WithHook(Init))
 	assert.Equal(t, 40, dependency)
 
 	world.world.Init()
@@ -107,7 +107,7 @@ func TestRegisterSystemV2_HonorsHook(t *testing.T) {
 	world.world.Tick()
 
 	assert.Equal(t, 41, dependency)
-	assert.Equal(t, []int{41}, system.scratch)
+	assert.Equal(t, []int{41}, s.scratch)
 }
 
 func TestRegisterSystemV2_RejectsPrivateCardinalDependency(t *testing.T) {
@@ -161,11 +161,11 @@ func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
 	t.Run("typed nil", func(t *testing.T) {
 		t.Parallel()
 
-		var system *privateStateSystem
+		var s *privateStateSystem
 		require.PanicsWithError(
 			t,
 			"system *cardinal.privateStateSystem must be a non-nil pointer to a struct",
-			func() { RegisterSystemV2(world, system) },
+			func() { RegisterSystemV2(world, s) },
 		)
 	})
 
