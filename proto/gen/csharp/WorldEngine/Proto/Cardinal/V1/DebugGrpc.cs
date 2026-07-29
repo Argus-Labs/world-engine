@@ -230,8 +230,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
 
       /// <summary>
-      /// WatchSystemsTiming passively observes the time spent executing Cardinal
-      /// systems each tick. This aggregate is always measured while debug is enabled.
+      /// WatchSystemsTiming streams the time spent executing Cardinal systems each
+      /// tick without enabling per-system span capture.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="responseStream">Used for sending responses back to the client.</param>
@@ -579,8 +579,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         return CallInvoker.AsyncUnaryCall(__Method_GetState, null, options, request);
       }
       /// <summary>
-      /// WatchSystemsTiming passively observes the time spent executing Cardinal
-      /// systems each tick. This aggregate is always measured while debug is enabled.
+      /// WatchSystemsTiming streams the time spent executing Cardinal systems each
+      /// tick without enabling per-system span capture.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -593,8 +593,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         return WatchSystemsTiming(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
       /// <summary>
-      /// WatchSystemsTiming passively observes the time spent executing Cardinal
-      /// systems each tick. This aggregate is always measured while debug is enabled.
+      /// WatchSystemsTiming streams the time spent executing Cardinal systems each
+      /// tick without enabling per-system span capture.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

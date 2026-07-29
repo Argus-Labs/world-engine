@@ -220,20 +220,18 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 	w.currentTick.captureSystemSpans = w.debug.startSystemSpanCapture()
 
 	// Tick ECS world.
-	var systemPhaseStart time.Time
+	var systemPhaseStartedAt time.Time
 	if w.debug != nil {
-		systemPhaseStart = time.Now()
+		systemPhaseStartedAt = time.Now()
 	}
 	w.world.Tick()
 
-	if w.debug != nil {
-		w.debug.recordTick(
-			w.currentTick.captureSystemSpans,
-			w.currentTick.height,
-			timestamp,
-			time.Since(systemPhaseStart),
-		)
-	}
+	w.debug.recordTick(
+		w.currentTick.captureSystemSpans,
+		w.currentTick.height,
+		timestamp,
+		systemPhaseStartedAt,
+	)
 
 	// Emit events.
 	if err := w.events.Dispatch(); err != nil {

@@ -18,7 +18,7 @@ func BenchmarkCollectorCapture(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			captureSystemSpans := c.StartTick()
 			start := time.Now()
-			c.RecordTick(captureSystemSpans, uint64(i), start, time.Since(start))
+			c.RecordTick(captureSystemSpans, uint64(i), start, start)
 		}
 	})
 
@@ -32,7 +32,7 @@ func BenchmarkCollectorCapture(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			captureSystemSpans := c.StartTick()
 			start := time.Now()
-			c.RecordTick(captureSystemSpans, uint64(i), start, time.Since(start))
+			c.RecordTick(captureSystemSpans, uint64(i), start, start)
 		}
 	})
 
@@ -55,7 +55,7 @@ func BenchmarkCollectorCapture(b *testing.B) {
 					EndTime:    time.Now(),
 				})
 			}
-			c.RecordTick(captureSystemSpans, uint64(i), tickStart, time.Since(tickStart))
+			c.RecordTick(captureSystemSpans, uint64(i), tickStart, tickStart)
 		}
 	})
 }
