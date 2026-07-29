@@ -2,7 +2,9 @@ package cardinal
 
 import (
 	"testing"
+	"time"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/invopop/jsonschema"
 	"github.com/shamaton/msgpack/v3"
 	"github.com/stretchr/testify/assert"
@@ -74,4 +76,30 @@ func mapKeys(m map[string]any) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestPerformanceBatchConverters(t *testing.T) {
+	tickStart := time.Now()
+	batch := performance.Batch{
+		Ticks: []performance.TickTimeline{{
+			TickHeight:         42,
+			TickStart:          tickStart,
+			SystemPhaseElapsed: 3 * time.Millisecond,
+			Spans: []performance.TickSpan{{
+				SystemName: "move",
+				StartTime:  tickStart.Add(time.Millisecond),
+				EndTime:    tickStart.Add(2 * time.Millisecond),
+			}},
+		}},
+	}
+
+	overview := timingBatchToProto(batch)
+	require.Len(t, overview.GetTicks(), 1)
+	assert.Equal(t, uint64(3*time.Millisecond), overview.GetTicks()[0].GetDurationNs())
+
+	profile := profileBatchToProto(batch)
+	require.Len(t, profile.GetTicks(), 1)
+	require.Len(t, profile.GetTicks()[0].GetSpans(), 1)
+	assert.Equal(t, "move", profile.GetTicks()[0].GetSpans()[0].GetSystem())
+	assert.Equal(t, uint64(3*time.Millisecond), profile.GetTicks()[0].GetTiming().GetDurationNs())
 }

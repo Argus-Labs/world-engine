@@ -165,20 +165,20 @@ func ecsHookToProto(hook uint8) cardinalv1.SystemHook {
 // Performance
 // -------------------------------------------------------------------------------------------------
 
-// StreamPerf streams batches of per-tick timing data to connected clients.
-func (d *debugModule) StreamPerf(
+// WatchSystemsTiming streams recent tick timings. Each sample reports the total
+// time spent running systems; slow clients may miss samples.
+func (d *debugModule) WatchSystemsTiming(
 	ctx context.Context,
-	_ *connect.Request[cardinalv1.StreamPerfRequest],
-	stream *connect.ServerStream[cardinalv1.PerfBatch],
+	_ *connect.Request[cardinalv1.WatchSystemsTimingRequest],
+	stream *connect.ServerStream[cardinalv1.WatchSystemsTimingResponse],
 ) error {
-	ch := d.perf.Subscribe()
+	ch := d.perf.SubscribeTimings()
 	defer d.perf.Unsubscribe(ch)
 
 	for {
 		select {
 		case batch := <-ch:
-			proto := batchToProto(batch)
-			if err := stream.Send(proto); err != nil {
+			if err := stream.Send(timingBatchToProto(batch)); err != nil {
 				return err
 			}
 		case <-ctx.Done():
@@ -187,8 +187,41 @@ func (d *debugModule) StreamPerf(
 	}
 }
 
-func batchToProto(b performance.Batch) *cardinalv1.PerfBatch {
-	ticks := make([]*cardinalv1.TickTimeline, 0, len(b.Ticks))
+// ProfileSystems streams recent tick profiles with both the total time spent
+// running systems and a breakdown by system. Detailed timing is collected only
+// while a client is connected.
+func (d *debugModule) ProfileSystems(
+	ctx context.Context,
+	_ *connect.Request[cardinalv1.ProfileSystemsRequest],
+	stream *connect.ServerStream[cardinalv1.ProfileSystemsResponse],
+) error {
+	ch := d.perf.SubscribeProfiles()
+	defer d.perf.Unsubscribe(ch)
+
+	for {
+		select {
+		case batch := <-ch:
+			if err := stream.Send(profileBatchToProto(batch)); err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func timingBatchToProto(b performance.Batch) *cardinalv1.WatchSystemsTimingResponse {
+	ticks := make([]*cardinalv1.SystemsTiming, 0, len(b.Ticks))
+	for _, ts := range b.Ticks {
+		ticks = append(ticks, systemsTimingToProto(ts))
+	}
+	return &cardinalv1.WatchSystemsTimingResponse{
+		Ticks: ticks,
+	}
+}
+
+func profileBatchToProto(b performance.Batch) *cardinalv1.ProfileSystemsResponse {
+	ticks := make([]*cardinalv1.SystemsProfile, 0, len(b.Ticks))
 	for _, ts := range b.Ticks {
 		spans := make([]*cardinalv1.SystemSpan, 0, len(ts.Spans))
 		for _, span := range ts.Spans {
@@ -207,31 +240,41 @@ func batchToProto(b performance.Batch) *cardinalv1.PerfBatch {
 				DurationNs:    uint64(duration),    //nolint:gosec // clamped to >= 0
 			})
 		}
-		ticks = append(ticks, &cardinalv1.TickTimeline{
-			TickHeight: ts.TickHeight,
-			TickStart:  timestamppb.New(ts.TickStart),
-			Spans:      spans,
+		ticks = append(ticks, &cardinalv1.SystemsProfile{
+			Timing: systemsTimingToProto(ts),
+			Spans:  spans,
 		})
 	}
-	return &cardinalv1.PerfBatch{
-		Ticks: ticks,
+	return &cardinalv1.ProfileSystemsResponse{Ticks: ticks}
+}
+
+func systemsTimingToProto(tick performance.TickTimeline) *cardinalv1.SystemsTiming {
+	return &cardinalv1.SystemsTiming{
+		TickHeight: tick.TickHeight,
+		TickStart:  timestamppb.New(tick.TickStart),
+		DurationNs: uint64(max(tick.SystemPhaseElapsed.Nanoseconds(), 0)), //nolint:gosec // clamped to >= 0
 	}
 }
 
 // recordTick records a completed tick. Nil-safe.
-func (d *debugModule) recordTick(tickHeight uint64, tickStart time.Time) {
+func (d *debugModule) recordTick(
+	captureSystemSpans bool,
+	tickHeight uint64,
+	tickStart time.Time,
+	systemPhaseElapsed time.Duration,
+) {
 	if d == nil {
 		return
 	}
-	d.perf.RecordTick(tickHeight, tickStart)
+	d.perf.RecordTick(captureSystemSpans, tickHeight, tickStart, systemPhaseElapsed)
 }
 
-// startPerfTick initializes span storage for a new tick. Nil-safe.
-func (d *debugModule) startPerfTick() {
+// startSystemSpanCapture latches span capture for a new tick. Nil-safe.
+func (d *debugModule) startSystemSpanCapture() bool {
 	if d == nil {
-		return
+		return false
 	}
-	d.perf.StartTick()
+	return d.perf.StartTick()
 }
 
 // resetPerf clears all buffered performance data. Nil-safe.

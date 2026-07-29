@@ -767,27 +767,26 @@ func (x *GetStateResponse) GetSnapshot() *Snapshot {
 	return nil
 }
 
-// StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
-type StreamPerfRequest struct {
+type WatchSystemsTimingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *StreamPerfRequest) Reset() {
-	*x = StreamPerfRequest{}
+func (x *WatchSystemsTimingRequest) Reset() {
+	*x = WatchSystemsTimingRequest{}
 	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *StreamPerfRequest) String() string {
+func (x *WatchSystemsTimingRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*StreamPerfRequest) ProtoMessage() {}
+func (*WatchSystemsTimingRequest) ProtoMessage() {}
 
-func (x *StreamPerfRequest) ProtoReflect() protoreflect.Message {
+func (x *WatchSystemsTimingRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -799,33 +798,32 @@ func (x *StreamPerfRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use StreamPerfRequest.ProtoReflect.Descriptor instead.
-func (*StreamPerfRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use WatchSystemsTimingRequest.ProtoReflect.Descriptor instead.
+func (*WatchSystemsTimingRequest) Descriptor() ([]byte, []int) {
 	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{15}
 }
 
-// PerfBatch is a batch of completed tick timelines pushed to the client.
-type PerfBatch struct {
+type WatchSystemsTimingResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ticks         []*TickTimeline        `protobuf:"bytes,1,rep,name=ticks,proto3" json:"ticks,omitempty"`
+	Ticks         []*SystemsTiming       `protobuf:"bytes,1,rep,name=ticks,proto3" json:"ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PerfBatch) Reset() {
-	*x = PerfBatch{}
+func (x *WatchSystemsTimingResponse) Reset() {
+	*x = WatchSystemsTimingResponse{}
 	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PerfBatch) String() string {
+func (x *WatchSystemsTimingResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PerfBatch) ProtoMessage() {}
+func (*WatchSystemsTimingResponse) ProtoMessage() {}
 
-func (x *PerfBatch) ProtoReflect() protoreflect.Message {
+func (x *WatchSystemsTimingResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -837,41 +835,38 @@ func (x *PerfBatch) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PerfBatch.ProtoReflect.Descriptor instead.
-func (*PerfBatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use WatchSystemsTimingResponse.ProtoReflect.Descriptor instead.
+func (*WatchSystemsTimingResponse) Descriptor() ([]byte, []int) {
 	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *PerfBatch) GetTicks() []*TickTimeline {
+func (x *WatchSystemsTimingResponse) GetTicks() []*SystemsTiming {
 	if x != nil {
 		return x.Ticks
 	}
 	return nil
 }
 
-type TickTimeline struct {
+type ProfileSystemsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TickHeight    uint64                 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
-	TickStart     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=tick_start,json=tickStart,proto3" json:"tick_start,omitempty"`
-	Spans         []*SystemSpan          `protobuf:"bytes,3,rep,name=spans,proto3" json:"spans,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *TickTimeline) Reset() {
-	*x = TickTimeline{}
+func (x *ProfileSystemsRequest) Reset() {
+	*x = ProfileSystemsRequest{}
 	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *TickTimeline) String() string {
+func (x *ProfileSystemsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TickTimeline) ProtoMessage() {}
+func (*ProfileSystemsRequest) ProtoMessage() {}
 
-func (x *TickTimeline) ProtoReflect() protoreflect.Message {
+func (x *ProfileSystemsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -883,26 +878,164 @@ func (x *TickTimeline) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TickTimeline.ProtoReflect.Descriptor instead.
-func (*TickTimeline) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProfileSystemsRequest.ProtoReflect.Descriptor instead.
+func (*ProfileSystemsRequest) Descriptor() ([]byte, []int) {
 	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *TickTimeline) GetTickHeight() uint64 {
+type ProfileSystemsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ticks         []*SystemsProfile      `protobuf:"bytes,1,rep,name=ticks,proto3" json:"ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfileSystemsResponse) Reset() {
+	*x = ProfileSystemsResponse{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileSystemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileSystemsResponse) ProtoMessage() {}
+
+func (x *ProfileSystemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileSystemsResponse.ProtoReflect.Descriptor instead.
+func (*ProfileSystemsResponse) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ProfileSystemsResponse) GetTicks() []*SystemsProfile {
+	if x != nil {
+		return x.Ticks
+	}
+	return nil
+}
+
+type SystemsTiming struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	TickHeight uint64                 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
+	TickStart  *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=tick_start,json=tickStart,proto3" json:"tick_start,omitempty"`
+	// Wall-clock time spent executing the ECS system phase (w.world.Tick).
+	// This excludes command draining, event dispatch, snapshots, and debug
+	// state serialization outside that phase.
+	DurationNs    uint64 `protobuf:"varint,3,opt,name=duration_ns,json=durationNs,proto3" json:"duration_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemsTiming) Reset() {
+	*x = SystemsTiming{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemsTiming) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemsTiming) ProtoMessage() {}
+
+func (x *SystemsTiming) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemsTiming.ProtoReflect.Descriptor instead.
+func (*SystemsTiming) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SystemsTiming) GetTickHeight() uint64 {
 	if x != nil {
 		return x.TickHeight
 	}
 	return 0
 }
 
-func (x *TickTimeline) GetTickStart() *timestamppb.Timestamp {
+func (x *SystemsTiming) GetTickStart() *timestamppb.Timestamp {
 	if x != nil {
 		return x.TickStart
 	}
 	return nil
 }
 
-func (x *TickTimeline) GetSpans() []*SystemSpan {
+func (x *SystemsTiming) GetDurationNs() uint64 {
+	if x != nil {
+		return x.DurationNs
+	}
+	return 0
+}
+
+type SystemsProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Timing        *SystemsTiming         `protobuf:"bytes,1,opt,name=timing,proto3" json:"timing,omitempty"`
+	Spans         []*SystemSpan          `protobuf:"bytes,2,rep,name=spans,proto3" json:"spans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemsProfile) Reset() {
+	*x = SystemsProfile{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemsProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemsProfile) ProtoMessage() {}
+
+func (x *SystemsProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemsProfile.ProtoReflect.Descriptor instead.
+func (*SystemsProfile) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SystemsProfile) GetTiming() *SystemsTiming {
+	if x != nil {
+		return x.Timing
+	}
+	return nil
+}
+
+func (x *SystemsProfile) GetSpans() []*SystemSpan {
 	if x != nil {
 		return x.Spans
 	}
@@ -913,7 +1046,7 @@ type SystemSpan struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	SystemHook SystemHook             `protobuf:"varint,1,opt,name=system_hook,json=systemHook,proto3,enum=worldengine.cardinal.v1.SystemHook" json:"system_hook,omitempty"`
 	System     string                 `protobuf:"bytes,2,opt,name=system,proto3" json:"system,omitempty"`
-	// Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+	// Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
 	StartOffsetNs uint64 `protobuf:"varint,3,opt,name=start_offset_ns,json=startOffsetNs,proto3" json:"start_offset_ns,omitempty"`
 	// Duration of this span in nanoseconds.
 	DurationNs    uint64 `protobuf:"varint,4,opt,name=duration_ns,json=durationNs,proto3" json:"duration_ns,omitempty"`
@@ -923,7 +1056,7 @@ type SystemSpan struct {
 
 func (x *SystemSpan) Reset() {
 	*x = SystemSpan{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -935,7 +1068,7 @@ func (x *SystemSpan) String() string {
 func (*SystemSpan) ProtoMessage() {}
 
 func (x *SystemSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -948,7 +1081,7 @@ func (x *SystemSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemSpan.ProtoReflect.Descriptor instead.
 func (*SystemSpan) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{18}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SystemSpan) GetSystemHook() SystemHook {
@@ -983,7 +1116,7 @@ var File_worldengine_cardinal_v1_debug_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
-	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a&worldengine/cardinal/v1/snapshot.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
+	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&worldengine/cardinal/v1/snapshot.proto\"\x13\n" +
 	"\x11IntrospectRequest\"\xc0\x02\n" +
 	"\x12IntrospectResponse\x12?\n" +
 	"\bcommands\x18\x01 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\bcommands\x12C\n" +
@@ -1020,16 +1153,23 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\x0fGetStateRequest\"n\n" +
 	"\x10GetStateResponse\x12\x1b\n" +
 	"\tis_paused\x18\x01 \x01(\bR\bisPaused\x12=\n" +
-	"\bsnapshot\x18\x02 \x01(\v2!.worldengine.cardinal.v1.SnapshotR\bsnapshot\"\x13\n" +
-	"\x11StreamPerfRequest\"H\n" +
-	"\tPerfBatch\x12;\n" +
-	"\x05ticks\x18\x01 \x03(\v2%.worldengine.cardinal.v1.TickTimelineR\x05ticks\"\xa5\x01\n" +
-	"\fTickTimeline\x12\x1f\n" +
+	"\bsnapshot\x18\x02 \x01(\v2!.worldengine.cardinal.v1.SnapshotR\bsnapshot\"\x1b\n" +
+	"\x19WatchSystemsTimingRequest\"Z\n" +
+	"\x1aWatchSystemsTimingResponse\x12<\n" +
+	"\x05ticks\x18\x01 \x03(\v2&.worldengine.cardinal.v1.SystemsTimingR\x05ticks\"\x17\n" +
+	"\x15ProfileSystemsRequest\"W\n" +
+	"\x16ProfileSystemsResponse\x12=\n" +
+	"\x05ticks\x18\x01 \x03(\v2'.worldengine.cardinal.v1.SystemsProfileR\x05ticks\"\x8c\x01\n" +
+	"\rSystemsTiming\x12\x1f\n" +
 	"\vtick_height\x18\x01 \x01(\x04R\n" +
 	"tickHeight\x129\n" +
 	"\n" +
-	"tick_start\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttickStart\x129\n" +
-	"\x05spans\x18\x03 \x03(\v2#.worldengine.cardinal.v1.SystemSpanR\x05spans\"\xb3\x01\n" +
+	"tick_start\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttickStart\x12\x1f\n" +
+	"\vduration_ns\x18\x03 \x01(\x04R\n" +
+	"durationNs\"\x8b\x01\n" +
+	"\x0eSystemsProfile\x12>\n" +
+	"\x06timing\x18\x01 \x01(\v2&.worldengine.cardinal.v1.SystemsTimingR\x06timing\x129\n" +
+	"\x05spans\x18\x02 \x03(\v2#.worldengine.cardinal.v1.SystemSpanR\x05spans\"\xb3\x01\n" +
 	"\n" +
 	"SystemSpan\x12D\n" +
 	"\vsystem_hook\x18\x01 \x01(\x0e2#.worldengine.cardinal.v1.SystemHookR\n" +
@@ -1044,7 +1184,7 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\x16SYSTEM_HOOK_PRE_UPDATE\x10\x01\x12\x16\n" +
 	"\x12SYSTEM_HOOK_UPDATE\x10\x02\x12\x1b\n" +
 	"\x17SYSTEM_HOOK_POST_UPDATE\x10\x03\x12\x14\n" +
-	"\x10SYSTEM_HOOK_INIT\x10\x042\x96\x05\n" +
+	"\x10SYSTEM_HOOK_INIT\x10\x042\xac\x06\n" +
 	"\fDebugService\x12e\n" +
 	"\n" +
 	"Introspect\x12*.worldengine.cardinal.v1.IntrospectRequest\x1a+.worldengine.cardinal.v1.IntrospectResponse\x12V\n" +
@@ -1052,9 +1192,9 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\x06Resume\x12&.worldengine.cardinal.v1.ResumeRequest\x1a'.worldengine.cardinal.v1.ResumeResponse\x12S\n" +
 	"\x04Step\x12$.worldengine.cardinal.v1.StepRequest\x1a%.worldengine.cardinal.v1.StepResponse\x12V\n" +
 	"\x05Reset\x12%.worldengine.cardinal.v1.ResetRequest\x1a&.worldengine.cardinal.v1.ResetResponse\x12_\n" +
-	"\bGetState\x12(.worldengine.cardinal.v1.GetStateRequest\x1a).worldengine.cardinal.v1.GetStateResponse\x12^\n" +
-	"\n" +
-	"StreamPerf\x12*.worldengine.cardinal.v1.StreamPerfRequest\x1a\".worldengine.cardinal.v1.PerfBatch0\x01BtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
+	"\bGetState\x12(.worldengine.cardinal.v1.GetStateRequest\x1a).worldengine.cardinal.v1.GetStateResponse\x12\x7f\n" +
+	"\x12WatchSystemsTiming\x122.worldengine.cardinal.v1.WatchSystemsTimingRequest\x1a3.worldengine.cardinal.v1.WatchSystemsTimingResponse0\x01\x12s\n" +
+	"\x0eProfileSystems\x12..worldengine.cardinal.v1.ProfileSystemsRequest\x1a/.worldengine.cardinal.v1.ProfileSystemsResponse0\x01BtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
 
 var (
 	file_worldengine_cardinal_v1_debug_proto_rawDescOnce sync.Once
@@ -1069,31 +1209,34 @@ func file_worldengine_cardinal_v1_debug_proto_rawDescGZIP() []byte {
 }
 
 var file_worldengine_cardinal_v1_debug_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
-	(SystemHook)(0),               // 0: worldengine.cardinal.v1.SystemHook
-	(*IntrospectRequest)(nil),     // 1: worldengine.cardinal.v1.IntrospectRequest
-	(*IntrospectResponse)(nil),    // 2: worldengine.cardinal.v1.IntrospectResponse
-	(*SystemSchedule)(nil),        // 3: worldengine.cardinal.v1.SystemSchedule
-	(*SystemNode)(nil),            // 4: worldengine.cardinal.v1.SystemNode
-	(*TypeSchema)(nil),            // 5: worldengine.cardinal.v1.TypeSchema
-	(*PauseRequest)(nil),          // 6: worldengine.cardinal.v1.PauseRequest
-	(*PauseResponse)(nil),         // 7: worldengine.cardinal.v1.PauseResponse
-	(*ResumeRequest)(nil),         // 8: worldengine.cardinal.v1.ResumeRequest
-	(*ResumeResponse)(nil),        // 9: worldengine.cardinal.v1.ResumeResponse
-	(*StepRequest)(nil),           // 10: worldengine.cardinal.v1.StepRequest
-	(*StepResponse)(nil),          // 11: worldengine.cardinal.v1.StepResponse
-	(*ResetRequest)(nil),          // 12: worldengine.cardinal.v1.ResetRequest
-	(*ResetResponse)(nil),         // 13: worldengine.cardinal.v1.ResetResponse
-	(*GetStateRequest)(nil),       // 14: worldengine.cardinal.v1.GetStateRequest
-	(*GetStateResponse)(nil),      // 15: worldengine.cardinal.v1.GetStateResponse
-	(*StreamPerfRequest)(nil),     // 16: worldengine.cardinal.v1.StreamPerfRequest
-	(*PerfBatch)(nil),             // 17: worldengine.cardinal.v1.PerfBatch
-	(*TickTimeline)(nil),          // 18: worldengine.cardinal.v1.TickTimeline
-	(*SystemSpan)(nil),            // 19: worldengine.cardinal.v1.SystemSpan
-	(*structpb.Struct)(nil),       // 20: google.protobuf.Struct
-	(*Snapshot)(nil),              // 21: worldengine.cardinal.v1.Snapshot
-	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
+	(SystemHook)(0),                    // 0: worldengine.cardinal.v1.SystemHook
+	(*IntrospectRequest)(nil),          // 1: worldengine.cardinal.v1.IntrospectRequest
+	(*IntrospectResponse)(nil),         // 2: worldengine.cardinal.v1.IntrospectResponse
+	(*SystemSchedule)(nil),             // 3: worldengine.cardinal.v1.SystemSchedule
+	(*SystemNode)(nil),                 // 4: worldengine.cardinal.v1.SystemNode
+	(*TypeSchema)(nil),                 // 5: worldengine.cardinal.v1.TypeSchema
+	(*PauseRequest)(nil),               // 6: worldengine.cardinal.v1.PauseRequest
+	(*PauseResponse)(nil),              // 7: worldengine.cardinal.v1.PauseResponse
+	(*ResumeRequest)(nil),              // 8: worldengine.cardinal.v1.ResumeRequest
+	(*ResumeResponse)(nil),             // 9: worldengine.cardinal.v1.ResumeResponse
+	(*StepRequest)(nil),                // 10: worldengine.cardinal.v1.StepRequest
+	(*StepResponse)(nil),               // 11: worldengine.cardinal.v1.StepResponse
+	(*ResetRequest)(nil),               // 12: worldengine.cardinal.v1.ResetRequest
+	(*ResetResponse)(nil),              // 13: worldengine.cardinal.v1.ResetResponse
+	(*GetStateRequest)(nil),            // 14: worldengine.cardinal.v1.GetStateRequest
+	(*GetStateResponse)(nil),           // 15: worldengine.cardinal.v1.GetStateResponse
+	(*WatchSystemsTimingRequest)(nil),  // 16: worldengine.cardinal.v1.WatchSystemsTimingRequest
+	(*WatchSystemsTimingResponse)(nil), // 17: worldengine.cardinal.v1.WatchSystemsTimingResponse
+	(*ProfileSystemsRequest)(nil),      // 18: worldengine.cardinal.v1.ProfileSystemsRequest
+	(*ProfileSystemsResponse)(nil),     // 19: worldengine.cardinal.v1.ProfileSystemsResponse
+	(*SystemsTiming)(nil),              // 20: worldengine.cardinal.v1.SystemsTiming
+	(*SystemsProfile)(nil),             // 21: worldengine.cardinal.v1.SystemsProfile
+	(*SystemSpan)(nil),                 // 22: worldengine.cardinal.v1.SystemSpan
+	(*structpb.Struct)(nil),            // 23: google.protobuf.Struct
+	(*Snapshot)(nil),                   // 24: worldengine.cardinal.v1.Snapshot
+	(*timestamppb.Timestamp)(nil),      // 25: google.protobuf.Timestamp
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	5,  // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
@@ -1102,31 +1245,35 @@ var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	3,  // 3: worldengine.cardinal.v1.IntrospectResponse.schedules:type_name -> worldengine.cardinal.v1.SystemSchedule
 	0,  // 4: worldengine.cardinal.v1.SystemSchedule.hook:type_name -> worldengine.cardinal.v1.SystemHook
 	4,  // 5: worldengine.cardinal.v1.SystemSchedule.systems:type_name -> worldengine.cardinal.v1.SystemNode
-	20, // 6: worldengine.cardinal.v1.TypeSchema.schema:type_name -> google.protobuf.Struct
-	21, // 7: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
-	18, // 8: worldengine.cardinal.v1.PerfBatch.ticks:type_name -> worldengine.cardinal.v1.TickTimeline
-	22, // 9: worldengine.cardinal.v1.TickTimeline.tick_start:type_name -> google.protobuf.Timestamp
-	19, // 10: worldengine.cardinal.v1.TickTimeline.spans:type_name -> worldengine.cardinal.v1.SystemSpan
-	0,  // 11: worldengine.cardinal.v1.SystemSpan.system_hook:type_name -> worldengine.cardinal.v1.SystemHook
-	1,  // 12: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
-	6,  // 13: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
-	8,  // 14: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
-	10, // 15: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
-	12, // 16: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
-	14, // 17: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
-	16, // 18: worldengine.cardinal.v1.DebugService.StreamPerf:input_type -> worldengine.cardinal.v1.StreamPerfRequest
-	2,  // 19: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
-	7,  // 20: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
-	9,  // 21: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
-	11, // 22: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
-	13, // 23: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
-	15, // 24: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
-	17, // 25: worldengine.cardinal.v1.DebugService.StreamPerf:output_type -> worldengine.cardinal.v1.PerfBatch
-	19, // [19:26] is the sub-list for method output_type
-	12, // [12:19] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	23, // 6: worldengine.cardinal.v1.TypeSchema.schema:type_name -> google.protobuf.Struct
+	24, // 7: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
+	20, // 8: worldengine.cardinal.v1.WatchSystemsTimingResponse.ticks:type_name -> worldengine.cardinal.v1.SystemsTiming
+	21, // 9: worldengine.cardinal.v1.ProfileSystemsResponse.ticks:type_name -> worldengine.cardinal.v1.SystemsProfile
+	25, // 10: worldengine.cardinal.v1.SystemsTiming.tick_start:type_name -> google.protobuf.Timestamp
+	20, // 11: worldengine.cardinal.v1.SystemsProfile.timing:type_name -> worldengine.cardinal.v1.SystemsTiming
+	22, // 12: worldengine.cardinal.v1.SystemsProfile.spans:type_name -> worldengine.cardinal.v1.SystemSpan
+	0,  // 13: worldengine.cardinal.v1.SystemSpan.system_hook:type_name -> worldengine.cardinal.v1.SystemHook
+	1,  // 14: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
+	6,  // 15: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
+	8,  // 16: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
+	10, // 17: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
+	12, // 18: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
+	14, // 19: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
+	16, // 20: worldengine.cardinal.v1.DebugService.WatchSystemsTiming:input_type -> worldengine.cardinal.v1.WatchSystemsTimingRequest
+	18, // 21: worldengine.cardinal.v1.DebugService.ProfileSystems:input_type -> worldengine.cardinal.v1.ProfileSystemsRequest
+	2,  // 22: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
+	7,  // 23: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
+	9,  // 24: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
+	11, // 25: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
+	13, // 26: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
+	15, // 27: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
+	17, // 28: worldengine.cardinal.v1.DebugService.WatchSystemsTiming:output_type -> worldengine.cardinal.v1.WatchSystemsTimingResponse
+	19, // 29: worldengine.cardinal.v1.DebugService.ProfileSystems:output_type -> worldengine.cardinal.v1.ProfileSystemsResponse
+	22, // [22:30] is the sub-list for method output_type
+	14, // [14:22] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_debug_proto_init() }
@@ -1141,7 +1288,7 @@ func file_worldengine_cardinal_v1_debug_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_cardinal_v1_debug_proto_rawDesc), len(file_worldengine_cardinal_v1_debug_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
