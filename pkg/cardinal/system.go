@@ -52,34 +52,34 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 
 // RegisterSystemV2 registers a caller-owned system instance. The instance must
 // be a non-nil pointer to a struct that embeds BaseSystemState.
-func RegisterSystemV2(world *World, system System, opts ...SystemOption) {
+func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
-	value := reflect.ValueOf(system)
+	value := reflect.ValueOf(s)
 	if value.Kind() != reflect.Pointer || value.IsNil() || value.Elem().Kind() != reflect.Struct {
-		panic(eris.Errorf("system %T must be a non-nil pointer to a struct", system))
+		panic(eris.Errorf("system %T must be a non-nil pointer to a struct", s))
 	}
 
 	state := value.Elem()
 	stateType := state.Type()
 	if _, ok := stateType.MethodByName("Run"); ok {
-		panic(eris.Errorf("system %T Run method must use a pointer receiver", system))
+		panic(eris.Errorf("system %T Run method must use a pointer receiver", s))
 	}
 
 	baseField, ok := stateType.FieldByName("BaseSystemState")
 	if !ok || len(baseField.Index) != 1 || !baseField.Anonymous ||
 		baseField.Type != reflect.TypeFor[BaseSystemState]() {
-		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", system))
+		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", s))
 	}
 
 	if err := initSystemV2Fields(state, world); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
-	registerSystem(world, fmt.Sprintf("%T", system), cfg.hook, system.Run)
+	registerSystem(world, fmt.Sprintf("%T", s), cfg.hook, s.Run)
 }
 
 func registerSystem(world *World, name string, hook SystemHook, run func()) {
