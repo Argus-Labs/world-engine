@@ -26,19 +26,10 @@ const (
 
 // wire name: "physics2d_contact_begin"
 type ContactBeginEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterA       *FixtureFilterBits     `protobuf:"bytes,1,opt,name=FilterA,proto3" json:"FilterA,omitempty"`
-	FilterB       *FixtureFilterBits     `protobuf:"bytes,2,opt,name=FilterB,proto3" json:"FilterB,omitempty"`
-	EntityA       uint32                 `protobuf:"varint,3,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
-	EntityB       uint32                 `protobuf:"varint,4,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
-	ShapeIndexA   int64                  `protobuf:"varint,5,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
-	ShapeIndexB   int64                  `protobuf:"varint,6,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
-	Normal        *component.Vec2        `protobuf:"bytes,7,opt,name=Normal,proto3" json:"Normal,omitempty"`
-	NormalValid   bool                   `protobuf:"varint,8,opt,name=NormalValid,proto3" json:"NormalValid,omitempty"`
-	Point         *component.Vec2        `protobuf:"bytes,9,opt,name=Point,proto3" json:"Point,omitempty"`
-	PointValid    bool                   `protobuf:"varint,10,opt,name=PointValid,proto3" json:"PointValid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ContactEventPayload *ContactEventPayload   `protobuf:"bytes,1,opt,name=ContactEventPayload,proto3" json:"ContactEventPayload,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ContactBeginEvent) Reset() {
@@ -71,91 +62,19 @@ func (*ContactBeginEvent) Descriptor() ([]byte, []int) {
 	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ContactBeginEvent) GetFilterA() *FixtureFilterBits {
+func (x *ContactBeginEvent) GetContactEventPayload() *ContactEventPayload {
 	if x != nil {
-		return x.FilterA
+		return x.ContactEventPayload
 	}
 	return nil
-}
-
-func (x *ContactBeginEvent) GetFilterB() *FixtureFilterBits {
-	if x != nil {
-		return x.FilterB
-	}
-	return nil
-}
-
-func (x *ContactBeginEvent) GetEntityA() uint32 {
-	if x != nil {
-		return x.EntityA
-	}
-	return 0
-}
-
-func (x *ContactBeginEvent) GetEntityB() uint32 {
-	if x != nil {
-		return x.EntityB
-	}
-	return 0
-}
-
-func (x *ContactBeginEvent) GetShapeIndexA() int64 {
-	if x != nil {
-		return x.ShapeIndexA
-	}
-	return 0
-}
-
-func (x *ContactBeginEvent) GetShapeIndexB() int64 {
-	if x != nil {
-		return x.ShapeIndexB
-	}
-	return 0
-}
-
-func (x *ContactBeginEvent) GetNormal() *component.Vec2 {
-	if x != nil {
-		return x.Normal
-	}
-	return nil
-}
-
-func (x *ContactBeginEvent) GetNormalValid() bool {
-	if x != nil {
-		return x.NormalValid
-	}
-	return false
-}
-
-func (x *ContactBeginEvent) GetPoint() *component.Vec2 {
-	if x != nil {
-		return x.Point
-	}
-	return nil
-}
-
-func (x *ContactBeginEvent) GetPointValid() bool {
-	if x != nil {
-		return x.PointValid
-	}
-	return false
 }
 
 // wire name: "physics2d_contact_end"
 type ContactEndEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterA       *FixtureFilterBits     `protobuf:"bytes,1,opt,name=FilterA,proto3" json:"FilterA,omitempty"`
-	FilterB       *FixtureFilterBits     `protobuf:"bytes,2,opt,name=FilterB,proto3" json:"FilterB,omitempty"`
-	EntityA       uint32                 `protobuf:"varint,3,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
-	EntityB       uint32                 `protobuf:"varint,4,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
-	ShapeIndexA   int64                  `protobuf:"varint,5,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
-	ShapeIndexB   int64                  `protobuf:"varint,6,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
-	Normal        *component.Vec2        `protobuf:"bytes,7,opt,name=Normal,proto3" json:"Normal,omitempty"`
-	NormalValid   bool                   `protobuf:"varint,8,opt,name=NormalValid,proto3" json:"NormalValid,omitempty"`
-	Point         *component.Vec2        `protobuf:"bytes,9,opt,name=Point,proto3" json:"Point,omitempty"`
-	PointValid    bool                   `protobuf:"varint,10,opt,name=PointValid,proto3" json:"PointValid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ContactEventPayload *ContactEventPayload   `protobuf:"bytes,1,opt,name=ContactEventPayload,proto3" json:"ContactEventPayload,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ContactEndEvent) Reset() {
@@ -188,70 +107,123 @@ func (*ContactEndEvent) Descriptor() ([]byte, []int) {
 	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ContactEndEvent) GetFilterA() *FixtureFilterBits {
+func (x *ContactEndEvent) GetContactEventPayload() *ContactEventPayload {
+	if x != nil {
+		return x.ContactEventPayload
+	}
+	return nil
+}
+
+type ContactEventPayload struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FilterA       *FixtureFilterBits     `protobuf:"bytes,1,opt,name=FilterA,proto3" json:"FilterA,omitempty"`
+	FilterB       *FixtureFilterBits     `protobuf:"bytes,2,opt,name=FilterB,proto3" json:"FilterB,omitempty"`
+	EntityA       uint32                 `protobuf:"varint,3,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
+	EntityB       uint32                 `protobuf:"varint,4,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
+	ShapeIndexA   int64                  `protobuf:"varint,5,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
+	ShapeIndexB   int64                  `protobuf:"varint,6,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
+	Normal        *component.Vec2        `protobuf:"bytes,7,opt,name=Normal,proto3" json:"Normal,omitempty"`
+	NormalValid   bool                   `protobuf:"varint,8,opt,name=NormalValid,proto3" json:"NormalValid,omitempty"`
+	Point         *component.Vec2        `protobuf:"bytes,9,opt,name=Point,proto3" json:"Point,omitempty"`
+	PointValid    bool                   `protobuf:"varint,10,opt,name=PointValid,proto3" json:"PointValid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContactEventPayload) Reset() {
+	*x = ContactEventPayload{}
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContactEventPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContactEventPayload) ProtoMessage() {}
+
+func (x *ContactEventPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContactEventPayload.ProtoReflect.Descriptor instead.
+func (*ContactEventPayload) Descriptor() ([]byte, []int) {
+	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ContactEventPayload) GetFilterA() *FixtureFilterBits {
 	if x != nil {
 		return x.FilterA
 	}
 	return nil
 }
 
-func (x *ContactEndEvent) GetFilterB() *FixtureFilterBits {
+func (x *ContactEventPayload) GetFilterB() *FixtureFilterBits {
 	if x != nil {
 		return x.FilterB
 	}
 	return nil
 }
 
-func (x *ContactEndEvent) GetEntityA() uint32 {
+func (x *ContactEventPayload) GetEntityA() uint32 {
 	if x != nil {
 		return x.EntityA
 	}
 	return 0
 }
 
-func (x *ContactEndEvent) GetEntityB() uint32 {
+func (x *ContactEventPayload) GetEntityB() uint32 {
 	if x != nil {
 		return x.EntityB
 	}
 	return 0
 }
 
-func (x *ContactEndEvent) GetShapeIndexA() int64 {
+func (x *ContactEventPayload) GetShapeIndexA() int64 {
 	if x != nil {
 		return x.ShapeIndexA
 	}
 	return 0
 }
 
-func (x *ContactEndEvent) GetShapeIndexB() int64 {
+func (x *ContactEventPayload) GetShapeIndexB() int64 {
 	if x != nil {
 		return x.ShapeIndexB
 	}
 	return 0
 }
 
-func (x *ContactEndEvent) GetNormal() *component.Vec2 {
+func (x *ContactEventPayload) GetNormal() *component.Vec2 {
 	if x != nil {
 		return x.Normal
 	}
 	return nil
 }
 
-func (x *ContactEndEvent) GetNormalValid() bool {
+func (x *ContactEventPayload) GetNormalValid() bool {
 	if x != nil {
 		return x.NormalValid
 	}
 	return false
 }
 
-func (x *ContactEndEvent) GetPoint() *component.Vec2 {
+func (x *ContactEventPayload) GetPoint() *component.Vec2 {
 	if x != nil {
 		return x.Point
 	}
 	return nil
 }
 
-func (x *ContactEndEvent) GetPointValid() bool {
+func (x *ContactEventPayload) GetPointValid() bool {
 	if x != nil {
 		return x.PointValid
 	}
@@ -269,7 +241,7 @@ type FixtureFilterBits struct {
 
 func (x *FixtureFilterBits) Reset() {
 	*x = FixtureFilterBits{}
-	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[2]
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -281,7 +253,7 @@ func (x *FixtureFilterBits) String() string {
 func (*FixtureFilterBits) ProtoMessage() {}
 
 func (x *FixtureFilterBits) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[2]
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -294,7 +266,7 @@ func (x *FixtureFilterBits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixtureFilterBits.ProtoReflect.Descriptor instead.
 func (*FixtureFilterBits) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{2}
+	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FixtureFilterBits) GetCategoryBits() uint64 {
@@ -320,24 +292,15 @@ func (x *FixtureFilterBits) GetGroupIndex() int32 {
 
 // wire name: "physics2d_trigger_begin"
 type TriggerBeginEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterA       *FixtureFilterBits     `protobuf:"bytes,1,opt,name=FilterA,proto3" json:"FilterA,omitempty"`
-	FilterB       *FixtureFilterBits     `protobuf:"bytes,2,opt,name=FilterB,proto3" json:"FilterB,omitempty"`
-	EntityA       uint32                 `protobuf:"varint,3,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
-	EntityB       uint32                 `protobuf:"varint,4,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
-	ShapeIndexA   int64                  `protobuf:"varint,5,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
-	ShapeIndexB   int64                  `protobuf:"varint,6,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
-	Normal        *component.Vec2        `protobuf:"bytes,7,opt,name=Normal,proto3" json:"Normal,omitempty"`
-	NormalValid   bool                   `protobuf:"varint,8,opt,name=NormalValid,proto3" json:"NormalValid,omitempty"`
-	Point         *component.Vec2        `protobuf:"bytes,9,opt,name=Point,proto3" json:"Point,omitempty"`
-	PointValid    bool                   `protobuf:"varint,10,opt,name=PointValid,proto3" json:"PointValid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ContactEventPayload *ContactEventPayload   `protobuf:"bytes,1,opt,name=ContactEventPayload,proto3" json:"ContactEventPayload,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *TriggerBeginEvent) Reset() {
 	*x = TriggerBeginEvent{}
-	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[3]
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -349,7 +312,7 @@ func (x *TriggerBeginEvent) String() string {
 func (*TriggerBeginEvent) ProtoMessage() {}
 
 func (x *TriggerBeginEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[3]
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -362,99 +325,27 @@ func (x *TriggerBeginEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerBeginEvent.ProtoReflect.Descriptor instead.
 func (*TriggerBeginEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{3}
+	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *TriggerBeginEvent) GetFilterA() *FixtureFilterBits {
+func (x *TriggerBeginEvent) GetContactEventPayload() *ContactEventPayload {
 	if x != nil {
-		return x.FilterA
+		return x.ContactEventPayload
 	}
 	return nil
-}
-
-func (x *TriggerBeginEvent) GetFilterB() *FixtureFilterBits {
-	if x != nil {
-		return x.FilterB
-	}
-	return nil
-}
-
-func (x *TriggerBeginEvent) GetEntityA() uint32 {
-	if x != nil {
-		return x.EntityA
-	}
-	return 0
-}
-
-func (x *TriggerBeginEvent) GetEntityB() uint32 {
-	if x != nil {
-		return x.EntityB
-	}
-	return 0
-}
-
-func (x *TriggerBeginEvent) GetShapeIndexA() int64 {
-	if x != nil {
-		return x.ShapeIndexA
-	}
-	return 0
-}
-
-func (x *TriggerBeginEvent) GetShapeIndexB() int64 {
-	if x != nil {
-		return x.ShapeIndexB
-	}
-	return 0
-}
-
-func (x *TriggerBeginEvent) GetNormal() *component.Vec2 {
-	if x != nil {
-		return x.Normal
-	}
-	return nil
-}
-
-func (x *TriggerBeginEvent) GetNormalValid() bool {
-	if x != nil {
-		return x.NormalValid
-	}
-	return false
-}
-
-func (x *TriggerBeginEvent) GetPoint() *component.Vec2 {
-	if x != nil {
-		return x.Point
-	}
-	return nil
-}
-
-func (x *TriggerBeginEvent) GetPointValid() bool {
-	if x != nil {
-		return x.PointValid
-	}
-	return false
 }
 
 // wire name: "physics2d_trigger_end"
 type TriggerEndEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterA       *FixtureFilterBits     `protobuf:"bytes,1,opt,name=FilterA,proto3" json:"FilterA,omitempty"`
-	FilterB       *FixtureFilterBits     `protobuf:"bytes,2,opt,name=FilterB,proto3" json:"FilterB,omitempty"`
-	EntityA       uint32                 `protobuf:"varint,3,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
-	EntityB       uint32                 `protobuf:"varint,4,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
-	ShapeIndexA   int64                  `protobuf:"varint,5,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
-	ShapeIndexB   int64                  `protobuf:"varint,6,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
-	Normal        *component.Vec2        `protobuf:"bytes,7,opt,name=Normal,proto3" json:"Normal,omitempty"`
-	NormalValid   bool                   `protobuf:"varint,8,opt,name=NormalValid,proto3" json:"NormalValid,omitempty"`
-	Point         *component.Vec2        `protobuf:"bytes,9,opt,name=Point,proto3" json:"Point,omitempty"`
-	PointValid    bool                   `protobuf:"varint,10,opt,name=PointValid,proto3" json:"PointValid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ContactEventPayload *ContactEventPayload   `protobuf:"bytes,1,opt,name=ContactEventPayload,proto3" json:"ContactEventPayload,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *TriggerEndEvent) Reset() {
 	*x = TriggerEndEvent{}
-	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[4]
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +357,7 @@ func (x *TriggerEndEvent) String() string {
 func (*TriggerEndEvent) ProtoMessage() {}
 
 func (x *TriggerEndEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[4]
+	mi := &file_pkg_plugin_physics2d_event_event_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,99 +370,26 @@ func (x *TriggerEndEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerEndEvent.ProtoReflect.Descriptor instead.
 func (*TriggerEndEvent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{4}
+	return file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *TriggerEndEvent) GetFilterA() *FixtureFilterBits {
+func (x *TriggerEndEvent) GetContactEventPayload() *ContactEventPayload {
 	if x != nil {
-		return x.FilterA
+		return x.ContactEventPayload
 	}
 	return nil
-}
-
-func (x *TriggerEndEvent) GetFilterB() *FixtureFilterBits {
-	if x != nil {
-		return x.FilterB
-	}
-	return nil
-}
-
-func (x *TriggerEndEvent) GetEntityA() uint32 {
-	if x != nil {
-		return x.EntityA
-	}
-	return 0
-}
-
-func (x *TriggerEndEvent) GetEntityB() uint32 {
-	if x != nil {
-		return x.EntityB
-	}
-	return 0
-}
-
-func (x *TriggerEndEvent) GetShapeIndexA() int64 {
-	if x != nil {
-		return x.ShapeIndexA
-	}
-	return 0
-}
-
-func (x *TriggerEndEvent) GetShapeIndexB() int64 {
-	if x != nil {
-		return x.ShapeIndexB
-	}
-	return 0
-}
-
-func (x *TriggerEndEvent) GetNormal() *component.Vec2 {
-	if x != nil {
-		return x.Normal
-	}
-	return nil
-}
-
-func (x *TriggerEndEvent) GetNormalValid() bool {
-	if x != nil {
-		return x.NormalValid
-	}
-	return false
-}
-
-func (x *TriggerEndEvent) GetPoint() *component.Vec2 {
-	if x != nil {
-		return x.Point
-	}
-	return nil
-}
-
-func (x *TriggerEndEvent) GetPointValid() bool {
-	if x != nil {
-		return x.PointValid
-	}
-	return false
 }
 
 var File_pkg_plugin_physics2d_event_event_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_physics2d_event_event_proto_rawDesc = "" +
 	"\n" +
-	"&pkg/plugin/physics2d/event/event.proto\x12'world_engine.pkg.plugin.physics2d.event\x1a.pkg/plugin/physics2d/component/component.proto\"\x8d\x04\n" +
-	"\x11ContactBeginEvent\x12T\n" +
-	"\aFilterA\x18\x01 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterA\x12T\n" +
-	"\aFilterB\x18\x02 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterB\x12\x18\n" +
-	"\aEntityA\x18\x03 \x01(\rR\aEntityA\x12\x18\n" +
-	"\aEntityB\x18\x04 \x01(\rR\aEntityB\x12 \n" +
-	"\vShapeIndexA\x18\x05 \x01(\x03R\vShapeIndexA\x12 \n" +
-	"\vShapeIndexB\x18\x06 \x01(\x03R\vShapeIndexB\x12I\n" +
-	"\x06Normal\x18\a \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Normal\x12 \n" +
-	"\vNormalValid\x18\b \x01(\bR\vNormalValid\x12G\n" +
-	"\x05Point\x18\t \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x05Point\x12\x1e\n" +
-	"\n" +
-	"PointValid\x18\n" +
-	" \x01(\bR\n" +
-	"PointValid\"\x8b\x04\n" +
-	"\x0fContactEndEvent\x12T\n" +
+	"&pkg/plugin/physics2d/event/event.proto\x12'world_engine.pkg.plugin.physics2d.event\x1a.pkg/plugin/physics2d/component/component.proto\"\x83\x01\n" +
+	"\x11ContactBeginEvent\x12n\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x81\x01\n" +
+	"\x0fContactEndEvent\x12n\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x8f\x04\n" +
+	"\x13ContactEventPayload\x12T\n" +
 	"\aFilterA\x18\x01 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterA\x12T\n" +
 	"\aFilterB\x18\x02 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterB\x12\x18\n" +
 	"\aEntityA\x18\x03 \x01(\rR\aEntityA\x12\x18\n" +
@@ -590,35 +408,11 @@ const file_pkg_plugin_physics2d_event_event_proto_rawDesc = "" +
 	"\bMaskBits\x18\x02 \x01(\x04R\bMaskBits\x12\x1e\n" +
 	"\n" +
 	"GroupIndex\x18\x03 \x01(\x05R\n" +
-	"GroupIndex\"\x8d\x04\n" +
-	"\x11TriggerBeginEvent\x12T\n" +
-	"\aFilterA\x18\x01 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterA\x12T\n" +
-	"\aFilterB\x18\x02 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterB\x12\x18\n" +
-	"\aEntityA\x18\x03 \x01(\rR\aEntityA\x12\x18\n" +
-	"\aEntityB\x18\x04 \x01(\rR\aEntityB\x12 \n" +
-	"\vShapeIndexA\x18\x05 \x01(\x03R\vShapeIndexA\x12 \n" +
-	"\vShapeIndexB\x18\x06 \x01(\x03R\vShapeIndexB\x12I\n" +
-	"\x06Normal\x18\a \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Normal\x12 \n" +
-	"\vNormalValid\x18\b \x01(\bR\vNormalValid\x12G\n" +
-	"\x05Point\x18\t \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x05Point\x12\x1e\n" +
-	"\n" +
-	"PointValid\x18\n" +
-	" \x01(\bR\n" +
-	"PointValid\"\x8b\x04\n" +
-	"\x0fTriggerEndEvent\x12T\n" +
-	"\aFilterA\x18\x01 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterA\x12T\n" +
-	"\aFilterB\x18\x02 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterB\x12\x18\n" +
-	"\aEntityA\x18\x03 \x01(\rR\aEntityA\x12\x18\n" +
-	"\aEntityB\x18\x04 \x01(\rR\aEntityB\x12 \n" +
-	"\vShapeIndexA\x18\x05 \x01(\x03R\vShapeIndexA\x12 \n" +
-	"\vShapeIndexB\x18\x06 \x01(\x03R\vShapeIndexB\x12I\n" +
-	"\x06Normal\x18\a \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Normal\x12 \n" +
-	"\vNormalValid\x18\b \x01(\bR\vNormalValid\x12G\n" +
-	"\x05Point\x18\t \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x05Point\x12\x1e\n" +
-	"\n" +
-	"PointValid\x18\n" +
-	" \x01(\bR\n" +
-	"PointValidB\x88\x01Z\\github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event;event\xaa\x02'World_engine.Pkg.Plugin.Physics2d.Eventb\x06proto3"
+	"GroupIndex\"\x83\x01\n" +
+	"\x11TriggerBeginEvent\x12n\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x81\x01\n" +
+	"\x0fTriggerEndEvent\x12n\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayloadB\x88\x01Z\\github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event;event\xaa\x02'World_engine.Pkg.Plugin.Physics2d.Eventb\x06proto3"
 
 var (
 	file_pkg_plugin_physics2d_event_event_proto_rawDescOnce sync.Once
@@ -632,37 +426,30 @@ func file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP() []byte {
 	return file_pkg_plugin_physics2d_event_event_proto_rawDescData
 }
 
-var file_pkg_plugin_physics2d_event_event_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_pkg_plugin_physics2d_event_event_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_pkg_plugin_physics2d_event_event_proto_goTypes = []any{
-	(*ContactBeginEvent)(nil), // 0: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent
-	(*ContactEndEvent)(nil),   // 1: world_engine.pkg.plugin.physics2d.event.ContactEndEvent
-	(*FixtureFilterBits)(nil), // 2: world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	(*TriggerBeginEvent)(nil), // 3: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent
-	(*TriggerEndEvent)(nil),   // 4: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent
-	(*component.Vec2)(nil),    // 5: world_engine.pkg.plugin.physics2d.component.Vec2
+	(*ContactBeginEvent)(nil),   // 0: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent
+	(*ContactEndEvent)(nil),     // 1: world_engine.pkg.plugin.physics2d.event.ContactEndEvent
+	(*ContactEventPayload)(nil), // 2: world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	(*FixtureFilterBits)(nil),   // 3: world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
+	(*TriggerBeginEvent)(nil),   // 4: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent
+	(*TriggerEndEvent)(nil),     // 5: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent
+	(*component.Vec2)(nil),      // 6: world_engine.pkg.plugin.physics2d.component.Vec2
 }
 var file_pkg_plugin_physics2d_event_event_proto_depIdxs = []int32{
-	2,  // 0: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.FilterA:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	2,  // 1: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.FilterB:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	5,  // 2: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.Normal:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	5,  // 3: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.Point:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	2,  // 4: world_engine.pkg.plugin.physics2d.event.ContactEndEvent.FilterA:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	2,  // 5: world_engine.pkg.plugin.physics2d.event.ContactEndEvent.FilterB:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	5,  // 6: world_engine.pkg.plugin.physics2d.event.ContactEndEvent.Normal:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	5,  // 7: world_engine.pkg.plugin.physics2d.event.ContactEndEvent.Point:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	2,  // 8: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.FilterA:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	2,  // 9: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.FilterB:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	5,  // 10: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.Normal:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	5,  // 11: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.Point:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	2,  // 12: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.FilterA:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	2,  // 13: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.FilterB:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	5,  // 14: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.Normal:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	5,  // 15: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.Point:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	2, // 0: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	2, // 1: world_engine.pkg.plugin.physics2d.event.ContactEndEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	3, // 2: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.FilterA:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
+	3, // 3: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.FilterB:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
+	6, // 4: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.Normal:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
+	6, // 5: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.Point:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
+	2, // 6: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	2, // 7: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_pkg_plugin_physics2d_event_event_proto_init() }
@@ -676,7 +463,7 @@ func file_pkg_plugin_physics2d_event_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_plugin_physics2d_event_event_proto_rawDesc), len(file_pkg_plugin_physics2d_event_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

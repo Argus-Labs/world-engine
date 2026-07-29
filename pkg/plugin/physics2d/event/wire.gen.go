@@ -10,16 +10,7 @@ import (
 
 func (c ContactBeginEvent) ToProto() *event.ContactBeginEvent {
 	p := &event.ContactBeginEvent{}
-	p.FilterA = c.FilterA.ToProto()
-	p.FilterB = c.FilterB.ToProto()
-	p.EntityA = uint32(c.EntityA)
-	p.EntityB = uint32(c.EntityB)
-	p.ShapeIndexA = int64(c.ShapeIndexA)
-	p.ShapeIndexB = int64(c.ShapeIndexB)
-	p.Normal = c.Normal.ToProto()
-	p.NormalValid = bool(c.NormalValid)
-	p.Point = c.Point.ToProto()
-	p.PointValid = bool(c.PointValid)
+	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
@@ -27,16 +18,7 @@ func (c ContactBeginEvent) FromProto(p *event.ContactBeginEvent) ContactBeginEve
 	if p == nil {
 		return c
 	}
-	c.FilterA = c.FilterA.FromProto(p.FilterA)
-	c.FilterB = c.FilterB.FromProto(p.FilterB)
-	c.EntityA = pkg_cardinal.EntityID(p.EntityA)
-	c.EntityB = pkg_cardinal.EntityID(p.EntityB)
-	c.ShapeIndexA = int(p.ShapeIndexA)
-	c.ShapeIndexB = int(p.ShapeIndexB)
-	c.Normal = c.Normal.FromProto(p.Normal)
-	c.NormalValid = bool(p.NormalValid)
-	c.Point = c.Point.FromProto(p.Point)
-	c.PointValid = bool(p.PointValid)
+	c.ContactEventPayload = c.ContactEventPayload.FromProto(p.ContactEventPayload)
 	return c
 }
 
@@ -54,6 +36,32 @@ func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c ContactEndEvent) ToProto() *event.ContactEndEvent {
 	p := &event.ContactEndEvent{}
+	p.ContactEventPayload = c.ContactEventPayload.ToProto()
+	return p
+}
+
+func (c ContactEndEvent) FromProto(p *event.ContactEndEvent) ContactEndEvent {
+	if p == nil {
+		return c
+	}
+	c.ContactEventPayload = c.ContactEventPayload.FromProto(p.ContactEventPayload)
+	return c
+}
+
+func (c ContactEndEvent) MarshalWire() ([]byte, error) {
+	return proto.Marshal(c.ToProto())
+}
+
+func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
+	var p event.ContactEndEvent
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ContactEventPayload) ToProto() *event.ContactEventPayload {
+	p := &event.ContactEventPayload{}
 	p.FilterA = c.FilterA.ToProto()
 	p.FilterB = c.FilterB.ToProto()
 	p.EntityA = uint32(c.EntityA)
@@ -67,7 +75,7 @@ func (c ContactEndEvent) ToProto() *event.ContactEndEvent {
 	return p
 }
 
-func (c ContactEndEvent) FromProto(p *event.ContactEndEvent) ContactEndEvent {
+func (c ContactEventPayload) FromProto(p *event.ContactEventPayload) ContactEventPayload {
 	if p == nil {
 		return c
 	}
@@ -82,18 +90,6 @@ func (c ContactEndEvent) FromProto(p *event.ContactEndEvent) ContactEndEvent {
 	c.Point = c.Point.FromProto(p.Point)
 	c.PointValid = bool(p.PointValid)
 	return c
-}
-
-func (c ContactEndEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
-}
-
-func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
-	var p event.ContactEndEvent
-	if err := proto.Unmarshal(data, &p); err != nil {
-		return nil, err
-	}
-	return c.FromProto(&p), nil
 }
 
 func (c FixtureFilterBits) ToProto() *event.FixtureFilterBits {
@@ -116,16 +112,7 @@ func (c FixtureFilterBits) FromProto(p *event.FixtureFilterBits) FixtureFilterBi
 
 func (c TriggerBeginEvent) ToProto() *event.TriggerBeginEvent {
 	p := &event.TriggerBeginEvent{}
-	p.FilterA = c.FilterA.ToProto()
-	p.FilterB = c.FilterB.ToProto()
-	p.EntityA = uint32(c.EntityA)
-	p.EntityB = uint32(c.EntityB)
-	p.ShapeIndexA = int64(c.ShapeIndexA)
-	p.ShapeIndexB = int64(c.ShapeIndexB)
-	p.Normal = c.Normal.ToProto()
-	p.NormalValid = bool(c.NormalValid)
-	p.Point = c.Point.ToProto()
-	p.PointValid = bool(c.PointValid)
+	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
@@ -133,16 +120,7 @@ func (c TriggerBeginEvent) FromProto(p *event.TriggerBeginEvent) TriggerBeginEve
 	if p == nil {
 		return c
 	}
-	c.FilterA = c.FilterA.FromProto(p.FilterA)
-	c.FilterB = c.FilterB.FromProto(p.FilterB)
-	c.EntityA = pkg_cardinal.EntityID(p.EntityA)
-	c.EntityB = pkg_cardinal.EntityID(p.EntityB)
-	c.ShapeIndexA = int(p.ShapeIndexA)
-	c.ShapeIndexB = int(p.ShapeIndexB)
-	c.Normal = c.Normal.FromProto(p.Normal)
-	c.NormalValid = bool(p.NormalValid)
-	c.Point = c.Point.FromProto(p.Point)
-	c.PointValid = bool(p.PointValid)
+	c.ContactEventPayload = c.ContactEventPayload.FromProto(p.ContactEventPayload)
 	return c
 }
 
@@ -160,16 +138,7 @@ func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c TriggerEndEvent) ToProto() *event.TriggerEndEvent {
 	p := &event.TriggerEndEvent{}
-	p.FilterA = c.FilterA.ToProto()
-	p.FilterB = c.FilterB.ToProto()
-	p.EntityA = uint32(c.EntityA)
-	p.EntityB = uint32(c.EntityB)
-	p.ShapeIndexA = int64(c.ShapeIndexA)
-	p.ShapeIndexB = int64(c.ShapeIndexB)
-	p.Normal = c.Normal.ToProto()
-	p.NormalValid = bool(c.NormalValid)
-	p.Point = c.Point.ToProto()
-	p.PointValid = bool(c.PointValid)
+	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
@@ -177,16 +146,7 @@ func (c TriggerEndEvent) FromProto(p *event.TriggerEndEvent) TriggerEndEvent {
 	if p == nil {
 		return c
 	}
-	c.FilterA = c.FilterA.FromProto(p.FilterA)
-	c.FilterB = c.FilterB.FromProto(p.FilterB)
-	c.EntityA = pkg_cardinal.EntityID(p.EntityA)
-	c.EntityB = pkg_cardinal.EntityID(p.EntityB)
-	c.ShapeIndexA = int(p.ShapeIndexA)
-	c.ShapeIndexB = int(p.ShapeIndexB)
-	c.Normal = c.Normal.FromProto(p.Normal)
-	c.NormalValid = bool(p.NormalValid)
-	c.Point = c.Point.FromProto(p.Point)
-	c.PointValid = bool(p.PointValid)
+	c.ContactEventPayload = c.ContactEventPayload.FromProto(p.ContactEventPayload)
 	return c
 }
 

@@ -513,23 +513,15 @@ func (s *service) hasSubscriber(user *User) bool {
 
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
-// marshalEventPayload encodes an event payload for the wire via its generated MarshalWire. An event
-// without generated wire code is a hard error — run the generator; there is no msgpack fallback.
-func marshalEventPayload(payload event.Payload) ([]byte, error) {
-	// payload is an event.Payload (schema.Serializable), so MarshalWire is guaranteed by the type — an
-	// ungenerated event wouldn't satisfy the interface at the emit site.
-	return payload.MarshalWire()
-}
-
 func (s *service) publishDefaultEvent(evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
 
-	// Proto via the event's generated MarshalWire (dispatch by type, no registry). No fallback: an event
-	// without generated wire code is a hard error.
-	payloadPb, err := marshalEventPayload(payload)
+	// Proto via the event's generated MarshalWire (dispatch by type, no registry). payload is an
+	// event.Payload (schema.Serializable), so MarshalWire is guaranteed by the type — no fallback.
+	payloadPb, err := payload.MarshalWire()
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal event payload")
 	}

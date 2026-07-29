@@ -26,24 +26,24 @@ func benchGobUnmarshal[T any](b []byte) (any, error) {
 	return v, nil
 }
 
-func (c Position3D) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
-func (Position3D) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[Position3D](b) }
-func (c Velocity3D) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
-func (Velocity3D) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[Velocity3D](b) }
-func (c Health2) MarshalWire() ([]byte, error)         { return benchGobMarshal(c) }
-func (Health2) UnmarshalWire(b []byte) (any, error)    { return benchGobUnmarshal[Health2](b) }
-func (c Transform) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
-func (Transform) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Transform](b) }
-func (c Inventory) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
-func (Inventory) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Inventory](b) }
+func (c Position3D) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
+func (Position3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Position3D](b) }
+func (c Velocity3D) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
+func (Velocity3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Velocity3D](b) }
+func (c Health2) MarshalWire() ([]byte, error)          { return benchGobMarshal(c) }
+func (Health2) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Health2](b) }
+func (c Transform) MarshalWire() ([]byte, error)        { return benchGobMarshal(c) }
+func (Transform) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Transform](b) }
+func (c Inventory) MarshalWire() ([]byte, error)        { return benchGobMarshal(c) }
+func (Inventory) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Inventory](b) }
 func (c PlayerStats) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
 func (PlayerStats) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[PlayerStats](b) }
-func (c AIBehavior) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
-func (AIBehavior) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[AIBehavior](b) }
-func (c Renderer) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
-func (Renderer) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[Renderer](b) }
-func (c Physics) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
-func (Physics) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[Physics](b) }
+func (c AIBehavior) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
+func (AIBehavior) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[AIBehavior](b) }
+func (c Renderer) MarshalWire() ([]byte, error)         { return benchGobMarshal(c) }
+func (Renderer) UnmarshalWire(b []byte) (any, error)    { return benchGobUnmarshal[Renderer](b) }
+func (c Physics) MarshalWire() ([]byte, error)          { return benchGobMarshal(c) }
+func (Physics) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Physics](b) }
 func (c NetworkSync) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
 func (NetworkSync) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[NetworkSync](b) }
 

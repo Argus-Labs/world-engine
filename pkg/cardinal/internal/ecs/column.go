@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 )
@@ -121,16 +120,13 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// toProto converts the column to a protobuf message for serialization. Each component is encoded through
-// its generated MarshalWire (proto) — no msgpack. A component lacking the codec is a hard error.
+// toProto converts the column to a protobuf message for serialization. Each component encodes through its
+// generated MarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so MarshalWire
+// is guaranteed by the type; an ungenerated component wouldn't satisfy the constraint and wouldn't compile.
 func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	componentData := make([][]byte, len(c.components))
 	for i, component := range c.components {
-		codec, ok := any(component).(schema.Serializable)
-		if !ok {
-			return nil, eris.Errorf("component %q has no generated wire codec (run the generator)", c.compName)
-		}
-		data, err := codec.MarshalWire()
+		data, err := component.MarshalWire()
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed to serialize component at index %d", i)
 		}
@@ -143,8 +139,9 @@ func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	}, nil
 }
 
-// fromProto populates the column from a protobuf message. Each component is decoded through its generated
-// UnmarshalWire (proto) — no msgpack. A component lacking the codec is a hard error.
+// fromProto populates the column from a protobuf message. Each component decodes through its generated
+// UnmarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so UnmarshalWire is
+// guaranteed by the type (see toProto).
 func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	if pb == nil {
 		return eris.New("protobuf column is nil")
@@ -155,14 +152,9 @@ func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	}
 
 	var zero T
-	codec, ok := any(zero).(schema.Serializable)
-	if !ok {
-		return eris.Errorf("component %q has no generated wire codec (run the generator)", c.compName)
-	}
-
 	components := make([]T, len(pb.GetComponents()))
 	for i, data := range pb.GetComponents() {
-		decoded, err := codec.UnmarshalWire(data)
+		decoded, err := zero.UnmarshalWire(data)
 		if err != nil {
 			return eris.Wrapf(err, "failed to deserialize component at index %d", i)
 		}
