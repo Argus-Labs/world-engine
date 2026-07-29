@@ -36,11 +36,11 @@ type debugModule struct {
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
 
 // newDebugModule creates a new debugModule bound to the given World.
-func newDebugModule(world *World) debugModule {
+func newDebugModule(world *World) *debugModule {
 	batchSize := max(int(math.Round(world.options.TickRate))*perfBatchIntervalSec, 1)
 	perf := performance.NewCollector(batchSize)
 
-	return debugModule{
+	d := &debugModule{
 		world:      world,
 		control:    newTickControl(),
 		commands:   make(map[string]*structpb.Struct),
@@ -56,6 +56,7 @@ func newDebugModule(world *World) debugModule {
 		},
 		perf: perf,
 	}
+	return d
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -267,22 +268,20 @@ func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*car
 
 // tickControl coordinates pause, resume, step, and reset signaling for the tick loop.
 type tickControl struct {
-	pauseCh   chan chan uint64   // Request pause, receives tick height when paused
-	resumeCh  chan struct{}      // Signal to resume
-	stepCh    chan chan uint64   // Request step, receives tick height after step
-	resetCh   chan chan struct{} // Request reset
-	isPaused  atomic.Bool        // Current pause state
-	stepReady chan struct{}      // Signals that step result is ready to be read
+	pauseCh  chan chan uint64   // Request pause, receives tick height when paused
+	resumeCh chan struct{}      // Signal to resume
+	stepCh   chan chan uint64   // Request step, receives tick height after step
+	resetCh  chan chan struct{} // Request reset
+	isPaused atomic.Bool        // Current pause state
 }
 
 // newTickControl creates a tickControl with initialized channels.
 func newTickControl() *tickControl {
 	return &tickControl{
-		pauseCh:   make(chan chan uint64),
-		resumeCh:  make(chan struct{}),
-		stepCh:    make(chan chan uint64),
-		resetCh:   make(chan chan struct{}),
-		stepReady: make(chan struct{}),
+		pauseCh:  make(chan chan uint64),
+		resumeCh: make(chan struct{}),
+		stepCh:   make(chan chan uint64),
+		resetCh:  make(chan chan struct{}),
 	}
 }
 
@@ -352,24 +351,14 @@ func (d *debugModule) Reset(
 	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 }
 
-// TODO: this does unsynchronized concurrent access to ToProto. fix after snapshot rework.
-// GetState returns the current world state snapshot.
+// GetState returns the most recent published world state, at most one tick old.
 func (d *debugModule) GetState(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.GetStateRequest],
 ) (*connect.Response[cardinalv1.GetStateResponse], error) {
-	worldState, err := d.world.world.ToProto()
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to serialize world state"))
-	}
-
 	return connect.NewResponse(&cardinalv1.GetStateResponse{
 		IsPaused: d.control.isPaused.Load(),
-		Snapshot: &cardinalv1.Snapshot{
-			TickHeight: d.world.currentTick.height,
-			Timestamp:  timestamppb.New(d.world.currentTick.timestamp),
-			WorldState: worldState,
-		},
+		Snapshot: d.world.state.Load(),
 	}), nil
 }
 

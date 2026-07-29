@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -26,17 +28,18 @@ const (
 
 // World represents your game world and serves as the main entry point for Cardinal.
 type World struct {
-	world           *ecs.World            // The ECS world storing the game's state and systems
-	commands        command.Manager       // Receives commands for systems
-	events          event.Manager         // Collects and dispatches events
-	address         *micro.ServiceAddress // This world's NATS address
-	service         *service              // ConnectRPC direct client-facing service
-	snapshotStorage snapshot.Storage      // Snapshot storage
-	debug           *debugModule          // For debug only utils and services
-	pprof           *pprofModule          // Optional pprof HTTP server
-	currentTick     Tick                  // The current tick
-	options         WorldOptions          // Options
-	tel             telemetry.Telemetry   // Telemetry for logging and tracing
+	world           *ecs.World                          // The ECS world storing the game's state and systems
+	commands        command.Manager                     // Receives commands for systems
+	events          event.Manager                       // Collects and dispatches events
+	address         *micro.ServiceAddress               // This world's NATS address
+	service         *service                            // ConnectRPC direct client-facing service
+	snapshotStorage snapshot.Storage                    // Snapshot storage
+	state           atomic.Pointer[cardinalv1.Snapshot] // Latest world state; swap only, never mutate
+	debug           *debugModule                        // For debug only utils and services
+	pprof           *pprofModule                        // Optional pprof HTTP server
+	currentTick     Tick                                // The current tick
+	options         WorldOptions                        // Options
+	tel             telemetry.Telemetry                 // Telemetry for logging and tracing
 }
 
 // NewWorld creates a new game world with the specified configuration.
@@ -79,6 +82,9 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		options:     options,
 		tel:         tel,
 	}
+
+	// Seed a valid empty state so GetState is always servable, even before the first tick.
+	world.state.Store(&cardinalv1.Snapshot{WorldState: &cardinalv1.WorldState{}})
 
 	// Set ECS on componet register callback (used for introspect).
 	world.world.OnComponentRegister(func(zero ecs.Component) error {
@@ -123,8 +129,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 
 	// Create the debug module only if debug is on.
 	if *options.Debug {
-		debug := newDebugModule(world)
-		world.debug = &debug
+		world.debug = newDebugModule(world)
 	}
 
 	// Create the pprof module only if pprof is on.
@@ -229,27 +234,45 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
-	// Publish snapshot.
-	if w.currentTick.height%uint64(w.options.SnapshotRate) == 0 {
-		snapshotCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		w.snapshot(snapshotCtx, timestamp)
-		cancel()
-	}
+	// Publish state to snapshot and debug module.
+	w.persistState(ctx, timestamp)
 
 	// Increment tick height.
 	w.currentTick.height++
 }
 
-// snapshot persists the world state as a best-effort operation. Snapshots are best effort only, and
-// we just log errors instead of returning it, which would cause the world to stop and restart,
-// effectively losing unsaved state. If a snapshot fails, the main loop still continues and we retry
-// in the next snapshot call.
-func (w *World) snapshot(ctx context.Context, timestamp time.Time) {
-	worldState, err := w.world.ToProto()
-	if err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for snapshot")
+// persistState serializes world state once and publishes it to w.state.
+// Best effort: we just log errors instead of returning them, which would cause the
+// world to stop and restart, effectively losing unsaved state. If a state serialization
+// fails, the main loop still continues and we retry in the next persistState call.
+func (w *World) persistState(ctx context.Context, timestamp time.Time) {
+	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
+	if !snapshotDue && w.debug == nil {
 		return
 	}
+
+	worldState, err := w.world.ToProto()
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
+		return
+	}
+	w.state.Store(&cardinalv1.Snapshot{
+		TickHeight: w.currentTick.height,
+		Timestamp:  timestamppb.New(timestamp),
+		WorldState: worldState,
+	})
+
+	if snapshotDue {
+		w.snapshot(ctx, timestamp, worldState)
+	}
+}
+
+// snapshot writes an already-serialized world state to storage, best-effort: errors are logged, not
+// returned, so a failed write doesn't stop the world and lose unsaved state — the next snapshot retries.
+func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *cardinalv1.WorldState) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
 	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 	if err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
@@ -292,8 +315,13 @@ func (w *World) restore(ctx context.Context) error {
 
 	// Only update shard state after successful restoration and validation.
 	w.currentTick.height = snap.TickHeight + 1
-	w.debug.resetPerf()
 
+	// Publish the unmarshaled proto as-is; it already is the restored state.
+	w.state.Store(&cardinalv1.Snapshot{
+		TickHeight: snap.TickHeight,
+		Timestamp:  timestamppb.New(snap.Timestamp),
+		WorldState: &worldState,
+	})
 	return nil
 }
 
@@ -313,10 +341,12 @@ func (w *World) shutdown() {
 	// instead of being severed on the first cleanup step. Telemetry goes last
 	// so it can flush log lines emitted by every preceding step.
 
-	// 1. Final snapshot. Producer-side, fixed 2s sub-budget.
-	snapshotCtx, snapshotCancel := context.WithTimeout(ctx, 2*time.Second)
-	w.snapshot(snapshotCtx, time.Now())
-	snapshotCancel()
+	// 1. Final snapshot. Producer-side; serialize world state for snapshot.
+	if worldState, err := w.world.ToProto(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
+	} else {
+		w.snapshot(ctx, time.Now(), worldState)
+	}
 
 	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
 	// but the producer side should stop before observers do.
@@ -355,7 +385,16 @@ func (w *World) reset() {
 	w.currentTick.height = 0
 	w.currentTick.timestamp = time.Time{}
 
-	// Reset perf collector.
+	// Republish state so it doesn't describe the pre-reset world, and clear perf data.
+	if worldState, err := w.world.ToProto(); err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
+	} else {
+		w.state.Store(&cardinalv1.Snapshot{
+			TickHeight: w.currentTick.height,
+			Timestamp:  timestamppb.New(w.currentTick.timestamp),
+			WorldState: worldState,
+		})
+	}
 	w.debug.resetPerf()
 }
 

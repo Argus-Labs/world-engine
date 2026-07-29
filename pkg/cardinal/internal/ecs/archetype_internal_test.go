@@ -395,6 +395,27 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 	assertArchetypeEqual(t, arch, arch2)
 }
 
+// TestArchetype_ToProtoBitmapNotAliased guards that toProto returns a ComponentsBitmap that owns its
+// memory rather than aliasing the live archetype bitmap (bitmap.ToBytes is zero-copy). Consumers now
+// retain the proto across ticks (the debug state view), so a later mutation of the live bitmap must
+// not be visible in an already-serialized proto.
+func TestArchetype_ToProtoBitmapNotAliased(t *testing.T) {
+	t.Parallel()
+
+	arch, _ := newSimpleArchetype(t)
+	arch.newEntity(0)
+
+	pb, err := arch.toProto()
+	require.NoError(t, err)
+	require.NotEmpty(t, pb.GetComponentsBitmap())
+
+	before := pb.GetComponentsBitmap()[0]
+	arch.components[0] ^= 0xFF // mutate the live bitmap's backing array
+
+	assert.Equal(t, before, pb.GetComponentsBitmap()[0],
+		"toProto's bitmap must not alias the live archetype bitmap")
+}
+
 func newSimpleArchetype(t *testing.T) (*archetype, *componentManager) {
 	t.Helper()
 
