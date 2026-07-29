@@ -208,3 +208,8 @@ func (opt *S3StorageOptions) Validate() error {
 	}
 	return nil
 }
+
+// Flush is a no-op: S3Storage writes synchronously in Store, so nothing is ever pending.
+func (s *S3Storage) Flush(_ context.Context) error {
+	return nil
+}

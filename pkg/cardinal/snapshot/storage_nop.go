@@ -24,3 +24,8 @@ func (n *NopStorage) Store(_ context.Context, _ *Snapshot) error {
 func (n *NopStorage) Load(_ context.Context) (*Snapshot, error) {
 	return nil, eris.Wrap(ErrSnapshotNotFound, "no snapshots available (using no-op storage)")
 }
+
+// Flush is a no-op: NopStorage writes nothing, so nothing is ever pending.
+func (n *NopStorage) Flush(_ context.Context) error {
+	return nil
+}

@@ -397,3 +397,8 @@ func (m *memSnapshotStorage) Load(_ context.Context) (*snapshot.Snapshot, error)
 
 	return &cp, nil
 }
+
+// Flush is a no-op: memSnapshotStorage writes synchronously in Store.
+func (m *memSnapshotStorage) Flush(_ context.Context) error {
+	return nil
+}
