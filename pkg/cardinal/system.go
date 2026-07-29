@@ -64,8 +64,13 @@ func RegisterSystemV2(world *World, system System, opts ...SystemOption) {
 
 	state := value.Elem()
 	stateType := state.Type()
+	if _, ok := stateType.MethodByName("Run"); ok {
+		panic(eris.Errorf("system %T Run method must use a pointer receiver", system))
+	}
+
 	baseField, ok := stateType.FieldByName("BaseSystemState")
-	if !ok || !baseField.Anonymous || baseField.Type != reflect.TypeFor[BaseSystemState]() {
+	if !ok || len(baseField.Index) != 1 || !baseField.Anonymous ||
+		baseField.Type != reflect.TypeFor[BaseSystemState]() {
 		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", system))
 	}
 
@@ -124,7 +129,9 @@ func initSystemFieldValues(state reflect.Value, world *World, allowPrivateState 
 		fieldType := state.Type().Field(i)
 
 		if allowPrivateState && !fieldType.IsExported() {
-			if field.Addr().Type().Implements(reflect.TypeFor[systemField]()) {
+			systemFieldType := reflect.TypeFor[systemField]()
+			if field.Type().Implements(systemFieldType) ||
+				field.Addr().Type().Implements(systemFieldType) {
 				return eris.Errorf("field %s must be exported", fieldType.Name)
 			}
 			continue

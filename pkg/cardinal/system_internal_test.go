@@ -38,6 +38,16 @@ func (system *privateDependencySystem) Run() {
 	_ = system.events
 }
 
+type privatePointerDependencySystem struct {
+	BaseSystemState
+
+	events *WithEvent[testutils.SimpleEvent]
+}
+
+func (system *privatePointerDependencySystem) Run() {
+	_ = system.events
+}
+
 type valueSystem struct {
 	BaseSystemState
 }
@@ -47,6 +57,16 @@ func (valueSystem) Run() {}
 type missingBaseSystem struct{}
 
 func (*missingBaseSystem) Run() {}
+
+type indirectBaseState struct {
+	BaseSystemState
+}
+
+type indirectBaseSystem struct {
+	indirectBaseState
+}
+
+func (*indirectBaseSystem) Run() {}
 
 func TestRegisterSystemV2_UsesCallerOwnedInstance(t *testing.T) {
 	t.Parallel()
@@ -83,15 +103,31 @@ func TestRegisterSystemV2_HonorsHook(t *testing.T) {
 func TestRegisterSystemV2_RejectsPrivateCardinalDependency(t *testing.T) {
 	t.Parallel()
 
-	world := &World{world: ecs.NewWorld()}
+	t.Run("value", func(t *testing.T) {
+		t.Parallel()
 
-	require.PanicsWithError(
-		t,
-		"error initializing system fields: field events must be exported",
-		func() {
-			RegisterSystemV2(world, &privateDependencySystem{})
-		},
-	)
+		world := &World{world: ecs.NewWorld()}
+		require.PanicsWithError(
+			t,
+			"error initializing system fields: field events must be exported",
+			func() {
+				RegisterSystemV2(world, &privateDependencySystem{})
+			},
+		)
+	})
+
+	t.Run("pointer", func(t *testing.T) {
+		t.Parallel()
+
+		world := &World{world: ecs.NewWorld()}
+		require.PanicsWithError(
+			t,
+			"error initializing system fields: field events must be exported",
+			func() {
+				RegisterSystemV2(world, &privatePointerDependencySystem{})
+			},
+		)
+	})
 }
 
 func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
@@ -120,6 +156,16 @@ func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
 		)
 	})
 
+	t.Run("value receiver", func(t *testing.T) {
+		t.Parallel()
+
+		require.PanicsWithError(
+			t,
+			"system *cardinal.valueSystem Run method must use a pointer receiver",
+			func() { RegisterSystemV2(world, &valueSystem{}) },
+		)
+	})
+
 	t.Run("missing base state", func(t *testing.T) {
 		t.Parallel()
 
@@ -127,6 +173,16 @@ func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
 			t,
 			"system *cardinal.missingBaseSystem must embed cardinal.BaseSystemState",
 			func() { RegisterSystemV2(world, &missingBaseSystem{}) },
+		)
+	})
+
+	t.Run("indirect base state", func(t *testing.T) {
+		t.Parallel()
+
+		require.PanicsWithError(
+			t,
+			"system *cardinal.indirectBaseSystem must embed cardinal.BaseSystemState",
+			func() { RegisterSystemV2(world, &indirectBaseSystem{}) },
 		)
 	})
 }
