@@ -86,18 +86,20 @@ func (c *Collector) RecordSpan(span TickSpan) {
 	c.currentSpans = append(c.currentSpans, span)
 }
 
-// RecordTick finalizes the current tick, appending a TickTimeline to the
-// pending batch. When the batch reaches batchSize, it is flushed to all
-// subscribers via non-blocking channel sends performed outside the lock.
+// RecordTick measures and records a completed tick. When the batch reaches
+// batchSize, it is flushed to all subscribers via non-blocking channel sends
+// performed outside the lock.
 func (c *Collector) RecordTick(
 	captureSystemSpans bool,
 	tickHeight uint64,
 	tickStart time.Time,
-	systemPhaseElapsed time.Duration,
+	systemPhaseStartedAt time.Time,
 ) {
 	if c.subscriberCount.Load() == 0 {
 		return
 	}
+
+	systemPhaseElapsed := time.Since(systemPhaseStartedAt)
 
 	c.mu.Lock()
 	if len(c.subscribers) == 0 {

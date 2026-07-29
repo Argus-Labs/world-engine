@@ -224,12 +224,12 @@ func (d *debugModule) recordTick(
 	captureSystemSpans bool,
 	tickHeight uint64,
 	tickStart time.Time,
-	systemPhaseElapsed time.Duration,
+	systemPhaseStartedAt time.Time,
 ) {
 	if d == nil {
 		return
 	}
-	d.perf.RecordTick(captureSystemSpans, tickHeight, tickStart, systemPhaseElapsed)
+	d.perf.RecordTick(captureSystemSpans, tickHeight, tickStart, systemPhaseStartedAt)
 }
 
 // startSystemSpanCapture latches span capture for a new tick. Nil-safe.

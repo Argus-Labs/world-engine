@@ -231,22 +231,20 @@ func (w *World) Tick(timestamp time.Time) {
 	w.currentTick.timestamp = timestamp
 	w.currentTick.captureSystemSpans = w.debug.startSystemSpanCapture()
 
-	var systemPhaseStart time.Time
+	var systemPhaseStartedAt time.Time
 	if w.debug != nil {
-		systemPhaseStart = time.Now()
+		systemPhaseStartedAt = time.Now()
 	}
 
 	// Advance the ECS world.
 	w.world.Tick()
 
-	if w.debug != nil {
-		w.debug.recordTick(
-			w.currentTick.captureSystemSpans,
-			w.currentTick.height,
-			timestamp,
-			time.Since(systemPhaseStart),
-		)
-	}
+	w.debug.recordTick(
+		w.currentTick.captureSystemSpans,
+		w.currentTick.height,
+		timestamp,
+		systemPhaseStartedAt,
+	)
 
 	// Send events.
 	if err := w.events.Dispatch(); err != nil {

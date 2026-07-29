@@ -30,8 +30,8 @@ service DebugService {
   // GetState returns the current world state snapshot.
   rpc GetState(GetStateRequest) returns (GetStateResponse);
 
-  // WatchSystemsTiming passively observes the time spent executing Cardinal
-  // systems each tick. This aggregate is always measured while debug is enabled.
+  // WatchSystemsTiming streams the time spent executing Cardinal systems each
+  // tick without enabling per-system span capture.
   rpc WatchSystemsTiming(WatchSystemsTimingRequest) returns (stream WatchSystemsTimingResponse);
 
   // ProfileSystems captures per-system spans while the stream is open.

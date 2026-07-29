@@ -609,8 +609,8 @@ export const DebugService: GenService<{
     output: typeof GetStateResponseSchema;
   },
   /**
-   * WatchSystemsTiming passively observes the time spent executing Cardinal
-   * systems each tick. This aggregate is always measured while debug is enabled.
+   * WatchSystemsTiming streams the time spent executing Cardinal systems each
+   * tick without enabling per-system span capture.
    *
    * @generated from rpc worldengine.cardinal.v1.DebugService.WatchSystemsTiming
    */

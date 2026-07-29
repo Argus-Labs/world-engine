@@ -68,8 +68,8 @@ type DebugServiceClient interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
-	// WatchSystemsTiming passively observes the time spent executing Cardinal
-	// systems each tick. This aggregate is always measured while debug is enabled.
+	// WatchSystemsTiming streams the time spent executing Cardinal systems each
+	// tick without enabling per-system span capture.
 	WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest]) (*connect.ServerStreamForClient[v1.WatchSystemsTimingResponse], error)
 	// ProfileSystems captures per-system spans while the stream is open.
 	// Cancelling the stream stops detailed span capture.
@@ -205,8 +205,8 @@ type DebugServiceHandler interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
-	// WatchSystemsTiming passively observes the time spent executing Cardinal
-	// systems each tick. This aggregate is always measured while debug is enabled.
+	// WatchSystemsTiming streams the time spent executing Cardinal systems each
+	// tick without enabling per-system span capture.
 	WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest], *connect.ServerStream[v1.WatchSystemsTimingResponse]) error
 	// ProfileSystems captures per-system spans while the stream is open.
 	// Cancelling the stream stops detailed span capture.
