@@ -16,6 +16,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
@@ -208,4 +209,30 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))
 	w.world.Init()
 	return w, state
+}
+
+func TestPerformanceBatchConverters(t *testing.T) {
+	tickStart := time.Now()
+	batch := performance.Batch{
+		Ticks: []performance.TickTimeline{{
+			TickHeight:         42,
+			TickStart:          tickStart,
+			SystemPhaseElapsed: 3 * time.Millisecond,
+			Spans: []performance.TickSpan{{
+				SystemName: "move",
+				StartTime:  tickStart.Add(time.Millisecond),
+				EndTime:    tickStart.Add(2 * time.Millisecond),
+			}},
+		}},
+	}
+
+	overview := timingBatchToProto(batch)
+	require.Len(t, overview.GetTicks(), 1)
+	assert.Equal(t, uint64(3*time.Millisecond), overview.GetTicks()[0].GetDurationNs())
+
+	profile := profileBatchToProto(batch)
+	require.Len(t, profile.GetTicks(), 1)
+	require.Len(t, profile.GetTicks()[0].GetSpans(), 1)
+	assert.Equal(t, "move", profile.GetTicks()[0].GetSpans()[0].GetSystem())
+	assert.Equal(t, uint64(3*time.Millisecond), profile.GetTicks()[0].GetTiming().GetDurationNs())
 }

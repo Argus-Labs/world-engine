@@ -5,16 +5,16 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Snapshot } from "./snapshot_pb";
 import { file_worldengine_cardinal_v1_snapshot } from "./snapshot_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/cardinal/v1/debug.proto.
  */
 export const file_worldengine_cardinal_v1_debug: GenFile = /*@__PURE__*/
-  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJIj4KClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRIaChJwcm90b19tZXNzYWdlX25hbWUYAiABKAlSBnNjaGVtYSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCITChFTdHJlYW1QZXJmUmVxdWVzdCJBCglQZXJmQmF0Y2gSNAoFdGlja3MYASADKAsyJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UaWNrVGltZWxpbmUihwEKDFRpY2tUaW1lbGluZRITCgt0aWNrX2hlaWdodBgBIAEoBBIuCgp0aWNrX3N0YXJ0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCgVzcGFucxgDIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNwYW4ihAEKClN5c3RlbVNwYW4SOAoLc3lzdGVtX2hvb2sYASABKA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1Ib29rEg4KBnN5c3RlbRgCIAEoCRIXCg9zdGFydF9vZmZzZXRfbnMYAyABKAQSEwoLZHVyYXRpb25fbnMYBCABKAQqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tfVU5TUEVDSUZJRUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoSU1lTVEVNX0hPT0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERBVEUQAxIUChBTWVNURU1fSE9PS19JTklUEAQylgUKDERlYnVnU2VydmljZRJlCgpJbnRyb3NwZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVlc3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9uc2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlc3BvbnNlElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlcXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXNwb25zZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlcXVlc3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVzcG9uc2USVgoFUmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3BvbnNlEl8KCEdldFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXF1ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXNwb25zZRJeCgpTdHJlYW1QZXJmEioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RyZWFtUGVyZlJlcXVlc3QaIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QZXJmQmF0Y2gwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_worldengine_cardinal_v1_snapshot]);
+  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJIl8KClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRInCgZzY2hlbWEYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhoKEnByb3RvX21lc3NhZ2VfbmFtZRgDIAEoCSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCIbChlXYXRjaFN5c3RlbXNUaW1pbmdSZXF1ZXN0IlMKGldhdGNoU3lzdGVtc1RpbWluZ1Jlc3BvbnNlEjUKBXRpY2tzGAEgAygLMiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtc1RpbWluZyIXChVQcm9maWxlU3lzdGVtc1JlcXVlc3QiUAoWUHJvZmlsZVN5c3RlbXNSZXNwb25zZRI2CgV0aWNrcxgBIAMoCzInLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbXNQcm9maWxlImkKDVN5c3RlbXNUaW1pbmcSEwoLdGlja19oZWlnaHQYASABKAQSLgoKdGlja19zdGFydBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbnMYAyABKAQifAoOU3lzdGVtc1Byb2ZpbGUSNgoGdGltaW5nGAEgASgLMiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtc1RpbWluZxIyCgVzcGFucxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNwYW4ihAEKClN5c3RlbVNwYW4SOAoLc3lzdGVtX2hvb2sYASABKA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1Ib29rEg4KBnN5c3RlbRgCIAEoCRIXCg9zdGFydF9vZmZzZXRfbnMYAyABKAQSEwoLZHVyYXRpb25fbnMYBCABKAQqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tfVU5TUEVDSUZJRUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoSU1lTVEVNX0hPT0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERBVEUQAxIUChBTWVNURU1fSE9PS19JTklUEAQyrAYKDERlYnVnU2VydmljZRJlCgpJbnRyb3NwZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVlc3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9uc2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlc3BvbnNlElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlcXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXNwb25zZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlcXVlc3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVzcG9uc2USVgoFUmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3BvbnNlEl8KCEdldFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXF1ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXNwb25zZRJ/ChJXYXRjaFN5c3RlbXNUaW1pbmcSMi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5XYXRjaFN5c3RlbXNUaW1pbmdSZXF1ZXN0GjMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuV2F0Y2hTeXN0ZW1zVGltaW5nUmVzcG9uc2UwARJzCg5Qcm9maWxlU3lzdGVtcxIuLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlByb2ZpbGVTeXN0ZW1zUmVxdWVzdBovLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlByb2ZpbGVTeXN0ZW1zUmVzcG9uc2UwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_worldengine_cardinal_v1_snapshot]);
 
 /**
  * IntrospectRequest is the request message for the Introspect RPC.
@@ -38,21 +38,21 @@ export const IntrospectRequestSchema: GenMessage<IntrospectRequest> = /*@__PURE_
  */
 export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResponse"> & {
   /**
-   * Metadata for registered commands.
+   * JSON schemas for registered commands.
    *
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema commands = 1;
    */
   commands: TypeSchema[];
 
   /**
-   * Metadata for registered components.
+   * JSON schemas for registered components.
    *
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema components = 2;
    */
   components: TypeSchema[];
 
   /**
-   * Metadata for registered events.
+   * JSON schemas for registered events.
    *
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema events = 3;
    */
@@ -75,7 +75,7 @@ export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResp
   /**
    * Protobuf type definitions for the commands, components, and events in this response,
    * including any types they depend on. Clients use them to encode and decode protobuf data.
-   * Empty when the world has no registered types.
+   * Empty when none are available.
    *
    * @generated from field: bytes proto_descriptor_set = 6;
    */
@@ -142,7 +142,7 @@ export const SystemNodeSchema: GenMessage<SystemNode> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 3);
 
 /**
- * TypeSchema describes a registered type.
+ * TypeSchema represents the JSON schema for a registered type.
  *
  * @generated from message worldengine.cardinal.v1.TypeSchema
  */
@@ -155,10 +155,18 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   name: string;
 
   /**
+   * Form schema derived from the protobuf message descriptor.
+   *
+   * @generated from field: google.protobuf.Struct schema = 2;
+   */
+  schema?: JsonObject;
+
+  /**
    * Name of this command, component, or event in proto_descriptor_set.
    * Clients use it to find the correct protobuf type definition.
+   * Empty when no definition is available.
    *
-   * @generated from field: string proto_message_name = 2;
+   * @generated from field: string proto_message_name = 3;
    */
   protoMessageName: string;
 };
@@ -346,43 +354,69 @@ export const GetStateResponseSchema: GenMessage<GetStateResponse> = /*@__PURE__*
   messageDesc(file_worldengine_cardinal_v1_debug, 14);
 
 /**
- * StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
- *
- * @generated from message worldengine.cardinal.v1.StreamPerfRequest
+ * @generated from message worldengine.cardinal.v1.WatchSystemsTimingRequest
  */
-export type StreamPerfRequest = Message<"worldengine.cardinal.v1.StreamPerfRequest"> & {
+export type WatchSystemsTimingRequest = Message<"worldengine.cardinal.v1.WatchSystemsTimingRequest"> & {
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.StreamPerfRequest.
- * Use `create(StreamPerfRequestSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.WatchSystemsTimingRequest.
+ * Use `create(WatchSystemsTimingRequestSchema)` to create a new message.
  */
-export const StreamPerfRequestSchema: GenMessage<StreamPerfRequest> = /*@__PURE__*/
+export const WatchSystemsTimingRequestSchema: GenMessage<WatchSystemsTimingRequest> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 15);
 
 /**
- * PerfBatch is a batch of completed tick timelines pushed to the client.
- *
- * @generated from message worldengine.cardinal.v1.PerfBatch
+ * @generated from message worldengine.cardinal.v1.WatchSystemsTimingResponse
  */
-export type PerfBatch = Message<"worldengine.cardinal.v1.PerfBatch"> & {
+export type WatchSystemsTimingResponse = Message<"worldengine.cardinal.v1.WatchSystemsTimingResponse"> & {
   /**
-   * @generated from field: repeated worldengine.cardinal.v1.TickTimeline ticks = 1;
+   * @generated from field: repeated worldengine.cardinal.v1.SystemsTiming ticks = 1;
    */
-  ticks: TickTimeline[];
+  ticks: SystemsTiming[];
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.PerfBatch.
- * Use `create(PerfBatchSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.WatchSystemsTimingResponse.
+ * Use `create(WatchSystemsTimingResponseSchema)` to create a new message.
  */
-export const PerfBatchSchema: GenMessage<PerfBatch> = /*@__PURE__*/
+export const WatchSystemsTimingResponseSchema: GenMessage<WatchSystemsTimingResponse> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 16);
 
 /**
- * @generated from message worldengine.cardinal.v1.TickTimeline
+ * @generated from message worldengine.cardinal.v1.ProfileSystemsRequest
  */
-export type TickTimeline = Message<"worldengine.cardinal.v1.TickTimeline"> & {
+export type ProfileSystemsRequest = Message<"worldengine.cardinal.v1.ProfileSystemsRequest"> & {
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ProfileSystemsRequest.
+ * Use `create(ProfileSystemsRequestSchema)` to create a new message.
+ */
+export const ProfileSystemsRequestSchema: GenMessage<ProfileSystemsRequest> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 17);
+
+/**
+ * @generated from message worldengine.cardinal.v1.ProfileSystemsResponse
+ */
+export type ProfileSystemsResponse = Message<"worldengine.cardinal.v1.ProfileSystemsResponse"> & {
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.SystemsProfile ticks = 1;
+   */
+  ticks: SystemsProfile[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ProfileSystemsResponse.
+ * Use `create(ProfileSystemsResponseSchema)` to create a new message.
+ */
+export const ProfileSystemsResponseSchema: GenMessage<ProfileSystemsResponse> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 18);
+
+/**
+ * @generated from message worldengine.cardinal.v1.SystemsTiming
+ */
+export type SystemsTiming = Message<"worldengine.cardinal.v1.SystemsTiming"> & {
   /**
    * @generated from field: uint64 tick_height = 1;
    */
@@ -394,17 +428,43 @@ export type TickTimeline = Message<"worldengine.cardinal.v1.TickTimeline"> & {
   tickStart?: Timestamp;
 
   /**
-   * @generated from field: repeated worldengine.cardinal.v1.SystemSpan spans = 3;
+   * Wall-clock time spent executing the ECS system phase (w.world.Tick).
+   * This excludes command draining, event dispatch, snapshots, and debug
+   * state serialization outside that phase.
+   *
+   * @generated from field: uint64 duration_ns = 3;
+   */
+  durationNs: bigint;
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.SystemsTiming.
+ * Use `create(SystemsTimingSchema)` to create a new message.
+ */
+export const SystemsTimingSchema: GenMessage<SystemsTiming> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 19);
+
+/**
+ * @generated from message worldengine.cardinal.v1.SystemsProfile
+ */
+export type SystemsProfile = Message<"worldengine.cardinal.v1.SystemsProfile"> & {
+  /**
+   * @generated from field: worldengine.cardinal.v1.SystemsTiming timing = 1;
+   */
+  timing?: SystemsTiming;
+
+  /**
+   * @generated from field: repeated worldengine.cardinal.v1.SystemSpan spans = 2;
    */
   spans: SystemSpan[];
 };
 
 /**
- * Describes the message worldengine.cardinal.v1.TickTimeline.
- * Use `create(TickTimelineSchema)` to create a new message.
+ * Describes the message worldengine.cardinal.v1.SystemsProfile.
+ * Use `create(SystemsProfileSchema)` to create a new message.
  */
-export const TickTimelineSchema: GenMessage<TickTimeline> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 17);
+export const SystemsProfileSchema: GenMessage<SystemsProfile> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 20);
 
 /**
  * @generated from message worldengine.cardinal.v1.SystemSpan
@@ -421,7 +481,7 @@ export type SystemSpan = Message<"worldengine.cardinal.v1.SystemSpan"> & {
   system: string;
 
   /**
-   * Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+   * Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
    *
    * @generated from field: uint64 start_offset_ns = 3;
    */
@@ -440,7 +500,7 @@ export type SystemSpan = Message<"worldengine.cardinal.v1.SystemSpan"> & {
  * Use `create(SystemSpanSchema)` to create a new message.
  */
 export const SystemSpanSchema: GenMessage<SystemSpan> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 18);
+  messageDesc(file_worldengine_cardinal_v1_debug, 21);
 
 /**
  * SystemHook defines when a system executes in the tick lifecycle.
@@ -489,7 +549,7 @@ export const SystemHookSchema: GenEnum<SystemHook> = /*@__PURE__*/
 export const DebugService: GenService<{
   /**
    * Introspect returns metadata about the registered types in the world.
-   * The result includes protobuf metadata for commands, components, and events.
+   * The result includes JSON schemas for commands, components, and events.
    *
    * @generated from rpc worldengine.cardinal.v1.DebugService.Introspect
    */
@@ -549,16 +609,27 @@ export const DebugService: GenService<{
     output: typeof GetStateResponseSchema;
   },
   /**
-   * StreamPerf streams batches of per-tick timing data to clients.
-   * The server pushes a PerfBatch every N ticks; clients accumulate the full
-   * history and compute their own aggregations (avg, P95, etc.).
+   * WatchSystemsTiming passively observes the time spent executing Cardinal
+   * systems each tick. This aggregate is always measured while debug is enabled.
    *
-   * @generated from rpc worldengine.cardinal.v1.DebugService.StreamPerf
+   * @generated from rpc worldengine.cardinal.v1.DebugService.WatchSystemsTiming
    */
-  streamPerf: {
+  watchSystemsTiming: {
     methodKind: "server_streaming";
-    input: typeof StreamPerfRequestSchema;
-    output: typeof PerfBatchSchema;
+    input: typeof WatchSystemsTimingRequestSchema;
+    output: typeof WatchSystemsTimingResponseSchema;
+  },
+  /**
+   * ProfileSystems captures per-system spans while the stream is open.
+   * Cancelling the stream stops detailed span capture.
+   *
+   * @generated from rpc worldengine.cardinal.v1.DebugService.ProfileSystems
+   */
+  profileSystems: {
+    methodKind: "server_streaming";
+    input: typeof ProfileSystemsRequestSchema;
+    output: typeof ProfileSystemsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
+

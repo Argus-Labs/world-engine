@@ -229,12 +229,24 @@ func (w *World) Tick(timestamp time.Time) {
 	_ = w.commands.Drain()
 
 	w.currentTick.timestamp = timestamp
-	w.debug.startPerfTick()
+	w.currentTick.captureSystemSpans = w.debug.startSystemSpanCapture()
+
+	var systemPhaseStart time.Time
+	if w.debug != nil {
+		systemPhaseStart = time.Now()
+	}
 
 	// Advance the ECS world.
 	w.world.Tick()
 
-	w.debug.recordTick(w.currentTick.height, timestamp)
+	if w.debug != nil {
+		w.debug.recordTick(
+			w.currentTick.captureSystemSpans,
+			w.currentTick.height,
+			timestamp,
+			time.Since(systemPhaseStart),
+		)
+	}
 
 	// Send events.
 	if err := w.events.Dispatch(); err != nil {
@@ -381,6 +393,7 @@ func (w *World) reset() {
 }
 
 type Tick struct {
-	height    uint64
-	timestamp time.Time
+	height             uint64
+	timestamp          time.Time
+	captureSystemSpans bool
 }

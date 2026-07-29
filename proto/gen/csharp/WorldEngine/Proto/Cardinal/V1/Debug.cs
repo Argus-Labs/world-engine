@@ -25,69 +25,80 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRl",
-            "bmdpbmUuY2FyZGluYWwudjEaH2dvb2dsZS9wcm90b2J1Zi90aW1lc3RhbXAu",
-            "cHJvdG8aJndvcmxkZW5naW5lL2NhcmRpbmFsL3YxL3NuYXBzaG90LnByb3Rv",
-            "IhMKEUludHJvc3BlY3RSZXF1ZXN0IvICChJJbnRyb3NwZWN0UmVzcG9uc2US",
-            "PwoIY29tbWFuZHMYASADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5U",
-            "eXBlU2NoZW1hUghjb21tYW5kcxJDCgpjb21wb25lbnRzGAIgAygLMiMud29y",
-            "bGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYVIKY29tcG9uZW50cxI7",
-            "CgZldmVudHMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBl",
-            "U2NoZW1hUgZldmVudHMSIAoMdGlja19yYXRlX2h6GAQgASgBUgp0aWNrUmF0",
-            "ZUh6EkUKCXNjaGVkdWxlcxgFIAMoCzInLndvcmxkZW5naW5lLmNhcmRpbmFs",
-            "LnYxLlN5c3RlbVNjaGVkdWxlUglzY2hlZHVsZXMSMAoUcHJvdG9fZGVzY3Jp",
-            "cHRvcl9zZXQYBiABKAxSEnByb3RvRGVzY3JpcHRvclNldCKIAQoOU3lzdGVt",
-            "U2NoZWR1bGUSNwoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFs",
-            "LnYxLlN5c3RlbUhvb2tSBGhvb2sSPQoHc3lzdGVtcxgCIAMoCzIjLndvcmxk",
-            "ZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGVSB3N5c3RlbXMiMAoKU3lz",
-            "dGVtTm9kZRIOCgJpZBgBIAEoDVICaWQSEgoEbmFtZRgCIAEoCVIEbmFtZSJW",
-            "CgpUeXBlU2NoZW1hEhIKBG5hbWUYASABKAlSBG5hbWUSLAoScHJvdG9fbWVz",
-            "c2FnZV9uYW1lGAIgASgJUhBwcm90b01lc3NhZ2VOYW1lUgZzY2hlbWEiDgoM",
-            "UGF1c2VSZXF1ZXN0IjAKDVBhdXNlUmVzcG9uc2USHwoLdGlja19oZWlnaHQY",
-            "ASABKARSCnRpY2tIZWlnaHQiDwoNUmVzdW1lUmVxdWVzdCIQCg5SZXN1bWVS",
-            "ZXNwb25zZSINCgtTdGVwUmVxdWVzdCIvCgxTdGVwUmVzcG9uc2USHwoLdGlj",
-            "a19oZWlnaHQYASABKARSCnRpY2tIZWlnaHQiDgoMUmVzZXRSZXF1ZXN0Ig8K",
-            "DVJlc2V0UmVzcG9uc2UiEQoPR2V0U3RhdGVSZXF1ZXN0Im4KEEdldFN0YXRl",
-            "UmVzcG9uc2USGwoJaXNfcGF1c2VkGAEgASgIUghpc1BhdXNlZBI9CghzbmFw",
-            "c2hvdBgCIAEoCzIhLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlNuYXBzaG90",
-            "UghzbmFwc2hvdCITChFTdHJlYW1QZXJmUmVxdWVzdCJICglQZXJmQmF0Y2gS",
-            "OwoFdGlja3MYASADKAsyJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UaWNr",
-            "VGltZWxpbmVSBXRpY2tzIqUBCgxUaWNrVGltZWxpbmUSHwoLdGlja19oZWln",
-            "aHQYASABKARSCnRpY2tIZWlnaHQSOQoKdGlja19zdGFydBgCIAEoCzIaLmdv",
-            "b2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXRpY2tTdGFydBI5CgVzcGFucxgD",
-            "IAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNwYW5SBXNw",
-            "YW5zIrMBCgpTeXN0ZW1TcGFuEkQKC3N5c3RlbV9ob29rGAEgASgOMiMud29y",
-            "bGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtSG9va1IKc3lzdGVtSG9vaxIW",
-            "CgZzeXN0ZW0YAiABKAlSBnN5c3RlbRImCg9zdGFydF9vZmZzZXRfbnMYAyAB",
-            "KARSDXN0YXJ0T2Zmc2V0TnMSHwoLZHVyYXRpb25fbnMYBCABKARSCmR1cmF0",
-            "aW9uTnMqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tfVU5TUEVDSUZJ",
-            "RUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoSU1lTVEVNX0hP",
-            "T0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERBVEUQAxIUChBT",
-            "WVNURU1fSE9PS19JTklUEAQylgUKDERlYnVnU2VydmljZRJlCgpJbnRyb3Nw",
-            "ZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVl",
-            "c3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9u",
-            "c2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJl",
-            "cXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlc3BvbnNl",
-            "ElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJl",
-            "cXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXNwb25z",
-            "ZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlcXVl",
-            "c3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVzcG9uc2USVgoF",
-            "UmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlcXVlc3Qa",
-            "Ji53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3BvbnNlEl8KCEdl",
-            "dFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXF1",
-            "ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXNwb25z",
-            "ZRJeCgpTdHJlYW1QZXJmEioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3Ry",
-            "ZWFtUGVyZlJlcXVlc3QaIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QZXJm",
-            "QmF0Y2gwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5l",
-            "L3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5h",
-            "bHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw=="));
+            "bmdpbmUuY2FyZGluYWwudjEaHGdvb2dsZS9wcm90b2J1Zi9zdHJ1Y3QucHJv",
+            "dG8aH2dvb2dsZS9wcm90b2J1Zi90aW1lc3RhbXAucHJvdG8aJndvcmxkZW5n",
+            "aW5lL2NhcmRpbmFsL3YxL3NuYXBzaG90LnByb3RvIhMKEUludHJvc3BlY3RS",
+            "ZXF1ZXN0IvICChJJbnRyb3NwZWN0UmVzcG9uc2USPwoIY29tbWFuZHMYASAD",
+            "KAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBlU2NoZW1hUghjb21t",
+            "YW5kcxJDCgpjb21wb25lbnRzGAIgAygLMiMud29ybGRlbmdpbmUuY2FyZGlu",
+            "YWwudjEuVHlwZVNjaGVtYVIKY29tcG9uZW50cxI7CgZldmVudHMYAyADKAsy",
+            "Iy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBlU2NoZW1hUgZldmVudHMS",
+            "IAoMdGlja19yYXRlX2h6GAQgASgBUgp0aWNrUmF0ZUh6EkUKCXNjaGVkdWxl",
+            "cxgFIAMoCzInLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNjaGVk",
+            "dWxlUglzY2hlZHVsZXMSMAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAxS",
+            "EnByb3RvRGVzY3JpcHRvclNldCKIAQoOU3lzdGVtU2NoZWR1bGUSNwoEaG9v",
+            "axgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2tS",
+            "BGhvb2sSPQoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFs",
+            "LnYxLlN5c3RlbU5vZGVSB3N5c3RlbXMiMAoKU3lzdGVtTm9kZRIOCgJpZBgB",
+            "IAEoDVICaWQSEgoEbmFtZRgCIAEoCVIEbmFtZSJ/CgpUeXBlU2NoZW1hEhIK",
+            "BG5hbWUYASABKAlSBG5hbWUSLwoGc2NoZW1hGAIgASgLMhcuZ29vZ2xlLnBy",
+            "b3RvYnVmLlN0cnVjdFIGc2NoZW1hEiwKEnByb3RvX21lc3NhZ2VfbmFtZRgD",
+            "IAEoCVIQcHJvdG9NZXNzYWdlTmFtZSIOCgxQYXVzZVJlcXVlc3QiMAoNUGF1",
+            "c2VSZXNwb25zZRIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlja0hlaWdodCIP",
+            "Cg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1",
+            "ZXN0Ii8KDFN0ZXBSZXNwb25zZRIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlj",
+            "a0hlaWdodCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9H",
+            "ZXRTdGF0ZVJlcXVlc3QibgoQR2V0U3RhdGVSZXNwb25zZRIbCglpc19wYXVz",
+            "ZWQYASABKAhSCGlzUGF1c2VkEj0KCHNuYXBzaG90GAIgASgLMiEud29ybGRl",
+            "bmdpbmUuY2FyZGluYWwudjEuU25hcHNob3RSCHNuYXBzaG90IhsKGVdhdGNo",
+            "U3lzdGVtc1RpbWluZ1JlcXVlc3QiWgoaV2F0Y2hTeXN0ZW1zVGltaW5nUmVz",
+            "cG9uc2USPAoFdGlja3MYASADKAsyJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52",
+            "MS5TeXN0ZW1zVGltaW5nUgV0aWNrcyIXChVQcm9maWxlU3lzdGVtc1JlcXVl",
+            "c3QiVwoWUHJvZmlsZVN5c3RlbXNSZXNwb25zZRI9CgV0aWNrcxgBIAMoCzIn",
+            "LndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbXNQcm9maWxlUgV0aWNr",
+            "cyKMAQoNU3lzdGVtc1RpbWluZxIfCgt0aWNrX2hlaWdodBgBIAEoBFIKdGlj",
+            "a0hlaWdodBI5Cgp0aWNrX3N0YXJ0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVm",
+            "LlRpbWVzdGFtcFIJdGlja1N0YXJ0Eh8KC2R1cmF0aW9uX25zGAMgASgEUgpk",
+            "dXJhdGlvbk5zIosBCg5TeXN0ZW1zUHJvZmlsZRI+CgZ0aW1pbmcYASABKAsy",
+            "Ji53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1zVGltaW5nUgZ0aW1p",
+            "bmcSOQoFc3BhbnMYAiADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5T",
+            "eXN0ZW1TcGFuUgVzcGFucyKzAQoKU3lzdGVtU3BhbhJECgtzeXN0ZW1faG9v",
+            "axgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2tS",
+            "CnN5c3RlbUhvb2sSFgoGc3lzdGVtGAIgASgJUgZzeXN0ZW0SJgoPc3RhcnRf",
+            "b2Zmc2V0X25zGAMgASgEUg1zdGFydE9mZnNldE5zEh8KC2R1cmF0aW9uX25z",
+            "GAQgASgEUgpkdXJhdGlvbk5zKpABCgpTeXN0ZW1Ib29rEhsKF1NZU1RFTV9I",
+            "T09LX1VOU1BFQ0lGSUVEEAASGgoWU1lTVEVNX0hPT0tfUFJFX1VQREFURRAB",
+            "EhYKElNZU1RFTV9IT09LX1VQREFURRACEhsKF1NZU1RFTV9IT09LX1BPU1Rf",
+            "VVBEQVRFEAMSFAoQU1lTVEVNX0hPT0tfSU5JVBAEMqwGCgxEZWJ1Z1NlcnZp",
+            "Y2USZQoKSW50cm9zcGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLklu",
+            "dHJvc3BlY3RSZXF1ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50",
+            "cm9zcGVjdFJlc3BvbnNlElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGlu",
+            "YWwudjEuUGF1c2VSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEu",
+            "UGF1c2VSZXNwb25zZRJZCgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5h",
+            "bC52MS5SZXN1bWVSZXF1ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEu",
+            "UmVzdW1lUmVzcG9uc2USUwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFs",
+            "LnYxLlN0ZXBSZXF1ZXN0GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3Rl",
+            "cFJlc3BvbnNlElYKBVJlc2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEu",
+            "UmVzZXRSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRS",
+            "ZXNwb25zZRJfCghHZXRTdGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYx",
+            "LkdldFN0YXRlUmVxdWVzdBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdl",
+            "dFN0YXRlUmVzcG9uc2USfwoSV2F0Y2hTeXN0ZW1zVGltaW5nEjIud29ybGRl",
+            "bmdpbmUuY2FyZGluYWwudjEuV2F0Y2hTeXN0ZW1zVGltaW5nUmVxdWVzdBoz",
+            "LndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLldhdGNoU3lzdGVtc1RpbWluZ1Jl",
+            "c3BvbnNlMAEScwoOUHJvZmlsZVN5c3RlbXMSLi53b3JsZGVuZ2luZS5jYXJk",
+            "aW5hbC52MS5Qcm9maWxlU3lzdGVtc1JlcXVlc3QaLy53b3JsZGVuZ2luZS5j",
+            "YXJkaW5hbC52MS5Qcm9maWxlU3lzdGVtc1Jlc3BvbnNlMAFCdFpSZ2l0aHVi",
+            "LmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29y",
+            "bGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5l",
+            "LlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::WorldEngine.Proto.Cardinal.V1.SystemHook), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest), global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse), global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse.Parser, new[]{ "Commands", "Components", "Events", "TickRateHz", "Schedules", "ProtoDescriptorSet" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemSchedule), global::WorldEngine.Proto.Cardinal.V1.SystemSchedule.Parser, new[]{ "Hook", "Systems" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemNode), global::WorldEngine.Proto.Cardinal.V1.SystemNode.Parser, new[]{ "Id", "Name" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "ProtoMessageName" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "Schema", "ProtoMessageName" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PauseRequest), global::WorldEngine.Proto.Cardinal.V1.PauseRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PauseResponse), global::WorldEngine.Proto.Cardinal.V1.PauseResponse.Parser, new[]{ "TickHeight" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ResumeRequest), global::WorldEngine.Proto.Cardinal.V1.ResumeRequest.Parser, null, null, null, null, null),
@@ -98,9 +109,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ResetResponse), global::WorldEngine.Proto.Cardinal.V1.ResetResponse.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.GetStateRequest), global::WorldEngine.Proto.Cardinal.V1.GetStateRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.GetStateResponse), global::WorldEngine.Proto.Cardinal.V1.GetStateResponse.Parser, new[]{ "IsPaused", "Snapshot" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest), global::WorldEngine.Proto.Cardinal.V1.StreamPerfRequest.Parser, null, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PerfBatch), global::WorldEngine.Proto.Cardinal.V1.PerfBatch.Parser, new[]{ "Ticks" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TickTimeline), global::WorldEngine.Proto.Cardinal.V1.TickTimeline.Parser, new[]{ "TickHeight", "TickStart", "Spans" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WatchSystemsTimingRequest), global::WorldEngine.Proto.Cardinal.V1.WatchSystemsTimingRequest.Parser, null, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WatchSystemsTimingResponse), global::WorldEngine.Proto.Cardinal.V1.WatchSystemsTimingResponse.Parser, new[]{ "Ticks" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ProfileSystemsRequest), global::WorldEngine.Proto.Cardinal.V1.ProfileSystemsRequest.Parser, null, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ProfileSystemsResponse), global::WorldEngine.Proto.Cardinal.V1.ProfileSystemsResponse.Parser, new[]{ "Ticks" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemsTiming), global::WorldEngine.Proto.Cardinal.V1.SystemsTiming.Parser, new[]{ "TickHeight", "TickStart", "DurationNs" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemsProfile), global::WorldEngine.Proto.Cardinal.V1.SystemsProfile.Parser, new[]{ "Timing", "Spans" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemSpan), global::WorldEngine.Proto.Cardinal.V1.SystemSpan.Parser, new[]{ "SystemHook", "System", "StartOffsetNs", "DurationNs" }, null, null, null, null)
           }));
     }
@@ -345,7 +359,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(10, global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema> commands_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema>();
     /// <summary>
-    /// Metadata for registered commands.
+    /// JSON schemas for registered commands.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -359,7 +373,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(18, global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema> components_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema>();
     /// <summary>
-    /// Metadata for registered components.
+    /// JSON schemas for registered components.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -373,7 +387,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema> events_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema>();
     /// <summary>
-    /// Metadata for registered events.
+    /// JSON schemas for registered events.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -416,7 +430,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     /// <summary>
     /// Protobuf type definitions for the commands, components, and events in this response,
     /// including any types they depend on. Clients use them to encode and decode protobuf data.
-    /// Empty when the world has no registered types.
+    /// Empty when none are available.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1120,7 +1134,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// TypeSchema describes a registered type.
+  /// TypeSchema represents the JSON schema for a registered type.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class TypeSchema : pb::IMessage<TypeSchema>
@@ -1158,6 +1172,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public TypeSchema(TypeSchema other) : this() {
       name_ = other.name_;
+      schema_ = other.schema_ != null ? other.schema_.Clone() : null;
       protoMessageName_ = other.protoMessageName_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -1183,12 +1198,28 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
+    /// <summary>Field number for the "schema" field.</summary>
+    public const int SchemaFieldNumber = 2;
+    private global::Google.Protobuf.WellKnownTypes.Struct schema_;
+    /// <summary>
+    /// Form schema derived from the protobuf message descriptor.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Google.Protobuf.WellKnownTypes.Struct Schema {
+      get { return schema_; }
+      set {
+        schema_ = value;
+      }
+    }
+
     /// <summary>Field number for the "proto_message_name" field.</summary>
-    public const int ProtoMessageNameFieldNumber = 2;
+    public const int ProtoMessageNameFieldNumber = 3;
     private string protoMessageName_ = "";
     /// <summary>
     /// Name of this command, component, or event in proto_descriptor_set.
     /// Clients use it to find the correct protobuf type definition.
+    /// Empty when no definition is available.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1215,6 +1246,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         return true;
       }
       if (Name != other.Name) return false;
+      if (!object.Equals(Schema, other.Schema)) return false;
       if (ProtoMessageName != other.ProtoMessageName) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -1224,6 +1256,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (Name.Length != 0) hash ^= Name.GetHashCode();
+      if (schema_ != null) hash ^= Schema.GetHashCode();
       if (ProtoMessageName.Length != 0) hash ^= ProtoMessageName.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -1247,8 +1280,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(10);
         output.WriteString(Name);
       }
-      if (ProtoMessageName.Length != 0) {
+      if (schema_ != null) {
         output.WriteRawTag(18);
+        output.WriteMessage(Schema);
+      }
+      if (ProtoMessageName.Length != 0) {
+        output.WriteRawTag(26);
         output.WriteString(ProtoMessageName);
       }
       if (_unknownFields != null) {
@@ -1265,8 +1302,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(10);
         output.WriteString(Name);
       }
-      if (ProtoMessageName.Length != 0) {
+      if (schema_ != null) {
         output.WriteRawTag(18);
+        output.WriteMessage(Schema);
+      }
+      if (ProtoMessageName.Length != 0) {
+        output.WriteRawTag(26);
         output.WriteString(ProtoMessageName);
       }
       if (_unknownFields != null) {
@@ -1281,6 +1322,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       int size = 0;
       if (Name.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
+      }
+      if (schema_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Schema);
       }
       if (ProtoMessageName.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(ProtoMessageName);
@@ -1299,6 +1343,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (other.Name.Length != 0) {
         Name = other.Name;
+      }
+      if (other.schema_ != null) {
+        if (schema_ == null) {
+          Schema = new global::Google.Protobuf.WellKnownTypes.Struct();
+        }
+        Schema.MergeFrom(other.Schema);
       }
       if (other.ProtoMessageName.Length != 0) {
         ProtoMessageName = other.ProtoMessageName;
@@ -1327,6 +1377,13 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             break;
           }
           case 18: {
+            if (schema_ == null) {
+              Schema = new global::Google.Protobuf.WellKnownTypes.Struct();
+            }
+            input.ReadMessage(Schema);
+            break;
+          }
+          case 26: {
             ProtoMessageName = input.ReadString();
             break;
           }
@@ -1354,6 +1411,13 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             break;
           }
           case 18: {
+            if (schema_ == null) {
+              Schema = new global::Google.Protobuf.WellKnownTypes.Struct();
+            }
+            input.ReadMessage(Schema);
+            break;
+          }
+          case 26: {
             ProtoMessageName = input.ReadString();
             break;
           }
@@ -3173,20 +3237,17 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
   }
 
-  /// <summary>
-  /// StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
-  /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class StreamPerfRequest : pb::IMessage<StreamPerfRequest>
+  public sealed partial class WatchSystemsTimingRequest : pb::IMessage<WatchSystemsTimingRequest>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<StreamPerfRequest> _parser = new pb::MessageParser<StreamPerfRequest>(() => new StreamPerfRequest());
+    private static readonly pb::MessageParser<WatchSystemsTimingRequest> _parser = new pb::MessageParser<WatchSystemsTimingRequest>(() => new WatchSystemsTimingRequest());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<StreamPerfRequest> Parser { get { return _parser; } }
+    public static pb::MessageParser<WatchSystemsTimingRequest> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3202,7 +3263,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public StreamPerfRequest() {
+    public WatchSystemsTimingRequest() {
       OnConstruction();
     }
 
@@ -3210,25 +3271,25 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public StreamPerfRequest(StreamPerfRequest other) : this() {
+    public WatchSystemsTimingRequest(WatchSystemsTimingRequest other) : this() {
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public StreamPerfRequest Clone() {
-      return new StreamPerfRequest(this);
+    public WatchSystemsTimingRequest Clone() {
+      return new WatchSystemsTimingRequest(this);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as StreamPerfRequest);
+      return Equals(other as WatchSystemsTimingRequest);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(StreamPerfRequest other) {
+    public bool Equals(WatchSystemsTimingRequest other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -3288,7 +3349,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(StreamPerfRequest other) {
+    public void MergeFrom(WatchSystemsTimingRequest other) {
       if (other == null) {
         return;
       }
@@ -3337,20 +3398,17 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
   }
 
-  /// <summary>
-  /// PerfBatch is a batch of completed tick timelines pushed to the client.
-  /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class PerfBatch : pb::IMessage<PerfBatch>
+  public sealed partial class WatchSystemsTimingResponse : pb::IMessage<WatchSystemsTimingResponse>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<PerfBatch> _parser = new pb::MessageParser<PerfBatch>(() => new PerfBatch());
+    private static readonly pb::MessageParser<WatchSystemsTimingResponse> _parser = new pb::MessageParser<WatchSystemsTimingResponse>(() => new WatchSystemsTimingResponse());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<PerfBatch> Parser { get { return _parser; } }
+    public static pb::MessageParser<WatchSystemsTimingResponse> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3366,7 +3424,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PerfBatch() {
+    public WatchSystemsTimingResponse() {
       OnConstruction();
     }
 
@@ -3374,37 +3432,37 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PerfBatch(PerfBatch other) : this() {
+    public WatchSystemsTimingResponse(WatchSystemsTimingResponse other) : this() {
       ticks_ = other.ticks_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PerfBatch Clone() {
-      return new PerfBatch(this);
+    public WatchSystemsTimingResponse Clone() {
+      return new WatchSystemsTimingResponse(this);
     }
 
     /// <summary>Field number for the "ticks" field.</summary>
     public const int TicksFieldNumber = 1;
-    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.TickTimeline> _repeated_ticks_codec
-        = pb::FieldCodec.ForMessage(10, global::WorldEngine.Proto.Cardinal.V1.TickTimeline.Parser);
-    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TickTimeline> ticks_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TickTimeline>();
+    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.SystemsTiming> _repeated_ticks_codec
+        = pb::FieldCodec.ForMessage(10, global::WorldEngine.Proto.Cardinal.V1.SystemsTiming.Parser);
+    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemsTiming> ticks_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemsTiming>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TickTimeline> Ticks {
+    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemsTiming> Ticks {
       get { return ticks_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as PerfBatch);
+      return Equals(other as WatchSystemsTimingResponse);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(PerfBatch other) {
+    public bool Equals(WatchSystemsTimingResponse other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -3469,7 +3527,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(PerfBatch other) {
+    public void MergeFrom(WatchSystemsTimingResponse other) {
       if (other == null) {
         return;
       }
@@ -3528,16 +3586,16 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class TickTimeline : pb::IMessage<TickTimeline>
+  public sealed partial class ProfileSystemsRequest : pb::IMessage<ProfileSystemsRequest>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<TickTimeline> _parser = new pb::MessageParser<TickTimeline>(() => new TickTimeline());
+    private static readonly pb::MessageParser<ProfileSystemsRequest> _parser = new pb::MessageParser<ProfileSystemsRequest>(() => new ProfileSystemsRequest());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<TickTimeline> Parser { get { return _parser; } }
+    public static pb::MessageParser<ProfileSystemsRequest> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3553,7 +3611,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public TickTimeline() {
+    public ProfileSystemsRequest() {
       OnConstruction();
     }
 
@@ -3561,17 +3619,365 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public TickTimeline(TickTimeline other) : this() {
-      tickHeight_ = other.tickHeight_;
-      tickStart_ = other.tickStart_ != null ? other.tickStart_.Clone() : null;
-      spans_ = other.spans_.Clone();
+    public ProfileSystemsRequest(ProfileSystemsRequest other) : this() {
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public TickTimeline Clone() {
-      return new TickTimeline(this);
+    public ProfileSystemsRequest Clone() {
+      return new ProfileSystemsRequest(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as ProfileSystemsRequest);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(ProfileSystemsRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(ProfileSystemsRequest other) {
+      if (other == null) {
+        return;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class ProfileSystemsResponse : pb::IMessage<ProfileSystemsResponse>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<ProfileSystemsResponse> _parser = new pb::MessageParser<ProfileSystemsResponse>(() => new ProfileSystemsResponse());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<ProfileSystemsResponse> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Cardinal.V1.DebugReflection.Descriptor.MessageTypes[18]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ProfileSystemsResponse() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ProfileSystemsResponse(ProfileSystemsResponse other) : this() {
+      ticks_ = other.ticks_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ProfileSystemsResponse Clone() {
+      return new ProfileSystemsResponse(this);
+    }
+
+    /// <summary>Field number for the "ticks" field.</summary>
+    public const int TicksFieldNumber = 1;
+    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.SystemsProfile> _repeated_ticks_codec
+        = pb::FieldCodec.ForMessage(10, global::WorldEngine.Proto.Cardinal.V1.SystemsProfile.Parser);
+    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemsProfile> ticks_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemsProfile>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemsProfile> Ticks {
+      get { return ticks_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as ProfileSystemsResponse);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(ProfileSystemsResponse other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if(!ticks_.Equals(other.ticks_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      hash ^= ticks_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      ticks_.WriteTo(output, _repeated_ticks_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      ticks_.WriteTo(ref output, _repeated_ticks_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      size += ticks_.CalculateSize(_repeated_ticks_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(ProfileSystemsResponse other) {
+      if (other == null) {
+        return;
+      }
+      ticks_.Add(other.ticks_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            ticks_.AddEntriesFrom(input, _repeated_ticks_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            ticks_.AddEntriesFrom(ref input, _repeated_ticks_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class SystemsTiming : pb::IMessage<SystemsTiming>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<SystemsTiming> _parser = new pb::MessageParser<SystemsTiming>(() => new SystemsTiming());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<SystemsTiming> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Cardinal.V1.DebugReflection.Descriptor.MessageTypes[19]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SystemsTiming() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SystemsTiming(SystemsTiming other) : this() {
+      tickHeight_ = other.tickHeight_;
+      tickStart_ = other.tickStart_ != null ? other.tickStart_.Clone() : null;
+      durationNs_ = other.durationNs_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SystemsTiming Clone() {
+      return new SystemsTiming(this);
     }
 
     /// <summary>Field number for the "tick_height" field.</summary>
@@ -3598,26 +4004,32 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
-    /// <summary>Field number for the "spans" field.</summary>
-    public const int SpansFieldNumber = 3;
-    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.SystemSpan> _repeated_spans_codec
-        = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Cardinal.V1.SystemSpan.Parser);
-    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemSpan> spans_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemSpan>();
+    /// <summary>Field number for the "duration_ns" field.</summary>
+    public const int DurationNsFieldNumber = 3;
+    private ulong durationNs_;
+    /// <summary>
+    /// Wall-clock time spent executing the ECS system phase (w.world.Tick).
+    /// This excludes command draining, event dispatch, snapshots, and debug
+    /// state serialization outside that phase.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemSpan> Spans {
-      get { return spans_; }
+    public ulong DurationNs {
+      get { return durationNs_; }
+      set {
+        durationNs_ = value;
+      }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as TickTimeline);
+      return Equals(other as SystemsTiming);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(TickTimeline other) {
+    public bool Equals(SystemsTiming other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -3626,7 +4038,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (TickHeight != other.TickHeight) return false;
       if (!object.Equals(TickStart, other.TickStart)) return false;
-      if(!spans_.Equals(other.spans_)) return false;
+      if (DurationNs != other.DurationNs) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3636,7 +4048,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       int hash = 1;
       if (TickHeight != 0UL) hash ^= TickHeight.GetHashCode();
       if (tickStart_ != null) hash ^= TickStart.GetHashCode();
-      hash ^= spans_.GetHashCode();
+      if (DurationNs != 0UL) hash ^= DurationNs.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3663,7 +4075,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(TickStart);
       }
-      spans_.WriteTo(output, _repeated_spans_codec);
+      if (DurationNs != 0UL) {
+        output.WriteRawTag(24);
+        output.WriteUInt64(DurationNs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3682,7 +4097,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(TickStart);
       }
-      spans_.WriteTo(ref output, _repeated_spans_codec);
+      if (DurationNs != 0UL) {
+        output.WriteRawTag(24);
+        output.WriteUInt64(DurationNs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3699,7 +4117,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (tickStart_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(TickStart);
       }
-      size += spans_.CalculateSize(_repeated_spans_codec);
+      if (DurationNs != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(DurationNs);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -3708,7 +4128,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(TickTimeline other) {
+    public void MergeFrom(SystemsTiming other) {
       if (other == null) {
         return;
       }
@@ -3721,7 +4141,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         }
         TickStart.MergeFrom(other.TickStart);
       }
-      spans_.Add(other.spans_);
+      if (other.DurationNs != 0UL) {
+        DurationNs = other.DurationNs;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -3752,8 +4174,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             input.ReadMessage(TickStart);
             break;
           }
-          case 26: {
-            spans_.AddEntriesFrom(input, _repeated_spans_codec);
+          case 24: {
+            DurationNs = input.ReadUInt64();
             break;
           }
         }
@@ -3786,7 +4208,240 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             input.ReadMessage(TickStart);
             break;
           }
-          case 26: {
+          case 24: {
+            DurationNs = input.ReadUInt64();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class SystemsProfile : pb::IMessage<SystemsProfile>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<SystemsProfile> _parser = new pb::MessageParser<SystemsProfile>(() => new SystemsProfile());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<SystemsProfile> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Cardinal.V1.DebugReflection.Descriptor.MessageTypes[20]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SystemsProfile() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SystemsProfile(SystemsProfile other) : this() {
+      timing_ = other.timing_ != null ? other.timing_.Clone() : null;
+      spans_ = other.spans_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public SystemsProfile Clone() {
+      return new SystemsProfile(this);
+    }
+
+    /// <summary>Field number for the "timing" field.</summary>
+    public const int TimingFieldNumber = 1;
+    private global::WorldEngine.Proto.Cardinal.V1.SystemsTiming timing_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Cardinal.V1.SystemsTiming Timing {
+      get { return timing_; }
+      set {
+        timing_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "spans" field.</summary>
+    public const int SpansFieldNumber = 2;
+    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.SystemSpan> _repeated_spans_codec
+        = pb::FieldCodec.ForMessage(18, global::WorldEngine.Proto.Cardinal.V1.SystemSpan.Parser);
+    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemSpan> spans_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemSpan>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.SystemSpan> Spans {
+      get { return spans_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as SystemsProfile);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(SystemsProfile other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Timing, other.Timing)) return false;
+      if(!spans_.Equals(other.spans_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (timing_ != null) hash ^= Timing.GetHashCode();
+      hash ^= spans_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (timing_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Timing);
+      }
+      spans_.WriteTo(output, _repeated_spans_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (timing_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Timing);
+      }
+      spans_.WriteTo(ref output, _repeated_spans_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (timing_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Timing);
+      }
+      size += spans_.CalculateSize(_repeated_spans_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(SystemsProfile other) {
+      if (other == null) {
+        return;
+      }
+      if (other.timing_ != null) {
+        if (timing_ == null) {
+          Timing = new global::WorldEngine.Proto.Cardinal.V1.SystemsTiming();
+        }
+        Timing.MergeFrom(other.Timing);
+      }
+      spans_.Add(other.spans_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (timing_ == null) {
+              Timing = new global::WorldEngine.Proto.Cardinal.V1.SystemsTiming();
+            }
+            input.ReadMessage(Timing);
+            break;
+          }
+          case 18: {
+            spans_.AddEntriesFrom(input, _repeated_spans_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (timing_ == null) {
+              Timing = new global::WorldEngine.Proto.Cardinal.V1.SystemsTiming();
+            }
+            input.ReadMessage(Timing);
+            break;
+          }
+          case 18: {
             spans_.AddEntriesFrom(ref input, _repeated_spans_codec);
             break;
           }
@@ -3812,7 +4467,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Cardinal.V1.DebugReflection.Descriptor.MessageTypes[18]; }
+      get { return global::WorldEngine.Proto.Cardinal.V1.DebugReflection.Descriptor.MessageTypes[21]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3873,7 +4528,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int StartOffsetNsFieldNumber = 3;
     private ulong startOffsetNs_;
     /// <summary>
-    /// Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+    /// Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

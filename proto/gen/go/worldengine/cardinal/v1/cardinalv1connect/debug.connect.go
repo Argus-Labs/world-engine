@@ -45,8 +45,12 @@ const (
 	DebugServiceResetProcedure = "/worldengine.cardinal.v1.DebugService/Reset"
 	// DebugServiceGetStateProcedure is the fully-qualified name of the DebugService's GetState RPC.
 	DebugServiceGetStateProcedure = "/worldengine.cardinal.v1.DebugService/GetState"
-	// DebugServiceStreamPerfProcedure is the fully-qualified name of the DebugService's StreamPerf RPC.
-	DebugServiceStreamPerfProcedure = "/worldengine.cardinal.v1.DebugService/StreamPerf"
+	// DebugServiceWatchSystemsTimingProcedure is the fully-qualified name of the DebugService's
+	// WatchSystemsTiming RPC.
+	DebugServiceWatchSystemsTimingProcedure = "/worldengine.cardinal.v1.DebugService/WatchSystemsTiming"
+	// DebugServiceProfileSystemsProcedure is the fully-qualified name of the DebugService's
+	// ProfileSystems RPC.
+	DebugServiceProfileSystemsProcedure = "/worldengine.cardinal.v1.DebugService/ProfileSystems"
 )
 
 // DebugServiceClient is a client for the worldengine.cardinal.v1.DebugService service.
@@ -64,10 +68,12 @@ type DebugServiceClient interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
-	// StreamPerf streams batches of per-tick timing data to clients.
-	// The server pushes a PerfBatch every N ticks; clients accumulate the full
-	// history and compute their own aggregations (avg, P95, etc.).
-	StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest]) (*connect.ServerStreamForClient[v1.PerfBatch], error)
+	// WatchSystemsTiming passively observes the time spent executing Cardinal
+	// systems each tick. This aggregate is always measured while debug is enabled.
+	WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest]) (*connect.ServerStreamForClient[v1.WatchSystemsTimingResponse], error)
+	// ProfileSystems captures per-system spans while the stream is open.
+	// Cancelling the stream stops detailed span capture.
+	ProfileSystems(context.Context, *connect.Request[v1.ProfileSystemsRequest]) (*connect.ServerStreamForClient[v1.ProfileSystemsResponse], error)
 }
 
 // NewDebugServiceClient constructs a client for the worldengine.cardinal.v1.DebugService service.
@@ -117,10 +123,16 @@ func NewDebugServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(debugServiceMethods.ByName("GetState")),
 			connect.WithClientOptions(opts...),
 		),
-		streamPerf: connect.NewClient[v1.StreamPerfRequest, v1.PerfBatch](
+		watchSystemsTiming: connect.NewClient[v1.WatchSystemsTimingRequest, v1.WatchSystemsTimingResponse](
 			httpClient,
-			baseURL+DebugServiceStreamPerfProcedure,
-			connect.WithSchema(debugServiceMethods.ByName("StreamPerf")),
+			baseURL+DebugServiceWatchSystemsTimingProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("WatchSystemsTiming")),
+			connect.WithClientOptions(opts...),
+		),
+		profileSystems: connect.NewClient[v1.ProfileSystemsRequest, v1.ProfileSystemsResponse](
+			httpClient,
+			baseURL+DebugServiceProfileSystemsProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("ProfileSystems")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -128,13 +140,14 @@ func NewDebugServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // debugServiceClient implements DebugServiceClient.
 type debugServiceClient struct {
-	introspect *connect.Client[v1.IntrospectRequest, v1.IntrospectResponse]
-	pause      *connect.Client[v1.PauseRequest, v1.PauseResponse]
-	resume     *connect.Client[v1.ResumeRequest, v1.ResumeResponse]
-	step       *connect.Client[v1.StepRequest, v1.StepResponse]
-	reset      *connect.Client[v1.ResetRequest, v1.ResetResponse]
-	getState   *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
-	streamPerf *connect.Client[v1.StreamPerfRequest, v1.PerfBatch]
+	introspect         *connect.Client[v1.IntrospectRequest, v1.IntrospectResponse]
+	pause              *connect.Client[v1.PauseRequest, v1.PauseResponse]
+	resume             *connect.Client[v1.ResumeRequest, v1.ResumeResponse]
+	step               *connect.Client[v1.StepRequest, v1.StepResponse]
+	reset              *connect.Client[v1.ResetRequest, v1.ResetResponse]
+	getState           *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
+	watchSystemsTiming *connect.Client[v1.WatchSystemsTimingRequest, v1.WatchSystemsTimingResponse]
+	profileSystems     *connect.Client[v1.ProfileSystemsRequest, v1.ProfileSystemsResponse]
 }
 
 // Introspect calls worldengine.cardinal.v1.DebugService.Introspect.
@@ -167,9 +180,14 @@ func (c *debugServiceClient) GetState(ctx context.Context, req *connect.Request[
 	return c.getState.CallUnary(ctx, req)
 }
 
-// StreamPerf calls worldengine.cardinal.v1.DebugService.StreamPerf.
-func (c *debugServiceClient) StreamPerf(ctx context.Context, req *connect.Request[v1.StreamPerfRequest]) (*connect.ServerStreamForClient[v1.PerfBatch], error) {
-	return c.streamPerf.CallServerStream(ctx, req)
+// WatchSystemsTiming calls worldengine.cardinal.v1.DebugService.WatchSystemsTiming.
+func (c *debugServiceClient) WatchSystemsTiming(ctx context.Context, req *connect.Request[v1.WatchSystemsTimingRequest]) (*connect.ServerStreamForClient[v1.WatchSystemsTimingResponse], error) {
+	return c.watchSystemsTiming.CallServerStream(ctx, req)
+}
+
+// ProfileSystems calls worldengine.cardinal.v1.DebugService.ProfileSystems.
+func (c *debugServiceClient) ProfileSystems(ctx context.Context, req *connect.Request[v1.ProfileSystemsRequest]) (*connect.ServerStreamForClient[v1.ProfileSystemsResponse], error) {
+	return c.profileSystems.CallServerStream(ctx, req)
 }
 
 // DebugServiceHandler is an implementation of the worldengine.cardinal.v1.DebugService service.
@@ -187,10 +205,12 @@ type DebugServiceHandler interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
-	// StreamPerf streams batches of per-tick timing data to clients.
-	// The server pushes a PerfBatch every N ticks; clients accumulate the full
-	// history and compute their own aggregations (avg, P95, etc.).
-	StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest], *connect.ServerStream[v1.PerfBatch]) error
+	// WatchSystemsTiming passively observes the time spent executing Cardinal
+	// systems each tick. This aggregate is always measured while debug is enabled.
+	WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest], *connect.ServerStream[v1.WatchSystemsTimingResponse]) error
+	// ProfileSystems captures per-system spans while the stream is open.
+	// Cancelling the stream stops detailed span capture.
+	ProfileSystems(context.Context, *connect.Request[v1.ProfileSystemsRequest], *connect.ServerStream[v1.ProfileSystemsResponse]) error
 }
 
 // NewDebugServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -236,10 +256,16 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(debugServiceMethods.ByName("GetState")),
 		connect.WithHandlerOptions(opts...),
 	)
-	debugServiceStreamPerfHandler := connect.NewServerStreamHandler(
-		DebugServiceStreamPerfProcedure,
-		svc.StreamPerf,
-		connect.WithSchema(debugServiceMethods.ByName("StreamPerf")),
+	debugServiceWatchSystemsTimingHandler := connect.NewServerStreamHandler(
+		DebugServiceWatchSystemsTimingProcedure,
+		svc.WatchSystemsTiming,
+		connect.WithSchema(debugServiceMethods.ByName("WatchSystemsTiming")),
+		connect.WithHandlerOptions(opts...),
+	)
+	debugServiceProfileSystemsHandler := connect.NewServerStreamHandler(
+		DebugServiceProfileSystemsProcedure,
+		svc.ProfileSystems,
+		connect.WithSchema(debugServiceMethods.ByName("ProfileSystems")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/worldengine.cardinal.v1.DebugService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -256,8 +282,10 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 			debugServiceResetHandler.ServeHTTP(w, r)
 		case DebugServiceGetStateProcedure:
 			debugServiceGetStateHandler.ServeHTTP(w, r)
-		case DebugServiceStreamPerfProcedure:
-			debugServiceStreamPerfHandler.ServeHTTP(w, r)
+		case DebugServiceWatchSystemsTimingProcedure:
+			debugServiceWatchSystemsTimingHandler.ServeHTTP(w, r)
+		case DebugServiceProfileSystemsProcedure:
+			debugServiceProfileSystemsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -291,6 +319,10 @@ func (UnimplementedDebugServiceHandler) GetState(context.Context, *connect.Reque
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.GetState is not implemented"))
 }
 
-func (UnimplementedDebugServiceHandler) StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest], *connect.ServerStream[v1.PerfBatch]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.StreamPerf is not implemented"))
+func (UnimplementedDebugServiceHandler) WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest], *connect.ServerStream[v1.WatchSystemsTimingResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.WatchSystemsTiming is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) ProfileSystems(context.Context, *connect.Request[v1.ProfileSystemsRequest], *connect.ServerStream[v1.ProfileSystemsResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.ProfileSystems is not implemented"))
 }

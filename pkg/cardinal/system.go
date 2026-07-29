@@ -88,12 +88,16 @@ func registerSystem(world *World, name string, hook SystemHook, run func()) {
 	// If debug is enabled, wrap the system with performance instrumentation.
 	if world.debug != nil {
 		fn = func() {
+			if !world.currentTick.captureSystemSpans {
+				system(state)
+				return
+			}
+
 			ts := world.currentTick.timestamp
 			startTime := ts.Add(time.Since(ts))
 			run()
 			endTime := ts.Add(time.Since(ts))
 			world.debug.recordSpan(performance.TickSpan{
-				TickHeight: world.currentTick.height,
 				SystemName: name,
 				SystemHook: uint8(hook),
 				StartTime:  startTime,
