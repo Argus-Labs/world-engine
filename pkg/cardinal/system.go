@@ -52,7 +52,7 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 
 // RegisterSystemV2 registers a caller-owned system instance. The instance must
 // be a non-nil pointer to a struct that embeds BaseSystemState.
-func RegisterSystemV2(world *World, s System, opts ...SystemOption) {
+func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
 		opt(&cfg)
