@@ -19,10 +19,11 @@ import (
 
 type EntityID = ecs.EntityID
 
-// System is a stateful Cardinal system. Cardinal calls Run on the registered
-// instance at its configured hook.
+// System is a stateful Cardinal system. Implement it with a Run method on a
+// pointer to a struct that embeds BaseSystemState.
 type System interface {
 	Run()
+	cardinalSystem()
 }
 
 func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) {
@@ -137,6 +138,10 @@ func initSystemFieldValues(state reflect.Value, world *World, allowPrivateState 
 			continue
 		}
 
+		if allowPrivateState && field.Type().Implements(reflect.TypeFor[systemField]()) {
+			return eris.Errorf("field %s must be declared as a value", fieldType.Name)
+		}
+
 		// If the field is not exported, return an error.
 		if !field.CanAddr() {
 			return eris.Errorf("field %s must be exported", fieldType.Name)
@@ -229,6 +234,8 @@ func WithHook(hook SystemHook) SystemOption {
 type BaseSystemState struct {
 	world *World
 }
+
+func (*BaseSystemState) cardinalSystem() {}
 
 func (b *BaseSystemState) init(meta *systemInitMetadata) error {
 	b.world = meta.world

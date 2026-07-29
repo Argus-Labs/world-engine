@@ -48,15 +48,21 @@ func (system *privatePointerDependencySystem) Run() {
 	_ = system.events
 }
 
+type exportedPointerDependencySystem struct {
+	BaseSystemState
+
+	Events *WithEvent[testutils.SimpleEvent]
+}
+
+func (system *exportedPointerDependencySystem) Run() {
+	_ = system.Events
+}
+
 type valueSystem struct {
 	BaseSystemState
 }
 
 func (valueSystem) Run() {}
-
-type missingBaseSystem struct{}
-
-func (*missingBaseSystem) Run() {}
 
 type indirectBaseState struct {
 	BaseSystemState
@@ -93,7 +99,12 @@ func TestRegisterSystemV2_HonorsHook(t *testing.T) {
 	system := &privateStateSystem{dependency: &dependency}
 
 	RegisterSystemV2(world, system, WithHook(Init))
+	assert.Equal(t, 40, dependency)
+
 	world.world.Init()
+	assert.Equal(t, 41, dependency)
+
+	world.world.Tick()
 	world.world.Tick()
 
 	assert.Equal(t, 41, dependency)
@@ -130,6 +141,19 @@ func TestRegisterSystemV2_RejectsPrivateCardinalDependency(t *testing.T) {
 	})
 }
 
+func TestRegisterSystemV2_RejectsPointerCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	world := &World{world: ecs.NewWorld()}
+	require.PanicsWithError(
+		t,
+		"error initializing system fields: field Events must be declared as a value",
+		func() {
+			RegisterSystemV2(world, &exportedPointerDependencySystem{})
+		},
+	)
+}
+
 func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
 	t.Parallel()
 
@@ -146,16 +170,6 @@ func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
 		)
 	})
 
-	t.Run("value", func(t *testing.T) {
-		t.Parallel()
-
-		require.PanicsWithError(
-			t,
-			"system cardinal.valueSystem must be a non-nil pointer to a struct",
-			func() { RegisterSystemV2(world, valueSystem{}) },
-		)
-	})
-
 	t.Run("value receiver", func(t *testing.T) {
 		t.Parallel()
 
@@ -163,16 +177,6 @@ func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
 			t,
 			"system *cardinal.valueSystem Run method must use a pointer receiver",
 			func() { RegisterSystemV2(world, &valueSystem{}) },
-		)
-	})
-
-	t.Run("missing base state", func(t *testing.T) {
-		t.Parallel()
-
-		require.PanicsWithError(
-			t,
-			"system *cardinal.missingBaseSystem must embed cardinal.BaseSystemState",
-			func() { RegisterSystemV2(world, &missingBaseSystem{}) },
 		)
 	})
 
