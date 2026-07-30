@@ -51,7 +51,6 @@ func TestQuery_RaycastClosestHit(t *testing.T) {
 		farID = id2
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	ray := physics.Raycast(physics.RaycastRequest{
@@ -91,7 +90,6 @@ func TestQuery_RaycastMiss(t *testing.T) {
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	ray := physics.Raycast(physics.RaycastRequest{
@@ -127,7 +125,6 @@ func TestQuery_RaycastZeroLength(t *testing.T) {
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	ray := physics.Raycast(physics.RaycastRequest{
@@ -163,7 +160,6 @@ func TestQuery_RaycastHitPointAndNormal(t *testing.T) {
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	ray := physics.Raycast(physics.RaycastRequest{
@@ -199,7 +195,6 @@ func TestQuery_RaycastAfterResetRuntime(t *testing.T) {
 		row.PB.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(1, 1)...))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Confirm hit before reset.
@@ -254,7 +249,6 @@ func TestQuery_AABBSwappedMinMax(t *testing.T) {
 		boxID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Swapped: Min > Max on both axes.
@@ -292,7 +286,6 @@ func TestQuery_AABBZeroArea(t *testing.T) {
 		row.PB.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(5, 5)...))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Point AABB (zero area).
@@ -343,7 +336,6 @@ func TestQuery_CircleSweepClosestHit(t *testing.T) {
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	sweep := physics.CircleSweep(physics.CircleSweepRequest{
@@ -376,7 +368,6 @@ func TestQuery_CircleSweepZeroRadius(t *testing.T) {
 		row.PB.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(2, 2)...))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	sweep := physics.CircleSweep(physics.CircleSweepRequest{
@@ -408,7 +399,6 @@ func TestQuery_CircleSweepZeroLength(t *testing.T) {
 		row.PB.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(5, 5)...))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	sweep := physics.CircleSweep(physics.CircleSweepRequest{
@@ -446,7 +436,6 @@ func TestQuery_CircleSweepMaxFraction(t *testing.T) {
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Full sweep should hit.
@@ -507,7 +496,6 @@ func TestQuery_RaycastShapeIndex(t *testing.T) {
 		bodyID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Ray toward center → shape 0.
@@ -567,7 +555,6 @@ func TestQuery_AABBMultipleEntities(t *testing.T) {
 		id3 = c
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
@@ -605,7 +592,6 @@ func TestQuery_WorldIDAPI(t *testing.T) {
 		row.PB.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(1, 1)...))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	require.NotEqual(t, uint32(0), physics.WorldID(), "world should exist after init")

@@ -92,7 +92,6 @@ func TestMaterial_Restitution(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 180)
 
 	require.Greater(t, bouncyMaxY, deadMaxY+0.5,
@@ -184,7 +183,6 @@ func TestMaterial_RestitutionChangeMidSim(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 180)
 
 	// With restitution=1.0, ball should bounce back up to near starting height.
@@ -252,7 +250,6 @@ func TestMaterial_GravityScaleChangeMidSim(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	require.InDelta(t, 20.0, posAtChange, 0.1, "body should not move with gravity_scale=0")
@@ -298,7 +295,6 @@ func TestMaterial_KinematicRotation(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	// 60 ticks at 60Hz = 1s at 3 rad/s → ~3 radians.

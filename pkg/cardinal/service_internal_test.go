@@ -34,7 +34,7 @@ func TestService_SendCommand(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
+		fixture := newServiceFixture(t, prng, "")
 
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
 		payloadBytes, err := payload.MarshalWire()
@@ -64,7 +64,7 @@ func TestService_SendCommand(t *testing.T) {
 	t.Run("wrong address rejected", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
+		fixture := newServiceFixture(t, prng, "")
 
 		payload := testutils.SimpleCommand{Value: 42}
 		payloadBytes, err := payload.MarshalWire()
@@ -99,7 +99,7 @@ func TestService_Query(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
+		fixture := newServiceFixture(t, prng, "")
 
 		resp, err := fixture.svc.Query(
 			context.Background(),
@@ -129,7 +129,7 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 	t.Run("reply waiter", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
+		fixture := newServiceFixture(t, prng, "")
 
 		payload := testutils.SimpleEvent{Value: prng.Int()}
 		waiter := fixture.svc.addReplyWaiter(payload.Name())
@@ -164,8 +164,11 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 		prng := testutils.NewRand(t)
 
 		// Stand up two services on the same NATS.
-		fixtureA := newServiceFixture(t, prng, true)
-		fixtureB := newServiceFixture(t, prng, true)
+		natsServer, cleanup := newE2ENATS(t)
+		t.Cleanup(cleanup)
+		natsURL := natsServer.ClientURL()
+		fixtureA := newServiceFixture(t, prng, natsURL)
+		fixtureB := newServiceFixture(t, prng, natsURL)
 
 		// Have service A send an inter-shard command targeting service B.
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
@@ -202,7 +205,7 @@ type serviceFixture struct {
 	commandID command.ID
 }
 
-func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool) *serviceFixture {
+func newServiceFixture(t *testing.T, prng *rand.Rand, natsURL string) *serviceFixture {
 	t.Helper()
 
 	address := RandServiceAddress(prng)
@@ -233,8 +236,8 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		commandID: cmdID,
 	}
 
-	if registerNATSEndpoints {
-		client := NewTestClient(t)
+	if natsURL != "" {
+		client := NewTestClient(t, natsURL)
 		svc.client = client
 		fixture.client = client
 

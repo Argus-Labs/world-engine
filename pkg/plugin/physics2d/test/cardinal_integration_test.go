@@ -24,7 +24,7 @@ type harnessTag struct {
 func (harnessTag) Name() string { return "physics2d_e2e_harness_tag" }
 
 func (c harnessTag) MarshalWire() ([]byte, error) { return json.Marshal(c) }
-func (harnessTag) UnmarshalWire(b []byte) (harnessTag, error) {
+func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	var v harnessTag
 	err := json.Unmarshal(b, &v)
 	return v, err
@@ -774,8 +774,6 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 	cardinal.RegisterSystem(world, manualMoveSystem, cardinal.WithHook(cardinal.PreUpdate))
 	// Assertions run after physics step (same-tick contact receivers).
 	cardinal.RegisterSystem(world, verifySystem, cardinal.WithHook(cardinal.PostUpdate))
-
-	initCardinalECS(world)
 
 	ctx := context.Background()
 	const lastTick = tickCrash2Verify + 5

@@ -2,10 +2,8 @@ package physics2d_test
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
@@ -93,21 +91,4 @@ func approxVec2(t *testing.T, got, want physics.Vec2, msg string) {
 
 func pairHas(a, b, x, y cardinal.EntityID) bool {
 	return (a == x && b == y) || (a == y && b == x)
-}
-
-// initCardinalECS runs the same step as the shard loop before the first Tick: build ECS schedules
-// and run Init-hook systems. [ecs.World.Tick] asserts initialized; physics2d_test cannot import
-// cardinal/internal/ecs, so we call Init via reflection on Cardinal's embedded *ecs.World.
-func initCardinalECS(w *cardinal.World) {
-	v := reflect.ValueOf(w).Elem()
-	f := v.FieldByName("world")
-	if !f.IsValid() {
-		panic("cardinal.World: missing embedded ecs world field")
-	}
-	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
-	m := inner.MethodByName("Init")
-	if !m.IsValid() {
-		panic("ecs.World: missing Init method")
-	}
-	m.Call(nil)
 }

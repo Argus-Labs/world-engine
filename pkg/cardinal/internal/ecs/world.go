@@ -120,7 +120,7 @@ func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 
 // CheckWorld checks structural ECS invariants that must always hold regardless of game logic.
 // It fails the test with a descriptive message on the first violation found.
-func CheckWorld(t *testing.T, w *World) {
+func CheckWorld(t testing.TB, w *World) {
 	t.Helper()
 	ws := w.state
 

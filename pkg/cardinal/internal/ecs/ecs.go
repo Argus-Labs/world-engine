@@ -18,6 +18,56 @@ func CreateWithArchetype(world *World, components bitmap.Bitmap) EntityID {
 	return world.state.newEntityWithArchetype(components)
 }
 
+// CreateWithComponents creates an entity from runtime component values. It validates every
+// component before mutating the world, so an invalid fixture cannot leave a partial entity behind.
+// This is intended for test harnesses; systems should use the type-safe search Create methods.
+func CreateWithComponents(world *World, components ...Component) (EntityID, error) {
+	componentIDs := make([]ComponentID, len(components))
+	seen := make(map[ComponentID]struct{}, len(components))
+	var archetype bitmap.Bitmap
+
+	for i, component := range components {
+		if component == nil {
+			return 0, eris.Errorf("component %d is nil", i)
+		}
+
+		cid, err := world.state.components.getID(component.Name())
+		if err != nil {
+			return 0, eris.Wrapf(err, "component %d", i)
+		}
+		if _, exists := seen[cid]; exists {
+			return 0, eris.Errorf("duplicate component %q", component.Name())
+		}
+
+		column := world.state.components.factories[cid]()
+		if !column.accepts(component) {
+			return 0, eris.Errorf("component %q has a different concrete type than its registration", component.Name())
+		}
+
+		seen[cid] = struct{}{}
+		componentIDs[i] = cid
+		archetype.Set(cid)
+	}
+
+	eid := CreateWithArchetype(world, archetype)
+	aid, exists := world.state.entityArch.get(eid)
+	if !exists {
+		panic("created entity is missing its archetype")
+	}
+	arch := world.state.archetypes[aid]
+	row, exists := arch.rows.get(eid)
+	if !exists {
+		panic("created entity is missing its archetype row")
+	}
+
+	for i, component := range components {
+		columnIndex := arch.components.CountTo(componentIDs[i])
+		arch.columns[columnIndex].setAbstract(row, component)
+	}
+
+	return eid, nil
+}
+
 // Destroy deletes an entity and all its components from the world. Returns true if the entity is
 // deleted, false otherwise.
 func Destroy(world *World, eid EntityID) bool {
@@ -52,10 +102,7 @@ func Remove[T Component](world *World, eid EntityID) error {
 // Returns false if either the entity doesn't exist or doesn't have the component.
 func Has[T Component](world *World, eid EntityID) bool {
 	_, err := Get[T](world, eid)
-	if err == nil {
-		return true
-	}
-	return eris.Is(err, ErrComponentNotFound)
+	return err == nil
 }
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.

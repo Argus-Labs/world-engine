@@ -54,7 +54,6 @@ func TestWriteback_DynamicGravity(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 31)
 
 	// After 30 ticks at 60Hz with gravity -10, ball should have fallen significantly.
@@ -102,7 +101,6 @@ func TestWriteback_StaticNoWriteback(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 31)
 
 	approxVec2(t, finalPos, spawnPos, "static body position unchanged")
@@ -149,7 +147,6 @@ func TestWriteback_KinematicVelocityIntegration(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	// After 60 ticks at 60Hz = 1 second, at 3 m/s → X ≈ 3.0
@@ -200,7 +197,6 @@ func TestWriteback_ManualNoWriteback(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	// Manual body: position must NOT have moved despite gravity and ECS velocity.
@@ -262,7 +258,6 @@ func TestWriteback_ManualGameplayDrivesPosition(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	// 60 ticks × 0.1 = 6.0 (tick 0 is init, so ~60 updates)
@@ -316,7 +311,6 @@ func TestWriteback_ManualNoDrift(t *testing.T) {
 	testRequire = require.New(t)
 	t.Cleanup(func() { testRequire = nil })
 
-	initCardinalECS(w)
 	tickN(t, w, 120)
 }
 
@@ -358,7 +352,6 @@ func TestWriteback_DynamicShadowSync(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 120)
 
 	require.GreaterOrEqual(t, len(positions), 100, "enough samples")
@@ -407,7 +400,6 @@ func TestWriteback_KinematicNoSnapBack(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 120)
 
 	require.GreaterOrEqual(t, len(positions), 100, "enough samples")
@@ -493,7 +485,6 @@ func TestWriteback_ManualDynamicContact(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 60)
 
 	require.True(t, contactDetected,
@@ -561,7 +552,6 @@ func TestWriteback_ManualToDynamic(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	// Before switch: should not have moved (Manual).
@@ -610,7 +600,6 @@ func TestWriteback_DynamicRotation(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	// 60 ticks at 60Hz = 1s at 2 rad/s → ~2 radians (with some damping)
@@ -658,7 +647,6 @@ func TestWriteback_ManualRotationUnchanged(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	require.InDelta(t, spawnRot, finalRotation, epsilon,

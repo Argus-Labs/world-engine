@@ -216,11 +216,7 @@ func (s *service) SendCommand(
 
 	cmd.Persona.Id = user.ID
 
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
-	}
-
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.enqueueCommand(cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -240,11 +236,7 @@ func (s *service) SendCommandWithReply(
 
 	cmd.Persona.Id = user.ID
 
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
-	}
-
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.enqueueCommand(cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -609,11 +601,7 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
 	}
 
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
-	}
-
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.enqueueCommand(cmd); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
 

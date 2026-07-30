@@ -10,6 +10,7 @@ import (
 // Queue defines the interface for command queuing operations.
 // It provides methods to enqueue commands and drain all queued commands.
 type Queue interface {
+	Validate(*iscv1.Command) error
 	Enqueue(*iscv1.Command) error
 	Drain(target *[]Command)
 	Len() int
@@ -35,23 +36,36 @@ func NewQueue[T Payload]() Queue {
 	}
 }
 
-// Enqueue validates and adds a command to the queue. It performs type checking to ensure the
-// command matches the expected type T, unmarshals the command payload, and appends it to the queue.
-// Returns an error if validation fails or marshaling/unmarshaling operations fail.
-func (q *sliceQueue[T]) Enqueue(cmd *iscv1.Command) error {
+func (q *sliceQueue[T]) decode(cmd *iscv1.Command) (T, error) {
 	var zero T
 
 	if cmd.GetName() != zero.Name() {
-		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), cmd.GetName())
+		return zero, eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), cmd.GetName())
 	}
 
 	decoded, err := zero.UnmarshalWire(cmd.GetPayload())
 	if err != nil {
-		return eris.Wrapf(err, "failed to decode command payload for %q", zero.Name())
+		return zero, eris.Wrapf(err, "failed to decode command payload for %q", zero.Name())
 	}
-	payload, ok := decoded.(Payload)
+
+	concrete, ok := decoded.(T)
 	if !ok {
-		return eris.Errorf("command %q decoded to non-payload type %T", zero.Name(), decoded)
+		return zero, eris.Errorf("decoded command %q has unexpected type %T", zero.Name(), decoded)
+	}
+	return concrete, nil
+}
+
+// Validate checks the command's name and wire payload without mutating the queue.
+func (q *sliceQueue[T]) Validate(cmd *iscv1.Command) error {
+	_, err := q.decode(cmd)
+	return err
+}
+
+// Enqueue validates, decodes, and adds a command to the queue.
+func (q *sliceQueue[T]) Enqueue(cmd *iscv1.Command) error {
+	payload, err := q.decode(cmd)
+	if err != nil {
+		return err
 	}
 
 	q.mu.Lock()

@@ -183,6 +183,9 @@ func setComponent[T Component](ws *worldState, eid EntityID, component T) error 
 	if err != nil {
 		return eris.Wrap(err, "failed to get component id")
 	}
+	if !ws.components.factories[cid]().accepts(component) {
+		return eris.Errorf("component %q has a different concrete type than its registration", component.Name())
+	}
 
 	// If current archetype doesnt' contain the component, move the entity to one that does.
 	if !archetype.components.Contains(cid) {

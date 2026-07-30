@@ -7,10 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
@@ -60,22 +58,6 @@ func newWorld(t *testing.T) *cardinal.World {
 	})
 	require.NoError(t, err)
 	return w
-}
-
-// initCardinalECS runs Init-hook systems on Cardinal's embedded ecs.World. The shard loop
-// (cardinal.World.run) does this between RegisterPlugin and the first Tick, but unit tests can't
-// call run(). Cardinal's ecs world is unexported, so we reach in via reflection.
-//
-// Same pattern as physics2d/test/utils_test.go's initCardinalECS.
-func initCardinalECS(t *testing.T, w *cardinal.World) {
-	t.Helper()
-	v := reflect.ValueOf(w).Elem()
-	f := v.FieldByName("world")
-	require.True(t, f.IsValid(), "cardinal.World: missing embedded ecs world field")
-	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
-	m := inner.MethodByName("Init")
-	require.True(t, m.IsValid(), "ecs.World: missing Init method")
-	m.Call(nil)
 }
 
 func tickOnce(t *testing.T, w *cardinal.World) {
@@ -200,7 +182,6 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(t, w)
 	tickOnce(t, w)
 
 	require.NoError(t, observeErr, "expected ConfigManifest singleton to exist after first tick")
@@ -246,7 +227,6 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(t, w)
 	tickOnce(t, w)
 
 	// Catalog reconciled to v1 content.
@@ -286,7 +266,6 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(t, w)
 	tickOnce(t, w)
 
 	// Catalog unchanged (current bytes).
@@ -321,7 +300,6 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": missingHash}})
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(t, w)
 	require.Panics(t, func() { tickOnce(t, w) })
 }
 

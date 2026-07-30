@@ -68,7 +68,6 @@ func TestReconcile_DestroyEntityRemovesBody(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 15)
 
 	require.True(t, foundBefore, "entity visible before destroy")
@@ -153,7 +152,6 @@ func TestReconcile_TransformChangeMovesBody(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 16)
 
 	require.False(t, hitAtOldPos, "entity should not be at old position")
@@ -218,7 +216,6 @@ func TestReconcile_MidSimEntityCreation(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 15)
 
 	require.True(t, found, "mid-sim entity should be detectable by query")
@@ -290,7 +287,6 @@ func TestReconcile_MutableFrictionChange(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 16)
 
 	require.True(t, found, "entity should remain after mutable friction change")
@@ -374,7 +370,6 @@ func TestReconcile_StructuralRadiusChange(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 16)
 
 	require.False(t, foundSmall, "small circle should not reach X=3")
@@ -451,7 +446,6 @@ func TestReconcile_AddShape(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 16)
 
 	require.True(t, foundNewShape, "new shape should be detectable after add")
@@ -516,7 +510,6 @@ func TestReconcile_DampingChangeMidSim(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	// Body should have moved before damping change.
@@ -583,7 +576,6 @@ func TestReconcile_VelocityChangeInECS(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	// Body moved right before reverse.
@@ -659,7 +651,6 @@ func TestReconcile_RotationChange(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 16)
 
 	require.False(t, hitBefore, "unrotated thin box should not be hit at Y=3")

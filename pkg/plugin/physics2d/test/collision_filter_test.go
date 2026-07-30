@@ -66,7 +66,6 @@ func TestFilter_BodiesOnDifferentLayersDontCollide(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 121)
 
 	// Ball should have fallen through the floor (way below Y=0).
@@ -132,7 +131,6 @@ func TestFilter_BodiesOnSameLayerCollide(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 121)
 
 	// Ball should rest on the floor near Y ≈ 1 (floor top at 0.5 + ball radius 0.5).
@@ -183,7 +181,6 @@ func TestFilter_RaycastCategoryMask(t *testing.T) {
 		wallBID = id2
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Default filter (all layers) — should hit closest wall (A).
@@ -258,7 +255,6 @@ func TestFilter_AABBSensorExcludedByDefault(t *testing.T) {
 		sensorID = id2
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Default (no filter / sensors excluded).
@@ -341,7 +337,6 @@ func TestFilter_CircleSweepSensorExcluded(t *testing.T) {
 		solidID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Default sweep should skip sensor and hit solid.
@@ -422,7 +417,6 @@ func TestFilter_ChangeCategoryBitsMidSim(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 26)
 
 	require.True(t, hitBefore, "wall on 0x0001 should be hit by 0x0001 filter")

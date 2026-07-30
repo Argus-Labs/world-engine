@@ -38,6 +38,7 @@ type World struct {
 	debug           *debugModule                        // For debug only utils and services
 	pprof           *pprofModule                        // Optional pprof HTTP server
 	currentTick     Tick                                // The current tick
+	initialized     bool                                // Whether ECS schedules and Init systems are initialized
 	options         WorldOptions                        // Options
 	tel             telemetry.Telemetry                 // Telemetry for logging and tracing
 }
@@ -171,7 +172,7 @@ func (w *World) StartGame() {
 
 func (w *World) run(ctx context.Context) error {
 	// Initialize world and run init systems.
-	w.world.Init()
+	w.initialize()
 
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
@@ -213,6 +214,8 @@ func (w *World) run(ctx context.Context) error {
 }
 
 func (w *World) Tick(ctx context.Context, timestamp time.Time) {
+	w.initialize()
+
 	// TODO: commands returned to be used for debug epoch log.
 	_ = w.commands.Drain()
 
@@ -370,7 +373,8 @@ func (w *World) shutdown() {
 func (w *World) reset() {
 	// Reset ECS world and rerun the init systems.
 	w.world.Reset()
-	w.world.Init()
+	w.initialized = false
+	w.initialize()
 
 	// Clear command and event buffers from previous tick.
 	w.commands.Clear()
@@ -396,4 +400,12 @@ func (w *World) reset() {
 type Tick struct {
 	height    uint64
 	timestamp time.Time
+}
+
+func (w *World) initialize() {
+	if w.initialized {
+		return
+	}
+	w.world.Init()
+	w.initialized = true
 }

@@ -100,7 +100,6 @@ func TestContactEvents_BeginAndEnd(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 80)
 
 	require.GreaterOrEqual(t, contactBeginCount, 1, "ContactBegin should fire when ball hits floor")
@@ -172,7 +171,6 @@ func TestContactEvents_TriggerBeginAndEnd(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 120)
 
 	require.GreaterOrEqual(t, triggerBeginCount, 1, "TriggerBegin should fire when ball enters sensor")
@@ -260,7 +258,6 @@ func TestContactEvents_SensorToggleMidSim(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 60)
 
 	require.True(t, triggerFired,
@@ -336,7 +333,6 @@ func TestContactEvents_EntityDestroyDuringOverlap(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 30)
 
 	// No crash = success. The orphan body cleanup should handle this gracefully.
@@ -418,7 +414,6 @@ func TestContactEvents_MultipleSimultaneous(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 80)
 
 	require.True(t, floorContact, "ball should contact floor")
@@ -481,7 +476,6 @@ func TestContactEvents_ManifoldData(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 60)
 
 	require.True(t, normalValid, "ContactBegin should include contact normal")

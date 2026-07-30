@@ -15,6 +15,7 @@ type abstractColumn interface {
 	name() string
 	extend()
 
+	accepts(Component) bool
 	setAbstract(row int, component Component)
 	getAbstract(row int) Component
 	remove(row int)
@@ -81,6 +82,12 @@ func (c *column[T]) extend() {
 func (c *column[T]) set(row int, component T) {
 	assert.That(row < len(c.components), "column isn't extended when entity is created")
 	c.components[row] = component
+}
+
+// accepts reports whether component has the concrete type stored by this column.
+func (c *column[T]) accepts(component Component) bool {
+	_, ok := component.(T)
+	return ok
 }
 
 // setAbstract sets the component in a given row. A row corresponds to a single entity. Use this

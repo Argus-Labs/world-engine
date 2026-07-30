@@ -104,7 +104,6 @@ func BenchmarkStep(b *testing.B) {
 				}
 			}, cardinal.WithHook(cardinal.Init))
 
-			initCardinalECS(w)
 			// Warm up: let bodies settle a bit.
 			benchTickN(w, 10)
 
@@ -129,7 +128,6 @@ func BenchmarkRaycast(b *testing.B) {
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
-			initCardinalECS(w)
 			benchTickN(w, 2) // rebuild + settle
 
 			b.ResetTimer()
@@ -160,7 +158,6 @@ func BenchmarkOverlapAABB(b *testing.B) {
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
-			initCardinalECS(w)
 			benchTickN(w, 2)
 
 			b.ResetTimer()
@@ -191,7 +188,6 @@ func BenchmarkCircleSweep(b *testing.B) {
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
-			initCardinalECS(w)
 			benchTickN(w, 2)
 
 			b.ResetTimer()

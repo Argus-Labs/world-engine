@@ -52,7 +52,6 @@ func TestShapeType_CircleFallsAndDetectable(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 31)
 
 	require.Less(t, finalPos.Y, 9.0, "circle should fall")
@@ -100,7 +99,6 @@ func TestShapeType_BoxFloorDetectable(t *testing.T) {
 		floorID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Raycast down should hit the floor.
@@ -142,7 +140,6 @@ func TestShapeType_ConvexPolygonDetectable(t *testing.T) {
 		triID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
@@ -188,7 +185,6 @@ func TestShapeType_StaticChainDetectable(t *testing.T) {
 		chainID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Raycast from above downward should hit the chain.
@@ -232,7 +228,6 @@ func TestShapeType_ChainLoopDetectable(t *testing.T) {
 		loopID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Raycast from inside to outside should hit the loop boundary.
@@ -272,7 +267,6 @@ func TestShapeType_EdgeDetectable(t *testing.T) {
 		edgeID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Raycast from above should hit the edge.
@@ -330,7 +324,6 @@ func TestShapeType_CapsuleFallsUnderGravity(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 31)
 
 	require.Less(t, finalPos.Y, 9.0, "capsule should fall under gravity")
@@ -366,7 +359,6 @@ func TestShapeType_StaticCapsuleDetectable(t *testing.T) {
 		capsuleID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Raycast from above should hit the capsule.
@@ -417,7 +409,6 @@ func TestShapeType_CompoundCollider(t *testing.T) {
 		compID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// AABB around center should find shape 0 (box).
@@ -483,7 +474,6 @@ func TestShapeType_CircleLocalOffset(t *testing.T) {
 		bodyID = id
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 
 	// Should NOT be at origin.
@@ -538,7 +528,6 @@ func TestShapeType_ChainOnDynamic_NoPhysicsBody(t *testing.T) {
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
-	initCardinalECS(w)
 	tickN(t, w, 3)
 	// No crash = test passes. Chain on dynamic body is rejected during fixture attachment.
 }

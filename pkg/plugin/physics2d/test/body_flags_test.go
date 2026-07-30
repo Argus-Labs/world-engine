@@ -51,7 +51,6 @@ func TestBodyFlag_InactiveBodyDoesNotFall(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	approxVec2(t, finalPos, spawnPos, "inactive body should not move")
@@ -120,7 +119,6 @@ func TestBodyFlag_ActivateMidSim(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	approxVec2(t, posAtActivate, spawnPos, "body unchanged while inactive")
@@ -168,7 +166,6 @@ func TestBodyFlag_FixedRotation(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	require.InDelta(t, 0, finalRotation, epsilon,
@@ -239,7 +236,6 @@ func TestBodyFlag_FixedRotationToggle(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	require.InDelta(t, 0, rotAtUnlock, epsilon, "rotation locked before toggle")
@@ -286,7 +282,6 @@ func TestBodyFlag_GravityScaleZero(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	approxVec2(t, finalPos, spawnPos, "gravity_scale=0 body should not fall")
@@ -345,7 +340,6 @@ func TestBodyFlag_GravityScaleDouble(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	require.Less(t, doubleY, normalY, "double gravity body should be lower")
@@ -404,7 +398,6 @@ func TestBodyFlag_LinearDamping(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	require.Greater(t, undampedX, dampedX, "damped body should travel less distance")
@@ -464,7 +457,6 @@ func TestBodyFlag_AngularDamping(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 61)
 
 	require.Greater(t, undampedRot, dampedRot, "damped body should spin less")
@@ -529,7 +521,6 @@ func TestBodyTypeSwitch_DynamicToStatic(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	require.Less(t, posAtSwitch.Y, 30.0, "body should have fallen before switch")
@@ -592,7 +583,6 @@ func TestBodyTypeSwitch_DynamicToKinematic(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	// After switch, should move right (kinematic integrates velocity) but not fall (no gravity).
@@ -655,7 +645,6 @@ func TestBodyTypeSwitch_KinematicToDynamic(t *testing.T) {
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(w)
 	tickN(t, w, 91)
 
 	// Before switch: kinematic at Y=20 (no gravity).

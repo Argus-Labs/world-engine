@@ -87,25 +87,42 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 // is expected that there exists only 1 caller for each command type, therefore each caller reads
 // a different key. This is ok because concurrent reads on Go maps are allowed.
 func (m *Manager) Enqueue(command *iscv1.Command) error {
-	// Enqueue expects callers to validate the command, so here we just assert for defense in depth.
-	// NOTE: one extra assertion that we can't put here is if command.address == this shard.address.
-	// The caller must be responsible for checking this.
-	assert.That(command.GetName() != "", "command has empty name")
-	assert.That(command.GetAddress() != nil, "command has nil address")
-	assert.That(command.GetPersona() != nil, "command has nil persona")
-	// Payload may be empty: a command whose proto message has no set fields serializes to zero
-	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/persona, so an empty payload
-	// is valid — only those three are real invariants.
-
-	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
-	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the
-	// ID of the command in the caller, so we can do a direct index with Enqueue(id, command).
-	name := command.GetName()
-	id, exists := m.catalog[name]
-	if !exists {
-		return eris.Errorf("unregistered command: %s", name)
+	id, err := m.validateMetadata(command)
+	if err != nil {
+		return err
 	}
+
 	return m.queues[id].Enqueue(command)
+}
+
+// Validate checks command metadata, registration, and wire decoding without changing queue state.
+func (m *Manager) Validate(command *iscv1.Command) error {
+	id, err := m.validateMetadata(command)
+	if err != nil {
+		return err
+	}
+	return m.queues[id].Validate(command)
+}
+
+func (m *Manager) validateMetadata(command *iscv1.Command) (ID, error) {
+	if command == nil {
+		return InvalidID, eris.New("command is nil")
+	}
+	if command.GetName() == "" {
+		return InvalidID, eris.New("command has empty name")
+	}
+	if command.GetAddress() == nil {
+		return InvalidID, eris.New("command has nil address")
+	}
+	if command.GetPersona() == nil {
+		return InvalidID, eris.New("command has nil persona")
+	}
+
+	id, exists := m.catalog[command.GetName()]
+	if !exists {
+		return InvalidID, eris.Errorf("unregistered command: %s", command.GetName())
+	}
+	return id, nil
 }
 
 // Get retrieves a slice of commands given the command ID. The ID is returned from Register, and
