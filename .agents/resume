@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$PATH"
+
+if ! command -v go >/dev/null 2>&1; then
+	echo "Go is unavailable; rerun .agents/setup." >&2
+	exit 1
+fi
+
+echo "Orb ready: $(go version)"

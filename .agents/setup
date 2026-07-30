@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+local_bin="$HOME/.local/bin"
+go_version="$(awk '$1 == "go" { print $2; exit }' "$repo_root/go.mod")"
+
+mkdir -p "$local_bin" "$HOME/.local/share/go"
+export PATH="$local_bin:$PATH"
+
+profile_marker="# world-engine orb tools"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+	cat >> "$HOME/.bash_profile" <<'EOF'
+
+# world-engine orb tools
+case ":$PATH:" in
+	*":$HOME/.local/bin:"*) ;;
+	*) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+EOF
+fi
+
+if ! command -v curl >/dev/null 2>&1 ||
+	! command -v tar >/dev/null 2>&1 ||
+	! command -v gcc >/dev/null 2>&1; then
+	echo "Installing system build prerequisites..."
+	sudo apt-get update
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates curl
+fi
+
+if [[ "$(go version 2>/dev/null || true)" != "go version go${go_version} "* ]]; then
+	case "$(uname -m)" in
+		x86_64) go_arch="amd64" ;;
+		aarch64 | arm64) go_arch="arm64" ;;
+		*) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+	esac
+
+	echo "Installing Go ${go_version}..."
+	go_dir="$HOME/.local/share/go/$go_version"
+	archive="$(mktemp)"
+	trap 'rm -f "$archive"' EXIT
+	curl -fsSL "https://go.dev/dl/go${go_version}.linux-${go_arch}.tar.gz" -o "$archive"
+	rm -rf "$go_dir"
+	mkdir -p "$go_dir"
+	tar -xzf "$archive" --strip-components=1 -C "$go_dir"
+	rm -f "$archive"
+	trap - EXIT
+	ln -sfn "$go_dir/bin/go" "$local_bin/go"
+	ln -sfn "$go_dir/bin/gofmt" "$local_bin/gofmt"
+fi
+
+go env -w GOBIN="$local_bin"
+
+echo "Installing repository tools..."
+command -v task >/dev/null 2>&1 || go install github.com/go-task/task/v3/cmd/task@latest
+command -v gotestsum >/dev/null 2>&1 || go install gotest.tools/gotestsum@latest
+command -v buf >/dev/null 2>&1 || go install github.com/bufbuild/buf/cmd/buf@latest
+command -v protoc-gen-go >/dev/null 2>&1 || go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+command -v protoc-gen-connect-go >/dev/null 2>&1 || go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
+
+echo "Downloading Go module dependencies..."
+go mod download
+
+echo "Orb setup complete."
