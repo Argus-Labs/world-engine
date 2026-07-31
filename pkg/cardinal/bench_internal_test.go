@@ -1,10 +1,51 @@
 package cardinal
 
 import (
+	"bytes"
+	"encoding/gob"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 )
+
+// Bench component fixtures satisfy schema.Serializable via gob (real components get generated proto
+// codecs; these doubles only need to round-trip). UnmarshalWire returns any — a decode factory.
+func benchGobMarshal[T any](v T) ([]byte, error) {
+	var b bytes.Buffer
+	if err := gob.NewEncoder(&b).Encode(v); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func benchGobUnmarshal[T any](b []byte) (any, error) {
+	var v T
+	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v); err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func (c Position3D) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
+func (Position3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Position3D](b) }
+func (c Velocity3D) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
+func (Velocity3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Velocity3D](b) }
+func (c Health2) MarshalWire() ([]byte, error)          { return benchGobMarshal(c) }
+func (Health2) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Health2](b) }
+func (c Transform) MarshalWire() ([]byte, error)        { return benchGobMarshal(c) }
+func (Transform) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Transform](b) }
+func (c Inventory) MarshalWire() ([]byte, error)        { return benchGobMarshal(c) }
+func (Inventory) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Inventory](b) }
+func (c PlayerStats) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
+func (PlayerStats) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[PlayerStats](b) }
+func (c AIBehavior) MarshalWire() ([]byte, error)       { return benchGobMarshal(c) }
+func (AIBehavior) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[AIBehavior](b) }
+func (c Renderer) MarshalWire() ([]byte, error)         { return benchGobMarshal(c) }
+func (Renderer) UnmarshalWire(b []byte) (any, error)    { return benchGobUnmarshal[Renderer](b) }
+func (c Physics) MarshalWire() ([]byte, error)          { return benchGobMarshal(c) }
+func (Physics) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Physics](b) }
+func (c NetworkSync) MarshalWire() ([]byte, error)      { return benchGobMarshal(c) }
+func (NetworkSync) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[NetworkSync](b) }
 
 type entityState1 struct {
 	Entities Contains[struct{ Position Ref[Position3D] }]

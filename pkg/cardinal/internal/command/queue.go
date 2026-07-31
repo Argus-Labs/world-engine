@@ -16,14 +16,13 @@ type Queue interface {
 	Zero() Payload
 }
 
-var _ Queue = &sliceQueue[Payload]{}
-
 // TODO: figure out whether to make this configurable.
 // initialQueueCapacity is the starting capacity of queue.
 const initialQueueCapacity = 1024
 
-// sliceQueue is a generic unbounded sliceQueue for handling commands of a specific type.
-// It implements the Queue interface and provides type-safe command processing.
+// sliceQueue is a generic unbounded queue for a single command type T. It decodes an incoming payload
+// by calling the command type's own UnmarshalWire (a value-receiver decode factory) under the static
+// type — there is no codec registry to look up. The decoded value is stored directly as a Payload.
 type sliceQueue[T Payload] struct {
 	commands []Command
 	mu       sync.Mutex
@@ -46,9 +45,13 @@ func (q *sliceQueue[T]) Enqueue(cmd *iscv1.Command) error {
 		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), cmd.GetName())
 	}
 
-	payload, err := unmarshal(cmd.GetName(), cmd.GetPayload())
+	decoded, err := zero.UnmarshalWire(cmd.GetPayload())
 	if err != nil {
 		return eris.Wrapf(err, "failed to decode command payload for %q", zero.Name())
+	}
+	payload, ok := decoded.(Payload)
+	if !ok {
+		return eris.Errorf("command %q decoded to non-payload type %T", zero.Name(), decoded)
 	}
 
 	q.mu.Lock()
@@ -79,7 +82,7 @@ func (q *sliceQueue[T]) Len() int {
 	return len(q.commands)
 }
 
-// Zero returns a zero-value instance of T.
+// Zero returns a zero-value payload for the queue's command type.
 func (q *sliceQueue[T]) Zero() Payload {
 	var zero T
 	return zero

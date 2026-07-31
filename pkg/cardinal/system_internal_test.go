@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
-	_ "github.com/argus-labs/world-engine/pkg/cardinal/internal/commandtest"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -114,7 +113,7 @@ func newCommandFixture(t *testing.T) *commandFixture {
 func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, persona string) {
 	t.Helper()
 
-	bytes, err := command.Marshal(payload)
+	bytes, err := payload.MarshalWire()
 	require.NoError(t, err)
 
 	cmdpb := &iscv1.Command{

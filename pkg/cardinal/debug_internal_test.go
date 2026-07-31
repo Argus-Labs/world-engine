@@ -22,6 +22,13 @@ type schemaSample struct {
 
 func (schemaSample) Name() string { return "schema-sample" }
 
+func (c schemaSample) MarshalWire() ([]byte, error) { return msgpack.Marshal(c) }
+func (schemaSample) UnmarshalWire(b []byte) (any, error) {
+	var v schemaSample
+	err := msgpack.Unmarshal(b, &v)
+	return v, err
+}
+
 // TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize
 // contract: the field names advertised by the introspection schema must equal
 // the keys shamaton/msgpack actually reads and writes, so a client that fills a
@@ -38,7 +45,7 @@ func TestIntrospectSchemaNamesMatchWireFormat(t *testing.T) {
 
 	// Names introspection advertises, via the real register() path.
 	d := &debugModule{
-		commands:  make(map[string]*structpb.Struct),
+		commands: make(map[string]*structpb.Struct),
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly

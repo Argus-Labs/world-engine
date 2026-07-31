@@ -19,7 +19,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -520,7 +519,9 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
 
-	payloadPb, err := schema.Serialize(payload)
+	// Proto via the event's generated MarshalWire (dispatch by type, no registry). payload is an
+	// event.Payload (schema.Serializable), so MarshalWire is guaranteed by the type — no fallback.
+	payloadPb, err := payload.MarshalWire()
 	if err != nil {
 		return eris.Wrap(err, "failed to marshal event payload")
 	}
@@ -626,9 +627,12 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	payload, err := command.Marshal(isc.Payload)
+	payload, err := isc.Payload.MarshalWire()
 	if err != nil {
-		return eris.Wrap(err, "failed to marshal command payload")
+		// Non-blocking but serious: a dropped shard-to-shard command must not halt the tick, so log at
+		// error level and move on rather than propagate (which would surface only as an aggregated warn).
+		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: marshal failed")
+		return nil
 	}
 
 	commandPb := &iscv1.Command{
@@ -641,9 +645,13 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
+	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
+	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
 	_, err = s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
 	if err != nil {
-		return eris.Wrapf(err, "failed to send inter-shard command %s to shard", isc.Payload.Name())
+		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
+		return nil
 	}
 
 	return nil

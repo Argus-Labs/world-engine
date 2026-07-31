@@ -200,28 +200,17 @@ func (b *BaseSystemState) Timestamp() time.Time {
 
 type Command = command.Payload
 
-// CommandCodec encodes and decodes a command payload to and from its wire bytes. Generated code
-// implements one per command type and registers it via RegisterCommandCodec.
-type CommandCodec = command.Codec
-
-// RegisterCommandCodec registers the wire codec for a command name. Generated code calls this from an
-// init() in the command's package, so the codec is available once that package is imported.
-func RegisterCommandCodec(name string, c CommandCodec) {
-	command.RegisterCodec(name, c)
-}
-
 type WithCommand[T Command] struct {
 	manager *command.Manager
 	id      command.ID
 }
 
 func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
+	// No codec check: T is constrained to Command (schema.Serializable), so an ungenerated command —
+	// one missing its generated wire methods — does not satisfy the constraint and fails to compile
+	// here. There is no codec registry to consult.
 	var zero T
 	name := zero.Name()
-
-	if !command.HasCodec(name) {
-		return eris.Errorf("command %q has no registered codec (run the generator)", name)
-	}
 
 	if _, ok := meta.commands[name]; ok {
 		return eris.Errorf("systems cannot process multiple commands of the same type: %s", name)
@@ -263,6 +252,8 @@ type CommandContext[T Command] struct {
 }
 
 func newCommandContext[T Command](cmd command.Command) CommandContext[T] {
+	// The queue stores the decoded value as a Payload; recover the concrete type. Value semantics —
+	// no pointer, because Serializable is satisfied by the value type (all value receivers).
 	payload, ok := cmd.Payload.(T)
 	assert.That(ok, "mismatched command type passed to command context")
 
@@ -284,27 +275,28 @@ type OtherWorld struct {
 	ShardID      string
 }
 
-// SendCommand sends a command to an external service.
+// SendToShard sends cmd to another shard, addressed by to. This is the first-class shard-to-shard send: the
+// world performs the send (it owns the event queue) and the address `to` is plain data with no behavior of
+// its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
+// initiated in-engine.
 //
-// Example:
-//
-// import external "another-game-shard/system"
-//
-// // Define a shard address of one of your game shards.
-// const MatchmakingService ecs.ServiceAddress = "world.argus.rampage.matchmaking"
-//
-//	func GameSystem(state *GameSystem) error {
-//	  MatchmakingService.Send(state, &external.EndGameCommand{
-//	    Winner: "Team 1",
-//	  })
-//	}
-func (o OtherWorld) SendCommand(state *BaseSystemState, cmd command.Payload) {
-	serviceAddress := micro.GetAddress(o.Region, micro.RealmWorld, o.Organization, o.Project, o.ShardID)
-	state.world.events.Enqueue(event.Event{
+// Fire-and-forget: the actual network send happens when events flush at end-of-tick, so cmd must not be
+// mutated after this call — a *Command whose fields change before the flush would send the mutated value.
+// A send that fails is not returned (it must not block the tick) but is logged at error level, because a
+// dropped shard-to-shard command is serious.
+func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
+	if to.ShardID == "" {
+		b.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
+		return
+	}
+	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
+	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
+	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
+	b.world.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(state.world.address),
+			Persona: micro.String(b.world.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},

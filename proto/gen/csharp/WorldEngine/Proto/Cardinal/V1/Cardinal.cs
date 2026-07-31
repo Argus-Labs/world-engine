@@ -1712,7 +1712,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(10, global::WorldEngine.Proto.Cardinal.V1.EventSubscription.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.EventSubscription> subscriptions_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.EventSubscription>();
     /// <summary>
-    /// TODO: remove this.
+    /// TODO: replace this with bidi streams.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

@@ -5,6 +5,7 @@ package physics2d_test
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"sync/atomic"
 	"testing"
@@ -21,6 +22,13 @@ type harnessTag struct {
 }
 
 func (harnessTag) Name() string { return "physics2d_e2e_harness_tag" }
+
+func (c harnessTag) MarshalWire() ([]byte, error) { return json.Marshal(c) }
+func (harnessTag) UnmarshalWire(b []byte) (harnessTag, error) {
+	var v harnessTag
+	err := json.Unmarshal(b, &v)
+	return v, err
+}
 
 type spawnArchetype = cardinal.Exact[struct {
 	Tag cardinal.Ref[harnessTag]
