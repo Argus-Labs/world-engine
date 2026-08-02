@@ -372,7 +372,7 @@ func solveMotorJoint(base *jointSim, ctx *stepContext) {
 		relQ := InvMulRot(qA, qB)
 
 		c := RotGetAngle(relQ)
-		bias := j.angularSpring.biasRate * c
+		bias := float64(j.angularSpring.biasRate * c)
 		massScale := j.angularSpring.massScale
 		impulseScale := j.angularSpring.impulseScale
 
@@ -394,7 +394,7 @@ func solveMotorJoint(base *jointSim, ctx *stepContext) {
 	// angular velocity
 	if j.maxVelocityTorque > 0.0 {
 		cDot := wB - wA - j.angularVelocity
-		impulse := -j.angularMass * cDot
+		impulse := float64(-j.angularMass * cDot)
 
 		maxImpulse := ctx.h * j.maxVelocityTorque
 		oldImpulse := j.angularVelocityImpulse

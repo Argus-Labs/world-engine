@@ -32,7 +32,7 @@ func computePolygonCentroid(vertices []Vec2) Vec2 {
 		// Triangle edges
 		e1 := Sub(vertices[i], origin)
 		e2 := Sub(vertices[i+1], origin)
-		a := 0.5 * Cross(e1, e2)
+		a := float64(0.5 * Cross(e1, e2))
 
 		// Area weighted centroid
 		center = MulAdd(center, a*inv3, Add(e1, e2))
@@ -256,8 +256,8 @@ func ComputeCapsuleMass(shape *Capsule, density float64) MassData {
 	length := Length(Sub(p2, p1))
 	ll := length * length
 
-	circleMass := density * (Pi * radius * radius)
-	boxMass := density * (2.0 * radius * length)
+	circleMass := float64(density * (Pi * radius * radius))
+	boxMass := float64(density * (2.0 * radius * length))
 
 	var massData MassData
 	massData.Mass = circleMass + boxMass
@@ -274,14 +274,14 @@ func ComputeCapsuleMass(shape *Capsule, density float64) MassData {
 	// I verified this formula by computing the convex hull of a 128 vertex capsule
 
 	// half circle centroid
-	lc := 4.0 * radius / (3.0 * Pi)
+	lc := float64(4.0*radius) / float64(3.0*Pi)
 
 	// half length of rectangular portion of capsule
-	h := 0.5 * length
+	h := float64(0.5 * length)
 
 	// 0.5 * rr + h * h + 2.0 * h * lc, rounded per product (see math_fma.go)
-	circleInertia := circleMass * (dot2(0.5, rr, h, h) + float64(float64(2.0*h)*lc))
-	boxInertia := boxMass * mulAdd(4.0, rr, ll) / 12.0
+	circleInertia := float64(circleMass * (dot2(0.5, rr, h, h) + float64(float64(2.0*h)*lc)))
+	boxInertia := float64(boxMass * mulAdd(4.0, rr, ll) / 12.0)
 	massData.RotationalInertia = circleInertia + boxInertia
 
 	return massData
@@ -372,7 +372,7 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 
 		d := Cross(e1, e2)
 
-		triangleArea := 0.5 * d
+		triangleArea := float64(0.5 * d)
 		area += triangleArea
 
 		// Area weighted centroid, r at origin
@@ -401,7 +401,7 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 	massData.Center = Add(r, center)
 
 	// Inertia tensor relative to the local origin (point s).
-	massData.RotationalInertia = density * rotationalInertia
+	massData.RotationalInertia = float64(density * rotationalInertia)
 
 	// Shift inertia to center of mass
 	massData.RotationalInertia -= float64(massData.Mass * Dot(center, center))
@@ -567,7 +567,7 @@ func RayCastCircle(shape *Circle, input *RayCastInput) CastOutput {
 	}
 
 	// Pythagoras
-	h := math.Sqrt(rr - cc)
+	h := math.Sqrt(subF(rr, cc))
 
 	fraction := t - h
 

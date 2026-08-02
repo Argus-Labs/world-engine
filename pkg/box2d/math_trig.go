@@ -113,14 +113,14 @@ func ComputeCosSin(radians float64) CosSin {
 	switch {
 	case x < -0.5*Pi:
 		y := x + Pi
-		y2 := y * y
+		y2 := float64(y * y)
 		c = -(pi2 - float64(4.0*y2)) / (pi2 + y2)
 	case x > 0.5*Pi:
 		y := x - Pi
-		y2 := y * y
+		y2 := float64(y * y)
 		c = -(pi2 - float64(4.0*y2)) / (pi2 + y2)
 	default:
-		y2 := x * x
+		y2 := float64(x * x)
 		c = (pi2 - float64(4.0*y2)) / (pi2 + y2)
 	}
 

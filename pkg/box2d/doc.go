@@ -21,10 +21,18 @@
 // The port is bit-deterministic for identical inputs across runs, platforms,
 // and architectures (amd64/arm64). This relies on package-wide coding rules:
 //
-//   - No multiply expression may appear as a direct operand of + or -.
-//     Every multiply-accumulate goes through the helpers in math_fma.go (or
-//     an explicit float64 conversion) so the Go compiler cannot emit FMA
-//     instructions whose availability differs per architecture.
+//   - No *unrounded* product may reach a + or -. The Go compiler may fuse
+//     such a pair into a single FMA instruction, which rounds once instead
+//     of twice and so produces different bits on targets that have FMA
+//     (arm64 always, amd64 at GOAMD64=v3) than on targets that do not. The
+//     product does not have to be written inline to be fusable: it also
+//     fuses when it arrives through a local, a struct field, or a function
+//     parameter that is later inlined. Products are therefore rounded with
+//     float64(...) where they are formed, and the arithmetic helpers in
+//     math_fma.go additionally round the operands they receive.
+//     This rule is enforced mechanically by TestNoFusedMultiplyAdd, which
+//     compiles the package for FMA-capable targets and fails if any FMA
+//     instruction is emitted — reviewing source for this is not reliable.
 //   - Transcendentals use the ported upstream approximations (Atan2,
 //     ComputeCosSin). Only exactly-rounded stdlib math functions are used
 //     otherwise (Sqrt, Remainder, Floor, Abs).

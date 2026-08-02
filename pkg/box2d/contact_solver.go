@@ -404,7 +404,7 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 			vt := Dot(Sub(vrB, vrA), tangent) - constraint.tangentSpeed
 
 			// incremental tangent impulse
-			impulse := cp.tangentMass * -vt
+			impulse := float64(cp.tangentMass * -vt)
 
 			// clamp the accumulated force
 			maxFriction := friction * cp.normalImpulse
@@ -422,7 +422,7 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 
 		// Rolling resistance
 		{
-			deltaLambda := -constraint.rollingMass * (wB - wA)
+			deltaLambda := float64(-constraint.rollingMass * (wB - wA))
 			lambda := constraint.rollingImpulse
 			maxLambda := constraint.rollingResistance * totalNormalImpulse
 			constraint.rollingImpulse = clampFloat(lambda+deltaLambda, -maxLambda, maxLambda)
@@ -517,7 +517,7 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
 
 			// compute normal impulse
 			// impulse = -normalMass * (vn + restitution * relativeVelocity)
-			impulse := -cp.normalMass * (vn + float64(restitution*cp.relativeVelocity))
+			impulse := float64(-cp.normalMass * (vn + float64(restitution*cp.relativeVelocity)))
 
 			// clamp the accumulated impulse
 			newImpulse := maxFloat(cp.normalImpulse+impulse, 0.0)

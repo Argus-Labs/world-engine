@@ -425,7 +425,7 @@ func solveWheelJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	// motor constraint
 	if j.enableMotor && !fixedRotation {
 		cDot := wB - wA - j.motorSpeed
-		impulse := -j.motorMass * cDot
+		impulse := float64(-j.motorMass * cDot)
 		oldImpulse := j.motorImpulse
 		maxImpulse := ctx.h * j.maxMotorTorque
 		j.motorImpulse = clampFloat(j.motorImpulse+impulse, -maxImpulse, maxImpulse)
@@ -439,7 +439,7 @@ func solveWheelJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.enableSpring {
 		// This is a real spring and should be applied even during relax
 		c := translation
-		bias := j.springSoftness.biasRate * c
+		bias := float64(j.springSoftness.biasRate * c)
 		massScale := j.springSoftness.massScale
 		impulseScale := j.springSoftness.impulseScale
 
