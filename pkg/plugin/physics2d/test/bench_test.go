@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"testing"
 	"time"
 
@@ -37,10 +38,17 @@ func benchWorld(b *testing.B, gravity physics.Vec2) (*cardinal.World, *physics.P
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
+		Workers:  benchWorkers,
 	})
 	cardinal.RegisterPlugin(w, plugin)
 	return w, plugin
 }
+
+// benchWorkers is the physics Config.Workers used by benchWorld. The step
+// benchmarks run once serially and once at the full core count
+// (BenchmarkStepWorkers) by flipping it around the inner run; results are
+// byte-identical either way, this is throughput only.
+var benchWorkers int
 
 // benchTickN ticks the world n times without test failure checks.
 func benchTickN(w *cardinal.World, n int) {
@@ -58,63 +66,83 @@ func benchTickN(w *cardinal.World, n int) {
 func BenchmarkStep(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10})
-			bodyCount := n
-
-			cardinal.RegisterSystem(w, func(state *struct {
-				cardinal.BaseSystemState
-				Spawn spawnArchetype
-			}) {
-				if state.Tick() != 0 {
-					return
-				}
-				// Static floor.
-				_, row := state.Spawn.Create()
-				row.Tag.Set(harnessTag{Role: "floor"})
-				row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
-				row.V.Set(physics.Velocity2D{})
-				row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-					ShapeType:    physics.ShapeTypeBox,
-					HalfExtents:  physics.Vec2{X: 200, Y: 1},
-					Friction:     0.5,
-					CategoryBits: 0xFFFF,
-					MaskBits:     0xFFFF,
-				}))
-
-				// Spawn N dynamic circles in a grid above the floor.
-				cols := int(math.Ceil(math.Sqrt(float64(bodyCount))))
-				for i := range bodyCount {
-					col := i % cols
-					rowIdx := i / cols
-					x := float64(col)*2.0 - float64(cols)
-					y := float64(rowIdx)*2.0 + 5.0
-
-					_, r := state.Spawn.Create()
-					r.Tag.Set(harnessTag{Role: "ball"})
-					r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
-					r.V.Set(physics.Velocity2D{})
-					r.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-						ShapeType:    physics.ShapeTypeCircle,
-						Radius:       0.5,
-						Density:      1,
-						Friction:     0.3,
-						Restitution:  0.2,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}))
-				}
-			}, cardinal.WithHook(cardinal.Init))
-
-			initCardinalECS(w)
-			// Warm up: let bodies settle a bit.
-			benchTickN(w, 10)
-
-			b.ResetTimer()
-			ctx := context.Background()
-			for i := range b.N {
-				w.Tick(ctx, time.Unix(int64(100+i), 0))
-			}
+			stepBenchScene(b, n)
 		})
+	}
+}
+
+// BenchmarkStepWorkers is BenchmarkStep with the physics worker pool at the
+// full core count (Config.Workers = NumCPU). Only the scene sizes where the
+// engine's per-stage grains can actually fan out are interesting.
+func BenchmarkStepWorkers(b *testing.B) {
+	benchWorkers = runtime.NumCPU()
+	defer func() { benchWorkers = 0 }()
+	for _, n := range []int{1000, 5000} {
+		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
+			stepBenchScene(b, n)
+		})
+	}
+}
+
+// stepBenchScene runs the shared falling-circles step scene at the given body
+// count with the current benchWorkers setting.
+func stepBenchScene(b *testing.B, n int) {
+	b.Helper()
+	w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10})
+	bodyCount := n
+
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		if state.Tick() != 0 {
+			return
+		}
+		// Static floor.
+		_, row := state.Spawn.Create()
+		row.Tag.Set(harnessTag{Role: "floor"})
+		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
+		row.V.Set(physics.Velocity2D{})
+		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+			ShapeType:    physics.ShapeTypeBox,
+			HalfExtents:  physics.Vec2{X: 200, Y: 1},
+			Friction:     0.5,
+			CategoryBits: 0xFFFF,
+			MaskBits:     0xFFFF,
+		}))
+
+		// Spawn N dynamic circles in a grid above the floor.
+		cols := int(math.Ceil(math.Sqrt(float64(bodyCount))))
+		for i := range bodyCount {
+			col := i % cols
+			rowIdx := i / cols
+			x := float64(col)*2.0 - float64(cols)
+			y := float64(rowIdx)*2.0 + 5.0
+
+			_, r := state.Spawn.Create()
+			r.Tag.Set(harnessTag{Role: "ball"})
+			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
+			r.V.Set(physics.Velocity2D{})
+			r.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
+				ShapeType:    physics.ShapeTypeCircle,
+				Radius:       0.5,
+				Density:      1,
+				Friction:     0.3,
+				Restitution:  0.2,
+				CategoryBits: 0xFFFF,
+				MaskBits:     0xFFFF,
+			}))
+		}
+	}, cardinal.WithHook(cardinal.Init))
+
+	initCardinalECS(w)
+	// Warm up: let bodies settle a bit.
+	benchTickN(w, 10)
+
+	b.ResetTimer()
+	ctx := context.Background()
+	for i := range b.N {
+		w.Tick(ctx, time.Unix(int64(100+i), 0))
 	}
 }
 
