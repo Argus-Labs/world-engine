@@ -108,6 +108,17 @@ type Runtime struct {
 	// allocated on every Raycast/CircleSweep/OverlapAABB call. See query.go.
 	castScratch    castHit
 	overlapScratch overlapCollector
+
+	// reconcileSortScratch backs the sorted entries clone in ReconcileFromECS, reused
+	// across ticks so the per-tick clone does not allocate. Only valid within one call.
+	reconcileSortScratch []PhysicsRebuildEntry
+
+	// liveContactsScratch, liveIDsScratch, and contactDataScratch are reused by
+	// gatherLiveContacts, which runs up to twice per tick. The map returned by
+	// gatherLiveContacts aliases liveContactsScratch and is invalidated by the next call.
+	liveContactsScratch map[ContactPairKey]ContactPairInfo
+	liveIDsScratch      []cardinal.EntityID
+	contactDataScratch  []box2d.ContactData
 }
 
 // defaultFixedDT is the step size used when a non-positive FixedDT is supplied (60 Hz).
@@ -177,6 +188,10 @@ func (rt *Runtime) Reset() {
 	rt.ActiveContacts = nil
 	rt.ActiveContactsDirty = false
 	rt.NoPersistedActiveContactsBaseline = false
+	rt.reconcileSortScratch = nil
+	rt.liveContactsScratch = nil
+	rt.liveIDsScratch = nil
+	rt.contactDataScratch = nil
 }
 
 // WorldExists reports whether this runtime's Box2D world has been created and is alive.

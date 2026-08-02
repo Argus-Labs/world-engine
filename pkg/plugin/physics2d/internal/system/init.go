@@ -14,12 +14,13 @@ type physicsBodyRow struct {
 	PhysicsBody cardinal.Ref[physicscomp.PhysicsBody2D]
 }
 
-// gatherRebuildEntries collects physics archetype rows for reconcile/rebuild.
-// Initial slice capacity is fixed at 64 (arbitrary): small for tiny worlds, may reallocate when
-// many physics entities match; a future hint or search count could size this if profiling warrants it.
-func gatherRebuildEntries(iter cardinal.SearchResult[cardinal.EntityID, physicsBodyRow],
+// gatherRebuildEntries collects physics archetype rows for reconcile/rebuild, appending into
+// dst (reset to length 0 first) so steady-state callers can reuse one buffer across ticks
+// instead of re-growing a fresh slice every tick. Pass nil for a one-shot gather.
+func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
+	iter cardinal.SearchResult[cardinal.EntityID, physicsBodyRow],
 ) []internal.PhysicsRebuildEntry {
-	entries := make([]internal.PhysicsRebuildEntry, 0, 64)
+	entries := dst[:0]
 	for eid, row := range iter {
 		entries = append(entries, internal.PhysicsRebuildEntry{
 			EntityID:    eid,
@@ -50,7 +51,7 @@ func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
 		ensurePhysicsSingleton(&state.Singleton)
 
-		entries := gatherRebuildEntries(state.Bodies.Iter())
+		entries := gatherRebuildEntries(nil, state.Bodies.Iter())
 		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}
