@@ -13,7 +13,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestShapeType_CircleFallsAndDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -58,7 +59,7 @@ func TestShapeType_CircleFallsAndDetectable(t *testing.T) {
 	require.Less(t, finalPos.Y, 9.0, "circle should fall")
 
 	// AABB query should find the circle at its current position.
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -1, Y: finalPos.Y - 1},
 		Max: physics.Vec2{X: 1, Y: finalPos.Y + 1},
 	})
@@ -76,7 +77,8 @@ func TestShapeType_CircleFallsAndDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_BoxFloorDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var floorID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -104,7 +106,7 @@ func TestShapeType_BoxFloorDetectable(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Raycast down should hit the floor.
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 5},
 		End:    physics.Vec2{X: 0, Y: -5},
 	})
@@ -117,7 +119,8 @@ func TestShapeType_BoxFloorDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_ConvexPolygonDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var triID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -145,7 +148,7 @@ func TestShapeType_ConvexPolygonDetectable(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -0.5, Y: 0.5},
 		Max: physics.Vec2{X: 0.5, Y: 1.5},
 	})
@@ -163,7 +166,8 @@ func TestShapeType_ConvexPolygonDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_StaticChainDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var chainID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -192,7 +196,7 @@ func TestShapeType_StaticChainDetectable(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Raycast from above downward should hit the chain.
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 5},
 		End:    physics.Vec2{X: 0, Y: -5},
 	})
@@ -205,7 +209,8 @@ func TestShapeType_StaticChainDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_ChainLoopDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var loopID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -236,7 +241,7 @@ func TestShapeType_ChainLoopDetectable(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Raycast from inside to outside should hit the loop boundary.
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 	})
@@ -249,7 +254,8 @@ func TestShapeType_ChainLoopDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_EdgeDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var edgeID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -276,7 +282,7 @@ func TestShapeType_EdgeDetectable(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Raycast from above should hit the edge.
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 5},
 		End:    physics.Vec2{X: 0, Y: -5},
 	})
@@ -289,7 +295,8 @@ func TestShapeType_EdgeDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_CapsuleFallsUnderGravity(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var capsuleID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -341,7 +348,8 @@ func TestShapeType_CapsuleFallsUnderGravity(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_StaticCapsuleDetectable(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var capsuleID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -370,7 +378,7 @@ func TestShapeType_StaticCapsuleDetectable(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Raycast from above should hit the capsule.
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 5},
 		End:    physics.Vec2{X: 0, Y: -5},
 	})
@@ -383,7 +391,8 @@ func TestShapeType_StaticCapsuleDetectable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_CompoundCollider(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var compID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -421,7 +430,7 @@ func TestShapeType_CompoundCollider(t *testing.T) {
 	tickN(t, w, 3)
 
 	// AABB around center should find shape 0 (box).
-	ovCenter := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovCenter := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -0.5, Y: -0.5},
 		Max: physics.Vec2{X: 0.5, Y: 0.5},
 	})
@@ -434,7 +443,7 @@ func TestShapeType_CompoundCollider(t *testing.T) {
 	require.True(t, foundBox, "compound box shape detected at center")
 
 	// AABB around X=5 should find shape 1 (circle).
-	ovRight := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovRight := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: 4, Y: -1},
 		Max: physics.Vec2{X: 6, Y: 1},
 	})
@@ -459,7 +468,8 @@ func TestShapeType_CompoundCollider(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_CircleLocalOffset(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var bodyID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -487,7 +497,7 @@ func TestShapeType_CircleLocalOffset(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Should NOT be at origin.
-	ovOrigin := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovOrigin := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -1, Y: -1},
 		Max: physics.Vec2{X: 1, Y: 1},
 	})
@@ -496,7 +506,7 @@ func TestShapeType_CircleLocalOffset(t *testing.T) {
 	}
 
 	// Should be at offset X=10.
-	ovOffset := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovOffset := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: 9, Y: -1},
 		Max: physics.Vec2{X: 11, Y: 1},
 	})
@@ -514,10 +524,11 @@ func TestShapeType_CircleLocalOffset(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShapeType_ChainOnDynamic_NoPhysicsBody(t *testing.T) {
+	t.Parallel()
 	// Chain shapes on dynamic bodies produce zero mass — the internal create.go rejects this.
 	// We verify the body is not created (no hit) rather than a direct error, since the error
 	// is logged by the system but doesn't crash.
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState

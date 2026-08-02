@@ -30,6 +30,8 @@ func (c harnessTag) MarshalWire() []byte {
 	}
 	return b
 }
+
+// UnmarshalWire returns any (decode factory) to satisfy the Cardinal component wire interface.
 func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	var v harnessTag
 	err := json.Unmarshal(b, &v)
@@ -307,14 +309,15 @@ func manualMoveSystem(state *struct {
 	}
 }
 
-// verifySystem runs on [cardinal.PostUpdate] after the physics step. It drains contact/trigger
-// receivers, enforces tick-based deadlines (pre-crash, post-crash1, post-crash2), runs query checks,
-// applies scripted ECS edits (destroy triangle, move wall, create NewBox, teleport ball, ResetRuntime),
+// newVerifySystem returns the [cardinal.PostUpdate] system bound to the plugin under test. It runs
+// after the physics step: it drains contact/trigger receivers, enforces tick-based deadlines
+// (pre-crash, post-crash1, post-crash2), runs query checks, applies scripted ECS edits (destroy
+// triangle, move wall, create NewBox, teleport ball, Plugin.Reset),
 // verifies writeback round-trip (ECS reflects Box2D simulation), and asserts synthetic recovery
 // events match expectations.
 //
 //nolint:cyclop,gocyclo // linear scenario script (same phases as townhall harness)
-func verifySystem(state *struct {
+func newVerifySystem(p *physics.Plugin) func(state *struct {
 	cardinal.BaseSystemState
 	Spawn          spawnArchetype
 	ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
@@ -322,264 +325,273 @@ func verifySystem(state *struct {
 	TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
 	TriggerEndRx   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
 }) {
-	req := testRequire
-	tick := state.Tick()
-	// Cardinal reports tick 0 on first frame; physics assertions start from tick 1.
-	if tick == 0 {
-		return
-	}
+	return func(state *struct {
+		cardinal.BaseSystemState
+		Spawn          spawnArchetype
+		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
+		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
+		TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
+		TriggerEndRx   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
+	}) {
+		req := testRequire
+		tick := state.Tick()
+		// Cardinal reports tick 0 on first frame; physics assertions start from tick 1.
+		if tick == 0 {
+			return
+		}
 
-	// After ResetRuntime, World is gone until next PreUpdate FullRebuild — only allowed in crash windows.
-	if physics.WorldID() == 0 {
+		// After Plugin.Reset, World is gone until next PreUpdate FullRebuild — only allowed in crash windows.
+		if p.Engine() == nil {
+			phase := atomic.LoadUint32(&crashPhase)
+			if phase == 0 {
+				req.FailNow("Engine() == nil before any crash")
+			}
+			if phase >= 1 && tick > tickCrash1+1 && tick <= tickCrash2 {
+				req.FailNow("Engine() == nil after crash1 — FullRebuildFromECS failed")
+			}
+			if phase >= 2 && tick > tickCrash2+1 {
+				req.FailNow("Engine() == nil after crash2 — FullRebuildFromECS failed")
+			}
+			return
+		}
+
 		phase := atomic.LoadUint32(&crashPhase)
-		if phase == 0 {
-			req.FailNow("WorldID() == 0 before any crash")
-		}
-		if phase >= 1 && tick > tickCrash1+1 && tick <= tickCrash2 {
-			req.FailNow("WorldID() == 0 after crash1 — FullRebuildFromECS failed")
-		}
-		if phase >= 2 && tick > tickCrash2+1 {
-			req.FailNow("WorldID() == 0 after crash2 — FullRebuildFromECS failed")
-		}
-		return
-	}
 
-	phase := atomic.LoadUint32(&crashPhase)
-
-	// Collect physics2d system events emitted during this tick’s step (receivers clear each tick).
-	for e := range state.ContactBeginRx.Iter() {
-		if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
-			atomic.AddUint32(&contactBeginCnt, 1)
-		}
-		if harness.NewBox != 0 && pairHas(e.EntityA, e.EntityB, harness.Ball, harness.NewBox) && phase == 2 {
-			atomic.StoreUint32(&crash2NewBegin, 1)
-		}
-	}
-	for e := range state.ContactEndRx.Iter() {
-		if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
-			switch phase {
-			case 1:
-				atomic.StoreUint32(&crash1EndContact, 1)
-			case 2:
-				atomic.StoreUint32(&crash2EndContact, 1)
+		// Collect physics2d system events emitted during this tick’s step (receivers clear each tick).
+		for e := range state.ContactBeginRx.Iter() {
+			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
+				atomic.AddUint32(&contactBeginCnt, 1)
+			}
+			if harness.NewBox != 0 && pairHas(e.EntityA, e.EntityB, harness.Ball, harness.NewBox) && phase == 2 {
+				atomic.StoreUint32(&crash2NewBegin, 1)
 			}
 		}
-	}
-	for e := range state.TriggerBeginRx.Iter() {
-		if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
-			atomic.AddUint32(&triggerBeginCnt, 1)
-		}
-	}
-	for e := range state.TriggerEndRx.Iter() {
-		if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
-			switch phase {
-			case 1:
-				atomic.StoreUint32(&crash1EndTrigger, 1)
-			case 2:
-				atomic.StoreUint32(&crash2EndTrigger, 1)
-			}
-		}
-	}
-
-	// --- Writeback verification: read ECS state written back by Box2D each tick ---
-	for eid, row := range state.Spawn.Iter() {
-		switch eid {
-		case harness.Ball:
-			t := row.T.Get()
-			v := row.V.Get()
-			if phase == 0 && tick < tickCrash1 {
-				ballPosYHistory = append(ballPosYHistory, t.Position.Y)
-				ballVelYHistory = append(ballVelYHistory, v.Linear.Y)
-			}
-			if phase == 1 && tick > tickCrash1+2 && tick < tickCrash2 {
-				postCrash1BallPosY = append(postCrash1BallPosY, t.Position.Y)
-			}
-		case harness.SecondBall:
-			if phase == 0 {
-				pos := row.T.Get().Position
-				req.InDelta(20, pos.Y, 0.5,
-					"second ball (zero gravity) ECS Y must stay near spawn at tick %d", tick)
-			}
-		case harness.KinematicMover:
-			if phase == 0 && tick < tickCrash1 {
-				kinematicPosXHistory = append(kinematicPosXHistory, row.T.Get().Position.X)
-			}
-		case harness.ManualPlayer:
-			pos := row.T.Get().Position
-			if phase == 0 {
-				req.InDelta(manualSpawnPos.Y, pos.Y, epsilon,
-					"manual body Y unchanged at tick %d (writeback must not clobber)", tick)
-			}
-			if tick == tickContactDeadline && phase == 0 {
-				req.Greater(pos.X, manualSpawnPos.X+2.0,
-					"manual body X advanced by gameplay (writeback did not reset it)")
-			}
-		case harness.Spinner:
-			if phase == 0 && tick < tickCrash1 {
-				spinnerRotHistory = append(spinnerRotHistory, row.T.Get().Rotation)
-			}
-		}
-	}
-
-	// Before crash 1: normal fall must produce trigger then solid contact (live Box2D callbacks).
-	if tick >= tickTriggerDeadline && tick < tickCrash1 {
-		req.NotZero(atomic.LoadUint32(&triggerBeginCnt), "TriggerBegin ball-sensor by deadline")
-	}
-	if tick >= tickContactDeadline && tick < tickCrash1 {
-		req.NotZero(atomic.LoadUint32(&contactBeginCnt), "ContactBegin ball-floor by deadline")
-	}
-
-	// Writeback milestone: at contact deadline the ball has landed and all tracked bodies are stable.
-	if tick == tickContactDeadline && phase == 0 {
-		// Ball fell from Y=5.2 to near the floor; positions must be non-increasing (no snap-back).
-		n := len(ballPosYHistory)
-		req.GreaterOrEqual(n, 50, "enough ball position samples for smooth motion check")
-		// Threshold 0.5 catches snap-back (reconciler fighting writeback → multi-meter jumps)
-		// while allowing tiny physics bounces from restitution.
-		for i := 1; i < n; i++ {
-			req.LessOrEqual(ballPosYHistory[i], ballPosYHistory[i-1]+0.5,
-				"ball Y jumped up at sample %d (snap-back = writeback/shadow desync)", i)
-		}
-		// Ball resting near floor (floor top Y=0, ball radius 0.4).
-		req.Less(ballPosYHistory[n-1], 2.0, "ball ECS Y near floor after landing")
-		// Velocity near zero once resting.
-		req.InDelta(0, ballVelYHistory[len(ballVelYHistory)-1], 2.0,
-			"ball ECS velocity Y near zero after landing")
-
-		// Kinematic mover: velocity-driven displacement via writeback.
-		nk := len(kinematicPosXHistory)
-		req.GreaterOrEqual(nk, 50, "enough kinematic position samples")
-		// At 3 m/s, 120 ticks at 60 Hz = 2s → start 20 + 6 = 26.
-		req.Greater(kinematicPosXHistory[nk-1], 24.0,
-			"kinematic mover ECS X advanced by velocity integration writeback")
-		for i := 1; i < nk; i++ {
-			req.GreaterOrEqual(kinematicPosXHistory[i], kinematicPosXHistory[i-1]-epsilon,
-				"kinematic X non-decreasing at sample %d (shadow/writeback consistency)", i)
-		}
-
-		// Spinner: angular velocity writeback → ECS rotation non-zero.
-		ns := len(spinnerRotHistory)
-		req.GreaterOrEqual(ns, 50, "enough spinner rotation samples")
-		lastRot := spinnerRotHistory[ns-1]
-		req.Greater(math.Abs(lastRot), 1.0,
-			"spinner ECS rotation should reflect angular velocity writeback, got %f", lastRot)
-	}
-
-	// Raycast, AABB, sweep, compound collider — every tick while world exists.
-	runQueryChecks(req)
-
-	// Reconcile: destroy entity → Box2D body removed (triangle no longer in overlap query).
-	if tick == tickDestroyTriangle {
-		if atomic.CompareAndSwapUint32(&triangleGone, 0, 1) {
-			req.True(state.Spawn.Destroy(harness.Triangle), "Destroy(triangle)")
-		}
-	}
-	if tick >= tickDestroyTriangle+2 {
-		assertTriangleGone(req)
-	}
-
-	// Reconcile: ECS transform change only → SetTransform in Box2D (short ray proves new X).
-	if tick == tickMoveWall {
-		if atomic.CompareAndSwapUint32(&wallMoved, 0, 1) {
-			for eid, row := range state.Spawn.Iter() {
-				if eid == harness.FilterWall {
-					tr := row.T.Get()
-					tr.Position.X = 10
-					row.T.Set(tr)
-					break
+		for e := range state.ContactEndRx.Iter() {
+			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
+				switch phase {
+				case 1:
+					atomic.StoreUint32(&crash1EndContact, 1)
+				case 2:
+					atomic.StoreUint32(&crash2EndContact, 1)
 				}
 			}
 		}
-	}
-	if tick >= tickMoveWall+2 && atomic.LoadUint32(&wallMoved) != 0 {
-		assertWallMoved(req)
-	}
-
-	// Reconcile: new physics archetype mid-sim → create body on next PreUpdate.
-	if tick == tickCreateNewBox {
-		if atomic.CompareAndSwapUint32(&newBoxCreated, 0, 1) {
-			id, row := state.Spawn.Create()
-			row.Tag.Set(harnessTag{Role: "new_box"})
-			row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
-			row.V.Set(physics.Velocity2D{})
-			row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeBox,
-				HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-				Friction:     0.5,
-				Density:      0,
-				CategoryBits: 0x0001,
-				MaskBits:     0xFFFF,
-			}))
-			harness.NewBox = id
-		}
-	}
-	if tick >= tickCreateNewBox+2 && harness.NewBox != 0 {
-		assertNewBoxExists(req)
-	}
-
-	// Crash 1: move ball back to spawn height (writeback put it on the floor), then drop Box2D.
-	// Rebuild from ECS spawn height means no floor/sensor overlap while active_contacts still
-	// lists old pairs → suppressed step diff emits synthetic Ends.
-	if tick == tickCrash1 {
-		atomic.StoreUint32(&crashPhase, 1)
-		for eid, row := range state.Spawn.Iter() {
-			if eid == harness.Ball {
-				tr := row.T.Get()
-				tr.Position = physics.Vec2{X: 0, Y: 5.2}
-				row.T.Set(tr)
+		for e := range state.TriggerBeginRx.Iter() {
+			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
+				atomic.AddUint32(&triggerBeginCnt, 1)
 			}
 		}
-		physics.ResetRuntime()
-		return
-	}
-
-	// Post–crash 1: confirm synthetic ContactEnd + TriggerEnd; then ball falls again → second Begins.
-	if tick >= tickCrash1Verify && phase == 1 && tick < tickCrash2 {
-		req.NotZero(atomic.LoadUint32(&crash1EndContact), "synthetic ContactEnd ball-floor after crash1")
-		req.NotZero(atomic.LoadUint32(&crash1EndTrigger), "synthetic TriggerEnd ball-sensor after crash1")
-	}
-	if tick >= tickPostCrash1Trigger && phase >= 1 && tick < tickCrash2 {
-		req.GreaterOrEqual(atomic.LoadUint32(&triggerBeginCnt), uint32(2), "TriggerBegin again after crash1")
-	}
-	if tick >= tickPostCrash1Contact && phase >= 1 && tick < tickCrash2 {
-		req.GreaterOrEqual(atomic.LoadUint32(&contactBeginCnt), uint32(2), "ContactBegin again after crash1")
-	}
-	// Post-crash1 writeback: ball fell from 5.2 again, ECS position reflects the second landing.
-	if tick == tickPostCrash1Contact && phase >= 1 {
-		np := len(postCrash1BallPosY)
-		req.GreaterOrEqual(np, 50, "enough post-crash1 ball position samples")
-		req.Less(postCrash1BallPosY[np-1], 2.0,
-			"ball ECS Y near floor after crash1 (writeback round-trip through rebuild)")
-	}
-
-	// Crash 2: move ball in ECS onto NewBox, then ResetRuntime. Persisted pairs are floor/sensor;
-	// live has ball–NewBox only → diff emits Ends for stale pairs + Begin for new overlap.
-	if tick == tickCrash2 {
-		atomic.StoreUint32(&crashPhase, 2)
-		for eid, row := range state.Spawn.Iter() {
-			if eid == harness.Ball {
-				tr := row.T.Get()
-				tr.Position = physics.Vec2{X: 5, Y: 1.3}
-				row.T.Set(tr)
+		for e := range state.TriggerEndRx.Iter() {
+			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
+				switch phase {
+				case 1:
+					atomic.StoreUint32(&crash1EndTrigger, 1)
+				case 2:
+					atomic.StoreUint32(&crash2EndTrigger, 1)
+				}
 			}
 		}
-		physics.ResetRuntime()
-		return
-	}
 
-	// Post–crash 2: all three diff outcomes (two Ends + one Begin) observed this tick or shortly after.
-	if tick >= tickCrash2Verify && phase == 2 {
-		req.NotZero(atomic.LoadUint32(&crash2EndContact), "synthetic ContactEnd ball-floor after crash2")
-		req.NotZero(atomic.LoadUint32(&crash2EndTrigger), "synthetic TriggerEnd ball-sensor after crash2")
-		req.NotZero(atomic.LoadUint32(&crash2NewBegin), "synthetic ContactBegin ball-NewBox after crash2")
+		// --- Writeback verification: read ECS state written back by Box2D each tick ---
+		for eid, row := range state.Spawn.Iter() {
+			switch eid {
+			case harness.Ball:
+				t := row.T.Get()
+				v := row.V.Get()
+				if phase == 0 && tick < tickCrash1 {
+					ballPosYHistory = append(ballPosYHistory, t.Position.Y)
+					ballVelYHistory = append(ballVelYHistory, v.Linear.Y)
+				}
+				if phase == 1 && tick > tickCrash1+2 && tick < tickCrash2 {
+					postCrash1BallPosY = append(postCrash1BallPosY, t.Position.Y)
+				}
+			case harness.SecondBall:
+				if phase == 0 {
+					pos := row.T.Get().Position
+					req.InDelta(20, pos.Y, 0.5,
+						"second ball (zero gravity) ECS Y must stay near spawn at tick %d", tick)
+				}
+			case harness.KinematicMover:
+				if phase == 0 && tick < tickCrash1 {
+					kinematicPosXHistory = append(kinematicPosXHistory, row.T.Get().Position.X)
+				}
+			case harness.ManualPlayer:
+				pos := row.T.Get().Position
+				if phase == 0 {
+					req.InDelta(manualSpawnPos.Y, pos.Y, epsilon,
+						"manual body Y unchanged at tick %d (writeback must not clobber)", tick)
+				}
+				if tick == tickContactDeadline && phase == 0 {
+					req.Greater(pos.X, manualSpawnPos.X+2.0,
+						"manual body X advanced by gameplay (writeback did not reset it)")
+				}
+			case harness.Spinner:
+				if phase == 0 && tick < tickCrash1 {
+					spinnerRotHistory = append(spinnerRotHistory, row.T.Get().Rotation)
+				}
+			}
+		}
+
+		// Before crash 1: normal fall must produce trigger then solid contact (live Box2D callbacks).
+		if tick >= tickTriggerDeadline && tick < tickCrash1 {
+			req.NotZero(atomic.LoadUint32(&triggerBeginCnt), "TriggerBegin ball-sensor by deadline")
+		}
+		if tick >= tickContactDeadline && tick < tickCrash1 {
+			req.NotZero(atomic.LoadUint32(&contactBeginCnt), "ContactBegin ball-floor by deadline")
+		}
+
+		// Writeback milestone: at contact deadline the ball has landed and all tracked bodies are stable.
+		if tick == tickContactDeadline && phase == 0 {
+			// Ball fell from Y=5.2 to near the floor; positions must be non-increasing (no snap-back).
+			n := len(ballPosYHistory)
+			req.GreaterOrEqual(n, 50, "enough ball position samples for smooth motion check")
+			// Threshold 0.5 catches snap-back (reconciler fighting writeback → multi-meter jumps)
+			// while allowing tiny physics bounces from restitution.
+			for i := 1; i < n; i++ {
+				req.LessOrEqual(ballPosYHistory[i], ballPosYHistory[i-1]+0.5,
+					"ball Y jumped up at sample %d (snap-back = writeback/shadow desync)", i)
+			}
+			// Ball resting near floor (floor top Y=0, ball radius 0.4).
+			req.Less(ballPosYHistory[n-1], 2.0, "ball ECS Y near floor after landing")
+			// Velocity near zero once resting.
+			req.InDelta(0, ballVelYHistory[len(ballVelYHistory)-1], 2.0,
+				"ball ECS velocity Y near zero after landing")
+
+			// Kinematic mover: velocity-driven displacement via writeback.
+			nk := len(kinematicPosXHistory)
+			req.GreaterOrEqual(nk, 50, "enough kinematic position samples")
+			// At 3 m/s, 120 ticks at 60 Hz = 2s → start 20 + 6 = 26.
+			req.Greater(kinematicPosXHistory[nk-1], 24.0,
+				"kinematic mover ECS X advanced by velocity integration writeback")
+			for i := 1; i < nk; i++ {
+				req.GreaterOrEqual(kinematicPosXHistory[i], kinematicPosXHistory[i-1]-epsilon,
+					"kinematic X non-decreasing at sample %d (shadow/writeback consistency)", i)
+			}
+
+			// Spinner: angular velocity writeback → ECS rotation non-zero.
+			ns := len(spinnerRotHistory)
+			req.GreaterOrEqual(ns, 50, "enough spinner rotation samples")
+			lastRot := spinnerRotHistory[ns-1]
+			req.Greater(math.Abs(lastRot), 1.0,
+				"spinner ECS rotation should reflect angular velocity writeback, got %f", lastRot)
+		}
+
+		// Raycast, AABB, sweep, compound collider — every tick while world exists.
+		runQueryChecks(p, req)
+
+		// Reconcile: destroy entity → Box2D body removed (triangle no longer in overlap query).
+		if tick == tickDestroyTriangle {
+			if atomic.CompareAndSwapUint32(&triangleGone, 0, 1) {
+				req.True(state.Spawn.Destroy(harness.Triangle), "Destroy(triangle)")
+			}
+		}
+		if tick >= tickDestroyTriangle+2 {
+			assertTriangleGone(p, req)
+		}
+
+		// Reconcile: ECS transform change only → SetTransform in Box2D (short ray proves new X).
+		if tick == tickMoveWall {
+			if atomic.CompareAndSwapUint32(&wallMoved, 0, 1) {
+				for eid, row := range state.Spawn.Iter() {
+					if eid == harness.FilterWall {
+						tr := row.T.Get()
+						tr.Position.X = 10
+						row.T.Set(tr)
+						break
+					}
+				}
+			}
+		}
+		if tick >= tickMoveWall+2 && atomic.LoadUint32(&wallMoved) != 0 {
+			assertWallMoved(p, req)
+		}
+
+		// Reconcile: new physics archetype mid-sim → create body on next PreUpdate.
+		if tick == tickCreateNewBox {
+			if atomic.CompareAndSwapUint32(&newBoxCreated, 0, 1) {
+				id, row := state.Spawn.Create()
+				row.Tag.Set(harnessTag{Role: "new_box"})
+				row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
+				row.V.Set(physics.Velocity2D{})
+				row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+					ShapeType:    physics.ShapeTypeBox,
+					HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
+					Friction:     0.5,
+					Density:      0,
+					CategoryBits: 0x0001,
+					MaskBits:     0xFFFF,
+				}))
+				harness.NewBox = id
+			}
+		}
+		if tick >= tickCreateNewBox+2 && harness.NewBox != 0 {
+			assertNewBoxExists(p, req)
+		}
+
+		// Crash 1: move ball back to spawn height (writeback put it on the floor), then drop Box2D.
+		// Rebuild from ECS spawn height means no floor/sensor overlap while active_contacts still
+		// lists old pairs → suppressed step diff emits synthetic Ends.
+		if tick == tickCrash1 {
+			atomic.StoreUint32(&crashPhase, 1)
+			for eid, row := range state.Spawn.Iter() {
+				if eid == harness.Ball {
+					tr := row.T.Get()
+					tr.Position = physics.Vec2{X: 0, Y: 5.2}
+					row.T.Set(tr)
+				}
+			}
+			p.Reset()
+			return
+		}
+
+		// Post–crash 1: confirm synthetic ContactEnd + TriggerEnd; then ball falls again → second Begins.
+		if tick >= tickCrash1Verify && phase == 1 && tick < tickCrash2 {
+			req.NotZero(atomic.LoadUint32(&crash1EndContact), "synthetic ContactEnd ball-floor after crash1")
+			req.NotZero(atomic.LoadUint32(&crash1EndTrigger), "synthetic TriggerEnd ball-sensor after crash1")
+		}
+		if tick >= tickPostCrash1Trigger && phase >= 1 && tick < tickCrash2 {
+			req.GreaterOrEqual(atomic.LoadUint32(&triggerBeginCnt), uint32(2), "TriggerBegin again after crash1")
+		}
+		if tick >= tickPostCrash1Contact && phase >= 1 && tick < tickCrash2 {
+			req.GreaterOrEqual(atomic.LoadUint32(&contactBeginCnt), uint32(2), "ContactBegin again after crash1")
+		}
+		// Post-crash1 writeback: ball fell from 5.2 again, ECS position reflects the second landing.
+		if tick == tickPostCrash1Contact && phase >= 1 {
+			np := len(postCrash1BallPosY)
+			req.GreaterOrEqual(np, 50, "enough post-crash1 ball position samples")
+			req.Less(postCrash1BallPosY[np-1], 2.0,
+				"ball ECS Y near floor after crash1 (writeback round-trip through rebuild)")
+		}
+
+		// Crash 2: move ball in ECS onto NewBox, then Plugin.Reset. Persisted pairs are floor/sensor;
+		// live has ball–NewBox only → diff emits Ends for stale pairs + Begin for new overlap.
+		if tick == tickCrash2 {
+			atomic.StoreUint32(&crashPhase, 2)
+			for eid, row := range state.Spawn.Iter() {
+				if eid == harness.Ball {
+					tr := row.T.Get()
+					tr.Position = physics.Vec2{X: 5, Y: 1.3}
+					row.T.Set(tr)
+				}
+			}
+			p.Reset()
+			return
+		}
+
+		// Post–crash 2: all three diff outcomes (two Ends + one Begin) observed this tick or shortly after.
+		if tick >= tickCrash2Verify && phase == 2 {
+			req.NotZero(atomic.LoadUint32(&crash2EndContact), "synthetic ContactEnd ball-floor after crash2")
+			req.NotZero(atomic.LoadUint32(&crash2EndTrigger), "synthetic TriggerEnd ball-sensor after crash2")
+			req.NotZero(atomic.LoadUint32(&crash2NewBegin), "synthetic ContactBegin ball-NewBox after crash2")
+		}
 	}
 }
 
-// runQueryChecks exercises [physics.Raycast], [physics.OverlapAABB] (with and without sensor filter),
-// and [physics.CircleSweep] against the current Box2D world.
-func runQueryChecks(req *require.Assertions) {
+// runQueryChecks exercises [physics.Plugin.Raycast], [physics.Plugin.OverlapAABB] (with and
+// without sensor filter), and [physics.Plugin.CircleSweep] against the current Box2D world.
+func runQueryChecks(p *physics.Plugin, req *require.Assertions) {
 	// Raycast with nil filter: hits FilterWall on layer 0x0002.
-	rayDef := physics.Raycast(physics.RaycastRequest{
+	rayDef := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 8, Y: 0.25},
 		End:    physics.Vec2{X: 25, Y: 0.25},
 	})
@@ -589,7 +601,7 @@ func runQueryChecks(req *require.Assertions) {
 
 	// Raycast with mask that does not include 0x0002 → must not hit FilterWall.
 	fl := physics.Filter{CategoryBits: 0x0001, MaskBits: 0x0001, IncludeSensors: false}
-	rayFilt := physics.Raycast(physics.RaycastRequest{
+	rayFilt := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 8, Y: 0.25},
 		End:    physics.Vec2{X: 25, Y: 0.25},
 		Filter: &fl,
@@ -598,7 +610,7 @@ func runQueryChecks(req *require.Assertions) {
 
 	// AABB narrow-phase over triangle region (until entity destroyed).
 	if atomic.LoadUint32(&triangleGone) == 0 {
-		ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ov := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: -9, Y: 0.5},
 			Max: physics.Vec2{X: -6, Y: 2.5},
 		})
@@ -613,7 +625,7 @@ func runQueryChecks(req *require.Assertions) {
 	}
 
 	// Circle cast along x through FilterWall strip.
-	sweep := physics.CircleSweep(physics.CircleSweepRequest{
+	sweep := p.CircleSweep(physics.CircleSweepRequest{
 		Start:  physics.Vec2{X: 25, Y: 0.25},
 		End:    physics.Vec2{X: -25, Y: 0.25},
 		Radius: 0.2,
@@ -622,7 +634,7 @@ func runQueryChecks(req *require.Assertions) {
 		"CircleSweep FilterWall: hit=%v entity=%d", sweep.Hit, sweep.Entity)
 
 	// Default query filter skips sensors → compound body should report only shape 0 (box).
-	ovComp := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovComp := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -13, Y: 0},
 		Max: physics.Vec2{X: -11, Y: 3},
 	})
@@ -639,7 +651,7 @@ func runQueryChecks(req *require.Assertions) {
 
 	// Explicit IncludeSensors → both box (0) and sensor circle (1) should appear.
 	incl := physics.Filter{CategoryBits: 0xFFFF, MaskBits: 0xFFFF, IncludeSensors: true}
-	ovS := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovS := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min:    physics.Vec2{X: -13, Y: 0},
 		Max:    physics.Vec2{X: -11, Y: 3},
 		Filter: &incl,
@@ -660,8 +672,8 @@ func runQueryChecks(req *require.Assertions) {
 }
 
 // assertTriangleGone checks that destroying the triangle entity removed its fixtures from overlap queries.
-func assertTriangleGone(req *require.Assertions) {
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+func assertTriangleGone(p *physics.Plugin, req *require.Assertions) {
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -9, Y: 0.5},
 		Max: physics.Vec2{X: -6, Y: 2.5},
 	})
@@ -672,8 +684,8 @@ func assertTriangleGone(req *require.Assertions) {
 
 // assertWallMoved checks transform reconcile: FilterWall moved in ECS should be hit by a short ray
 // that would miss at the pre-move wall X.
-func assertWallMoved(req *require.Assertions) {
-	shortRay := physics.Raycast(physics.RaycastRequest{
+func assertWallMoved(p *physics.Plugin, req *require.Assertions) {
+	shortRay := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 8, Y: 0.25},
 		End:    physics.Vec2{X: 12, Y: 0.25},
 	})
@@ -682,8 +694,8 @@ func assertWallMoved(req *require.Assertions) {
 }
 
 // assertNewBoxExists checks mid-tick entity creation: NewBox should appear in an AABB overlap query.
-func assertNewBoxExists(req *require.Assertions) {
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+func assertNewBoxExists(p *physics.Plugin, req *require.Assertions) {
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: 4, Y: 0},
 		Max: physics.Vec2{X: 6, Y: 2},
 	})
@@ -729,11 +741,11 @@ func resetHarnessGlobals() {
 // It verifies:
 //   - Cardinal ↔ plugin wiring: ECS Init (schedules + Init hooks) before first Tick, plugin Init
 //     before first step, and
-//     [physics.PhysicsWorld] present except immediately after [physics.ResetRuntime] (rebuilt next PreUpdate).
+//     a live Box2D world present except immediately after [physics.Plugin.Reset] (rebuilt next PreUpdate).
 //   - Contact/trigger system events: TriggerBegin and ContactBegin (ball vs sensor / floor) within
 //     deadlines; after crash 1, synthetic TriggerEnd + ContactEnd (persisted active_contacts vs
 //     rebuilt Box2D with ECS spawn transform); ball falls again → second begin pair; crash 2 moves
-//     ball in ECS onto NewBox + ResetRuntime → synthetic ends for old pairs + ContactBegin for ball–NewBox.
+//     ball in ECS onto NewBox + Plugin.Reset → synthetic ends for old pairs + ContactBegin for ball–NewBox.
 //   - Query API each tick: default raycast vs FilterWall; filtered raycast misses wall on category mask;
 //     OverlapAABB for triangle until destroyed; CircleSweep to FilterWall; compound body AABB without
 //     filter (sensor shape excluded) and with IncludeSensors (both shapes).
@@ -747,14 +759,12 @@ func resetHarnessGlobals() {
 //
 // It does not: restore from JetStream/S3 snapshots or run FromProto (Nop snapshot storage; no restore path).
 func TestPhysics2D_CardinalIntegration(t *testing.T) {
-	// Not parallel: uses package-level harness state and testRequire for the verify system.
-	t.Setenv("LOG_LEVEL", "disabled")
+	// Parallel with other tests is safe: the package-level harness globals are only touched
+	// by this test, and each plugin instance owns its own pure-Go physics world.
+	t.Parallel()
 	resetHarnessGlobals()
 
 	testRequire = require.New(t)
-	t.Cleanup(func() {
-		testRequire = nil
-	})
 
 	// Debug on: cardinal.Tick touches debug perf hooks (nil debug would panic).
 	debug := true
@@ -772,14 +782,15 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 
 	// Init hook must run before plugin Init so FullRebuildFromECS sees harness entities.
 	cardinal.RegisterSystem(world, sceneInitSystem, cardinal.WithHook(cardinal.Init))
-	cardinal.RegisterPlugin(world, physics.NewPlugin(physics.Config{
+	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  physics.Vec2{X: 0, Y: -10},
 		TickRate: 60,
-	}))
+	})
+	cardinal.RegisterPlugin(world, plugin)
 	// Gameplay system moves the manual body each tick (before physics reconcile).
 	cardinal.RegisterSystem(world, manualMoveSystem, cardinal.WithHook(cardinal.PreUpdate))
 	// Assertions run after physics step (same-tick contact receivers).
-	cardinal.RegisterSystem(world, verifySystem, cardinal.WithHook(cardinal.PostUpdate))
+	cardinal.RegisterSystem(world, newVerifySystem(plugin), cardinal.WithHook(cardinal.PostUpdate))
 
 	initCardinalECS(world)
 

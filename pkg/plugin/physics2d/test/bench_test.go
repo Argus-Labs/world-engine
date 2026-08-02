@@ -15,10 +15,10 @@ import (
 // Helpers
 // ---------------------------------------------------------------------------
 
-// benchWorld creates a Cardinal world suitable for benchmarks (no logging).
-func benchWorld(b *testing.B, gravity physics.Vec2) *cardinal.World {
+// benchWorld creates a Cardinal world suitable for benchmarks (no logging), returning the world
+// and the registered plugin instance.
+func benchWorld(b *testing.B, gravity physics.Vec2) (*cardinal.World, *physics.Plugin) {
 	b.Helper()
-	b.Setenv("LOG_LEVEL", "disabled")
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
@@ -33,11 +33,12 @@ func benchWorld(b *testing.B, gravity physics.Vec2) *cardinal.World {
 	if err != nil {
 		b.Fatal(err)
 	}
-	cardinal.RegisterPlugin(w, physics.NewPlugin(physics.Config{
+	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
-	}))
-	return w
+	})
+	cardinal.RegisterPlugin(w, plugin)
+	return w, plugin
 }
 
 // benchTickN ticks the world n times without test failure checks.
@@ -55,7 +56,7 @@ func benchTickN(w *cardinal.World, n int) {
 func BenchmarkStep(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w := benchWorld(b, physics.Vec2{X: 0, Y: -10})
+			w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10})
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, func(state *struct {
@@ -121,7 +122,7 @@ func BenchmarkStep(b *testing.B) {
 func BenchmarkRaycast(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w := benchWorld(b, physics.Vec2{X: 0, Y: 0})
+			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0})
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
@@ -131,7 +132,7 @@ func BenchmarkRaycast(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				physics.Raycast(physics.RaycastRequest{
+				p.Raycast(physics.RaycastRequest{
 					Origin: physics.Vec2{X: -500, Y: 0},
 					End:    physics.Vec2{X: 500, Y: 0},
 					Filter: &physics.Filter{
@@ -152,7 +153,7 @@ func BenchmarkRaycast(b *testing.B) {
 func BenchmarkOverlapAABB(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w := benchWorld(b, physics.Vec2{X: 0, Y: 0})
+			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0})
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
@@ -162,7 +163,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				physics.OverlapAABB(physics.AABBOverlapRequest{
+				p.OverlapAABB(physics.AABBOverlapRequest{
 					Min: physics.Vec2{X: -10, Y: -10},
 					Max: physics.Vec2{X: 10, Y: 10},
 					Filter: &physics.Filter{
@@ -183,7 +184,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 func BenchmarkCircleSweep(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w := benchWorld(b, physics.Vec2{X: 0, Y: 0})
+			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0})
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
@@ -193,7 +194,7 @@ func BenchmarkCircleSweep(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				physics.CircleSweep(physics.CircleSweepRequest{
+				p.CircleSweep(physics.CircleSweepRequest{
 					Start:  physics.Vec2{X: -500, Y: 0},
 					End:    physics.Vec2{X: 500, Y: 0},
 					Radius: 2.0,

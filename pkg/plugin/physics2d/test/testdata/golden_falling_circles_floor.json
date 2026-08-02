@@ -1,0 +1,3269 @@
+{
+  "scenario": "falling_circles_floor",
+  "tick_count": 300,
+  "frames": [
+    {
+      "tick": 0,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "4.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "5.4982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "5.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "6.4982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "6.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "7.4982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "7.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "8.4982643127441406",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 10,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "4.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "5.328125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "5.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "6.328125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "6.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "7.328125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "7.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "8.328125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 20,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "4.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "4.8802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "5.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "5.8802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "6.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "6.8802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "7.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "7.8802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 30,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "3.6545131206512451",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "4.154512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "4.654512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "5.154512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "5.654512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "6.154512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "6.654512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "7.154512882232666",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 40,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "2.6510417461395264",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "3.1510415077209473",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "3.6510412693023682",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "4.1510410308837891",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "4.6510410308837891",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "5.1510410308837891",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "5.6510410308837891",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "6.1510410308837891",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 50,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "1.3697934150695801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "1.8697930574417114",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "2.3697926998138428",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "2.8697926998138428",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "3.3697922229766846",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "3.8697926998138428",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "4.3697924613952637",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "4.8697924613952637",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 60,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.6985163688659668",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.7252902984619141e-09",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.75996387004852295",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.81666678190231323",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.81076538562774658",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "1.3107653856277466",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "1.8107649087905884",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "2.310765266418457",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "2.8107647895812988",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "3.3107645511627197",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 70,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69985449314117432",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.75371384620666504",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.85000014305114746",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.98936134576797485",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.53333485126495361",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "1.1131480932235718",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.200000524520874",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.99089419841766357",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "3.9666731357574463",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.97850537300109863",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "5.5833401679992676",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "0.97395730018615723",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-11.83335018157959",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.4739573001861572",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-11.83335018157959",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 80,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992566108703613",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74993366003036499",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.93588942289352417",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.1333318948745728",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "1.3374537229537964",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.53333425521850586",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "1.5096451044082642",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.3000032901763916",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.7667014598846436",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "3.9166793823242188",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.9288049936294556",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "5.6000161170959473",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.7246348857879639",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "7.6333441734313965",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 90,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992984533309937",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.80259722471237183",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.27333375811576843",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "1.2839816808700562",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.1333324909210205",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "1.7506177425384521",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.63333684206008911",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "2.2771201133728027",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.2500095367431641",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "2.719780445098877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "3.9333553314208984",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "2.8544986248016357",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "5.9666838645935059",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 100,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79993396997451782",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.95273172855377197",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.7999999523162842",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "1.7138128280639648",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.0333300828933716",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "2.5097606182098389",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.58334314823150635",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "3.2329785823822021",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.2666854858398438",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "3.7065854072570801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "4.3000235557556152",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 110,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.7999299168586731",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.88916671276092529",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.22666649520397186",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "1.3992300033569336",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.6999971866607666",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "2.4646232128143311",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.0833237171173096",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "3.4683980941772461",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.60001909732818604",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "4.2808947563171387",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.6333553791046143",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 120,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84994262456893921",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "1.1204974725842476e-09",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.88362550735473633",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "1.6799997091293335",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "2.1417081356048584",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.7499909400939941",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "3.4260404109954834",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.0666477680206299",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "4.5774264335632324",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.96668845415115356",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 130,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.8499302864074707",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "1.11504050437361e-09",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "1.0212644338607788",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.013333477079868317",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.5410149097442627",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-4.4166584014892578",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "3.1059045791625977",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.7333149909973145",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "4.5961799621582031",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.69997847080230713",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 140,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "1.1146994438604452e-09",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.89999037981033325",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.59466654062271118",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.0367914438247681",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.4583265781402588",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "2.507990837097168",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-4.3999824523925781",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "4.337155818939209",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.3666450977325439",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 150,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.89995884895324707",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.3041514158248901",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.79165995121002197",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.6322999000549316",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.0666427612304688",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "3.80035400390625",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-4.0333147048950195",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 160,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.89993119239807129",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.2937335968017578",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.87500697374343872",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.178040623664856",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "3.7399837970733643",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "2.9857742786407471",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.6999750137329102",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 170,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.0055381059646606",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.5416738986968994",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.6590098142623901",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.0733139514923096",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.8934180736541748",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-7.3666353225708008",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 180,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "1.0388753414154053",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.020837221294641495",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.8622010946273804",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.4066479504108429",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.1775153875350952",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "5.6399803161621094",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 190,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.95904797315597534",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.48958131670951843",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.7876147031784058",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.2600187063217163",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.9751516580581665",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "3.9733197689056396",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 200,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94995677471160889",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.4352504014968872",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.9266865253448486",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "2.4950103759765625",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.306649923324585",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 210,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94993108510971069",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.0056576728820801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.389345645904541",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "2.737091064453125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.63998347520828247",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 220,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.2615207433700562",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.72267907857894897",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "2.7013938426971436",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.0266834497451782",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 230,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.2396061420440674",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.94398784637451172",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "2.3879189491271973",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.6933505535125732",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 240,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "0.98661094903945923",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "1.4663926362991333",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.7966657876968384",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-4.360018253326416",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 250,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.088648796081543",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.20027381181716919",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.03229820728302",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "4.1020088195800781",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 260,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "1.0224665403366089",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.22016437351703644",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.573604941368103",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "2.4353394508361816",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 270,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "0.99994850158691406",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.8371336460113525",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0.76867282390594482",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 280,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "0.99993062019348145",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.8228846788406372",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.89799410104751587",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 290,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "0.99992966651916504",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.5308579206466675",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-2.5646610260009766",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 299,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "circle_0",
+          "pos_x": "-7",
+          "pos_y": "0.69992870092391968",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "circle_1",
+          "pos_x": "-5",
+          "pos_y": "0.74992972612380981",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "circle_2",
+          "pos_x": "-3",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "circle_3",
+          "pos_x": "-1",
+          "pos_y": "0.84992974996566772",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "circle_4",
+          "pos_x": "1",
+          "pos_y": "0.8999297022819519",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 7,
+          "role": "circle_5",
+          "pos_x": "3",
+          "pos_y": "0.94992971420288086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 8,
+          "role": "circle_6",
+          "pos_x": "5",
+          "pos_y": "0.99992966651916504",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 9,
+          "role": "circle_7",
+          "pos_x": "7",
+          "pos_y": "1.0305335521697998",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-4.0646634101867676",
+          "ang_vel": "0"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "tick": 56,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 2,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 59,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 3,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 61,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 4,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 64,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 5,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 64,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 4,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 66,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 5,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 67,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 6,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 69,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 70,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 6,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 71,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 71,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 73,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 74,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 9,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 77,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 9,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 86,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 4,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 103,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 5,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 120,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 6,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 123,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 6,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 138,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 140,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 6,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 141,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 157,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 159,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 172,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 177,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 178,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 9,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 180,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 9,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 189,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 7,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 209,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 213,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 240,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 244,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 250,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 9,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 252,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 9,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 257,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 8,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    }
+  ],
+  "queries": []
+}

@@ -1,0 +1,39 @@
+[
+  {
+    "name": "bullet_storm",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "8cdd9228c79ee2f1"
+      },
+      {
+        "step": 60,
+        "hash": "621dfb682612847c"
+      },
+      {
+        "step": 90,
+        "hash": "708e8f3a8256b009"
+      },
+      {
+        "step": 120,
+        "hash": "1960420c2dccaa5e"
+      },
+      {
+        "step": 150,
+        "hash": "addae8984bad8b8e"
+      },
+      {
+        "step": 180,
+        "hash": "011be7dab6914224"
+      },
+      {
+        "step": 210,
+        "hash": "a7d51c3cbef3e981"
+      },
+      {
+        "step": 240,
+        "hash": "8a542873c920d32a"
+      }
+    ]
+  }
+]

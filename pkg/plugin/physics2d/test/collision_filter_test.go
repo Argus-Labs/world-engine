@@ -13,7 +13,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestFilter_BodiesOnDifferentLayersDontCollide(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID cardinal.EntityID
 
@@ -79,7 +80,8 @@ func TestFilter_BodiesOnDifferentLayersDontCollide(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFilter_BodiesOnSameLayerCollide(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID cardinal.EntityID
 
@@ -145,7 +147,8 @@ func TestFilter_BodiesOnSameLayerCollide(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFilter_RaycastCategoryMask(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var wallAID, wallBID cardinal.EntityID
 
@@ -187,7 +190,7 @@ func TestFilter_RaycastCategoryMask(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Default filter (all layers) — should hit closest wall (A).
-	rayAll := physics.Raycast(physics.RaycastRequest{
+	rayAll := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 	})
@@ -196,7 +199,7 @@ func TestFilter_RaycastCategoryMask(t *testing.T) {
 
 	// Filter for layer 0x0002 only — should skip A and hit B.
 	fl := physics.Filter{CategoryBits: 0x0002, MaskBits: 0x0002}
-	rayFiltered := physics.Raycast(physics.RaycastRequest{
+	rayFiltered := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 		Filter: &fl,
@@ -206,7 +209,7 @@ func TestFilter_RaycastCategoryMask(t *testing.T) {
 
 	// Filter for layer 0x0004 (nothing) — should miss.
 	flNone := physics.Filter{CategoryBits: 0x0004, MaskBits: 0x0004}
-	rayNone := physics.Raycast(physics.RaycastRequest{
+	rayNone := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 		Filter: &flNone,
@@ -219,7 +222,8 @@ func TestFilter_RaycastCategoryMask(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFilter_AABBSensorExcludedByDefault(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var sensorID, solidID cardinal.EntityID
 
@@ -262,7 +266,7 @@ func TestFilter_AABBSensorExcludedByDefault(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Default (no filter / sensors excluded).
-	ovDefault := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovDefault := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -2, Y: -2},
 		Max: physics.Vec2{X: 2, Y: 2},
 	})
@@ -280,7 +284,7 @@ func TestFilter_AABBSensorExcludedByDefault(t *testing.T) {
 
 	// IncludeSensors = true.
 	fl := physics.Filter{CategoryBits: 0xFFFF, MaskBits: 0xFFFF, IncludeSensors: true}
-	ovInclude := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ovInclude := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min:    physics.Vec2{X: -2, Y: -2},
 		Max:    physics.Vec2{X: 2, Y: 2},
 		Filter: &fl,
@@ -303,7 +307,8 @@ func TestFilter_AABBSensorExcludedByDefault(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFilter_CircleSweepSensorExcluded(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var solidID cardinal.EntityID
 
@@ -345,7 +350,7 @@ func TestFilter_CircleSweepSensorExcluded(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Default sweep should skip sensor and hit solid.
-	sweep := physics.CircleSweep(physics.CircleSweepRequest{
+	sweep := p.CircleSweep(physics.CircleSweepRequest{
 		Start:  physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 		Radius: 0.2,
@@ -359,7 +364,8 @@ func TestFilter_CircleSweepSensorExcluded(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFilter_ChangeCategoryBitsMidSim(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var wallID cardinal.EntityID
 
@@ -409,7 +415,7 @@ func TestFilter_ChangeCategoryBitsMidSim(t *testing.T) {
 		Spawn spawnArchetype
 	}) {
 		fl := physics.Filter{CategoryBits: 0x0001, MaskBits: 0x0001}
-		ray := physics.Raycast(physics.RaycastRequest{
+		ray := p.Raycast(physics.RaycastRequest{
 			Origin: physics.Vec2{X: 0, Y: 0},
 			End:    physics.Vec2{X: 10, Y: 0},
 			Filter: &fl,

@@ -1,0 +1,1383 @@
+{
+  "scenario": "filter_matrix",
+  "tick_count": 200,
+  "frames": [
+    {
+      "tick": 0,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "4.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "4.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "4.9982638359069824",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 10,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "4.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "4.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "4.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 20,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "4.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "4.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "4.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 30,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "3.6545131206512451",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "3.6545131206512451",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "3.6545131206512451",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 40,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "2.6510417461395264",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "2.6510417461395264",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "2.6510417461395264",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 50,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "1.3697934150695801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "1.3697934150695801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "1.3697934150695801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 60,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.87902337312698364",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-0.18923422694206238",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-0.18923422694206238",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 70,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89881807565689087",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-2.0260415077209473",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-11.83335018157959",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-2.0260415077209473",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-11.83335018157959",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 80,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89987057447433472",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-4.1406292915344238",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-13.500029563903809",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-4.1406292915344238",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-13.500029563903809",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 90,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992648363113403",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-6.5329961776733398",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-15.166708946228027",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-6.5329961776733398",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-15.166708946228027",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 100,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-9.2031431198120117",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-16.833368301391602",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-9.2031431198120117",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-16.833368301391602",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 110,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-12.151064872741699",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-18.500009536743164",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-12.151064872741699",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-18.500009536743164",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 120,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-15.376760482788086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-20.166650772094727",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-15.376760482788086",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-20.166650772094727",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 130,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-18.880226135253906",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-21.833292007446289",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-18.880226135253906",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-21.833292007446289",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 140,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-22.661464691162109",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-23.499933242797852",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-22.661464691162109",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-23.499933242797852",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 150,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-26.720478057861328",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-25.166574478149414",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-26.720478057861328",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-25.166574478149414",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 160,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-31.05726432800293",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-26.833215713500977",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-31.05726432800293",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-26.833215713500977",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 170,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-35.671829223632812",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-28.499856948852539",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-35.671829223632812",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-28.499856948852539",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 180,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-40.564163208007812",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-30.166498184204102",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-40.564163208007812",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-30.166498184204102",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 190,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-45.734275817871094",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-31.833139419555664",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-45.734275817871094",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-31.833139419555664",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 199,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor_match",
+          "pos_x": "-10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "ball_match",
+          "pos_x": "-10",
+          "pos_y": "0.89992868900299072",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "floor_disjoint",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "ball_disjoint",
+          "pos_x": "0",
+          "pos_y": "-50.624874114990234",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-33.333175659179688",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 5,
+          "role": "floor_group",
+          "pos_x": "10",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 6,
+          "role": "ball_group",
+          "pos_x": "10",
+          "pos_y": "-50.624874114990234",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-33.333175659179688",
+          "ang_vel": "0"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "tick": 55,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 2,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    }
+  ],
+  "queries": []
+}

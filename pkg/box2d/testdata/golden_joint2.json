@@ -1,0 +1,76 @@
+[
+  {
+    "name": "motor_driver",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "cb926a1809e9049b"
+      },
+      {
+        "step": 60,
+        "hash": "a78945cde79c3a45"
+      },
+      {
+        "step": 90,
+        "hash": "cae9589624f38cdb"
+      },
+      {
+        "step": 120,
+        "hash": "ad42640dc43d47b8"
+      },
+      {
+        "step": 150,
+        "hash": "2d4f2dbc8b0e917e"
+      },
+      {
+        "step": 180,
+        "hash": "b1039c0a0ca1929a"
+      },
+      {
+        "step": 210,
+        "hash": "cfe3811e8ba6d12d"
+      },
+      {
+        "step": 240,
+        "hash": "782d7f4efc75008a"
+      }
+    ]
+  },
+  {
+    "name": "weld_tower",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "d83e6be2856c234d"
+      },
+      {
+        "step": 60,
+        "hash": "22111fb894b24a70"
+      },
+      {
+        "step": 90,
+        "hash": "8719e19729774375"
+      },
+      {
+        "step": 120,
+        "hash": "c257f360fe5c8c65"
+      },
+      {
+        "step": 150,
+        "hash": "1c304d6ec0e6a5a4"
+      },
+      {
+        "step": 180,
+        "hash": "c5bc3ee17fdc54db"
+      },
+      {
+        "step": 210,
+        "hash": "ddcddfca9bbcc845"
+      },
+      {
+        "step": 240,
+        "hash": "0b30ae5af5cb68aa"
+      }
+    ]
+  }
+]
