@@ -2,19 +2,30 @@
 // (world struct, create/destroy, id validation and lookup helpers; Step,
 // queries, events and debug draw arrive with later stages).
 //
-// DESIGN DEVIATION (approved): no world registry.
+// DESIGN DEVIATION (approved): no world registry, owner tokens instead.
 //
 // Upstream keeps a global b2World b2_worlds[B2_MAX_WORLDS] array and resolves
 // every id's world0 field through it (b2GetWorldFromId/b2GetWorld). This port
-// forbids package-level mutable state, so NewWorld returns a *World and every
-// b2World_*/b2Body_*/b2Shape_* function becomes a method on *World. The
-// world0 field on the id types is kept for struct-layout parity and is always
-// 0 (every World has worldID == 0); id validation therefore relies on the
-// index + generation checks against the owning world only — passing an id
-// from world A to world B's methods is NOT detected the way the upstream
-// registry would detect it. The code keeps the upstream shape (worldID,
-// generation, inUse fields and the id.world0 == w.worldID checks) so a
-// registry could be reintroduced without touching call sites.
+// forbids package-level mutable simulation state, so NewWorld returns a *World
+// and every b2World_*/b2Body_*/b2Shape_* function becomes a method on *World.
+//
+// Because the world is the receiver rather than something looked up from the
+// id, the id itself must carry proof of ownership: each World takes a distinct
+// owner token from nextWorldToken at creation and stamps it into the world0
+// field of every BodyID/ShapeID/ChainID/JointID/ContactID it hands out. Every
+// validator (IsBodyValid and friends) and every internal full-id lookup
+// compares id.world0 against the world's own token in addition to the index,
+// generation and inUse checks, so applying world A's id to world B is rejected
+// instead of silently addressing an unrelated slot in B. The destructive entry
+// points (DestroyBody/DestroyShape/DestroyChain/DestroyJoint) reject foreign
+// ids at runtime, not only under debugAsserts, because destroying the wrong
+// object is unrecoverable.
+//
+// The token is creation-time bookkeeping only: it never reaches the solver,
+// the broad phase or any golden hash, so it cannot affect determinism.
+// Upstream's B2_MAX_WORLDS bound on world0 is dropped — it existed to keep
+// world0 inside the registry array, and the token equality check is strictly
+// stronger. See nextWorldToken for the wrap-around behavior.
 //
 // Other deviations from upstream:
 //   - Task system dropped (single-threaded port): workerCount,
@@ -38,7 +49,45 @@
 
 package box2d
 
-import "math"
+import (
+	"math"
+	"sync/atomic"
+)
+
+// worldTokenCount is the number of distinct world owner tokens. The world0
+// field of every id is a uint16 and WorldID stores index1 == token+1, so a
+// token must stay below 0xFFFF for index1 to remain non-zero (index1 == 0 is
+// the null id).
+const worldTokenCount = 0xFFFF
+
+// worldTokenCounter is the source of world owner tokens. It replaces the index
+// into upstream's b2_worlds[B2_MAX_WORLDS] array: with no global registry, the
+// token stamped into an id is the only thing that binds that id to the world
+// that minted it.
+//
+// This is not simulation state. It is read once per NewWorld and never enters
+// the solver, the broad phase, the event data used by callers for stepping, or
+// any golden hash, so the package's determinism guarantee is untouched. It is
+// atomic so concurrent NewWorld calls still get distinct tokens; the ban on
+// goroutines and shared mutable state applies to the simulation path only.
+//
+
+var worldTokenCounter atomic.Uint64
+
+// nextWorldToken returns the owner token for a newly created world.
+//
+// WRAP-AROUND: tokens are handed out modulo worldTokenCount, so the 65536th
+// world created in a process reuses the first world's token. Wrapping is
+// deliberate. A reused token only weakens detection, it never corrupts: an id
+// that survives the token check must still pass the unchanged index,
+// generation and inUse checks, so anything the receiving world accepts still
+// names a live slot it owns. The alternative — refusing to create a world, or
+// panicking, after 65535 creations — would turn a diagnostic aid into an
+// outage for a long-running process that creates a world per match or per
+// tick, which is the worse failure.
+func nextWorldToken() uint16 {
+	return uint16((worldTokenCounter.Add(1) - 1) % worldTokenCount)
+}
 
 // World manages all physics entities, dynamic simulation, and queries
 // (upstream b2World). Create one with NewWorld.
@@ -209,7 +258,7 @@ func NewWorld(def *WorldDef) *World {
 
 	w := &World{}
 
-	w.worldID = 0
+	w.worldID = nextWorldToken()
 	w.generation = 0
 	w.inUse = true
 
@@ -389,10 +438,13 @@ func (w *World) Destroy() {
 
 	destroyArena(&w.arena)
 
-	// Wipe world but preserve generation
+	// Wipe world but preserve the owner token and generation, matching
+	// upstream b2DestroyWorld which restores world->worldId (its registry
+	// slot) and bumps the generation.
 	generation := w.generation
+	worldID := w.worldID
 	*w = World{}
-	w.worldID = 0
+	w.worldID = worldID
 	w.generation = generation + 1
 }
 
@@ -406,12 +458,15 @@ func (w *World) ID() WorldID {
 // stale (upstream b2World_IsValid; see the file header for the registry
 // deviation).
 func (w *World) IsWorldValid(id WorldID) bool {
-	if id.index1 < 1 || MaxWorlds < id.index1 {
+	if id.index1 < 1 {
 		return false
 	}
 
+	// Upstream also bounds index1 by B2_MAX_WORLDS to stay inside the registry
+	// array. There is no array here, and the owner token comparison below is
+	// strictly stronger, so the bound is dropped.
 	if w.worldID != id.index1-1 {
-		// world is not allocated
+		// id was minted by a different world
 		return false
 	}
 
@@ -422,17 +477,21 @@ func (w *World) IsWorldValid(id WorldID) bool {
 	return id.generation == w.generation
 }
 
+// ownsToken reports whether an id's world0 field carries this world's owner
+// token. Upstream has no equivalent because it resolves the world *from*
+// id.world0 (b2GetWorldFromId), which makes applying one world's id to another
+// impossible by construction; here the world is the receiver, so it has to
+// reject foreign ids itself. See the file header.
+func (w *World) ownsToken(world0 uint16) bool {
+	return world0 == w.worldID
+}
+
 // IsBodyValid reports whether a body id is valid in this world. Can be used
 // to detect orphaned ids. Provides validation for up to 64K allocations
 // (upstream b2Body_IsValid).
 func (w *World) IsBodyValid(id BodyID) bool {
-	if MaxWorlds <= id.world0 {
-		// invalid world
-		return false
-	}
-
 	if w.worldID != id.world0 || !w.inUse {
-		// world is free
+		// id was minted by a different world, or this world is destroyed
 		return false
 	}
 
@@ -460,12 +519,8 @@ func (w *World) IsBodyValid(id BodyID) bool {
 // IsShapeValid reports whether a shape id is valid in this world
 // (upstream b2Shape_IsValid).
 func (w *World) IsShapeValid(id ShapeID) bool {
-	if MaxWorlds <= id.world0 {
-		return false
-	}
-
 	if w.worldID != id.world0 || !w.inUse {
-		// world is free
+		// id was minted by a different world, or this world is destroyed
 		return false
 	}
 
@@ -488,12 +543,8 @@ func (w *World) IsShapeValid(id ShapeID) bool {
 // IsChainValid reports whether a chain id is valid in this world
 // (upstream b2Chain_IsValid).
 func (w *World) IsChainValid(id ChainID) bool {
-	if MaxWorlds <= id.world0 {
-		return false
-	}
-
 	if w.worldID != id.world0 || !w.inUse {
-		// world is free
+		// id was minted by a different world, or this world is destroyed
 		return false
 	}
 
@@ -516,12 +567,8 @@ func (w *World) IsChainValid(id ChainID) bool {
 // IsJointValid reports whether a joint id is valid in this world
 // (upstream b2Joint_IsValid).
 func (w *World) IsJointValid(id JointID) bool {
-	if MaxWorlds <= id.world0 {
-		return false
-	}
-
 	if w.worldID != id.world0 || !w.inUse {
-		// world is free
+		// id was minted by a different world, or this world is destroyed
 		return false
 	}
 
@@ -544,12 +591,8 @@ func (w *World) IsJointValid(id JointID) bool {
 // IsContactValid reports whether a contact id is valid in this world
 // (upstream b2Contact_IsValid).
 func (w *World) IsContactValid(id ContactID) bool {
-	if MaxWorlds <= id.world0 {
-		return false
-	}
-
 	if w.worldID != id.world0 || !w.inUse {
-		// world is free
+		// id was minted by a different world, or this world is destroyed
 		return false
 	}
 

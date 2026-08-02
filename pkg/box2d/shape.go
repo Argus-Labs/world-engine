@@ -81,7 +81,7 @@ type shapeExtent struct {
 func (w *World) getShape(shapeID ShapeID) *shape {
 	id := int(shapeID.index1) - 1
 	s := &w.shapes[id]
-	assert(s.id == id && s.generation == shapeID.generation)
+	assert(w.ownsToken(shapeID.world0) && s.id == id && s.generation == shapeID.generation)
 	return s
 }
 
@@ -90,7 +90,7 @@ func (w *World) getShape(shapeID ShapeID) *shape {
 func (w *World) getChainShape(chainID ChainID) *chainShape {
 	id := int(chainID.index1) - 1
 	chain := &w.chainShapes[id]
-	assert(chain.id == id && chain.generation == chainID.generation)
+	assert(w.ownsToken(chainID.world0) && chain.id == id && chain.generation == chainID.generation)
 	return chain
 }
 
@@ -135,7 +135,7 @@ func computeShapeMargin(s *shape) float64 {
 // static b2UpdateShapeAABBs).
 func updateShapeAABBs(s *shape, transform Transform, proxyType BodyType) {
 	// Compute a bounding box with a speculative margin
-	const speculativeDistance = SpeculativeDistance
+	speculativeDistance := SpeculativeDistance
 	aabbMargin := s.aabbMargin
 
 	aabb := computeShapeAABB(s, transform)
@@ -410,6 +410,12 @@ func (w *World) DestroyShape(shapeID ShapeID, updateBodyMass bool) {
 		return
 	}
 
+	// Reject an id minted by another world (see DestroyBody).
+	if !w.ownsToken(shapeID.world0) {
+		assert(false)
+		return
+	}
+
 	s := w.getShape(shapeID)
 
 	// need to wake bodies because this might be a static body
@@ -570,6 +576,12 @@ func freeChainData(chain *chainShape) {
 // DestroyChain destroys a chain shape (upstream b2DestroyChain).
 func (w *World) DestroyChain(chainID ChainID) {
 	if w.locked {
+		assert(false)
+		return
+	}
+
+	// Reject an id minted by another world (see DestroyBody).
+	if !w.ownsToken(chainID.world0) {
 		assert(false)
 		return
 	}

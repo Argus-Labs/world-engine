@@ -512,6 +512,14 @@ func (w *World) DestroyBody(bodyID BodyID) {
 		return
 	}
 
+	// Reject an id minted by another world. Checked at runtime, not only under
+	// debugAsserts: the index and generation of a foreign id can collide with
+	// a live body here, and destroying the wrong body is unrecoverable.
+	if !w.ownsToken(bodyID.world0) {
+		assert(false)
+		return
+	}
+
 	b := w.getBodyFullID(bodyID)
 
 	// Wake bodies attached to this body, even if this body is static.
@@ -883,7 +891,7 @@ func (w *World) SetBodyTransform(bodyID BodyID, position Vec2, rotation Rot) {
 	bp := &w.broadPhase
 
 	transform := bSim.transform
-	const speculativeDistance = SpeculativeDistance
+	speculativeDistance := SpeculativeDistance
 
 	shapeID := b.headShapeID
 	for shapeID != NullIndex {

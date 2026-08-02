@@ -217,7 +217,7 @@ func DefaultExplosionDef() ExplosionDef {
 func (w *World) getJointFullID(jointID JointID) *joint {
 	id := int(jointID.index1) - 1
 	j := &w.joints[id]
-	assert(j.jointID == id && j.generation == jointID.generation)
+	assert(w.ownsToken(jointID.world0) && j.jointID == id && j.generation == jointID.generation)
 	return j
 }
 
@@ -779,6 +779,12 @@ func (w *World) destroyJointInternal(j *joint, wakeBodies bool) {
 func (w *World) DestroyJoint(jointID JointID, wakeAttached bool) {
 	assert(!w.locked)
 	if w.locked {
+		return
+	}
+
+	// Reject an id minted by another world (see DestroyBody).
+	if !w.ownsToken(jointID.world0) {
+		assert(false)
 		return
 	}
 
