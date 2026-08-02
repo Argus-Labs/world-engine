@@ -4,13 +4,22 @@
 // (b2BulletBodyTask) and the serial bullet proxy enlargement live in the
 // solve epilogue in solver.go.
 //
-// Deviations from upstream (single-threaded port): b2SolveContinuous takes
-// the per-worker b2TaskContext to collect sensor hits; this port uses the
-// single World.taskContext instead. The upstream bullet task runs the bullet
-// bodies across workers in non-deterministic order (harmless because TOI
-// sweep order doesn't matter); this port runs them serially in the order the
-// bulletBodies array was filled, which finalizeBodiesTask fills in ascending
-// body-sim index order.
+// Deviations from upstream:
+//   - b2SolveContinuous takes the executing worker's taskContext to collect
+//     sensor hits, exactly like upstream. When called from the parallel
+//     finalizeBodiesTask dispatch (non-bullet fast bodies) it is race-free
+//     because a non-bullet sweep queries ONLY the static tree, whose nodes
+//     and shapes no finalize worker mutates; bullet sweeps also query the
+//     kinematic and dynamic trees and therefore never run during finalize.
+//   - The bullet loop STAYS SERIAL (upstream b2BulletBodyTask is a parallel
+//     for with minRange 8): a bullet sweep queries the kinematic and dynamic
+//     trees while other bullets mutate their own shapes and transforms — a
+//     data race Go's -race golden gate cannot accept, even though the racing
+//     values never feed another bullet's arithmetic upstream. Bullets are
+//     rare, so the serial loop costs little. It runs in the deterministic
+//     order of the bulletBodies array, which is the ascending-worker
+//     concatenation of the per-worker finalize gathers — equal to the serial
+//     engine's ascending body-sim index fill (see solver.go).
 
 package box2d
 
@@ -193,9 +202,14 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 // solveContinuous performs the continuous sweep for one fast body: it queries
 // the broad-phase trees along the swept AABB of each shape, finds the
 // earliest time of impact, advances the body to it and refreshes the shape
-// AABBs (upstream b2SolveContinuous). Sensor hits are pushed onto the world
-// task context for serial processing.
-func (w *World) solveContinuous(bodySimIndex int) {
+// AABBs (upstream b2SolveContinuous). Sensor hits are pushed onto the
+// executing worker's task context for serial processing after the join.
+//
+// Concurrency contract: every write is owned by this body (its sim, its
+// shapes, its bodyMoveEvents slot) or by the worker (tc.sensorHits). The
+// only tree read of a non-bullet sweep is the static tree, which is frozen
+// during the finalize dispatch — see the file header.
+func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 	awake := &w.solverSets[awakeSet]
 	fastBodySim := &awake.bodySims[bodySimIndex]
 	assert(fastBodySim.flags&isFast != 0)
@@ -247,6 +261,10 @@ func (w *World) solveContinuous(bodySimIndex int) {
 
 		sweptBox := AABBUnion(box1, box2)
 
+		// Non-bullet fast bodies query ONLY the static tree, which is why
+		// this call is race-free inside the parallel finalize dispatch (see
+		// the file header). Bullets also query the kinematic and dynamic
+		// trees, and run in the serial bullet stage only.
 		_ = staticTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, &context)
 
 		if isBulletBody {
@@ -335,11 +353,14 @@ func (w *World) solveContinuous(bodySimIndex int) {
 		}
 	}
 
-	// Push sensor hits on the task context for serial processing.
+	// Push sensor hits on the executing worker's task context for serial
+	// processing (upstream: taskContext->sensorHits keyed by threadIndex).
+	// The per-worker lists are concatenated into slot 0 in ascending worker
+	// order before the bullet stage — see solver.go.
 	for i := range context.sensorCount {
 		// Skip any sensor hits that occurred after a solid hit
 		if context.sensorFractions[i] < context.fraction {
-			w.taskContext.sensorHits = append(w.taskContext.sensorHits, context.sensorHits[i])
+			tc.sensorHits = append(tc.sensorHits, context.sensorHits[i])
 		}
 	}
 }

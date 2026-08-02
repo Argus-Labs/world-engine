@@ -140,26 +140,35 @@ func buildRestitutionScene(w *box2d.World) []box2d.BodyID {
 	return bodies
 }
 
-func computeGoldenStep() []goldenStepScene {
-	scenes := []struct {
-		name  string
-		build func(*box2d.World) []box2d.BodyID
-	}{
-		{"pyramid", buildPyramidScene},
-		{"mixed_rain", buildRainScene},
-		{"restitution_balls", buildRestitutionScene},
-	}
+// goldenSceneDef pairs a golden scene name with its builder. Every golden
+// suite defines its scenes once as this type so the serial golden tests and
+// the worker-count matrix (golden_workers_test.go) step the exact same
+// scenes.
+type goldenSceneDef struct {
+	name  string
+	build func(*box2d.World) []box2d.BodyID
+}
 
+// computeGoldenScenes steps each scene at 60Hz with 4 sub-steps for stepCount
+// steps in a world created with the given WorldDef.WorkerCount (0 = serial)
+// and records the world-state hash at every 30th step and the final step. The
+// hashes must be byte-identical for every worker count — the golden files are
+// only ever written from the serial world (see TestGoldenStep and friends)
+// and the worker matrix asserts against those same files.
+//
+//nolint:unparam // every suite currently steps 240, but the count is a deliberate per-suite constant that any one suite may change independently
+func computeGoldenScenes(scenes []goldenSceneDef, stepCount, workerCount int) []goldenStepScene {
 	out := make([]goldenStepScene, 0, len(scenes))
 	for _, scene := range scenes {
 		def := box2d.DefaultWorldDef()
+		def.WorkerCount = workerCount
 		w := box2d.NewWorld(&def)
 		bodies := scene.build(w)
 
 		var hashes []goldenStepHash
-		for step := 1; step <= goldenStepCount; step++ {
+		for step := 1; step <= stepCount; step++ {
 			w.Step(1.0/60.0, 4)
-			if step%30 == 0 || step == goldenStepCount {
+			if step%30 == 0 || step == stepCount {
 				hash := hashWorldState(w, bodies)
 				hashes = append(hashes, goldenStepHash{Step: step, Hash: fmt.Sprintf("%016x", hash)})
 			}
@@ -170,6 +179,22 @@ func computeGoldenStep() []goldenStepScene {
 	}
 
 	return out
+}
+
+func goldenStepScenes() []goldenSceneDef {
+	return []goldenSceneDef{
+		{"pyramid", buildPyramidScene},
+		{"mixed_rain", buildRainScene},
+		{"restitution_balls", buildRestitutionScene},
+	}
+}
+
+func computeGoldenStep() []goldenStepScene {
+	return computeGoldenStepWorkers(0)
+}
+
+func computeGoldenStepWorkers(workerCount int) []goldenStepScene {
+	return computeGoldenScenes(goldenStepScenes(), goldenStepCount, workerCount)
 }
 
 func TestGoldenStep(t *testing.T) {

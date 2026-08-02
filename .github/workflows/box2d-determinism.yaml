@@ -62,8 +62,22 @@ jobs:
       - name: Assert no fused multiply-add is emitted
         run: go test ./pkg/box2d/ -run 'TestNoFusedMultiplyAdd' -count=1 -v
 
+      # 'TestGolden' also matches the worker-count matrix suites
+      # (golden_workers_test.go), which re-run every golden scene at
+      # WorldDef.WorkerCount 2/4/8 against the same testdata files — the
+      # byte-identical-for-every-worker-count gate.
       - name: Run cross-architecture golden trace tests
         run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
+
+      # Race-detector pass. The golden scenes are small and mostly run below
+      # the per-stage grain thresholds (inline, no pool dispatch), so the load-
+      # bearing -race target is TestWorkerStress*: its scene is sized to push
+      # every dispatch past its grain, and the pool's channel/WaitGroup edges
+      # are the only synchronization in the parallel Step — a clean run is a
+      # genuine happens-before proof. The golden suites ride along for the
+      # serial/id-order paths. Kept scoped because -race is 5-20x slower.
+      - name: Run race-detector golden trace tests (worker matrix + stress)
+        run: go test -race -run 'TestGolden(Step|Continuous)|TestWorkerStress' ./pkg/box2d/ -count=1
 
       - name: Run deterministic op-sequence fuzz corpus
         run: go test ./pkg/box2d/ -run 'TestWorldOpSequenceDeterminism|FuzzWorldOps' -count=1 -v

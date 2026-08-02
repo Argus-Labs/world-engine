@@ -2,12 +2,17 @@
 // (the step portion: b2CollideTask, b2Collide, b2World_Step and the event
 // accessors; world CRUD lives in world.go).
 //
-// Deviations from upstream (single-threaded port):
-//   - b2CollideTask runs as one serial loop over the gathered contact sim
-//     pointers (graph colors in ascending order, then the awake non-touching
-//     contacts), exactly the order upstream gathers them for the parallel-for.
-//   - The per-worker contactStateBitSet lives on World.taskContext; no
-//     bitwise-OR merge is needed.
+// Deviations from upstream:
+//   - b2CollideTask keeps its parallel-for shape over the gathered contact
+//     sim pointers (graph colors in ascending order, then the awake
+//     non-touching contacts — exactly the order upstream gathers them). It
+//     runs serially on worker 0 when the world has no pool, and over static
+//     contiguous ascending ranges on the internal worker pool otherwise
+//     (worker_pool.go). Per-contact writes are item-owned, so the split
+//     cannot change any result. The per-worker contactStateBitSet lives in
+//     World.taskContexts and is bit-OR merged into slot 0 before the serial
+//     state scan, matching upstream's merge in b2Collide; bit-OR is
+//     order-free, so the merged set is identical for every worker count.
 //   - DETERMINISM: the b2Profile timing fields stay zero — upstream fills
 //     them with wall-clock timings (b2GetTicks), which this port forbids.
 //     Opt-in timing arrives with stage E13.
@@ -17,11 +22,18 @@
 
 package box2d
 
+// collideMinRange is the narrow-phase dispatch grain (upstream: the minRange
+// of 64 passed when enqueueing b2CollideTask in b2Collide). Below this many
+// contacts the dispatch runs inline on worker 0.
+const collideMinRange = 64
+
 // collideTask updates the narrow-phase state of a range of awake contacts
-// (upstream b2CollideTask).
-func (w *World) collideTask(startIndex, endIndex int, ctx *stepContext) {
+// (upstream b2CollideTask; workerIndex is upstream's threadIndex). It writes
+// only per-contactSim fields and the worker's own contactStateBitSet, so
+// disjoint ranges may run concurrently.
+func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepContext) {
 	contactSims := ctx.contacts
-	tc := &w.taskContext
+	tc := &w.taskContexts[workerIndex]
 
 	assert(startIndex < endIndex)
 
@@ -222,18 +234,36 @@ func (w *World) collide(ctx *stepContext) {
 	ctx.contacts = contactSims
 
 	// Contact bit set on ids because contact pointers are unstable as they
-	// move between touching and not touching.
+	// move between touching and not touching. Every worker slot is sized —
+	// even when the dispatch below runs inline — so the bit-OR merge never
+	// sees stale bits or mismatched block counts.
 	contactIDCapacity := getIDCapacity(&w.contactIDPool)
-	setBitCountAndClear(&w.taskContext.contactStateBitSet, uint32(contactIDCapacity))
+	for k := range w.taskContexts {
+		setBitCountAndClear(&w.taskContexts[k].contactStateBitSet, uint32(contactIDCapacity))
+	}
 
-	w.collideTask(0, contactCount, ctx)
+	if w.pool == nil {
+		w.collideTask(0, contactCount, 0, ctx)
+	} else {
+		w.pool.forRange(contactCount, collideMinRange, func(workerIndex, startIndex, endIndex int) {
+			w.collideTask(startIndex, endIndex, workerIndex, ctx)
+		})
+	}
 	w.taskCount++
 
 	w.arena.freeContactPtrs()
 	ctx.contacts = nil
 
+	// Merge the per-worker contact state bits into slot 0 in ascending
+	// worker order (upstream: the bit-OR loop in b2Collide). Bit-OR is
+	// order-free and the slots were sized identically above, satisfying
+	// inPlaceUnion's equal-blockCount contract.
+	bitSet := &w.taskContexts[0].contactStateBitSet
+	for k := 1; k < len(w.taskContexts); k++ {
+		inPlaceUnion(bitSet, &w.taskContexts[k].contactStateBitSet)
+	}
+
 	// Serially update contact state.
-	bitSet := &w.taskContext.contactStateBitSet
 
 	endEventArrayIndex := w.endEventArrayIndex
 

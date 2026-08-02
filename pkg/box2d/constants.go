@@ -67,7 +67,10 @@ const (
 // while a simulation is live invalidates every length already stored in world
 // state (AABBs, contact separations, joint frames) and voids the determinism
 // guarantee of this package, because the same input sequence then produces
-// different results depending on when the change occurred.
+// different results depending on when the change occurred. With
+// WorldDef.WorkerCount > 1 it is also a genuine data race, not just a
+// semantic hazard: Step's pool workers (worker_pool.go) read these variables
+// concurrently.
 //
 // Treat these as read-only outside SetLengthUnitsPerMeter.
 var (

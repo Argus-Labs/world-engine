@@ -46,10 +46,12 @@ type RayResult struct {
 // WorldDef is a world definition used to create a simulation world
 // (upstream b2WorldDef). Must be initialized using DefaultWorldDef.
 //
-// Deviations from upstream: the task-system fields (workerCount, enqueueTask,
-// finishTask, userTaskContext) are not ported because this port executes
-// single-threaded. The b2_secretCookie/internalValue guard is replaced by the
-// private initialized flag set by DefaultWorldDef.
+// Deviations from upstream: the user task-system callbacks (enqueueTask,
+// finishTask, userTaskContext) are not ported — WorkerCount selects an
+// internal goroutine pool instead (see worker_pool.go), and unlike upstream
+// the results are byte-identical for every worker count. The
+// b2_secretCookie/internalValue guard is replaced by the private initialized
+// flag set by DefaultWorldDef.
 type WorldDef struct {
 	// Gravity vector. Box2D has no up-vector defined.
 	Gravity Vec2
@@ -94,6 +96,14 @@ type WorldDef struct {
 	// User data. Deviation from upstream: the C void* becomes a uint64 so the
 	// ECS wrapper can pack an entity id directly.
 	UserData uint64
+
+	// WorkerCount is the number of workers World.Step may use. 0 means 1
+	// (serial). NewWorld rejects values outside [0, MaxWorkers] (upstream
+	// B2_MAX_WORKERS) and clamps the effective count to
+	// runtime.GOMAXPROCS(0). Deviation from upstream: the workers are an
+	// internal goroutine pool (worker_pool.go), not user-supplied threads,
+	// and simulation results are byte-identical for every value.
+	WorkerCount int
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
 	// It is set by DefaultWorldDef. Do not set it yourself: NewWorld always

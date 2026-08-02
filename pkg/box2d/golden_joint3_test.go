@@ -14,7 +14,6 @@ package box2d_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -191,35 +190,19 @@ func buildWheelSuspensionScene(w *box2d.World) []box2d.BodyID {
 	return bodies
 }
 
-func computeGoldenJoint3() []goldenStepScene {
-	scenes := []struct {
-		name  string
-		build func(*box2d.World) []box2d.BodyID
-	}{
+func goldenJoint3Scenes() []goldenSceneDef {
+	return []goldenSceneDef{
 		{"prismatic_elevator", buildPrismaticElevatorScene},
 		{"wheel_suspension", buildWheelSuspensionScene},
 	}
+}
 
-	out := make([]goldenStepScene, 0, len(scenes))
-	for _, scene := range scenes {
-		def := box2d.DefaultWorldDef()
-		w := box2d.NewWorld(&def)
-		bodies := scene.build(w)
+func computeGoldenJoint3() []goldenStepScene {
+	return computeGoldenJoint3Workers(0)
+}
 
-		var hashes []goldenStepHash
-		for step := 1; step <= goldenJoint3StepCount; step++ {
-			w.Step(1.0/60.0, 4)
-			if step%30 == 0 || step == goldenJoint3StepCount {
-				hash := hashWorldState(w, bodies)
-				hashes = append(hashes, goldenStepHash{Step: step, Hash: fmt.Sprintf("%016x", hash)})
-			}
-		}
-
-		w.Destroy()
-		out = append(out, goldenStepScene{Name: scene.name, Hashes: hashes})
-	}
-
-	return out
+func computeGoldenJoint3Workers(workerCount int) []goldenStepScene {
+	return computeGoldenScenes(goldenJoint3Scenes(), goldenJoint3StepCount, workerCount)
 }
 
 func TestGoldenJoint3(t *testing.T) {

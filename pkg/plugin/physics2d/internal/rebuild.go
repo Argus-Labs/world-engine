@@ -74,6 +74,10 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 	if rt.World == nil {
 		def := box2d.DefaultWorldDef()
 		def.Gravity = box2d.Vec2{X: gravity.X, Y: gravity.Y}
+		// Deterministic across worker counts: byte-identical results for every
+		// value, so worlds rebuilt under different Workers settings replay
+		// identically (see pkg/box2d/worker_pool.go).
+		def.WorkerCount = rt.Workers
 		rt.World = box2d.NewWorld(&def)
 	} else {
 		rt.World.SetGravity(box2d.Vec2{X: gravity.X, Y: gravity.Y})

@@ -14,7 +14,38 @@
 //   - Worlds are values returned by NewWorld, not entries in a global
 //     registry; every b2World_*/b2Body_*/b2Shape_*/b2Joint_* function is a
 //     method on *World.
-//   - Execution is single-threaded; the upstream task system is not ported.
+//   - The upstream task system is ported as an internal goroutine pool
+//     (worker_pool.go): WorldDef.WorkerCount selects how many workers
+//     World.Step may use (0 means 1, i.e. fully serial), and the World owns
+//     its worker goroutines from NewWorld to Destroy. Upstream's
+//     user-supplied enqueueTask/finishTask callbacks are NOT exposed.
+//
+// # Multithreading
+//
+// With WorldDef.WorkerCount > 1, World.Step fans its parallel stages out to a
+// persistent internal worker pool. Unlike upstream — where results may vary
+// with the worker count and scheduling — simulation results here are
+// BYTE-IDENTICAL for every worker count: work is split into static contiguous
+// ascending ranges (a pure function of the item count and worker count,
+// no work stealing), per-item arithmetic is unchanged by the split, and every
+// per-worker output is merged either order-free (bit-set OR) or in ascending
+// worker order, which equals the serial order. WorkerCount is therefore
+// purely a throughput knob; it can differ between machines, or between a live
+// run and a replay, without affecting determinism. The golden suites enforce
+// this by re-running every scene at WorkerCount 2/4/8 against the serial
+// golden files (golden_workers_test.go).
+//
+// Everything outside Step keeps the single-goroutine contract: a World must
+// not be stepped, mutated, or queried from two goroutines at once, nor
+// queried while Step is running.
+//
+// User callbacks run concurrently when WorkerCount > 1: the preSolve callback
+// (SetPreSolveCallback), the custom filter callback (SetCustomFilterCallback)
+// and the friction/restitution mixing callbacks are invoked from pool workers
+// during the parallel stages, possibly simultaneously from several
+// goroutines. They must be safe to call concurrently and must not mutate
+// shared state — a callback that gives scheduling-dependent answers also
+// voids the byte-identical-for-every-worker-count guarantee.
 //
 // # Determinism
 //
@@ -36,8 +67,11 @@
 //   - Transcendentals use the ported upstream approximations (Atan2,
 //     ComputeCosSin). Only exactly-rounded stdlib math functions are used
 //     otherwise (Sqrt, Remainder, Floor, Abs).
-//   - No Go maps, goroutines, or time sources in the simulation path;
-//     iteration orders are explicit and match upstream data structures.
+//   - No Go maps or time sources in the simulation path; iteration orders
+//     are explicit and match upstream data structures. The only goroutines
+//     are the internal worker pool's (worker_pool.go), whose static
+//     partitioning and ordered merges keep every iteration order equal to
+//     the serial one (see Multithreading above).
 //   - Exactly one sort runs in the simulation path: the per-sensor overlap
 //     sort in sensor.go (upstream sorts the same array with qsort). Its
 //     comparator is a total order over the (shapeID, generation) visitor key,
