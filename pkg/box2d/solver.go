@@ -153,14 +153,28 @@ type stepContext struct {
 	activeColorCount int
 
 	enableWarmStarting bool
+
+	// dispatchColorIndex/dispatchUseBias carry the per-color stage arguments
+	// into the dispatch closures built once per solve. They live here — not
+	// as closure-captured locals — so the serial path allocates nothing (a
+	// captured local escapes to the heap even when the closures are never
+	// built; the step context is World-owned scratch, see World.stepCtx).
+	// Written only by the dispatching goroutine before each forRange; the
+	// pool's job publish is the happens-before edge that lets workers read
+	// them.
+	dispatchColorIndex int
+	dispatchUseBias    bool
 }
 
 // taskContext is the per-worker scratch (upstream b2TaskContext,
 // physics_world.h). The world keeps one per worker in World.taskContexts;
-// worker 0 is the Step goroutine and the serial path uses only slot 0. The
-// bit sets are sized/cleared each step — for ALL worker slots, even when a
-// stage later runs inline, so a bit-OR merge never sees stale bits or
-// mismatched block counts.
+// worker 0 is the Step goroutine and the serial path uses only slot 0. Each
+// step, every stage sizes/clears exactly the slots its dispatch engages
+// (forRangeWorkers of the stage's item count and grain — the same pure
+// function its merge uses), so a merge never sees stale bits or mismatched
+// block counts in the slots it reads; slots beyond a stage's engaged count
+// keep stale content, which is harmless because that stage neither writes
+// nor reads them that step.
 //
 // Deviation from upstream: b2SensorTaskContext (a separate per-worker struct
 // whose only member is an event bitset) is folded in here as sensorEventBits,
@@ -322,24 +336,24 @@ func (w *World) solveColorTask(ctx *stepContext, colorIndex int, useBias bool, w
 	}
 }
 
-// solverBodyGrain returns the dispatch grain for body-range solver stages
-// (integrate velocities/positions, finalize): below this many awake bodies
-// the dispatch runs inline on worker 0 (upstream passes minRange 64 when
-// enqueueing its body parallel-fors; the worker-count term keeps per-worker
-// ranges from shrinking below a useful size as workers are added). Grain
-// affects performance only — results are partition-independent.
-func solverBodyGrain(workerCount int) int {
-	return max(64, 16*workerCount)
-}
+// solverBodyGrain is the dispatch grain for body-range solver stages
+// (integrate velocities/positions, finalize): the minimum awake bodies per
+// engaged worker (upstream passes minRange 64 when enqueueing its body
+// parallel-fors). forRangeWorkers caps the engaged worker count at
+// n/solverBodyGrain, so per-worker ranges never shrink below a useful size —
+// no worker-count term is needed. Grain affects performance only — results
+// are partition-independent. Measured on BenchmarkStepMixedRain (Apple M-class
+// arm64, 2026-08): with the capped engagement this constant keeps
+// Workers_N within noise of Workers_1 at 500/1000 bodies and >= 1.7x at 5000.
+const solverBodyGrain = 64
 
-// solverColorGrain returns the dispatch grain for per-color constraint
-// stages: below this many items (joints+contacts of one color) the dispatch
-// runs inline on worker 0 (upstream uses block sizes of 4 for joint and
-// SIMD-contact blocks; this port dispatches whole ranges, so the threshold
-// is higher to amortize the barrier). Grain affects performance only.
-func solverColorGrain(workerCount int) int {
-	return max(32, 8*workerCount)
-}
+// solverColorGrain is the dispatch grain for per-color constraint stages:
+// the minimum items (joints+contacts of one color) per engaged worker
+// (upstream uses block sizes of 4 for joint and SIMD-contact blocks; this
+// port dispatches whole ranges, so the threshold is higher to amortize the
+// barrier). Grain affects performance only; measured together with
+// solverBodyGrain above.
+const solverColorGrain = 32
 
 // integrateVelocitiesTask integrates velocities and applies damping, gravity
 // and speed clamps (upstream b2IntegrateVelocitiesTask).
@@ -659,6 +673,20 @@ func (w *World) solve(ctx *stepContext) {
 		return
 	}
 
+	// Per-stage engaged worker counts — pure functions of (item count, grain,
+	// workerCount), so INVARIANT: dispatch bound == presize bound == merge
+	// bound at every stage. finalizeWorkers bounds every output written by
+	// the finalize dispatch (enlargedSimBitSet, awakeIslandBitSet, sensorHits,
+	// bulletBodies, split candidates); maxColorWorkers bounds the
+	// jointStateBitSet written by the per-color solve dispatches (each color
+	// engages forRangeWorkers(itemCount, solverColorGrain, ...) workers, so
+	// the max over active colors covers them all; overflow runs serially on
+	// slot 0, hence the floor of 1). Slots >= a stage's bound are never
+	// written this step and never merged this step, so stale content in them
+	// is harmless.
+	finalizeWorkers := forRangeWorkers(awakeBodyCount, solverBodyGrain, w.workerCount)
+	maxColorWorkers := 1
+
 	// Solve constraints using graph coloring
 	{
 		// Prepare buffers for bullets
@@ -679,6 +707,10 @@ func (w *World) solve(ctx *stepContext) {
 			if occupancyCount > 0 {
 				activeColorIndices[activeColorCount] = i
 				activeColorCount++
+				// occupancyCount is exactly the itemCount the warm-start and
+				// solve dispatches below hand to forRange for this color.
+				maxColorWorkers = max(maxColorWorkers,
+					forRangeWorkers(occupancyCount, solverColorGrain, w.workerCount))
 			}
 		}
 		ctx.activeColorCount = activeColorCount
@@ -709,11 +741,13 @@ func (w *World) solve(ctx *stepContext) {
 		assert(base == totalContactCount)
 
 		// Clear the joint event bit set (upstream sizes it per worker before
-		// spawning the solver tasks). All worker slots are sized even though
-		// the solver stages still run serially on worker 0: a merge must
-		// never see stale bits or mismatched block counts in slots 1..w-1.
+		// spawning the solver tasks). INVARIANT: presize bound == dispatch
+		// bound == merge bound == maxColorWorkers — the per-color solve
+		// dispatches engage at most that many workers, so slots >=
+		// maxColorWorkers are never written this step and never merged this
+		// step; stale bits or block counts in them are harmless.
 		jointIDCapacity := getIDCapacity(&w.jointIDPool)
-		for k := range w.taskContexts {
+		for k := range maxColorWorkers {
 			setBitCountAndClear(&w.taskContexts[k].jointStateBitSet, uint32(jointIDCapacity))
 		}
 
@@ -731,15 +765,15 @@ func (w *World) solve(ctx *stepContext) {
 
 		// Dispatch plumbing, built once per solve so the per-color dispatch
 		// sites below allocate nothing per call: the color/bias arguments
-		// travel through the captured variables, written by the dispatching
-		// goroutine before each forRange (the pool's job publish is the
-		// happens-before edge). Nil — and never touched — when the world has
-		// no pool. This block moves only ints, bools and funcs; it adds no
-		// floating-point arithmetic.
+		// travel through ctx.dispatchColorIndex/ctx.dispatchUseBias — fields
+		// of the World-owned step context, NOT closure-captured locals, so
+		// the serial path stays at zero heap allocations (a captured local
+		// would escape even when the closures are never built) — written by
+		// the dispatching goroutine before each forRange (the pool's job
+		// publish is the happens-before edge). Nil — and never touched —
+		// when the world has no pool. This block moves only ints, bools and
+		// funcs; it adds no floating-point arithmetic.
 		var (
-			dispatchColorIndex int
-			dispatchUseBias    bool
-
 			integrateVelocitiesFn func(workerIndex, startIndex, endIndex int)
 			integratePositionsFn  func(workerIndex, startIndex, endIndex int)
 			prepareJointsFn       func(workerIndex, startIndex, endIndex int)
@@ -750,11 +784,7 @@ func (w *World) solve(ctx *stepContext) {
 			storeImpulsesFn       func(workerIndex, startIndex, endIndex int)
 			finalizeFn            func(workerIndex, startIndex, endIndex int)
 		)
-		bodyGrain, colorGrain := 0, 0
 		if w.pool != nil {
-			bodyGrain = solverBodyGrain(w.workerCount)
-			colorGrain = solverColorGrain(w.workerCount)
-
 			integrateVelocitiesFn = func(_, startIndex, endIndex int) {
 				integrateVelocitiesTask(startIndex, endIndex, ctx)
 			}
@@ -762,22 +792,22 @@ func (w *World) solve(ctx *stepContext) {
 				integratePositionsTask(startIndex, endIndex, ctx)
 			}
 			prepareJointsFn = func(_, startIndex, endIndex int) {
-				w.prepareJointsColorRange(ctx, dispatchColorIndex, startIndex, endIndex)
+				w.prepareJointsColorRange(ctx, ctx.dispatchColorIndex, startIndex, endIndex)
 			}
 			prepareContactsFn = func(_, startIndex, endIndex int) {
-				w.prepareContactsColor(ctx, dispatchColorIndex, startIndex, endIndex)
+				w.prepareContactsColor(ctx, ctx.dispatchColorIndex, startIndex, endIndex)
 			}
 			warmStartColorFn = func(_, startIndex, endIndex int) {
-				w.warmStartColorTask(ctx, dispatchColorIndex, startIndex, endIndex)
+				w.warmStartColorTask(ctx, ctx.dispatchColorIndex, startIndex, endIndex)
 			}
 			solveColorFn = func(workerIndex, startIndex, endIndex int) {
-				w.solveColorTask(ctx, dispatchColorIndex, dispatchUseBias, workerIndex, startIndex, endIndex)
+				w.solveColorTask(ctx, ctx.dispatchColorIndex, ctx.dispatchUseBias, workerIndex, startIndex, endIndex)
 			}
 			restitutionFn = func(_, startIndex, endIndex int) {
-				w.applyRestitutionColor(ctx, dispatchColorIndex, startIndex, endIndex)
+				w.applyRestitutionColor(ctx, ctx.dispatchColorIndex, startIndex, endIndex)
 			}
 			storeImpulsesFn = func(_, startIndex, endIndex int) {
-				w.storeImpulsesColor(ctx, dispatchColorIndex, startIndex, endIndex)
+				w.storeImpulsesColor(ctx, ctx.dispatchColorIndex, startIndex, endIndex)
 			}
 			finalizeFn = func(workerIndex, startIndex, endIndex int) {
 				w.finalizeBodiesTask(startIndex, endIndex, workerIndex, ctx)
@@ -792,8 +822,8 @@ func (w *World) solve(ctx *stepContext) {
 			if w.pool == nil {
 				w.prepareJointsColorRange(ctx, colorIndex, 0, jointCount)
 			} else {
-				dispatchColorIndex = colorIndex
-				w.pool.forRange(jointCount, colorGrain, prepareJointsFn)
+				ctx.dispatchColorIndex = colorIndex
+				w.pool.forRange(jointCount, solverColorGrain, prepareJointsFn)
 			}
 		}
 
@@ -805,8 +835,8 @@ func (w *World) solve(ctx *stepContext) {
 			if w.pool == nil {
 				w.prepareContactsColor(ctx, colorIndex, 0, contactCount)
 			} else {
-				dispatchColorIndex = colorIndex
-				w.pool.forRange(contactCount, colorGrain, prepareContactsFn)
+				ctx.dispatchColorIndex = colorIndex
+				w.pool.forRange(contactCount, solverColorGrain, prepareContactsFn)
 			}
 		}
 
@@ -829,7 +859,7 @@ func (w *World) solve(ctx *stepContext) {
 			if w.pool == nil {
 				integrateVelocitiesTask(0, awakeBodyCount, ctx)
 			} else {
-				w.pool.forRange(awakeBodyCount, bodyGrain, integrateVelocitiesFn)
+				w.pool.forRange(awakeBodyCount, solverBodyGrain, integrateVelocitiesFn)
 			}
 
 			// -- b2_stageWarmStart ----------------------------------------
@@ -854,8 +884,8 @@ func (w *World) solve(ctx *stepContext) {
 				if w.pool == nil {
 					w.warmStartColorTask(ctx, colorIndex, 0, itemCount)
 				} else {
-					dispatchColorIndex = colorIndex
-					w.pool.forRange(itemCount, colorGrain, warmStartColorFn)
+					ctx.dispatchColorIndex = colorIndex
+					w.pool.forRange(itemCount, solverColorGrain, warmStartColorFn)
 				}
 			}
 
@@ -881,9 +911,9 @@ func (w *World) solve(ctx *stepContext) {
 					if w.pool == nil {
 						w.solveColorTask(ctx, colorIndex, useBias, 0, 0, itemCount)
 					} else {
-						dispatchColorIndex = colorIndex
-						dispatchUseBias = useBias
-						w.pool.forRange(itemCount, colorGrain, solveColorFn)
+						ctx.dispatchColorIndex = colorIndex
+						ctx.dispatchUseBias = useBias
+						w.pool.forRange(itemCount, solverColorGrain, solveColorFn)
 					}
 				}
 			}
@@ -892,7 +922,7 @@ func (w *World) solve(ctx *stepContext) {
 			if w.pool == nil {
 				integratePositionsTask(0, awakeBodyCount, ctx)
 			} else {
-				w.pool.forRange(awakeBodyCount, bodyGrain, integratePositionsFn)
+				w.pool.forRange(awakeBodyCount, solverBodyGrain, integratePositionsFn)
 			}
 
 			// -- b2_stageRelax --------------------------------------------
@@ -916,9 +946,9 @@ func (w *World) solve(ctx *stepContext) {
 					if w.pool == nil {
 						w.solveColorTask(ctx, colorIndex, useBias, 0, 0, itemCount)
 					} else {
-						dispatchColorIndex = colorIndex
-						dispatchUseBias = useBias
-						w.pool.forRange(itemCount, colorGrain, solveColorFn)
+						ctx.dispatchColorIndex = colorIndex
+						ctx.dispatchUseBias = useBias
+						w.pool.forRange(itemCount, solverColorGrain, solveColorFn)
 					}
 				}
 			}
@@ -935,8 +965,8 @@ func (w *World) solve(ctx *stepContext) {
 			if w.pool == nil {
 				w.applyRestitutionColor(ctx, colorIndex, 0, contactCount)
 			} else {
-				dispatchColorIndex = colorIndex
-				w.pool.forRange(contactCount, colorGrain, restitutionFn)
+				ctx.dispatchColorIndex = colorIndex
+				w.pool.forRange(contactCount, solverColorGrain, restitutionFn)
 			}
 		}
 
@@ -949,8 +979,8 @@ func (w *World) solve(ctx *stepContext) {
 			if w.pool == nil {
 				w.storeImpulsesColor(ctx, colorIndex, 0, contactCount)
 			} else {
-				dispatchColorIndex = colorIndex
-				w.pool.forRange(contactCount, colorGrain, storeImpulsesFn)
+				ctx.dispatchColorIndex = colorIndex
+				w.pool.forRange(contactCount, solverColorGrain, storeImpulsesFn)
 			}
 		}
 
@@ -963,13 +993,14 @@ func (w *World) solve(ctx *stepContext) {
 		}
 		w.arena.freeContactConstraints()
 
-		// Prepare contact, enlarged body, and island bit sets used in body
-		// finalization. Every worker slot is reset — even when the dispatch
-		// below runs inline — because the merges after the join walk ALL
-		// slots: stale bits or mismatched block counts in slots 1..w-1 would
-		// corrupt the union, and the per-worker buffers must start empty.
+		// Prepare the enlarged body and island bit sets, sensor hit and bullet
+		// gathers, and split candidates used in body finalization. INVARIANT:
+		// presize bound == dispatch bound == merge bound == finalizeWorkers
+		// (the finalize forRange below engages exactly that many workers).
+		// Slots >= finalizeWorkers are never written this step and never
+		// merged this step, so stale content in them is harmless.
 		awakeIslandCount := len(awake.islandSims)
-		for k := range w.taskContexts {
+		for k := range finalizeWorkers {
 			tc := &w.taskContexts[k]
 			tc.sensorHits = tc.sensorHits[:0]
 			tc.bulletBodies = tc.bulletBodies[:0]
@@ -984,7 +1015,7 @@ func (w *World) solve(ctx *stepContext) {
 		if w.pool == nil {
 			w.finalizeBodiesTask(0, awakeBodyCount, 0, ctx)
 		} else {
-			w.pool.forRange(awakeBodyCount, bodyGrain, finalizeFn)
+			w.pool.forRange(awakeBodyCount, solverBodyGrain, finalizeFn)
 		}
 		w.taskCount++
 	}
@@ -992,13 +1023,16 @@ func (w *World) solve(ctx *stepContext) {
 	// Report joint events (upstream: the joint event assembly in b2Solve).
 	// First merge the per-worker joint state bits into slot 0 in ascending
 	// worker order (upstream: the bit-OR loop before the joint event scan).
-	// Bit-OR is order-free and every slot was sized identically before the
-	// solve stages, satisfying inPlaceUnion's equal-blockCount contract; the
-	// drain below walks set bits in ascending joint-id order, so the emitted
-	// event order is identical for every worker count.
+	// Bit-OR is order-free. INVARIANT: merge bound == presize bound ==
+	// dispatch bound == maxColorWorkers — only slots presized THIS step are
+	// unioned, satisfying inPlaceUnion's equal-blockCount contract (slots >=
+	// maxColorWorkers may hold stale block counts from earlier steps, but
+	// they were never written this step and are not merged). The drain below
+	// walks set bits in ascending joint-id order, so the emitted event order
+	// is identical for every worker count.
 	{
 		jointStateBitSet := &w.taskContexts[0].jointStateBitSet
-		for k := 1; k < len(w.taskContexts); k++ {
+		for k := 1; k < maxColorWorkers; k++ {
 			inPlaceUnion(jointStateBitSet, &w.taskContexts[k].jointStateBitSet)
 		}
 		for k := range jointStateBitSet.blockCount {
@@ -1092,11 +1126,15 @@ func (w *World) solve(ctx *stepContext) {
 
 		// Merge the per-worker enlarged-sim bits into slot 0 in ascending
 		// worker order (upstream: the bit-OR loop before the refit in
-		// b2Solve). The drain below walks set bits in ascending body-sim
-		// order, which keeps the move array deterministic — the cornerstone
-		// of the next step's pair-finding order.
+		// b2Solve). INVARIANT: merge bound == presize bound == dispatch
+		// bound == finalizeWorkers; only slots presized THIS step are
+		// unioned (inPlaceUnion asserts equal block counts), and slots >=
+		// finalizeWorkers were never written this step. The drain below
+		// walks set bits in ascending body-sim order, which keeps the move
+		// array deterministic — the cornerstone of the next step's
+		// pair-finding order.
 		enlargedBodyBitSet := &w.taskContexts[0].enlargedSimBitSet
-		for k := 1; k < len(w.taskContexts); k++ {
+		for k := 1; k < finalizeWorkers; k++ {
 			inPlaceUnion(enlargedBodyBitSet, &w.taskContexts[k].enlargedSimBitSet)
 		}
 
@@ -1158,8 +1196,10 @@ func (w *World) solve(ctx *stepContext) {
 	// equals the ascending body-sim index fill of the serial engine exactly
 	// (deviation from upstream's shared atomic-cursor array — see
 	// taskContext.bulletBodies). ctx.bulletBodies has capacity for every
-	// awake body, so the copy cannot overflow.
-	for k := range w.taskContexts {
+	// awake body, so the copy cannot overflow. INVARIANT: merge bound ==
+	// presize bound == dispatch bound == finalizeWorkers (slots beyond it
+	// were never written this step).
+	for k := range finalizeWorkers {
 		for _, simIndex := range w.taskContexts[k].bulletBodies {
 			ctx.bulletBodies[ctx.bulletBodyCount] = simIndex
 			ctx.bulletBodyCount++
@@ -1172,9 +1212,12 @@ func (w *World) solve(ctx *stepContext) {
 	// the bullet stage below appends its own hits to slot 0 after the
 	// finalize hits — exactly the serial order (upstream drains the
 	// per-worker lists in the same worker order after the bullet task).
+	// INVARIANT: merge bound == presize bound == dispatch bound ==
+	// finalizeWorkers (slots beyond it were never written this step; any
+	// stale hits they hold from earlier steps are never read).
 	{
 		tc0 := &w.taskContexts[0]
-		for k := 1; k < len(w.taskContexts); k++ {
+		for k := 1; k < finalizeWorkers; k++ {
 			tc0.sensorHits = append(tc0.sensorHits, w.taskContexts[k].sensorHits...)
 		}
 	}
@@ -1266,11 +1309,13 @@ func (w *World) solve(ctx *stepContext) {
 		// strict maximum of the serial ascending body scan — the choice is
 		// identical for every worker count (upstream needs an extra
 		// island-id tie-break only because of work stealing, which this port
-		// has none of).
+		// has none of). INVARIANT: reduction bound == presize bound ==
+		// dispatch bound == finalizeWorkers (slots beyond it were never
+		// written this step; stale candidates in them are never read).
 		assert(w.splitIslandID == NullIndex)
 		splitIslandID := NullIndex
 		splitSleepTime := 0.0
-		for k := range w.taskContexts {
+		for k := range finalizeWorkers {
 			tc := &w.taskContexts[k]
 			if tc.splitIslandID == NullIndex {
 				continue
@@ -1287,9 +1332,12 @@ func (w *World) solve(ctx *stepContext) {
 
 		// Merge the per-worker awake-island bits into slot 0 in ascending
 		// worker order (upstream: the bit-OR loop before the island sleep
-		// sweep in b2Solve). Bit-OR is order-free.
+		// sweep in b2Solve). Bit-OR is order-free. INVARIANT: merge bound ==
+		// presize bound == dispatch bound == finalizeWorkers — only slots
+		// presized THIS step are unioned (inPlaceUnion asserts equal block
+		// counts); slots beyond it were never written this step.
 		awakeIslandBitSet := &w.taskContexts[0].awakeIslandBitSet
-		for k := 1; k < len(w.taskContexts); k++ {
+		for k := 1; k < finalizeWorkers; k++ {
 			inPlaceUnion(awakeIslandBitSet, &w.taskContexts[k].awakeIslandBitSet)
 		}
 

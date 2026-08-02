@@ -103,10 +103,17 @@ type Config struct {
 	// Workers is the number of workers the physics step may use
 	// (box2d.WorldDef.WorkerCount). 0 means 1 (serial); negative values are
 	// treated as 0 and values above box2d.MaxWorkers (64) are clamped down,
-	// so any value is safe (e.g. runtime.NumCPU() on large hosts). Simulation
-	// results are byte-identical for every value — the engine's worker pool
-	// is deterministic by construction — so this is purely a throughput knob
+	// so any value is safe. The engine does not clamp to the core count:
+	// whatever you set here is the partition width, so counts beyond the
+	// host's cores just oversubscribe the Go scheduler. Simulation results
+	// are byte-identical for every value — the engine's worker pool is
+	// deterministic by construction — so this is purely a throughput knob
 	// and never affects rollback, replay, or cross-machine agreement.
+	//
+	// Recommend setting Workers only for large scenes (hundreds or more
+	// active bodies): small scenes run inline below the engine's per-stage
+	// grain thresholds regardless of this value, and worker counts beyond
+	// ~8 have diminishing returns.
 	Workers int
 }
 

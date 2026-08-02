@@ -53,7 +53,6 @@ package box2d
 
 import (
 	"math"
-	"runtime"
 	"sync/atomic"
 )
 
@@ -168,8 +167,9 @@ type World struct {
 	taskContexts []taskContext
 
 	// workerCount is the effective worker count: WorldDef.WorkerCount with 0
-	// mapped to 1 and clamped to runtime.GOMAXPROCS(0), computed once in
-	// NewWorld. Simulation results are byte-identical for every value.
+	// mapped to 1, computed once in NewWorld (no GOMAXPROCS clamp — see the
+	// NewWorld comment). Simulation results are byte-identical for every
+	// value.
 	workerCount int
 
 	// pool is the internal worker pool; nil when workerCount == 1, in which
@@ -250,6 +250,15 @@ type World struct {
 	// fields below it (worldID, locked, the solver tuning scalars) onto extra
 	// cache lines.
 	queryScratch worldQueryScratch
+
+	// stepCtx is the per-step context (upstream b2StepContext, a C stack
+	// local). It lives on the World because a Go stack local escapes into
+	// the stage closures Step builds, heap-allocating every step even on the
+	// serial path; Step zeroes and refills it each call, so no state leaks
+	// between steps. Kept at the end next to queryScratch for the same
+	// cache-line reason (mid-struct scratch cost 12%/step in a previous
+	// layout pass).
+	stepCtx stepContext
 }
 
 // defaultFrictionCallback mirrors b2DefaultFrictionCallback.
@@ -371,10 +380,15 @@ func NewWorld(def *WorldDef) *World {
 	w.enableSpeculative = true
 	w.userData = def.UserData
 
-	// Effective worker count, computed exactly once so a run's partitioning
-	// is stable (never re-read GOMAXPROCS per step). Clamping cannot affect
-	// results: they are byte-identical for every worker count by design.
-	w.workerCount = min(max(def.WorkerCount, 1), runtime.GOMAXPROCS(0))
+	// Effective worker count: WorkerCount taken as given (0 means 1), already
+	// validated <= MaxWorkers above. Deliberately NOT clamped to
+	// runtime.GOMAXPROCS(0): upstream does not clamp either — the worker
+	// count is the caller's explicit choice; oversubscribing cores with
+	// goroutines is legal Go; and a clamp made every worker-matrix test and
+	// CI row silently degrade to GOMAXPROCS-way partitions (vacuously green
+	// on small runners). Results are byte-identical for every value by
+	// design, so an oversubscribed count costs throughput only.
+	w.workerCount = max(def.WorkerCount, 1)
 
 	w.taskContexts = make([]taskContext, w.workerCount)
 	for i := range w.taskContexts {

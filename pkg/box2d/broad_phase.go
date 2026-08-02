@@ -456,12 +456,16 @@ func (w *World) updateBroadPhasePairs() {
 	moveResults := growScratch(bp.moveResults, moveCount)
 	bp.moveResults = moveResults
 
-	// The exact worker count the dispatch below uses. The creation loop
-	// derives pair ownership from the same partition, so the two must agree.
-	pairWorkers := 1
-	if w.pool != nil {
-		pairWorkers = forRangeWorkers(moveCount, broadPhaseMinRange, w.workerCount)
-	}
+	// INVARIANT: dispatch bound == presize bound == consumer bound ==
+	// pairWorkers, the exact worker count the forRange below engages — a
+	// pure function of (moveCount, broadPhaseMinRange, workerCount), so it
+	// is partition-independent. The serial pair-creation loop at the bottom
+	// derives pair ownership from the same forRangeWorkers/workerRange
+	// calls, so the two sides must agree; queryContexts slots >=
+	// pairWorkers are never written this step and never read this step, so
+	// stale pairs in them are harmless. (workerCount is 1 when the world
+	// has no pool, so this collapses to 1 on the serial path.)
+	pairWorkers := forRangeWorkers(moveCount, broadPhaseMinRange, w.workerCount)
 
 	// Size the per-worker contexts lazily (the broad-phase does not know the
 	// world's worker count at creation). Existing contexts keep their grown

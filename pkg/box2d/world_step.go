@@ -234,11 +234,15 @@ func (w *World) collide(ctx *stepContext) {
 	ctx.contacts = contactSims
 
 	// Contact bit set on ids because contact pointers are unstable as they
-	// move between touching and not touching. Every worker slot is sized —
-	// even when the dispatch below runs inline — so the bit-OR merge never
-	// sees stale bits or mismatched block counts.
+	// move between touching and not touching. INVARIANT: presize bound ==
+	// dispatch bound == merge bound == collideWorkers, the exact worker
+	// count the forRange below engages — a pure function of (contactCount,
+	// collideMinRange, workerCount), so it is partition-independent. Slots
+	// >= collideWorkers are never written this step and never merged this
+	// step; stale bits or block counts in them are harmless.
+	collideWorkers := forRangeWorkers(contactCount, collideMinRange, w.workerCount)
 	contactIDCapacity := getIDCapacity(&w.contactIDPool)
-	for k := range w.taskContexts {
+	for k := range collideWorkers {
 		setBitCountAndClear(&w.taskContexts[k].contactStateBitSet, uint32(contactIDCapacity))
 	}
 
@@ -256,10 +260,11 @@ func (w *World) collide(ctx *stepContext) {
 
 	// Merge the per-worker contact state bits into slot 0 in ascending
 	// worker order (upstream: the bit-OR loop in b2Collide). Bit-OR is
-	// order-free and the slots were sized identically above, satisfying
-	// inPlaceUnion's equal-blockCount contract.
+	// order-free. INVARIANT: merge bound == presize bound == dispatch bound
+	// == collideWorkers — only slots presized THIS step are unioned,
+	// satisfying inPlaceUnion's equal-blockCount contract.
 	bitSet := &w.taskContexts[0].contactStateBitSet
-	for k := 1; k < len(w.taskContexts); k++ {
+	for k := 1; k < collideWorkers; k++ {
 		inPlaceUnion(bitSet, &w.taskContexts[k].contactStateBitSet)
 	}
 
@@ -421,7 +426,11 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 	// Update collision pairs and create contacts
 	w.updateBroadPhasePairs()
 
-	ctx := stepContext{}
+	// Reset and reuse the World-owned step context (see World.stepCtx: a
+	// stack local would escape into the stage closures and heap-allocate
+	// every step).
+	w.stepCtx = stepContext{}
+	ctx := &w.stepCtx
 	ctx.world = w
 	ctx.dt = timeStep
 	ctx.subStepCount = maxInt(1, subStepCount)
@@ -449,12 +458,12 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 	ctx.enableWarmStarting = w.enableWarmStarting
 
 	// Update contacts
-	w.collide(&ctx)
+	w.collide(ctx)
 
 	// Integrate velocities, solve velocity constraints, and integrate
 	// positions.
 	if timeStep > 0.0 {
-		w.solve(&ctx)
+		w.solve(ctx)
 	}
 
 	// Update sensors.

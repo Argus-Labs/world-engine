@@ -17,7 +17,15 @@ import (
 // makeWorld creates a Cardinal world at 60 Hz with the physics plugin installed, returning the
 // world and the registered plugin instance (queries and Reset are methods on it).
 // World gravity is set from gravity; plugin tick rate matches the world tick rate.
+// Workers stays at the serial default (0); use makeWorldWorkers for a parallel world.
 func makeWorld(t *testing.T, gravity physics.Vec2) (*cardinal.World, *physics.Plugin) {
+	t.Helper()
+	return makeWorldWorkers(t, gravity, 0)
+}
+
+// makeWorldWorkers is makeWorld with an explicit physics.Config.Workers value
+// (box2d.WorldDef.WorkerCount; results are byte-identical for every value).
+func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	t.Helper()
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
@@ -34,6 +42,7 @@ func makeWorld(t *testing.T, gravity physics.Vec2) (*cardinal.World, *physics.Pl
 	p := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
+		Workers:  workers,
 	})
 	cardinal.RegisterPlugin(w, p)
 	return w, p

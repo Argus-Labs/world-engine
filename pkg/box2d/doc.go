@@ -31,9 +31,14 @@
 // per-worker output is merged either order-free (bit-set OR) or in ascending
 // worker order, which equals the serial order. WorkerCount is therefore
 // purely a throughput knob; it can differ between machines, or between a live
-// run and a replay, without affecting determinism. The golden suites enforce
-// this by re-running every scene at WorkerCount 2/4/8 against the serial
-// golden files (golden_workers_test.go).
+// run and a replay, without affecting determinism. The count is taken as
+// given (upstream does not clamp it either): values above the machine's core
+// count oversubscribe the scheduler and cost throughput, never correctness.
+// Small dispatches engage fewer workers than WorkerCount — each stage has a
+// minimum items-per-worker grain (upstream minRange) — so tiny worlds run
+// mostly inline no matter how many workers were requested. The golden suites
+// enforce determinism by re-running every scene at WorkerCount 2/4/8 against
+// the serial golden files (golden_workers_test.go).
 //
 // Everything outside Step keeps the single-goroutine contract: a World must
 // not be stepped, mutated, or queried from two goroutines at once, nor

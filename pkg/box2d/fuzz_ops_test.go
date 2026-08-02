@@ -4,8 +4,9 @@
 // Two harnesses share one op interpreter:
 //
 //   - TestWorldOpSequenceDeterminism replays a fixed table of seeds through an
-//     embedded xorshift64 PRNG and requires the two replays of a seed to agree
-//     bit for bit on a djb2 hash of the whole world state.
+//     embedded xorshift64 PRNG — once serial, once at WorkerCount 4 — and
+//     requires the two replays of a seed to agree bit for bit on a djb2 hash
+//     of the whole world state.
 //   - FuzzWorldOps feeds the same interpreter from the Go native fuzzing byte
 //     stream, replays each entry on a serial world and a WorkerCount=4 world
 //     in lockstep, and requires the two worlds to agree bit for bit on the
@@ -235,7 +236,19 @@ type opWorld struct {
 // may itself be destroyed or retyped by the sequence. workerCount is passed
 // to WorldDef.WorkerCount (0 = serial); results must be byte-identical for
 // every value — FuzzWorldOps enforces this by replaying every corpus entry
-// at WorkerCount 1 and 4.
+// at WorkerCount 1 and 4, and TestWorldOpSequenceDeterminism replays every
+// seed at 1 vs 4.
+//
+// Every op world starts from the shared base scene (buildWorkerScene,
+// golden_workers_test.go) sized past every dispatch grain — a 15-row pyramid
+// (120 boxes; awake bodies and contacts past collideMinRange 64 and
+// solverBodyGrain 64), 20 pendulums, 40 sensors (past sensorMinRange 16 with
+// capped engagement) and 4 bullets — so parallel-vs-serial replays exercise
+// the pool dispatches from the first step, not only when the random churn
+// happens to grow a big world. All base bodies join the interpreter's body
+// list: ops target them like any other body and the create/destroy tally
+// stays exact. Corpus entries stay valid — their ops simply run on top of
+// the base scene.
 func newOpWorld(workerCount int) *opWorld {
 	worldDef := box2d.DefaultWorldDef()
 	worldDef.Gravity = box2d.Vec2{X: 0.0, Y: -10.0}
@@ -253,6 +266,10 @@ func newOpWorld(workerCount int) *opWorld {
 
 	o.bodies = append(o.bodies, ground)
 	o.created++
+
+	base := buildWorkerScene(o.world, 15, 20, 40, 4)
+	o.bodies = append(o.bodies, base...)
+	o.created += len(base)
 
 	return o
 }
@@ -659,13 +676,14 @@ func checkOpCounters(t *testing.T, o *opWorld, seed uint64, opIndex int) {
 	require.Len(t, o.bodies, counters.BodyCount, "%s: live body list drifted from body count", where)
 }
 
-// runOpSequence replays fuzzOpSeqLength ops in a fresh world and returns the
-// final and checkpoint hashes. A panic is converted into a test failure that
-// names the seed and the exact op index and kind that tripped it.
-func runOpSequence(t *testing.T, seed uint64) opRun {
+// runOpSequence replays fuzzOpSeqLength ops in a fresh world with the given
+// WorldDef.WorkerCount and returns the final and checkpoint hashes. A panic
+// is converted into a test failure that names the seed and the exact op
+// index and kind that tripped it.
+func runOpSequence(t *testing.T, seed uint64, workerCount int) opRun {
 	t.Helper()
 
-	o := newOpWorld(1)
+	o := newOpWorld(workerCount)
 	defer o.world.Destroy()
 
 	opIndex := -1
@@ -701,9 +719,13 @@ func runOpSequence(t *testing.T, seed uint64) opRun {
 	return run
 }
 
-// TestWorldOpSequenceDeterminism replays every seed twice in fresh worlds and
-// requires the two replays to agree on the world-state hash at every
-// checkpoint and at the end.
+// TestWorldOpSequenceDeterminism replays every seed twice in fresh worlds —
+// replay A serial (WorkerCount 1), replay B on the internal worker pool
+// (WorkerCount 4) — and requires the two replays to agree on the world-state
+// hash at every checkpoint and at the end. On top of run-to-run determinism
+// this makes the whole 25-seed, 300-op structural-churn table a
+// parallel-vs-serial gate: any partition-dependent merge the fixed golden
+// scenes cannot reach fails here with the op range that first diverged.
 func TestWorldOpSequenceDeterminism(t *testing.T) {
 	t.Parallel()
 
@@ -711,20 +733,20 @@ func TestWorldOpSequenceDeterminism(t *testing.T) {
 		t.Run(fmt.Sprintf("seed_%016x", seed), func(t *testing.T) {
 			t.Parallel()
 
-			first := runOpSequence(t, seed)
-			second := runOpSequence(t, seed)
+			first := runOpSequence(t, seed, 1)
+			second := runOpSequence(t, seed, 4)
 
 			require.Len(t, second.checkpoints, len(first.checkpoints),
 				"seed %#016x: checkpoint count differs between replays", seed)
 
 			for i := range first.checkpoints {
 				require.Equalf(t, first.checkpoints[i], second.checkpoints[i],
-					"seed %#016x: NON-DETERMINISM first diverges in op range [%d,%d)",
+					"seed %#016x: NON-DETERMINISM (serial vs WorkerCount=4) first diverges in op range [%d,%d)",
 					seed, i*fuzzCheckpointGap, (i+1)*fuzzCheckpointGap)
 			}
 
 			require.Equalf(t, first.finalHash, second.finalHash,
-				"seed %#016x: NON-DETERMINISM in final world-state hash after %d ops",
+				"seed %#016x: NON-DETERMINISM (serial vs WorkerCount=4) in final world-state hash after %d ops",
 				seed, fuzzOpSeqLength)
 
 			require.Equal(t, first.opCounts, second.opCounts,
