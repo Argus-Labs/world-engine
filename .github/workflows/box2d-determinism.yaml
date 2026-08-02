@@ -9,8 +9,21 @@ name: Determinism (Box2D)
 # the cross-arch matrix only runs when pkg/box2d actually changes, and so
 # its status check is independently visible on PRs touching the engine.
 
+# Both triggers are needed. `push` covers branches in this repository, while
+# `pull_request` is what puts the status on the PR head itself -- without it a
+# later commit that misses the path filter leaves the PR with no determinism
+# result, and pull requests from forks never run it at all.
+#
+# The two path lists are duplicated rather than shared through a YAML anchor:
+# the GitHub Actions workflow parser does not support anchors or aliases.
 on:
   push:
+    paths:
+      - 'pkg/box2d/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/box2d-determinism.yaml'
+  pull_request:
     paths:
       - 'pkg/box2d/**'
       - 'go.mod'
