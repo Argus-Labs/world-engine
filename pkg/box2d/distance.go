@@ -589,7 +589,7 @@ func ShapeCast(input *ShapeCastPairInput) CastOutput {
 	linearSlop := LinearSlop
 	totalRadius := input.ProxyA.Radius + input.ProxyB.Radius
 	target := maxFloat(linearSlop, totalRadius-linearSlop)
-	tolerance := 0.25 * linearSlop
+	tolerance := float64(0.25 * linearSlop)
 
 	assert(target > tolerance)
 
@@ -891,7 +891,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 	// Setup target distance and tolerance
 	totalRadius := proxyA.Radius + proxyB.Radius
 	target := maxFloat(LinearSlop, totalRadius-LinearSlop)
-	tolerance := 0.25 * LinearSlop
+	tolerance := float64(0.25 * LinearSlop)
 	assert(target > tolerance)
 
 	t1 := 0.0

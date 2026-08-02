@@ -31,14 +31,18 @@ func TestGetVersion(t *testing.T) {
 	tassert.Zero(t, v.Revision)
 }
 
+// TestLengthUnitsPerMeter must not call t.Parallel: the length unit is
+// process-global and now also drives the tolerances in constants.go, so a
+// parallel test would perturb every other test that reads them. Sequential
+// tests never overlap paused parallel ones.
 func TestLengthUnitsPerMeter(t *testing.T) {
-	t.Parallel()
+	// Registered before the first assertion so the default is restored even if
+	// the test fails or aborts.
+	t.Cleanup(func() { SetLengthUnitsPerMeter(1.0) })
 
 	require.InDelta(t, 1.0, GetLengthUnitsPerMeter(), 0)
 
 	SetLengthUnitsPerMeter(2.0)
 	tassert.InDelta(t, 2.0, GetLengthUnitsPerMeter(), 0)
-
-	// Restore the default so other tests are not affected.
-	SetLengthUnitsPerMeter(1.0)
+	tassert.InDelta(t, 2.0*0.005, LinearSlop, 0)
 }

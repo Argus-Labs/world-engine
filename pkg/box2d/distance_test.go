@@ -499,7 +499,7 @@ func TestShapeCastPolygonRayConsistency(t *testing.T) {
 		require.True(t, sc.Hit)
 		// The shape cast stops linearSlop short of the surface:
 		// fraction = rayFraction - linearSlop / |translation|.
-		require.InDelta(t, rc.Fraction-box2d.LinearSlop/2.0, sc.Fraction, 1e-9)
+		require.InDelta(t, rc.Fraction-float64(box2d.LinearSlop/2.0), sc.Fraction, 1e-9)
 	})
 
 	t.Run("rounded ray cast regression", func(t *testing.T) {
