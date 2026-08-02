@@ -242,8 +242,6 @@ func (a *arena) freeInts(slot *arenaIntSlot) {
 }
 
 // getArenaCapacity mirrors b2GetArenaCapacity, in elements.
-//
-//nolint:unused // upstream b2GetArenaCapacity parity, kept for memory stats
 func getArenaCapacity(a *arena) int {
 	return cap(a.massData)
 }

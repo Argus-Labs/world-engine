@@ -6,8 +6,15 @@ package box2d
 
 import "math"
 
-// Pi matches the upstream B2_PI literal exactly (not math.Pi) so ported
+// Pi matches the upstream B2_PI decimal literal (not math.Pi) so ported
 // expressions stay diffable against the C source.
+//
+// DELIBERATE DEVIATION: upstream writes `3.14159265359f`, a float32 literal
+// that actually evaluates to 3.14159274101257324; this float64 constant keeps
+// the decimal value, which is closer to real pi. Angle wrapping therefore
+// differs from the C by ~1.75e-7 per full turn (see the oracle_foundation
+// UnwindAngle divergence tests). Do not "fix" this to the float32 value
+// without regenerating every golden fixture.
 const Pi = 3.14159265359
 
 // Vec2 is a 2D vector. It can represent a point or a free vector.
@@ -74,7 +81,7 @@ func maxInt(a, b int) int {
 
 // absInt returns the absolute value of an integer (upstream b2AbsInt).
 //
-//nolint:unused // upstream math_functions.h parity
+
 func absInt(a int) int {
 	if a < 0 {
 		return -a
@@ -84,7 +91,7 @@ func absInt(a int) int {
 
 // clampInt clamps an integer between a lower and upper bound (upstream b2ClampInt).
 //
-//nolint:unused // upstream math_functions.h parity
+
 func clampInt(a, lower, upper int) int {
 	if a < lower {
 		return lower
@@ -98,7 +105,7 @@ func clampInt(a, lower, upper int) int {
 // ceilingInt returns ceil(numerator/denominator) for non-negative numerator
 // and positive denominator (upstream b2CeilingInt).
 //
-//nolint:unused // upstream math_functions.h parity
+
 func ceilingInt(numerator, denominator int) int {
 	return (numerator + denominator - 1) / denominator
 }

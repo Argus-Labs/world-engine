@@ -75,6 +75,10 @@ func getIDCapacity(pool *idPool) int {
 	return pool.nextIndex
 }
 
+// getIDBytes reports the free list's memory footprint. DELIBERATE DEVIATION:
+// upstream counts capacity * sizeof(int) with a 32-bit int; Go's int is 64-bit
+// on all supported targets, so this reports twice the C figure — the accurate
+// number for this port's actual memory.
 func getIDBytes(pool *idPool) int {
 	return cap(pool.freeArray) * (strconv.IntSize / 8)
 }

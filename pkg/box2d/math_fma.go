@@ -36,8 +36,6 @@ package box2d
 func mulAdd(a, b, c float64) float64 { return float64(a*b) + float64(c) }
 
 // mulSub returns a*b - c, rounding the product and the subtrahend (no FMA).
-//
-//nolint:unused // part of the documented FMA-safe helper set (see file header)
 func mulSub(a, b, c float64) float64 { return float64(a*b) - float64(c) }
 
 // dot2 returns a*b + c*d with both products rounded (no FMA).

@@ -715,8 +715,6 @@ func getShapeCentroid(s *shape) Vec2 {
 
 // getShapePerimeter returns the perimeter of a shape, used by the explosion
 // feature (upstream b2GetShapePerimeter).
-//
-//nolint:unused // upstream b2GetShapePerimeter parity
 func getShapePerimeter(s *shape) float64 {
 	//nolint:exhaustive // ShapeTypeCount is a sentinel, not a shape type; the default case mirrors upstream.
 	switch s.shapeType {
