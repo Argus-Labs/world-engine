@@ -252,7 +252,7 @@ func defaultRestitutionCallback(restitutionA float64, materialA uint64, restitut
 // this returns a *World instead of a b2WorldId into a global registry (see
 // the file header).
 func NewWorld(def *WorldDef) *World {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "WorldDef", "DefaultWorldDef")
 
 	initializeContactRegisters()
 

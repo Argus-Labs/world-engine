@@ -354,9 +354,11 @@ func (w *World) destroyBodyContacts(b *body, wakeBodies bool) {
 //
 // Warning: this function is locked during callbacks.
 func (w *World) CreateBody(def *BodyDef) BodyID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "BodyDef", "DefaultBodyDef")
+	requireValidDefField(IsValidRotation(def.Rotation), "BodyDef", "Rotation",
+		"must be a normalized rotation (the zero Rot{} is not; use DefaultBodyDef or MakeRot)")
+
 	assert(IsValidVec2(def.Position))
-	assert(IsValidRotation(def.Rotation))
 	assert(IsValidVec2(def.LinearVelocity))
 	assert(IsValidFloat(def.AngularVelocity))
 	assert(IsValidFloat(def.LinearDamping) && def.LinearDamping >= 0.0)

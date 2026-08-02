@@ -96,7 +96,8 @@ type WorldDef struct {
 	UserData uint64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultWorldDef and checked by world creation. DO NOT SET.
+	// It is set by DefaultWorldDef. Do not set it yourself: NewWorld always
+	// checks it and panics on a definition that skipped the constructor.
 	initialized bool
 }
 
@@ -218,7 +219,8 @@ type BodyDef struct {
 	AllowFastRotation bool
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultBodyDef and checked by body creation. DO NOT SET.
+	// It is set by DefaultBodyDef. Do not set it yourself: World.CreateBody
+	// always checks it and panics on a definition that skipped the constructor.
 	initialized bool
 }
 
@@ -367,11 +369,15 @@ type ShapeDef struct {
 	InvokeContactCreation bool
 
 	// Should the body update the mass properties when this shape is created. Default is true.
-	// Warning: if this is true, you MUST call Body.ApplyMassFromShapes before simulating the world.
+	// Set this to false to skip the recomputation while adding many shapes to one body; the
+	// body is then left with stale mass data, so call World.ApplyBodyMassFromShapes for it
+	// before simulating.
 	UpdateBodyMass bool
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultShapeDef and checked by shape creation. DO NOT SET.
+	// It is set by DefaultShapeDef. Do not set it yourself: the World.Create*Shape
+	// functions always check it and panic on a definition that skipped the
+	// constructor.
 	initialized bool
 }
 
@@ -421,7 +427,8 @@ type ChainDef struct {
 	EnableSensorEvents bool
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultChainDef and checked by chain creation. DO NOT SET.
+	// It is set by DefaultChainDef. Do not set it yourself: World.CreateChain
+	// always checks it and panics on a definition that skipped the constructor.
 	initialized bool
 }
 
@@ -571,7 +578,9 @@ type DistanceJointDef struct {
 	MotorSpeed float64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultDistanceJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultDistanceJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreateDistanceJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
@@ -613,7 +622,9 @@ type MotorJointDef struct {
 	MaxSpringTorque float64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultMotorJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultMotorJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreateMotorJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
@@ -624,7 +635,9 @@ type FilterJointDef struct {
 	Base JointDef
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultFilterJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultFilterJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreateFilterJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
@@ -669,7 +682,9 @@ type PrismaticJointDef struct {
 	MotorSpeed float64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultPrismaticJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultPrismaticJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreatePrismaticJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
@@ -712,7 +727,9 @@ type RevoluteJointDef struct {
 	MotorSpeed float64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultRevoluteJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultRevoluteJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreateRevoluteJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
@@ -738,7 +755,9 @@ type WeldJointDef struct {
 	AngularDampingRatio float64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultWeldJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultWeldJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreateWeldJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
@@ -778,7 +797,9 @@ type WheelJointDef struct {
 	MotorSpeed float64
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.
-	// It is set by DefaultWheelJointDef (ported with src/joint.c). DO NOT SET.
+	// It is set by DefaultWheelJointDef (ported with src/joint.c). Do not set it
+	// yourself: World.CreateWheelJoint always checks it and panics on a
+	// definition that skipped the constructor.
 	initialized bool
 }
 
