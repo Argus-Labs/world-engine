@@ -378,11 +378,15 @@ func (w *World) overlapSensors() {
 		return
 	}
 
-	// Size/clear every worker slot — even when the dispatch below runs
-	// inline — so the bit-OR merge never sees stale bits or mismatched
-	// block counts (upstream sizes each b2SensorTaskContext.eventBits the
-	// same way before enqueueing b2SensorTask).
-	for k := range w.taskContexts {
+	// INVARIANT: presize bound == dispatch bound == merge bound ==
+	// sensorWorkers, the exact worker count the forRange below engages — a
+	// pure function of (sensorCount, sensorMinRange, workerCount), so it is
+	// partition-independent (upstream sizes each
+	// b2SensorTaskContext.eventBits before enqueueing b2SensorTask). Slots
+	// >= sensorWorkers are never written this step and never merged this
+	// step; stale bits or block counts in them are harmless.
+	sensorWorkers := forRangeWorkers(sensorCount, sensorMinRange, w.workerCount)
+	for k := range sensorWorkers {
 		setBitCountAndClear(&w.taskContexts[k].sensorEventBits, uint32(sensorCount))
 	}
 
@@ -395,11 +399,12 @@ func (w *World) overlapSensors() {
 	}
 
 	// Merge the per-worker event bits into slot 0 in ascending worker order
-	// (upstream: the bit-OR union in b2OverlapSensors). Bit-OR is order-free
-	// and the slots were sized identically above, satisfying inPlaceUnion's
-	// equal-blockCount contract.
+	// (upstream: the bit-OR union in b2OverlapSensors). Bit-OR is order-free.
+	// INVARIANT: merge bound == presize bound == dispatch bound ==
+	// sensorWorkers — only slots presized THIS step are unioned, satisfying
+	// inPlaceUnion's equal-blockCount contract.
 	eventBits := &w.taskContexts[0].sensorEventBits
-	for k := 1; k < len(w.taskContexts); k++ {
+	for k := 1; k < sensorWorkers; k++ {
 		inPlaceUnion(eventBits, &w.taskContexts[k].sensorEventBits)
 	}
 

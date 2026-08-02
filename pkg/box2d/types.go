@@ -11,8 +11,9 @@ const DefaultCategoryBits uint64 = 1
 const DefaultMaskBits uint64 = math.MaxUint64
 
 // NOTE: the upstream task interface (b2TaskCallback, b2EnqueueTaskCallback,
-// b2FinishTaskCallback) is not ported. This port executes single-threaded, so
-// the task callbacks and b2WorldDef.workerCount have no meaning here.
+// b2FinishTaskCallback) is not ported. WorldDef.WorkerCount instead selects an
+// internal deterministic goroutine pool — see worker_pool.go and the WorldDef
+// field comment below.
 
 // FrictionCallback is an optional friction mixing callback. The default uses
 // sqrt(frictionA * frictionB). This intentionally provides no context object
@@ -99,10 +100,13 @@ type WorldDef struct {
 
 	// WorkerCount is the number of workers World.Step may use. 0 means 1
 	// (serial). NewWorld rejects values outside [0, MaxWorkers] (upstream
-	// B2_MAX_WORKERS) and clamps the effective count to
-	// runtime.GOMAXPROCS(0). Deviation from upstream: the workers are an
-	// internal goroutine pool (worker_pool.go), not user-supplied threads,
-	// and simulation results are byte-identical for every value.
+	// B2_MAX_WORKERS) and otherwise takes the value as given — like
+	// upstream, it is the caller's explicit choice and is NOT clamped to
+	// runtime.GOMAXPROCS(0); counts above the core count merely
+	// oversubscribe, which costs throughput, never correctness. Deviation
+	// from upstream: the workers are an internal goroutine pool
+	// (worker_pool.go), not user-supplied threads, and simulation results
+	// are byte-identical for every value.
 	WorkerCount int
 
 	// initialized replaces the upstream internalValue/B2_SECRET_COOKIE guard.

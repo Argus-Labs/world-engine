@@ -65,7 +65,10 @@ jobs:
       # 'TestGolden' also matches the worker-count matrix suites
       # (golden_workers_test.go), which re-run every golden scene at
       # WorldDef.WorkerCount 2/4/8 against the same testdata files — the
-      # byte-identical-for-every-worker-count gate.
+      # byte-identical-for-every-worker-count gate. NewWorld does not clamp
+      # the worker count to GOMAXPROCS, so the w=8 rows are true 8-way
+      # partitions even on these 4-vCPU runners — every matrix row exercises
+      # the partition width it names.
       - name: Run cross-architecture golden trace tests
         run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
 

@@ -163,11 +163,18 @@ type goldenScenario struct {
 }
 
 // runGoldenScenario builds the world, registers the recorder, runs tickCount ticks and returns
-// the recorded trace.
+// the recorded trace. Workers stays at the serial default.
 func runGoldenScenario(t *testing.T, sc goldenScenario) goldenTrace {
 	t.Helper()
+	return runGoldenScenarioWorkers(t, sc, 0)
+}
 
-	w, p := makeWorld(t, sc.gravity)
+// runGoldenScenarioWorkers is runGoldenScenario with an explicit
+// physics.Config.Workers value (see TestGoldenTraceWorkers, workers_test.go).
+func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) goldenTrace {
+	t.Helper()
+
+	w, p := makeWorldWorkers(t, sc.gravity, workers)
 	sc.setup(w)
 
 	trace := goldenTrace{
