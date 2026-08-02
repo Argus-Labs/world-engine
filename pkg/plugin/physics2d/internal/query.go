@@ -28,6 +28,12 @@ func queryFilterBits(f *query.Filter) (uint64, uint64, bool) {
 // Mirrors the CGO bridge's RaycastCtx/CircleSweepCtx closest-hit logic exactly: sensors
 // are skipped by returning -1 when includeSensors is false, every other hit is recorded
 // and its fraction returned so Box2D clips the remaining traversal.
+//
+// One instance lives on the Runtime (Runtime.castScratch) rather than on the
+// stack: Box2D takes the callback context as `any`, so a stack local would
+// escape and cost an allocation per query. Callers save the field, overwrite
+// it, copy the result out and restore it, so a nested query is still correct.
+// A Runtime, like the box2d.World it owns, is single-threaded.
 type castHit struct {
 	rt             *Runtime
 	includeSensors bool
@@ -59,6 +65,30 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 	return fraction // keep searching for closer hits
 }
 
+// overlapCollector gathers the shapes reported by World.OverlapAABB. It is the
+// struct form of what used to be a capturing closure, so the callback can be a
+// package-level function and the context a pointer into the Runtime
+// (Runtime.overlapScratch) instead of a per-call heap allocation.
+type overlapCollector struct {
+	rt             *Runtime
+	includeSensors bool
+	hits           []query.AABBOverlapHit
+}
+
+// overlapCallback implements box2d.OverlapResultFcn for Runtime.OverlapAABB.
+func overlapCallback(shapeID box2d.ShapeID, ctx any) bool {
+	c, ok := ctx.(*overlapCollector)
+	if !ok {
+		return false
+	}
+	if !c.includeSensors && c.rt.World.IsShapeSensor(shapeID) {
+		return true // skip sensor, continue
+	}
+	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
+	c.hits = append(c.hits, query.AABBOverlapHit{Entity: entityID, ShapeIndex: shapeIndex})
+	return true // continue
+}
+
 // Raycast returns the closest fixture hit along [req.Origin, req.End], or Hit=false.
 // A zero-length segment (Origin == End) always returns no hit.
 func (rt *Runtime) Raycast(req query.RaycastRequest) query.RaycastResult {
@@ -67,11 +97,16 @@ func (rt *Runtime) Raycast(req query.RaycastRequest) query.RaycastResult {
 	}
 	cat, mask, includeSensors := queryFilterBits(req.Filter)
 
-	ctx := castHit{rt: rt, includeSensors: includeSensors}
+	saved := rt.castScratch
+	rt.castScratch = castHit{rt: rt, includeSensors: includeSensors}
+
 	origin := box2d.Vec2{X: req.Origin.X, Y: req.Origin.Y}
 	translation := box2d.Vec2{X: req.End.X - req.Origin.X, Y: req.End.Y - req.Origin.Y}
 	rt.World.CastRay(origin, translation, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
-		castCallback, &ctx)
+		castCallback, &rt.castScratch)
+
+	ctx := rt.castScratch
+	rt.castScratch = saved
 
 	if !ctx.hit {
 		return query.RaycastResult{}
@@ -112,16 +147,21 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 
 	// Non-nil so a miss marshals as [] rather than null, which is the shape the
 	// CGO backend produced and what any persisted or transmitted result expects.
-	hits := make([]query.AABBOverlapHit, 0)
+	// The collector lives on the Runtime instead of being a closure so that
+	// neither the func value nor its captures are heap allocated per call; the
+	// hits slice itself is still fresh per call because it is returned.
+	saved := rt.overlapScratch
+	rt.overlapScratch = overlapCollector{
+		rt:             rt,
+		includeSensors: includeSensors,
+		hits:           make([]query.AABBOverlapHit, 0),
+	}
+
 	rt.World.OverlapAABB(aabb, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
-		func(shapeID box2d.ShapeID, _ any) bool {
-			if !includeSensors && rt.World.IsShapeSensor(shapeID) {
-				return true // skip sensor, continue
-			}
-			entityID, shapeIndex := rt.shapeIdentity(shapeID)
-			hits = append(hits, query.AABBOverlapHit{Entity: entityID, ShapeIndex: shapeIndex})
-			return true // continue
-		}, nil)
+		overlapCallback, &rt.overlapScratch)
+
+	hits := rt.overlapScratch.hits
+	rt.overlapScratch = saved
 
 	slices.SortFunc(hits, func(a, b query.AABBOverlapHit) int {
 		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
@@ -163,9 +203,14 @@ func (rt *Runtime) CircleSweep(req query.CircleSweepRequest) query.CircleSweepRe
 		Y: (req.End.Y - req.Start.Y) * maxFrac,
 	}
 
-	ctx := castHit{rt: rt, includeSensors: includeSensors}
+	saved := rt.castScratch
+	rt.castScratch = castHit{rt: rt, includeSensors: includeSensors}
+
 	rt.World.CastShape(&proxy, translation, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
-		castCallback, &ctx)
+		castCallback, &rt.castScratch)
+
+	ctx := rt.castScratch
+	rt.castScratch = saved
 
 	if !ctx.hit {
 		return query.CircleSweepResult{}

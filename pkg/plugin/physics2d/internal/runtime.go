@@ -97,6 +97,12 @@ type Runtime struct {
 	// NoPersistedActiveContactsBaseline, when true, the next suppressed contact flush seeds
 	// ActiveContacts from the live contact list without emitting Begin/End (physics singleton entity missing).
 	NoPersistedActiveContactsBaseline bool
+
+	// castScratch and overlapScratch are reusable query callback contexts. Box2D
+	// callbacks take their context as `any`, so a stack local would be heap
+	// allocated on every Raycast/CircleSweep/OverlapAABB call. See query.go.
+	castScratch    castHit
+	overlapScratch overlapCollector
 }
 
 // defaultFixedDT is the step size used when a non-positive FixedDT is supplied (60 Hz).

@@ -231,6 +231,17 @@ type World struct {
 	enableContinuous       bool
 	enableSpeculative      bool
 	inUse                  bool
+
+	// Single-threaded query scratch: the callback contexts and tree inputs
+	// that upstream keeps on the C stack. Go must assume a pointer passed to
+	// a callback escapes, so a stack local would heap allocate on every
+	// query; see worldQueryScratch in world_query.go.
+	//
+	// Kept last on purpose. It is large (several hundred bytes) and is touched
+	// exactly once per query, so placing it earlier would push the small hot
+	// fields below it (worldID, locked, the solver tuning scalars) onto extra
+	// cache lines.
+	queryScratch worldQueryScratch
 }
 
 // defaultFrictionCallback mirrors b2DefaultFrictionCallback.

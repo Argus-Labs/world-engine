@@ -112,6 +112,22 @@ type DynamicTree struct {
 
 	// rebuildCapacity is the allocated space for rebuilding.
 	rebuildCapacity int
+
+	// rayCastScratch and shapeCastScratch hold the per-leaf sub-input that
+	// RayCast and ShapeCast hand to their callbacks. Upstream keeps this copy
+	// on the C stack (`b2RayCastInput subInput = *input;`), but in Go a
+	// pointer passed to a func value is assumed to escape, so a stack local
+	// would be heap allocated on every query. Keeping the storage on the tree
+	// makes the query path allocation free.
+	//
+	// This is scratch, not state: RayCast/ShapeCast overwrite it on entry and
+	// restore the previous value before returning, so a callback that
+	// re-enters the same tree still works. A tree, like the World that owns
+	// it, must not be queried from two goroutines at once. These fields never
+	// take part in any simulation arithmetic and so cannot affect
+	// determinism.
+	rayCastScratch   RayCastInput
+	shapeCastScratch ShapeCastInput
 }
 
 // TreeStats holds performance results returned by dynamic tree queries
@@ -1278,7 +1294,12 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 
 	nodes := tree.nodes
 
-	subInput := *input
+	// See DynamicTree.rayCastScratch: reused storage instead of a stack local
+	// so the pointer handed to the callback does not allocate. Saved and
+	// restored so a re-entrant callback cannot corrupt an outer traversal.
+	savedScratch := tree.rayCastScratch
+	tree.rayCastScratch = *input
+	subInput := &tree.rayCastScratch
 
 	for stackCount > 0 {
 		stackCount--
@@ -1312,13 +1333,14 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 		case isLeaf(node):
 			subInput.MaxFraction = maxFraction
 
-			value := callback(&subInput, nodeID, node.UserData, context)
+			value := callback(subInput, nodeID, node.UserData, context)
 			result.LeafVisits++
 
 			// The user may return -1 to indicate this shape should be skipped
 
 			if value == 0.0 {
 				// The client has terminated the ray cast.
+				tree.rayCastScratch = savedScratch
 				return result
 			}
 
@@ -1347,6 +1369,8 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 			assert(stackCount < treeStackSize-1)
 		}
 	}
+
+	tree.rayCastScratch = savedScratch
 
 	return result
 }
@@ -1393,7 +1417,13 @@ func (tree *DynamicTree) ShapeCast(input *ShapeCastInput, maskBits uint64, callb
 		UpperBound: Max(originAABB.UpperBound, Add(originAABB.UpperBound, t)),
 	}
 
-	subInput := *input
+	// See DynamicTree.shapeCastScratch: reused storage instead of a stack
+	// local so the pointer handed to the callback does not allocate. Saved and
+	// restored so a re-entrant callback cannot corrupt an outer traversal.
+	savedScratch := tree.shapeCastScratch
+	tree.shapeCastScratch = *input
+	subInput := &tree.shapeCastScratch
+
 	nodes := tree.nodes
 
 	var stack [treeStackSize]int
@@ -1431,11 +1461,12 @@ func (tree *DynamicTree) ShapeCast(input *ShapeCastInput, maskBits uint64, callb
 		case isLeaf(node):
 			subInput.MaxFraction = maxFraction
 
-			value := callback(&subInput, nodeID, node.UserData, context)
+			value := callback(subInput, nodeID, node.UserData, context)
 			stats.LeafVisits++
 
 			if value == 0.0 {
 				// The client has terminated the ray cast.
+				tree.shapeCastScratch = savedScratch
 				return stats
 			}
 
@@ -1464,6 +1495,8 @@ func (tree *DynamicTree) ShapeCast(input *ShapeCastInput, maskBits uint64, callb
 			assert(stackCount < treeStackSize-1)
 		}
 	}
+
+	tree.shapeCastScratch = savedScratch
 
 	return stats
 }

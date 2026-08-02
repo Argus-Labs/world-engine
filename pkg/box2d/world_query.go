@@ -18,6 +18,43 @@
 
 package box2d
 
+// worldQueryScratch is the reusable backing store for the callback contexts
+// and tree inputs used by the World query entry points.
+//
+// Why it exists: the tree callbacks take their context as `any` (mirroring the
+// upstream `void* context`), so Go's escape analysis must assume every pointer
+// handed to a callback escapes. Upstream keeps these structs on the C stack;
+// a direct Go port heap allocates one per query call, which showed up as three
+// allocations per circle sweep. Hanging one copy off *World makes the whole
+// query path allocation free.
+//
+// Contract: a World must not be queried from two goroutines at once (the same
+// single-threaded contract the solver already relies on, see taskContext in
+// world.go). Re-entrancy from inside a user callback IS supported: every entry
+// point saves the fields it uses and restores them before returning, so a
+// nested query cannot corrupt the traversal that contains it.
+//
+// These fields never participate in simulation arithmetic, so they cannot
+// affect bit-determinism.
+type worldQueryScratch struct {
+	query     worldQueryContext
+	overlap   worldOverlapContext
+	rayCast   worldRayCastContext
+	moverCast worldMoverCastContext
+	mover     worldMoverContext
+
+	// rayCastInput backs World.CastRay and World.CastRayClosest,
+	// shapeCastInput backs World.CastShape, moverCastInput backs
+	// World.CastMover.
+	rayCastInput   RayCastInput
+	shapeCastInput ShapeCastInput
+	moverCastInput ShapeCastInput
+
+	// rayResult backs the RayResult that World.CastRayClosest passes to
+	// rayCastClosestFcn as the user context.
+	rayResult RayResult
+}
+
 // worldQueryContext is the callback context for World.OverlapAABB
 // (upstream WorldQueryContext).
 type worldQueryContext struct {
@@ -64,7 +101,10 @@ func (w *World) OverlapAABB(aabb AABB, filter QueryFilter, fcn OverlapResultFcn,
 
 	assert(IsValidAABB(aabb))
 
-	worldContext := worldQueryContext{
+	// See worldQueryScratch: reused storage keeps the context off the heap.
+	saved := w.queryScratch.query
+	worldContext := &w.queryScratch.query
+	*worldContext = worldQueryContext{
 		world:       w,
 		fcn:         fcn,
 		filter:      filter,
@@ -72,11 +112,13 @@ func (w *World) OverlapAABB(aabb AABB, filter QueryFilter, fcn OverlapResultFcn,
 	}
 
 	for i := range int(BodyTypeCount) {
-		treeResult := w.broadPhase.trees[i].Query(aabb, filter.MaskBits, treeQueryCallback, &worldContext)
+		treeResult := w.broadPhase.trees[i].Query(aabb, filter.MaskBits, treeQueryCallback, worldContext)
 
 		treeStats.NodeVisits += treeResult.NodeVisits
 		treeStats.LeafVisits += treeResult.LeafVisits
 	}
+
+	w.queryScratch.query = saved
 
 	return treeStats
 }
@@ -145,7 +187,11 @@ func (w *World) OverlapShape(proxy *ShapeProxy, filter QueryFilter, fcn OverlapR
 	}
 
 	aabb := MakeAABB(proxy.Points[:proxy.Count], proxy.Radius)
-	worldContext := worldOverlapContext{
+
+	// See worldQueryScratch: reused storage keeps the context off the heap.
+	saved := w.queryScratch.overlap
+	worldContext := &w.queryScratch.overlap
+	*worldContext = worldOverlapContext{
 		world:       w,
 		fcn:         fcn,
 		filter:      filter,
@@ -154,11 +200,13 @@ func (w *World) OverlapShape(proxy *ShapeProxy, filter QueryFilter, fcn OverlapR
 	}
 
 	for i := range int(BodyTypeCount) {
-		treeResult := w.broadPhase.trees[i].Query(aabb, filter.MaskBits, treeOverlapCallback, &worldContext)
+		treeResult := w.broadPhase.trees[i].Query(aabb, filter.MaskBits, treeOverlapCallback, worldContext)
 
 		treeStats.NodeVisits += treeResult.NodeVisits
 		treeStats.LeafVisits += treeResult.LeafVisits
 	}
+
+	w.queryScratch.overlap = saved
 
 	return treeStats
 }
@@ -234,9 +282,14 @@ func (w *World) CastRay(origin, translation Vec2, filter QueryFilter, fcn CastRe
 	assert(IsValidVec2(origin))
 	assert(IsValidVec2(translation))
 
-	input := RayCastInput{Origin: origin, Translation: translation, MaxFraction: 1.0}
+	// See worldQueryScratch: reused storage keeps the input and the context
+	// off the heap.
+	savedInput, savedContext := w.queryScratch.rayCastInput, w.queryScratch.rayCast
+	input := &w.queryScratch.rayCastInput
+	*input = RayCastInput{Origin: origin, Translation: translation, MaxFraction: 1.0}
 
-	worldContext := worldRayCastContext{
+	worldContext := &w.queryScratch.rayCast
+	*worldContext = worldRayCastContext{
 		world:       w,
 		fcn:         fcn,
 		filter:      filter,
@@ -245,16 +298,18 @@ func (w *World) CastRay(origin, translation Vec2, filter QueryFilter, fcn CastRe
 	}
 
 	for i := range int(BodyTypeCount) {
-		treeResult := w.broadPhase.trees[i].RayCast(&input, filter.MaskBits, rayCastCallback, &worldContext)
+		treeResult := w.broadPhase.trees[i].RayCast(input, filter.MaskBits, rayCastCallback, worldContext)
 		treeStats.NodeVisits += treeResult.NodeVisits
 		treeStats.LeafVisits += treeResult.LeafVisits
 
 		if worldContext.fraction == 0.0 {
-			return treeStats
+			break
 		}
 
 		input.MaxFraction = worldContext.fraction
 	}
+
+	w.queryScratch.rayCastInput, w.queryScratch.rayCast = savedInput, savedContext
 
 	return treeStats
 }
@@ -296,26 +351,43 @@ func (w *World) CastRayClosest(origin, translation Vec2, filter QueryFilter) Ray
 	assert(IsValidVec2(origin))
 	assert(IsValidVec2(translation))
 
-	input := RayCastInput{Origin: origin, Translation: translation, MaxFraction: 1.0}
-	worldContext := worldRayCastContext{
+	// See worldQueryScratch: reused storage keeps the input, the context and
+	// the RayResult the callback writes through off the heap. The result is
+	// copied out to the caller's return value before the scratch is restored.
+	savedInput, savedContext, savedResult :=
+		w.queryScratch.rayCastInput, w.queryScratch.rayCast, w.queryScratch.rayResult
+
+	input := &w.queryScratch.rayCastInput
+	*input = RayCastInput{Origin: origin, Translation: translation, MaxFraction: 1.0}
+
+	rayResult := &w.queryScratch.rayResult
+	*rayResult = RayResult{}
+
+	worldContext := &w.queryScratch.rayCast
+	*worldContext = worldRayCastContext{
 		world:       w,
 		fcn:         rayCastClosestFcn,
 		filter:      filter,
 		fraction:    1.0,
-		userContext: &result,
+		userContext: rayResult,
 	}
 
 	for i := range int(BodyTypeCount) {
-		treeResult := w.broadPhase.trees[i].RayCast(&input, filter.MaskBits, rayCastCallback, &worldContext)
-		result.NodeVisits += treeResult.NodeVisits
-		result.LeafVisits += treeResult.LeafVisits
+		treeResult := w.broadPhase.trees[i].RayCast(input, filter.MaskBits, rayCastCallback, worldContext)
+		rayResult.NodeVisits += treeResult.NodeVisits
+		rayResult.LeafVisits += treeResult.LeafVisits
 
 		if worldContext.fraction == 0.0 {
-			return result
+			break
 		}
 
 		input.MaxFraction = worldContext.fraction
 	}
+
+	result = *rayResult
+
+	w.queryScratch.rayCastInput, w.queryScratch.rayCast, w.queryScratch.rayResult =
+		savedInput, savedContext, savedResult
 
 	return result
 }
@@ -375,12 +447,18 @@ func (w *World) CastShape(proxy *ShapeProxy, translation Vec2, filter QueryFilte
 
 	assert(IsValidVec2(translation))
 
-	var input ShapeCastInput
+	// See worldQueryScratch: reused storage keeps the input and the context
+	// off the heap.
+	savedInput, savedContext := w.queryScratch.shapeCastInput, w.queryScratch.rayCast
+
+	input := &w.queryScratch.shapeCastInput
+	*input = ShapeCastInput{}
 	input.Proxy = *proxy
 	input.Translation = translation
 	input.MaxFraction = 1.0
 
-	worldContext := worldRayCastContext{
+	worldContext := &w.queryScratch.rayCast
+	*worldContext = worldRayCastContext{
 		world:       w,
 		fcn:         fcn,
 		filter:      filter,
@@ -389,16 +467,18 @@ func (w *World) CastShape(proxy *ShapeProxy, translation Vec2, filter QueryFilte
 	}
 
 	for i := range int(BodyTypeCount) {
-		treeResult := w.broadPhase.trees[i].ShapeCast(&input, filter.MaskBits, shapeCastCallback, &worldContext)
+		treeResult := w.broadPhase.trees[i].ShapeCast(input, filter.MaskBits, shapeCastCallback, worldContext)
 		treeStats.NodeVisits += treeResult.NodeVisits
 		treeStats.LeafVisits += treeResult.LeafVisits
 
 		if worldContext.fraction == 0.0 {
-			return treeStats
+			break
 		}
 
 		input.MaxFraction = worldContext.fraction
 	}
+
+	w.queryScratch.shapeCastInput, w.queryScratch.rayCast = savedInput, savedContext
 
 	return treeStats
 }
@@ -456,7 +536,12 @@ func (w *World) CastMover(mover *Capsule, translation Vec2, filter QueryFilter) 
 		return 1.0
 	}
 
-	var input ShapeCastInput
+	// See worldQueryScratch: reused storage keeps the input and the context
+	// off the heap.
+	savedInput, savedContext := w.queryScratch.moverCastInput, w.queryScratch.moverCast
+
+	input := &w.queryScratch.moverCastInput
+	*input = ShapeCastInput{}
 	input.Proxy.Points[0] = mover.Center1
 	input.Proxy.Points[1] = mover.Center2
 	input.Proxy.Count = 2
@@ -465,23 +550,28 @@ func (w *World) CastMover(mover *Capsule, translation Vec2, filter QueryFilter) 
 	input.MaxFraction = 1.0
 	input.CanEncroach = true
 
-	worldContext := worldMoverCastContext{
+	worldContext := &w.queryScratch.moverCast
+	*worldContext = worldMoverCastContext{
 		world:    w,
 		filter:   filter,
 		fraction: 1.0,
 	}
 
 	for i := range int(BodyTypeCount) {
-		w.broadPhase.trees[i].ShapeCast(&input, filter.MaskBits, moverCastCallback, &worldContext)
+		w.broadPhase.trees[i].ShapeCast(input, filter.MaskBits, moverCastCallback, worldContext)
 
 		if worldContext.fraction == 0.0 {
-			return 0.0
+			break
 		}
 
 		input.MaxFraction = worldContext.fraction
 	}
 
-	return worldContext.fraction
+	fraction := worldContext.fraction
+
+	w.queryScratch.moverCastInput, w.queryScratch.moverCast = savedInput, savedContext
+
+	return fraction
 }
 
 // worldMoverContext is the callback context for World.CollideMover
@@ -492,6 +582,12 @@ type worldMoverContext struct {
 	filter      QueryFilter
 	mover       Capsule
 	userContext any
+
+	// planeResult backs the *PlaneResult handed to fcn. Upstream passes the
+	// address of a C stack local, so the pointee is only valid for the
+	// duration of the callback either way; reusing one slot here keeps the
+	// per-hit heap allocation out of the traversal.
+	planeResult PlaneResult
 }
 
 // treeCollideCallback is the dynamic tree callback used by World.CollideMover
@@ -517,12 +613,16 @@ func treeCollideCallback(proxyID int, userData uint64, context any) bool {
 	b := &world.bodies[s.bodyID]
 	transform := world.getBodyTransformQuick(b)
 
-	result := collideMover(&worldContext.mover, s, transform)
+	// The pointer handed to fcn is only valid for the duration of the call
+	// (as upstream, where it points at a C stack local), so the shared slot
+	// on the context is safe. See worldMoverContext.planeResult.
+	result := &worldContext.planeResult
+	*result = collideMover(&worldContext.mover, s, transform)
 
 	// todo handle deep overlap
 	if result.Hit && IsNormalized(result.Plane.Normal) {
 		id := ShapeID{index1: int32(s.id + 1), world0: world.worldID, generation: s.generation}
-		return worldContext.fcn(id, &result, worldContext.userContext)
+		return worldContext.fcn(id, result, worldContext.userContext)
 	}
 
 	return true
@@ -546,7 +646,10 @@ func (w *World) CollideMover(mover *Capsule, filter QueryFilter, fcn PlaneResult
 	aabb.LowerBound = Sub(Min(mover.Center1, mover.Center2), r)
 	aabb.UpperBound = Add(Max(mover.Center1, mover.Center2), r)
 
-	worldContext := worldMoverContext{
+	// See worldQueryScratch: reused storage keeps the context off the heap.
+	saved := w.queryScratch.mover
+	worldContext := &w.queryScratch.mover
+	*worldContext = worldMoverContext{
 		world:       w,
 		fcn:         fcn,
 		filter:      filter,
@@ -555,6 +658,8 @@ func (w *World) CollideMover(mover *Capsule, filter QueryFilter, fcn PlaneResult
 	}
 
 	for i := range int(BodyTypeCount) {
-		w.broadPhase.trees[i].Query(aabb, filter.MaskBits, treeCollideCallback, &worldContext)
+		w.broadPhase.trees[i].Query(aabb, filter.MaskBits, treeCollideCallback, worldContext)
 	}
+
+	w.queryScratch.mover = saved
 }
