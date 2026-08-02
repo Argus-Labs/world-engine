@@ -136,17 +136,22 @@ func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) 
 // tracked body (sorted by entity id for determinism) and reading its touching contact data
 // from the world. Pairs are normalized and deduplicated via the map key: Box2D reports each
 // contact from both endpoints. Replaces the CGO bridge's bridge_gather_live_contacts.
+//
+// The returned map aliases rt.liveContactsScratch (reused across calls to avoid per-tick
+// allocation) and is invalidated by the next gatherLiveContacts call. Callers only read it
+// or copy values out before then.
 func (rt *Runtime) gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
-	result := make(map[ContactPairKey]ContactPairInfo)
+	result := rt.resetLiveContactsScratch()
 	w := rt.World
 
-	ids := make([]cardinal.EntityID, 0, len(rt.Bodies))
+	ids := rt.liveIDsScratch[:0]
 	for id := range rt.Bodies {
 		ids = append(ids, id)
 	}
 	slices.SortFunc(ids, cmp.Compare)
+	rt.liveIDsScratch = ids
 
-	var buf []box2d.ContactData
+	buf := rt.contactDataScratch
 	for _, id := range ids {
 		bodyID := rt.Bodies[id]
 		capacity := w.BodyContactCapacity(bodyID)
@@ -157,44 +162,62 @@ func (rt *Runtime) gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
 			buf = make([]box2d.ContactData, capacity)
 		}
 		n := w.BodyContactData(bodyID, buf[:capacity])
-		for j := range n {
-			cd := &buf[j]
-			entityA, shapeIndexA := rt.shapeIdentity(cd.ShapeIDA)
-			entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
-
-			key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
-			if _, seen := result[key]; seen {
-				continue
-			}
-			info := ContactPairInfo{
-				IsSensor: w.IsShapeSensor(cd.ShapeIDA) || w.IsShapeSensor(cd.ShapeIDB),
-			}
-
-			fda := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDA))
-			fdb := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDB))
-			if entityA == key.EntityA && shapeIndexA == key.ShapeIndexA {
-				info.FilterA = fda
-				info.FilterB = fdb
-			} else {
-				info.FilterA = fdb
-				info.FilterB = fda
-			}
-
-			if cd.Manifold.PointCount > 0 {
-				info.Normal = component.Vec2{X: cd.Manifold.Normal.X, Y: cd.Manifold.Normal.Y}
-				info.NormalValid = true
-				info.Point = component.Vec2{
-					X: cd.Manifold.Points[0].AnchorA.X,
-					Y: cd.Manifold.Points[0].AnchorA.Y,
-				}
-				info.PointValid = true
-				info.ManifoldPointCount = cd.Manifold.PointCount
-			}
-
-			result[key] = info
-		}
+		rt.collectBodyContacts(buf[:n], result)
 	}
+	rt.contactDataScratch = buf
 	return result
+}
+
+// resetLiveContactsScratch returns the reusable live-contacts map, cleared for a fresh gather.
+func (rt *Runtime) resetLiveContactsScratch() map[ContactPairKey]ContactPairInfo {
+	if rt.liveContactsScratch == nil {
+		rt.liveContactsScratch = make(map[ContactPairKey]ContactPairInfo)
+	} else {
+		clear(rt.liveContactsScratch)
+	}
+	return rt.liveContactsScratch
+}
+
+// collectBodyContacts normalizes and records one body's touching contact data into result,
+// skipping pairs already recorded from the other endpoint.
+func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[ContactPairKey]ContactPairInfo) {
+	w := rt.World
+	for j := range contacts {
+		cd := &contacts[j]
+		entityA, shapeIndexA := rt.shapeIdentity(cd.ShapeIDA)
+		entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
+
+		key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
+		if _, seen := result[key]; seen {
+			continue
+		}
+		info := ContactPairInfo{
+			IsSensor: w.IsShapeSensor(cd.ShapeIDA) || w.IsShapeSensor(cd.ShapeIDB),
+		}
+
+		fda := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDA))
+		fdb := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDB))
+		if entityA == key.EntityA && shapeIndexA == key.ShapeIndexA {
+			info.FilterA = fda
+			info.FilterB = fdb
+		} else {
+			info.FilterA = fdb
+			info.FilterB = fda
+		}
+
+		if cd.Manifold.PointCount > 0 {
+			info.Normal = component.Vec2{X: cd.Manifold.Normal.X, Y: cd.Manifold.Normal.Y}
+			info.NormalValid = true
+			info.Point = component.Vec2{
+				X: cd.Manifold.Points[0].AnchorA.X,
+				Y: cd.Manifold.Points[0].AnchorA.Y,
+			}
+			info.PointValid = true
+			info.ManifoldPointCount = cd.Manifold.PointCount
+		}
+
+		result[key] = info
+	}
 }
 
 // normalizeContactPairKey returns a stable map key: the lexicographically smaller (entity, shapeIndex) pair is A.

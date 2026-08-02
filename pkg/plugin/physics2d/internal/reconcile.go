@@ -34,7 +34,7 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
 	}
 
-	sorted, err := cloneSortAndCheckDuplicateReconcileEntries(entries)
+	sorted, err := rt.cloneSortAndCheckDuplicateReconcileEntries(entries)
 	if err != nil {
 		return err
 	}
@@ -47,9 +47,14 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	return nil
 }
 
-// cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if any ID repeats.
-func cloneSortAndCheckDuplicateReconcileEntries(entries []PhysicsRebuildEntry) ([]PhysicsRebuildEntry, error) {
-	sorted := slices.Clone(entries)
+// cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
+// any ID repeats. The returned slice is backed by rt.reconcileSortScratch (reused across ticks
+// to avoid re-cloning every reconcile); it is only valid until the next call.
+func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
+	entries []PhysicsRebuildEntry,
+) ([]PhysicsRebuildEntry, error) {
+	rt.reconcileSortScratch = append(rt.reconcileSortScratch[:0], entries...)
+	sorted := rt.reconcileSortScratch
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
 		return cmp.Compare(a.EntityID, b.EntityID)
 	})
@@ -61,15 +66,13 @@ func cloneSortAndCheckDuplicateReconcileEntries(entries []PhysicsRebuildEntry) (
 	return sorted, nil
 }
 
-// destroyOrphanBodies removes bodies (and shadow/active-contact rows) for entities not present in sorted.
+// destroyOrphanBodies removes bodies (and shadow/active-contact rows) for entities not present
+// in sorted. Membership uses binary search on the EntityID-sorted entries, avoiding a per-tick
+// set allocation.
 func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
-	wanted := make(map[cardinal.EntityID]struct{}, len(sorted))
-	for _, e := range sorted {
-		wanted[e.EntityID] = struct{}{}
-	}
 	var orphans []cardinal.EntityID
 	for id := range rt.KnownEntities {
-		if _, ok := wanted[id]; !ok {
+		if !sortedEntriesContainID(sorted, id) {
 			orphans = append(orphans, id)
 		}
 	}
@@ -80,6 +83,22 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 		delete(rt.Shadow, id)
 		rt.PruneActiveContactsInvolvingEntity(id)
 	}
+}
+
+// sortedEntriesContainID reports whether an EntityID-sorted entries slice contains id.
+// Index-based binary search: comparisons touch only the EntityID field instead of copying
+// whole PhysicsRebuildEntry values the way slices.BinarySearchFunc would.
+func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) bool {
+	lo, hi := 0, len(sorted)
+	for lo < hi {
+		mid := int(uint(lo+hi) >> 1) //nolint:gosec // lo,hi are non-negative slice indices
+		if sorted[mid].EntityID < id {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	return lo < len(sorted) && sorted[lo].EntityID == id
 }
 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
