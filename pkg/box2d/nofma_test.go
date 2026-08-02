@@ -25,6 +25,7 @@ package box2d_test
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -59,6 +60,31 @@ func TestNoFusedMultiplyAdd(t *testing.T) {
 	}{
 		{what: "package", args: []string{"build", "-a", "-gcflags=-S", "."}},
 		{what: "test binary", args: []string{"test", "-c", "-o", os.DevNull, "-gcflags=-S", "."}},
+	}
+
+	// When the committed PGO profile exists, every build is repeated with
+	// -pgo so the scan also covers PGO-shaped codegen: PGO changes inlining
+	// decisions, and inlining is exactly what exposes new fusion sites (an
+	// unrounded product can meet a +/- only after its producer is inlined
+	// into its consumer). A clean pass here proves the no-FMA guarantee — and
+	// with it bit-identical results — holds when consumers compile the engine
+	// under this or any other profile shaped like it.
+	// The profile is committed, so its absence means the advertised PGO
+	// coverage silently vanished — fail loudly instead of skipping.
+	pgoProfile, err := filepath.Abs("default.pgo")
+	if err != nil {
+		t.Fatalf("resolving default.pgo path: %v", err)
+	}
+	if _, statErr := os.Stat(pgoProfile); statErr != nil {
+		t.Fatalf("committed PGO profile missing (%v): the doc.go and CI claims "+
+			"that the FMA scan covers PGO-shaped codegen depend on this file", statErr)
+	}
+	for _, build := range builds[:len(builds):len(builds)] {
+		args := append([]string{build.args[0], "-pgo=" + pgoProfile}, build.args[1:]...)
+		builds = append(builds, struct {
+			what string
+			args []string
+		}{what: build.what + " pgo", args: args})
 	}
 
 	for _, target := range targets {

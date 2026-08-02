@@ -85,4 +85,24 @@
 //
 // Cross-architecture equivalence is enforced in CI by golden-trace hash
 // tests (see testdata/golden).
+//
+// # Profile-guided optimization
+//
+// The package ships a committed CPU profile, default.pgo, merged from the
+// step benchmarks in bench_test.go (mixed-shape rain at 1000 and 5000
+// bodies at WorkerCount 1 and the full core count; the pyramid stack and
+// the jointed chain at WorkerCount 1). Go applies PGO where the final binary is built,
+// so the file does not act on this package by itself: library consumers who
+// want PGO-shaped codegen for the engine put a profile named default.pgo in
+// their own main package directory (ideally collected from production runs
+// of their game, which then also covers their own hot code) or build with
+// -pgo=<file>. This package's own tests and benchmarks opt in the same way:
+// go test -pgo=default.pgo — the profile is not picked up automatically for
+// a library's test binary.
+//
+// PGO cannot change simulation results: it only steers inlining and code
+// layout, the float64(...) roundings that forbid FMA fusion are semantic and
+// survive any inlining decision, and TestNoFusedMultiplyAdd repeats its
+// FMA-instruction scan with -pgo=default.pgo on every checked architecture
+// to prove it.
 package box2d
