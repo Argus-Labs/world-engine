@@ -123,9 +123,12 @@ type DynamicTree struct {
 	// This is scratch, not state: RayCast/ShapeCast overwrite it on entry and
 	// restore the previous value before returning, so a callback that
 	// re-enters the same tree still works. A tree, like the World that owns
-	// it, must not be queried from two goroutines at once. These fields never
-	// take part in any simulation arithmetic and so cannot affect
-	// determinism.
+	// it, must not be RayCast/ShapeCast from two goroutines at once, nor
+	// while World.Step is running. The step path itself never uses these
+	// fields — its tree traversals go through Query with caller-owned
+	// contexts, which is why the internal worker pool (worker_pool.go) may
+	// run Query concurrently on a frozen tree. These fields never take part
+	// in any simulation arithmetic and so cannot affect determinism.
 	rayCastScratch   RayCastInput
 	shapeCastScratch ShapeCastInput
 }

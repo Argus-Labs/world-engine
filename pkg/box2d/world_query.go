@@ -28,9 +28,12 @@ package box2d
 // allocations per circle sweep. Hanging one copy off *World makes the whole
 // query path allocation free.
 //
-// Contract: a World must not be queried from two goroutines at once (the same
-// single-threaded contract the solver already relies on, see taskContext in
-// world.go). Re-entrancy from inside a user callback IS supported: every entry
+// Contract: a World must not be queried from two goroutines at once, and must
+// not be queried while Step is running — Step may fan work out to the world's
+// internal worker pool (worker_pool.go), so "not during Step" is the rule
+// even for a WorkerCount of 1. The step path never touches this scratch (its
+// tree queries pass caller-owned contexts). Re-entrancy from inside a user
+// callback IS supported: every entry
 // point saves the fields it uses and restores them before returning, so a
 // nested query cannot corrupt the traversal that contains it.
 //

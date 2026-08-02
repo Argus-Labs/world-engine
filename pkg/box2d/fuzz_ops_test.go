@@ -7,7 +7,9 @@
 //     embedded xorshift64 PRNG and requires the two replays of a seed to agree
 //     bit for bit on a djb2 hash of the whole world state.
 //   - FuzzWorldOps feeds the same interpreter from the Go native fuzzing byte
-//     stream and only requires no panic plus finite body positions.
+//     stream, replays each entry on a serial world and a WorkerCount=4 world
+//     in lockstep, and requires the two worlds to agree bit for bit on the
+//     world-state hash, plus no panic and finite body positions.
 //
 // Note on tree validation: DynamicTree.Validate is exported, but the three
 // broad-phase trees owned by a World are not reachable through the public API
@@ -230,10 +232,14 @@ type opWorld struct {
 
 // newOpWorld builds a world with a wide static ground so falling churn has
 // something to rest on. The ground is an ordinary entry in the body list and
-// may itself be destroyed or retyped by the sequence.
-func newOpWorld() *opWorld {
+// may itself be destroyed or retyped by the sequence. workerCount is passed
+// to WorldDef.WorkerCount (0 = serial); results must be byte-identical for
+// every value — FuzzWorldOps enforces this by replaying every corpus entry
+// at WorkerCount 1 and 4.
+func newOpWorld(workerCount int) *opWorld {
 	worldDef := box2d.DefaultWorldDef()
 	worldDef.Gravity = box2d.Vec2{X: 0.0, Y: -10.0}
+	worldDef.WorkerCount = workerCount
 
 	o := &opWorld{world: box2d.NewWorld(&worldDef)}
 
@@ -659,7 +665,7 @@ func checkOpCounters(t *testing.T, o *opWorld, seed uint64, opIndex int) {
 func runOpSequence(t *testing.T, seed uint64) opRun {
 	t.Helper()
 
-	o := newOpWorld()
+	o := newOpWorld(1)
 	defer o.world.Destroy()
 
 	opIndex := -1
@@ -760,10 +766,20 @@ func TestWorldOpSequenceCoverage(t *testing.T) {
 // Go native fuzz target
 // ---------------------------------------------------------------------------
 
-// FuzzWorldOps drives the same interpreter from a fuzzing byte string. It only
-// asserts the safety properties that hold for any input: no panic, and every
-// live body keeps a finite position and velocity. In CI this runs as an
-// ordinary unit test over the seed corpus.
+// FuzzWorldOps drives the same interpreter from a fuzzing byte string. Every
+// corpus entry is replayed on TWO worlds — WorkerCount 1 (serial) and
+// WorkerCount 4 (internal worker pool, worker_pool.go) — in lockstep, and the
+// two world-state hashes must agree at every checkpoint and at the end: the
+// arbitrary structural churn here catches partition-dependent merges that the
+// fixed golden scenes cannot reach. On top of that it asserts the safety
+// properties that hold for any input: no panic, and every live body keeps a
+// finite position and velocity. In CI this runs as an ordinary unit test over
+// the seed corpus.
+//
+// Each world consumes its own byteSource over the same data, so both op
+// streams are identical as long as the worlds agree — the interpreter's
+// draws depend only on the source and on world state the hash also covers,
+// so any divergence surfaces as a hash mismatch at the next checkpoint.
 func FuzzWorldOps(f *testing.F) {
 	f.Add([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08})
 	f.Add([]byte("box2d-op-fuzz-seed-corpus-entry-two"))
@@ -777,22 +793,38 @@ func FuzzWorldOps(f *testing.F) {
 			return
 		}
 
-		o := newOpWorld()
-		defer o.world.Destroy()
+		serial := newOpWorld(1)
+		defer serial.world.Destroy()
+		parallel := newOpWorld(4)
+		defer parallel.world.Destroy()
 
-		source := &byteSource{data: data}
-		for range fuzzByteOpLength {
-			o.apply(source, pickOp(source))
+		serialSource := &byteSource{data: data}
+		parallelSource := &byteSource{data: data}
+
+		for i := range fuzzByteOpLength {
+			serial.apply(serialSource, pickOp(serialSource))
+			parallel.apply(parallelSource, pickOp(parallelSource))
+
+			if (i+1)%fuzzCheckpointGap == 0 {
+				require.Equalf(t, hashOpWorld(serial), hashOpWorld(parallel),
+					"WorkerCount=4 world diverged from serial in op range [%d,%d) — worker-pool determinism broken",
+					i+1-fuzzCheckpointGap, i+1)
+			}
 		}
 
-		for _, bodyID := range o.bodies {
-			require.True(t, o.world.IsBodyValid(bodyID), "live body list holds a stale id")
-			require.Truef(t, box2d.IsValidVec2(o.world.BodyPosition(bodyID)),
-				"non-finite body position %+v", o.world.BodyPosition(bodyID))
-			require.Truef(t, box2d.IsValidVec2(o.world.BodyLinearVelocity(bodyID)),
-				"non-finite body velocity %+v", o.world.BodyLinearVelocity(bodyID))
-			require.Truef(t, box2d.IsValidFloat(o.world.BodyAngularVelocity(bodyID)),
-				"non-finite body angular velocity %v", o.world.BodyAngularVelocity(bodyID))
+		require.Equal(t, hashOpWorld(serial), hashOpWorld(parallel),
+			"WorkerCount=4 world diverged from serial in final world-state hash — worker-pool determinism broken")
+
+		for _, o := range []*opWorld{serial, parallel} {
+			for _, bodyID := range o.bodies {
+				require.True(t, o.world.IsBodyValid(bodyID), "live body list holds a stale id")
+				require.Truef(t, box2d.IsValidVec2(o.world.BodyPosition(bodyID)),
+					"non-finite body position %+v", o.world.BodyPosition(bodyID))
+				require.Truef(t, box2d.IsValidVec2(o.world.BodyLinearVelocity(bodyID)),
+					"non-finite body velocity %+v", o.world.BodyLinearVelocity(bodyID))
+				require.Truef(t, box2d.IsValidFloat(o.world.BodyAngularVelocity(bodyID)),
+					"non-finite body angular velocity %v", o.world.BodyAngularVelocity(bodyID))
+			}
 		}
 	})
 }

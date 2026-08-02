@@ -19,12 +19,19 @@
 //	These overlaps use a shape reference with index and generation
 //
 // Deviations from upstream:
-//   - b2SensorTaskContext (a per-worker bitset) collapses to the single
-//     World.sensorEventBits bitset: this port is single-threaded, so the
-//     per-worker union in b2OverlapSensors is a no-op and is not ported.
-//   - The parallel-for over sensors becomes a serial loop in sensor-array
-//     index order. That is the same set of sensors upstream visits, walked in
-//     a fixed order, so event order does not depend on worker scheduling.
+//   - b2SensorTaskContext (a separate per-worker struct whose only member is
+//     an event bitset) is folded into the per-worker taskContext as
+//     sensorEventBits (see solver.go), so there is exactly one per-worker
+//     context array. The per-worker sets are bit-OR merged into slot 0 in
+//     ascending worker order before the publish drain, matching the union
+//     in b2OverlapSensors.
+//   - b2SensorTask keeps its parallel-for shape over the sensor array: it
+//     runs serially on worker 0 when the world has no pool, and over static
+//     contiguous ascending ranges on the internal worker pool otherwise
+//     (worker_pool.go). Per-sensor state (overlaps1/2, hits) is written only
+//     by the worker that owns the sensor's index, the trees are frozen, and
+//     the publish drain walks the merged bitset in ascending sensor-index
+//     order — so event order is byte-identical for every worker count.
 //   - b2SensorQueryContext drops the taskContext field, which upstream never
 //     reads inside b2SensorQueryCallback.
 
@@ -170,11 +177,16 @@ func sensorQueryCallback(proxyID int, userData uint64, context any) bool {
 }
 
 // sensorTask rebuilds the current overlap set for sensors in
-// [startIndex, endIndex) and flags the ones whose overlap set changed
-// (upstream b2SensorTask). The upstream parallel-for becomes a serial call
-// over the whole sensor array; see the file header.
-func (w *World) sensorTask(startIndex, endIndex int) {
+// [startIndex, endIndex) and flags the ones whose overlap set changed in the
+// worker's own sensorEventBits (upstream b2SensorTask; workerIndex is
+// upstream's threadIndex selecting the b2SensorTaskContext). It writes only
+// per-sensor state of its own range and the worker's bitset, and reads the
+// frozen trees, so disjoint ranges may run concurrently — see the file
+// header.
+func (w *World) sensorTask(startIndex, endIndex, workerIndex int) {
 	assert(startIndex < endIndex)
+
+	eventBits := &w.taskContexts[workerIndex].sensorEventBits
 
 	trees := &w.broadPhase.trees
 	for sensorIndex := startIndex; sensorIndex < endIndex; sensorIndex++ {
@@ -196,7 +208,7 @@ func (w *World) sensorTask(startIndex, endIndex int) {
 			if len(sen.overlaps1) != 0 {
 				// This sensor is dropping all overlaps because it has been
 				// disabled.
-				setBit(&w.sensorEventBits, uint32(sensorIndex))
+				setBit(eventBits, uint32(sensorIndex))
 			}
 
 			continue
@@ -242,7 +254,7 @@ func (w *World) sensorTask(startIndex, endIndex int) {
 		count2 := len(sen.overlaps2)
 		if count1 != count2 {
 			// something changed
-			setBit(&w.sensorEventBits, uint32(sensorIndex))
+			setBit(eventBits, uint32(sensorIndex))
 
 			continue
 		}
@@ -253,7 +265,7 @@ func (w *World) sensorTask(startIndex, endIndex int) {
 
 			if s1.shapeID != s2.shapeID || s1.generation != s2.generation {
 				// something changed
-				setBit(&w.sensorEventBits, uint32(sensorIndex))
+				setBit(eventBits, uint32(sensorIndex))
 
 				break
 			}
@@ -352,6 +364,11 @@ func (w *World) publishSensorEvents(sensorIndex int) {
 	}
 }
 
+// sensorMinRange is the sensor dispatch grain (upstream: the minRange of 16
+// passed when enqueueing b2SensorTask in b2OverlapSensors). Below this many
+// sensors the dispatch runs inline on worker 0.
+const sensorMinRange = 16
+
 // overlapSensors updates every sensor's overlap set and publishes the
 // resulting begin/end touch events (upstream b2OverlapSensors). Called at the
 // end of World.Step, after the solve.
@@ -361,17 +378,35 @@ func (w *World) overlapSensors() {
 		return
 	}
 
-	setBitCountAndClear(&w.sensorEventBits, uint32(sensorCount))
+	// Size/clear every worker slot — even when the dispatch below runs
+	// inline — so the bit-OR merge never sees stale bits or mismatched
+	// block counts (upstream sizes each b2SensorTaskContext.eventBits the
+	// same way before enqueueing b2SensorTask).
+	for k := range w.taskContexts {
+		setBitCountAndClear(&w.taskContexts[k].sensorEventBits, uint32(sensorCount))
+	}
 
-	// Upstream runs b2SensorTask as a parallel-for over the sensor array and
-	// then unions the per-worker event bitsets. Single-threaded: one serial
-	// pass, no union.
-	w.sensorTask(0, sensorCount)
+	if w.pool == nil {
+		w.sensorTask(0, sensorCount, 0)
+	} else {
+		w.pool.forRange(sensorCount, sensorMinRange, func(workerIndex, startIndex, endIndex int) {
+			w.sensorTask(startIndex, endIndex, workerIndex)
+		})
+	}
+
+	// Merge the per-worker event bits into slot 0 in ascending worker order
+	// (upstream: the bit-OR union in b2OverlapSensors). Bit-OR is order-free
+	// and the slots were sized identically above, satisfying inPlaceUnion's
+	// equal-blockCount contract.
+	eventBits := &w.taskContexts[0].sensorEventBits
+	for k := 1; k < len(w.taskContexts); k++ {
+		inPlaceUnion(eventBits, &w.taskContexts[k].sensorEventBits)
+	}
 
 	// Iterate sensor bits and publish events. Process sensor state changes by
 	// iterating over set bits, which visits sensors in ascending index order.
-	bits := w.sensorEventBits.bits
-	blockCount := w.sensorEventBits.blockCount
+	bits := eventBits.bits
+	blockCount := eventBits.blockCount
 
 	for k := range blockCount {
 		word := bits[k]

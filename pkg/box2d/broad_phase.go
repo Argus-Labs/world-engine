@@ -2,21 +2,29 @@
 //
 // Deviations from upstream:
 //
-//   - The port is single-threaded: b2FindPairsTask becomes a serial loop in
-//     moveArray order inside updateBroadPhasePairs, and the b2AtomicInt
-//     movePairIndex plus the atomic pair-buffer bump allocator (with heap
-//     fallback) collapse to a plain slice append. The per-move-result pair
-//     list prepend/consume order is preserved exactly.
-//   - The arena-allocated moveResults/movePairs buffers stay fields on
-//     broadPhase (as upstream has them on b2BroadPhase) and are reused across
-//     steps: updateBroadPhasePairs resets their length at entry and lets them
-//     grow geometrically, never shrinking, which is how the upstream arena
-//     behaves. The buffers are pure scratch — every moveResults slot is written
-//     before it is read and movePairs is only ever read back through indices
-//     produced by the appends of the same call — so reuse cannot change
-//     contents or ordering.
-//   - b2UpdateTreesTask runs inline before contact creation, matching the
-//     behavior of the upstream default (serial) task system.
+//   - b2FindPairsTask keeps its parallel-for shape over the move array: it
+//     runs serially on worker 0 when the world has no pool, and over static
+//     contiguous ascending ranges on the internal worker pool otherwise
+//     (worker_pool.go). The b2AtomicInt movePairIndex plus the atomic
+//     pair-buffer bump allocator (with heap fallback) collapse to a plain
+//     slice append into the owning worker's private pair slice: each worker
+//     has its own queryPairContext, moveResults[i] stores an index LOCAL to
+//     the owner's slice, and the serial creation loop derives the owner from
+//     i with the same partition the dispatch used. Because each move item's
+//     pair list is built entirely by one worker in tree traversal order, the
+//     per-move-result prepend/consume order — and therefore contact creation
+//     order — is byte-identical to the serial loop for every worker count.
+//   - The arena-allocated moveResults buffer and the per-worker pair slices
+//     stay fields on broadPhase (as upstream has them on b2BroadPhase) and
+//     are reused across steps: updateBroadPhasePairs resets their length at
+//     entry and lets them grow geometrically, never shrinking, which is how
+//     the upstream arena behaves. The buffers are pure scratch — every
+//     moveResults slot is written before it is read and each pair slice is
+//     only ever read back through indices produced by the appends of the
+//     same call — so reuse cannot change contents or ordering.
+//   - b2UpdateTreesTask runs inline after the pair find joins and before
+//     contact creation, matching the upstream default (serial) task system.
+//     It must not overlap the pair queries: it mutates the trees they read.
 
 package box2d
 
@@ -56,15 +64,21 @@ type broadPhase struct {
 	moveSet   hashSet
 	moveArray []int
 
-	// moveResults and movePairs are the per-step pair-query scratch reused
-	// across updateBroadPhasePairs calls (upstream bp->moveResults and
-	// bp->movePairs, which are arena allocations). Deviation from upstream:
-	// movePairCapacity and movePairIndex have no counterpart because this
-	// single-threaded port appends instead of bump-allocating atomically (see
-	// the file header). Both slices are reset to the length the call needs on
-	// entry and never shrink.
-	moveResults []int
-	movePairs   []movePair
+	// moveResults and the per-worker query contexts are the per-step
+	// pair-query scratch reused across updateBroadPhasePairs calls (upstream
+	// bp->moveResults and bp->movePairs, which are arena allocations).
+	// Deviation from upstream: movePairCapacity and movePairIndex have no
+	// counterpart because each worker appends into its own
+	// queryContexts[k].pairs slice instead of bump-allocating slots from one
+	// shared array atomically (see the file header). moveResults[i] holds an
+	// index LOCAL to the owning worker's pair slice; the owner is derived
+	// from i with the same partition the dispatch used. queryContexts is
+	// sized lazily to the dispatch width (the broad-phase does not know the
+	// world's worker count at creation); everything grows and never shrinks,
+	// and the serial path allocates nothing new (worker 0's context is the
+	// old single scratch).
+	moveResults   []int
+	queryContexts []queryPairContext
 
 	// pairSet tracks shape pairs that have a contact.
 	pairSet hashSet
@@ -90,7 +104,7 @@ func destroyBroadPhase(bp *broadPhase) {
 	destroyHashSet(&bp.moveSet)
 	bp.moveArray = nil
 	bp.moveResults = nil
-	bp.movePairs = nil
+	bp.queryContexts = nil
 	destroyHashSet(&bp.pairSet)
 
 	*bp = broadPhase{}
@@ -180,28 +194,31 @@ func (bp *broadPhase) enlargeProxy(proxyKey int, aabb AABB) {
 }
 
 // movePair is a candidate shape pair found by the pair query (upstream
-// b2MovePair). Deviation from upstream: the pairs are stored in a flat slice
-// and linked by index instead of pointers, so the arena/heap split (the
-// `heap` flag) has no counterpart. The prepend order of the per-move-result
-// list is preserved exactly.
+// b2MovePair). Deviation from upstream: the pairs are stored in a flat
+// per-worker slice and linked by index instead of pointers, so the
+// arena/heap split (the `heap` flag) has no counterpart. The prepend order
+// of the per-move-result list is preserved exactly.
 type movePair struct {
 	shapeIndexA int
 	shapeIndexB int
 
-	// next is the index of the next pair of the same move result in
-	// queryPairContext.pairs, or NullIndex (upstream b2MovePair* next).
+	// next is the index of the next pair of the same move result in the
+	// owning worker's queryPairContext.pairs, or NullIndex (upstream
+	// b2MovePair* next). Always local to one worker's slice: a move item's
+	// whole pair list is built by the worker that owns the item.
 	next int
 }
 
 // queryPairContext carries the state of one moved proxy's pair query
 // (upstream b2QueryPairContext). Deviation from upstream: the b2MoveResult
-// pair list head lives here as an index (moveResult) together with the flat
-// pair slice.
+// pair list head lives here as an index (moveResult) together with the pair
+// slice. One context per worker, persisted on broadPhase.queryContexts;
+// during a dispatch a worker touches only its own context.
 type queryPairContext struct {
 	world *World
 
-	// pairs is the flat pair storage shared by all move results (upstream
-	// bp->movePairs plus heap fallback).
+	// pairs is the worker-private pair storage shared by the move results
+	// this worker owns (upstream bp->movePairs plus heap fallback).
 	pairs []movePair
 
 	// moveResult is the head index of the current move result's pair list
@@ -333,8 +350,9 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 	}
 
 	// Deviation from upstream: the atomic pair-index bump allocation and the
-	// heap fallback collapse to a slice append in this single-threaded port.
-	// The new pair is prepended to the move result's list like upstream.
+	// heap fallback collapse to an append into the calling worker's private
+	// pair slice. The new pair is prepended to the move result's list like
+	// upstream.
 	queryContext.pairs = append(queryContext.pairs, movePair{
 		shapeIndexA: shapeIDA,
 		shapeIndexB: shapeIDB,
@@ -346,48 +364,23 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 	return true
 }
 
-// updateBroadPhasePairs queries the broad-phase trees for every moved proxy
-// and creates the resulting contacts in deterministic order (upstream
-// b2UpdateBroadPhasePairs).
-//
-// Deviations from upstream (single-threaded port):
-//   - b2FindPairsTask is not split over worker threads; the same loop runs
-//     serially in moveArray order. The results follow the order of the
-//     moveArray, which is the determinism cornerstone.
-//   - The arena-allocated moveResults/movePairs buffers are per-broadPhase
-//     scratch reused across steps (see the file header).
-//   - b2UpdateTreesTask runs inline before contact creation, matching the
-//     upstream default (serial) task system; taskCount parity is kept.
-func (w *World) updateBroadPhasePairs() {
+// broadPhaseMinRange is the pair-find dispatch grain (upstream: the minRange
+// of 64 passed when enqueueing b2FindPairsTask in b2UpdateBroadPhasePairs).
+// Below this many moved proxies the dispatch runs inline on worker 0.
+const broadPhaseMinRange = 64
+
+// findPairsTask queries the trees for a contiguous range of moved proxies
+// (upstream b2FindPairsTask; workerIndex is upstream's threadIndex). It
+// writes only the worker's own queryPairContext and the moveResults slots of
+// its own range, and reads the trees, moveSet and pairSet, which are all
+// frozen while the pair find runs — so disjoint ranges may run concurrently.
+func (w *World) findPairsTask(startIndex, endIndex, workerIndex int) {
 	bp := &w.broadPhase
+	moveResults := bp.moveResults
+	queryContext := &bp.queryContexts[workerIndex]
 
-	moveCount := len(bp.moveArray)
-	assert(moveCount == getSetCount(&bp.moveSet))
-
-	if moveCount == 0 {
-		return
-	}
-
-	// moveResults[i] is the head index of the pair list built for
-	// bp.moveArray[i] (upstream b2MoveResult.pairList). Reset discipline: the
-	// scratch is resized to moveCount and left uncleared because the loop
-	// below assigns every index [0, moveCount) before anything reads it.
-	moveResults := growScratch(bp.moveResults, moveCount)
-	bp.moveResults = moveResults
-
-	queryContext := queryPairContext{
-		world: w,
-		// Reset discipline: truncated to zero length so the appends below
-		// reproduce exactly the indices a fresh slice would. The reserve is
-		// the same 8 pairs per move as before and can still be exceeded if
-		// there are many overlapping pairs (e.g. all shapes at the origin);
-		// append then grows the slice.
-		pairs: growScratch(bp.movePairs, 8*moveCount)[:0],
-	}
-
-	// Find pairs for each moved proxy in moveArray order (upstream
-	// b2FindPairsTask over [0, moveCount)).
-	for i := range moveCount {
+	// Find pairs for each moved proxy in moveArray order.
+	for i := startIndex; i < endIndex; i++ {
 		// Initialize move result for this moved proxy
 		queryContext.moveResult = NullIndex
 
@@ -416,28 +409,94 @@ func (w *World) updateBroadPhasePairs() {
 		if proxyType == DynamicBody {
 			// consider using bits = groupIndex > 0 ? B2_DEFAULT_MASK_BITS : maskBits
 			queryContext.queryTreeType = KinematicBody
-			_ = bp.trees[KinematicBody].Query(fatAABB, DefaultMaskBits, pairQueryCallback, &queryContext)
+			_ = bp.trees[KinematicBody].Query(fatAABB, DefaultMaskBits, pairQueryCallback, queryContext)
 
 			queryContext.queryTreeType = StaticBody
-			_ = bp.trees[StaticBody].Query(fatAABB, DefaultMaskBits, pairQueryCallback, &queryContext)
+			_ = bp.trees[StaticBody].Query(fatAABB, DefaultMaskBits, pairQueryCallback, queryContext)
 		}
 
 		// All proxies collide with dynamic proxies
 		// Using DefaultMaskBits so that Filter.GroupIndex works.
 		queryContext.queryTreeType = DynamicBody
-		_ = bp.trees[DynamicBody].Query(fatAABB, DefaultMaskBits, pairQueryCallback, &queryContext)
+		_ = bp.trees[DynamicBody].Query(fatAABB, DefaultMaskBits, pairQueryCallback, queryContext)
 
 		moveResults[i] = queryContext.moveResult
 	}
+}
 
-	// Hand the (possibly grown) pair storage back to the broad-phase so the
-	// next step reuses it instead of allocating.
-	bp.movePairs = queryContext.pairs
+// updateBroadPhasePairs queries the broad-phase trees for every moved proxy
+// and creates the resulting contacts in deterministic order (upstream
+// b2UpdateBroadPhasePairs).
+//
+// Deviations from upstream:
+//   - b2FindPairsTask runs serially on worker 0 or over static contiguous
+//     ascending ranges on the internal worker pool; either way the results
+//     follow the order of the moveArray, which is the determinism
+//     cornerstone (see the file header).
+//   - The moveResults buffer and the per-worker pair slices are
+//     per-broadPhase scratch reused across steps (see the file header).
+//   - b2UpdateTreesTask runs inline after the pair find and before contact
+//     creation, matching the upstream default (serial) task system;
+//     taskCount parity is kept.
+func (w *World) updateBroadPhasePairs() {
+	bp := &w.broadPhase
+
+	moveCount := len(bp.moveArray)
+	assert(moveCount == getSetCount(&bp.moveSet))
+
+	if moveCount == 0 {
+		return
+	}
+
+	// moveResults[i] is the head index of the pair list built for
+	// bp.moveArray[i] (upstream b2MoveResult.pairList), LOCAL to the owning
+	// worker's pair slice. Reset discipline: the scratch is resized to
+	// moveCount and left uncleared because the tasks assign every index
+	// [0, moveCount) before anything reads it.
+	moveResults := growScratch(bp.moveResults, moveCount)
+	bp.moveResults = moveResults
+
+	// The exact worker count the dispatch below uses. The creation loop
+	// derives pair ownership from the same partition, so the two must agree.
+	pairWorkers := 1
+	if w.pool != nil {
+		pairWorkers = forRangeWorkers(moveCount, broadPhaseMinRange, w.workerCount)
+	}
+
+	// Size the per-worker contexts lazily (the broad-phase does not know the
+	// world's worker count at creation). Existing contexts keep their grown
+	// pair slices.
+	if len(bp.queryContexts) < pairWorkers {
+		queryContexts := make([]queryPairContext, pairWorkers)
+		copy(queryContexts, bp.queryContexts)
+		bp.queryContexts = queryContexts
+	}
+
+	for k := range pairWorkers {
+		start, end := workerRange(moveCount, pairWorkers, k)
+		queryContext := &bp.queryContexts[k]
+		queryContext.world = w
+		// Reset discipline: truncated to zero length so the appends
+		// reproduce exactly the indices a fresh slice would. The reserve is
+		// the same 8 pairs per owned move item as before and can still be
+		// exceeded if there are many overlapping pairs (e.g. all shapes at
+		// the origin); append then grows the slice.
+		queryContext.pairs = growScratch(queryContext.pairs, 8*(end-start))[:0]
+	}
+
+	if w.pool == nil {
+		w.findPairsTask(0, moveCount, 0)
+	} else {
+		w.pool.forRange(moveCount, broadPhaseMinRange, func(workerIndex, startIndex, endIndex int) {
+			w.findPairsTask(startIndex, endIndex, workerIndex)
+		})
+	}
 
 	// Task that upstream runs in parallel with the narrow-phase
 	// (b2UpdateTreesTask): rebuild the collision tree for dynamic and
-	// kinematic bodies to keep their query performance good. The upstream
-	// default task system runs it inline right here.
+	// kinematic bodies to keep their query performance good. It stays after
+	// the pair-find join in this port — the rebuild mutates the trees the
+	// pair queries read.
 	bp.rebuildTrees()
 	w.taskCount++
 
@@ -445,20 +504,27 @@ func (w *World) updateBroadPhasePairs() {
 	// - Clear move flags
 	// - Create contacts in deterministic order
 	// This is deterministic because the results follow the order of
-	// broadPhase.moveArray.
-	for i := range moveCount {
-		pairIndex := moveResults[i]
-		for pairIndex != NullIndex {
-			pair := queryContext.pairs[pairIndex]
-			shapeIDA := pair.shapeIndexA
-			shapeIDB := pair.shapeIndexB
+	// broadPhase.moveArray: the per-worker ranges are contiguous ascending,
+	// so walking workers in ascending index visits move indices in exactly
+	// the serial order, and each move item's pair list lives whole in its
+	// owner's slice.
+	for k := range pairWorkers {
+		start, end := workerRange(moveCount, pairWorkers, k)
+		pairs := bp.queryContexts[k].pairs
+		for i := start; i < end; i++ {
+			pairIndex := moveResults[i]
+			for pairIndex != NullIndex {
+				pair := pairs[pairIndex]
+				shapeIDA := pair.shapeIndexA
+				shapeIDB := pair.shapeIndexB
 
-			shapeA := &w.shapes[shapeIDA]
-			shapeB := &w.shapes[shapeIDB]
+				shapeA := &w.shapes[shapeIDA]
+				shapeB := &w.shapes[shapeIDB]
 
-			w.createContact(shapeA, shapeB)
+				w.createContact(shapeA, shapeB)
 
-			pairIndex = pair.next
+				pairIndex = pair.next
+			}
 		}
 	}
 

@@ -12,6 +12,7 @@ package box2d_test
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
@@ -51,12 +52,29 @@ var benchBodyCounts = [4]int{100, 500, 1000, 5000}
 // few percent of the run and the benchmark reports the cost of an empty awake
 // set (~15 ns/op) instead of solver throughput. Sleeping stays enabled in the
 // determinism fuzzer, which does exercise the sleep and wake paths.
-func newBenchWorld() *box2d.World {
+//
+// workerCount is passed to WorldDef.WorkerCount (0/1 = serial). Results are
+// byte-identical for every value; the step benchmarks sweep it to measure the
+// internal worker pool (worker_pool.go), and the Workers_1 rows double as the
+// zero-overhead regression check for the serial path (pool == nil).
+func newBenchWorld(workerCount int) *box2d.World {
 	worldDef := box2d.DefaultWorldDef()
 	worldDef.Gravity = box2d.Vec2{X: 0.0, Y: -10.0}
 	worldDef.EnableSleep = false
+	worldDef.WorkerCount = workerCount
 
 	return box2d.NewWorld(&worldDef)
+}
+
+// benchWorkerCounts returns the worker counts the step benchmarks sweep:
+// serial plus the machine's full core count when it has more than one.
+func benchWorkerCounts() []int {
+	counts := []int{1}
+	if n := runtime.NumCPU(); n > 1 {
+		counts = append(counts, n)
+	}
+
+	return counts
 }
 
 // addBenchGround adds a static box spanning [-halfWidth, halfWidth] whose top
@@ -126,8 +144,8 @@ func addBenchMixedBody(world *box2d.World, source opSource, index int, position 
 
 // buildBenchPyramidScene stacks rows*(rows+1)/2 boxes into a pyramid on a static
 // ground, following the upstream b2 sample layout.
-func buildBenchPyramidScene(rows int) *box2d.World {
-	world := newBenchWorld()
+func buildBenchPyramidScene(rows, workerCount int) *box2d.World {
+	world := newBenchWorld(workerCount)
 	addBenchGround(world, 100.0)
 
 	const halfExtent = 0.5
@@ -158,8 +176,8 @@ func buildBenchPyramidScene(rows int) *box2d.World {
 
 // buildBenchMixedRainScene drops bodyCount mixed shapes onto a ground box plus a
 // static chain and settles them for benchSettleSteps steps.
-func buildBenchMixedRainScene(bodyCount int) *box2d.World {
-	world := newBenchWorld()
+func buildBenchMixedRainScene(bodyCount, workerCount int) *box2d.World {
+	world := newBenchWorld(workerCount)
 	ground := addBenchGround(world, 200.0)
 	addBenchChain(world, ground, 190.0, 64)
 
@@ -184,7 +202,7 @@ func buildBenchMixedRainScene(bodyCount int) *box2d.World {
 // buildBenchJointedScene builds a 100-link revolute chain hanging from a static
 // anchor plus 50 distance springs tying every other link back to the anchor
 // body.
-func buildBenchJointedScene() *box2d.World {
+func buildBenchJointedScene(workerCount int) *box2d.World {
 	const (
 		linkCount   = 100
 		springCount = 50
@@ -192,7 +210,7 @@ func buildBenchJointedScene() *box2d.World {
 		linkSpacing = 1.0
 	)
 
-	world := newBenchWorld()
+	world := newBenchWorld(workerCount)
 
 	anchorDef := box2d.DefaultBodyDef()
 	anchorDef.Position = box2d.Vec2{X: 0.0, Y: 0.0}
@@ -263,7 +281,7 @@ func buildBenchJointedScene() *box2d.World {
 // buildBenchQueryScene lays out benchQueryShapeCount static circles on a grid,
 // matching the physics2d gridSpawnSystem layout (radius 1, spacing 3).
 func buildBenchQueryScene() *box2d.World {
-	world := newBenchWorld()
+	world := newBenchWorld(1)
 
 	cols := int(math.Ceil(math.Sqrt(float64(benchQueryShapeCount))))
 	const spacing = 3.0
@@ -294,33 +312,19 @@ func buildBenchQueryScene() *box2d.World {
 // ---------------------------------------------------------------------------
 
 // BenchmarkStepPyramid measures solver throughput on a deep, well-conditioned
-// box stack (210 boxes, 20 rows).
+// box stack (210 boxes, 20 rows), at WorkerCount 1 and the machine's core
+// count.
 func BenchmarkStepPyramid(b *testing.B) {
-	b.ReportAllocs()
-
-	world := buildBenchPyramidScene(benchPyramidRows)
-	defer world.Destroy()
-
-	for range benchSettleSteps {
-		world.Step(benchTimeStep, benchSubStepCount)
-	}
-
-	b.ResetTimer()
-
-	for range b.N {
-		world.Step(benchTimeStep, benchSubStepCount)
-	}
-}
-
-// BenchmarkStepMixedRain measures broad-phase, narrow-phase and solver
-// throughput on mixed shapes resting on a ground box plus a static chain.
-func BenchmarkStepMixedRain(b *testing.B) {
-	for _, bodyCount := range benchBodyCounts {
-		b.Run(fmt.Sprintf("Bodies_%d", bodyCount), func(b *testing.B) {
+	for _, workerCount := range benchWorkerCounts() {
+		b.Run(fmt.Sprintf("Workers_%d", workerCount), func(b *testing.B) {
 			b.ReportAllocs()
 
-			world := buildBenchMixedRainScene(bodyCount)
+			world := buildBenchPyramidScene(benchPyramidRows, workerCount)
 			defer world.Destroy()
+
+			for range benchSettleSteps {
+				world.Step(benchTimeStep, benchSubStepCount)
+			}
 
 			b.ResetTimer()
 
@@ -331,18 +335,47 @@ func BenchmarkStepMixedRain(b *testing.B) {
 	}
 }
 
+// BenchmarkStepMixedRain measures broad-phase, narrow-phase and solver
+// throughput on mixed shapes resting on a ground box plus a static chain, at
+// WorkerCount 1 and the machine's core count.
+func BenchmarkStepMixedRain(b *testing.B) {
+	for _, bodyCount := range benchBodyCounts {
+		b.Run(fmt.Sprintf("Bodies_%d", bodyCount), func(b *testing.B) {
+			for _, workerCount := range benchWorkerCounts() {
+				b.Run(fmt.Sprintf("Workers_%d", workerCount), func(b *testing.B) {
+					b.ReportAllocs()
+
+					world := buildBenchMixedRainScene(bodyCount, workerCount)
+					defer world.Destroy()
+
+					b.ResetTimer()
+
+					for range b.N {
+						world.Step(benchTimeStep, benchSubStepCount)
+					}
+				})
+			}
+		})
+	}
+}
+
 // BenchmarkStepJointed measures the joint solver on a 100-link revolute chain
-// carrying 50 distance springs.
+// carrying 50 distance springs, at WorkerCount 1 and the machine's core
+// count.
 func BenchmarkStepJointed(b *testing.B) {
-	b.ReportAllocs()
+	for _, workerCount := range benchWorkerCounts() {
+		b.Run(fmt.Sprintf("Workers_%d", workerCount), func(b *testing.B) {
+			b.ReportAllocs()
 
-	world := buildBenchJointedScene()
-	defer world.Destroy()
+			world := buildBenchJointedScene(workerCount)
+			defer world.Destroy()
 
-	b.ResetTimer()
+			b.ResetTimer()
 
-	for range b.N {
-		world.Step(benchTimeStep, benchSubStepCount)
+			for range b.N {
+				world.Step(benchTimeStep, benchSubStepCount)
+			}
+		})
 	}
 }
 
@@ -414,7 +447,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 func BenchmarkBodyCreateDestroy(b *testing.B) {
 	b.ReportAllocs()
 
-	world := newBenchWorld()
+	world := newBenchWorld(1)
 	defer world.Destroy()
 
 	addBenchGround(world, 100.0)

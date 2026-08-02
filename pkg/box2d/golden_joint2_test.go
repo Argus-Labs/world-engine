@@ -14,7 +14,6 @@ package box2d_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -137,35 +136,19 @@ func buildWeldTowerScene(w *box2d.World) []box2d.BodyID {
 	return bodies
 }
 
-func computeGoldenJoint2() []goldenStepScene {
-	scenes := []struct {
-		name  string
-		build func(*box2d.World) []box2d.BodyID
-	}{
+func goldenJoint2Scenes() []goldenSceneDef {
+	return []goldenSceneDef{
 		{"motor_driver", buildMotorDriverScene},
 		{"weld_tower", buildWeldTowerScene},
 	}
+}
 
-	out := make([]goldenStepScene, 0, len(scenes))
-	for _, scene := range scenes {
-		def := box2d.DefaultWorldDef()
-		w := box2d.NewWorld(&def)
-		bodies := scene.build(w)
+func computeGoldenJoint2() []goldenStepScene {
+	return computeGoldenJoint2Workers(0)
+}
 
-		var hashes []goldenStepHash
-		for step := 1; step <= goldenJoint2StepCount; step++ {
-			w.Step(1.0/60.0, 4)
-			if step%30 == 0 || step == goldenJoint2StepCount {
-				hash := hashWorldState(w, bodies)
-				hashes = append(hashes, goldenStepHash{Step: step, Hash: fmt.Sprintf("%016x", hash)})
-			}
-		}
-
-		w.Destroy()
-		out = append(out, goldenStepScene{Name: scene.name, Hashes: hashes})
-	}
-
-	return out
+func computeGoldenJoint2Workers(workerCount int) []goldenStepScene {
+	return computeGoldenScenes(goldenJoint2Scenes(), goldenJoint2StepCount, workerCount)
 }
 
 func TestGoldenJoint2(t *testing.T) {

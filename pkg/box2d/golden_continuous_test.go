@@ -15,7 +15,6 @@ package box2d_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,22 +26,18 @@ import (
 
 const goldenContinuousStepCount = 240
 
-func computeGoldenContinuous() []goldenStepScene {
-	def := box2d.DefaultWorldDef()
-	w := box2d.NewWorld(&def)
-	bodies := buildBulletStormScene(w, 40)
-
-	var hashes []goldenStepHash
-	for step := 1; step <= goldenContinuousStepCount; step++ {
-		w.Step(1.0/60.0, 4)
-		if step%30 == 0 || step == goldenContinuousStepCount {
-			hash := hashWorldState(w, bodies)
-			hashes = append(hashes, goldenStepHash{Step: step, Hash: fmt.Sprintf("%016x", hash)})
-		}
+func goldenContinuousScenes() []goldenSceneDef {
+	return []goldenSceneDef{
+		{"bullet_storm", func(w *box2d.World) []box2d.BodyID { return buildBulletStormScene(w, 40) }},
 	}
+}
 
-	w.Destroy()
-	return []goldenStepScene{{Name: "bullet_storm", Hashes: hashes}}
+func computeGoldenContinuous() []goldenStepScene {
+	return computeGoldenContinuousWorkers(0)
+}
+
+func computeGoldenContinuousWorkers(workerCount int) []goldenStepScene {
+	return computeGoldenScenes(goldenContinuousScenes(), goldenContinuousStepCount, workerCount)
 }
 
 func TestGoldenContinuous(t *testing.T) {

@@ -1,10 +1,17 @@
 // Ported to Go from Box2D v3.2.0 (https://github.com/erincatto/box2d) — file src/solver.h, src/solver.c
 // (the continuous-collision functions live in solver_continuous.go).
 //
-// SINGLE-THREADED STAGE EXECUTION (approved deviation): upstream builds
+// STAGE EXECUTION (approved deviation): upstream builds
 // b2SolverStage/b2SolverBlock arrays and drives them from b2SolverTask with
 // atomic work stealing across workers. This port executes the exact same
-// stage sequence as serial loops. Mapping (upstream b2SolverStageType and the
+// stage sequence, either as serial loops (no worker pool) or as static
+// contiguous range dispatches on the internal worker pool (worker_pool.go)
+// with a barrier per stage per color — NO stage machine, NO work stealing.
+// Within one color every constraint (joint or contact) touches disjoint
+// bodies by the graph coloring, so any partition of a color's item list is
+// byte-identical to the serial loop; a color's joints and contacts share one
+// dispatch (joint items first, matching the upstream block order) to halve
+// the barrier count. Mapping (upstream b2SolverStageType and the
 // b2SolverTask main-thread flow → this port):
 //
 //	b2_stagePrepareJoints       → prepareJoint loop over active colors, then
@@ -24,17 +31,25 @@
 //	b2_stageRestitution         → overflow restitution, then active colors
 //	b2_stageStoreImpulses       → overflow store, then active colors
 //
-// Within every stage the overflow color runs before the active colors (the
-// upstream main thread runs the b2*Overflow* calls before executing the
-// per-color stages) and joint blocks run before contact blocks within a color
-// (upstream block order). Active colors run in ascending color-index order.
-// ITERATIONS and RELAX_ITERATIONS are both 1 upstream; the loops are kept.
+// In the warm start, solve, relax, restitution and store stages the overflow
+// color runs before the active colors (the upstream main thread runs the
+// b2*Overflow* calls before executing those per-color stages); the two
+// prepare stages run the active colors first and overflow last, per the
+// mapping above (upstream b2SolverTask order, solver.c:1090-1108). Joint
+// blocks run before contact blocks within a color (upstream block order).
+// The overflow color ALWAYS runs serially on the
+// dispatching goroutine (worker 0), as upstream's main thread does — overflow
+// constraints share bodies, so they cannot be partitioned. Active colors run
+// in ascending color-index order. ITERATIONS and RELAX_ITERATIONS are both 1
+// upstream; the loops are kept.
 //
 // Continuous collision (b2SolveContinuous, b2ContinuousQueryCallback) lives
 // in solver_continuous.go. The upstream b2BulletBodyTask is the serial bullet
-// loop in the solve epilogue below; finalizeBodiesTask fills the bulletBodies
-// array in ascending body-sim index order, which keeps the serial bullet
-// processing deterministic.
+// loop in the solve epilogue below (deviation — see solver_continuous.go);
+// each worker's finalizeBodiesTask range gathers its bullet bodies into its
+// own taskContext and the ascending-worker concatenation before the bullet
+// stage reproduces the serial ascending body-sim index fill exactly, which
+// keeps the serial bullet processing deterministic for every worker count.
 
 package box2d
 
@@ -88,11 +103,12 @@ func makeSoft(hertz, zeta, h float64) softness {
 // stepContext is the context for a time step, recreated each step (upstream
 // b2StepContext).
 //
-// Deviations from upstream (single-threaded port): the task/atomic machinery
-// (stages, blocks, atomicSyncBits, workerCount) is gone — see the file
-// header. The flattened joint/contact pointer arrays and the SIMD-wide
-// constraint buffer are not needed: the solver iterates the graph colors
-// directly and the scalar constraints live per color (graphColor.constraints).
+// Deviations from upstream: the stage-machine/atomic machinery (stages,
+// blocks, atomicSyncBits, workerCount) is gone — the internal worker pool
+// dispatches plain ranges instead, see the file header. The flattened
+// joint/contact pointer arrays and the SIMD-wide constraint buffer are not
+// needed: the solver iterates the graph colors directly and the scalar
+// constraints live per color (graphColor.constraints).
 type stepContext struct {
 	// time step
 	dt float64
@@ -126,7 +142,11 @@ type stepContext struct {
 	// awake non-touching contacts. Only valid during collide.
 	contacts []*contactSim
 
-	// Array of bullet bodies that need continuous collision handling.
+	// Array of bullet bodies that need continuous collision handling,
+	// filled after the finalize join by concatenating the per-worker
+	// taskContext.bulletBodies gathers in ascending worker order (deviation
+	// from upstream, which fills it from inside b2FinalizeBodiesTask through
+	// an atomic cursor — see taskContext.bulletBodies).
 	bulletBodies    []int
 	bulletBodyCount int
 
@@ -135,8 +155,18 @@ type stepContext struct {
 	enableWarmStarting bool
 }
 
-// taskContext is the single-threaded counterpart of the per-worker upstream
-// b2TaskContext (physics_world.h). The bit sets are sized/cleared each step.
+// taskContext is the per-worker scratch (upstream b2TaskContext,
+// physics_world.h). The world keeps one per worker in World.taskContexts;
+// worker 0 is the Step goroutine and the serial path uses only slot 0. The
+// bit sets are sized/cleared each step — for ALL worker slots, even when a
+// stage later runs inline, so a bit-OR merge never sees stale bits or
+// mismatched block counts.
+//
+// Deviation from upstream: b2SensorTaskContext (a separate per-worker struct
+// whose only member is an event bitset) is folded in here as sensorEventBits,
+// so there is exactly one per-worker context array. The bullet body gather
+// list is also per-worker here (bulletBodies) instead of upstream's shared
+// array with an atomic cursor — see the field comment.
 type taskContext struct {
 	// Used to track a contact state change that affects islands or events
 	// (bit index = contact id).
@@ -161,6 +191,22 @@ type taskContext struct {
 	// Per-step sleepiest split island candidate.
 	splitIslandID  int
 	splitSleepTime float64
+
+	// Sensors whose overlap set changed during the sensor pass (bit index =
+	// sensor array index). Deviation from upstream: this is
+	// b2SensorTaskContext.eventBits folded into the one per-worker context
+	// (see the struct comment). Written by sensorTask, merged into slot 0 in
+	// ascending worker order before the publish drain (sensor.go).
+	sensorEventBits bitSet
+
+	// Bullet bodies gathered by finalizeBodiesTask (values = awake body sim
+	// indices). Deviation from upstream, which appends to one shared
+	// stepContext array through an atomic cursor and documents the resulting
+	// order as non-deterministic: per-worker lists concatenated in ascending
+	// worker order reproduce the serial ascending-sim-index fill exactly,
+	// which the bullet solve and enlarge loops rely on (solver.go). Grows and
+	// never shrinks; reset to length zero each step.
+	bulletBodies []int
 }
 
 func createTaskContext() taskContext {
@@ -170,6 +216,7 @@ func createTaskContext() taskContext {
 		awakeIslandBitSet:  createBitSet(256),
 		jointStateBitSet:   createBitSet(1024),
 		splitIslandID:      NullIndex,
+		sensorEventBits:    createBitSet(64),
 	}
 }
 
@@ -178,19 +225,32 @@ func destroyTaskContext(tc *taskContext) {
 	destroyBitSet(&tc.enlargedSimBitSet)
 	destroyBitSet(&tc.awakeIslandBitSet)
 	destroyBitSet(&tc.jointStateBitSet)
+	destroyBitSet(&tc.sensorEventBits)
+	tc.bulletBodies = nil
 	*tc = taskContext{}
 }
 
-// solveJointsColor solves the joints of one active graph color and performs
-// the joint event bookkeeping (upstream b2SolveJointsTask). Note that
-// upstream overflow joints run through b2SolveOverflowJoints, which has no
-// event bookkeeping — the overflow loops in solve call solveJoint directly to
-// match.
-func (w *World) solveJointsColor(ctx *stepContext, colorIndex int, useBias bool) {
+// solveJointsColor solves the joints [startIndex, endIndex) of one active
+// graph color and performs the joint event bookkeeping (upstream
+// b2SolveJointsTask). Note that upstream overflow joints run through
+// b2SolveOverflowJoints, which has no event bookkeeping — the overflow loops
+// in solve call solveJoint directly to match.
+//
+// The getBit read below makes the "already flagged" dedup PER-WORKER instead
+// of global. That cannot change any result: the per-worker bit sets are
+// bit-OR merged before the joint event drain (the emitted SET is identical),
+// a joint lives in exactly one color at a fixed index so the same worker
+// visits it every sub-step (the partition is a pure function of the fixed
+// color size), and getJointReaction is pure (it reads impulse fields and
+// returns two floats), so even a repeated evaluation could not diverge
+// state.
+func (w *World) solveJointsColor(ctx *stepContext, colorIndex int, useBias bool, workerIndex, startIndex, endIndex int) {
 	color := &ctx.graph.colors[colorIndex]
-	jointStateBitSet := &w.taskContext.jointStateBitSet
+	jointStateBitSet := &w.taskContexts[workerIndex].jointStateBitSet
 
-	for i := range color.jointSims {
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= len(color.jointSims))
+
+	for i := startIndex; i < endIndex; i++ {
 		j := &color.jointSims[i]
 		w.solveJoint(j, ctx, useBias)
 
@@ -206,6 +266,79 @@ func (w *World) solveJointsColor(ctx *stepContext, colorIndex int, useBias bool)
 			}
 		}
 	}
+}
+
+// prepareJointsColorRange prepares the joints [startIndex, endIndex) of one
+// graph color (upstream b2PrepareJointsTask over one color's joint blocks).
+// Writes are joint-owned, so any partition is byte-identical.
+func (w *World) prepareJointsColorRange(ctx *stepContext, colorIndex, startIndex, endIndex int) {
+	color := &ctx.graph.colors[colorIndex]
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= len(color.jointSims))
+	for i := startIndex; i < endIndex; i++ {
+		w.prepareJoint(&color.jointSims[i], ctx)
+	}
+}
+
+// warmStartJointsColorRange warm-starts the joints [startIndex, endIndex) of
+// one graph color (upstream b2WarmStartJointsTask over one color's joint
+// blocks). Body writes are disjoint within a color by the graph coloring.
+func (w *World) warmStartJointsColorRange(ctx *stepContext, colorIndex, startIndex, endIndex int) {
+	color := &ctx.graph.colors[colorIndex]
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= len(color.jointSims))
+	for i := startIndex; i < endIndex; i++ {
+		w.warmStartJoint(&color.jointSims[i], ctx)
+	}
+}
+
+// warmStartColorTask warm-starts the items [startIndex, endIndex) of one
+// color's combined item list: the color's joints (items [0, jointCount))
+// followed by its contacts (upstream: joint blocks precede contact blocks
+// within a color stage). Joints and contacts of one color are mutually
+// body-disjoint by the graph coloring — addContactToGraph and
+// assignJointColor test the same per-color bodySet — so one barrier covers
+// both and any partition of the combined list is byte-identical to the
+// serial full-range call.
+func (w *World) warmStartColorTask(ctx *stepContext, colorIndex, startIndex, endIndex int) {
+	jointCount := len(ctx.graph.colors[colorIndex].jointSims)
+	if startIndex < jointCount {
+		w.warmStartJointsColorRange(ctx, colorIndex, startIndex, min(endIndex, jointCount))
+	}
+	if endIndex > jointCount {
+		w.warmStartContactsColor(ctx, colorIndex, max(startIndex, jointCount)-jointCount, endIndex-jointCount)
+	}
+}
+
+// solveColorTask solves the items [startIndex, endIndex) of one color's
+// combined joint+contact item list (see warmStartColorTask for the layout
+// and the body-disjointness argument). Used for both the solve
+// (useBias=true) and relax (useBias=false) stages.
+func (w *World) solveColorTask(ctx *stepContext, colorIndex int, useBias bool, workerIndex, startIndex, endIndex int) {
+	jointCount := len(ctx.graph.colors[colorIndex].jointSims)
+	if startIndex < jointCount {
+		w.solveJointsColor(ctx, colorIndex, useBias, workerIndex, startIndex, min(endIndex, jointCount))
+	}
+	if endIndex > jointCount {
+		w.solveContactsColor(ctx, colorIndex, useBias, max(startIndex, jointCount)-jointCount, endIndex-jointCount)
+	}
+}
+
+// solverBodyGrain returns the dispatch grain for body-range solver stages
+// (integrate velocities/positions, finalize): below this many awake bodies
+// the dispatch runs inline on worker 0 (upstream passes minRange 64 when
+// enqueueing its body parallel-fors; the worker-count term keeps per-worker
+// ranges from shrinking below a useful size as workers are added). Grain
+// affects performance only — results are partition-independent.
+func solverBodyGrain(workerCount int) int {
+	return max(64, 16*workerCount)
+}
+
+// solverColorGrain returns the dispatch grain for per-color constraint
+// stages: below this many items (joints+contacts of one color) the dispatch
+// runs inline on worker 0 (upstream uses block sizes of 4 for joint and
+// SIMD-contact blocks; this port dispatches whole ranges, so the threshold
+// is higher to amortize the barrier). Grain affects performance only.
+func solverColorGrain(workerCount int) int {
+	return max(32, 8*workerCount)
 }
 
 // integrateVelocitiesTask integrates velocities and applies damping, gravity
@@ -317,8 +450,17 @@ func integratePositionsTask(startIndex, endIndex int, ctx *stepContext) {
 // runs the continuous solve for fast non-bullet bodies, gathers fast bullet
 // bodies for the bullet stage and refreshes shape AABBs with broad-phase
 // enlarge buffering in deterministic body order (upstream
-// b2FinalizeBodiesTask).
-func (w *World) finalizeBodiesTask(startIndex, endIndex int, ctx *stepContext) {
+// b2FinalizeBodiesTask; workerIndex is upstream's threadIndex).
+//
+// Concurrency contract: every write is owned by the body at simIndex (its
+// state, sim, body struct, shapes and bodyMoveEvents slot) or by the worker
+// (the taskContext bit sets, sensorHits, bulletBodies and split candidate);
+// island structs are only read. Disjoint ranges may therefore run
+// concurrently, and the per-worker outputs are merged after the join — bit
+// sets by order-free bit-OR, bulletBodies and sensorHits by ascending-worker
+// concatenation (== ascending body-sim order because ranges are contiguous
+// ascending), the split candidate by an ascending-worker strict-> reduction.
+func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *stepContext) {
 	enableSleep := w.enableSleep
 	states := ctx.states
 	sims := ctx.sims
@@ -332,7 +474,7 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex int, ctx *stepContext) {
 	assert(endIndex <= len(w.bodyMoveEvents))
 	moveEvents := w.bodyMoveEvents
 
-	tc := &w.taskContext
+	tc := &w.taskContexts[workerIndex]
 	enlargedSimBitSet := &tc.enlargedSimBitSet
 	awakeIslandBitSet := &tc.awakeIslandBitSet
 
@@ -415,14 +557,15 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex int, ctx *stepContext) {
 				// This flag is only retained for debug draw
 				sim.flags |= isFast
 
-				// Store in fast array for the continuous collision stage.
-				// This is deterministic because the order of TOI sweeps
-				// doesn't matter.
+				// Store in the worker's fast array for the continuous
+				// collision stage (deviation from upstream's shared
+				// atomic-cursor array: the ascending-worker concatenation
+				// after the join reproduces the serial ascending-sim-index
+				// fill exactly — see taskContext.bulletBodies).
 				if sim.flags&isBullet != 0 {
-					ctx.bulletBodies[ctx.bulletBodyCount] = simIndex
-					ctx.bulletBodyCount++
+					tc.bulletBodies = append(tc.bulletBodies, simIndex)
 				} else {
-					w.solveContinuous(simIndex)
+					w.solveContinuous(simIndex, tc)
 				}
 			} else {
 				// Body is safe to advance
@@ -499,7 +642,8 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex int, ctx *stepContext) {
 
 // solve integrates velocities, solves velocity constraints with graph
 // coloring, integrates positions, finalizes bodies, reports events and puts
-// islands to sleep (upstream b2Solve, executed serially per the file header).
+// islands to sleep (upstream b2Solve; stages dispatch per the file header,
+// everything order-sensitive runs on the Step goroutine between barriers).
 func (w *World) solve(ctx *stepContext) {
 	w.stepIndex++
 
@@ -508,7 +652,7 @@ func (w *World) solve(ctx *stepContext) {
 	awakeBodyCount := len(awake.bodySims)
 	if awakeBodyCount == 0 {
 		// Nothing to simulate. (The tree rebuild already ran inline in
-		// updateBroadPhasePairs in this single-threaded port.)
+		// updateBroadPhasePairs in this port.)
 		if debugAsserts {
 			assert(w.broadPhase.validateNoEnlarged() == nil)
 		}
@@ -565,9 +709,13 @@ func (w *World) solve(ctx *stepContext) {
 		assert(base == totalContactCount)
 
 		// Clear the joint event bit set (upstream sizes it per worker before
-		// spawning the solver tasks).
+		// spawning the solver tasks). All worker slots are sized even though
+		// the solver stages still run serially on worker 0: a merge must
+		// never see stale bits or mismatched block counts in slots 1..w-1.
 		jointIDCapacity := getIDCapacity(&w.jointIDPool)
-		setBitCountAndClear(&w.taskContext.jointStateBitSet, uint32(jointIDCapacity))
+		for k := range w.taskContexts {
+			setBitCountAndClear(&w.taskContexts[k].jointStateBitSet, uint32(jointIDCapacity))
+		}
 
 		// Split an awake island. This modifies:
 		// - world island array and solver set
@@ -581,23 +729,90 @@ func (w *World) solve(ctx *stepContext) {
 		}
 		w.splitIslandID = NullIndex
 
+		// Dispatch plumbing, built once per solve so the per-color dispatch
+		// sites below allocate nothing per call: the color/bias arguments
+		// travel through the captured variables, written by the dispatching
+		// goroutine before each forRange (the pool's job publish is the
+		// happens-before edge). Nil — and never touched — when the world has
+		// no pool. This block moves only ints, bools and funcs; it adds no
+		// floating-point arithmetic.
+		var (
+			dispatchColorIndex int
+			dispatchUseBias    bool
+
+			integrateVelocitiesFn func(workerIndex, startIndex, endIndex int)
+			integratePositionsFn  func(workerIndex, startIndex, endIndex int)
+			prepareJointsFn       func(workerIndex, startIndex, endIndex int)
+			prepareContactsFn     func(workerIndex, startIndex, endIndex int)
+			warmStartColorFn      func(workerIndex, startIndex, endIndex int)
+			solveColorFn          func(workerIndex, startIndex, endIndex int)
+			restitutionFn         func(workerIndex, startIndex, endIndex int)
+			storeImpulsesFn       func(workerIndex, startIndex, endIndex int)
+			finalizeFn            func(workerIndex, startIndex, endIndex int)
+		)
+		bodyGrain, colorGrain := 0, 0
+		if w.pool != nil {
+			bodyGrain = solverBodyGrain(w.workerCount)
+			colorGrain = solverColorGrain(w.workerCount)
+
+			integrateVelocitiesFn = func(_, startIndex, endIndex int) {
+				integrateVelocitiesTask(startIndex, endIndex, ctx)
+			}
+			integratePositionsFn = func(_, startIndex, endIndex int) {
+				integratePositionsTask(startIndex, endIndex, ctx)
+			}
+			prepareJointsFn = func(_, startIndex, endIndex int) {
+				w.prepareJointsColorRange(ctx, dispatchColorIndex, startIndex, endIndex)
+			}
+			prepareContactsFn = func(_, startIndex, endIndex int) {
+				w.prepareContactsColor(ctx, dispatchColorIndex, startIndex, endIndex)
+			}
+			warmStartColorFn = func(_, startIndex, endIndex int) {
+				w.warmStartColorTask(ctx, dispatchColorIndex, startIndex, endIndex)
+			}
+			solveColorFn = func(workerIndex, startIndex, endIndex int) {
+				w.solveColorTask(ctx, dispatchColorIndex, dispatchUseBias, workerIndex, startIndex, endIndex)
+			}
+			restitutionFn = func(_, startIndex, endIndex int) {
+				w.applyRestitutionColor(ctx, dispatchColorIndex, startIndex, endIndex)
+			}
+			storeImpulsesFn = func(_, startIndex, endIndex int) {
+				w.storeImpulsesColor(ctx, dispatchColorIndex, startIndex, endIndex)
+			}
+			finalizeFn = func(workerIndex, startIndex, endIndex int) {
+				w.finalizeBodiesTask(startIndex, endIndex, workerIndex, ctx)
+			}
+		}
+
 		// -- b2_stagePrepareJoints ----------------------------------------
 		for i := range activeColorCount {
 			//nolint:gosec // G602: activeColorIndices is a local [GraphColorCount]int filled above with color indices i < GraphColorCount-1, and activeColorCount counts exactly those entries, so i < activeColorCount indexes a written slot holding a valid graph.colors index.
-			color := &graph.colors[activeColorIndices[i]]
-			for j := range color.jointSims {
-				w.prepareJoint(&color.jointSims[j], ctx)
+			colorIndex := activeColorIndices[i]
+			jointCount := len(graph.colors[colorIndex].jointSims)
+			if w.pool == nil {
+				w.prepareJointsColorRange(ctx, colorIndex, 0, jointCount)
+			} else {
+				dispatchColorIndex = colorIndex
+				w.pool.forRange(jointCount, colorGrain, prepareJointsFn)
 			}
 		}
 
 		// -- b2_stagePrepareContacts --------------------------------------
 		for i := range activeColorCount {
 			//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
-			w.prepareContactsColor(ctx, activeColorIndices[i])
+			colorIndex := activeColorIndices[i]
+			contactCount := len(graph.colors[colorIndex].contactSims)
+			if w.pool == nil {
+				w.prepareContactsColor(ctx, colorIndex, 0, contactCount)
+			} else {
+				dispatchColorIndex = colorIndex
+				w.pool.forRange(contactCount, colorGrain, prepareContactsFn)
+			}
 		}
 
-		// Single-threaded overflow work. These constraints don't fit in the
-		// graph coloring.
+		// Overflow work, always on the dispatching goroutine. These
+		// constraints don't fit in the graph coloring and can share bodies,
+		// so they cannot be partitioned.
 		{
 			// b2PrepareOverflowJoints
 			overflowColor := &graph.colors[overflowIndex]
@@ -605,34 +820,43 @@ func (w *World) solve(ctx *stepContext) {
 				w.prepareJoint(&overflowColor.jointSims[j], ctx)
 			}
 			// b2PrepareOverflowContacts
-			w.prepareContactsColor(ctx, overflowIndex)
+			w.prepareContactsColor(ctx, overflowIndex, 0, len(overflowColor.contactSims))
 		}
 
 		subStepCount := ctx.subStepCount
 		for range subStepCount {
 			// -- b2_stageIntegrateVelocities ------------------------------
-			integrateVelocitiesTask(0, awakeBodyCount, ctx)
+			if w.pool == nil {
+				integrateVelocitiesTask(0, awakeBodyCount, ctx)
+			} else {
+				w.pool.forRange(awakeBodyCount, bodyGrain, integrateVelocitiesFn)
+			}
 
 			// -- b2_stageWarmStart ----------------------------------------
-			// b2WarmStartOverflowJoints
+			// Overflow first, on the dispatching goroutine, exactly like
+			// upstream's main thread.
 			{
+				// b2WarmStartOverflowJoints
 				overflowColor := &graph.colors[overflowIndex]
 				for j := range overflowColor.jointSims {
 					w.warmStartJoint(&overflowColor.jointSims[j], ctx)
 				}
+				// b2WarmStartOverflowContacts
+				w.warmStartContactsColor(ctx, overflowIndex, 0, len(overflowColor.contactSims))
 			}
-			// b2WarmStartOverflowContacts
-			w.warmStartContactsColor(ctx, overflowIndex)
 
 			for i := range activeColorCount {
 				//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 				colorIndex := activeColorIndices[i]
 				// joint blocks precede contact blocks within a color stage
 				color := &graph.colors[colorIndex]
-				for j := range color.jointSims {
-					w.warmStartJoint(&color.jointSims[j], ctx)
+				itemCount := len(color.jointSims) + len(color.contactSims)
+				if w.pool == nil {
+					w.warmStartColorTask(ctx, colorIndex, 0, itemCount)
+				} else {
+					dispatchColorIndex = colorIndex
+					w.pool.forRange(itemCount, colorGrain, warmStartColorFn)
 				}
-				w.warmStartContactsColor(ctx, colorIndex)
 			}
 
 			// -- b2_stageSolve --------------------------------------------
@@ -644,21 +868,32 @@ func (w *World) solve(ctx *stepContext) {
 					for j := range overflowColor.jointSims {
 						w.solveJoint(&overflowColor.jointSims[j], ctx, useBias)
 					}
+					w.solveContactsColor(ctx, overflowIndex, useBias, 0, len(overflowColor.contactSims))
 				}
-				w.solveContactsColor(ctx, overflowIndex, useBias)
 
 				for i := range activeColorCount {
 					//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 					colorIndex := activeColorIndices[i]
 					// b2SolveJointsTask: color joints carry the joint event
 					// bookkeeping.
-					w.solveJointsColor(ctx, colorIndex, useBias)
-					w.solveContactsColor(ctx, colorIndex, useBias)
+					color := &graph.colors[colorIndex]
+					itemCount := len(color.jointSims) + len(color.contactSims)
+					if w.pool == nil {
+						w.solveColorTask(ctx, colorIndex, useBias, 0, 0, itemCount)
+					} else {
+						dispatchColorIndex = colorIndex
+						dispatchUseBias = useBias
+						w.pool.forRange(itemCount, colorGrain, solveColorFn)
+					}
 				}
 			}
 
 			// -- b2_stageIntegratePositions -------------------------------
-			integratePositionsTask(0, awakeBodyCount, ctx)
+			if w.pool == nil {
+				integratePositionsTask(0, awakeBodyCount, ctx)
+			} else {
+				w.pool.forRange(awakeBodyCount, bodyGrain, integratePositionsFn)
+			}
 
 			// -- b2_stageRelax --------------------------------------------
 			useBias = false
@@ -668,16 +903,23 @@ func (w *World) solve(ctx *stepContext) {
 					for j := range overflowColor.jointSims {
 						w.solveJoint(&overflowColor.jointSims[j], ctx, useBias)
 					}
+					w.solveContactsColor(ctx, overflowIndex, useBias, 0, len(overflowColor.contactSims))
 				}
-				w.solveContactsColor(ctx, overflowIndex, useBias)
 
 				for i := range activeColorCount {
 					//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 					colorIndex := activeColorIndices[i]
 					// b2SolveJointsTask (relax): useBias is false so no joint
 					// event bookkeeping happens.
-					w.solveJointsColor(ctx, colorIndex, useBias)
-					w.solveContactsColor(ctx, colorIndex, useBias)
+					color := &graph.colors[colorIndex]
+					itemCount := len(color.jointSims) + len(color.contactSims)
+					if w.pool == nil {
+						w.solveColorTask(ctx, colorIndex, useBias, 0, 0, itemCount)
+					} else {
+						dispatchColorIndex = colorIndex
+						dispatchUseBias = useBias
+						w.pool.forRange(itemCount, colorGrain, solveColorFn)
+					}
 				}
 			}
 		}
@@ -685,17 +927,31 @@ func (w *World) solve(ctx *stepContext) {
 		// -- b2_stageRestitution ------------------------------------------
 		// Note: upstream mixes joint blocks into the restitution stages but
 		// only graph contact blocks are executed for restitution.
-		w.applyRestitutionColor(ctx, overflowIndex)
+		w.applyRestitutionColor(ctx, overflowIndex, 0, len(graph.colors[overflowIndex].contactSims))
 		for i := range activeColorCount {
 			//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
-			w.applyRestitutionColor(ctx, activeColorIndices[i])
+			colorIndex := activeColorIndices[i]
+			contactCount := len(graph.colors[colorIndex].contactSims)
+			if w.pool == nil {
+				w.applyRestitutionColor(ctx, colorIndex, 0, contactCount)
+			} else {
+				dispatchColorIndex = colorIndex
+				w.pool.forRange(contactCount, colorGrain, restitutionFn)
+			}
 		}
 
 		// -- b2_stageStoreImpulses ----------------------------------------
-		w.storeImpulsesColor(ctx, overflowIndex)
+		w.storeImpulsesColor(ctx, overflowIndex, 0, len(graph.colors[overflowIndex].contactSims))
 		for i := range activeColorCount {
 			//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
-			w.storeImpulsesColor(ctx, activeColorIndices[i])
+			colorIndex := activeColorIndices[i]
+			contactCount := len(graph.colors[colorIndex].contactSims)
+			if w.pool == nil {
+				w.storeImpulsesColor(ctx, colorIndex, 0, contactCount)
+			} else {
+				dispatchColorIndex = colorIndex
+				w.pool.forRange(contactCount, colorGrain, storeImpulsesFn)
+			}
 		}
 
 		// the solver stages ran as one serial task
@@ -708,24 +964,43 @@ func (w *World) solve(ctx *stepContext) {
 		w.arena.freeContactConstraints()
 
 		// Prepare contact, enlarged body, and island bit sets used in body
-		// finalization.
+		// finalization. Every worker slot is reset — even when the dispatch
+		// below runs inline — because the merges after the join walk ALL
+		// slots: stale bits or mismatched block counts in slots 1..w-1 would
+		// corrupt the union, and the per-worker buffers must start empty.
 		awakeIslandCount := len(awake.islandSims)
-		tc := &w.taskContext
-		tc.sensorHits = tc.sensorHits[:0]
-		setBitCountAndClear(&tc.enlargedSimBitSet, uint32(awakeBodyCount))
-		setBitCountAndClear(&tc.awakeIslandBitSet, uint32(awakeIslandCount))
-		tc.splitIslandID = NullIndex
-		tc.splitSleepTime = 0.0
+		for k := range w.taskContexts {
+			tc := &w.taskContexts[k]
+			tc.sensorHits = tc.sensorHits[:0]
+			tc.bulletBodies = tc.bulletBodies[:0]
+			setBitCountAndClear(&tc.enlargedSimBitSet, uint32(awakeBodyCount))
+			setBitCountAndClear(&tc.awakeIslandBitSet, uint32(awakeIslandCount))
+			tc.splitIslandID = NullIndex
+			tc.splitSleepTime = 0.0
+		}
 
 		// Finalize bodies. Must happen after the constraint solver and after
 		// island splitting.
-		w.finalizeBodiesTask(0, awakeBodyCount, ctx)
+		if w.pool == nil {
+			w.finalizeBodiesTask(0, awakeBodyCount, 0, ctx)
+		} else {
+			w.pool.forRange(awakeBodyCount, bodyGrain, finalizeFn)
+		}
 		w.taskCount++
 	}
 
 	// Report joint events (upstream: the joint event assembly in b2Solve).
+	// First merge the per-worker joint state bits into slot 0 in ascending
+	// worker order (upstream: the bit-OR loop before the joint event scan).
+	// Bit-OR is order-free and every slot was sized identically before the
+	// solve stages, satisfying inPlaceUnion's equal-blockCount contract; the
+	// drain below walks set bits in ascending joint-id order, so the emitted
+	// event order is identical for every worker count.
 	{
-		jointStateBitSet := &w.taskContext.jointStateBitSet
+		jointStateBitSet := &w.taskContexts[0].jointStateBitSet
+		for k := 1; k < len(w.taskContexts); k++ {
+			inPlaceUnion(jointStateBitSet, &w.taskContexts[k].jointStateBitSet)
+		}
 		for k := range jointStateBitSet.blockCount {
 			word := jointStateBitSet.bits[k]
 			for word != 0 {
@@ -815,7 +1090,16 @@ func (w *World) solve(ctx *stepContext) {
 			assert(w.broadPhase.validateNoEnlarged() == nil)
 		}
 
-		enlargedBodyBitSet := &w.taskContext.enlargedSimBitSet
+		// Merge the per-worker enlarged-sim bits into slot 0 in ascending
+		// worker order (upstream: the bit-OR loop before the refit in
+		// b2Solve). The drain below walks set bits in ascending body-sim
+		// order, which keeps the move array deterministic — the cornerstone
+		// of the next step's pair-finding order.
+		enlargedBodyBitSet := &w.taskContexts[0].enlargedSimBitSet
+		for k := 1; k < len(w.taskContexts); k++ {
+			inPlaceUnion(enlargedBodyBitSet, &w.taskContexts[k].enlargedSimBitSet)
+		}
+
 		bp := &w.broadPhase
 
 		for k := range enlargedBodyBitSet.blockCount {
@@ -869,12 +1153,39 @@ func (w *World) solve(ctx *stepContext) {
 		}
 	}
 
+	// Gather the per-worker bullet lists into the step context in ascending
+	// worker order. Ranges are contiguous ascending, so this concatenation
+	// equals the ascending body-sim index fill of the serial engine exactly
+	// (deviation from upstream's shared atomic-cursor array — see
+	// taskContext.bulletBodies). ctx.bulletBodies has capacity for every
+	// awake body, so the copy cannot overflow.
+	for k := range w.taskContexts {
+		for _, simIndex := range w.taskContexts[k].bulletBodies {
+			ctx.bulletBodies[ctx.bulletBodyCount] = simIndex
+			ctx.bulletBodyCount++
+		}
+	}
+
+	// Merge the per-worker sensor hits into slot 0 in ascending worker order
+	// BEFORE the bullet stage: ranges are contiguous ascending, so this
+	// reproduces the serial engine's ascending body-sim append order, and
+	// the bullet stage below appends its own hits to slot 0 after the
+	// finalize hits — exactly the serial order (upstream drains the
+	// per-worker lists in the same worker order after the bullet task).
+	{
+		tc0 := &w.taskContexts[0]
+		for k := 1; k < len(w.taskContexts); k++ {
+			tc0.sensorHits = append(tc0.sensorHits, w.taskContexts[k].sensorHits...)
+		}
+	}
+
 	if ctx.bulletBodyCount > 0 {
-		// Fast bullet bodies (upstream b2BulletBodyTask, run serially here in
-		// the deterministic fill order of bulletBodies).
+		// Fast bullet bodies (upstream b2BulletBodyTask; STAYS SERIAL in
+		// this port, in the deterministic fill order of bulletBodies — see
+		// the deviation note in solver_continuous.go).
 		// Note: a bullet body may be moving slow.
 		for i := range ctx.bulletBodyCount {
-			w.solveContinuous(ctx.bulletBodies[i])
+			w.solveContinuous(ctx.bulletBodies[i], &w.taskContexts[0])
 		}
 		w.taskCount++
 
@@ -928,9 +1239,11 @@ func (w *World) solve(ctx *stepContext) {
 	ctx.bulletBodies = nil
 	ctx.bulletBodyCount = 0
 
-	// Report sensor hits. This may include bullet sensor hits.
-	// Upstream loops over per-worker task contexts; this port has one.
-	for _, hit := range w.taskContext.sensorHits {
+	// Report sensor hits. This may include bullet sensor hits. Slot 0 holds
+	// the merged list: the finalize hits were concatenated in ascending
+	// worker order before the bullet stage and the bullet hits were appended
+	// after them, reproducing the serial append order exactly.
+	for _, hit := range w.taskContexts[0].sensorHits {
 		sensorShape := &w.shapes[hit.sensorID]
 		visitorShape := &w.shapes[hit.visitorID]
 
@@ -946,15 +1259,39 @@ func (w *World) solve(ctx *stepContext) {
 	// enlarged body bits.
 	if w.enableSleep {
 		// Collect split island candidate for the next time step. No need to
-		// split if sleeping is disabled.
+		// split if sleeping is disabled. The per-worker candidates are
+		// reduced in ascending worker order with the SAME strict > as the
+		// per-body scan in finalizeBodiesTask: ranges are contiguous
+		// ascending, so the first strict maximum across workers is the first
+		// strict maximum of the serial ascending body scan — the choice is
+		// identical for every worker count (upstream needs an extra
+		// island-id tie-break only because of work stealing, which this port
+		// has none of).
 		assert(w.splitIslandID == NullIndex)
-		tc := &w.taskContext
-		if tc.splitIslandID != NullIndex {
+		splitIslandID := NullIndex
+		splitSleepTime := 0.0
+		for k := range w.taskContexts {
+			tc := &w.taskContexts[k]
+			if tc.splitIslandID == NullIndex {
+				continue
+			}
 			assert(tc.splitSleepTime > 0.0)
-			w.splitIslandID = tc.splitIslandID
+			if tc.splitSleepTime > splitSleepTime {
+				splitIslandID = tc.splitIslandID
+				splitSleepTime = tc.splitSleepTime
+			}
+		}
+		if splitIslandID != NullIndex {
+			w.splitIslandID = splitIslandID
 		}
 
-		awakeIslandBitSet := &tc.awakeIslandBitSet
+		// Merge the per-worker awake-island bits into slot 0 in ascending
+		// worker order (upstream: the bit-OR loop before the island sleep
+		// sweep in b2Solve). Bit-OR is order-free.
+		awakeIslandBitSet := &w.taskContexts[0].awakeIslandBitSet
+		for k := 1; k < len(w.taskContexts); k++ {
+			inPlaceUnion(awakeIslandBitSet, &w.taskContexts[k].awakeIslandBitSet)
+		}
 
 		// Need to process in reverse because this moves islands to sleeping
 		// solver sets.

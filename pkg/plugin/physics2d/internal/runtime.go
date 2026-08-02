@@ -62,6 +62,11 @@ type Runtime struct {
 	// SubStepCount is the number of solver sub-steps per physics step.
 	SubStepCount int
 
+	// Workers is the worker count handed to box2d.WorldDef.WorkerCount on world
+	// creation (0 = serial). Simulation results are byte-identical for every
+	// value, so it never participates in rebuild/restore determinism.
+	Workers int
+
 	// KnownEntities tracks which Cardinal entities have bodies in the Box2D world.
 	KnownEntities map[cardinal.EntityID]struct{}
 
@@ -114,21 +119,33 @@ const defaultSubStepCount = 4
 
 // NewRuntime returns an empty runtime with the given simulation parameters. Maps are
 // initialized; Emitter is nil. Non-positive fixedDT or subSteps fall back to 60 Hz / 4 sub-steps.
+// workers is the box2d.WorldDef.WorkerCount for worlds this runtime creates (0 = serial;
+// results are byte-identical for every value).
 // SuppressContactsStep is true so the next armed simulation step does not record contact
 // begin/end; the following FlushBufferedContacts clears suppression when that flush is
 // paired with an emitter (see contact_flush.go).
 // ActiveContacts is nil, signaling "load from ECS on next step".
-func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps int) *Runtime {
+func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) *Runtime {
 	if fixedDT <= 0 {
 		fixedDT = defaultFixedDT
 	}
 	if subSteps <= 0 {
 		subSteps = defaultSubStepCount
 	}
+	// Clamp like the other knobs: box2d.NewWorld panics outside
+	// [0, MaxWorkers], and a plugin misconfiguration must not crash the
+	// first tick's world rebuild.
+	if workers < 0 {
+		workers = 0
+	}
+	if workers > box2d.MaxWorkers {
+		workers = box2d.MaxWorkers
+	}
 	return &Runtime{
 		Gravity:              gravity,
 		FixedDT:              fixedDT,
 		SubStepCount:         subSteps,
+		Workers:              workers,
 		Bodies:               make(map[cardinal.EntityID]box2d.BodyID),
 		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
@@ -142,7 +159,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps int) *Runtime 
 
 // Reset drops all derived physics state on this runtime, returning it to the state of a freshly
 // constructed Runtime. If a Box2D world exists, it is destroyed first. Simulation parameters
-// (Gravity, FixedDT, SubStepCount) are preserved.
+// (Gravity, FixedDT, SubStepCount, Workers) are preserved.
 func (rt *Runtime) Reset() {
 	if rt.World != nil {
 		rt.World.Destroy()

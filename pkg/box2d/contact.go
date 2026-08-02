@@ -668,7 +668,11 @@ func (w *World) updateContact(contactSim *contactSim, shapeA *shape, transformA 
 			}
 		}
 
-		// this call assumes thread safety
+		// this call assumes thread safety: with WorldDef.WorkerCount > 1 the
+		// collide dispatch runs updateContact on pool workers concurrently
+		// (worker_pool.go), so the callback must be safe to call from
+		// multiple goroutines and must not mutate shared state (that would
+		// also break the byte-identical-for-every-worker-count guarantee)
 		touching = w.preSolveFcn(shapeIDA, shapeIDB, bestPoint, manifold.Normal, w.preSolveContext)
 		if !touching {
 			// disable contact

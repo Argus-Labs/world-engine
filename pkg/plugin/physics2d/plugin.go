@@ -100,6 +100,14 @@ type Config struct {
 	TickRate float64
 	// SubStepCount is the number of sub-steps per physics step. Zero defaults to 4.
 	SubStepCount int
+	// Workers is the number of workers the physics step may use
+	// (box2d.WorldDef.WorkerCount). 0 means 1 (serial); negative values are
+	// treated as 0 and values above box2d.MaxWorkers (64) are clamped down,
+	// so any value is safe (e.g. runtime.NumCPU() on large hosts). Simulation
+	// results are byte-identical for every value — the engine's worker pool
+	// is deterministic by construction — so this is purely a throughput knob
+	// and never affects rollback, replay, or cross-machine agreement.
+	Workers int
 }
 
 // Plugin implements cardinal.Plugin for the physics2d package. It owns the derived physics
@@ -131,7 +139,7 @@ func (p *Plugin) Register(world *cardinal.World) {
 	}
 	fixedDT := 1.0 / tickRate
 
-	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount)
+	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
 	p.rt.Reset()
 
 	cardinal.RegisterSystem(world, physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))

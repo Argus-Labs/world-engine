@@ -14,7 +14,6 @@ package box2d_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -138,35 +137,19 @@ func buildSpringDistanceScene(w *box2d.World) []box2d.BodyID {
 	return bodies
 }
 
-func computeGoldenJoint() []goldenStepScene {
-	scenes := []struct {
-		name  string
-		build func(*box2d.World) []box2d.BodyID
-	}{
+func goldenJointScenes() []goldenSceneDef {
+	return []goldenSceneDef{
 		{"pendulum_chain", buildPendulumChainScene},
 		{"spring_distance", buildSpringDistanceScene},
 	}
+}
 
-	out := make([]goldenStepScene, 0, len(scenes))
-	for _, scene := range scenes {
-		def := box2d.DefaultWorldDef()
-		w := box2d.NewWorld(&def)
-		bodies := scene.build(w)
+func computeGoldenJoint() []goldenStepScene {
+	return computeGoldenJointWorkers(0)
+}
 
-		var hashes []goldenStepHash
-		for step := 1; step <= goldenJointStepCount; step++ {
-			w.Step(1.0/60.0, 4)
-			if step%30 == 0 || step == goldenJointStepCount {
-				hash := hashWorldState(w, bodies)
-				hashes = append(hashes, goldenStepHash{Step: step, Hash: fmt.Sprintf("%016x", hash)})
-			}
-		}
-
-		w.Destroy()
-		out = append(out, goldenStepScene{Name: scene.name, Hashes: hashes})
-	}
-
-	return out
+func computeGoldenJointWorkers(workerCount int) []goldenStepScene {
+	return computeGoldenScenes(goldenJointScenes(), goldenJointStepCount, workerCount)
 }
 
 func TestGoldenJoint(t *testing.T) {

@@ -28,14 +28,16 @@
 // stronger. See nextWorldToken for the wrap-around behavior.
 //
 // Other deviations from upstream:
-//   - Task system dropped (single-threaded port): workerCount,
-//     enqueueTaskFcn, finishTaskFcn, userTaskContext, userTreeTask and
-//     activeTaskCount have no counterpart; taskCount is kept for
-//     Counters.TaskCount parity. The per-worker b2TaskContext array
-//     (sensorHits, contactStateBitSet, jointStateBitSet, enlargedSimBitSet,
-//     awakeIslandBitSet) collapses to a single taskContext, and the
-//     b2SensorTaskContext array collapses to the single sensorEventBits
-//     bitset (see sensor.go).
+//   - Task system ported as an internal goroutine pool (worker_pool.go):
+//     upstream's user-supplied enqueueTaskFcn/finishTaskFcn/userTaskContext/
+//     userTreeTask callbacks are NOT exposed — WorldDef.WorkerCount selects
+//     the worker count and the World owns its workers. activeTaskCount has
+//     no counterpart; taskCount counts stages, not per-worker tasks, so
+//     Counters.TaskCount is identical for every worker count. The per-worker
+//     b2TaskContext array is ported as World.taskContexts (the serial path
+//     uses slot 0 only), and the separate b2SensorTaskContext array is folded
+//     into taskContext.sensorEventBits (see sensor.go and solver.go). Unlike
+//     upstream, simulation results are byte-identical for every worker count.
 //   - b2InitializeContactRegisters is a call-parity no-op: the register
 //     table is a package-level immutable literal (contact.go).
 //   - Counters.ByteCount is 0: upstream b2GetByteCount tracks global heap
@@ -51,6 +53,7 @@ package box2d
 
 import (
 	"math"
+	"runtime"
 	"sync/atomic"
 )
 
@@ -141,15 +144,10 @@ type World struct {
 	shapes      []shape
 	chainShapes []chainShape
 
-	// This is a dense array of sensor data.
+	// This is a dense array of sensor data. The per-sensor change bits live
+	// in the per-worker taskContext.sensorEventBits (upstream
+	// b2SensorTaskContext — see solver.go and sensor.go).
 	sensors []sensor
-
-	// Sensors whose overlap set changed during the sensor pass, by sensor
-	// array index. Deviation from upstream: b2World keeps one
-	// b2SensorTaskContext (with an eventBits bitset) per worker and unions
-	// them after the parallel sensor task. This port is single-threaded, so
-	// one bitset holds the whole result and the union is a no-op.
-	sensorEventBits bitSet
 
 	bodyMoveEvents     []BodyMoveEvent
 	sensorBeginEvents  []SensorBeginTouchEvent
@@ -164,9 +162,19 @@ type World struct {
 	contactHitEvents []ContactHitEvent
 	jointEvents      []JointEvent
 
-	// Single-threaded solver scratch (upstream keeps one b2TaskContext per
-	// worker; this port has exactly one, see solver.go).
-	taskContext taskContext
+	// Per-worker solver scratch (upstream b2TaskContext array), one slot per
+	// worker; len == workerCount. Worker 0 is the Step goroutine and the
+	// serial path uses only slot 0 (see solver.go).
+	taskContexts []taskContext
+
+	// workerCount is the effective worker count: WorldDef.WorkerCount with 0
+	// mapped to 1 and clamped to runtime.GOMAXPROCS(0), computed once in
+	// NewWorld. Simulation results are byte-identical for every value.
+	workerCount int
+
+	// pool is the internal worker pool; nil when workerCount == 1, in which
+	// case every stage dispatch takes its serial branch.
+	pool *workerPool
 
 	// Used to track debug draw.
 	debugBodySet    bitSet
@@ -264,6 +272,8 @@ func defaultRestitutionCallback(restitutionA float64, materialA uint64, restitut
 // the file header).
 func NewWorld(def *WorldDef) *World {
 	requireInitialized(def.initialized, "WorldDef", "DefaultWorldDef")
+	requireValidDefField(def.WorkerCount >= 0 && def.WorkerCount <= MaxWorkers,
+		"WorldDef", "WorkerCount", "must be in [0, MaxWorkers]; 0 means 1 (serial)")
 
 	initializeContactRegisters()
 
@@ -317,7 +327,6 @@ func NewWorld(def *WorldDef) *World {
 	w.islands = make([]island, 0, 8)
 
 	w.sensors = make([]sensor, 0, 4)
-	w.sensorEventBits = createBitSet(64)
 
 	w.bodyMoveEvents = make([]BodyMoveEvent, 0, 4)
 	w.sensorBeginEvents = make([]SensorBeginTouchEvent, 0, 4)
@@ -362,7 +371,19 @@ func NewWorld(def *WorldDef) *World {
 	w.enableSpeculative = true
 	w.userData = def.UserData
 
-	w.taskContext = createTaskContext()
+	// Effective worker count, computed exactly once so a run's partitioning
+	// is stable (never re-read GOMAXPROCS per step). Clamping cannot affect
+	// results: they are byte-identical for every worker count by design.
+	w.workerCount = min(max(def.WorkerCount, 1), runtime.GOMAXPROCS(0))
+
+	w.taskContexts = make([]taskContext, w.workerCount)
+	for i := range w.taskContexts {
+		w.taskContexts[i] = createTaskContext()
+	}
+
+	if w.workerCount > 1 {
+		w.pool = newWorkerPool(w.workerCount)
+	}
 
 	w.debugBodySet = createBitSet(256)
 	w.debugJointSet = createBitSet(256)
@@ -375,8 +396,17 @@ func NewWorld(def *WorldDef) *World {
 // Destroy destroys the world and all its contents
 // (upstream b2DestroyWorld). Ids created from this world become invalid.
 func (w *World) Destroy() {
-	destroyTaskContext(&w.taskContext)
-	destroyBitSet(&w.sensorEventBits)
+	// Tear the worker pool down first — the goroutines must be gone before
+	// the *w = World{} wipe below invalidates the state they reference.
+	if w.pool != nil {
+		w.pool.close()
+		w.pool = nil
+	}
+
+	for i := range w.taskContexts {
+		destroyTaskContext(&w.taskContexts[i])
+	}
+	w.taskContexts = nil
 	destroyBitSet(&w.debugBodySet)
 	destroyBitSet(&w.debugJointSet)
 	destroyBitSet(&w.debugContactSet)

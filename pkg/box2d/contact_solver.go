@@ -6,15 +6,19 @@
 // transliterate the upstream b2*OverflowContacts functions. The upstream SIMD
 // batch path (b2FloatW, b2ContactConstraintSIMD, b2PrepareContactsTask and
 // friends) is NOT ported: per-lane arithmetic of the upstream B2_SIMD_NONE
-// build is identical to the scalar path contact-by-contact, and this port is
-// single-threaded. Each routine takes a colorIndex so the solver can run the
-// same code over graph colors and the overflow set. Iteration order is fixed
-// by the solve loop in solver.go: within each stage the overflow color runs
+// build is identical to the scalar path contact-by-contact. Each routine
+// takes a colorIndex plus a [startIndex, endIndex) range over that color's
+// contacts so the solver can run the same code over graph colors and the
+// overflow set, serially or as range tasks on the internal worker pool
+// (worker_pool.go): within one color the graph coloring guarantees the
+// contacts touch disjoint bodies, so any partition of a color's range is
+// byte-identical to the serial full-range call. Iteration order is fixed by
+// the solve loop in solver.go: within each stage the overflow color runs
 // first (upstream: overflow constraints have lower priority and are executed
 // before the per-color stages by the main thread), then the active colors in
 // ascending color-index order; contacts within a color run in localIndex
 // order. The graph coloring itself is kept (built in constraint_graph.go)
-// because it fixes the solve order and enables future parallelism.
+// because it fixes the solve order and body-disjointness.
 //
 // Other deviations from upstream:
 //   - world.enableContactSoftening (experimental, default off) has no effect:
@@ -67,10 +71,11 @@ type contactConstraint struct {
 	pointCount         int
 }
 
-// prepareContactsColor prepares the contact constraints of one graph color
-// (upstream b2PrepareOverflowContacts, generalized to any color per the file
-// header).
-func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
+// prepareContactsColor prepares the contact constraints
+// [startIndex, endIndex) of one graph color (upstream
+// b2PrepareOverflowContacts, generalized to any color and any range per the
+// file header).
+func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, endIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
 	contactSims := color.contactSims
@@ -79,6 +84,8 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 	// drop the per-iteration bounds checks below.
 	constraints := color.constraints[:contactCount]
 	awakeStates := ctx.states
+
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
 
 	// Stiffer for static contacts to avoid bodies getting pushed through the
 	// ground.
@@ -90,7 +97,7 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 		warmStartScale = 1.0
 	}
 
-	for i := range contactCount {
+	for i := startIndex; i < endIndex; i++ {
 		contactSim := &contactSims[i]
 
 		manifold := &contactSim.manifold
@@ -204,10 +211,11 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 	}
 }
 
-// warmStartContactsColor applies the stored impulses of one graph color
-// (upstream b2WarmStartOverflowContacts, generalized to any color per the
-// file header).
-func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex int) {
+// warmStartContactsColor applies the stored impulses of the contact
+// constraints [startIndex, endIndex) of one graph color (upstream
+// b2WarmStartOverflowContacts, generalized to any color and any range per
+// the file header).
+func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex, startIndex, endIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
 	contactCount := len(color.contactSims)
@@ -217,11 +225,13 @@ func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex int) {
 	awake := &w.solverSets[awakeSet]
 	states := awake.bodyStates
 
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
+
 	// This is a dummy state to represent a static body because static bodies
 	// don't have a solver body.
 	dummyState := identityBodyState
 
-	for i := range contactCount {
+	for i := startIndex; i < endIndex; i++ {
 		constraint := &constraints[i]
 
 		indexA := constraint.indexA - 1
@@ -287,11 +297,12 @@ func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex int) {
 	}
 }
 
-// solveContactsColor solves the contact constraints of one graph color with
-// TGS soft constraints (upstream b2SolveOverflowContacts, generalized to any
-// color per the file header). useBias selects the solve stage (true) versus
-// the relax stage (false).
-func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias bool) {
+// solveContactsColor solves the contact constraints [startIndex, endIndex)
+// of one graph color with TGS soft constraints (upstream
+// b2SolveOverflowContacts, generalized to any color and any range per the
+// file header). useBias selects the solve stage (true) versus the relax
+// stage (false).
+func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias bool, startIndex, endIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
 	contactCount := len(color.contactSims)
@@ -301,6 +312,8 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 	awake := &w.solverSets[awakeSet]
 	states := awake.bodyStates
 
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
+
 	invH := ctx.invH
 	contactSpeed := w.contactSpeed
 
@@ -308,7 +321,7 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 	// don't have a solver body.
 	dummyState := identityBodyState
 
-	for i := range contactCount {
+	for i := startIndex; i < endIndex; i++ {
 		constraint := &constraints[i]
 		mA := constraint.invMassA
 		iA := constraint.invIA
@@ -459,10 +472,11 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 	}
 }
 
-// applyRestitutionColor applies restitution to the contact constraints of one
-// graph color (upstream b2ApplyOverflowRestitution, generalized to any color
-// per the file header).
-func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
+// applyRestitutionColor applies restitution to the contact constraints
+// [startIndex, endIndex) of one graph color (upstream
+// b2ApplyOverflowRestitution, generalized to any color and any range per the
+// file header).
+func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex, startIndex, endIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
 	contactCount := len(color.contactSims)
@@ -472,12 +486,14 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
 	awake := &w.solverSets[awakeSet]
 	states := awake.bodyStates
 
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
+
 	threshold := w.restitutionThreshold
 
 	// dummy state to represent a static body
 	dummyState := identityBodyState
 
-	for i := range contactCount {
+	for i := startIndex; i < endIndex; i++ {
 		constraint := &constraints[i]
 
 		restitution := constraint.restitution
@@ -564,10 +580,11 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
 	}
 }
 
-// storeImpulsesColor copies the constraint impulses of one graph color back
-// into the contact manifolds for warm starting (upstream
-// b2StoreOverflowImpulses, generalized to any color per the file header).
-func (w *World) storeImpulsesColor(ctx *stepContext, colorIndex int) {
+// storeImpulsesColor copies the constraint impulses [startIndex, endIndex)
+// of one graph color back into the contact manifolds for warm starting
+// (upstream b2StoreOverflowImpulses, generalized to any color and any range
+// per the file header).
+func (w *World) storeImpulsesColor(ctx *stepContext, colorIndex, startIndex, endIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
 	contactSims := color.contactSims
@@ -576,7 +593,9 @@ func (w *World) storeImpulsesColor(ctx *stepContext, colorIndex int) {
 	// drop the per-iteration bounds checks below.
 	constraints := color.constraints[:contactCount]
 
-	for i := range contactCount {
+	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
+
+	for i := startIndex; i < endIndex; i++ {
 		constraint := &constraints[i]
 		contact := &contactSims[i]
 		manifold := &contact.manifold

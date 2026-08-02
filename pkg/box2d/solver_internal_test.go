@@ -229,7 +229,7 @@ func TestPreparedConstraintSoftness(t *testing.T) {
 
 		constraints := make([]contactConstraint, count)
 		color.constraints = constraints
-		w.prepareContactsColor(&ctx, colorIndex)
+		w.prepareContactsColor(&ctx, colorIndex, 0, count)
 
 		for i := range count {
 			constraint := &constraints[i]
