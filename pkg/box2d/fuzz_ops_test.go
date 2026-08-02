@@ -141,7 +141,7 @@ func srcUnit(s opSource) float64 {
 
 // srcRange returns a value in [lo, hi).
 func srcRange(s opSource, lo, hi float64) float64 {
-	return lo + (hi-lo)*srcUnit(s)
+	return lo + float64((hi-lo)*srcUnit(s))
 }
 
 // ---------------------------------------------------------------------------

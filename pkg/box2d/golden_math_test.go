@@ -68,7 +68,7 @@ func computeGoldenMath() []goldenCase {
 	// difference into visible divergence.
 	q := box2d.RotIdentity
 	for i := range 10000 {
-		q = box2d.IntegrateRotation(q, 0.001+float64(i%7)*1e-5)
+		q = box2d.IntegrateRotation(q, 0.001+float64(float64(i%7)*1e-5))
 	}
 	cases = append(cases, goldenCase{Name: "integrate_rotation_chain", Bits: f64bits(q.C, q.S)})
 
@@ -110,7 +110,7 @@ func computeGoldenMath() []goldenCase {
 	const h = 1.0 / 60.0
 	for range 1000 {
 		velocity = box2d.SpringDamper(7.5, 0.3, position, velocity, h)
-		position += h * velocity
+		position += float64(h * velocity)
 	}
 	cases = append(cases, goldenCase{Name: "spring_damper", Bits: f64bits(position, velocity)})
 

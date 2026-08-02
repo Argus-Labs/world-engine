@@ -232,7 +232,7 @@ func TestStack(t *testing.T) {
 	for i := range count {
 		bd := box2d.DefaultBodyDef()
 		bd.Type = box2d.DynamicBody
-		bd.Position = box2d.Vec2{X: 0.0, Y: 0.5 + 1.01*float64(i)}
+		bd.Position = box2d.Vec2{X: 0.0, Y: 0.5 + float64(1.01*float64(i))}
 		bodies[i] = w.CreateBody(&bd)
 
 		box := box2d.MakeBox(0.5, 0.5)
@@ -282,9 +282,9 @@ func TestPyramid(t *testing.T) {
 	h := 0.5
 	shift := 1.0 * h
 	for i := range rows {
-		y := (2.0*float64(i)+1.0)*h + 0.02*float64(i)
+		y := float64((2.0*float64(i)+1.0)*h) + float64(0.02*float64(i))
 		for j := i; j < rows; j++ {
-			x := float64(i)*shift + 2.0*h*float64(j-i) - h*float64(rows-i-1)
+			x := float64(float64(i)*shift) + float64(float64(2.0*h)*float64(j-i)) - float64(h*float64(rows-i-1))
 
 			bd := box2d.DefaultBodyDef()
 			bd.Type = box2d.DynamicBody
@@ -508,7 +508,7 @@ func buildMixedScene(w *box2d.World) []box2d.BodyID {
 
 		cbd := box2d.DefaultBodyDef()
 		cbd.Type = box2d.DynamicBody
-		cbd.Position = box2d.Vec2{X: -6.0 + 1.3*fi, Y: 6.0 + 0.31*fi}
+		cbd.Position = box2d.Vec2{X: -6.0 + float64(1.3*fi), Y: 6.0 + float64(0.31*fi)}
 		ball := w.CreateBody(&cbd)
 		circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.35}
 		csd := box2d.DefaultShapeDef()
@@ -519,7 +519,7 @@ func buildMixedScene(w *box2d.World) []box2d.BodyID {
 
 		bbd := box2d.DefaultBodyDef()
 		bbd.Type = box2d.DynamicBody
-		bbd.Position = box2d.Vec2{X: -5.5 + 1.4*fi, Y: 9.0 + 0.17*fi}
+		bbd.Position = box2d.Vec2{X: -5.5 + float64(1.4*fi), Y: 9.0 + float64(0.17*fi)}
 		bbd.Rotation = box2d.MakeRot(0.1 * fi)
 		boxBody := w.CreateBody(&bbd)
 		box := box2d.MakeBox(0.4, 0.3)
@@ -534,7 +534,7 @@ func buildMixedScene(w *box2d.World) []box2d.BodyID {
 
 		kbd := box2d.DefaultBodyDef()
 		kbd.Type = box2d.DynamicBody
-		kbd.Position = box2d.Vec2{X: -3.0 + 2.1*fi, Y: 12.0 + 0.5*fi}
+		kbd.Position = box2d.Vec2{X: -3.0 + float64(2.1*fi), Y: 12.0 + float64(0.5*fi)}
 		capBody := w.CreateBody(&kbd)
 		capsule := box2d.Capsule{
 			Center1: box2d.Vec2{X: -0.3, Y: 0.0},
