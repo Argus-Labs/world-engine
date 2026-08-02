@@ -110,7 +110,7 @@ func ComputeHull(points []Vec2) Hull {
 	// Also compute the bounding box for later.
 	var ps [MaxPolygonVertices]Vec2
 	n := 0
-	const linearSlop float64 = LinearSlop
+	linearSlop := LinearSlop
 	tolSqr := 16.0 * linearSlop * linearSlop
 	for i := range count {
 		aabb.LowerBound = Min(aabb.LowerBound, points[i])
@@ -299,7 +299,7 @@ func ValidateHull(hull *Hull) bool {
 	}
 
 	// test for collinear points
-	const linearSlop float64 = LinearSlop
+	linearSlop := LinearSlop
 	for i := range hull.Count {
 		i1 := i
 		i2 := (i + 1) % hull.Count

@@ -338,7 +338,7 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex int, ctx *stepContext) {
 
 	enableContinuous := w.enableContinuous
 
-	const speculativeDistance = SpeculativeDistance
+	speculativeDistance := SpeculativeDistance
 
 	assert(startIndex <= endIndex)
 

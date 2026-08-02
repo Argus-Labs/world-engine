@@ -26,7 +26,7 @@ func (w *World) collideTask(startIndex, endIndex int, ctx *stepContext) {
 	assert(startIndex < endIndex)
 
 	recycleDistance := w.contactRecycleDistance
-	const speculativeDistance = SpeculativeDistance
+	speculativeDistance := SpeculativeDistance
 	recycleDistanceNonTouching := minFloat(recycleDistance, speculativeDistance)
 
 	for contactIndex := startIndex; contactIndex < endIndex; contactIndex++ {

@@ -214,7 +214,7 @@ func CollideCapsuleAndCircle(capsuleA *Capsule, xfA Transform, circleB *Circle, 
 // and a circle (upstream b2CollidePolygonAndCircle).
 func CollidePolygonAndCircle(polygonA *Polygon, xfA Transform, circleB *Circle, xfB Transform) Manifold {
 	var manifold Manifold
-	const speculativeDistance = SpeculativeDistance
+	speculativeDistance := SpeculativeDistance
 
 	xf := InvMulTransforms(xfA, xfB)
 
@@ -468,7 +468,7 @@ func CollideCapsules(capsuleA *Capsule, xfA Transform, capsuleB *Capsule, xfB Tr
 
 		// biased to avoid feature flip-flop
 		// todo more testing?
-		const slopBias = 0.1 * LinearSlop
+		slopBias := float64(0.1 * LinearSlop)
 		if separationA+slopBias >= separationB {
 			manifold.Normal = normalA
 
@@ -793,8 +793,8 @@ func findMaxSeparation(poly1, poly2 *Polygon) (float64, int) {
 //	end
 func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Transform) Manifold {
 	origin := polygonA.Vertices[0]
-	const linearSlop = LinearSlop
-	const speculativeDistance = SpeculativeDistance
+	linearSlop := LinearSlop
+	speculativeDistance := SpeculativeDistance
 
 	// Shift polyA to origin
 	// pw = q * pb + p
@@ -873,7 +873,7 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 
 	// Using slop here to ensure vertex-vertex normal vectors can be safely normalized
 	// todo this means edge clipping needs to handle slightly non-overlapping edges.
-	const slopTenth = 0.1 * linearSlop
+	slopTenth := float64(0.1 * linearSlop)
 	if separationA > slopTenth || separationB > slopTenth {
 		// Edges are disjoint. Find closest points between reference edge and incident edge
 		// Reference edge on polygon A
@@ -1308,7 +1308,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	incidentIndex := -1
 	incidentNormal := -1
 
-	const slopTenth = 0.1 * LinearSlop
+	slopTenth := float64(0.1 * LinearSlop)
 	if !behind1 && output.Distance > slopTenth {
 		// The closest features may be two vertices or an edge and a vertex even when there should
 		// be face contact

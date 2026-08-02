@@ -255,7 +255,7 @@ func (w *World) solveContinuous(bodySimIndex int) {
 		}
 	}
 
-	const speculativeDistance = SpeculativeDistance
+	speculativeDistance := SpeculativeDistance
 
 	if context.fraction < 1.0 {
 		// Handle time of impact event
