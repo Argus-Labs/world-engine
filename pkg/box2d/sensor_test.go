@@ -85,6 +85,52 @@ func sensorRun(w *box2d.World, steps int) []sensorEventLog {
 	return log
 }
 
+// sensorStripWorldToken clears the world0 owner token from a shape id. Each
+// World takes a distinct token at creation and stamps it into every id it
+// hands out (see the DESIGN DEVIATION header in world.go), so ids minted by
+// two different worlds always differ in that field even when the worlds are
+// otherwise identical. Determinism is a property of the slot index and the
+// generation, so cross-world event comparisons normalize the token away
+// rather than assert on it.
+func sensorStripWorldToken(id box2d.ShapeID) box2d.ShapeID {
+	return box2d.UnpackShapeID(box2d.PackShapeID(id) &^ worldTokenMask)
+}
+
+// sensorLogWithoutWorldToken copies one step's event log with every shape id
+// normalized by sensorStripWorldToken.
+func sensorLogWithoutWorldToken(log sensorEventLog) sensorEventLog {
+	out := sensorEventLog{
+		begins: make([]box2d.SensorBeginTouchEvent, len(log.begins)),
+		ends:   make([]box2d.SensorEndTouchEvent, len(log.ends)),
+	}
+	// Copy each event whole and normalize only the id fields, so a field added
+	// to these structs later stays part of the comparison instead of being
+	// silently dropped by a partial literal.
+	for i, e := range log.begins {
+		out.begins[i] = e
+		out.begins[i].SensorShapeID = sensorStripWorldToken(e.SensorShapeID)
+		out.begins[i].VisitorShapeID = sensorStripWorldToken(e.VisitorShapeID)
+	}
+	for i, e := range log.ends {
+		out.ends[i] = e
+		out.ends[i].SensorShapeID = sensorStripWorldToken(e.SensorShapeID)
+		out.ends[i].VisitorShapeID = sensorStripWorldToken(e.VisitorShapeID)
+	}
+
+	return out
+}
+
+// sensorLogsWithoutWorldToken applies sensorLogWithoutWorldToken to a
+// per-step log.
+func sensorLogsWithoutWorldToken(log []sensorEventLog) []sensorEventLog {
+	out := make([]sensorEventLog, len(log))
+	for i := range log {
+		out[i] = sensorLogWithoutWorldToken(log[i])
+	}
+
+	return out
+}
+
 // sensorFirstBegin returns the index of the first step with a begin event, or
 // -1.
 func sensorFirstBegin(log []sensorEventLog) int {
@@ -486,7 +532,9 @@ func TestSensorMultipleVisitorsSortedDeterministically(t *testing.T) {
 	logB := sensorStep(wB)
 
 	require.Len(t, logA.begins, len(visitorsA))
-	require.Equal(t, logA, logB, "identical worlds must emit identical event sequences")
+	require.Equal(t,
+		sensorLogWithoutWorldToken(logA), sensorLogWithoutWorldToken(logB),
+		"identical worlds must emit identical event sequences")
 
 	// The visitor list is sorted by shape id, which is creation order here.
 	for i, e := range logA.begins {
@@ -626,7 +674,9 @@ func TestSensorDeterminismAcrossWorlds(t *testing.T) {
 	logA := sensorRun(wA, 200)
 	logB := sensorRun(wB, 200)
 
-	require.Equal(t, logA, logB, "sensor event sequences must be identical")
+	require.Equal(t,
+		sensorLogsWithoutWorldToken(logA), sensorLogsWithoutWorldToken(logB),
+		"sensor event sequences must be identical")
 	require.Equal(t, sensorSnapshot(wA, bodiesA), sensorSnapshot(wB, bodiesB))
 
 	// Sanity: the scene must actually exercise the sensor pass.

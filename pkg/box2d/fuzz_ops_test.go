@@ -558,7 +558,14 @@ func hashOpWorld(o *opWorld) uint32 {
 
 	for _, key := range keys {
 		bodyID := box2d.UnpackBodyID(key)
-		mixBits(key)
+
+		// Mask the world0 owner token out of the digest. Each World takes a
+		// distinct token from a process-wide counter at creation (see the
+		// world.go header), so two replays of the same script in two fresh
+		// worlds legitimately produce different tokens. Only the slot index
+		// and the generation describe simulation state, and the token is
+		// constant within one world so the sort order above is unaffected.
+		mixBits(key &^ worldTokenMask)
 
 		transform := o.world.BodyTransform(bodyID)
 		mixFloat(transform.P.X)

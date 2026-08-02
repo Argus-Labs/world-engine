@@ -160,7 +160,7 @@ type contactSim struct {
 func (w *World) getContactFullID(contactID ContactID) *contact {
 	id := int(contactID.index1) - 1
 	c := &w.contacts[id]
-	assert(c.contactID == id && c.generation == contactID.generation)
+	assert(w.ownsToken(contactID.world0) && c.contactID == id && c.generation == contactID.generation)
 	return c
 }
 

@@ -102,12 +102,16 @@ func TestWorldIDValidationRejectsGarbage(t *testing.T) {
 	tassert.False(t, w.IsJointValid(JointID{}))
 	tassert.False(t, w.IsContactValid(ContactID{}))
 
-	// Out of range indices.
-	tassert.False(t, w.IsBodyValid(BodyID{index1: 100, world0: 0, generation: 0}))
-	tassert.False(t, w.IsShapeValid(ShapeID{index1: 100, world0: 0, generation: 0}))
+	// Out of range indices. These carry this world's own owner token so the
+	// index check is what rejects them; a hard-coded world0 would now be
+	// rejected by the token check first and stop exercising the index bound.
+	tassert.False(t, w.IsBodyValid(BodyID{index1: 100, world0: w.worldID, generation: 0}))
+	tassert.False(t, w.IsShapeValid(ShapeID{index1: 100, world0: w.worldID, generation: 0}))
 
-	// Wrong world index.
-	tassert.False(t, w.IsBodyValid(BodyID{index1: 1, world0: 3, generation: 1}))
+	// Wrong world token. Derived from this world's token rather than a literal
+	// because tokens are now handed out by a process-wide counter, so any
+	// literal could legitimately belong to this world.
+	tassert.False(t, w.IsBodyValid(BodyID{index1: 1, world0: w.worldID + 1, generation: 1}))
 }
 
 // sleepWakeCycle drives one body through a full sleep/wake transfer.
@@ -308,7 +312,20 @@ func TestDeterministicBodyArrays(t *testing.T) {
 	ids1 := buildDeterministicScene(w1)
 	ids2 := buildDeterministicScene(w2)
 
-	require.Equal(t, ids1, ids2)
+	// The two worlds allocate the same slots with the same generations, but
+	// each World stamps its own owner token into world0 (see the DESIGN
+	// DEVIATION header in world.go), so the ids are no longer bit-identical
+	// across worlds by design. Compare the parts determinism is about — the
+	// slot index and the generation — and assert that world0 really is the
+	// per-world part rather than dropping the field from the comparison.
+	require.Len(t, ids2, len(ids1))
+	require.NotEqual(t, w1.worldID, w2.worldID)
+	for i := range ids1 {
+		tassert.Equal(t, ids1[i].index1, ids2[i].index1, "body %d index", i)
+		tassert.Equal(t, ids1[i].generation, ids2[i].generation, "body %d generation", i)
+		tassert.Equal(t, w1.worldID, ids1[i].world0, "body %d owner token", i)
+		tassert.Equal(t, w2.worldID, ids2[i].world0, "body %d owner token", i)
+	}
 
 	// Field-identical sparse body arrays including free slots.
 	require.Equal(t, w1.bodies, w2.bodies)
