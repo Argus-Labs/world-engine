@@ -20,6 +20,10 @@ on:
 env:
   GO_VERSION: 1.26.5
 
+# Checkout and build only; no write access to the repository is needed.
+permissions:
+  contents: read
+
 jobs:
   determinism:
     name: Determinism (${{ matrix.arch }})
