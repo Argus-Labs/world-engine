@@ -539,12 +539,11 @@ func (w *World) solve(ctx *stepContext) {
 		}
 		ctx.activeColorCount = activeColorCount
 
-		// prepare for move events (upstream b2BodyMoveEventArray_Resize)
-		if cap(w.bodyMoveEvents) < awakeBodyCount {
-			w.bodyMoveEvents = make([]BodyMoveEvent, awakeBodyCount)
-		} else {
-			w.bodyMoveEvents = w.bodyMoveEvents[:awakeBodyCount]
-		}
+		// prepare for move events (upstream b2BodyMoveEventArray_Resize).
+		// Reset discipline: length only — finalizeBodiesTask writes every slot
+		// before BodyEvents can observe it, which the previous
+		// reslice-when-large-enough branch already relied on.
+		w.bodyMoveEvents = growScratch(w.bodyMoveEvents, awakeBodyCount)
 
 		// Allocate the scalar contact constraints for every color, including
 		// overflow, and hand each color its sub-slice (deviation: upstream

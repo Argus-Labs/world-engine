@@ -73,8 +73,11 @@ type contactConstraint struct {
 func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
-	constraints := color.constraints
-	contactCount := len(color.contactSims)
+	contactSims := color.contactSims
+	contactCount := len(contactSims)
+	// Same length as contactSims (see solver.go); re-slicing lets the compiler
+	// drop the per-iteration bounds checks below.
+	constraints := color.constraints[:contactCount]
 	awakeStates := ctx.states
 
 	// Stiffer for static contacts to avoid bodies getting pushed through the
@@ -88,7 +91,7 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 	}
 
 	for i := range contactCount {
-		contactSim := &color.contactSims[i]
+		contactSim := &contactSims[i]
 
 		manifold := &contactSim.manifold
 		pointCount := manifold.PointCount
@@ -155,9 +158,12 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 		normal := constraint.normal
 		tangent := RightPerp(constraint.normal)
 
-		for j := range pointCount {
-			mp := &manifold.Points[j]
-			cp := &constraint.points[j]
+		// One bounds check each instead of one per iteration below.
+		mps := manifold.Points[:pointCount]
+		cps := constraint.points[:pointCount]
+		for j := range mps {
+			mp := &mps[j]
+			cp := &cps[j]
 
 			cp.normalImpulse = warmStartScale * mp.NormalImpulse
 			cp.tangentImpulse = warmStartScale * mp.TangentImpulse
@@ -204,8 +210,10 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex int) {
 func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
-	constraints := color.constraints
 	contactCount := len(color.contactSims)
+	// Same length as contactSims (see solver.go); re-slicing lets the compiler
+	// drop the per-iteration bounds checks below.
+	constraints := color.constraints[:contactCount]
 	awake := &w.solverSets[awakeSet]
 	states := awake.bodyStates
 
@@ -242,8 +250,10 @@ func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex int) {
 		tangent := RightPerp(constraint.normal)
 		pointCount := constraint.pointCount
 
-		for j := range pointCount {
-			cp := &constraint.points[j]
+		// One bounds check instead of one per iteration below.
+		cps := constraint.points[:pointCount]
+		for j := range cps {
+			cp := &cps[j]
 
 			// fixed anchors
 			rA := cp.anchorA
@@ -284,8 +294,10 @@ func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex int) {
 func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias bool) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
-	constraints := color.constraints
 	contactCount := len(color.contactSims)
+	// Same length as contactSims (see solver.go); re-slicing lets the compiler
+	// drop the per-iteration bounds checks below.
+	constraints := color.constraints[:contactCount]
 	awake := &w.solverSets[awakeSet]
 	states := awake.bodyStates
 
@@ -332,9 +344,12 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		pointCount := constraint.pointCount
 		totalNormalImpulse := 0.0
 
+		// One bounds check instead of one per iteration in the two loops below.
+		cps := constraint.points[:pointCount]
+
 		// Non-penetration
-		for j := range pointCount {
-			cp := &constraint.points[j]
+		for j := range cps {
+			cp := &cps[j]
 
 			// fixed anchor points
 			rA := cp.anchorA
@@ -388,8 +403,8 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		}
 
 		// Friction
-		for j := range pointCount {
-			cp := &constraint.points[j]
+		for j := range cps {
+			cp := &cps[j]
 
 			// fixed anchor points
 			rA := cp.anchorA
@@ -450,8 +465,10 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
-	constraints := color.constraints
 	contactCount := len(color.contactSims)
+	// Same length as contactSims (see solver.go); re-slicing lets the compiler
+	// drop the per-iteration bounds checks below.
+	constraints := color.constraints[:contactCount]
 	awake := &w.solverSets[awakeSet]
 	states := awake.bodyStates
 
@@ -495,8 +512,10 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
 
 		// it is possible to get more accurate restitution by iterating
 		// this only makes a difference if there are two contact points
-		for j := range pointCount {
-			cp := &constraint.points[j]
+		// (one bounds check instead of one per iteration)
+		cps := constraint.points[:pointCount]
+		for j := range cps {
+			cp := &cps[j]
 
 			// if the normal impulse is zero then there was no collision
 			// this skips speculative contact points that didn't generate an
@@ -551,20 +570,28 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex int) {
 func (w *World) storeImpulsesColor(ctx *stepContext, colorIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
-	constraints := color.constraints
-	contactCount := len(color.contactSims)
+	contactSims := color.contactSims
+	contactCount := len(contactSims)
+	// Same length as contactSims (see solver.go); re-slicing lets the compiler
+	// drop the per-iteration bounds checks below.
+	constraints := color.constraints[:contactCount]
 
 	for i := range contactCount {
 		constraint := &constraints[i]
-		contact := &color.contactSims[i]
+		contact := &contactSims[i]
 		manifold := &contact.manifold
 		pointCount := manifold.PointCount
 
-		for j := range pointCount {
-			manifold.Points[j].NormalImpulse = constraint.points[j].normalImpulse
-			manifold.Points[j].TangentImpulse = constraint.points[j].tangentImpulse
-			manifold.Points[j].TotalNormalImpulse = constraint.points[j].totalNormalImpulse
-			manifold.Points[j].NormalVelocity = constraint.points[j].relativeVelocity
+		// One bounds check each instead of one per iteration below.
+		mps := manifold.Points[:pointCount]
+		cps := constraint.points[:pointCount]
+		for j := range mps {
+			mp := &mps[j]
+			cp := &cps[j]
+			mp.NormalImpulse = cp.normalImpulse
+			mp.TangentImpulse = cp.tangentImpulse
+			mp.TotalNormalImpulse = cp.totalNormalImpulse
+			mp.NormalVelocity = cp.relativeVelocity
 		}
 
 		manifold.RollingImpulse = constraint.rollingImpulse

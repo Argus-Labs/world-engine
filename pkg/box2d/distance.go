@@ -201,10 +201,11 @@ func requireValidCacheIndices(cache *SimplexCache, proxyA, proxyB *ShapeProxy) {
 	}
 }
 
-// makeSimplexFromCache is upstream b2MakeSimplexFromCache.
-func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy) Simplex {
+// makeSimplexFromCache is upstream b2MakeSimplexFromCache. Unlike upstream it
+// writes into s (a zero Simplex provided by the caller) instead of returning
+// one, to avoid copying the 200+ byte struct on every ShapeDistance call.
+func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy, s *Simplex) {
 	assert(cache.Count <= 3)
-	var s Simplex
 
 	// Copy data from cache.
 	s.Count = int(cache.Count)
@@ -234,8 +235,6 @@ func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy) Simple
 		v.A = 1.0
 		s.Count = 1
 	}
-
-	return s
 }
 
 // makeSimplexCache is upstream b2MakeSimplexCache.
@@ -483,7 +482,8 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 	}
 
 	// Initialize the simplex.
-	simplex := makeSimplexFromCache(*cache, proxyA, &localProxyB)
+	var simplex Simplex
+	makeSimplexFromCache(*cache, proxyA, &localProxyB, &simplex)
 
 	simplexIndex := 0
 	if simplexes != nil && simplexIndex < len(simplexes) {
@@ -730,12 +730,15 @@ const (
 	faceBType
 )
 
-// separationFunction is upstream b2SeparationFunction.
+// separationFunction is upstream b2SeparationFunction. Unlike upstream, the
+// sweeps are held by pointer rather than copied: the referenced sweeps
+// (locals in TimeOfImpact) are never mutated while the function is in use,
+// so the values read are identical.
 type separationFunction struct {
 	proxyA     *ShapeProxy
 	proxyB     *ShapeProxy
-	sweepA     Sweep
-	sweepB     Sweep
+	sweepA     *Sweep
+	sweepB     *Sweep
 	localPoint Vec2
 	axis       Vec2
 	typ        separationType
@@ -752,8 +755,8 @@ func makeSeparationFunction(cache SimplexCache, proxyA *ShapeProxy, sweepA *Swee
 	count := int(cache.Count)
 	assert(0 < count && count < 3)
 
-	f.sweepA = *sweepA
-	f.sweepB = *sweepB
+	f.sweepA = sweepA
+	f.sweepB = sweepB
 
 	xfA := GetSweepTransform(sweepA, t1)
 	xfB := GetSweepTransform(sweepB, t1)
@@ -818,8 +821,8 @@ func makeSeparationFunction(cache SimplexCache, proxyA *ShapeProxy, sweepA *Swee
 // separation and the witness point indices on A and B (upstream out
 // parameters indexA/indexB).
 func findMinSeparation(f *separationFunction, t float64) (float64, int, int) {
-	xfA := GetSweepTransform(&f.sweepA, t)
-	xfB := GetSweepTransform(&f.sweepB, t)
+	xfA := GetSweepTransform(f.sweepA, t)
+	xfB := GetSweepTransform(f.sweepB, t)
 
 	switch f.typ {
 	case pointsType:
@@ -876,8 +879,8 @@ func findMinSeparation(f *separationFunction, t float64) (float64, int, int) {
 
 // evaluateSeparation is upstream b2EvaluateSeparation.
 func evaluateSeparation(f *separationFunction, indexA, indexB int, t float64) float64 {
-	xfA := GetSweepTransform(&f.sweepA, t)
-	xfB := GetSweepTransform(&f.sweepB, t)
+	xfA := GetSweepTransform(f.sweepA, t)
+	xfB := GetSweepTransform(f.sweepB, t)
 
 	switch f.typ {
 	case pointsType:

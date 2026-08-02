@@ -228,8 +228,10 @@ func CollidePolygonAndCircle(polygonA *Polygon, xfA Transform, circleB *Circle, 
 	normalIndex := 0
 	separation := -math.MaxFloat64
 	vertexCount := polygonA.Count
-	vertices := &polygonA.Vertices
-	normals := &polygonA.Normals
+	// Slicing to the live count lets the compiler drop the per-iteration
+	// bounds checks in the loop below.
+	vertices := polygonA.Vertices[:vertexCount]
+	normals := polygonA.Normals[:vertexCount]
 
 	for i := range vertexCount {
 		s := Dot(normals[i], Sub(center, vertices[i]))
@@ -742,9 +744,11 @@ func clipPolygons(polyA, polyB *Polygon, edgeA, edgeB int, flip bool) Manifold {
 func findMaxSeparation(poly1, poly2 *Polygon) (float64, int) {
 	count1 := poly1.Count
 	count2 := poly2.Count
-	n1s := &poly1.Normals
-	v1s := &poly1.Vertices
-	v2s := &poly2.Vertices
+	// Slicing to the live counts lets the compiler drop the per-iteration
+	// bounds checks in the nested loops below.
+	n1s := poly1.Normals[:count1]
+	v1s := poly1.Vertices[:count1]
+	v2s := poly2.Vertices[:count2]
 
 	bestIndex := 0
 	maxSeparation := -math.MaxFloat64
@@ -840,7 +844,7 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 
 		// Find the incident edge on polyB
 		count := localPolyB.Count
-		normals := &localPolyB.Normals
+		normals := localPolyB.Normals[:count]
 		edgeB = 0
 		minDot := math.MaxFloat64
 		for i := range count {
@@ -857,7 +861,7 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 
 		// Find the incident edge on polyA
 		count := localPolyA.Count
-		normals := &localPolyA.Normals
+		normals := localPolyA.Normals[:count]
 		edgeA = 0
 		minDot := math.MaxFloat64
 		for i := range count {

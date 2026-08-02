@@ -14,7 +14,10 @@
 //     bytes (with 32-byte alignment); byte counts are meaningless across the
 //     float32→float64 change, so Counters.StackUsed reports element counts.
 //   - b2GrowArena has no counterpart: the typed scratch slices grow in place
-//     via ensureCapacity semantics on each allocation.
+//     via ensureCapacity semantics on each allocation. Like the upstream arena,
+//     a scratch slice never shrinks for the lifetime of the owning World and
+//     grows geometrically (see growScratch), so a scene whose element count
+//     creeps upward step after step does not reallocate on every step.
 //   - The b2ArenaEntry bookkeeping array is replaced by a per-slice
 //     outstanding-count field; the LIFO nesting assert collapses to
 //     one-outstanding-allocation-per-slice.
@@ -76,6 +79,24 @@ type arena struct {
 	splitIslandIDs              arenaIntSlot // "island ids"
 }
 
+// growScratch returns s resliced to length n, reallocating only when s cannot
+// hold n elements. This is the growth policy of the upstream arena, which only
+// ever grows: the new capacity is max(n, 2*cap(s)) so a scene whose element
+// count creeps upward step after step amortizes to no allocation, and the
+// backing array is never shrunk for the lifetime of the owning World.
+//
+// The returned elements are NOT cleared when the backing array is reused, so
+// every caller must either write each element before reading it or clear the
+// slice itself. This mirrors upstream b2AllocateArenaItem, which also hands
+// back whatever bytes the arena block already held.
+func growScratch[T any](s []T, n int) []T {
+	if cap(s) < n {
+		s = make([]T, n, max(n, 2*cap(s)))
+	}
+
+	return s[:n]
+}
+
 // createArena mirrors b2CreateArenaAllocator. The upstream byte capacity hint
 // has no meaning for typed scratch slices, so it is dropped.
 func createArena() arena {
@@ -98,11 +119,11 @@ func (a *arena) allocMassData(count int) []MassData {
 		a.maxAllocation = a.allocation
 	}
 
-	if cap(a.massData) < count {
-		a.massData = make([]MassData, count)
-	}
+	a.massData = growScratch(a.massData, count)
 
-	s := a.massData[:count]
+	// Reset discipline: fully cleared, reproducing the zeroed block the
+	// previous fresh allocation handed out.
+	s := a.massData
 	for i := range s {
 		s[i] = MassData{}
 	}
@@ -133,11 +154,12 @@ func (a *arena) allocContactPtrs(count int) []*contactSim {
 	a.contactPtrsCount = count
 	a.bumpAllocation(count)
 
-	if cap(a.contactPtrs) < count {
-		a.contactPtrs = make([]*contactSim, count)
-	}
+	a.contactPtrs = growScratch(a.contactPtrs, count)
 
-	s := a.contactPtrs[:count]
+	// Reset discipline: fully cleared, reproducing the zeroed block the
+	// previous fresh allocation handed out and keeping a reused block from
+	// handing back a stale contact sim.
+	s := a.contactPtrs
 	for i := range s {
 		s[i] = nil
 	}
@@ -167,11 +189,13 @@ func (a *arena) allocContactConstraints(count int) []contactConstraint {
 	a.contactConstraintsCount = count
 	a.bumpAllocation(count)
 
-	if cap(a.contactConstraints) < count {
-		a.contactConstraints = make([]contactConstraint, count)
-	}
+	a.contactConstraints = growScratch(a.contactConstraints, count)
 
-	s := a.contactConstraints[:count]
+	// Reset discipline: fully cleared, reproducing the zeroed block the
+	// previous fresh allocation handed out. prepareContactsColor only writes
+	// the points below pointCount, so the solver must never be able to observe
+	// a value left over from an earlier step.
+	s := a.contactConstraints
 	for i := range s {
 		s[i] = contactConstraint{}
 	}
@@ -194,11 +218,11 @@ func (a *arena) allocBulletBodies(count int) []int {
 	a.bulletBodiesCount = count
 	a.bumpAllocation(count)
 
-	if cap(a.bulletBodies) < count {
-		a.bulletBodies = make([]int, count)
-	}
+	a.bulletBodies = growScratch(a.bulletBodies, count)
 
-	s := a.bulletBodies[:count]
+	// Reset discipline: fully cleared, reproducing the zeroed block the
+	// previous fresh allocation handed out.
+	s := a.bulletBodies
 	for i := range s {
 		s[i] = 0
 	}
@@ -221,11 +245,11 @@ func (a *arena) allocInts(slot *arenaIntSlot, count int) []int {
 	slot.count = count
 	a.bumpAllocation(count)
 
-	if cap(slot.buf) < count {
-		slot.buf = make([]int, count)
-	}
+	slot.buf = growScratch(slot.buf, count)
 
-	s := slot.buf[:count]
+	// Reset discipline: fully cleared, reproducing the zeroed block the
+	// previous fresh allocation handed out.
+	s := slot.buf
 	for i := range s {
 		s[i] = 0
 	}

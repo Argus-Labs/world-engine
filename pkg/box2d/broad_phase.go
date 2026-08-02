@@ -7,8 +7,14 @@
 //     movePairIndex plus the atomic pair-buffer bump allocator (with heap
 //     fallback) collapse to a plain slice append. The per-move-result pair
 //     list prepend/consume order is preserved exactly.
-//   - The arena-allocated moveResults/movePairs buffers (fields on
-//     b2BroadPhase) become local slices in updateBroadPhasePairs.
+//   - The arena-allocated moveResults/movePairs buffers stay fields on
+//     broadPhase (as upstream has them on b2BroadPhase) and are reused across
+//     steps: updateBroadPhasePairs resets their length at entry and lets them
+//     grow geometrically, never shrinking, which is how the upstream arena
+//     behaves. The buffers are pure scratch — every moveResults slot is written
+//     before it is read and movePairs is only ever read back through indices
+//     produced by the appends of the same call — so reuse cannot change
+//     contents or ordering.
 //   - b2UpdateTreesTask runs inline before contact creation, matching the
 //     behavior of the upstream default (serial) task system.
 
@@ -50,9 +56,15 @@ type broadPhase struct {
 	moveSet   hashSet
 	moveArray []int
 
-	// Deviation from upstream: moveResults, movePairs, movePairCapacity and
-	// movePairIndex are local to updateBroadPhasePairs in this
-	// single-threaded port (see the file header).
+	// moveResults and movePairs are the per-step pair-query scratch reused
+	// across updateBroadPhasePairs calls (upstream bp->moveResults and
+	// bp->movePairs, which are arena allocations). Deviation from upstream:
+	// movePairCapacity and movePairIndex have no counterpart because this
+	// single-threaded port appends instead of bump-allocating atomically (see
+	// the file header). Both slices are reset to the length the call needs on
+	// entry and never shrink.
+	moveResults []int
+	movePairs   []movePair
 
 	// pairSet tracks shape pairs that have a contact.
 	pairSet hashSet
@@ -77,6 +89,8 @@ func destroyBroadPhase(bp *broadPhase) {
 
 	destroyHashSet(&bp.moveSet)
 	bp.moveArray = nil
+	bp.moveResults = nil
+	bp.movePairs = nil
 	destroyHashSet(&bp.pairSet)
 
 	*bp = broadPhase{}
@@ -340,7 +354,8 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 //   - b2FindPairsTask is not split over worker threads; the same loop runs
 //     serially in moveArray order. The results follow the order of the
 //     moveArray, which is the determinism cornerstone.
-//   - The arena-allocated moveResults/movePairs buffers become local slices.
+//   - The arena-allocated moveResults/movePairs buffers are per-broadPhase
+//     scratch reused across steps (see the file header).
 //   - b2UpdateTreesTask runs inline before contact creation, matching the
 //     upstream default (serial) task system; taskCount parity is kept.
 func (w *World) updateBroadPhasePairs() {
@@ -354,14 +369,20 @@ func (w *World) updateBroadPhasePairs() {
 	}
 
 	// moveResults[i] is the head index of the pair list built for
-	// bp.moveArray[i] (upstream b2MoveResult.pairList).
-	moveResults := make([]int, moveCount)
+	// bp.moveArray[i] (upstream b2MoveResult.pairList). Reset discipline: the
+	// scratch is resized to moveCount and left uncleared because the loop
+	// below assigns every index [0, moveCount) before anything reads it.
+	moveResults := growScratch(bp.moveResults, moveCount)
+	bp.moveResults = moveResults
 
 	queryContext := queryPairContext{
 		world: w,
-		// This capacity can be exceeded if there are many overlapping pairs
-		// (e.g. all shapes at the origin); append then grows the slice.
-		pairs: make([]movePair, 0, 8*moveCount),
+		// Reset discipline: truncated to zero length so the appends below
+		// reproduce exactly the indices a fresh slice would. The reserve is
+		// the same 8 pairs per move as before and can still be exceeded if
+		// there are many overlapping pairs (e.g. all shapes at the origin);
+		// append then grows the slice.
+		pairs: growScratch(bp.movePairs, 8*moveCount)[:0],
 	}
 
 	// Find pairs for each moved proxy in moveArray order (upstream
@@ -408,6 +429,10 @@ func (w *World) updateBroadPhasePairs() {
 
 		moveResults[i] = queryContext.moveResult
 	}
+
+	// Hand the (possibly grown) pair storage back to the broad-phase so the
+	// next step reuses it instead of allocating.
+	bp.movePairs = queryContext.pairs
 
 	// Task that upstream runs in parallel with the narrow-phase
 	// (b2UpdateTreesTask): rebuild the collision tree for dynamic and
