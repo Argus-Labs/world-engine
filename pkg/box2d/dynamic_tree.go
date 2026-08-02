@@ -1476,11 +1476,15 @@ func partitionMid(indices []int, centers []Vec2, count int) int {
 		return count / 2
 	}
 
+	//nolint:gosec // G602: count > 2 here, and every caller passes count <= len(centers) (buildTree passes leafCount over tree.leafCenters, or a sub-slice of exactly the same span), so index 0 exists.
 	lowerBound := centers[0]
+	//nolint:gosec // G602: same bound as the line above.
 	upperBound := centers[0]
 
 	for i := 1; i < count; i++ {
+		//nolint:gosec // G602: count <= len(centers) for every caller; buildTree passes leafCount over tree.leafCenters, or centers[startIndex:] with count = endIndex-startIndex.
 		lowerBound = Min(lowerBound, centers[i])
+		//nolint:gosec // G602: same bound as the line above.
 		upperBound = Max(upperBound, centers[i])
 	}
 
@@ -1583,6 +1587,7 @@ func (tree *DynamicTree) buildTree(leafCount int) int {
 	stack[0].splitIndex = partitionMid(leafIndices, leafCenters, leafCount)
 
 	for {
+		//nolint:gosec // G602: top is the rebuild recursion depth into a fixed [treeStackSize]rebuildItem: it starts at 0, is pushed only under assert(top < treeStackSize) and popped on every completed node, and each push strictly shrinks the leaf range because partitionMid returns a split inside (0, count). This is upstream's B2_TREE_STACK_SIZE contract, not a caller-supplied index.
 		item := &stack[top]
 
 		item.childCount++

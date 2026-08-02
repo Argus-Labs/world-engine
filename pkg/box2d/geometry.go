@@ -50,6 +50,45 @@ func computePolygonCentroid(vertices []Vec2) Vec2 {
 	return center
 }
 
+// Requirement strings for the Polygon.Count preconditions below. They are
+// shared so the panic text is identical wherever the precondition is enforced.
+const (
+	polygonCountRequirement = "must be between 1 and MaxPolygonVertices; " +
+		"build polygons with MakePolygon, MakeBox or a related constructor"
+	polygonShapeCountRequirement = "must be between 3 and MaxPolygonVertices; " +
+		"build polygons with MakePolygon, MakeBox or a related constructor"
+)
+
+// requireValidPolygonCount enforces the public API precondition that a Polygon
+// entering the collision or mass-properties code has a vertex count its
+// fixed-size Vertices and Normals arrays ([MaxPolygonVertices]Vec2) can hold.
+//
+// Polygon is exported with exported fields, so a caller can hand-build one by
+// literal instead of going through ComputeHull plus MakePolygon (or MakeBox and
+// friends). Without this check a Count outside the array bounds surfaces as an
+// opaque index-out-of-range panic deep inside the collision routines, far from
+// the mistake. Like the other require* helpers in core.go it is always enabled,
+// independent of debugAsserts, and it does not touch valid inputs.
+//
+// The lower bound is 1, not 3: the port itself builds degenerate 1- and
+// 2-vertex polygons for circles and capsules (see makeCapsule) and feeds them
+// to these same routines. Shape creation uses the stricter
+// requireValidPolygonShapeCount.
+func requireValidPolygonCount(polygon *Polygon) {
+	requireValidDefField(1 <= polygon.Count && polygon.Count <= MaxPolygonVertices,
+		"Polygon", "Count", polygonCountRequirement)
+}
+
+// requireValidPolygonShapeCount is requireValidPolygonCount for the shape
+// creation entry points, where only a real convex polygon is meaningful, so the
+// count must be at least 3. Catching a bad Count here keeps it from being
+// stored in the world and then panicking during a later World.Step, arbitrarily
+// far from the call that introduced it.
+func requireValidPolygonShapeCount(polygon *Polygon) {
+	requireValidDefField(3 <= polygon.Count && polygon.Count <= MaxPolygonVertices,
+		"Polygon", "Count", polygonShapeCountRequirement)
+}
+
 // MakePolygon makes a convex polygon from a convex hull (upstream
 // b2MakePolygon). This will assert if the hull is not valid.
 //
@@ -290,6 +329,11 @@ func ComputeCapsuleMass(shape *Capsule, density float64) MassData {
 // ComputePolygonMass computes the mass properties of a polygon (upstream
 // b2ComputePolygonMass).
 func ComputePolygonMass(shape *Polygon, density float64) MassData {
+	// Public API precondition: this function indexes fixed-size vertex and
+	// normal arrays with shape.Count, so a hand-built Polygon with an
+	// out-of-range Count must fail here rather than below.
+	requireValidPolygonCount(shape)
+
 	// Polygon mass, centroid, and inertia.
 	// Let rho be the polygon density in mass per unit area.
 	// Then:
@@ -351,6 +395,7 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 		}
 	} else {
 		for i := range count {
+			//nolint:gosec // G602: count is shape.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of ComputePolygonMass; vertices is [MaxPolygonVertices]Vec2.
 			vertices[i] = shape.Vertices[i]
 		}
 	}
@@ -361,6 +406,7 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 
 	// Get a reference point for forming triangles.
 	// Use the first vertex to reduce round-off errors.
+	//nolint:gosec // G602: vertices is the local [MaxPolygonVertices]Vec2 declared above, so index 0 is always in range.
 	r := vertices[0]
 
 	const inv3 float64 = 1.0 / 3.0
