@@ -200,8 +200,8 @@ func TestDynamicTree_FreeListReusesNodes(t *testing.T) {
 	// A fresh pool holds 16 nodes chained through the parent/next slot.
 	tassert.Equal(t, 16, tree.nodeCapacity)
 	tassert.Equal(t, 0, tree.freeList)
-	tassert.Equal(t, 1, tree.nodes[0].Parent)
-	tassert.Equal(t, NullIndex, tree.nodes[15].Parent)
+	tassert.Equal(t, int32(1), tree.nodes[0].Parent)
+	tassert.Equal(t, int32(NullIndex), tree.nodes[15].Parent)
 
 	box := AABB{LowerBound: Vec2{X: 0.0, Y: 0.0}, UpperBound: Vec2{X: 1.0, Y: 1.0}}
 	first := tree.CreateProxy(box, DefaultCategoryBits, 1)
@@ -242,7 +242,7 @@ func TestDynamicTree_ValidateDetectsCorruption(t *testing.T) {
 
 	// Broken parent link.
 	saved := tree.nodes[child1].Parent
-	tree.nodes[child1].Parent = root + 1
+	tree.nodes[child1].Parent = int32(root + 1)
 	require.Error(t, tree.validateStructure(root))
 	tree.nodes[child1].Parent = saved
 	require.NoError(t, tree.Validate())
