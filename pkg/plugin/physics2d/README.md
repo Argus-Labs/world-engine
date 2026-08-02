@@ -131,13 +131,70 @@ Use these first; they cover most needs:
 All three return zero results when no engine world exists yet (e.g. before
 the first reconcile, or right after `Plugin.Reset`).
 
-## Custom queries via `Engine()`
+## Custom read-only queries via `Engine()`
 
-If you need a Box2D feature the plugin doesn't expose (shape casts, custom
-query filters, sensor-only overlap, contact walks, etc.), call the pure-Go
-engine directly. [`(*physics2d.Plugin).Engine()`](plugin.go) returns the
-underlying [`*box2d.World`](../../box2d), or `nil` when no world exists
-(before the first `PreUpdate` reconcile and after `Plugin.Reset`).
+If you need to *read* something the built-in queries don't cover (shape casts,
+custom query filters, sensor-only overlap, contact walks, body/shape
+inspection, debug draw), call the pure-Go engine directly.
+[`(*physics2d.Plugin).Engine()`](plugin.go) returns the underlying
+[`*box2d.World`](../../box2d), or `nil` when no world exists (before the first
+`PreUpdate` reconcile and after `Plugin.Reset`).
+
+`Engine()` is a **read-only escape hatch, not an extension point.** The
+reconciler owns body and shape lifecycle and derives it from the ECS
+components every tick, so engine-side mutations do not survive: changes to
+solver-owned state (transform, velocity, shape geometry, filters, body flags)
+are overwritten on the next reconcile, and bodies/shapes/joints you create
+directly on the engine are untracked and are destroyed by any rebuild
+(`Plugin.Reset`, snapshot restore, or a structural component change). Make
+changes that must persist through the ECS components instead.
+
+### Entity → engine object lookup
+
+`Engine()` alone gives you a world with no way back to your entities. Two
+lookups close that gap:
+
+- `(*physics2d.Plugin).BodyID(cardinal.EntityID) (box2d.BodyID, bool)`
+- `(*physics2d.Plugin).ShapeIDs(cardinal.EntityID) ([]box2d.ShapeID, bool)`
+
+Both return `ok == false` when no world exists or the entity has no body yet.
+`ShapeIDs` is indexed by collider slot (slot `i` ↔ `PhysicsBody2D.Shapes[i]`)
+and returns a copy you own. The ids are valid only until the next tick's
+reconcile, which may destroy and recreate the body — look them up again each
+tick rather than caching them.
+
+```go
+// Read the solver's mass and per-shape contact state for one entity.
+func InspectMass(physics *physics2d.Plugin, id cardinal.EntityID) (float64, bool) {
+    w := physics.Engine()
+    if w == nil {
+        return 0, false // no world yet: before init or after Plugin.Reset
+    }
+    bodyID, ok := physics.BodyID(id)
+    if !ok {
+        return 0, false // entity has no body this tick
+    }
+    return w.BodyMass(bodyID), true
+}
+
+// Does any of this entity's shapes contain the point? (query, not mutation)
+func ContainsPoint(physics *physics2d.Plugin, id cardinal.EntityID, p box2d.Vec2) bool {
+    w := physics.Engine()
+    if w == nil {
+        return false
+    }
+    shapeIDs, ok := physics.ShapeIDs(id)
+    if !ok {
+        return false
+    }
+    for _, shapeID := range shapeIDs {
+        if w.ShapeTestPoint(shapeID, p) {
+            return true
+        }
+    }
+    return false
+}
+```
 
 ### Userdata encoding
 
@@ -185,20 +242,20 @@ func OverlapAll(physics *physics2d.Plugin, minX, minY, maxX, maxY float64) []car
 - **Always nil-check `Engine()`** — it returns `nil` before the first
   `PreUpdate` reconcile and after `Plugin.Reset`. Treat `nil` as "no
   world, skip the query."
-- **Never mutate world state from a system.** `Engine()` gives you the
-  live solver world; calling `SetBodyTransform` / `DestroyBody` / etc.
-  directly bypasses the plugin's ECS shadow copy, and the reconciler will
-  fight you next tick. For mutations, go through ECS components — the
-  reconciler pushes changes to Box2D before each step.
+- **Reads and queries only.** Raycasts, overlaps, shape casts, sensor
+  iteration, contact walks, body/shape getters — safe any time after you've
+  confirmed `Engine() != nil`.
+- **Mutation is not supported.** `SetBodyTransform` / `DestroyBody` / shape
+  setters bypass the plugin's ECS shadow copy and are overwritten on the next
+  reconcile. Write the ECS components instead; the reconciler pushes them to
+  Box2D before each step.
 - **Engine-created objects are not tracked.** Bodies, shapes, or joints you
-  create directly on the engine are invisible to ECS and are lost on
-  `Plugin.Reset` and on any restore-triggered rebuild.
-- **Queries are fine.** Raycasts, overlaps, shape casts, sensor iteration,
-  contact walks — read-only engine calls are safe to make any time after
-  you've confirmed `Engine() != nil`.
-- **Don't cache the world pointer across ticks.** `Engine()` is cheap; call
-  it at the top of each query. After `Plugin.Reset` (e.g. snapshot restore)
-  the old pointer refers to a destroyed world.
+  create directly on the engine are invisible to ECS and are destroyed by any
+  rebuild — `Plugin.Reset`, snapshot restore, or a structural component change.
+- **Don't cache the world pointer or ids across ticks.** `Engine()`,
+  `BodyID`, and `ShapeIDs` are cheap; call them at the top of each query. After
+  `Plugin.Reset` (e.g. snapshot restore) the old pointer refers to a destroyed
+  world, and reconcile can recreate a body under a new id.
 
 ## Contact events
 

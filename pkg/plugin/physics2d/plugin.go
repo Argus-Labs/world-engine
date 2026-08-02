@@ -1,7 +1,8 @@
 // Package physics2d is a Box2D-backed 2D physics plugin for Cardinal (pure-Go Box2D port in
-// pkg/box2d). ECS components live in component; simulation and reconciliation systems live in
-// system. All derived physics state is owned by the Plugin instance (see Plugin.Reset); the
-// package holds no runtime state.
+// pkg/box2d). ECS components live in component; simulation and reconciliation systems are
+// plugin-internal (internal/system) and are registered for you by Plugin.Register. All derived
+// physics state is owned by the Plugin instance (see Plugin.Reset); the package holds no
+// runtime state.
 //
 // Usage:
 //
@@ -24,8 +25,8 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	physicevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
+	physicssystem "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/system"
 	physicsquery "github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
-	physicssystem "github.com/argus-labs/world-engine/pkg/plugin/physics2d/system"
 	"github.com/rotisserie/eris"
 )
 
@@ -138,19 +139,57 @@ func (p *Plugin) Register(world *cardinal.World) {
 }
 
 // Engine returns the underlying pure-Go Box2D world, or nil when no world exists (before
-// init or after Reset). Use it for custom read-only queries or any Box2D feature not
-// directly exposed by the plugin.
+// init or after Reset).
 //
-// Caveats: reads and queries are safe between ticks. Mutating solver-owned state (body
-// transforms, velocities, shapes, filters) bypasses the plugin's ECS shadow copy, so the
-// reconciler may overwrite or duplicate those changes on the next tick. Objects created
-// directly on the engine (bodies, shapes, joints) are not tracked in ECS and are lost on
-// Reset or on any restore-triggered rebuild.
+// It is a read-only escape hatch: use it for reads and queries the plugin does not expose
+// directly (shape casts, custom query filters, sensor-only overlap, contact walks, body and
+// shape inspection, debug draw). Pair it with BodyID / ShapeIDs to go from a Cardinal entity
+// to the engine objects to inspect.
+//
+// Mutating the engine is NOT supported. The reconciler owns body and shape lifecycle and
+// derives it from the ECS components each tick, so:
+//   - changes to solver-owned state (body transform, velocity, shape geometry, filters,
+//     body flags) are overwritten on the next reconcile;
+//   - objects you create directly on the engine (bodies, shapes, joints) are untracked and are
+//     destroyed by any rebuild: Reset, snapshot restore, or a structural component change.
+//
+// For changes that must persist, write the ECS components (Transform2D, Velocity2D,
+// PhysicsBody2D); the reconciler pushes them into Box2D before each step.
+//
+// Do not cache the returned pointer across ticks: after Reset the old world is destroyed.
 func (p *Plugin) Engine() *box2d.World {
 	if p.rt == nil {
 		return nil
 	}
 	return p.rt.World
+}
+
+// BodyID returns the Box2D body id backing entityID, and whether the entity currently has one.
+// It reports false before the first reconcile creates the body, after the entity's body is
+// destroyed, and whenever no world exists (before init or after Reset).
+//
+// The id is a read-only handle for use with Engine(): it is valid only until the next tick's
+// reconcile, which may destroy and recreate the body. Look it up again each tick instead of
+// caching it.
+func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
+	if p.rt == nil || !p.rt.WorldExists() {
+		return box2d.BodyID{}, false
+	}
+	return p.rt.BodyIDOf(entityID)
+}
+
+// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed by collider slot
+// (slot i is PhysicsBody2D.Shapes[i]), and whether the entity currently has any. Chain slots
+// hold a null shape id because chains are tracked separately. The caller owns the returned
+// slice; mutating it does not affect the plugin.
+//
+// It reports false under the same conditions as BodyID, and the ids carry the same lifetime:
+// valid only until the next tick's reconcile.
+func (p *Plugin) ShapeIDs(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
+	if p.rt == nil || !p.rt.WorldExists() {
+		return nil, false
+	}
+	return p.rt.ShapeIDsOf(entityID)
 }
 
 // Reset drops all derived physics simulation state (no world, no bodies, empty maps).
