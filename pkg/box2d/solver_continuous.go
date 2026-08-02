@@ -229,11 +229,18 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 	dynamicTree := &w.broadPhase.trees[DynamicBody]
 	fastBody := &w.bodies[fastBodySim.bodyID]
 
-	var context continuousContext
+	// Reuse the per-worker scratch context: taking the address of a local
+	// here would escape through the query's `any` context parameter and
+	// heap-allocate once per fast body per step. All fields consumed by the
+	// sweep are reinitialized below (fastShape and the centroids per shape,
+	// inside the loop).
+	context := &tc.continuous
 	context.world = w
 	context.sweep = sweep
 	context.fastBodySim = fastBodySim
+	context.fastShape = nil
 	context.fraction = 1.0
+	context.sensorCount = 0
 
 	isBulletBody := fastBodySim.flags&isBullet != 0
 
@@ -265,11 +272,11 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 		// this call is race-free inside the parallel finalize dispatch (see
 		// the file header). Bullets also query the kinematic and dynamic
 		// trees, and run in the serial bullet stage only.
-		_ = staticTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, &context)
+		_ = staticTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, context)
 
 		if isBulletBody {
-			_ = kinematicTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, &context)
-			_ = dynamicTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, &context)
+			_ = kinematicTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, context)
+			_ = dynamicTree.Query(sweptBox, DefaultMaskBits, continuousQueryCallback, context)
 		}
 	}
 

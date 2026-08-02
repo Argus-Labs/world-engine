@@ -221,6 +221,14 @@ type taskContext struct {
 	// which the bullet solve and enlarge loops rely on (solver.go). Grows and
 	// never shrinks; reset to length zero each step.
 	bulletBodies []int
+
+	// Per-worker scratch for solveContinuous. Kept on the task context so
+	// passing its address through the tree query's `any` context parameter
+	// does not force a fresh heap allocation per fast body per step. Every
+	// field consumed by a sweep is (re)initialized at the top of
+	// solveContinuous. Placed last so this large, cold-between-sweeps block
+	// does not shift the hot fields above onto extra cache lines.
+	continuous continuousContext
 }
 
 func createTaskContext() taskContext {
