@@ -215,11 +215,16 @@ linters:
           - gocognit
           - goconst
           - gocyclo
-          # gosec: G115 int-width conversions are deliberate ports of
-          # upstream id packing/hashing; no security surface here.
-          - gosec
           - lll
           - nestif
+        path: ^pkg/box2d/
+      # Narrow gosec exception: G115 flags the integer-width conversions in the
+      # ported id packing/hashing, which are deliberate and carry no security
+      # surface. Every other gosec rule stays on for pkg/box2d -- a blanket
+      # exclusion here previously hid the G602 slice-bounds diagnostics.
+      - linters:
+          - gosec
+        text: 'G115'
         path: ^pkg/box2d/
     paths:
       - dagger/internal
