@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"sort"
+
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
@@ -59,9 +61,24 @@ func (rt *Runtime) Step() {
 // rebuild), matching the CGO listener suppression.
 func (rt *Runtime) bufferContactEventsFromWorld() {
 	if rt.SuppressContactsStep {
+		// The suppressed step is followed by a full diff against the persisted
+		// ActiveContacts, which re-derives what ended; synthesized ends would
+		// duplicate that, so drop them.
+		rt.pendingEndEvents = rt.pendingEndEvents[:0]
 		return
 	}
 	rt.BufferedContacts = rt.BufferedContacts[:0]
+
+	// Ends synthesized while reconciling (bodies or fixtures destroyed while touching)
+	// happened before this step, so they lead. Map iteration produced them in an
+	// arbitrary order; sort so the emitted sequence is deterministic.
+	if len(rt.pendingEndEvents) > 0 {
+		sort.Slice(rt.pendingEndEvents, func(i, j int) bool {
+			return lessBufferedContactEvent(rt.pendingEndEvents[i], rt.pendingEndEvents[j])
+		})
+		rt.BufferedContacts = append(rt.BufferedContacts, rt.pendingEndEvents...)
+		rt.pendingEndEvents = rt.pendingEndEvents[:0]
+	}
 
 	w := rt.World
 	contacts := w.ContactEvents()

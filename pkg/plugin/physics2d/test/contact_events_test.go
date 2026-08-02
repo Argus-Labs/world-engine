@@ -505,3 +505,96 @@ func TestContactEvents_EventNames(t *testing.T) {
 	require.Equal(t, "physics2d_trigger_begin", physics.TriggerBeginEvent{}.Name())
 	require.Equal(t, "physics2d_trigger_end", physics.TriggerEndEvent{}.Name())
 }
+
+// ---------------------------------------------------------------------------
+// ContactEnd on destruction — the contact ends because the other body is gone
+// ---------------------------------------------------------------------------
+
+// TestContactEvents_EndOnEntityDestroyed covers the case where a touching body is
+// destroyed rather than moved away. The engine's own end-touch records name shapes that
+// no longer exist by the time they are drained, so the End has to be synthesized from
+// the persisted pair (see Runtime.PruneActiveContactsInvolvingEntity). Without that, a
+// consumer that latches state on Begin never learns the contact ended.
+func TestContactEvents_EndOnEntityDestroyed(t *testing.T) {
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+
+	var ballID, floorID cardinal.EntityID
+	contactBeginCount := 0
+	contactEndCount := 0
+	endSeenAtTick := -1
+
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		if state.Tick() != 0 {
+			return
+		}
+		id, row := state.Spawn.Create()
+		row.Tag.Set(harnessTag{Role: "floor"})
+		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: 0}})
+		row.V.Set(physics.Velocity2D{})
+		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+			ShapeType:    physics.ShapeTypeBox,
+			HalfExtents:  physics.Vec2{X: 20, Y: 0.5},
+			Density:      0,
+			CategoryBits: 0xFFFF,
+			MaskBits:     0xFFFF,
+		}))
+		floorID = id
+
+		id2, row2 := state.Spawn.Create()
+		row2.Tag.Set(harnessTag{Role: "ball"})
+		row2.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: 3}})
+		row2.V.Set(physics.Velocity2D{})
+		row2.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
+			ShapeType:    physics.ShapeTypeCircle,
+			Radius:       0.4,
+			Density:      1,
+			Restitution:  0,
+			CategoryBits: 0xFFFF,
+			MaskBits:     0xFFFF,
+		}))
+		ballID = id2
+	}, cardinal.WithHook(cardinal.Init))
+
+	// Destroy the floor out from under the resting ball.
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		if state.Tick() != 60 {
+			return
+		}
+		require.True(t, state.Spawn.Destroy(floorID), "Destroy(floor)")
+	}, cardinal.WithHook(cardinal.Update))
+
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
+		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
+	}) {
+		for e := range state.ContactBeginRx.Iter() {
+			if pairHas(e.EntityA, e.EntityB, ballID, floorID) {
+				contactBeginCount++
+			}
+		}
+		for e := range state.ContactEndRx.Iter() {
+			if pairHas(e.EntityA, e.EntityB, ballID, floorID) {
+				contactEndCount++
+				if endSeenAtTick < 0 {
+					endSeenAtTick = int(state.Tick())
+				}
+			}
+		}
+	}, cardinal.WithHook(cardinal.PostUpdate))
+
+	initCardinalECS(w)
+	tickN(t, w, 80)
+
+	require.GreaterOrEqual(t, contactBeginCount, 1, "ContactBegin should fire when the ball lands")
+	require.GreaterOrEqual(t, contactEndCount, 1,
+		"ContactEnd must fire when the touched entity is destroyed, otherwise consumers latch contact state forever")
+	require.GreaterOrEqual(t, endSeenAtTick, 60, "the End belongs to the destruction, not an earlier bounce")
+}

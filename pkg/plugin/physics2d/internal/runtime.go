@@ -71,6 +71,12 @@ type Runtime struct {
 	// BufferedContacts collects contact events from the physics step for post-step flush.
 	BufferedContacts []BufferedContactEvent
 
+	// pendingEndEvents holds End events synthesized during reconcile, when a body or its
+	// fixtures are destroyed while touching. They are produced before the step but must
+	// survive until the step's own events are buffered, so they cannot live in
+	// BufferedContacts (which is reset per step). See PruneActiveContactsInvolvingEntity.
+	pendingEndEvents []BufferedContactEvent
+
 	// Emitter is the current tick's contact flush sink, set by the step driver before Step
 	// and cleared in FlushBufferedContacts. Nil means skip emitting for this flush.
 	Emitter event.ContactEventEmitter
@@ -142,6 +148,7 @@ func (rt *Runtime) Reset() {
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
+	rt.pendingEndEvents = nil
 	rt.Emitter = nil
 	rt.SuppressContactsStep = true
 	rt.ActiveContacts = nil
@@ -157,12 +164,20 @@ func (rt *Runtime) WorldExists() bool {
 // PruneActiveContactsInvolvingEntity removes every active-contact key that references entityID.
 // Call when that entity's body is destroyed or its fixtures are structurally replaced so
 // end-of-tick persistence and the next suppressed diff do not retain stale pair keys.
+//
+// Each pruned pair was touching, so its contact genuinely ends here. The engine does report
+// end-touch events for a destroyed body, but by the time they are drained the shapes are gone
+// and the records can no longer be resolved to entities, so those events are dropped (see
+// bufferContactEventsFromWorld). Synthesize the End from the persisted pair metadata instead
+// and hold it until the next flush; without this a consumer that latches state on Begin (an
+// "is grounded" flag, say) would never be told the contact ended.
 func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID) {
 	if len(rt.ActiveContacts) == 0 {
 		return
 	}
-	for k := range rt.ActiveContacts {
+	for k, info := range rt.ActiveContacts {
 		if k.EntityA == entityID || k.EntityB == entityID {
+			rt.pendingEndEvents = append(rt.pendingEndEvents, makeContactEvent(ContactLifecycleEnd, k, info))
 			delete(rt.ActiveContacts, k)
 			rt.ActiveContactsDirty = true
 		}
