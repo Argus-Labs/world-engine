@@ -67,7 +67,10 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
           use_sticky_comment: true
-          allowed_bots: "*"
+          # No allowed_bots: this repo is public, and allowed bots bypass the
+          # repository write-permission check. See claude-code-action
+          # docs/security.md. Add a single bot name here if one ever needs to
+          # trigger Claude -- never "*".
           # Without this the `actions: read` permission above is inert and
           # Claude cannot read the CI run it is reviewing.
           additional_permissions: |-
@@ -80,4 +83,5 @@ jobs:
 
             /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
           claude_args: |
+            --model claude-opus-5
             --allowedTools "Read,Edit,Bash(git:*),Bash(task lint),Bash(task lint:fix),Bash(task test),Bash(task test:unit),Bash(task test:ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh run view:*),mcp__github_inline_comment__create_inline_comment,mcp__github_inline_comment__list_inline_comments,mcp__github_inline_comment__delete_inline_comment"
