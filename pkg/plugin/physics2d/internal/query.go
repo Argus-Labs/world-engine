@@ -110,7 +110,9 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 		UpperBound: box2d.Vec2{X: maxX, Y: maxY},
 	}
 
-	var hits []query.AABBOverlapHit
+	// Non-nil so a miss marshals as [] rather than null, which is the shape the
+	// CGO backend produced and what any persisted or transmitted result expects.
+	hits := make([]query.AABBOverlapHit, 0)
 	rt.World.OverlapAABB(aabb, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
 		func(shapeID box2d.ShapeID, _ any) bool {
 			if !includeSensors && rt.World.IsShapeSensor(shapeID) {

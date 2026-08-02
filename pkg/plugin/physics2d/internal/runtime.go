@@ -161,6 +161,25 @@ func (rt *Runtime) WorldExists() bool {
 	return rt.World != nil
 }
 
+// BodyIDOf returns the Box2D body id tracked for entityID and whether one exists.
+// Read-only accessor for the plugin's public lookup API.
+func (rt *Runtime) BodyIDOf(entityID cardinal.EntityID) (box2d.BodyID, bool) {
+	bodyID, ok := rt.Bodies[entityID]
+	return bodyID, ok
+}
+
+// ShapeIDsOf returns a copy of the per-collider-slot shape ids tracked for entityID and whether
+// any exist. The copy keeps callers from mutating the runtime's own slice.
+func (rt *Runtime) ShapeIDsOf(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
+	shapes, ok := rt.Shapes[entityID]
+	if !ok {
+		return nil, false
+	}
+	out := make([]box2d.ShapeID, len(shapes))
+	copy(out, shapes)
+	return out, true
+}
+
 // PruneActiveContactsInvolvingEntity removes every active-contact key that references entityID.
 // Call when that entity's body is destroyed or its fixtures are structurally replaced so
 // end-of-tick persistence and the next suppressed diff do not retain stale pair keys.
