@@ -2,12 +2,58 @@
 
 package box2d
 
+// debugAsserts gates the port's *internal* invariant checks only.
+//
+// This package splits upstream's single B2_ASSERT into two tiers:
+//
+//   - Internal invariants (the hundreds of assert calls across the solver,
+//     collision and broad-phase code) state facts the port must uphold on its
+//     own. They are compiled out when debugAsserts is false so release builds
+//     pay nothing for them. Flip this to true when debugging the port itself.
+//
+//   - Public API preconditions (a caller passing a definition struct that was
+//     never built by its Default* constructor, or a field value that would
+//     silently corrupt the simulation rather than fail loudly) are *always*
+//     checked, regardless of this flag, via requireInitialized and
+//     requireValidDefField below. Those are programmer errors in calling code,
+//     they are cheap to detect at creation time, and leaving them unchecked
+//     turns a one-line mistake into garbage simulation or a confusing panic
+//     far from the cause.
+//
+// When adding a check, ask whose bug it catches: the port's (assert) or the
+// caller's (require*).
 const debugAsserts = false
 
 // assert mirrors B2_ASSERT. Assertions are compiled out when debugAsserts is false; the condition is still evaluated at the call site.
 func assert(cond bool) {
 	if debugAsserts && !cond {
 		panic("box2d: assertion failed")
+	}
+}
+
+// requireInitialized enforces the public API precondition that a definition
+// struct was produced by its Default* constructor. It replaces the upstream
+// b2_secretCookie/internalValue assert for the exported creation functions and
+// is always enabled, independent of debugAsserts.
+//
+// It panics rather than returning an error on purpose: this reports a
+// programmer error (a zero-value definition literal) rather than a runtime
+// condition, it matches upstream's assert intent, and every creation function
+// it guards returns only an id.
+func requireInitialized(ok bool, defName, ctorName string) {
+	if !ok {
+		panic("box2d: " + defName + " was not initialized by " + ctorName +
+			" (zero-value definition structs are not valid; see " + ctorName + ")")
+	}
+}
+
+// requireValidDefField enforces a public API precondition on a single
+// definition field whose bad value would silently corrupt the simulation
+// instead of failing loudly. Like requireInitialized it is always enabled.
+// requirement describes what the field must satisfy, in words.
+func requireValidDefField(ok bool, defName, fieldName, requirement string) {
+	if !ok {
+		panic("box2d: " + defName + "." + fieldName + " is invalid: " + requirement)
 	}
 }
 

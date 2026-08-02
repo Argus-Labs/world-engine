@@ -475,7 +475,7 @@ func (w *World) createJointInternal(def *JointDef, jointType JointType) jointPai
 // CreateDistanceJoint creates a distance joint (upstream
 // b2CreateDistanceJoint).
 func (w *World) CreateDistanceJoint(def *DistanceJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "DistanceJointDef", "DefaultDistanceJointDef")
 
 	assert(!w.locked)
 	if w.locked {
@@ -512,7 +512,7 @@ func (w *World) CreateDistanceJoint(def *DistanceJointDef) JointID {
 
 // CreateMotorJoint creates a motor joint (upstream b2CreateMotorJoint).
 func (w *World) CreateMotorJoint(def *MotorJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "MotorJointDef", "DefaultMotorJointDef")
 
 	assert(!w.locked)
 	if w.locked {
@@ -541,7 +541,7 @@ func (w *World) CreateMotorJoint(def *MotorJointDef) JointID {
 // between the attached bodies and has no solve work
 // (upstream b2CreateFilterJoint).
 func (w *World) CreateFilterJoint(def *FilterJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "FilterJointDef", "DefaultFilterJointDef")
 
 	assert(!w.locked)
 	if w.locked {
@@ -558,7 +558,7 @@ func (w *World) CreateFilterJoint(def *FilterJointDef) JointID {
 // CreatePrismaticJoint creates a prismatic (slider) joint
 // (upstream b2CreatePrismaticJoint).
 func (w *World) CreatePrismaticJoint(def *PrismaticJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "PrismaticJointDef", "DefaultPrismaticJointDef")
 	assert(def.LowerTranslation <= def.UpperTranslation)
 
 	assert(!w.locked)
@@ -588,7 +588,7 @@ func (w *World) CreatePrismaticJoint(def *PrismaticJointDef) JointID {
 // CreateRevoluteJoint creates a revolute (hinge) joint
 // (upstream b2CreateRevoluteJoint).
 func (w *World) CreateRevoluteJoint(def *RevoluteJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "RevoluteJointDef", "DefaultRevoluteJointDef")
 	assert(def.LowerAngle <= def.UpperAngle)
 	assert(def.LowerAngle >= -0.99*Pi)
 	assert(def.UpperAngle <= 0.99*Pi)
@@ -620,7 +620,7 @@ func (w *World) CreateRevoluteJoint(def *RevoluteJointDef) JointID {
 
 // CreateWeldJoint creates a weld joint (upstream b2CreateWeldJoint).
 func (w *World) CreateWeldJoint(def *WeldJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "WeldJointDef", "DefaultWeldJointDef")
 
 	assert(!w.locked)
 	if w.locked {
@@ -644,7 +644,7 @@ func (w *World) CreateWeldJoint(def *WeldJointDef) JointID {
 
 // CreateWheelJoint creates a wheel joint (upstream b2CreateWheelJoint).
 func (w *World) CreateWheelJoint(def *WheelJointDef) JointID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "WheelJointDef", "DefaultWheelJointDef")
 	assert(def.LowerTranslation <= def.UpperTranslation)
 
 	assert(!w.locked)
@@ -1131,11 +1131,13 @@ func drawWeldJoint(draw *DebugDraw, base *jointSim, transformA, transformB Trans
 
 	var points [4]Vec2
 	for i := range 4 {
+		//nolint:gosec // G602: the loop bound is the literal 4 and points is [4]Vec2; box comes from MakeBox, whose Vertices is [MaxPolygonVertices]Vec2 with Count 4.
 		points[i] = TransformPoint(frameA, box.Vertices[i])
 	}
 	draw.DrawPolygonFcn(points[:4], ColorDarkOrange, draw.Context)
 
 	for i := range 4 {
+		//nolint:gosec // G602: the loop bound is the literal 4 and points is [4]Vec2; box comes from MakeBox, whose Vertices is [MaxPolygonVertices]Vec2 with Count 4.
 		points[i] = TransformPoint(frameB, box.Vertices[i])
 	}
 	draw.DrawPolygonFcn(points[:4], ColorDarkCyan, draw.Context)

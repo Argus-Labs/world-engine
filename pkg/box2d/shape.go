@@ -251,10 +251,17 @@ func (w *World) createShapeInternal(b *body, transform Transform, def *ShapeDef,
 // createShape validates the definition and creates a shape on a body
 // (upstream static b2CreateShape).
 func (w *World) createShape(bodyID BodyID, def *ShapeDef, geometry any, shapeType ShapeType) ShapeID {
-	assert(def.initialized)
-	assert(IsValidFloat(def.Density) && def.Density >= 0.0)
-	assert(IsValidFloat(def.Material.Friction) && def.Material.Friction >= 0.0)
-	assert(IsValidFloat(def.Material.Restitution) && def.Material.Restitution >= 0.0)
+	requireInitialized(def.initialized, "ShapeDef", "DefaultShapeDef")
+	requireValidDefField(IsValidFloat(def.Density), "ShapeDef", "Density",
+		"must be a finite number")
+	requireValidDefField(IsValidFloat(def.Material.Friction), "ShapeDef", "Material.Friction",
+		"must be a finite number")
+	requireValidDefField(IsValidFloat(def.Material.Restitution), "ShapeDef", "Material.Restitution",
+		"must be a finite number")
+
+	assert(def.Density >= 0.0)
+	assert(def.Material.Friction >= 0.0)
+	assert(def.Material.Restitution >= 0.0)
 	assert(IsValidFloat(def.Material.RollingResistance) && def.Material.RollingResistance >= 0.0)
 	assert(IsValidFloat(def.Material.TangentSpeed))
 
@@ -302,6 +309,13 @@ func (w *World) CreateCapsuleShape(bodyID BodyID, def *ShapeDef, capsule *Capsul
 // shape definition and geometry are fully cloned. Contacts are not created
 // until the next time step (upstream b2CreatePolygonShape).
 func (w *World) CreatePolygonShape(bodyID BodyID, def *ShapeDef, polygon *Polygon) ShapeID {
+	// Public API precondition: the polygon is cloned into the world and then
+	// indexed by Count from the collision, mass and debug-draw code every step.
+	// Reject a hand-built Polygon here rather than panicking inside a later
+	// World.Step. MakePolygon and MakeBox already guarantee this range;
+	// ComputeHull/ValidateHull only constrain the hull, not a Polygon literal.
+	requireValidPolygonShapeCount(polygon)
+
 	assert(IsValidFloat(polygon.Radius) && polygon.Radius >= 0.0)
 	return w.createShape(bodyID, def, polygon, PolygonShape)
 }
@@ -430,7 +444,7 @@ func (w *World) DestroyShape(shapeID ShapeID, updateBodyMass bool) {
 
 // CreateChain creates a chain shape (upstream b2CreateChain).
 func (w *World) CreateChain(bodyID BodyID, def *ChainDef) ChainID {
-	assert(def.initialized)
+	requireInitialized(def.initialized, "ChainDef", "DefaultChainDef")
 	assert(len(def.Points) >= 4)
 	assert(len(def.Materials) == 1 || len(def.Materials) == len(def.Points))
 
@@ -1483,6 +1497,10 @@ func (w *World) SetShapeSegment(shapeID ShapeID, segment *Segment) {
 // current polygon. This does not modify the mass properties
 // (upstream b2Shape_SetPolygon).
 func (w *World) SetShapePolygon(shapeID ShapeID, polygon *Polygon) {
+	// Public API precondition: same reasoning as CreatePolygonShape, this is
+	// the other way a caller-built Polygon enters the world.
+	requireValidPolygonShapeCount(polygon)
+
 	if w.locked {
 		assert(false)
 		return
