@@ -313,3 +313,139 @@ func TestPolygonShapeCreationAcceptsValidPolygons(t *testing.T) {
 		w.Step(1.0/60.0, 4)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// ShapeProxy.Count / SimplexCache indices
+// ---------------------------------------------------------------------------
+
+// validProxy builds a proxy the supported way, for the happy-path assertions.
+func validProxy(offset float64) box2d.ShapeProxy {
+	return box2d.MakeProxy([]box2d.Vec2{
+		{X: offset, Y: 0}, {X: offset + 1, Y: 0}, {X: offset + 1, Y: 1}, {X: offset, Y: 1},
+	}, 4, 0)
+}
+
+// TestProxyCountIsValidated covers the point clouds a caller hands to the
+// distance routines. ShapeProxy has exported fields, so Count can name more
+// points than the fixed-size array holds; each of these entry points then
+// copies or subscripts that array.
+func TestProxyCountIsValidated(t *testing.T) {
+	t.Parallel()
+
+	const wantA = "box2d: DistanceInput.ProxyA.Count is invalid: " +
+		"must be between 1 and MaxPolygonVertices; build proxies with MakeProxy"
+
+	t.Run("ShapeDistance oversized", func(t *testing.T) {
+		t.Parallel()
+		in := box2d.DistanceInput{
+			ProxyA:     validProxy(0),
+			ProxyB:     validProxy(5),
+			TransformA: box2d.TransformIdentity,
+			TransformB: box2d.TransformIdentity,
+			UseRadii:   false,
+		}
+		in.ProxyA.Count = box2d.MaxPolygonVertices + 1
+		var cache box2d.SimplexCache
+		requirePanicMessage(t, wantA, "MakeProxy", func() {
+			box2d.ShapeDistance(&in, &cache, nil)
+		})
+	})
+
+	t.Run("ShapeDistance zero", func(t *testing.T) {
+		t.Parallel()
+		in := box2d.DistanceInput{
+			ProxyA:     validProxy(0),
+			ProxyB:     validProxy(5),
+			TransformA: box2d.TransformIdentity,
+			TransformB: box2d.TransformIdentity,
+		}
+		in.ProxyA.Count = 0
+		var cache box2d.SimplexCache
+		requirePanicMessage(t, wantA, "MakeProxy", func() {
+			box2d.ShapeDistance(&in, &cache, nil)
+		})
+	})
+
+	t.Run("ShapeCast oversized", func(t *testing.T) {
+		t.Parallel()
+		in := box2d.ShapeCastPairInput{
+			ProxyA:       validProxy(0),
+			ProxyB:       validProxy(5),
+			TransformA:   box2d.TransformIdentity,
+			TransformB:   box2d.TransformIdentity,
+			TranslationB: box2d.Vec2{X: -10, Y: 0},
+			MaxFraction:  1,
+		}
+		in.ProxyB.Count = 99
+		requirePanicMessage(t,
+			"box2d: ShapeCastPairInput.ProxyB.Count is invalid: "+
+				"must be between 1 and MaxPolygonVertices; build proxies with MakeProxy",
+			"MakeProxy", func() { box2d.ShapeCast(&in) })
+	})
+
+	t.Run("TimeOfImpact oversized", func(t *testing.T) {
+		t.Parallel()
+		in := box2d.TOIInput{
+			ProxyA:      validProxy(0),
+			ProxyB:      validProxy(5),
+			SweepA:      box2d.Sweep{Q1: box2d.RotIdentity, Q2: box2d.RotIdentity},
+			SweepB:      box2d.Sweep{Q1: box2d.RotIdentity, Q2: box2d.RotIdentity},
+			MaxFraction: 1,
+		}
+		in.ProxyA.Count = box2d.MaxPolygonVertices + 3
+		requirePanicMessage(t,
+			"box2d: TOIInput.ProxyA.Count is invalid: "+
+				"must be between 1 and MaxPolygonVertices; build proxies with MakeProxy",
+			"MakeProxy", func() { box2d.TimeOfImpact(&in) })
+	})
+}
+
+// TestSimplexCacheIndicesAreValidated covers a warm-start cache that names
+// points the proxies do not have -- a stale cache reused against smaller
+// shapes, or one built by hand. The indices are used to subscript the proxy
+// point clouds directly.
+func TestSimplexCacheIndicesAreValidated(t *testing.T) {
+	t.Parallel()
+
+	newInput := func() box2d.DistanceInput {
+		return box2d.DistanceInput{
+			ProxyA:     box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0),
+			ProxyB:     box2d.MakeProxy([]box2d.Vec2{{X: 4, Y: 0}}, 1, 0),
+			TransformA: box2d.TransformIdentity,
+			TransformB: box2d.TransformIdentity,
+		}
+	}
+
+	t.Run("IndexA past ProxyA", func(t *testing.T) {
+		t.Parallel()
+		in := newInput()
+		cache := box2d.SimplexCache{Count: 1, IndexA: [3]uint8{7}, IndexB: [3]uint8{0}}
+		requirePanicMessage(t,
+			"box2d: SimplexCache.IndexA is invalid: must index a point of ProxyA; "+
+				"pass the cache from the previous call on the same shapes",
+			"ProxyA", func() { box2d.ShapeDistance(&in, &cache, nil) })
+	})
+
+	t.Run("IndexB past ProxyB", func(t *testing.T) {
+		t.Parallel()
+		in := newInput()
+		cache := box2d.SimplexCache{Count: 1, IndexA: [3]uint8{0}, IndexB: [3]uint8{5}}
+		requirePanicMessage(t,
+			"box2d: SimplexCache.IndexB is invalid: must index a point of ProxyB; "+
+				"pass the cache from the previous call on the same shapes",
+			"ProxyB", func() { box2d.ShapeDistance(&in, &cache, nil) })
+	})
+
+	t.Run("warm start round trip still works", func(t *testing.T) {
+		t.Parallel()
+		in := newInput()
+		var cache box2d.SimplexCache
+		first := box2d.ShapeDistance(&in, &cache, nil)
+		require.InDelta(t, 4.0, first.Distance, 1e-12)
+
+		// Feeding the returned cache back in is the supported warm-start path
+		// and must not trip the new validation.
+		second := box2d.ShapeDistance(&in, &cache, nil)
+		require.InDelta(t, first.Distance, second.Distance, 0)
+	})
+}

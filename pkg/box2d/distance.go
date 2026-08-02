@@ -179,6 +179,28 @@ func requireValidSimplexCacheCount(cache *SimplexCache) {
 		"must be between 0 and 3; zero initialize SimplexCache before the first ShapeDistance call")
 }
 
+// requireValidProxyCount checks a caller-supplied point cloud before it is
+// copied into or indexed through the fixed-size Points array. ShapeProxy is
+// exported with exported fields, so Count can disagree with the array it
+// describes; build proxies with MakeProxy to get a consistent one.
+func requireValidProxyCount(proxy *ShapeProxy, defName string) {
+	requireValidDefField(0 < proxy.Count && proxy.Count <= MaxPolygonVertices, defName, "Count",
+		"must be between 1 and MaxPolygonVertices; build proxies with MakeProxy")
+}
+
+// requireValidCacheIndices checks that a warm-start cache refers to points the
+// proxies actually have. The indices are read straight out of the cache and
+// used to subscript the proxy point clouds, so a stale or hand-built cache
+// would otherwise index past them.
+func requireValidCacheIndices(cache *SimplexCache, proxyA, proxyB *ShapeProxy) {
+	for i := range int(cache.Count) {
+		requireValidDefField(int(cache.IndexA[i]) < proxyA.Count, "SimplexCache", "IndexA",
+			"must index a point of ProxyA; pass the cache from the previous call on the same shapes")
+		requireValidDefField(int(cache.IndexB[i]) < proxyB.Count, "SimplexCache", "IndexB",
+			"must index a point of ProxyB; pass the cache from the previous call on the same shapes")
+	}
+}
+
 // makeSimplexFromCache is upstream b2MakeSimplexFromCache.
 func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy) Simplex {
 	assert(cache.Count <= 3)
@@ -437,8 +459,10 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 	// arrays below. SimplexCache is exported with exported fields, so a caller
 	// can set Count directly.
 	requireValidSimplexCacheCount(cache)
+	requireValidProxyCount(&input.ProxyA, "DistanceInput.ProxyA")
+	requireValidProxyCount(&input.ProxyB, "DistanceInput.ProxyB")
+	requireValidCacheIndices(cache, &input.ProxyA, &input.ProxyB)
 
-	assert(input.ProxyA.Count > 0 && input.ProxyB.Count > 0)
 	assert(input.ProxyA.Radius >= 0.0)
 	assert(input.ProxyB.Radius >= 0.0)
 
@@ -613,6 +637,9 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 // point, normal, and translation fraction. Initially touching shapes are
 // treated as a miss.
 func ShapeCast(input *ShapeCastPairInput) CastOutput {
+	requireValidProxyCount(&input.ProxyA, "ShapeCastPairInput.ProxyA")
+	requireValidProxyCount(&input.ProxyB, "ShapeCastPairInput.ProxyB")
+
 	// Compute tolerance
 	linearSlop := LinearSlop
 	totalRadius := input.ProxyA.Radius + input.ProxyB.Radius
@@ -898,6 +925,9 @@ func evaluateSeparation(f *separationFunction, indexA, indexB int, t float64) fl
 // CCD via the local separating axis method. This seeks progression by
 // computing the largest time at which separation is maintained.
 func TimeOfImpact(input *TOIInput) TOIOutput {
+	requireValidProxyCount(&input.ProxyA, "TOIInput.ProxyA")
+	requireValidProxyCount(&input.ProxyB, "TOIInput.ProxyB")
+
 	var output TOIOutput
 	output.State = TOIStateUnknown
 	output.Fraction = input.MaxFraction
