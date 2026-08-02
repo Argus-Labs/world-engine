@@ -641,7 +641,7 @@ func TestOracleTreeFreeListInvariant(t *testing.T) {
 	}
 
 	freeCount := 0
-	for freeIndex := tree.freeList; freeIndex != NullIndex; freeIndex = tree.nodes[freeIndex].Parent {
+	for freeIndex := tree.freeList; freeIndex != NullIndex; freeIndex = int(tree.nodes[freeIndex].Parent) {
 		freeCount++
 	}
 
@@ -736,7 +736,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 			corrupt: func(t *testing.T, tree *DynamicTree) {
 				internal := anyInternal(tree)
 				require.NotEqual(t, NullIndex, internal)
-				tree.nodes[internal].Child1 = tree.nodeCapacity + 5
+				tree.nodes[internal].Child1 = int32(tree.nodeCapacity + 5)
 			},
 		},
 		{
@@ -752,7 +752,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 			corrupt: func(t *testing.T, tree *DynamicTree) {
 				internal := anyInternal(tree)
 				require.NotEqual(t, NullIndex, internal)
-				tree.nodes[tree.nodes[internal].Child1].Parent = tree.root
+				tree.nodes[tree.nodes[internal].Child1].Parent = int32(tree.root)
 			},
 		},
 		{
@@ -760,7 +760,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 			corrupt: func(t *testing.T, tree *DynamicTree) {
 				internal := anyInternal(tree)
 				require.NotEqual(t, NullIndex, internal)
-				tree.nodes[tree.nodes[internal].Child2].Parent = tree.root
+				tree.nodes[tree.nodes[internal].Child2].Parent = int32(tree.root)
 			},
 		},
 		{
