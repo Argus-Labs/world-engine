@@ -20,6 +20,18 @@
 // order. The graph coloring itself is kept (built in constraint_graph.go)
 // because it fixes the solve order and body-disjointness.
 //
+// MEASURED DEAD END — do not redo without new evidence: an SoA repack of
+// contactConstraint (one slice per field, mirroring the upstream
+// b2ContactConstraintSIMD grouping, arithmetic and iteration order unchanged,
+// goldens byte-identical) was implemented and benchmarked on arm64 (M5 Max)
+// and measured 3-15% SLOWER across every step benchmark. Root cause: the
+// solve loop went from one constraint pointer to ~24 live slice headers
+// (objdump: 381 -> 629 instructions, register spills 34 -> 90), and the
+// 320-byte AoS record is exactly 5 cache lines that sequential hardware
+// prefetch already streams perfectly, so the useful-bytes saving never
+// materialized as time. Revisit SoA only together with real SIMD lane
+// kernels, where the layout is required rather than speculative (PR #928).
+//
 // Other deviations from upstream:
 //   - world.enableContactSoftening (experimental, default off) has no effect:
 //     upstream only implements it in the SIMD prepare path

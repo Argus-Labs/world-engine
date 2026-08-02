@@ -69,8 +69,17 @@ jobs:
       # the worker count to GOMAXPROCS, so the w=8 rows are true 8-way
       # partitions even on these 4-vCPU runners — every matrix row exercises
       # the partition width it names.
+      #
+      # -pgo compiles the suite with the committed profile
+      # (pkg/box2d/default.pgo; the path is cwd-relative, and CI runs from
+      # the repository root). PGO changes inlining, inlining is what exposes
+      # new FMA fusion sites, so this run proves the golden bits also hold
+      # under PGO-shaped codegen — the shape consumers get when they apply a
+      # profile to their game binary. The no-FMA step above scans that same
+      # codegen at the instruction level (its PGO pass activates whenever
+      # default.pgo exists).
       - name: Run cross-architecture golden trace tests
-        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
+        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v -pgo=pkg/box2d/default.pgo
 
       # Race-detector pass. The golden scenes are small and mostly run below
       # the per-stage grain thresholds (inline, no pool dispatch), so the load-
