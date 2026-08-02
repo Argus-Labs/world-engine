@@ -393,7 +393,7 @@ func solveRevoluteJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		jointAngleDelta := UnwindAngle(jointAngle - j.targetAngle)
 
 		c := jointAngleDelta
-		bias := j.springSoftness.biasRate * c
+		bias := float64(j.springSoftness.biasRate * c)
 		massScale := j.springSoftness.massScale
 		impulseScale := j.springSoftness.impulseScale
 
@@ -411,7 +411,7 @@ func solveRevoluteJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	// Solve motor constraint.
 	if j.enableMotor && !fixedRotation {
 		cDot := wB - wA - j.motorSpeed
-		impulse := -j.axialMass * cDot
+		impulse := float64(-j.axialMass * cDot)
 		oldImpulse := j.motorImpulse
 		maxImpulse := ctx.h * j.maxMotorTorque
 		j.motorImpulse = clampFloat(j.motorImpulse+impulse, -maxImpulse, maxImpulse)

@@ -336,9 +336,9 @@ func solveSimplex3(s *Simplex) Vec2 {
 	// Triangle123
 	n123 := Cross(e12, e13)
 
-	d1231 := n123 * Cross(w2, w3) // upstream d123_1
-	d1232 := n123 * Cross(w3, w1) // upstream d123_2
-	d1233 := n123 * Cross(w1, w2) // upstream d123_3
+	d1231 := float64(n123 * Cross(w2, w3)) // upstream d123_1
+	d1232 := float64(n123 * Cross(w3, w1)) // upstream d123_2
+	d1233 := float64(n123 * Cross(w1, w2)) // upstream d123_3
 
 	// w1 region
 	if d122 <= 0.0 && d132 <= 0.0 {

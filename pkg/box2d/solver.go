@@ -75,7 +75,7 @@ func makeSoft(hertz, zeta, h float64) softness {
 	// a1 = 2.0 * zeta + h * omega
 	a1 := float64(2.0*zeta) + float64(h*omega)
 	// a2 = h * omega * a1
-	a2 := h * omega * a1
+	a2 := float64(float64(h*omega) * a1)
 	a3 := 1.0 / (1.0 + a2)
 
 	return softness{
@@ -247,7 +247,7 @@ func integrateVelocitiesTask(startIndex, endIndex int, ctx *stepContext) {
 
 		// lvd = h * im * f + h * g
 		linearVelocityDelta := Add(MulSV(h*sim.invMass, sim.force), MulSV(h*gravityScale, gravity))
-		angularVelocityDelta := h * sim.invInertia * sim.torque
+		angularVelocityDelta := float64(h * sim.invInertia * sim.torque)
 
 		v = MulAdd(linearVelocityDelta, linearDamping, v)
 		// w = angularVelocityDelta + angularDamping * w

@@ -172,12 +172,12 @@ func RightPerp(v Vec2) Vec2 {
 
 // Add returns a + b.
 func Add(a, b Vec2) Vec2 {
-	return Vec2{a.X + b.X, a.Y + b.Y}
+	return Vec2{addF(a.X, b.X), addF(a.Y, b.Y)}
 }
 
 // Sub returns a - b.
 func Sub(a, b Vec2) Vec2 {
-	return Vec2{a.X - b.X, a.Y - b.Y}
+	return Vec2{subF(a.X, b.X), subF(a.Y, b.Y)}
 }
 
 // Neg returns -a.
@@ -238,8 +238,8 @@ func Length(v Vec2) float64 {
 
 // Distance returns the distance between two points.
 func Distance(a, b Vec2) float64 {
-	dx := b.X - a.X
-	dy := b.Y - a.Y
+	dx := subF(b.X, a.X)
+	dy := subF(b.Y, a.Y)
 	return math.Sqrt(dot2(dx, dx, dy, dy))
 }
 
@@ -306,8 +306,8 @@ func LengthSquared(v Vec2) float64 {
 
 // DistanceSquared returns the squared distance between two points.
 func DistanceSquared(a, b Vec2) float64 {
-	cx := b.X - a.X
-	cy := b.Y - a.Y
+	cx := subF(b.X, a.X)
+	cy := subF(b.Y, a.Y)
 	return dot2(cx, cx, cy, cy)
 }
 

@@ -38,8 +38,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      # Compiles the package for FMA-capable targets and fails on any fused
+      # multiply-add. This is the root-cause check: fusion is what makes one
+      # architecture disagree with another, so catching it here explains a
+      # failure that the golden tests can only report as "bits differ".
+      - name: Assert no fused multiply-add is emitted
+        run: go test ./pkg/box2d/ -run 'TestNoFusedMultiplyAdd' -count=1 -v
+
       - name: Run cross-architecture golden trace tests
-        run: go test ./pkg/box2d/ -run 'TestGolden|TestDiagnose' -count=1 -v
+        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
 
       - name: Run deterministic op-sequence fuzz corpus
         run: go test ./pkg/box2d/ -run 'TestWorldOpSequenceDeterminism|FuzzWorldOps' -count=1 -v

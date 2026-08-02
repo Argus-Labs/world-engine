@@ -517,7 +517,7 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.enableSpring {
 		// This is a real spring and should be applied even during relax
 		c := translation - j.targetTranslation
-		bias := j.springSoftness.biasRate * c
+		bias := float64(j.springSoftness.biasRate * c)
 		massScale := j.springSoftness.massScale
 		impulseScale := j.springSoftness.impulseScale
 
@@ -541,7 +541,7 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.enableMotor {
 		// Cdot = dot(axisA, vB - vA) + a2 * wB - a1 * wA
 		cDot := Dot(axisA, Sub(vB, vA)) + float64(a2*wB) - float64(a1*wA)
-		impulse := axialMass * (j.motorSpeed - cDot)
+		impulse := float64(axialMass * (j.motorSpeed - cDot))
 		oldImpulse := j.motorImpulse
 		maxImpulse := ctx.h * j.maxMotorForce
 		j.motorImpulse = clampFloat(j.motorImpulse+impulse, -maxImpulse, maxImpulse)

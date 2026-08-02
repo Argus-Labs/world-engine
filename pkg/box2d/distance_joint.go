@@ -429,7 +429,7 @@ func solveDistanceJoint(base *jointSim, ctx *stepContext, useBias bool) {
 			vr := Add(Sub(vB, vA), Sub(CrossSV(wB, rB), CrossSV(wA, rA)))
 			cDot := Dot(axis, vr)
 			c := length - j.length
-			bias := j.distanceSoftness.biasRate * c
+			bias := float64(j.distanceSoftness.biasRate * c)
 
 			m := j.distanceSoftness.massScale * j.axialMass
 			oldImpulse := j.impulse
@@ -452,7 +452,7 @@ func solveDistanceJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		if j.enableMotor {
 			vr := Add(Sub(vB, vA), Sub(CrossSV(wB, rB), CrossSV(wA, rA)))
 			cDot := Dot(axis, vr)
-			impulse := j.axialMass * (j.motorSpeed - cDot)
+			impulse := float64(j.axialMass * (j.motorSpeed - cDot))
 			oldImpulse := j.motorImpulse
 			maxImpulse := ctx.h * j.maxMotorForce
 			j.motorImpulse = clampFloat(j.motorImpulse+impulse, -maxImpulse, maxImpulse)
