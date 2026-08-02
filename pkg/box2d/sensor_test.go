@@ -586,7 +586,7 @@ func buildSensorDeterminismScene(w *box2d.World) []box2d.BodyID {
 	for i := range 6 {
 		body, _ := sensorAddBox(
 			w, box2d.DynamicBody,
-			box2d.Vec2{X: float64(i)*1.3 - 3.2, Y: 4.0},
+			box2d.Vec2{X: float64(float64(i)*1.3) - 3.2, Y: 4.0},
 			0.2, 0.2, false, true,
 		)
 		w.SetBodyLinearVelocity(body, box2d.Vec2{X: 0.15 * float64(i%3), Y: -3.0})

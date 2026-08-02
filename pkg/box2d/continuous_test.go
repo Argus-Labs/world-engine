@@ -32,7 +32,7 @@ func (x *xorshift64) next() uint64 {
 // fusing into an FMA (see math_fma.go) so golden inputs are bit-identical on
 // every architecture.
 func (x *xorshift64) rangeFloat(lo, hi float64) float64 {
-	u := float64(x.next()>>11) / float64(uint64(1)<<53)
+	u := float64(float64(x.next()>>11) / float64(uint64(1)<<53))
 	return lo + float64((hi-lo)*u)
 }
 

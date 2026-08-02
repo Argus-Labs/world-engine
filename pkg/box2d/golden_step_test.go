@@ -85,9 +85,9 @@ func buildPyramidScene(w *box2d.World) []box2d.BodyID {
 	const rows = 6
 	h := 0.5
 	for i := range rows {
-		y := (2.0*float64(i)+1.0)*h + 0.02*float64(i)
+		y := float64((2.0*float64(i)+1.0)*h) + float64(0.02*float64(i))
 		for j := i; j < rows; j++ {
-			x := float64(i)*h + 2.0*h*float64(j-i) - h*float64(rows-i-1)
+			x := float64(float64(i)*h) + float64(float64(2.0*h)*float64(j-i)) - float64(h*float64(rows-i-1))
 
 			bd := box2d.DefaultBodyDef()
 			bd.Type = box2d.DynamicBody

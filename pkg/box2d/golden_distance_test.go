@@ -34,8 +34,8 @@ func (r *distanceRNG) next() uint64 {
 
 // uniform returns a float64 in [lo, hi) derived from exact integer arithmetic.
 func (r *distanceRNG) uniform(lo, hi float64) float64 {
-	u := float64(r.next()>>11) / float64(1<<53)
-	return lo + (hi-lo)*u
+	u := float64(float64(r.next()>>11) / float64(1<<53))
+	return lo + float64((hi-lo)*u)
 }
 
 func (r *distanceRNG) intn(n int) int {

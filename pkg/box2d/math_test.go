@@ -50,7 +50,7 @@ func TestComputeCosSin(t *testing.T) {
 		assert.InDelta(t, math.Sin(r), cs.Sine, tol, "sin(%v)", r)
 
 		// Result is normalized to the unit circle.
-		mag := cs.Cosine*cs.Cosine + cs.Sine*cs.Sine
+		mag := float64(cs.Cosine*cs.Cosine) + float64(cs.Sine*cs.Sine)
 		assert.InDelta(t, 1.0, mag, 1e-12, "magnitude at %v", r)
 	}
 }
@@ -283,7 +283,7 @@ func TestSpringDamper(t *testing.T) {
 	const h = 1.0 / 60.0
 	for range 600 {
 		velocity = box2d.SpringDamper(5.0, 1.0, position, velocity, h)
-		position += h * velocity
+		position += float64(h * velocity)
 	}
 	assert.InDelta(t, 0.0, position, 1e-3)
 	assert.InDelta(t, 0.0, velocity, 1e-2)

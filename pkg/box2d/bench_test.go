@@ -83,7 +83,7 @@ func addBenchChain(world *box2d.World, bodyID box2d.BodyID, halfWidth float64, s
 	step := 2.0 * halfWidth / float64(segments)
 
 	for i := range points {
-		x := halfWidth - float64(i)*step
+		x := halfWidth - float64(float64(i)*step)
 		points[i] = box2d.Vec2{X: x, Y: 0.25 * math.Sin(0.25*x)}
 	}
 
@@ -142,10 +142,10 @@ func buildBenchPyramidScene(rows int) *box2d.World {
 	bodyDef.Type = box2d.DynamicBody
 
 	for i := range rows {
-		y := (2.0*float64(i)+1.0)*shift + halfExtent
+		y := float64((2.0*float64(i)+1.0)*shift) + halfExtent
 
 		for j := i; j < rows; j++ {
-			x := (float64(i)+1.0)*shift + 2.0*float64(j-i)*shift - float64(rows)*halfExtent
+			x := float64((float64(i)+1.0)*shift) + float64(float64(2.0*float64(j-i))*shift) - float64(float64(rows)*halfExtent)
 
 			bodyDef.Position = box2d.Vec2{X: x, Y: y}
 			bodyID := world.CreateBody(&bodyDef)
@@ -276,8 +276,8 @@ func buildBenchQueryScene() *box2d.World {
 
 	for i := range benchQueryShapeCount {
 		bodyDef.Position = box2d.Vec2{
-			X: float64(i%cols)*spacing - float64(cols)*spacing/2.0,
-			Y: float64(i/cols)*spacing - float64(cols)*spacing/2.0,
+			X: float64(float64(i%cols)*spacing) - float64(float64(cols)*spacing/2.0),
+			Y: float64(float64(i/cols)*spacing) - float64(float64(cols)*spacing/2.0),
 		}
 		bodyID := world.CreateBody(&bodyDef)
 		world.CreateCircleShape(bodyID, &shapeDef, &circle)
@@ -432,7 +432,7 @@ func BenchmarkBodyCreateDestroy(b *testing.B) {
 
 	for range b.N {
 		for i := range benchChurnCount {
-			bodyDef.Position = box2d.Vec2{X: float64(i%50)*1.5 - 37.5, Y: float64(i/50)*1.5 + 2.0}
+			bodyDef.Position = box2d.Vec2{X: float64(float64(i%50)*1.5) - 37.5, Y: float64(float64(i/50)*1.5) + 2.0}
 			bodyID := world.CreateBody(&bodyDef)
 			world.CreateCircleShape(bodyID, &shapeDef, &circle)
 			bodies = append(bodies, bodyID)

@@ -23,6 +23,7 @@
 package box2d_test
 
 import (
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -48,29 +49,48 @@ func TestNoFusedMultiplyAdd(t *testing.T) {
 		{name: "amd64/v3", env: []string{"GOARCH=amd64", "GOOS=linux", "GOAMD64=v3"}},
 	}
 
-	for _, target := range targets {
-		t.Run(target.name, func(t *testing.T) {
-			t.Parallel()
-
-			// -S writes the generated assembly to stderr. -a forces a rebuild
-			// so a cached package cannot hide a regression.
-			cmd := exec.Command("go", "build", "-a", "-gcflags=-S", ".")
-			cmd.Env = append(cmd.Environ(), target.env...)
-			out, err := cmd.CombinedOutput()
-			require.NoError(t, err, "compiling for %s failed:\n%s", target.name, out)
-
-			var offenders []string
-			for _, line := range strings.Split(string(out), "\n") {
-				if fmaMnemonic.MatchString(line) {
-					offenders = append(offenders, strings.TrimSpace(line))
-				}
-			}
-
-			require.Empty(t, offenders,
-				"%s: found %d fused multiply-add instruction(s); results will not be "+
-					"bit-identical against targets without FMA. Round the products feeding "+
-					"these lines with float64(...). Offenders:\n%s",
-				target.name, len(offenders), strings.Join(offenders, "\n"))
-		})
+	// The test binary is compiled too, not just the package: golden values are
+	// partly computed by test code (scene layout, seeded input tables), so a
+	// fusion there diverges across architectures exactly like one in the
+	// engine — and `go build` never compiles test files.
+	builds := []struct {
+		what string
+		args []string
+	}{
+		{what: "package", args: []string{"build", "-a", "-gcflags=-S", "."}},
+		{what: "test binary", args: []string{"test", "-c", "-o", os.DevNull, "-gcflags=-S", "."}},
 	}
+
+	for _, target := range targets {
+		for _, build := range builds {
+			t.Run(target.name+"/"+build.what, func(t *testing.T) {
+				t.Parallel()
+				assertNoFMA(t, target.name+" "+build.what, target.env, build.args)
+			})
+		}
+	}
+}
+
+func assertNoFMA(t *testing.T, label string, env, args []string) {
+	t.Helper()
+
+	// -S writes the generated assembly to stderr. -a forces a rebuild so a
+	// cached package cannot hide a regression.
+	cmd := exec.Command("go", args...)
+	cmd.Env = append(cmd.Environ(), env...)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "compiling %s failed:\n%s", label, out)
+
+	var offenders []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if fmaMnemonic.MatchString(line) {
+			offenders = append(offenders, strings.TrimSpace(line))
+		}
+	}
+
+	require.Empty(t, offenders,
+		"%s: found %d fused multiply-add instruction(s); results will not be "+
+			"bit-identical against targets without FMA. Round the products feeding "+
+			"these lines with float64(...). Offenders:\n%s",
+		label, len(offenders), strings.Join(offenders, "\n"))
 }
