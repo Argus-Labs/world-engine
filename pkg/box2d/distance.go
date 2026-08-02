@@ -162,6 +162,23 @@ func findSupport(proxy *ShapeProxy, direction Vec2) int {
 	return bestIndex
 }
 
+// maxSimplexVertices is the number of vertices a GJK simplex can hold in 2D. It
+// is the length of the SimplexCache index arrays and of the vertex pointer
+// arrays built from Simplex below.
+const maxSimplexVertices = 3
+
+// requireValidSimplexCacheCount enforces the public API precondition that a
+// warm-start SimplexCache claims no more vertices than a GJK simplex can hold.
+// SimplexCache is exported with exported fields, so a caller can set Count
+// directly instead of zero initializing the struct or reusing one that
+// ShapeDistance produced. Like the other require* helpers in core.go it is
+// always enabled, independent of debugAsserts, and it leaves valid inputs
+// (Count 0 to 3) untouched.
+func requireValidSimplexCacheCount(cache *SimplexCache) {
+	requireValidDefField(cache.Count <= maxSimplexVertices, "SimplexCache", "Count",
+		"must be between 0 and 3; zero initialize SimplexCache before the first ShapeDistance call")
+}
+
 // makeSimplexFromCache is upstream b2MakeSimplexFromCache.
 func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy) Simplex {
 	assert(cache.Count <= 3)
@@ -172,6 +189,7 @@ func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy) Simple
 
 	vertices := [3]*SimplexVertex{&s.V1, &s.V2, &s.V3}
 	for i := range s.Count {
+		//nolint:gosec // G602: s.Count is cache.Count, validated to 0..3 by requireValidSimplexCacheCount in ShapeDistance, the only caller.
 		v := vertices[i]
 		v.IndexA = int(cache.IndexA[i])
 		v.IndexB = int(cache.IndexB[i])
@@ -204,7 +222,9 @@ func makeSimplexCache(simplex *Simplex) SimplexCache {
 	cache.Count = uint16(simplex.Count)
 	vertices := [3]*SimplexVertex{&simplex.V1, &simplex.V2, &simplex.V3}
 	for i := range simplex.Count {
+		//nolint:gosec // G602: simplex.Count never exceeds 3; it starts from the cache count validated in ShapeDistance (the only caller) and is only ever set by the solveSimplex helpers, which write 1, 2 or 3.
 		cache.IndexA[i] = uint8(vertices[i].IndexA)
+		//nolint:gosec // G602: same bound as the line above; vertices is [3]*SimplexVertex.
 		cache.IndexB[i] = uint8(vertices[i].IndexB)
 	}
 
@@ -412,6 +432,12 @@ func solveSimplex3(s *Simplex) Vec2 {
 // Uses GJK for computing the distance between convex shapes.
 // https://box2d.org/files/ErinCatto_GJK_GDC2010.pdf
 func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simplex) DistanceOutput {
+	// Public API precondition: the GJK simplex holds at most three vertices, so
+	// a warm-start cache claiming more would index past the fixed-size simplex
+	// arrays below. SimplexCache is exported with exported fields, so a caller
+	// can set Count directly.
+	requireValidSimplexCacheCount(cache)
+
 	assert(input.ProxyA.Count > 0 && input.ProxyB.Count > 0)
 	assert(input.ProxyA.Radius >= 0.0)
 	assert(input.ProxyB.Radius >= 0.0)
@@ -457,7 +483,9 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 		// Copy simplex so we can identify duplicates.
 		saveCount := simplex.Count
 		for i := range saveCount {
+			//nolint:gosec // G602: simplex.Count never exceeds 3; it starts from cache.Count validated by requireValidSimplexCacheCount above and is only ever set by the solveSimplex helpers, which write 1, 2 or 3. saveA is [3]int.
 			saveA[i] = vertices[i].IndexA
+			//nolint:gosec // G602: same bound as the line above; saveB is [3]int and vertices is [3]*SimplexVertex.
 			saveB[i] = vertices[i].IndexB
 		}
 
