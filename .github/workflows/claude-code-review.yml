@@ -65,12 +65,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # TEMPORARY: this job has failed on every run since it was added,
-          # always with total_cost_usd 0 and duration_ms ~100, i.e. the first
-          # model call is rejected before any tokens are billed. The action
-          # hides the API error by default, so turn the full output on to see
-          # it. Remove once the cause is fixed.
-          show_full_output: true
           track_progress: true
           use_sticky_comment: true
           # No allowed_bots: this repo is public, and allowed bots bypass the
