@@ -1,13 +1,15 @@
 package internal
 
 import (
+	"cmp"
 	"maps"
+	"slices"
 	"sort"
 
+	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
 // FlushBufferedContacts turns buffered contact records into physics2d events via the
@@ -28,8 +30,7 @@ import (
 // If NoPersistedActiveContactsBaseline is set (missing singleton on a suppressed step), the
 // suppressed flush adopts live contacts into the map without emitting events so one-shot
 // Begin handlers do not all fire spuriously; the flag is cleared.
-func FlushBufferedContacts() {
-	rt := Runtime()
+func (rt *Runtime) FlushBufferedContacts() {
 	stepHadEmitter := rt.Emitter != nil
 	wasSuppressed := rt.SuppressContactsStep
 	defer func() {
@@ -55,10 +56,10 @@ func FlushBufferedContacts() {
 		// No ECS baseline: seed map from live contacts only; do not emit Begins for every overlap.
 		if rt.NoPersistedActiveContactsBaseline {
 			rt.NoPersistedActiveContactsBaseline = false
-			adoptLiveContactsWithoutEmit(rt)
+			rt.adoptLiveContactsWithoutEmit()
 			return
 		}
-		diffActiveContactsAfterRebuild(rt, em)
+		rt.diffActiveContactsAfterRebuild(em)
 		return
 	}
 
@@ -75,16 +76,16 @@ func FlushBufferedContacts() {
 		}
 		flushOneBufferedContact(em, buf)
 	}
-	refreshActiveContactsFromLive(rt)
+	rt.refreshActiveContactsFromLive()
 }
 
 // adoptLiveContactsWithoutEmit replaces the in-memory map with the current live touching pairs
 // and does not emit system events (no persisted baseline when the singleton entity is missing).
-func adoptLiveContactsWithoutEmit(rt *PhysicsRuntime) {
-	if !cbridge.WorldExists() {
+func (rt *Runtime) adoptLiveContactsWithoutEmit() {
+	if rt.World == nil {
 		return
 	}
-	live := gatherLiveContacts()
+	live := rt.gatherLiveContacts()
 	clear(rt.ActiveContacts)
 	maps.Copy(rt.ActiveContacts, live)
 	if len(live) > 0 {
@@ -95,12 +96,12 @@ func adoptLiveContactsWithoutEmit(rt *PhysicsRuntime) {
 // diffActiveContactsAfterRebuild walks the live contact list and diffs against the persisted
 // ActiveContacts map. Emits Begin for genuinely new overlaps and End for contacts that no
 // longer exist in the simulation. Events are sorted for deterministic ordering.
-func diffActiveContactsAfterRebuild(rt *PhysicsRuntime, em event.ContactEventEmitter) {
-	if !cbridge.WorldExists() {
+func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) {
+	if rt.World == nil {
 		return
 	}
 
-	liveContacts := gatherLiveContacts()
+	liveContacts := rt.gatherLiveContacts()
 
 	var events []BufferedContactEvent
 
@@ -131,49 +132,67 @@ func diffActiveContactsAfterRebuild(rt *PhysicsRuntime, em event.ContactEventEmi
 	}
 }
 
-// gatherLiveContacts calls cbridge.GatherLiveContacts and converts the results into the
-// normalized ContactPairKey -> ContactPairInfo map.
-func gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
+// gatherLiveContacts enumerates the currently touching contact pairs by walking every
+// tracked body (sorted by entity id for determinism) and reading its touching contact data
+// from the world. Pairs are normalized and deduplicated via the map key: Box2D reports each
+// contact from both endpoints. Replaces the CGO bridge's bridge_gather_live_contacts.
+func (rt *Runtime) gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
 	result := make(map[ContactPairKey]ContactPairInfo)
-	liveEvents := cbridge.GatherLiveContacts()
-	for _, c := range liveEvents {
-		entityA := cardinal.EntityID(c.EntityA)
-		entityB := cardinal.EntityID(c.EntityB)
-		shapeIndexA := c.ShapeIndexA
-		shapeIndexB := c.ShapeIndexB
+	w := rt.World
 
-		key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
-		info := ContactPairInfo{IsSensor: c.IsSensor}
+	ids := make([]cardinal.EntityID, 0, len(rt.Bodies))
+	for id := range rt.Bodies {
+		ids = append(ids, id)
+	}
+	slices.SortFunc(ids, cmp.Compare)
 
-		fda := event.FixtureFilterBits{
-			CategoryBits: c.CatA,
-			MaskBits:     c.MaskA,
-			GroupIndex:   c.GroupA,
+	var buf []box2d.ContactData
+	for _, id := range ids {
+		bodyID := rt.Bodies[id]
+		capacity := w.BodyContactCapacity(bodyID)
+		if capacity == 0 {
+			continue
 		}
-		fdb := event.FixtureFilterBits{
-			CategoryBits: c.CatB,
-			MaskBits:     c.MaskB,
-			GroupIndex:   c.GroupB,
+		if cap(buf) < capacity {
+			buf = make([]box2d.ContactData, capacity)
 		}
-		if entityA == key.EntityA && shapeIndexA == key.ShapeIndexA {
-			info.FilterA = fda
-			info.FilterB = fdb
-		} else {
-			info.FilterA = fdb
-			info.FilterB = fda
-		}
+		n := w.BodyContactData(bodyID, buf[:capacity])
+		for j := range n {
+			cd := &buf[j]
+			entityA, shapeIndexA := rt.shapeIdentity(cd.ShapeIDA)
+			entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
 
-		if c.NormalValid {
-			info.Normal = component.Vec2{X: c.NormalX, Y: c.NormalY}
-			info.NormalValid = true
-		}
-		if c.PointValid {
-			info.Point = component.Vec2{X: c.PointX, Y: c.PointY}
-			info.PointValid = true
-		}
-		info.ManifoldPointCount = c.ManifoldPointCount
+			key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
+			if _, seen := result[key]; seen {
+				continue
+			}
+			info := ContactPairInfo{
+				IsSensor: w.IsShapeSensor(cd.ShapeIDA) || w.IsShapeSensor(cd.ShapeIDB),
+			}
 
-		result[key] = info
+			fda := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDA))
+			fdb := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDB))
+			if entityA == key.EntityA && shapeIndexA == key.ShapeIndexA {
+				info.FilterA = fda
+				info.FilterB = fdb
+			} else {
+				info.FilterA = fdb
+				info.FilterB = fda
+			}
+
+			if cd.Manifold.PointCount > 0 {
+				info.Normal = component.Vec2{X: cd.Manifold.Normal.X, Y: cd.Manifold.Normal.Y}
+				info.NormalValid = true
+				info.Point = component.Vec2{
+					X: cd.Manifold.Points[0].AnchorA.X,
+					Y: cd.Manifold.Points[0].AnchorA.Y,
+				}
+				info.PointValid = true
+				info.ManifoldPointCount = cd.Manifold.PointCount
+			}
+
+			result[key] = info
+		}
 	}
 	return result
 }
@@ -211,11 +230,11 @@ func contactInfoNormalizedFromBuffered(buf BufferedContactEvent, key ContactPair
 // refreshActiveContactsFromLive overwrites each ActiveContacts entry that still exists in the
 // live contact list with the latest sensor/filter snapshot. Marks the ECS component dirty when
 // those fields change.
-func refreshActiveContactsFromLive(rt *PhysicsRuntime) {
-	if !cbridge.WorldExists() || len(rt.ActiveContacts) == 0 {
+func (rt *Runtime) refreshActiveContactsFromLive() {
+	if rt.World == nil || len(rt.ActiveContacts) == 0 {
 		return
 	}
-	live := gatherLiveContacts()
+	live := rt.gatherLiveContacts()
 	for k, prev := range rt.ActiveContacts {
 		li, ok := live[k]
 		if !ok {
@@ -296,8 +315,9 @@ func flushOneBufferedContact(em event.ContactEventEmitter, buf BufferedContactEv
 
 // SetStepEmitter stores the contact event sink for the upcoming simulation step. The step driver
 // should set this before the step and call FlushBufferedContacts after the step.
-func SetStepEmitter(emitter event.ContactEventEmitter) {
-	if rt := Runtime(); rt != nil {
-		rt.Emitter = emitter
+func (rt *Runtime) SetStepEmitter(emitter event.ContactEventEmitter) {
+	if rt == nil {
+		return
 	}
+	rt.Emitter = emitter
 }

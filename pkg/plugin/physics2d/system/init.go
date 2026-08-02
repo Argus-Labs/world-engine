@@ -44,14 +44,15 @@ type InitPhysicsSystemState struct {
 	Singleton physicsSingletonSearch
 }
 
-// InitPhysicsSystem creates the singleton entity (if absent), then builds the C-side Box2D world
-// and bodies from ECS. Runs on cardinal.Init.
-func InitPhysicsSystem(state *InitPhysicsSystemState) {
-	ensurePhysicsSingleton(&state.Singleton)
+// NewInitPhysicsSystem returns the Init-hook system bound to rt. The system creates the
+// singleton entity (if absent), then builds the Box2D world and bodies from ECS.
+func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
+	return func(state *InitPhysicsSystemState) {
+		ensurePhysicsSingleton(&state.Singleton)
 
-	cfg := stepConfig()
-	entries := gatherRebuildEntries(state.Bodies.Iter())
-	if err := internal.FullRebuildFromECS(cfg.Gravity, entries); err != nil {
-		panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
+		entries := gatherRebuildEntries(state.Bodies.Iter())
+		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
+			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
+		}
 	}
 }

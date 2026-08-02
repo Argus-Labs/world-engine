@@ -14,7 +14,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_InactiveBodyDoesNotFall(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bodyID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 0, Y: 10}
@@ -62,7 +63,8 @@ func TestBodyFlag_InactiveBodyDoesNotFall(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_ActivateMidSim(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bodyID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 0, Y: 20}
@@ -132,7 +134,8 @@ func TestBodyFlag_ActivateMidSim(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_FixedRotation(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var bodyID cardinal.EntityID
 
@@ -180,7 +183,8 @@ func TestBodyFlag_FixedRotation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_FixedRotationToggle(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var bodyID cardinal.EntityID
 
@@ -251,7 +255,8 @@ func TestBodyFlag_FixedRotationToggle(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_GravityScaleZero(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bodyID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 0, Y: 10}
@@ -297,7 +302,8 @@ func TestBodyFlag_GravityScaleZero(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_GravityScaleDouble(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var normalID, doubleID cardinal.EntityID
 
@@ -356,7 +362,8 @@ func TestBodyFlag_GravityScaleDouble(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_LinearDamping(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var undampedID, dampedID cardinal.EntityID
 
@@ -416,7 +423,8 @@ func TestBodyFlag_LinearDamping(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyFlag_AngularDamping(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var undampedID, dampedID cardinal.EntityID
 
@@ -476,7 +484,8 @@ func TestBodyFlag_AngularDamping(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBodyTypeSwitch_DynamicToStatic(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bodyID cardinal.EntityID
 
@@ -538,7 +547,8 @@ func TestBodyTypeSwitch_DynamicToStatic(t *testing.T) {
 }
 
 func TestBodyTypeSwitch_DynamicToKinematic(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bodyID cardinal.EntityID
 
@@ -602,7 +612,8 @@ func TestBodyTypeSwitch_DynamicToKinematic(t *testing.T) {
 }
 
 func TestBodyTypeSwitch_KinematicToDynamic(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bodyID cardinal.EntityID
 

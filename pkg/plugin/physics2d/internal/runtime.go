@@ -3,10 +3,10 @@ package internal
 import (
 	"sort"
 
+	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
 // ContactPairKey identifies a unique fixture-pair contact. Always normalized so that
@@ -32,16 +32,43 @@ type ContactPairInfo struct {
 	ManifoldPointCount int
 }
 
-// PhysicsRuntime owns derived physics state for one Cardinal world instance. ECS remains
+// Runtime owns derived physics state for one Cardinal world instance. ECS remains
 // authoritative; this struct is disposable and rebuilt from components when needed.
-type PhysicsRuntime struct {
-	// KnownEntities tracks which Cardinal entities have bodies in the C-side Box2D world.
+//
+// One Runtime belongs to exactly one physics2d.Plugin instance. The pure-Go Box2D backend is
+// per-instance state, so multiple live Runtimes in one process simulate independently.
+type Runtime struct {
+	// World is the pure-Go Box2D world owned by this runtime. Nil until the first
+	// FullRebuildFromECS and after Reset.
+	World *box2d.World
+
+	// Bodies maps Cardinal entity ids to their Box2D body ids in World.
+	Bodies map[cardinal.EntityID]box2d.BodyID
+
+	// Shapes maps entity ids to per-collider-slot Box2D shape ids: slot i corresponds to
+	// ColliderShape index i. Chain slots hold a null ShapeID (chains are tracked in Chains)
+	// so per-shape mutable setters skip them, matching the CGO bridge behavior.
+	Shapes map[cardinal.EntityID][]box2d.ShapeID
+
+	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
+	Chains map[cardinal.EntityID][]box2d.ChainID
+
+	// Gravity is the world gravity vector applied on world creation and on rebuild.
+	Gravity component.Vec2
+
+	// FixedDT is the simulated time advanced by one physics step, in seconds.
+	FixedDT float64
+
+	// SubStepCount is the number of solver sub-steps per physics step.
+	SubStepCount int
+
+	// KnownEntities tracks which Cardinal entities have bodies in the Box2D world.
 	KnownEntities map[cardinal.EntityID]struct{}
 
 	// Shadow holds per-entity reconciler snapshots (diff against ECS each tick).
 	Shadow map[cardinal.EntityID]ShadowState
 
-	// BufferedContacts collects contact events from cbridge.Step for post-step flush.
+	// BufferedContacts collects contact events from the physics step for post-step flush.
 	BufferedContacts []BufferedContactEvent
 
 	// Emitter is the current tick's contact flush sink, set by the step driver before Step
@@ -53,7 +80,7 @@ type PhysicsRuntime struct {
 	SuppressContactsStep bool
 
 	// ActiveContacts is the in-memory working copy of which Begin events have been emitted
-	// without a matching End. nil means "not yet loaded from ECS" (e.g. after ResetRuntime);
+	// without a matching End. nil means "not yet loaded from ECS" (e.g. after Reset);
 	// the step system populates it from the persisted ActiveContacts component on first access.
 	ActiveContacts map[ContactPairKey]ContactPairInfo
 
@@ -66,16 +93,33 @@ type PhysicsRuntime struct {
 	NoPersistedActiveContactsBaseline bool
 }
 
-//nolint:gochecknoglobals // Package-scoped runtime singleton.
-var runtime *PhysicsRuntime
+// defaultFixedDT is the step size used when a non-positive FixedDT is supplied (60 Hz).
+const defaultFixedDT = 1.0 / 60.0
 
-// NewPhysicsRuntime returns an empty runtime. Maps are initialized; Emitter is nil.
+// defaultSubStepCount is the Box2D v3 friendly solver sub-step count used when a non-positive
+// SubStepCount is supplied.
+const defaultSubStepCount = 4
+
+// NewRuntime returns an empty runtime with the given simulation parameters. Maps are
+// initialized; Emitter is nil. Non-positive fixedDT or subSteps fall back to 60 Hz / 4 sub-steps.
 // SuppressContactsStep is true so the next armed simulation step does not record contact
 // begin/end; the following FlushBufferedContacts clears suppression when that flush is
 // paired with an emitter (see contact_flush.go).
 // ActiveContacts is nil, signaling "load from ECS on next step".
-func NewPhysicsRuntime() *PhysicsRuntime {
-	return &PhysicsRuntime{
+func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps int) *Runtime {
+	if fixedDT <= 0 {
+		fixedDT = defaultFixedDT
+	}
+	if subSteps <= 0 {
+		subSteps = defaultSubStepCount
+	}
+	return &Runtime{
+		Gravity:              gravity,
+		FixedDT:              fixedDT,
+		SubStepCount:         subSteps,
+		Bodies:               make(map[cardinal.EntityID]box2d.BodyID),
+		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
+		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -84,30 +128,36 @@ func NewPhysicsRuntime() *PhysicsRuntime {
 	}
 }
 
-// ResetRuntime replaces the package runtime with a fresh PhysicsRuntime.
-// If a C-side world exists, it is destroyed first.
-func ResetRuntime() {
-	if cbridge.WorldExists() {
-		cbridge.DestroyWorld()
+// Reset drops all derived physics state on this runtime, returning it to the state of a freshly
+// constructed Runtime. If a Box2D world exists, it is destroyed first. Simulation parameters
+// (Gravity, FixedDT, SubStepCount) are preserved.
+func (rt *Runtime) Reset() {
+	if rt.World != nil {
+		rt.World.Destroy()
+		rt.World = nil
 	}
-	runtime = NewPhysicsRuntime()
+	rt.Bodies = make(map[cardinal.EntityID]box2d.BodyID)
+	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
+	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
+	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
+	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
+	rt.BufferedContacts = make([]BufferedContactEvent, 0)
+	rt.Emitter = nil
+	rt.SuppressContactsStep = true
+	rt.ActiveContacts = nil
+	rt.ActiveContactsDirty = false
+	rt.NoPersistedActiveContactsBaseline = false
 }
 
-// Runtime returns the current package-scoped physics runtime. It does not create one lazily:
-// callers must invoke ResetRuntime first; otherwise this returns nil.
-func Runtime() *PhysicsRuntime {
-	return runtime
-}
-
-// WorldExists reports whether the C-side Box2D world has been created and is alive.
-func (rt *PhysicsRuntime) WorldExists() bool {
-	return cbridge.WorldExists()
+// WorldExists reports whether this runtime's Box2D world has been created and is alive.
+func (rt *Runtime) WorldExists() bool {
+	return rt.World != nil
 }
 
 // PruneActiveContactsInvolvingEntity removes every active-contact key that references entityID.
 // Call when that entity's body is destroyed or its fixtures are structurally replaced so
 // end-of-tick persistence and the next suppressed diff do not retain stale pair keys.
-func (rt *PhysicsRuntime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID) {
+func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID) {
 	if len(rt.ActiveContacts) == 0 {
 		return
 	}
@@ -121,7 +171,7 @@ func (rt *PhysicsRuntime) PruneActiveContactsInvolvingEntity(entityID cardinal.E
 
 // LoadActiveContactsFromComponent populates the in-memory working map from the persisted
 // ECS component. Called by the step system after a restore when ActiveContacts is nil.
-func (rt *PhysicsRuntime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
+func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
 	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, len(ac.Pairs))
 	for _, p := range ac.Pairs {
 		key := ContactPairKey{
@@ -149,7 +199,7 @@ func (rt *PhysicsRuntime) LoadActiveContactsFromComponent(ac component.ActiveCon
 
 // ActiveContactsToComponent converts the working map to the ECS component format (sorted
 // slice for deterministic snapshots).
-func (rt *PhysicsRuntime) ActiveContactsToComponent() component.ActiveContacts {
+func (rt *Runtime) ActiveContactsToComponent() component.ActiveContacts {
 	if rt.ActiveContacts == nil {
 		return component.ActiveContacts{}
 	}

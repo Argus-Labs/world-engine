@@ -5,7 +5,6 @@ import (
 	physicscomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	physicevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
 // PhysicsPipelineSystemState runs the full physics pipeline atomically: reconcile -> step -> writeback.
@@ -34,33 +33,12 @@ func (b contactEmitterBridge) EmitTriggerBegin(e physicevent.TriggerBeginEvent) 
 }
 func (b contactEmitterBridge) EmitTriggerEnd(e physicevent.TriggerEndEvent) { b.s.TriggerEnd.Emit(e) }
 
-// PhysicsPipelineSystem runs the full physics pipeline as one atomic unit. The plugin registers
-// it on cardinal.PreUpdate so simulation and writeback finish before cardinal.Update game logic
-// in the same tick, while contact/trigger system events remain visible until the tick ends.
-//
-// Phases:
-//  1. Reconcile: sync ECS -> C-side Box2D (create/update/destroy bodies from component changes)
-//  2. Step: advance physics simulation, buffer contact/trigger events
-//  3. Writeback: sync C-side Box2D -> ECS (write post-step positions/velocities back to components)
-func PhysicsPipelineSystem(state *PhysicsPipelineSystemState) {
-	rt := internal.Runtime()
-
-	// --- 1. Reconcile (ECS -> C-side Box2D) ---
-	ensurePhysicsSingleton(&state.Singleton)
-	entries := gatherRebuildEntries(state.Bodies.Iter())
-	cfg := stepConfig()
-
-	if !cbridge.WorldExists() {
-		if err := internal.FullRebuildFromECS(cfg.Gravity, entries); err != nil {
-			state.Logger().Error().Err(err).Msg("physics2d: FullRebuildFromECS failed (nil world recovery)")
-		}
-		return
-	}
-	if err := internal.ReconcileFromECS(entries); err != nil {
-		state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
-	}
-
-	// --- 2. Step + flush contacts ---
+// loadContactBaseline locates the physics singleton's ActiveContacts ref and
+// seeds the runtime's contact-dedupe baseline from it when the runtime has
+// none (e.g. right after a snapshot restore or Reset).
+func loadContactBaseline(
+	rt *internal.Runtime, state *PhysicsPipelineSystemState,
+) (cardinal.Ref[physicscomp.ActiveContacts], bool) {
 	var acRef cardinal.Ref[physicscomp.ActiveContacts]
 	singletonFound := false
 	for _, row := range state.Singleton.Iter() {
@@ -70,35 +48,67 @@ func PhysicsPipelineSystem(state *PhysicsPipelineSystemState) {
 	}
 
 	if !singletonFound {
-		state.Logger().Error().Msg("physics2d: physics singleton entity missing; contact dedupe has no persisted baseline")
+		state.Logger().Error().
+			Msg("physics2d: physics singleton entity missing; contact dedupe has no persisted baseline")
 		if rt.SuppressContactsStep {
 			rt.NoPersistedActiveContactsBaseline = true
 		}
+		return acRef, false
 	}
 
-	if singletonFound && rt.ActiveContacts == nil {
+	if rt.ActiveContacts == nil {
 		rt.LoadActiveContactsFromComponent(acRef.Get())
 	}
+	return acRef, true
+}
 
-	internal.SetStepEmitter(contactEmitterBridge{s: state})
-	states, contacts := cbridge.Step(cfg.FixedDT, cfg.SubStepCount)
-	internal.SetBufferedContactsFromStep(contacts)
-	internal.FlushBufferedContacts()
+// NewPhysicsPipelineSystem returns the full physics pipeline as one atomic unit, bound to rt.
+// The plugin registers it on cardinal.PreUpdate so simulation and writeback finish before
+// cardinal.Update game logic in the same tick, while contact/trigger system events remain
+// visible until the tick ends.
+//
+// Phases:
+//  1. Reconcile: sync ECS -> Box2D (create/update/destroy bodies from component changes)
+//  2. Step: advance physics simulation, buffer contact/trigger events
+//  3. Writeback: sync Box2D -> ECS (write post-step positions/velocities back to components)
+func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemState) {
+	return func(state *PhysicsPipelineSystemState) {
+		// --- 1. Reconcile (ECS -> Box2D) ---
+		ensurePhysicsSingleton(&state.Singleton)
+		entries := gatherRebuildEntries(state.Bodies.Iter())
 
-	if singletonFound && rt.ActiveContactsDirty {
-		acRef.Set(rt.ActiveContactsToComponent())
-		rt.ActiveContactsDirty = false
+		if !rt.WorldExists() {
+			if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
+				state.Logger().Error().Err(err).Msg("physics2d: FullRebuildFromECS failed (nil world recovery)")
+			}
+			return
+		}
+		if err := rt.ReconcileFromECS(entries); err != nil {
+			state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
+		}
+
+		// --- 2. Step + flush contacts ---
+		acRef, singletonFound := loadContactBaseline(rt, state)
+
+		rt.SetStepEmitter(contactEmitterBridge{s: state})
+		rt.Step()
+		rt.FlushBufferedContacts()
+
+		if singletonFound && rt.ActiveContactsDirty {
+			acRef.Set(rt.ActiveContactsToComponent())
+			rt.ActiveContactsDirty = false
+		}
+
+		// --- 3. Writeback (Box2D -> ECS) ---
+		wbEntries := make([]internal.WritebackEntry, 0, len(rt.Shadow))
+		for eid, row := range state.Bodies.Iter() {
+			wbEntries = append(wbEntries, internal.WritebackEntry{
+				EntityID:    eid,
+				Transform:   row.Transform,
+				Velocity:    row.Velocity,
+				PhysicsBody: row.PhysicsBody,
+			})
+		}
+		rt.WritebackFromStepResults(wbEntries)
 	}
-
-	// --- 3. Writeback (C-side Box2D -> ECS) ---
-	wbEntries := make([]internal.WritebackEntry, 0, len(rt.Shadow))
-	for eid, row := range state.Bodies.Iter() {
-		wbEntries = append(wbEntries, internal.WritebackEntry{
-			EntityID:    eid,
-			Transform:   row.Transform,
-			Velocity:    row.Velocity,
-			PhysicsBody: row.PhysicsBody,
-		})
-	}
-	internal.WritebackFromStepResults(states, wbEntries)
 }

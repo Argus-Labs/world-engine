@@ -1,0 +1,874 @@
+// Ported to Go from Box2D v3.2.0 (https://github.com/erincatto/box2d) — file src/physics_world.c, src/physics_world.h
+// (world struct, create/destroy, id validation and lookup helpers; Step,
+// queries, events and debug draw arrive with later stages).
+//
+// DESIGN DEVIATION (approved): no world registry.
+//
+// Upstream keeps a global b2World b2_worlds[B2_MAX_WORLDS] array and resolves
+// every id's world0 field through it (b2GetWorldFromId/b2GetWorld). This port
+// forbids package-level mutable state, so NewWorld returns a *World and every
+// b2World_*/b2Body_*/b2Shape_* function becomes a method on *World. The
+// world0 field on the id types is kept for struct-layout parity and is always
+// 0 (every World has worldID == 0); id validation therefore relies on the
+// index + generation checks against the owning world only — passing an id
+// from world A to world B's methods is NOT detected the way the upstream
+// registry would detect it. The code keeps the upstream shape (worldID,
+// generation, inUse fields and the id.world0 == w.worldID checks) so a
+// registry could be reintroduced without touching call sites.
+//
+// Other deviations from upstream:
+//   - Task system dropped (single-threaded port): workerCount,
+//     enqueueTaskFcn, finishTaskFcn, userTaskContext, userTreeTask and
+//     activeTaskCount have no counterpart; taskCount is kept for
+//     Counters.TaskCount parity. The per-worker b2TaskContext array
+//     (sensorHits, contactStateBitSet, jointStateBitSet, enlargedSimBitSet,
+//     awakeIslandBitSet) collapses to a single taskContext, and the
+//     b2SensorTaskContext array collapses to the single sensorEventBits
+//     bitset (see sensor.go).
+//   - b2InitializeContactRegisters is a call-parity no-op: the register
+//     table is a package-level immutable literal (contact.go).
+//   - Counters.ByteCount is 0: upstream b2GetByteCount tracks global heap
+//     allocations, which has no Go counterpart.
+//   - Counters.StackUsed counts arena elements, not bytes (see arena.go).
+//   - b2ValidateConnectivity/b2ValidateSolverSets/b2ValidateContacts are
+//     no-ops, matching upstream release builds (B2_ENABLE_VALIDATION off).
+//     Stage E7 may port the full validators behind debugAsserts.
+//   - b2World_DumpMemoryStats and b2World_Dump (file I/O debug helpers) are
+//     not ported.
+
+package box2d
+
+import "math"
+
+// World manages all physics entities, dynamic simulation, and queries
+// (upstream b2World). Create one with NewWorld.
+type World struct {
+	arena           arena
+	broadPhase      broadPhase
+	constraintGraph constraintGraph
+
+	// The body id pool is used to allocate and recycle body ids. Body ids
+	// provide a stable identifier for users, but incur cache misses when used
+	// to access body data. Aligns with bodies.
+	bodyIDPool idPool
+
+	// This is a sparse array that maps body ids to the body data stored in
+	// solver sets. As sims move within a set or across sets, indices come
+	// from the id pool.
+	bodies []body
+
+	// Provides free list for solver sets.
+	solverSetIDPool idPool
+
+	// Solver sets allow sims to be stored in contiguous arrays. The first
+	// set is all static sims. The second set is active sims. The third set is
+	// disabled sims. The remaining sets are sleeping islands.
+	solverSets []solverSet
+
+	// Used to create stable ids for joints.
+	jointIDPool idPool
+
+	// This is a sparse array that maps joint ids to the joint data stored in
+	// the constraint graph or in the solver sets.
+	joints []joint
+
+	// Used to create stable ids for contacts.
+	contactIDPool idPool
+
+	// This is a sparse array that maps contact ids to the contact data stored
+	// in the constraint graph or in the solver sets.
+	contacts []contact
+
+	// Used to create stable ids for islands.
+	islandIDPool idPool
+
+	// Persistent islands.
+	islands []island
+
+	shapeIDPool idPool
+	chainIDPool idPool
+
+	// These are sparse arrays that point into the pools above.
+	shapes      []shape
+	chainShapes []chainShape
+
+	// This is a dense array of sensor data.
+	sensors []sensor
+
+	// Sensors whose overlap set changed during the sensor pass, by sensor
+	// array index. Deviation from upstream: b2World keeps one
+	// b2SensorTaskContext (with an eventBits bitset) per worker and unions
+	// them after the parallel sensor task. This port is single-threaded, so
+	// one bitset holds the whole result and the union is a no-op.
+	sensorEventBits bitSet
+
+	bodyMoveEvents     []BodyMoveEvent
+	sensorBeginEvents  []SensorBeginTouchEvent
+	contactBeginEvents []ContactBeginTouchEvent
+
+	// End events are double buffered so that the user doesn't need to flush
+	// events.
+	sensorEndEvents    [2][]SensorEndTouchEvent
+	contactEndEvents   [2][]ContactEndTouchEvent
+	endEventArrayIndex int
+
+	contactHitEvents []ContactHitEvent
+	jointEvents      []JointEvent
+
+	// Single-threaded solver scratch (upstream keeps one b2TaskContext per
+	// worker; this port has exactly one, see solver.go).
+	taskContext taskContext
+
+	// Used to track debug draw.
+	debugBodySet    bitSet
+	debugJointSet   bitSet
+	debugContactSet bitSet
+	debugIslandSet  bitSet
+
+	// Id that is incremented every time step.
+	stepIndex uint64
+
+	// Identify islands for splitting as follows:
+	//   - islands are split so smaller islands can sleep
+	//   - when a body comes to rest and its sleep timer trips, the island is
+	//     flagged for splitting if it has removed constraints
+	//   - islands that have removed constraints are split first
+	//   - otherwise the awake islands that have bodies wanting to sleep are
+	//     the splitting candidates
+	//   - if no bodies want to sleep then there is no reason to split islands
+	splitIslandID int
+
+	gravity                Vec2
+	hitEventThreshold      float64
+	restitutionThreshold   float64
+	maxLinearSpeed         float64
+	contactSpeed           float64
+	contactHertz           float64
+	contactDampingRatio    float64
+	contactRecycleDistance float64
+
+	frictionCallback    FrictionCallback
+	restitutionCallback RestitutionCallback
+
+	generation uint16
+
+	profile Profile
+
+	preSolveFcn     PreSolveFcn
+	preSolveContext any
+
+	customFilterFcn     CustomFilterFcn
+	customFilterContext any
+
+	// User data. Deviation from upstream: the C void* becomes a uint64 so the
+	// ECS wrapper can pack an entity id directly.
+	userData uint64
+
+	// Remember type step used for reporting forces and torques.
+	// Inverse sub-step.
+	invH float64
+
+	// Inverse full-step.
+	invDt float64
+
+	taskCount int
+
+	worldID uint16
+
+	enableSleep            bool
+	locked                 bool
+	enableWarmStarting     bool
+	enableContactSoftening bool
+	enableContinuous       bool
+	enableSpeculative      bool
+	inUse                  bool
+}
+
+// defaultFrictionCallback mirrors b2DefaultFrictionCallback.
+func defaultFrictionCallback(frictionA float64, materialA uint64, frictionB float64, materialB uint64) float64 {
+	_ = materialA
+	_ = materialB
+	return math.Sqrt(frictionA * frictionB)
+}
+
+// defaultRestitutionCallback mirrors b2DefaultRestitutionCallback.
+func defaultRestitutionCallback(restitutionA float64, materialA uint64, restitutionB float64, materialB uint64) float64 {
+	_ = materialA
+	_ = materialB
+	return maxFloat(restitutionA, restitutionB)
+}
+
+// NewWorld creates a world for rigid body simulation. A world contains
+// bodies, shapes, and constraints. Deviation from upstream b2CreateWorld:
+// this returns a *World instead of a b2WorldId into a global registry (see
+// the file header).
+func NewWorld(def *WorldDef) *World {
+	assert(def.initialized)
+
+	initializeContactRegisters()
+
+	w := &World{}
+
+	w.worldID = 0
+	w.generation = 0
+	w.inUse = true
+
+	w.arena = createArena()
+	createBroadPhase(&w.broadPhase)
+	createGraph(&w.constraintGraph, 16)
+
+	// pools
+	w.bodyIDPool = createIDPool()
+	w.bodies = make([]body, 0, 16)
+	w.solverSets = make([]solverSet, 0, 8)
+
+	// add empty static, active, and disabled body sets
+	w.solverSetIDPool = createIDPool()
+	var set solverSet
+
+	// static set
+	set.setIndex = allocID(&w.solverSetIDPool)
+	w.solverSets = append(w.solverSets, set)
+	assert(w.solverSets[staticSet].setIndex == staticSet)
+
+	// disabled set
+	set.setIndex = allocID(&w.solverSetIDPool)
+	w.solverSets = append(w.solverSets, set)
+	assert(w.solverSets[disabledSet].setIndex == disabledSet)
+
+	// awake set
+	set.setIndex = allocID(&w.solverSetIDPool)
+	w.solverSets = append(w.solverSets, set)
+	assert(w.solverSets[awakeSet].setIndex == awakeSet)
+
+	w.shapeIDPool = createIDPool()
+	w.shapes = make([]shape, 0, 16)
+
+	w.chainIDPool = createIDPool()
+	w.chainShapes = make([]chainShape, 0, 4)
+
+	w.contactIDPool = createIDPool()
+	w.contacts = make([]contact, 0, 16)
+
+	w.jointIDPool = createIDPool()
+	w.joints = make([]joint, 0, 16)
+
+	w.islandIDPool = createIDPool()
+	w.islands = make([]island, 0, 8)
+
+	w.sensors = make([]sensor, 0, 4)
+	w.sensorEventBits = createBitSet(64)
+
+	w.bodyMoveEvents = make([]BodyMoveEvent, 0, 4)
+	w.sensorBeginEvents = make([]SensorBeginTouchEvent, 0, 4)
+	w.sensorEndEvents[0] = make([]SensorEndTouchEvent, 0, 4)
+	w.sensorEndEvents[1] = make([]SensorEndTouchEvent, 0, 4)
+	w.contactBeginEvents = make([]ContactBeginTouchEvent, 0, 4)
+	w.contactEndEvents[0] = make([]ContactEndTouchEvent, 0, 4)
+	w.contactEndEvents[1] = make([]ContactEndTouchEvent, 0, 4)
+	w.contactHitEvents = make([]ContactHitEvent, 0, 4)
+	w.jointEvents = make([]JointEvent, 0, 4)
+	w.endEventArrayIndex = 0
+
+	w.stepIndex = 0
+	w.splitIslandID = NullIndex
+	w.taskCount = 0
+	w.gravity = def.Gravity
+	w.hitEventThreshold = def.HitEventThreshold
+	w.restitutionThreshold = def.RestitutionThreshold
+	w.maxLinearSpeed = def.MaximumLinearSpeed
+	w.contactSpeed = def.ContactSpeed
+	w.contactHertz = def.ContactHertz
+	w.contactDampingRatio = def.ContactDampingRatio
+	w.contactRecycleDistance = ContactRecycleDistance
+
+	if def.FrictionCallback == nil {
+		w.frictionCallback = defaultFrictionCallback
+	} else {
+		w.frictionCallback = def.FrictionCallback
+	}
+
+	if def.RestitutionCallback == nil {
+		w.restitutionCallback = defaultRestitutionCallback
+	} else {
+		w.restitutionCallback = def.RestitutionCallback
+	}
+
+	w.enableSleep = def.EnableSleep
+	w.locked = false
+	w.enableWarmStarting = true
+	w.enableContactSoftening = def.EnableContactSoftening
+	w.enableContinuous = def.EnableContinuous
+	w.enableSpeculative = true
+	w.userData = def.UserData
+
+	w.taskContext = createTaskContext()
+
+	w.debugBodySet = createBitSet(256)
+	w.debugJointSet = createBitSet(256)
+	w.debugContactSet = createBitSet(256)
+	w.debugIslandSet = createBitSet(256)
+
+	return w
+}
+
+// Destroy destroys the world and all its contents
+// (upstream b2DestroyWorld). Ids created from this world become invalid.
+func (w *World) Destroy() {
+	destroyTaskContext(&w.taskContext)
+	destroyBitSet(&w.sensorEventBits)
+	destroyBitSet(&w.debugBodySet)
+	destroyBitSet(&w.debugJointSet)
+	destroyBitSet(&w.debugContactSet)
+	destroyBitSet(&w.debugIslandSet)
+
+	w.bodyMoveEvents = nil
+	w.sensorBeginEvents = nil
+	w.sensorEndEvents[0] = nil
+	w.sensorEndEvents[1] = nil
+	w.contactBeginEvents = nil
+	w.contactEndEvents[0] = nil
+	w.contactEndEvents[1] = nil
+	w.contactHitEvents = nil
+	w.jointEvents = nil
+
+	chainCapacity := len(w.chainShapes)
+	for i := range chainCapacity {
+		chain := &w.chainShapes[i]
+		if chain.id != NullIndex {
+			freeChainData(chain)
+		} else {
+			assert(chain.shapeIndices == nil)
+			assert(chain.materials == nil)
+		}
+	}
+
+	sensorCount := len(w.sensors)
+	for i := range sensorCount {
+		w.sensors[i].hits = nil
+		w.sensors[i].overlaps1 = nil
+		w.sensors[i].overlaps2 = nil
+	}
+
+	w.sensors = nil
+
+	w.bodies = nil
+	w.shapes = nil
+	w.chainShapes = nil
+	w.contacts = nil
+	w.joints = nil
+
+	for i := range w.islands {
+		w.islands[i].bodies = nil
+		w.islands[i].contacts = nil
+		w.islands[i].joints = nil
+	}
+	w.islands = nil
+
+	// Destroy solver sets
+	setCapacity := len(w.solverSets)
+	for i := range setCapacity {
+		set := &w.solverSets[i]
+		if set.setIndex != NullIndex {
+			w.destroySolverSet(i)
+		}
+	}
+
+	w.solverSets = nil
+
+	destroyGraph(&w.constraintGraph)
+	destroyBroadPhase(&w.broadPhase)
+
+	destroyIDPool(&w.bodyIDPool)
+	destroyIDPool(&w.shapeIDPool)
+	destroyIDPool(&w.chainIDPool)
+	destroyIDPool(&w.contactIDPool)
+	destroyIDPool(&w.jointIDPool)
+	destroyIDPool(&w.islandIDPool)
+	destroyIDPool(&w.solverSetIDPool)
+
+	destroyArena(&w.arena)
+
+	// Wipe world but preserve generation
+	generation := w.generation
+	*w = World{}
+	w.worldID = 0
+	w.generation = generation + 1
+}
+
+// ID returns the WorldID of this world. This replaces the b2WorldId returned
+// by upstream b2CreateWorld (see the file header for the registry deviation).
+func (w *World) ID() WorldID {
+	return WorldID{index1: w.worldID + 1, generation: w.generation}
+}
+
+// IsWorldValid reports whether a world id references this world and is not
+// stale (upstream b2World_IsValid; see the file header for the registry
+// deviation).
+func (w *World) IsWorldValid(id WorldID) bool {
+	if id.index1 < 1 || MaxWorlds < id.index1 {
+		return false
+	}
+
+	if w.worldID != id.index1-1 {
+		// world is not allocated
+		return false
+	}
+
+	if !w.inUse {
+		return false
+	}
+
+	return id.generation == w.generation
+}
+
+// IsBodyValid reports whether a body id is valid in this world. Can be used
+// to detect orphaned ids. Provides validation for up to 64K allocations
+// (upstream b2Body_IsValid).
+func (w *World) IsBodyValid(id BodyID) bool {
+	if MaxWorlds <= id.world0 {
+		// invalid world
+		return false
+	}
+
+	if w.worldID != id.world0 || !w.inUse {
+		// world is free
+		return false
+	}
+
+	if id.index1 < 1 || len(w.bodies) < int(id.index1) {
+		// invalid index
+		return false
+	}
+
+	b := &w.bodies[id.index1-1]
+	if b.setIndex == NullIndex {
+		// this was freed
+		return false
+	}
+
+	assert(b.localIndex != NullIndex)
+
+	if b.generation != id.generation {
+		// this id is orphaned
+		return false
+	}
+
+	return true
+}
+
+// IsShapeValid reports whether a shape id is valid in this world
+// (upstream b2Shape_IsValid).
+func (w *World) IsShapeValid(id ShapeID) bool {
+	if MaxWorlds <= id.world0 {
+		return false
+	}
+
+	if w.worldID != id.world0 || !w.inUse {
+		// world is free
+		return false
+	}
+
+	shapeID := int(id.index1) - 1
+	if shapeID < 0 || len(w.shapes) <= shapeID {
+		return false
+	}
+
+	s := &w.shapes[shapeID]
+	if s.id == NullIndex {
+		// shape is free
+		return false
+	}
+
+	assert(s.id == shapeID)
+
+	return id.generation == s.generation
+}
+
+// IsChainValid reports whether a chain id is valid in this world
+// (upstream b2Chain_IsValid).
+func (w *World) IsChainValid(id ChainID) bool {
+	if MaxWorlds <= id.world0 {
+		return false
+	}
+
+	if w.worldID != id.world0 || !w.inUse {
+		// world is free
+		return false
+	}
+
+	chainID := int(id.index1) - 1
+	if chainID < 0 || len(w.chainShapes) <= chainID {
+		return false
+	}
+
+	chain := &w.chainShapes[chainID]
+	if chain.id == NullIndex {
+		// chain is free
+		return false
+	}
+
+	assert(chain.id == chainID)
+
+	return id.generation == chain.generation
+}
+
+// IsJointValid reports whether a joint id is valid in this world
+// (upstream b2Joint_IsValid).
+func (w *World) IsJointValid(id JointID) bool {
+	if MaxWorlds <= id.world0 {
+		return false
+	}
+
+	if w.worldID != id.world0 || !w.inUse {
+		// world is free
+		return false
+	}
+
+	jointID := int(id.index1) - 1
+	if jointID < 0 || len(w.joints) <= jointID {
+		return false
+	}
+
+	j := &w.joints[jointID]
+	if j.jointID == NullIndex {
+		// joint is free
+		return false
+	}
+
+	assert(j.jointID == jointID)
+
+	return id.generation == j.generation
+}
+
+// IsContactValid reports whether a contact id is valid in this world
+// (upstream b2Contact_IsValid).
+func (w *World) IsContactValid(id ContactID) bool {
+	if MaxWorlds <= id.world0 {
+		return false
+	}
+
+	if w.worldID != id.world0 || !w.inUse {
+		// world is free
+		return false
+	}
+
+	contactID := int(id.index1) - 1
+	if contactID < 0 || len(w.contacts) <= contactID {
+		return false
+	}
+
+	c := &w.contacts[contactID]
+	if c.contactID == NullIndex {
+		// contact is free
+		return false
+	}
+
+	assert(c.contactID == contactID)
+
+	return id.generation == c.generation
+}
+
+// EnableSleeping enables/disables sleep. If your application does not need
+// sleeping, you can gain some performance by disabling sleep completely at
+// the world level (upstream b2World_EnableSleeping).
+func (w *World) EnableSleeping(flag bool) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	if flag == w.enableSleep {
+		return
+	}
+
+	w.enableSleep = flag
+
+	if !flag {
+		setCount := len(w.solverSets)
+		for i := firstSleepingSet; i < setCount; i++ {
+			set := &w.solverSets[i]
+			if len(set.bodySims) > 0 {
+				w.wakeSolverSet(i)
+			}
+		}
+	}
+}
+
+// IsSleepingEnabled reports whether body sleeping is enabled
+// (upstream b2World_IsSleepingEnabled).
+func (w *World) IsSleepingEnabled() bool {
+	return w.enableSleep
+}
+
+// EnableWarmStarting enables/disables constraint warm starting. Advanced
+// feature for testing. Disabling warm starting greatly reduces stability and
+// provides no performance gain (upstream b2World_EnableWarmStarting).
+func (w *World) EnableWarmStarting(flag bool) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.enableWarmStarting = flag
+}
+
+// IsWarmStartingEnabled reports whether constraint warm starting is enabled
+// (upstream b2World_IsWarmStartingEnabled).
+func (w *World) IsWarmStartingEnabled() bool {
+	return w.enableWarmStarting
+}
+
+// AwakeBodyCount returns the number of awake bodies
+// (upstream b2World_GetAwakeBodyCount).
+func (w *World) AwakeBodyCount() int {
+	awake := &w.solverSets[awakeSet]
+	return len(awake.bodySims)
+}
+
+// EnableContinuous enables/disables continuous collision between dynamic and
+// static bodies. Generally you should keep continuous collision enabled to
+// prevent fast moving objects from going through static objects. The
+// performance gain from disabling continuous collision is minor
+// (upstream b2World_EnableContinuous).
+func (w *World) EnableContinuous(flag bool) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.enableContinuous = flag
+}
+
+// IsContinuousEnabled reports whether continuous collision is enabled
+// (upstream b2World_IsContinuousEnabled).
+func (w *World) IsContinuousEnabled() bool {
+	return w.enableContinuous
+}
+
+// SetRestitutionThreshold adjusts the restitution threshold, usually in
+// meters per second (upstream b2World_SetRestitutionThreshold).
+func (w *World) SetRestitutionThreshold(value float64) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.restitutionThreshold = clampFloat(value, 0.0, math.MaxFloat64)
+}
+
+// RestitutionThreshold returns the restitution speed threshold, usually in
+// meters per second (upstream b2World_GetRestitutionThreshold).
+func (w *World) RestitutionThreshold() float64 {
+	return w.restitutionThreshold
+}
+
+// SetHitEventThreshold adjusts the hit event threshold, usually in meters per
+// second (upstream b2World_SetHitEventThreshold).
+func (w *World) SetHitEventThreshold(value float64) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.hitEventThreshold = clampFloat(value, 0.0, math.MaxFloat64)
+}
+
+// HitEventThreshold returns the hit event speed threshold, usually in meters
+// per second (upstream b2World_GetHitEventThreshold).
+func (w *World) HitEventThreshold() float64 {
+	return w.hitEventThreshold
+}
+
+// SetContactTuning adjusts contact tuning parameters: hertz is the contact
+// stiffness (cycles per second), dampingRatio the contact bounciness with 1
+// being critical damping (non-dimensional), and pushSpeed the maximum contact
+// constraint push out speed (meters per second)
+// (upstream b2World_SetContactTuning).
+//
+// Note: advanced feature.
+func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.contactHertz = clampFloat(hertz, 0.0, math.MaxFloat64)
+	w.contactDampingRatio = clampFloat(dampingRatio, 0.0, math.MaxFloat64)
+	w.contactSpeed = clampFloat(pushSpeed, 0.0, math.MaxFloat64)
+}
+
+// SetContactRecycleDistance sets the contact recycle distance
+// (upstream b2World_SetContactRecycleDistance).
+func (w *World) SetContactRecycleDistance(recycleDistance float64) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.contactRecycleDistance = clampFloat(recycleDistance, 0.0, math.MaxFloat64)
+}
+
+// ContactRecycleDistance returns the contact recycle distance
+// (upstream b2World_GetContactRecycleDistance).
+func (w *World) ContactRecycleDistance() float64 {
+	return w.contactRecycleDistance
+}
+
+// SetMaximumLinearSpeed sets the maximum linear speed. Usually in meters per
+// second (upstream b2World_SetMaximumLinearSpeed).
+func (w *World) SetMaximumLinearSpeed(maximumLinearSpeed float64) {
+	assert(IsValidFloat(maximumLinearSpeed) && maximumLinearSpeed > 0.0)
+
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	w.maxLinearSpeed = maximumLinearSpeed
+}
+
+// MaximumLinearSpeed returns the maximum linear speed. Usually in meters per
+// second (upstream b2World_GetMaximumLinearSpeed).
+func (w *World) MaximumLinearSpeed() float64 {
+	return w.maxLinearSpeed
+}
+
+// Profile returns the current world performance profile
+// (upstream b2World_GetProfile).
+func (w *World) Profile() Profile {
+	return w.profile
+}
+
+// Counters returns world counters and sizes (upstream b2World_GetCounters).
+func (w *World) Counters() Counters {
+	var s Counters
+	s.BodyCount = getIDCount(&w.bodyIDPool)
+	s.ShapeCount = getIDCount(&w.shapeIDPool)
+	s.ContactCount = getIDCount(&w.contactIDPool)
+	s.JointCount = getIDCount(&w.jointIDPool)
+	s.IslandCount = getIDCount(&w.islandIDPool)
+
+	staticTree := &w.broadPhase.trees[StaticBody]
+	s.StaticTreeHeight = staticTree.GetHeight()
+
+	dynamicTree := &w.broadPhase.trees[DynamicBody]
+	kinematicTree := &w.broadPhase.trees[KinematicBody]
+	s.TreeHeight = maxInt(dynamicTree.GetHeight(), kinematicTree.GetHeight())
+
+	s.StackUsed = getMaxArenaAllocation(&w.arena)
+	s.ByteCount = 0 // upstream b2GetByteCount tracks global allocations; no Go counterpart
+	s.TaskCount = w.taskCount
+
+	for i := range GraphColorCount {
+		s.ColorCounts[i] = len(w.constraintGraph.colors[i].contactSims) + len(w.constraintGraph.colors[i].jointSims)
+	}
+	return s
+}
+
+// SetUserData sets the user data on the world (upstream b2World_SetUserData).
+func (w *World) SetUserData(userData uint64) {
+	w.userData = userData
+}
+
+// UserData returns the user data stored on the world
+// (upstream b2World_GetUserData).
+func (w *World) UserData() uint64 {
+	return w.userData
+}
+
+// SetFrictionCallback sets the friction callback. Passing nil restores the
+// default mixing rule sqrt(frictionA * frictionB)
+// (upstream b2World_SetFrictionCallback).
+func (w *World) SetFrictionCallback(callback FrictionCallback) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	if callback != nil {
+		w.frictionCallback = callback
+	} else {
+		w.frictionCallback = defaultFrictionCallback
+	}
+}
+
+// SetRestitutionCallback sets the restitution callback. Passing nil restores
+// the default mixing rule max(restitutionA, restitutionB)
+// (upstream b2World_SetRestitutionCallback).
+func (w *World) SetRestitutionCallback(callback RestitutionCallback) {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	if callback != nil {
+		w.restitutionCallback = callback
+	} else {
+		w.restitutionCallback = defaultRestitutionCallback
+	}
+}
+
+// SetCustomFilterCallback sets the custom filter callback. This is optional
+// (upstream b2World_SetCustomFilterCallback).
+func (w *World) SetCustomFilterCallback(fcn CustomFilterFcn, ctx any) {
+	w.customFilterFcn = fcn
+	w.customFilterContext = ctx
+}
+
+// SetPreSolveCallback sets the pre-solve callback. This is optional
+// (upstream b2World_SetPreSolveCallback).
+func (w *World) SetPreSolveCallback(fcn PreSolveFcn, ctx any) {
+	w.preSolveFcn = fcn
+	w.preSolveContext = ctx
+}
+
+// SetGravity sets the gravity vector for the entire world. Box2D has no
+// up-vector. This is usually in m/s^2 (upstream b2World_SetGravity).
+//
+// Note: this does not wake sleeping bodies.
+func (w *World) SetGravity(gravity Vec2) {
+	w.gravity = gravity
+}
+
+// Gravity returns the gravity vector (upstream b2World_GetGravity).
+func (w *World) Gravity() Vec2 {
+	return w.gravity
+}
+
+// RebuildStaticTree rebuilds the static broad-phase tree. This is a slow
+// operation used when many static shapes have been created or modified
+// (upstream b2World_RebuildStaticTree).
+func (w *World) RebuildStaticTree() {
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+
+	staticTree := &w.broadPhase.trees[StaticBody]
+	staticTree.Rebuild(true)
+}
+
+// EnableSpeculative enables/disables speculative contacts. Advanced feature
+// for testing (upstream b2World_EnableSpeculative).
+func (w *World) EnableSpeculative(flag bool) {
+	w.enableSpeculative = flag
+}
+
+// validateConnectivity mirrors b2ValidateConnectivity. Validation is compiled
+// out in this port, matching upstream release builds (B2_ENABLE_VALIDATION
+// off). TODO(E7): port the full validator behind debugAsserts.
+func (w *World) validateConnectivity() {
+}
+
+// validateSolverSets mirrors b2ValidateSolverSets. Validation is compiled out
+// in this port, matching upstream release builds (B2_ENABLE_VALIDATION off).
+// TODO(E7): port the full validator behind debugAsserts.
+func (w *World) validateSolverSets() {
+}
+
+// validateContacts mirrors b2ValidateContacts. Validation is compiled out in
+// this port, matching upstream release builds (B2_ENABLE_VALIDATION off).
+// TODO(E7): port the full validator behind debugAsserts.
+func (w *World) validateContacts() {
+}

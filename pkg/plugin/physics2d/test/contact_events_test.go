@@ -13,7 +13,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestContactEvents_BeginAndEnd(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID, floorID cardinal.EntityID
 	contactBeginCount := 0
@@ -112,7 +113,8 @@ func TestContactEvents_BeginAndEnd(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContactEvents_TriggerBeginAndEnd(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID, sensorID cardinal.EntityID
 	triggerBeginCount := 0
@@ -184,7 +186,8 @@ func TestContactEvents_TriggerBeginAndEnd(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContactEvents_SensorToggleMidSim(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var manualID, targetID cardinal.EntityID
 	triggerFired := false
@@ -272,7 +275,8 @@ func TestContactEvents_SensorToggleMidSim(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContactEvents_EntityDestroyDuringOverlap(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var manualID, targetID cardinal.EntityID
 
@@ -348,7 +352,8 @@ func TestContactEvents_EntityDestroyDuringOverlap(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContactEvents_MultipleSimultaneous(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID, floorID, wallID cardinal.EntityID
 	floorContact := false
@@ -430,7 +435,8 @@ func TestContactEvents_MultipleSimultaneous(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContactEvents_ManifoldData(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID, floorID cardinal.EntityID
 	normalValid := false

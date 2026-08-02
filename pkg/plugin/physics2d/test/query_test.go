@@ -13,7 +13,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestQuery_RaycastClosestHit(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var nearID, farID cardinal.EntityID
 
@@ -54,7 +55,7 @@ func TestQuery_RaycastClosestHit(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 	})
@@ -70,7 +71,8 @@ func TestQuery_RaycastClosestHit(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_RaycastMiss(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -94,7 +96,7 @@ func TestQuery_RaycastMiss(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 	})
@@ -106,7 +108,8 @@ func TestQuery_RaycastMiss(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_RaycastZeroLength(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -130,7 +133,7 @@ func TestQuery_RaycastZeroLength(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 0, Y: 0},
 	})
@@ -142,7 +145,8 @@ func TestQuery_RaycastZeroLength(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_RaycastHitPointAndNormal(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -166,7 +170,7 @@ func TestQuery_RaycastHitPointAndNormal(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 	})
@@ -179,11 +183,12 @@ func TestQuery_RaycastHitPointAndNormal(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Raycast: nil runtime (ResetRuntime) returns no hit
+// Raycast: reset runtime (Plugin.Reset) returns no hit
 // ---------------------------------------------------------------------------
 
 func TestQuery_RaycastAfterResetRuntime(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -203,15 +208,15 @@ func TestQuery_RaycastAfterResetRuntime(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Confirm hit before reset.
-	ray := physics.Raycast(physics.RaycastRequest{
+	ray := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 	})
 	require.True(t, ray.Hit, "hit before reset")
 
 	// Reset and query immediately — world is nil.
-	physics.ResetRuntime()
-	rayAfter := physics.Raycast(physics.RaycastRequest{
+	p.Reset()
+	rayAfter := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 	})
@@ -219,7 +224,7 @@ func TestQuery_RaycastAfterResetRuntime(t *testing.T) {
 
 	// After ticking, world should be rebuilt.
 	tickN(t, w, 3)
-	rayRebuilt := physics.Raycast(physics.RaycastRequest{
+	rayRebuilt := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 	})
@@ -231,7 +236,8 @@ func TestQuery_RaycastAfterResetRuntime(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_AABBSwappedMinMax(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var boxID cardinal.EntityID
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -258,7 +264,7 @@ func TestQuery_AABBSwappedMinMax(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Swapped: Min > Max on both axes.
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: 2, Y: 2},
 		Max: physics.Vec2{X: -2, Y: -2},
 	})
@@ -276,7 +282,8 @@ func TestQuery_AABBSwappedMinMax(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_AABBZeroArea(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -296,7 +303,7 @@ func TestQuery_AABBZeroArea(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Point AABB (zero area).
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: 0, Y: 0},
 		Max: physics.Vec2{X: 0, Y: 0},
 	})
@@ -308,7 +315,8 @@ func TestQuery_AABBZeroArea(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_CircleSweepClosestHit(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var nearID cardinal.EntityID
 
@@ -346,7 +354,7 @@ func TestQuery_CircleSweepClosestHit(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	sweep := physics.CircleSweep(physics.CircleSweepRequest{
+	sweep := p.CircleSweep(physics.CircleSweepRequest{
 		Start:  physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 		Radius: 0.3,
@@ -360,7 +368,8 @@ func TestQuery_CircleSweepClosestHit(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_CircleSweepZeroRadius(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -379,7 +388,7 @@ func TestQuery_CircleSweepZeroRadius(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	sweep := physics.CircleSweep(physics.CircleSweepRequest{
+	sweep := p.CircleSweep(physics.CircleSweepRequest{
 		Start:  physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 10, Y: 0},
 		Radius: 0,
@@ -392,7 +401,8 @@ func TestQuery_CircleSweepZeroRadius(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_CircleSweepZeroLength(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -411,7 +421,7 @@ func TestQuery_CircleSweepZeroLength(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	sweep := physics.CircleSweep(physics.CircleSweepRequest{
+	sweep := p.CircleSweep(physics.CircleSweepRequest{
 		Start:  physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 0, Y: 0},
 		Radius: 1.0,
@@ -424,7 +434,8 @@ func TestQuery_CircleSweepZeroLength(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_CircleSweepMaxFraction(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -450,7 +461,7 @@ func TestQuery_CircleSweepMaxFraction(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Full sweep should hit.
-	sweepFull := physics.CircleSweep(physics.CircleSweepRequest{
+	sweepFull := p.CircleSweep(physics.CircleSweepRequest{
 		Start:  physics.Vec2{X: 0, Y: 0},
 		End:    physics.Vec2{X: 20, Y: 0},
 		Radius: 0.2,
@@ -458,7 +469,7 @@ func TestQuery_CircleSweepMaxFraction(t *testing.T) {
 	require.True(t, sweepFull.Hit, "full sweep should hit")
 
 	// MaxFraction=0.2 limits to first 20% of segment (X=0 to X=4) — should miss wall at X=10.
-	sweepLimited := physics.CircleSweep(physics.CircleSweepRequest{
+	sweepLimited := p.CircleSweep(physics.CircleSweepRequest{
 		Start:       physics.Vec2{X: 0, Y: 0},
 		End:         physics.Vec2{X: 20, Y: 0},
 		Radius:      0.2,
@@ -472,7 +483,8 @@ func TestQuery_CircleSweepMaxFraction(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_RaycastShapeIndex(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var bodyID cardinal.EntityID
 
@@ -511,7 +523,7 @@ func TestQuery_RaycastShapeIndex(t *testing.T) {
 	tickN(t, w, 3)
 
 	// Ray toward center → shape 0.
-	rayCenter := physics.Raycast(physics.RaycastRequest{
+	rayCenter := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: -5, Y: 0},
 		End:    physics.Vec2{X: 5, Y: 0},
 	})
@@ -520,7 +532,7 @@ func TestQuery_RaycastShapeIndex(t *testing.T) {
 	require.Equal(t, 0, rayCenter.ShapeIndex, "center ray should hit shape 0")
 
 	// Ray toward X=10 → shape 1.
-	rayRight := physics.Raycast(physics.RaycastRequest{
+	rayRight := p.Raycast(physics.RaycastRequest{
 		Origin: physics.Vec2{X: 5, Y: 0},
 		End:    physics.Vec2{X: 15, Y: 0},
 	})
@@ -534,7 +546,8 @@ func TestQuery_RaycastShapeIndex(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestQuery_AABBMultipleEntities(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var id1, id2, id3 cardinal.EntityID
 
@@ -570,7 +583,7 @@ func TestQuery_AABBMultipleEntities(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+	ov := p.OverlapAABB(physics.AABBOverlapRequest{
 		Min: physics.Vec2{X: -5, Y: -5},
 		Max: physics.Vec2{X: 5, Y: 5},
 	})
@@ -585,11 +598,12 @@ func TestQuery_AABBMultipleEntities(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// WorldID() — returns packed world id or 0
+// Engine() — returns the live Box2D world or nil
 // ---------------------------------------------------------------------------
 
-func TestQuery_WorldIDAPI(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+func TestQuery_EngineAPI(t *testing.T) {
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
@@ -608,11 +622,11 @@ func TestQuery_WorldIDAPI(t *testing.T) {
 	initCardinalECS(w)
 	tickN(t, w, 3)
 
-	require.NotEqual(t, uint32(0), physics.WorldID(), "world should exist after init")
+	require.NotNil(t, p.Engine(), "world should exist after init")
 
-	physics.ResetRuntime()
-	require.Equal(t, uint32(0), physics.WorldID(), "world should not exist after reset")
+	p.Reset()
+	require.Nil(t, p.Engine(), "world should not exist after reset")
 
 	tickN(t, w, 3)
-	require.NotEqual(t, uint32(0), physics.WorldID(), "world should be rebuilt after ticks")
+	require.NotNil(t, p.Engine(), "world should be rebuilt after ticks")
 }

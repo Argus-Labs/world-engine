@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
 // WritebackEntry holds the ECS refs needed to write Box2D results back to components.
@@ -15,29 +15,25 @@ type WritebackEntry struct {
 }
 
 // WritebackFromStepResults reads post-step positions, rotations, and velocities from the
-// cbridge.Step body states and writes them into the corresponding ECS Transform2D and
-// Velocity2D components. It also updates the shadow state so the next ReconcileFromECS tick
-// sees no diff for these values.
+// Box2D world and writes them into the corresponding ECS Transform2D and Velocity2D
+// components. It also updates the shadow state so the next ReconcileFromECS tick sees no
+// diff for these values.
 //
-// Writeback applies to dynamic and kinematic bodies only. Static bodies (BodyType==1) never
-// move. Manual bodies (ECS BodyTypeManual==4) are skipped because ECS/gameplay code owns
-// their position. Since both BodyTypeKinematic and BodyTypeManual map to Box2D kinematic
-// bodies, the ECS body type is checked rather than the bridge body type.
-func WritebackFromStepResults(states []cbridge.BodyState, entries []WritebackEntry) {
-	rt := Runtime()
-	if !cbridge.WorldExists() {
+// Iteration is driven by entries (ECS iteration order, EntityID-sorted), never by the
+// runtime's Go maps, so the write order is deterministic.
+//
+// Writeback applies to dynamic and kinematic bodies only. Static bodies never move.
+// Manual bodies (ECS BodyTypeManual) are skipped because ECS/gameplay code owns their
+// position. Since both BodyTypeKinematic and BodyTypeManual map to Box2D kinematic bodies,
+// the ECS body type is checked rather than the Box2D body type.
+func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
+	if rt.World == nil {
 		return
 	}
 
-	// Build a lookup from entity ID to writeback entry for efficient matching.
-	entryMap := make(map[cardinal.EntityID]*WritebackEntry, len(entries))
 	for i := range entries {
-		entryMap[entries[i].EntityID] = &entries[i]
-	}
-
-	for _, s := range states {
-		entityID := cardinal.EntityID(s.EntityID)
-		e, ok := entryMap[entityID]
+		e := &entries[i]
+		bodyID, ok := rt.Bodies[e.EntityID]
 		if !ok {
 			continue
 		}
@@ -47,23 +43,28 @@ func WritebackFromStepResults(states []cbridge.BodyState, entries []WritebackEnt
 			continue
 		}
 
+		pos := rt.World.BodyPosition(bodyID)
+		angle := box2d.RotGetAngle(rt.World.BodyRotation(bodyID))
+		lv := rt.World.BodyLinearVelocity(bodyID)
+		av := rt.World.BodyAngularVelocity(bodyID)
+
 		t := component.Transform2D{
-			Position: component.Vec2{X: s.PX, Y: s.PY},
-			Rotation: s.Angle,
+			Position: component.Vec2{X: pos.X, Y: pos.Y},
+			Rotation: angle,
 		}
 		v := component.Velocity2D{
-			Linear:  component.Vec2{X: s.VX, Y: s.VY},
-			Angular: s.AV,
+			Linear:  component.Vec2{X: lv.X, Y: lv.Y},
+			Angular: av,
 		}
 
 		e.Transform.Set(t)
 		e.Velocity.Set(v)
 
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
-		if shadow, exists := rt.Shadow[entityID]; exists {
+		if shadow, exists := rt.Shadow[e.EntityID]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v
-			rt.Shadow[entityID] = shadow
+			rt.Shadow[e.EntityID] = shadow
 		}
 	}
 }

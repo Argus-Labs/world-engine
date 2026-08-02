@@ -1,0 +1,76 @@
+[
+  {
+    "name": "pendulum_chain",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "61700b86ecf4058a"
+      },
+      {
+        "step": 60,
+        "hash": "45095dafcccff73a"
+      },
+      {
+        "step": 90,
+        "hash": "b57ce2a38c4be756"
+      },
+      {
+        "step": 120,
+        "hash": "92ca865fb6d7237b"
+      },
+      {
+        "step": 150,
+        "hash": "b4015577b49d2079"
+      },
+      {
+        "step": 180,
+        "hash": "e3ba3ed1125521c0"
+      },
+      {
+        "step": 210,
+        "hash": "52a6edec5c477c3c"
+      },
+      {
+        "step": 240,
+        "hash": "ced60b4ad909d7ad"
+      }
+    ]
+  },
+  {
+    "name": "spring_distance",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "6d2181f23bfa301c"
+      },
+      {
+        "step": 60,
+        "hash": "3f10d3d5b3417d75"
+      },
+      {
+        "step": 90,
+        "hash": "8eea382d338bacac"
+      },
+      {
+        "step": 120,
+        "hash": "2a72cca72b8076e0"
+      },
+      {
+        "step": 150,
+        "hash": "45c402ca35ffc67e"
+      },
+      {
+        "step": 180,
+        "hash": "570d78478c0d5d94"
+      },
+      {
+        "step": 210,
+        "hash": "31105a2fbdc0e21c"
+      },
+      {
+        "step": 240,
+        "hash": "c0e06f0ca92f7b17"
+      }
+    ]
+  }
+]

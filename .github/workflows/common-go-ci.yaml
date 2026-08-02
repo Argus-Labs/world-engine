@@ -119,6 +119,30 @@ jobs:
           paths: |
             **/junit.xml
 
+  # pkg/box2d requires bit-identical simulation results across CPU
+  # architectures. The golden tests compare exact float64 bit patterns
+  # committed in pkg/box2d/testdata; running them on amd64 and arm64 catches
+  # FMA-contraction or libm determinism leaks (see pkg/box2d/math_fma.go).
+  determinism:
+    name: Determinism (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run cross-architecture golden trace tests
+        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
+
   # benchmark:
   #   name: Benchmark
   #   needs: optimize_ci

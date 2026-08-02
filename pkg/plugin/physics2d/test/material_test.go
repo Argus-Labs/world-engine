@@ -14,7 +14,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestMaterial_Restitution(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var bouncyID, deadID cardinal.EntityID
 
@@ -104,7 +105,8 @@ func TestMaterial_Restitution(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMaterial_RestitutionChangeMidSim(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID cardinal.EntityID
 
@@ -197,7 +199,8 @@ func TestMaterial_RestitutionChangeMidSim(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMaterial_GravityScaleChangeMidSim(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var entityID cardinal.EntityID
 
@@ -264,7 +267,8 @@ func TestMaterial_GravityScaleChangeMidSim(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMaterial_KinematicRotation(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
