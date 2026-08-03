@@ -355,13 +355,71 @@ func (w *World) solveColorTask(ctx *stepContext, colorIndex int, useBias bool, w
 // Workers_N within noise of Workers_1 at 500/1000 bodies and >= 1.7x at 5000.
 const solverBodyGrain = 64
 
-// solverColorGrain is the dispatch grain for per-color constraint stages:
-// the minimum items (joints+contacts of one color) per engaged worker
-// (upstream uses block sizes of 4 for joint and SIMD-contact blocks; this
-// port dispatches whole ranges, so the threshold is higher to amortize the
-// barrier). Grain affects performance only; measured together with
-// solverBodyGrain above.
+// solverColorGrain is the dispatch grain for the HEAVY per-color constraint
+// stages — solve and relax: the minimum items (joints+contacts of one color)
+// per engaged worker (upstream uses block sizes of 4 for joint and
+// SIMD-contact blocks; this port dispatches whole ranges, so the threshold is
+// higher to amortize the barrier). Grain affects performance only; measured
+// together with solverBodyGrain above.
+//
+// Those two stages run solverIterations/solverRelaxIterations passes per
+// sub-step over the full constraint solve, so their per-item work dwarfs one
+// barrier and a fine grain pays off. Wall-clock stage instrumentation
+// (MixedRain 5000 bodies, 600 steps, Apple M5 Max, 18 workers, 2026-08):
+//
+//	stage              serial ms   parallel ms
+//	solveIterations      0.8977      0.5739   (1.56x — parallel wins)
+//	relaxIterations      0.8864      0.5697   (1.56x — parallel wins)
 const solverColorGrain = 32
+
+// solverLightColorGrain is the dispatch grain for the LIGHT per-color
+// constraint stages — prepare joints, prepare contacts, warm start, apply
+// restitution and store impulses. Each runs a single cheap pass per color
+// (one pass per solve for prepare/restitution/store, one per sub-step for
+// warm start), so the whole stage can cost less than the ~6-10us barrier a
+// dispatch pays. On the same instrumentation run all four of the measured
+// light stages LOST to serial at the shared grain of 32:
+//
+//	stage              serial ms   parallel ms
+//	warmStartContacts    0.1444      0.2387   (loses)
+//	prepareContacts      0.0603      0.0728   (loses)
+//	applyRestitution     0.0339      0.0575   (loses)
+//	storeImpulses        0.0368      0.0540   (loses)
+//
+// A larger grain fixes that without a special case: forRangeWorkers keeps
+// these stages on the dispatching goroutine until a color is genuinely big
+// enough for the work to outweigh the barrier, while still parallelizing huge
+// colors.
+//
+// The value was swept end to end (candidates 32/64/128/256/512/1024/2048 and
+// 1<<30, runs interleaved across candidates so build order cannot masquerade
+// as an effect, 10 reps of -benchtime=50x each, Workers_18):
+//
+//   - StepPyramid (colors of 74-100 items): every candidate >= 64 gains
+//     ~5.5% over 32; they are statistically tied with each other.
+//   - StepMixedRain 1000 and 5000 bodies (colors up to 356 and 1838 items):
+//     no candidate differs from 32 — parallelizing these stages is worth
+//     nothing even on the largest color measured.
+//   - A denser pyramid (colors of 322-409 items, probe scene) separates the
+//     small candidates: 64 gains only 8.4% where 256/1024/1<<30 gain 12-14%.
+//     A grain of 64 wins the 20-row pyramid merely because its colors happen
+//     to fall under 2*64; it re-engages 6 workers per color as soon as the
+//     colors grow, and loses the barrier back.
+//
+// So every candidate >= 256 is tied on measurement, and 64/128 are fragile.
+// The tie is broken by cost: the instrumented warm start above is ~3.7 ns per
+// item (0.1444 ms over 4 sub-steps x ~9.7k contacts), so a worker needs
+// thousands of items before its share covers a 6-10 us barrier. 1024 is the
+// smallest tied candidate at that scale, and it still lets a color of 2048+
+// items dispatch.
+//
+// INVARIANT NOTE: retuning these stages is safe for the presize/merge bound
+// documented in taskContext because none of them write per-worker state —
+// every write is item-owned. The only per-color stage with a per-worker
+// output is solve/relax (taskContext.jointStateBitSet, written by
+// solveJointsColor), and maxColorWorkers in solve() derives its bound from
+// the SAME (itemCount, solverColorGrain) pair that dispatch still uses.
+const solverLightColorGrain = 1024
 
 // integrateVelocitiesTask integrates velocities and applies damping, gravity
 // and speed clamps (upstream b2IntegrateVelocitiesTask).
@@ -831,7 +889,7 @@ func (w *World) solve(ctx *stepContext) {
 				w.prepareJointsColorRange(ctx, colorIndex, 0, jointCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
-				w.pool.forRange(jointCount, solverColorGrain, prepareJointsFn)
+				w.pool.forRange(jointCount, solverLightColorGrain, prepareJointsFn)
 			}
 		}
 
@@ -844,7 +902,7 @@ func (w *World) solve(ctx *stepContext) {
 				w.prepareContactsColor(ctx, colorIndex, 0, contactCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
-				w.pool.forRange(contactCount, solverColorGrain, prepareContactsFn)
+				w.pool.forRange(contactCount, solverLightColorGrain, prepareContactsFn)
 			}
 		}
 
@@ -893,7 +951,7 @@ func (w *World) solve(ctx *stepContext) {
 					w.warmStartColorTask(ctx, colorIndex, 0, itemCount)
 				} else {
 					ctx.dispatchColorIndex = colorIndex
-					w.pool.forRange(itemCount, solverColorGrain, warmStartColorFn)
+					w.pool.forRange(itemCount, solverLightColorGrain, warmStartColorFn)
 				}
 			}
 
@@ -974,7 +1032,7 @@ func (w *World) solve(ctx *stepContext) {
 				w.applyRestitutionColor(ctx, colorIndex, 0, contactCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
-				w.pool.forRange(contactCount, solverColorGrain, restitutionFn)
+				w.pool.forRange(contactCount, solverLightColorGrain, restitutionFn)
 			}
 		}
 
@@ -988,7 +1046,7 @@ func (w *World) solve(ctx *stepContext) {
 				w.storeImpulsesColor(ctx, colorIndex, 0, contactCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
-				w.pool.forRange(contactCount, solverColorGrain, storeImpulsesFn)
+				w.pool.forRange(contactCount, solverLightColorGrain, storeImpulsesFn)
 			}
 		}
 
