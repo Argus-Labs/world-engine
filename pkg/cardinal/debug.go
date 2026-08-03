@@ -164,7 +164,11 @@ func (d *debugModule) ProfileSystems(
 	for {
 		select {
 		case batch := <-ch:
-			if err := stream.Send(profileBatchToProto(batch)); err != nil {
+			response := profileBatchToProto(batch)
+			if len(response.GetTicks()) == 0 {
+				continue
+			}
+			if err := stream.Send(response); err != nil {
 				return err
 			}
 		case <-ctx.Done():

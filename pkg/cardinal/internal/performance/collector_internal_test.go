@@ -242,3 +242,23 @@ func TestCollector_ProfileSubscriberJoiningMidBatchMarksOnlyCapturedTicks(t *tes
 		assert.Len(t, batch.Ticks[2].Spans, 1)
 	}
 }
+
+func TestCollector_ProfileSubscriberDisconnectingMidTickFinishesCapturedTick(t *testing.T) {
+	c := NewCollector(1)
+	timingsCh := c.SubscribeTimings()
+	t.Cleanup(func() { c.Unsubscribe(timingsCh) })
+	profilesCh := c.SubscribeProfiles()
+
+	captureSystemSpans := c.StartTick()
+	require.True(t, captureSystemSpans)
+	systemPhaseStartedAt := time.Now()
+	c.RecordSpan(TickSpan{SystemName: "sys", StartTime: systemPhaseStartedAt})
+	c.Unsubscribe(profilesCh)
+	c.RecordTick(captureSystemSpans, 1, time.Now(), systemPhaseStartedAt)
+
+	batch := <-timingsCh
+	require.Len(t, batch.Ticks, 1)
+	assert.True(t, batch.Ticks[0].Profiled)
+	assert.Len(t, batch.Ticks[0].Spans, 1)
+	assert.False(t, c.StartTick(), "the next tick should not capture after the profile subscriber leaves")
+}
