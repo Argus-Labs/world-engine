@@ -92,6 +92,12 @@ type WorldDef struct {
 	EnableContinuous bool
 
 	// Contact softening when mass ratios are large. Experimental.
+	//
+	// Currently INERT: this field is accepted and stored but has no effect on
+	// simulation. Upstream implements the softening branch only in its SIMD
+	// prepare path (b2PrepareContactsTask); the scalar prepare path this port
+	// transliterates (b2PrepareOverflowContacts) never read the flag. The
+	// field is kept so world definitions stay source-compatible with upstream.
 	EnableContactSoftening bool
 
 	// User data. Deviation from upstream: the C void* becomes a uint64 so the
