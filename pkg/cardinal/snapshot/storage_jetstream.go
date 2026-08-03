@@ -81,6 +81,8 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 	return &JetStreamStorage{os: os}, nil
 }
 
+// Store writes the envelope to the ObjectStore. Per Store's ownership rule the caller's message is
+// consumed here and now: marshalSnapshot copies it into data, and only data reaches the network.
 func (j *JetStreamStorage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error {
 	data, err := marshalSnapshot(snapshot)
 	if err != nil {
@@ -95,6 +97,8 @@ func (j *JetStreamStorage) Store(ctx context.Context, snapshot *cardinalv1.Snaps
 	return nil
 }
 
+// Load reads the stored object. The returned message is decoded fresh from those bytes on every
+// call and kept nowhere, which is what Load's ownership rule asks for.
 func (j *JetStreamStorage) Load(ctx context.Context) (*cardinalv1.Snapshot, error) {
 	object, err := j.os.Get(ctx, defaultObjectName)
 	if err != nil {
