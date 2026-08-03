@@ -301,7 +301,11 @@ func TestSnapshotStorageBytesAreStable(t *testing.T) {
 
 // TestSnapshotHandsStorageTheLiveGraph pins the caller side of Storage.Store's ownership rule:
 // snapshot() passes the very world-state graph the tick built, with no copy, so a backend that
-// retained it would store whatever a later tick made of it.
+// retained it would be holding memory the caller owns and shares with other readers.
+//
+// The mutation below is a PROBE, not a reproduction of anything cardinal does: the graph is frozen
+// once built (ToProto allocates a fresh one per call and nothing writes into it afterwards), and
+// editing it is simply how a test can tell a copy from a retained pointer.
 //
 // The copy it then asserts is memSnapshotStorage's own — the in-memory backend used by DST and by
 // these tests, NOT a production one. The production backends satisfy the same rule by serializing
@@ -334,7 +338,7 @@ func TestSnapshotHandsStorageTheLiveGraph(t *testing.T) {
 	before, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
 	require.NoError(t, err)
 
-	// A later tick mutating the live graph must not reach what memSnapshotStorage kept.
+	// Editing the graph the caller still owns must not reach what memSnapshotStorage kept.
 	worldState.NextId += 1000
 	after, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
 	require.NoError(t, err)

@@ -373,9 +373,12 @@ func (m *memSnapshotStorage) Store(_ context.Context, s *cardinalv1.Snapshot) er
 	require.NoError(m.t, proto.Unmarshal(data, &rt), "snapshot: Store bytes are not a valid Snapshot protobuf")
 	assert.True(m.t, proto.Equal(s, &rt), "snapshot: Store envelope did not survive a wire roundtrip")
 
-	// Storage.Store hands over the live world-state graph and keeps ownership of it, so the copy is
-	// how this backend keeps a snapshot at all: retaining s would mean storing whatever a later tick
-	// makes of it. A real backend serializes instead, which copies for the same reason.
+	// Storage.Store hands over the caller's own world-state graph and keeps ownership of it, so a
+	// backend must consume the message before it returns. The graph itself is frozen — ToProto
+	// builds a fresh one per call and nothing writes into it afterwards — so the rule is not about
+	// mutation racing this copy; it is that the caller owns the memory and every reader of it, and
+	// a backend holding on would pin a full world-state graph it has no claim to. A real backend
+	// satisfies the rule by serializing inside Store; this one copies, which is the same promise.
 	m.snap = proto.CloneOf(s)
 	return nil
 }
