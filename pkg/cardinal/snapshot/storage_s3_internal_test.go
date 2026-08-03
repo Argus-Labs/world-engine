@@ -67,8 +67,12 @@ func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 }
 
 // TestS3StorageStoreOwnership is the production-backend half of Storage.Store's ownership rule.
-// Cardinal hands Store the live world-state graph and keeps mutating it on later ticks, so the
-// bytes S3 receives must be fixed before Store returns, and the graph must come back untouched.
+// Cardinal hands Store the live world-state graph and keeps owning it, so the bytes S3 receives
+// must be fixed before Store returns, and the graph must come back untouched.
+//
+// The edits below are a PROBE for a retained reference, not a reproduction of caller behaviour: a
+// snapshot graph is frozen once built, so nothing in cardinal ever writes into one it handed over.
+// Mutating it here is just how a test tells "serialized at call time" from "kept the pointer".
 func TestS3StorageStoreOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -89,8 +93,8 @@ func TestS3StorageStoreOwnership(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, before, unchanged, "Store mutated the caller's snapshot")
 
-	// The next tick mutates the same graph, exactly as cardinal's does. What was already written
-	// must not follow along, which is only true because Store finished reading before it returned.
+	// Edit the graph the caller still owns. What was already written must not follow along, which
+	// is only true because Store finished reading before it returned.
 	snap.GetWorldState().NextId += 1000
 	snap.GetWorldState().GetArchetypes()[0].GetColumns()[0].Components[0] = []byte{0xde, 0xad}
 	assert.Equal(t, before, fake.puts[0], "S3Storage kept a reference to the caller's graph")
