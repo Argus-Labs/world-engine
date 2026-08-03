@@ -135,15 +135,16 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 	return ws
 }
 
-// snapshotBenchBytes returns the marshaled world state Cardinal hands to Storage.Store.
-func snapshotBenchBytes(b *testing.B, bodies int) []byte {
+// snapshotBenchEnvelope returns the snapshot envelope Cardinal hands to Storage.Store.
+func snapshotBenchEnvelope(b *testing.B, bodies int) *cardinalv1.Snapshot {
 	b.Helper()
 	w := snapshotBenchWorld(b, 1_000_000, bodies)
-	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldStateProto(b, w))
-	if err != nil {
-		b.Fatal(err)
+	return &cardinalv1.Snapshot{
+		TickHeight: 1,
+		Timestamp:  timestamppb.New(time.Unix(0, 0)),
+		WorldState: worldStateProto(b, w),
+		Version:    snapshot.CurrentVersion,
 	}
-	return data
 }
 
 // ---------------------------------------------------------------------------
@@ -173,70 +174,86 @@ func BenchmarkSnapshotTick(b *testing.B) {
 // BenchmarkSnapshotStore — the storage write path, network excluded.
 // ---------------------------------------------------------------------------
 
-// doubleMarshalStorage reproduces exactly what JetStreamStorage.Store and S3Storage.Store do before
-// they touch the network: unmarshal the bytes Cardinal just marshaled, rebuild the envelope, marshal
-// again. It exists so that redundant work is measurable without a NATS or S3 backend.
-type doubleMarshalStorage struct {
+// Each sub-benchmark measures every serialization step a snapshot tick performs before any network
+// I/O, so the shapes are directly comparable:
+//
+//	LegacyDoubleMarshal — the pre-optimization path: cardinal marshals the WorldState, the backend
+//	                      unmarshals it, rebuilds the envelope and marshals it again.
+//	SingleMarshal       — the current path: cardinal hands the envelope over, the backend marshals
+//	                      it exactly once (what JetStreamStorage and S3Storage now do).
+//	Nop                 — the default storage type; with no caller-side marshal it is free.
+type legacyDoubleMarshalStorage struct {
 	sink []byte
 }
 
-var _ snapshot.Storage = (*doubleMarshalStorage)(nil)
-
-func (d *doubleMarshalStorage) Store(_ context.Context, snap *snapshot.Snapshot) error {
-	var worldState cardinalv1.WorldState
-	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
+func (d *legacyDoubleMarshalStorage) Store(_ context.Context, snap *cardinalv1.Snapshot) error {
+	// The caller used to marshal the world state and pass the bytes down.
+	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap.GetWorldState())
+	if err != nil {
 		return err
 	}
-	data, err := proto.Marshal(&cardinalv1.Snapshot{
-		TickHeight: snap.TickHeight,
-		Timestamp:  timestamppb.New(snap.Timestamp),
+	// The backend then threw those bytes away and rebuilt the envelope from scratch.
+	var worldState cardinalv1.WorldState
+	if err := proto.Unmarshal(data, &worldState); err != nil {
+		return err
+	}
+	out, err := proto.Marshal(&cardinalv1.Snapshot{
+		TickHeight: snap.GetTickHeight(),
+		Timestamp:  snap.GetTimestamp(),
 		WorldState: &worldState,
-		Version:    snap.Version,
+		Version:    snap.GetVersion(),
 	})
 	if err != nil {
 		return err
 	}
-	d.sink = data
+	d.sink = out
 	return nil
 }
 
-func (d *doubleMarshalStorage) Load(_ context.Context) (*snapshot.Snapshot, error) {
-	return nil, snapshot.ErrSnapshotNotFound
+// singleMarshalStorage reproduces what JetStreamStorage.Store and S3Storage.Store do before they
+// touch the network: marshal the envelope once.
+type singleMarshalStorage struct {
+	sink []byte
+}
+
+func (s *singleMarshalStorage) Store(_ context.Context, snap *cardinalv1.Snapshot) error {
+	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
+	if err != nil {
+		return err
+	}
+	s.sink = data
+	return nil
 }
 
 func BenchmarkSnapshotStore(b *testing.B) {
 	ctx := context.Background()
 	for _, bodies := range []int{1000, 5000} {
-		data := snapshotBenchBytes(b, bodies)
-		snap := &snapshot.Snapshot{
-			TickHeight: 1,
-			Timestamp:  time.Unix(0, 0),
-			Data:       data,
-			Version:    snapshot.CurrentVersion,
+		snap := snapshotBenchEnvelope(b, bodies)
+		size, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
+		if err != nil {
+			b.Fatal(err)
 		}
+		snapshotBytes := float64(len(size))
 
-		b.Run(fmt.Sprintf("Bodies_%d/Nop", bodies), func(b *testing.B) {
-			store := snapshot.NewNopStorage()
-			b.ReportAllocs()
-			b.ResetTimer()
-			for range b.N {
-				if err := store.Store(ctx, snap); err != nil {
-					b.Fatal(err)
+		stores := []struct {
+			name  string
+			store func(context.Context, *cardinalv1.Snapshot) error
+		}{
+			{"Nop", snapshot.NewNopStorage().Store},
+			{"SingleMarshal", (&singleMarshalStorage{}).Store},
+			{"LegacyDoubleMarshal", (&legacyDoubleMarshalStorage{}).Store},
+		}
+		for _, tc := range stores {
+			b.Run(fmt.Sprintf("Bodies_%d/%s", bodies, tc.name), func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+				for range b.N {
+					if err := tc.store(ctx, snap); err != nil {
+						b.Fatal(err)
+					}
 				}
-			}
-			b.ReportMetric(float64(len(data)), "snapshot_bytes")
-		})
-
-		b.Run(fmt.Sprintf("Bodies_%d/DoubleMarshal", bodies), func(b *testing.B) {
-			store := &doubleMarshalStorage{}
-			b.ReportAllocs()
-			b.ResetTimer()
-			for range b.N {
-				if err := store.Store(ctx, snap); err != nil {
-					b.Fatal(err)
-				}
-			}
-			b.ReportMetric(float64(len(data)), "snapshot_bytes")
-		})
+				b.ReportMetric(snapshotBytes, "snapshot_bytes")
+			})
+		}
 	}
 }

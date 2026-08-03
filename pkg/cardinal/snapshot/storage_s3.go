@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -17,8 +16,6 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const defaultS3ObjectKey = "snapshot"
@@ -100,20 +97,10 @@ func NewS3Storage(opts S3StorageOptions) (*S3Storage, error) {
 	}, nil
 }
 
-func (s *S3Storage) Store(ctx context.Context, snapshot *Snapshot) error {
-	var worldState cardinalv1.WorldState
-	if err := proto.Unmarshal(snapshot.Data, &worldState); err != nil {
-		return eris.Wrap(err, "failed to unmarshal world state")
-	}
-	snapshotPb := &cardinalv1.Snapshot{
-		TickHeight: snapshot.TickHeight,
-		Timestamp:  timestamppb.New(snapshot.Timestamp),
-		WorldState: &worldState,
-		Version:    snapshot.Version,
-	}
-	data, err := proto.Marshal(snapshotPb)
+func (s *S3Storage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error {
+	data, err := marshalSnapshot(snapshot)
 	if err != nil {
-		return eris.Wrap(err, "failed to marshal snapshot")
+		return err
 	}
 
 	// Overwrite the existing snapshot if any.
@@ -129,7 +116,7 @@ func (s *S3Storage) Store(ctx context.Context, snapshot *Snapshot) error {
 	return nil
 }
 
-func (s *S3Storage) Load(ctx context.Context) (*Snapshot, error) {
+func (s *S3Storage) Load(ctx context.Context) (*cardinalv1.Snapshot, error) {
 	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.key),
@@ -156,25 +143,7 @@ func (s *S3Storage) Load(ctx context.Context) (*Snapshot, error) {
 		return nil, eris.Wrap(err, "failed to read from S3 object")
 	}
 
-	snapshotPb := cardinalv1.Snapshot{}
-	if err = proto.Unmarshal(data, &snapshotPb); err != nil {
-		return nil, eris.Wrap(err, "failed to unmarshal snapshot")
-	}
-	if err = protovalidate.Validate(&snapshotPb); err != nil {
-		return nil, eris.Wrap(err, "failed to validate snapshot")
-	}
-
-	worldStateBytes, err := proto.Marshal(snapshotPb.GetWorldState())
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to marshal world state")
-	}
-
-	return &Snapshot{
-		TickHeight: snapshotPb.GetTickHeight(),
-		Timestamp:  snapshotPb.GetTimestamp().AsTime(),
-		Data:       worldStateBytes,
-		Version:    snapshotPb.GetVersion(),
-	}, nil
+	return unmarshalSnapshot(data)
 }
 
 // -------------------------------------------------------------------------------------------------

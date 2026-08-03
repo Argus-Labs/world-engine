@@ -17,7 +17,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -262,21 +261,17 @@ func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 	}
 }
 
-// snapshot writes an already-serialized world state to storage, best-effort: errors are logged, not
+// snapshot hands an already-built world state to storage, best-effort: errors are logged, not
 // returned, so a failed write doesn't stop the world and lose unsaved state — the next snapshot retries.
+// The envelope is passed as a proto and the backend marshals it exactly once.
 func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *cardinalv1.WorldState) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
-	if err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
-		return
-	}
-	snap := &snapshot.Snapshot{
+	snap := &cardinalv1.Snapshot{
 		TickHeight: w.currentTick.height,
-		Timestamp:  timestamp,
-		Data:       data,
+		Timestamp:  timestamppb.New(timestamp),
+		WorldState: worldState,
 		Version:    snapshot.CurrentVersion,
 	}
 	if err := w.snapshotStorage.Store(ctx, snap); err != nil {
@@ -299,23 +294,25 @@ func (w *World) restore(ctx context.Context) error {
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
-	// Unmarshal snapshot bytes into proto and restore ECS world.
-	var worldState cardinalv1.WorldState
-	if err := proto.Unmarshal(snap.Data, &worldState); err != nil {
-		return eris.Wrap(err, "failed to unmarshal snapshot data")
+	// Restore the ECS world from the loaded proto; storage already unmarshaled it.
+	// A stored envelope without a world state is degenerate, but the published state must never
+	// be nil, so substitute an empty one.
+	worldState := snap.GetWorldState()
+	if worldState == nil {
+		worldState = &cardinalv1.WorldState{}
 	}
-	if err := w.world.FromProto(&worldState); err != nil {
+	if err := w.world.FromProto(worldState); err != nil {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
 	// Only update shard state after successful restoration and validation.
-	w.currentTick.height = snap.TickHeight + 1
+	w.currentTick.height = snap.GetTickHeight() + 1
 
-	// Publish the unmarshaled proto as-is; it already is the restored state.
+	// Publish the loaded proto as-is; it already is the restored state.
 	w.state.Store(&cardinalv1.Snapshot{
-		TickHeight: snap.TickHeight,
-		Timestamp:  timestamppb.New(snap.Timestamp),
-		WorldState: &worldState,
+		TickHeight: snap.GetTickHeight(),
+		Timestamp:  snap.GetTimestamp(),
+		WorldState: worldState,
 	})
 	return nil
 }
