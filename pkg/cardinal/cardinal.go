@@ -40,12 +40,18 @@ type World struct {
 	// while pinning a full deep-copied world-state graph (~1 MB serialized at 5000 entities) in
 	// the heap until the next publish replaces it. NewWorld seeds it either way, so GetState is
 	// always servable.
-	state       atomic.Pointer[cardinalv1.Snapshot]
-	debug       *debugModule        // For debug only utils and services
-	pprof       *pprofModule        // Optional pprof HTTP server
-	currentTick Tick                // The current tick
-	options     WorldOptions        // Options
-	tel         telemetry.Telemetry // Telemetry for logging and tracing
+	state atomic.Pointer[cardinalv1.Snapshot]
+	// True once restore() has established the in-memory world as the authoritative copy of the
+	// persisted state — which includes the legitimate "no snapshot exists yet" case, where the
+	// fresh world IS the state. Until then an empty world means nothing: the snapshot may be
+	// unread (corrupt, unreadable version, storage error), so persisting the empty world would
+	// destroy the good one. Written and read only on the goroutine running StartGame.
+	stateAuthoritative bool
+	debug              *debugModule        // For debug only utils and services
+	pprof              *pprofModule        // Optional pprof HTTP server
+	currentTick        Tick                // The current tick
+	options            WorldOptions        // Options
+	tel                telemetry.Telemetry // Telemetry for logging and tracing
 }
 
 // NewWorld creates a new game world with the specified configuration.
@@ -294,6 +300,29 @@ func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *c
 	w.tel.Logger.Debug().Msg("published snapshot")
 }
 
+// finalSnapshot writes the last snapshot of a run, during shutdown.
+//
+// It is skipped unless restore() established the in-memory world as the authoritative copy of the
+// persisted state (see World.stateAuthoritative). Shutdown runs on every exit path, including the
+// one taken when the restore itself failed — a corrupt or unreadable snapshot, a version this build
+// refuses, a storage error. On that path the world is empty only because it was never loaded, and
+// storing it would overwrite the good snapshot with nothing, turning a recoverable read failure
+// into total state loss. Losing the ticks since the last snapshot is the lesser harm, so we log
+// loudly instead and leave what is stored alone.
+func (w *World) finalSnapshot(ctx context.Context) {
+	if !w.stateAuthoritative {
+		w.tel.Logger.Warn().Msg("skipping final snapshot: world state was never restored")
+		return
+	}
+
+	worldState, err := w.world.ToProto()
+	if err != nil {
+		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
+		return
+	}
+	w.snapshot(ctx, time.Now(), worldState)
+}
+
 func (w *World) restore(ctx context.Context) error {
 	logger := w.tel.GetLogger("snapshot")
 
@@ -301,7 +330,10 @@ func (w *World) restore(ctx context.Context) error {
 	snap, err := w.snapshotStorage.Load(ctx)
 	if err != nil {
 		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
+			// Nothing persisted yet: the fresh world is the state, so it is authoritative and the
+			// final snapshot is the first one this shard ever writes.
 			logger.Debug().Msg("no snapshot found")
+			w.stateAuthoritative = true
 			return nil
 		}
 		return eris.Wrap(err, "failed to load snapshot")
@@ -329,6 +361,10 @@ func (w *World) restore(ctx context.Context) error {
 
 	// Only update shard state after successful restoration and validation.
 	w.currentTick.height = snap.GetTickHeight() + 1
+
+	// The world now holds the persisted state, so it may be written back — including from a
+	// panicking run, which is exactly the crash-recovery case a final snapshot exists for.
+	w.stateAuthoritative = true
 
 	// Publish the loaded proto as-is; it already is the restored state. Debug-only consumer, and
 	// with debug off this would pin the restored graph for the whole life of the process, since
@@ -360,11 +396,7 @@ func (w *World) shutdown() {
 	// so it can flush log lines emitted by every preceding step.
 
 	// 1. Final snapshot. Producer-side; serialize world state for snapshot.
-	if worldState, err := w.world.ToProto(); err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
-	} else {
-		w.snapshot(ctx, time.Now(), worldState)
-	}
+	w.finalSnapshot(ctx)
 
 	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
 	// but the producer side should stop before observers do.
