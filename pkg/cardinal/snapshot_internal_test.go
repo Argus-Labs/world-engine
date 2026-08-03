@@ -86,6 +86,9 @@ func TestSnapshotRoundTripThroughStorage(t *testing.T) {
 	assert.Equal(t, timestamp, store.snap.GetTimestamp().AsTime())
 
 	dst, _ := newSnapshotTestWorld(t, store)
+	// The published state has exactly one reader, DebugService.GetState, so the publish is gated
+	// on the debug module existing.
+	dst.debug = newDebugModule(dst)
 	require.NoError(t, dst.restore(ctx))
 
 	got, err := dst.world.ToProto()
@@ -98,6 +101,15 @@ func TestSnapshotRoundTripThroughStorage(t *testing.T) {
 	require.NotNil(t, published)
 	assert.Equal(t, uint64(7), published.GetTickHeight())
 	assert.True(t, proto.Equal(want, published.GetWorldState()))
+
+	// With debug off nothing can read the published state, and persistState never replaces it, so
+	// restoring must not pin the restored graph for the life of the process.
+	quiet, _ := newSnapshotTestWorld(t, store)
+	require.NoError(t, quiet.restore(ctx))
+	got, err = quiet.world.ToProto()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(want, got), "restore must rebuild the world whether or not debug is on")
+	assert.Nil(t, quiet.state.Load(), "restore must not publish state when debug is off")
 }
 
 // TestSnapshotStorageBytesAreStable guards that the same world always reaches storage as the same

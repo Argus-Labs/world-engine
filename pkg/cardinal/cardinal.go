@@ -28,18 +28,24 @@ const (
 
 // World represents your game world and serves as the main entry point for Cardinal.
 type World struct {
-	world           *ecs.World                          // The ECS world storing the game's state and systems
-	commands        command.Manager                     // Receives commands for systems
-	events          event.Manager                       // Collects and dispatches events
-	address         *micro.ServiceAddress               // This world's NATS address
-	service         *service                            // ConnectRPC direct client-facing service
-	snapshotStorage snapshot.Storage                    // Snapshot storage
-	state           atomic.Pointer[cardinalv1.Snapshot] // Latest world state; swap only, never mutate
-	debug           *debugModule                        // For debug only utils and services
-	pprof           *pprofModule                        // Optional pprof HTTP server
-	currentTick     Tick                                // The current tick
-	options         WorldOptions                        // Options
-	tel             telemetry.Telemetry                 // Telemetry for logging and tracing
+	world           *ecs.World            // The ECS world storing the game's state and systems
+	commands        command.Manager       // Receives commands for systems
+	events          event.Manager         // Collects and dispatches events
+	address         *micro.ServiceAddress // This world's NATS address
+	service         *service              // ConnectRPC direct client-facing service
+	snapshotStorage snapshot.Storage      // Snapshot storage
+	// Latest world state; swap only, never mutate. Its only reader is DebugService.GetState,
+	// whose handler is mounted only when debug is on (see service.init), so every publish is
+	// gated on debug != nil: with debug off the publish would feed a consumer that cannot exist
+	// while pinning a full deep-copied world-state graph (~1 MB serialized at 5000 entities) in
+	// the heap until the next publish replaces it. NewWorld seeds it either way, so GetState is
+	// always servable.
+	state       atomic.Pointer[cardinalv1.Snapshot]
+	debug       *debugModule        // For debug only utils and services
+	pprof       *pprofModule        // Optional pprof HTTP server
+	currentTick Tick                // The current tick
+	options     WorldOptions        // Options
+	tel         telemetry.Telemetry // Telemetry for logging and tracing
 }
 
 // NewWorld creates a new game world with the specified configuration.
@@ -84,6 +90,8 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 
 	// Seed a valid empty state so GetState is always servable, even before the first tick.
+	// This one is unconditional: it is a single empty envelope, and the debug module does not
+	// exist yet at this point.
 	world.state.Store(&cardinalv1.Snapshot{WorldState: &cardinalv1.WorldState{}})
 
 	// Set ECS on component register callback (used for introspection).
@@ -236,7 +244,8 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 	w.currentTick.height++
 }
 
-// persistState serializes world state once and publishes it to w.state.
+// persistState serializes world state once, hands it to storage when a snapshot is due, and
+// publishes it to w.state for the debug module when there is one.
 // Best effort: we just log errors instead of returning them, which would cause the
 // world to stop and restart, effectively losing unsaved state. If a state serialization
 // fails, the main loop still continues and we retry in the next persistState call.
@@ -251,11 +260,14 @@ func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 		w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
 		return
 	}
-	w.state.Store(&cardinalv1.Snapshot{
-		TickHeight: w.currentTick.height,
-		Timestamp:  timestamppb.New(timestamp),
-		WorldState: worldState,
-	})
+	// Debug-only consumer, and the envelope is not even built when debug is off (see World.state).
+	if w.debug != nil {
+		w.state.Store(&cardinalv1.Snapshot{
+			TickHeight: w.currentTick.height,
+			Timestamp:  timestamppb.New(timestamp),
+			WorldState: worldState,
+		})
+	}
 
 	if snapshotDue {
 		w.snapshot(ctx, timestamp, worldState)
@@ -309,12 +321,16 @@ func (w *World) restore(ctx context.Context) error {
 	// Only update shard state after successful restoration and validation.
 	w.currentTick.height = snap.GetTickHeight() + 1
 
-	// Publish the loaded proto as-is; it already is the restored state.
-	w.state.Store(&cardinalv1.Snapshot{
-		TickHeight: snap.GetTickHeight(),
-		Timestamp:  snap.GetTimestamp(),
-		WorldState: worldState,
-	})
+	// Publish the loaded proto as-is; it already is the restored state. Debug-only consumer, and
+	// with debug off this would pin the restored graph for the whole life of the process, since
+	// persistState never replaces it (see World.state).
+	if w.debug != nil {
+		w.state.Store(&cardinalv1.Snapshot{
+			TickHeight: snap.GetTickHeight(),
+			Timestamp:  snap.GetTimestamp(),
+			WorldState: worldState,
+		})
+	}
 	return nil
 }
 
@@ -378,15 +394,18 @@ func (w *World) reset() {
 	w.currentTick.height = 0
 	w.currentTick.timestamp = time.Time{}
 
-	// Republish state so it doesn't describe the pre-reset world, and clear perf data.
-	if worldState, err := w.world.ToProto(); err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
-	} else {
-		w.state.Store(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.New(w.currentTick.timestamp),
-			WorldState: worldState,
-		})
+	// Republish state so it doesn't describe the pre-reset world, and clear perf data. Debug-only
+	// consumer (see World.state), so with debug off the serialization is skipped outright.
+	if w.debug != nil {
+		if worldState, err := w.world.ToProto(); err != nil {
+			w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
+		} else {
+			w.state.Store(&cardinalv1.Snapshot{
+				TickHeight: w.currentTick.height,
+				Timestamp:  timestamppb.New(w.currentTick.timestamp),
+				WorldState: worldState,
+			})
+		}
 	}
 	w.debug.resetPerf()
 }
