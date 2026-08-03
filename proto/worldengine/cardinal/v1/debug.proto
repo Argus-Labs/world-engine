@@ -172,7 +172,7 @@ enum SystemHook {
 message SystemSpan {
   SystemHook system_hook = 1;
   string system = 2;
-  // Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
+  // Nanoseconds elapsed from the start of the ECS system phase to when this span began.
   uint64 start_offset_ns = 3;
   // Duration of this span in nanoseconds.
   uint64 duration_ns = 4;

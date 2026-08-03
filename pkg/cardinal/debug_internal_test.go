@@ -80,15 +80,18 @@ func mapKeys(m map[string]any) []string {
 
 func TestPerformanceBatchConverters(t *testing.T) {
 	tickStart := time.Now()
+	systemPhaseStartedAt := tickStart.Add(time.Millisecond)
 	batch := performance.Batch{
 		Ticks: []performance.TickTimeline{{
-			TickHeight:         42,
-			TickStart:          tickStart,
-			SystemPhaseElapsed: 3 * time.Millisecond,
+			TickHeight:           42,
+			TickStart:            tickStart,
+			SystemPhaseStartedAt: systemPhaseStartedAt,
+			SystemPhaseElapsed:   3 * time.Millisecond,
+			Profiled:             true,
 			Spans: []performance.TickSpan{{
 				SystemName: "move",
-				StartTime:  tickStart.Add(time.Millisecond),
-				EndTime:    tickStart.Add(2 * time.Millisecond),
+				StartTime:  systemPhaseStartedAt.Add(time.Millisecond),
+				EndTime:    systemPhaseStartedAt.Add(2 * time.Millisecond),
 			}},
 		}},
 	}
@@ -101,5 +104,22 @@ func TestPerformanceBatchConverters(t *testing.T) {
 	require.Len(t, profile.GetTicks(), 1)
 	require.Len(t, profile.GetTicks()[0].GetSpans(), 1)
 	assert.Equal(t, "move", profile.GetTicks()[0].GetSpans()[0].GetSystem())
+	assert.Equal(t, uint64(time.Millisecond), profile.GetTicks()[0].GetSpans()[0].GetStartOffsetNs())
 	assert.Equal(t, uint64(3*time.Millisecond), profile.GetTicks()[0].GetTiming().GetDurationNs())
+}
+
+func TestProfileBatchToProtoFiltersUnprofiledTicks(t *testing.T) {
+	now := time.Now()
+	batch := performance.Batch{Ticks: []performance.TickTimeline{
+		{TickHeight: 1, TickStart: now},
+		{TickHeight: 2, TickStart: now, SystemPhaseStartedAt: now, Profiled: true},
+	}}
+
+	overview := timingBatchToProto(batch)
+	require.Len(t, overview.GetTicks(), 2, "timing subscribers keep the whole batch")
+
+	profile := profileBatchToProto(batch)
+	require.Len(t, profile.GetTicks(), 1)
+	assert.Equal(t, uint64(2), profile.GetTicks()[0].GetTiming().GetTickHeight())
+	assert.Empty(t, profile.GetTicks()[0].GetSpans(), "a profiled tick with no systems remains visible")
 }

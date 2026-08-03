@@ -1046,7 +1046,7 @@ type SystemSpan struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	SystemHook SystemHook             `protobuf:"varint,1,opt,name=system_hook,json=systemHook,proto3,enum=worldengine.cardinal.v1.SystemHook" json:"system_hook,omitempty"`
 	System     string                 `protobuf:"bytes,2,opt,name=system,proto3" json:"system,omitempty"`
-	// Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
+	// Nanoseconds elapsed from the start of the ECS system phase to when this span began.
 	StartOffsetNs uint64 `protobuf:"varint,3,opt,name=start_offset_ns,json=startOffsetNs,proto3" json:"start_offset_ns,omitempty"`
 	// Duration of this span in nanoseconds.
 	DurationNs    uint64 `protobuf:"varint,4,opt,name=duration_ns,json=durationNs,proto3" json:"duration_ns,omitempty"`

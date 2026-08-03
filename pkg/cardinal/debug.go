@@ -223,9 +223,13 @@ func timingBatchToProto(b performance.Batch) *cardinalv1.WatchSystemsTimingRespo
 func profileBatchToProto(b performance.Batch) *cardinalv1.ProfileSystemsResponse {
 	ticks := make([]*cardinalv1.SystemsProfile, 0, len(b.Ticks))
 	for _, ts := range b.Ticks {
+		if !ts.Profiled {
+			continue
+		}
+
 		spans := make([]*cardinalv1.SystemSpan, 0, len(ts.Spans))
 		for _, span := range ts.Spans {
-			startOffset := span.StartTime.Sub(ts.TickStart).Nanoseconds()
+			startOffset := span.StartTime.Sub(ts.SystemPhaseStartedAt).Nanoseconds()
 			duration := span.EndTime.Sub(span.StartTime).Nanoseconds()
 			if startOffset < 0 {
 				startOffset = 0

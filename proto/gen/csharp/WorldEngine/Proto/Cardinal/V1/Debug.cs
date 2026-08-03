@@ -4442,7 +4442,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int StartOffsetNsFieldNumber = 3;
     private ulong startOffsetNs_;
     /// <summary>
-    /// Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
+    /// Nanoseconds elapsed from the start of the ECS system phase to when this span began.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

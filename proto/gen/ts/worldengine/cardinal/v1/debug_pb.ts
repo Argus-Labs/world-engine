@@ -463,7 +463,7 @@ export type SystemSpan = Message<"worldengine.cardinal.v1.SystemSpan"> & {
   system: string;
 
   /**
-   * Nanoseconds elapsed from the parent SystemsTiming.tick_start to when this span began.
+   * Nanoseconds elapsed from the start of the ECS system phase to when this span began.
    *
    * @generated from field: uint64 start_offset_ns = 3;
    */
@@ -614,4 +614,3 @@ export const DebugService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
-

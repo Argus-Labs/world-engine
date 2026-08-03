@@ -211,3 +211,34 @@ func TestCollector_SystemSpanCaptureRequiresProfileSubscriber(t *testing.T) {
 	c.Unsubscribe(profilesCh)
 	assert.False(t, c.StartTick(), "profile subscriber disconnected")
 }
+
+func TestCollector_ProfileSubscriberJoiningMidBatchMarksOnlyCapturedTicks(t *testing.T) {
+	c := NewCollector(3)
+	timingsCh := c.SubscribeTimings()
+	t.Cleanup(func() { c.Unsubscribe(timingsCh) })
+
+	tickStart := time.Now()
+	for i := range 2 {
+		captureSystemSpans := c.StartTick()
+		require.False(t, captureSystemSpans)
+		c.RecordTick(captureSystemSpans, uint64(i), tickStart, time.Now())
+	}
+
+	profilesCh := c.SubscribeProfiles()
+	t.Cleanup(func() { c.Unsubscribe(profilesCh) })
+
+	captureSystemSpans := c.StartTick()
+	require.True(t, captureSystemSpans)
+	systemPhaseStartedAt := time.Now()
+	c.RecordSpan(TickSpan{SystemName: "sys", StartTime: systemPhaseStartedAt})
+	c.RecordTick(captureSystemSpans, 2, tickStart, systemPhaseStartedAt)
+
+	for _, batch := range []Batch{<-timingsCh, <-profilesCh} {
+		require.Len(t, batch.Ticks, 3)
+		assert.False(t, batch.Ticks[0].Profiled)
+		assert.False(t, batch.Ticks[1].Profiled)
+		assert.True(t, batch.Ticks[2].Profiled)
+		assert.Equal(t, systemPhaseStartedAt, batch.Ticks[2].SystemPhaseStartedAt)
+		assert.Len(t, batch.Ticks[2].Spans, 1)
+	}
+}
