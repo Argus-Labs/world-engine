@@ -20,10 +20,12 @@ type TickSpan struct {
 
 // TickTimeline groups spans that occurred within a single tick.
 type TickTimeline struct {
-	TickHeight         uint64
-	TickStart          time.Time
-	SystemPhaseElapsed time.Duration
-	Spans              []TickSpan
+	TickHeight           uint64
+	TickStart            time.Time
+	SystemPhaseStartedAt time.Time
+	SystemPhaseElapsed   time.Duration
+	Profiled             bool
+	Spans                []TickSpan
 }
 
 // Batch is a batch of completed tick timelines pushed to subscribers.
@@ -114,10 +116,12 @@ func (c *Collector) RecordTick(
 	}
 
 	c.pending = append(c.pending, TickTimeline{
-		TickHeight:         tickHeight,
-		TickStart:          tickStart,
-		SystemPhaseElapsed: systemPhaseElapsed,
-		Spans:              spans,
+		TickHeight:           tickHeight,
+		TickStart:            tickStart,
+		SystemPhaseStartedAt: systemPhaseStartedAt,
+		SystemPhaseElapsed:   systemPhaseElapsed,
+		Profiled:             captureSystemSpans,
+		Spans:                spans,
 	})
 
 	var batch Batch

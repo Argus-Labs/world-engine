@@ -363,6 +363,10 @@ func (w *World) shutdown() {
 }
 
 func (w *World) reset() {
+	// Clear the whole tick before init systems run so they cannot inherit a
+	// span-capture latch from the previous tick.
+	w.currentTick = Tick{}
+
 	// Reset the ECS world and run initialization systems again.
 	w.world.Reset()
 	w.world.Init()
@@ -370,10 +374,6 @@ func (w *World) reset() {
 	// Clear pending commands and events.
 	w.commands.Clear()
 	w.events.Clear()
-
-	// Reset the tick.
-	w.currentTick.height = 0
-	w.currentTick.timestamp = time.Time{}
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
