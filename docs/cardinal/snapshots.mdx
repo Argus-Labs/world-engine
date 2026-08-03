@@ -1,0 +1,100 @@
+---
+title: 'Snapshots & Durability'
+---
+
+A Cardinal shard keeps its whole world in memory. A **snapshot** is the only durable copy of that
+world: every `SnapshotRate` ticks the shard serializes its state and writes it to snapshot storage,
+replacing the previous snapshot. On boot the shard loads it back and continues from the tick it was
+taken at.
+
+## Configuration
+
+```go
+cardinal.NewWorld(cardinal.WorldOptions{
+    TickRate:            60,  // ticks per second
+    SnapshotRate:        300, // ticks per snapshot -> one snapshot every 5s at 60 TPS
+    SnapshotStorageType: snapshot.StorageTypeS3,
+})
+```
+
+| Option                | Env var                         | Meaning                                       |
+| --------------------- | ------------------------------- | --------------------------------------------- |
+| `SnapshotRate`        | `CARDINAL_SNAPSHOT_RATE`        | Ticks between snapshots                       |
+| `SnapshotStorageType` | `CARDINAL_SNAPSHOT_STORAGE_TYPE` | `NOP`, `JETSTREAM`, or `S3`                   |
+
+`SnapshotRate` is the amount of play a crash may undo. At 60 TPS, a rate of 300 puts up to five
+seconds of the world at risk. `NOP` storage persists nothing at all — it is the default, and it is
+for local development only.
+
+## What a snapshot promises, and what it does not
+
+Snapshot writes are **asynchronous and best effort**. This is deliberate: uploading a world state
+costs a serialization plus a network round trip, and doing that on the tick goroutine turns every
+snapshot tick into a latency spike for the whole shard. So the tick hands the snapshot to a
+background writer and moves on.
+
+Three consequences an operator should know:
+
+<AccordionGroup>
+  <Accordion title="A crash can lose the most recent snapshot">
+    The tick that produced a snapshot returns before the upload finishes. If the process dies in
+    that window, that snapshot is not in storage — the previous one is. Storage always holds a
+    complete, valid snapshot (each write replaces the old object atomically); it may just be older
+    than the last snapshot tick suggests.
+  </Accordion>
+
+  <Accordion title="Snapshots are latest-wins, never queued">
+    At most one upload runs at a time. A snapshot produced while an upload is in flight **replaces**
+    the one waiting rather than queueing behind it, so a backlog can never grow and the shard cannot
+    be pushed out of memory by a slow backend. The dropped snapshot is never written — but every
+    snapshot that IS written is newer than the one before it, so storage never goes backwards.
+
+    Setting `SnapshotRate` faster than the backend can absorb therefore does not make the stored
+    snapshot more current. It just drops the snapshots in between.
+  </Accordion>
+
+  <Accordion title="An orderly shutdown loses nothing">
+    Shutdown takes a final snapshot, then waits for it and anything else outstanding to reach
+    storage before tearing the shard down. If that wait fails or times out, it is logged at error:
+
+    ```
+    snapshot writes did not finish before shutdown; the last snapshot of this run may be lost
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Telling when storage cannot keep up
+
+A dropped snapshot is logged at **warn**, so it is visible at the default log level:
+
+```json
+{
+  "level": "warn",
+  "component": "cardinal.snapshot",
+  "superseded_tick_height": 1200,
+  "tick_height": 1500,
+  "dropped_total": 1,
+  "log_every": 100,
+  "message": "superseded a pending snapshot: storage is slower than the snapshot rate"
+}
+```
+
+The line is rate limited — the first drop, then every 100th — because a backend that is behind drops
+one snapshot per snapshot tick. `dropped_total` is the running count, so gaps between lines are
+visible. At shutdown the run's total is logged once more:
+
+```
+snapshots were superseded before they could be written during this run
+```
+
+Seeing these means the shard is snapshotting faster than storage accepts. Either raise
+`SnapshotRate` (snapshot less often) or move to a faster backend. Individual write failures are
+reported separately, at warn, as `failed to store snapshot`.
+
+## Versioning
+
+Snapshots carry a format version, and a shard reads only the version it writes. A snapshot from a
+newer build, or one with no version, is refused at boot rather than misread — the shard fails to
+start, and the stored snapshot is left untouched. The same applies when a restore fails for any
+other reason: the shard skips its final snapshot instead of overwriting a good snapshot with an
+empty world.
