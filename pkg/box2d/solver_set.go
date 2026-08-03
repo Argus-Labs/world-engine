@@ -261,10 +261,23 @@ func (w *World) trySleepIsland(islandID int) {
 			// Update the body move event to indicate this body fell asleep.
 			// It could happen the body is forced asleep before it ever moves.
 			if b.bodyMoveIndex != NullIndex {
-				moveEvent := &w.bodyMoveEvents[b.bodyMoveIndex]
-				assert(int(moveEvent.BodyID.index1)-1 == bodyID)
-				assert(moveEvent.BodyID.generation == b.generation)
-				moveEvent.FellAsleep = true
+				// A move index names a slot in the buffer the finalize stage
+				// filled during the last step. It stays valid for the whole
+				// post-step window, which is exactly when upstream reports
+				// fellAsleep — so it must NOT be blanket-invalidated on every
+				// awake-set exit. It CAN dangle, though: a SetBodyType /
+				// DisableBody / joint-driven transfer out of the awake set
+				// leaves an index into a buffer that a later step reslices
+				// shorter or refills for a different body. Upstream indexes it
+				// unchecked and reads out of bounds (found by the E14
+				// op-sequence fuzzer), so validate bounds and event identity
+				// here rather than dropping the notification at the source.
+				if b.bodyMoveIndex < len(w.bodyMoveEvents) {
+					moveEvent := &w.bodyMoveEvents[b.bodyMoveIndex]
+					if int(moveEvent.BodyID.index1)-1 == bodyID && moveEvent.BodyID.generation == b.generation {
+						moveEvent.FellAsleep = true
+					}
+				}
 				b.bodyMoveIndex = NullIndex
 			}
 
@@ -545,17 +558,6 @@ func (w *World) transferBody(targetSet, sourceSet *solverSet, b *body) {
 
 	sourceIndex := b.localIndex
 	sourceSim := &sourceSet.bodySims[sourceIndex]
-
-	// A body move index is only valid for the step that assigned it (the
-	// finalize stage indexes the awake set's move-event buffer). Leaving the
-	// awake set by any route other than island sleeping (SetBodyType,
-	// DisableBody, joint-driven transfers) must invalidate it, otherwise a
-	// later trySleepIsland can index a shorter or reused buffer. Upstream C
-	// has the same gap and reads out of bounds unchecked (found by the E14
-	// op-sequence fuzzer).
-	if sourceSet.setIndex == awakeSet {
-		b.bodyMoveIndex = NullIndex
-	}
 
 	targetIndex := len(targetSet.bodySims)
 	targetSet.bodySims = append(targetSet.bodySims, *sourceSim)

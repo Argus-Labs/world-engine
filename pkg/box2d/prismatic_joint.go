@@ -215,7 +215,17 @@ func (w *World) PrismaticJointTranslation(jointID JointID) float64 {
 // PrismaticJointSpeed returns the current joint translation speed, usually in
 // meters per second (upstream b2PrismaticJoint_GetSpeed).
 func (w *World) PrismaticJointSpeed(jointID JointID) float64 {
-	base := w.getJointSimCheckType(jointID, PrismaticJoint)
+	// Upstream resolves the joint WITHOUT the world-locked early-out here
+	// (b2GetWorld + b2GetJointSim), unlike every other prismatic accessor,
+	// which goes through b2GetJointSimCheckType. That difference is load
+	// bearing: it lets the speed be read while the world is locked, i.e. from
+	// inside a step-time user callback. Routing this through
+	// getJointSimCheckType instead returned a nil jointSim under a locked
+	// world and panicked on the first field access below.
+	j := w.getJointFullID(jointID)
+	assert(j.jointType == PrismaticJoint)
+	base := w.getJointSim(j)
+	assert(base.jointType == PrismaticJoint)
 
 	bodyA := &w.bodies[base.bodyIDA]
 	bodyB := &w.bodies[base.bodyIDB]

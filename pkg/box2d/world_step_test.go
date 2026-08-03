@@ -661,3 +661,41 @@ func TestBodyMoveIndexInvalidatedOnAwakeSetExit(t *testing.T) {
 	w.SetBodyAwake(x, false)
 	require.False(t, w.IsBodyAwake(x))
 }
+
+// TestFellAsleepReportedAfterAwakeSetRoundTrip pins the other half of the
+// stale-move-index contract: hardening the dangling read must not cost the
+// legitimate notification. A move index stays valid for the whole post-step
+// window, so a body that leaves and re-enters the awake set without an
+// intervening step must still report FellAsleep, exactly as upstream does.
+// An earlier fix invalidated the index on every awake-set exit and silently
+// dropped this event.
+func TestFellAsleepReportedAfterAwakeSetRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	def := box2d.DefaultWorldDef()
+	w := box2d.NewWorld(&def)
+	defer w.Destroy()
+
+	bd := box2d.DefaultBodyDef()
+	bd.Type = box2d.DynamicBody
+	bd.Position = box2d.Vec2{X: 0, Y: 10}
+	body := w.CreateBody(&bd)
+	sd := box2d.DefaultShapeDef()
+	sd.Density = 1
+	circle := box2d.Circle{Radius: 0.5}
+	w.CreateCircleShape(body, &sd, &circle)
+
+	w.Step(1.0/60.0, 4)
+	require.Len(t, w.BodyEvents().MoveEvents, 1)
+
+	// Round-trip out of and back into the awake set, with no step in between,
+	// so the move event recorded above is still live.
+	w.SetBodyType(body, box2d.StaticBody)
+	w.SetBodyType(body, box2d.DynamicBody)
+	w.SetBodyAwake(body, false)
+
+	events := w.BodyEvents().MoveEvents
+	require.Len(t, events, 1)
+	require.True(t, events[0].FellAsleep,
+		"fellAsleep must still be reported for a move event that is still live")
+}

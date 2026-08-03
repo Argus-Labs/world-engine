@@ -178,6 +178,46 @@ func TestPrismaticJointTranslationAndSpeedGetters(t *testing.T) {
 	}
 }
 
+// TestPrismaticJointSpeedReadableWhileWorldLocked pins the upstream contract
+// that b2PrismaticJoint_GetSpeed is readable while the world is locked, i.e.
+// from inside a step-time user callback. Upstream resolves this one accessor
+// with b2GetWorld + b2GetJointSim rather than b2GetJointSimCheckType; routing
+// it through the locked-checking helper made it return a nil jointSim and
+// panic mid-step.
+func TestPrismaticJointSpeedReadableWhileWorldLocked(t *testing.T) {
+	t.Parallel()
+
+	rig := buildPrismaticRig(box2d.Vec2{X: 0.0, Y: -10.0}, nil)
+	defer rig.world.Destroy()
+
+	// A separate static ground the elevator can land on: the joint disables
+	// collision between the bodies it connects, so the contact that drives
+	// preSolve has to come from a third body.
+	gd := box2d.DefaultBodyDef()
+	gd.Position = box2d.Vec2{X: 0.0, Y: -3.0}
+	ground := rig.world.CreateBody(&gd)
+	groundBox := box2d.MakeBox(10.0, 0.5)
+	gsd := box2d.DefaultShapeDef()
+	// preSolve only fires for contacts where at least one shape opts in.
+	gsd.EnablePreSolveEvents = true
+	rig.world.CreatePolygonShape(ground, &gsd, &groundBox)
+
+	called := 0
+	rig.world.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+		called++
+		// The panic this guards against fired here, on the first field
+		// access behind the nil jointSim.
+		require.False(t, math.IsNaN(rig.world.PrismaticJointSpeed(rig.joint)))
+		return true
+	}, nil)
+
+	for range 120 {
+		rig.world.Step(prismaticTimeStep, 4)
+	}
+
+	require.Positive(t, called, "preSolve never fired, so the locked-world path went untested")
+}
+
 func TestPrismaticJointOffAxisImpulse(t *testing.T) {
 	t.Parallel()
 
