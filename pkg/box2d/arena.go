@@ -195,6 +195,14 @@ func (a *arena) allocContactConstraints(count int) []contactConstraint {
 	// previous fresh allocation handed out. prepareContactsColor only writes
 	// the points below pointCount, so the solver must never be able to observe
 	// a value left over from an earlier step.
+	//
+	// Measured dead end: the clear is defensive, not load-bearing. A NaN/
+	// sentinel poison fill in place of this loop passed the full suite and
+	// every golden determinism test (prepare fully initializes each field the
+	// solver reads for points < pointCount), and removing the clear showed no
+	// win above the noise floor in min-of-6 interleaved A/B runs of
+	// StepPyramid and StepMixedRain/5000, despite memclr's ~3% flat share in
+	// the serial profile. Keep the clear.
 	s := a.contactConstraints
 	for i := range s {
 		s[i] = contactConstraint{}
