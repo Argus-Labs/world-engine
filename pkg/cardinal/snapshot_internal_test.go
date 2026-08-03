@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -110,6 +111,45 @@ func TestSnapshotRoundTripThroughStorage(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(want, got), "restore must rebuild the world whether or not debug is on")
 	assert.Nil(t, quiet.state.Load(), "restore must not publish state when debug is off")
+}
+
+// TestRestoreChecksSnapshotVersion covers the guard that makes a future format change safe: a
+// snapshot written by a build with a newer format is refused instead of being decoded into the
+// wrong world, whichever Storage implementation returned it.
+func TestRestoreChecksSnapshotVersion(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	store := &memSnapshotStorage{t: t}
+	src, state := newSnapshotTestWorld(t, store)
+	seedSnapshotWorld(t, state)
+	src.currentTick.height = 4
+
+	worldState, err := src.world.ToProto()
+	require.NoError(t, err)
+	src.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	require.NotNil(t, store.snap)
+
+	// The snapshot this build just wrote restores.
+	dst, _ := newSnapshotTestWorld(t, store)
+	require.NoError(t, dst.restore(ctx))
+	assert.Equal(t, uint64(5), dst.currentTick.height)
+
+	// The same snapshot stamped with a newer format does not.
+	store.snap.Version = snapshot.CurrentVersion + 1
+	stale, _ := newSnapshotTestWorld(t, store)
+	before, err := stale.world.ToProto()
+	require.NoError(t, err)
+
+	err = stale.restore(ctx)
+	require.Error(t, err)
+	assert.True(t, eris.Is(err, snapshot.ErrUnsupportedVersion))
+	assert.Contains(t, err.Error(), "refusing to restore snapshot")
+	assert.Zero(t, stale.currentTick.height, "a refused snapshot must not move the tick height")
+
+	after, err := stale.world.ToProto()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(before, after), "a refused snapshot must not be loaded into the world")
 }
 
 // TestSnapshotStorageBytesAreStable guards that the same world always reaches storage as the same

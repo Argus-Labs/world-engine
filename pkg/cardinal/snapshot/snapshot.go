@@ -11,9 +11,43 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// CurrentVersion is the snapshot format this build writes. Bump it whenever the envelope or the
+// world state inside it stops being readable by the previous layout, and teach ValidateVersion and
+// the restore path how to read the older versions that are still accepted.
 const CurrentVersion uint32 = 1
 
-var ErrSnapshotNotFound = errors.New("snapshot not found")
+var (
+	ErrSnapshotNotFound = errors.New("snapshot not found")
+
+	// ErrUnsupportedVersion reports a snapshot this build must not interpret.
+	ErrUnsupportedVersion = errors.New("unsupported snapshot version")
+)
+
+// ValidateVersion reports whether a stored snapshot may be interpreted by this build.
+//
+// The policy, which the format has to keep to:
+//   - 1 <= version <= CurrentVersion is accepted. Older formats stay readable, so a future bump
+//     must leave the restore path able to read every earlier version. There is only version 1
+//     today, so nothing is asked of the reader yet.
+//   - version > CurrentVersion is rejected. The snapshot comes from a newer build whose layout this
+//     one does not know. Protobuf decodes unknown layouts happily, so without this check a newer
+//     snapshot would be silently mis-read into a wrong world rather than refused.
+//   - version == 0 is rejected. The field is unset, meaning either a writer from before the
+//     envelope carried a version or a corrupt envelope. Every writer since the field existed sets
+//     it, so 0 is never something this code could have produced.
+func ValidateVersion(version uint32) error {
+	switch {
+	case version == 0:
+		return eris.Wrapf(ErrUnsupportedVersion,
+			"snapshot carries no version, so it predates the versioned format and cannot be read as version %d",
+			CurrentVersion)
+	case version > CurrentVersion:
+		return eris.Wrapf(ErrUnsupportedVersion,
+			"snapshot is version %d but this build only reads up to version %d", version, CurrentVersion)
+	default:
+		return nil
+	}
+}
 
 // Storage provides persistence for shard snapshots.
 //
@@ -54,6 +88,11 @@ func unmarshalSnapshot(data []byte) (*cardinalv1.Snapshot, error) {
 	}
 	if err := protovalidate.Validate(snapshot); err != nil {
 		return nil, eris.Wrap(err, "failed to validate snapshot")
+	}
+	// Checked here, at the decode boundary, so bytes this build cannot interpret never become a
+	// world state graph. Callers holding a Snapshot from elsewhere must call ValidateVersion too.
+	if err := ValidateVersion(snapshot.GetVersion()); err != nil {
+		return nil, err
 	}
 	return snapshot, nil
 }
