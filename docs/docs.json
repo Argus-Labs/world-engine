@@ -27,6 +27,7 @@
               "cardinal/events",
               "cardinal/system-events",
               "cardinal/queries",
+              "cardinal/snapshots",
               "cardinal/client-integration"
             ]
           },
