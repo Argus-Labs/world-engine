@@ -32,7 +32,11 @@ type World struct {
 	events          event.Manager         // Collects and dispatches events
 	address         *micro.ServiceAddress // This world's NATS address
 	service         *service              // ConnectRPC direct client-facing service
-	snapshotStorage snapshot.Storage      // Snapshot storage
+	snapshotStorage snapshot.Storage      // Snapshot storage; the read side of the snapshot path
+	// The write side. Snapshots do not go to storage from the tick goroutine: the tick hands the
+	// envelope here and returns, and the writer uploads it. See asyncSnapshotWriter for the
+	// single-flight/latest-wins rule and the durability trade that buys.
+	snapshotWriter snapshotWriter
 	// Latest world state; swap only, never mutate. Its only reader is DebugService.GetState,
 	// whose handler is mounted only when debug is on (see service.init), so every publish is
 	// gated on debug != nil: with debug off the publish would feed a consumer that cannot exist
@@ -140,6 +144,9 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		panic("unreachable")
 	}
 
+	// Snapshot uploads run on the writer's goroutine, never the tick's.
+	world.snapshotWriter = newAsyncSnapshotWriter(world.snapshotStorage, tel.GetLogger("snapshot"))
+
 	// Create the debug module only if debug is on.
 	if *options.Debug {
 		world.debug = newDebugModule(world)
@@ -225,7 +232,16 @@ func (w *World) run(ctx context.Context) error {
 	}
 }
 
+// Tick advances the world by one step.
+//
+// ctx is unused since snapshot uploads stopped running here: the writer they go to outlives any one
+// tick and carries its own context (see asyncSnapshotWriter), so nothing on this path takes a
+// deadline from the caller any more. The parameter stays because Tick is the public step API, called
+// by the shard loop, by the debug step control and by every game's tests — and because a tick is
+// exactly the scope a future trace span would want.
 func (w *World) Tick(ctx context.Context, timestamp time.Time) {
+	_ = ctx
+
 	// TODO: commands returned to be used for debug epoch log.
 	_ = w.commands.Drain()
 
@@ -243,7 +259,7 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 	}
 
 	// Publish state to snapshot and debug module.
-	w.persistState(ctx, timestamp)
+	w.persistState(timestamp)
 
 	// Increment tick height.
 	w.currentTick.height++
@@ -254,7 +270,7 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 // Best effort: we just log errors instead of returning them, which would cause the
 // world to stop and restart, effectively losing unsaved state. If a state serialization
 // fails, the main loop still continues and we retry in the next persistState call.
-func (w *World) persistState(ctx context.Context, timestamp time.Time) {
+func (w *World) persistState(timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {
 		return
@@ -275,31 +291,32 @@ func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 	}
 
 	if snapshotDue {
-		w.snapshot(ctx, timestamp, worldState)
+		w.snapshot(timestamp, worldState)
 	}
 }
 
-// snapshot hands an already-built world state to storage, best-effort: errors are logged, not
-// returned, so a failed write doesn't stop the world and lose unsaved state — the next snapshot retries.
-// The envelope is passed as a proto and the backend marshals it exactly once.
-func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *cardinalv1.WorldState) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	snap := &cardinalv1.Snapshot{
+// snapshot wraps an already-built world state in an envelope and hands it to the snapshot writer.
+//
+// It does not touch storage: marshaling and the network write happen on the writer's goroutine, so
+// the only cost a snapshot tick pays here is building the envelope. What stays on the tick goroutine
+// is ToProto, in persistState above — it reads live ECS and is only correct while the world is
+// quiescent. Everything downstream of it operates on a graph made of fresh slices that nothing
+// mutates afterwards, which is what makes handing it to another goroutine safe.
+//
+// Best-effort, unchanged: nothing is returned because there is nothing the tick loop could do with a
+// storage failure but log it and lose unsaved state by stopping. The writer logs; the next snapshot
+// retries.
+func (w *World) snapshot(timestamp time.Time, worldState *cardinalv1.WorldState) {
+	w.snapshotWriter.write(&cardinalv1.Snapshot{
 		TickHeight: w.currentTick.height,
 		Timestamp:  timestamppb.New(timestamp),
 		WorldState: worldState,
 		Version:    snapshot.CurrentVersion,
-	}
-	if err := w.snapshotStorage.Store(ctx, snap); err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to store snapshot")
-		return
-	}
-	w.tel.Logger.Debug().Msg("published snapshot")
+	})
 }
 
-// finalSnapshot writes the last snapshot of a run, during shutdown.
+// finalSnapshot writes the last snapshot of a run, during shutdown. It only hands the snapshot to
+// the writer; shutdown waits for it to land by calling drainSnapshotWrites straight after.
 //
 // It is skipped unless restore() established the in-memory world as the authoritative copy of the
 // persisted state (see World.stateAuthoritative). Shutdown runs on every exit path, including the
@@ -308,7 +325,7 @@ func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *c
 // storing it would overwrite the good snapshot with nothing, turning a recoverable read failure
 // into total state loss. Losing the ticks since the last snapshot is the lesser harm, so we log
 // loudly instead and leave what is stored alone.
-func (w *World) finalSnapshot(ctx context.Context) {
+func (w *World) finalSnapshot() {
 	if !w.stateAuthoritative {
 		w.tel.Logger.Warn().Msg("skipping final snapshot: world state was never restored")
 		return
@@ -319,7 +336,7 @@ func (w *World) finalSnapshot(ctx context.Context) {
 		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
 		return
 	}
-	w.snapshot(ctx, time.Now(), worldState)
+	w.snapshot(time.Now(), worldState)
 }
 
 func (w *World) restore(ctx context.Context) error {
@@ -394,8 +411,12 @@ func (w *World) shutdown() {
 	// instead of being severed on the first cleanup step. Telemetry goes last
 	// so it can flush log lines emitted by every preceding step.
 
-	// 1. Final snapshot. Producer-side; serialize world state for snapshot.
-	w.finalSnapshot(ctx)
+	// 1. Final snapshot. Producer-side; serialize world state for snapshot, then wait for it and
+	// anything the writer still owes to reach storage. The wait belongs here, ahead of NATS
+	// teardown, for the same reason the snapshot itself does: past this point the shard is coming
+	// apart, and an upload nobody waits for is an upload that does not happen.
+	w.finalSnapshot()
+	w.drainSnapshotWrites(ctx)
 
 	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
 	// but the producer side should stop before observers do.

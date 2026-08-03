@@ -29,14 +29,18 @@ type snapshotEntities struct {
 
 // newSnapshotTestWorld builds the smallest World that snapshot() and restore() need: an ECS world
 // with the fixture components registered, a storage backend, and a silent logger.
+//
+// Writes go inline, so a snapshot has reached storage by the time snapshot() returns and these
+// tests can assert on what it holds. The background writer is covered separately, in
+// snapshot_writer_internal_test.go.
 func newSnapshotTestWorld(t *testing.T, store snapshot.Storage) (*World, *snapshotEntities) {
 	t.Helper()
 
 	w := &World{
-		world:           ecs.NewWorld(),
-		snapshotStorage: store,
-		tel:             telemetry.Telemetry{Logger: zerolog.Nop()},
+		world: ecs.NewWorld(),
+		tel:   telemetry.Telemetry{Logger: zerolog.Nop()},
 	}
+	w.useInlineSnapshotStorage(store)
 	state := &snapshotEntities{}
 	require.NoError(t, initSystemFields(state, w))
 	return w, state
@@ -100,7 +104,7 @@ func TestSnapshotRoundTripThroughStorage(t *testing.T) {
 	}
 	require.NotZero(t, blobs, "fixture world serialized no components")
 
-	src.snapshot(ctx, timestamp, want)
+	src.snapshot(timestamp, want)
 	require.NotNil(t, store.snap, "snapshot() did not reach storage")
 	assert.Equal(t, snapshot.CurrentVersion, store.snap.GetVersion())
 	assert.Equal(t, uint64(7), store.snap.GetTickHeight())
@@ -147,7 +151,7 @@ func TestRestoreChecksSnapshotVersion(t *testing.T) {
 
 	worldState, err := src.world.ToProto()
 	require.NoError(t, err)
-	src.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	src.snapshot(time.Unix(1700000000, 0).UTC(), worldState)
 	require.NotNil(t, store.snap)
 
 	// The snapshot this build just wrote restores.
@@ -183,7 +187,8 @@ func runThenShutdown(t *testing.T, w *World) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := w.run(ctx)
-	w.finalSnapshot(context.Background())
+	w.finalSnapshot()
+	w.drainSnapshotWrites(context.Background())
 	return err
 }
 
@@ -192,7 +197,6 @@ func runThenShutdown(t *testing.T, w *World) error {
 // empty only because it was never loaded. Writing it would replace the good snapshot with nothing.
 func TestShutdownKeepsSnapshotWhenRestoreFailed(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 
 	store := &memSnapshotStorage{t: t}
 	src, state := newSnapshotTestWorld(t, store)
@@ -201,7 +205,7 @@ func TestShutdownKeepsSnapshotWhenRestoreFailed(t *testing.T) {
 
 	worldState, err := src.world.ToProto()
 	require.NoError(t, err)
-	src.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	src.snapshot(time.Unix(1700000000, 0).UTC(), worldState)
 	require.NotNil(t, store.snap)
 
 	// Stamp the stored snapshot with a format this build refuses, so the restore fails the way a
@@ -250,7 +254,6 @@ func TestShutdownSnapshotsFreshWorld(t *testing.T) {
 // the persisted state and shutdown writes it back.
 func TestShutdownSnapshotsRestoredWorld(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 
 	store := &memSnapshotStorage{t: t}
 	src, state := newSnapshotTestWorld(t, store)
@@ -259,7 +262,7 @@ func TestShutdownSnapshotsRestoredWorld(t *testing.T) {
 
 	worldState, err := src.world.ToProto()
 	require.NoError(t, err)
-	src.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	src.snapshot(time.Unix(1700000000, 0).UTC(), worldState)
 	require.NotNil(t, store.snap)
 
 	w, _ := newSnapshotTestWorld(t, store)
@@ -275,7 +278,6 @@ func TestShutdownSnapshotsRestoredWorld(t *testing.T) {
 // bytes, whichever backend serializes it.
 func TestSnapshotStorageBytesAreStable(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 	timestamp := time.Unix(1700000000, 0).UTC()
 
 	store := &memSnapshotStorage{t: t}
@@ -286,11 +288,11 @@ func TestSnapshotStorageBytesAreStable(t *testing.T) {
 	worldState, err := w.world.ToProto()
 	require.NoError(t, err)
 
-	w.snapshot(ctx, timestamp, worldState)
+	w.snapshot(timestamp, worldState)
 	first, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
 	require.NoError(t, err)
 
-	w.snapshot(ctx, timestamp, worldState)
+	w.snapshot(timestamp, worldState)
 	second, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
 	require.NoError(t, err)
 
@@ -307,7 +309,6 @@ func TestSnapshotStorageBytesAreStable(t *testing.T) {
 // (TestS3StorageStoreOwnership).
 func TestSnapshotHandsStorageTheLiveGraph(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 
 	// What Store is handed is the caller's own graph, pointer for pointer: no copy is made on the
 	// way in, which is why the ownership rule exists at all.
@@ -318,16 +319,16 @@ func TestSnapshotHandsStorageTheLiveGraph(t *testing.T) {
 
 	live, err := w.world.ToProto()
 	require.NoError(t, err)
-	w.snapshot(ctx, time.Unix(1700000000, 0).UTC(), live)
+	w.snapshot(time.Unix(1700000000, 0).UTC(), live)
 	assert.Same(t, live, rec.got, "snapshot() must hand storage the live graph, not a copy of it")
 
 	store := &memSnapshotStorage{t: t}
-	w.snapshotStorage = store
+	w.useInlineSnapshotStorage(store)
 
 	worldState, err := w.world.ToProto()
 	require.NoError(t, err)
 
-	w.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	w.snapshot(time.Unix(1700000000, 0).UTC(), worldState)
 	require.NotNil(t, store.snap)
 
 	before, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
@@ -352,7 +353,7 @@ func TestSnapshotNopStorage(t *testing.T) {
 
 	worldState, err := w.world.ToProto()
 	require.NoError(t, err)
-	w.snapshot(ctx, time.Unix(0, 0), worldState)
+	w.snapshot(time.Unix(0, 0), worldState)
 
 	require.NoError(t, w.restore(ctx), "a missing snapshot is not an error")
 	assert.Equal(t, uint64(11), w.currentTick.height, "restore must not move the tick height")
