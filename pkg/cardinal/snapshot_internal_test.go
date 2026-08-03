@@ -9,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -55,6 +56,24 @@ func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {
 	doomed, e := state.Entities.Create()
 	e.Position.Set(Position3D{X: 42})
 	require.True(t, state.Entities.Destroy(doomed))
+}
+
+// liveGraphRecorder keeps the world-state pointer it was handed, so a test can assert what
+// snapshot() passes down. Only a test may do this: Storage.Store's ownership rule forbids a real
+// backend from holding the caller's message past the call.
+type liveGraphRecorder struct {
+	got *cardinalv1.WorldState
+}
+
+var _ snapshot.Storage = (*liveGraphRecorder)(nil)
+
+func (r *liveGraphRecorder) Store(_ context.Context, snap *cardinalv1.Snapshot) error {
+	r.got = snap.GetWorldState()
+	return nil
+}
+
+func (r *liveGraphRecorder) Load(_ context.Context) (*cardinalv1.Snapshot, error) {
+	return nil, snapshot.ErrSnapshotNotFound
 }
 
 // TestSnapshotRoundTripThroughStorage is the end-to-end contract for the snapshot path:
@@ -276,12 +295,49 @@ func TestSnapshotStorageBytesAreStable(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, first, second, "the same world must serialize to the same snapshot bytes")
+}
 
-	// The stored envelope must be independent of the live graph handed to Store.
-	worldState.NextId += 1000
-	third, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
+// TestSnapshotHandsStorageTheLiveGraph pins the caller side of Storage.Store's ownership rule:
+// snapshot() passes the very world-state graph the tick built, with no copy, so a backend that
+// retained it would store whatever a later tick made of it.
+//
+// The copy it then asserts is memSnapshotStorage's own — the in-memory backend used by DST and by
+// these tests, NOT a production one. The production backends satisfy the same rule by serializing
+// inside Store; that is covered against a real backend in the snapshot package
+// (TestS3StorageStoreOwnership).
+func TestSnapshotHandsStorageTheLiveGraph(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	// What Store is handed is the caller's own graph, pointer for pointer: no copy is made on the
+	// way in, which is why the ownership rule exists at all.
+	rec := &liveGraphRecorder{}
+	w, state := newSnapshotTestWorld(t, rec)
+	seedSnapshotWorld(t, state)
+	w.currentTick.height = 3
+
+	live, err := w.world.ToProto()
 	require.NoError(t, err)
-	assert.Equal(t, first, third, "storage kept a reference to the caller's graph")
+	w.snapshot(ctx, time.Unix(1700000000, 0).UTC(), live)
+	assert.Same(t, live, rec.got, "snapshot() must hand storage the live graph, not a copy of it")
+
+	store := &memSnapshotStorage{t: t}
+	w.snapshotStorage = store
+
+	worldState, err := w.world.ToProto()
+	require.NoError(t, err)
+
+	w.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	require.NotNil(t, store.snap)
+
+	before, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
+	require.NoError(t, err)
+
+	// A later tick mutating the live graph must not reach what memSnapshotStorage kept.
+	worldState.NextId += 1000
+	after, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "memSnapshotStorage kept a reference to the caller's graph")
 }
 
 // TestSnapshotNopStorage covers the default storage type: storing succeeds and does nothing, and a

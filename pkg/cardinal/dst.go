@@ -363,7 +363,9 @@ func (m *memSnapshotStorage) Store(_ context.Context, s *cardinalv1.Snapshot) er
 	require.NoError(m.t, proto.Unmarshal(data, &rt), "snapshot: Store bytes are not a valid Snapshot protobuf")
 	assert.True(m.t, proto.Equal(s, &rt), "snapshot: Store envelope did not survive a wire roundtrip")
 
-	// Keep a defensive copy so later ticks mutating the graph cannot corrupt stored state.
+	// Storage.Store hands over the live world-state graph and keeps ownership of it, so the copy is
+	// how this backend keeps a snapshot at all: retaining s would mean storing whatever a later tick
+	// makes of it. A real backend serializes instead, which copies for the same reason.
 	m.snap = proto.CloneOf(s)
 	return nil
 }
@@ -373,6 +375,8 @@ func (m *memSnapshotStorage) Load(_ context.Context) (*cardinalv1.Snapshot, erro
 		return nil, snapshot.ErrSnapshotNotFound
 	}
 
-	// Return a defensive copy so callers cannot corrupt stored state.
+	// Storage.Load transfers ownership to the caller, which publishes the message and feeds it to
+	// FromProto, so the retained copy must not escape. A real backend decodes fresh bytes, which
+	// gives the caller a private message for the same reason.
 	return proto.CloneOf(m.snap), nil
 }

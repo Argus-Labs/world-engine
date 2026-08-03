@@ -142,21 +142,31 @@ func TestUnmarshalSnapshotValidates(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to validate snapshot")
 }
 
-// TestValidateVersion pins the acceptance policy: everything from 1 up to the version this build
-// writes is readable, an unset version is not, and a newer one is refused instead of mis-read.
+// TestValidateVersion pins the acceptance policy: exactly the version this build writes is
+// readable, and every other value — unset, older, newer — is refused instead of mis-read.
 func TestValidateVersion(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
+	type versionCase struct {
 		name    string
 		version uint32
 		wantErr string
-	}{
+	}
+	cases := []versionCase{
 		{name: "current", version: CurrentVersion},
-		{name: "oldest supported", version: 1},
 		{name: "unset", version: 0, wantErr: "predates the versioned format"},
-		{name: "newer", version: CurrentVersion + 1, wantErr: "is version 2 but this build only reads up to version 1"},
-		{name: "far newer", version: 99, wantErr: "is version 99 but this build only reads up to version 1"},
+		{name: "newer", version: CurrentVersion + 1, wantErr: "is version 2 but this build only reads version 1"},
+		{name: "far newer", version: 99, wantErr: "is version 99 but this build only reads version 1"},
+	}
+	// Refusing an older version is unreachable while CurrentVersion is 1. The case is written
+	// anyway so that a bump exercises it: after one, an old snapshot must fail at boot rather than
+	// be decoded into the new layout, until somebody adds the read path ValidateVersion demands.
+	if CurrentVersion > 1 {
+		cases = append(cases, versionCase{
+			name:    "older",
+			version: CurrentVersion - 1,
+			wantErr: "needs a migration path that does not exist",
+		})
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

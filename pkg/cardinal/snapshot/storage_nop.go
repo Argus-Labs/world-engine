@@ -20,6 +20,8 @@ func NewNopStorage() *NopStorage {
 	return &NopStorage{}
 }
 
+// Store discards the snapshot. It never touches the caller's message, which satisfies Store's
+// ownership rule the cheapest way there is.
 func (n *NopStorage) Store(_ context.Context, _ *cardinalv1.Snapshot) error {
 	return nil
 }

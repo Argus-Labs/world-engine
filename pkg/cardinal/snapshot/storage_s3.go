@@ -97,6 +97,9 @@ func NewS3Storage(opts S3StorageOptions) (*S3Storage, error) {
 	}, nil
 }
 
+// Store writes the envelope to the bucket. Per Store's ownership rule the caller's message is
+// consumed here and now: marshalSnapshot copies it into data, and only data reaches the network —
+// including on SDK retries, which re-read the byte slice and never the caller's graph.
 func (s *S3Storage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error {
 	data, err := marshalSnapshot(snapshot)
 	if err != nil {
@@ -116,6 +119,8 @@ func (s *S3Storage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) er
 	return nil
 }
 
+// Load reads the stored object. The returned message is decoded fresh from those bytes on every
+// call and kept nowhere, which is what Load's ownership rule asks for.
 func (s *S3Storage) Load(ctx context.Context) (*cardinalv1.Snapshot, error) {
 	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
