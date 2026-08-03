@@ -347,34 +347,32 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 
 type memSnapshotStorage struct {
 	t    *testing.T
-	snap *snapshot.Snapshot
+	snap *cardinalv1.Snapshot
 }
 
 var _ snapshot.Storage = (*memSnapshotStorage)(nil)
 
-func (m *memSnapshotStorage) Store(_ context.Context, s *snapshot.Snapshot) error {
-	// Invariant: data must be non-empty (serialized ECS world always produces bytes).
-	assert.NotEmpty(m.t, s.Data, "snapshot: Store called with empty data")
-	// Invariant: data must be valid protobuf (must unmarshal into WorldState).
-	var ws cardinalv1.WorldState
-	require.NoError(m.t, proto.Unmarshal(s.Data, &ws), "snapshot: Store data is not valid WorldState protobuf")
+func (m *memSnapshotStorage) Store(_ context.Context, s *cardinalv1.Snapshot) error {
+	// Invariant: the envelope must carry a world state (a serialized ECS world is never nil).
+	require.NotNil(m.t, s.GetWorldState(), "snapshot: Store called without a world state")
+	// Invariant: the envelope must survive the wire format a real backend would write it to.
+	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(s)
+	require.NoError(m.t, err, "snapshot: Store envelope failed to marshal")
+	assert.NotEmpty(m.t, data, "snapshot: Store produced empty bytes")
+	var rt cardinalv1.Snapshot
+	require.NoError(m.t, proto.Unmarshal(data, &rt), "snapshot: Store bytes are not a valid Snapshot protobuf")
+	assert.True(m.t, proto.Equal(s, &rt), "snapshot: Store envelope did not survive a wire roundtrip")
 
-	cp := *s
-	cp.Data = make([]byte, len(s.Data))
-	copy(cp.Data, s.Data)
-	m.snap = &cp
+	// Keep a defensive copy so later ticks mutating the graph cannot corrupt stored state.
+	m.snap = proto.CloneOf(s)
 	return nil
 }
 
-func (m *memSnapshotStorage) Load(_ context.Context) (*snapshot.Snapshot, error) {
+func (m *memSnapshotStorage) Load(_ context.Context) (*cardinalv1.Snapshot, error) {
 	if m.snap == nil {
 		return nil, snapshot.ErrSnapshotNotFound
 	}
 
 	// Return a defensive copy so callers cannot corrupt stored state.
-	cp := *m.snap
-	cp.Data = make([]byte, len(m.snap.Data))
-	copy(cp.Data, m.snap.Data)
-
-	return &cp, nil
+	return proto.CloneOf(m.snap), nil
 }
