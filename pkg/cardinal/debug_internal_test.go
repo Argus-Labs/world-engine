@@ -123,3 +123,12 @@ func TestProfileBatchToProtoFiltersUnprofiledTicks(t *testing.T) {
 	assert.Equal(t, uint64(2), profile.GetTicks()[0].GetTiming().GetTickHeight())
 	assert.Empty(t, profile.GetTicks()[0].GetSpans(), "a profiled tick with no systems remains visible")
 }
+
+func TestProfileBatchToProtoDropsEntirelyUnprofiledBatch(t *testing.T) {
+	response := profileBatchToProto(performance.Batch{Ticks: []performance.TickTimeline{{
+		TickHeight: 1,
+		TickStart:  time.Now(),
+	}}})
+
+	assert.Empty(t, response.GetTicks())
+}

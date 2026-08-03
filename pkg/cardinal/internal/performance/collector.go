@@ -143,15 +143,10 @@ func (c *Collector) RecordTick(
 	c.mu.Unlock()
 
 	for _, sub := range subs {
-		// Non-blocking send; recover guards against closed channels
-		// (which can happen when Unsubscribe races with an in-flight flush).
-		func() {
-			defer func() { _ = recover() }()
-			select {
-			case sub.ch <- batch:
-			default:
-			}
-		}()
+		select {
+		case sub.ch <- batch:
+		default:
+		}
 	}
 }
 
