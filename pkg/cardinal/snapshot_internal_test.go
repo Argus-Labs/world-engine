@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,6 +151,105 @@ func TestRestoreChecksSnapshotVersion(t *testing.T) {
 	after, err := stale.world.ToProto()
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(before, after), "a refused snapshot must not be loaded into the world")
+}
+
+// runThenShutdown drives the two halves of a process lifetime that the final-snapshot guard sits
+// between: run(), which restores and then loops until the context is done, and the final snapshot
+// shutdown takes on every exit path. shutdown() itself is not driven here because its later steps
+// need a live NATS service and pprof server; step 1 is called directly, exactly as shutdown calls
+// it. The context is already cancelled, so a successful restore falls straight out of the loop.
+func runThenShutdown(t *testing.T, w *World) error {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := w.run(ctx)
+	w.finalSnapshot(context.Background())
+	return err
+}
+
+// TestShutdownKeepsSnapshotWhenRestoreFailed is the state-loss guard: shutdown runs on every exit
+// path, including the one taken when the restore failed, and the world it would persist there is
+// empty only because it was never loaded. Writing it would replace the good snapshot with nothing.
+func TestShutdownKeepsSnapshotWhenRestoreFailed(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	store := &memSnapshotStorage{t: t}
+	src, state := newSnapshotTestWorld(t, store)
+	seedSnapshotWorld(t, state)
+	src.currentTick.height = 9
+
+	worldState, err := src.world.ToProto()
+	require.NoError(t, err)
+	src.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	require.NotNil(t, store.snap)
+
+	// Stamp the stored snapshot with a format this build refuses, so the restore fails the way a
+	// corrupt envelope or a storage error would.
+	store.snap.Version = snapshot.CurrentVersion + 1
+	before, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
+	require.NoError(t, err)
+
+	var logs strings.Builder
+	w, _ := newSnapshotTestWorld(t, store)
+	w.tel.Logger = zerolog.New(&logs)
+	w.options.TickRate = 1
+
+	err = runThenShutdown(t, w)
+	require.Error(t, err, "an unreadable snapshot must stop the world")
+	assert.True(t, eris.Is(err, snapshot.ErrUnsupportedVersion))
+
+	after, err := proto.MarshalOptions{Deterministic: true}.Marshal(store.snap)
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "a failed restore must leave the persisted snapshot untouched")
+	assert.Contains(t, logs.String(), "skipping final snapshot",
+		"an operator must be told why no final snapshot was written")
+}
+
+// TestShutdownSnapshotsFreshWorld covers the other half of the guard: a world with nothing persisted
+// yet is authoritative — the fresh world IS the state — so its first snapshot is the final one.
+func TestShutdownSnapshotsFreshWorld(t *testing.T) {
+	t.Parallel()
+
+	store := &memSnapshotStorage{t: t}
+	w, state := newSnapshotTestWorld(t, store)
+	seedSnapshotWorld(t, state)
+	w.options.TickRate = 1
+	require.Nil(t, store.snap, "storage must start empty for this case to mean anything")
+
+	require.ErrorIs(t, runThenShutdown(t, w), context.Canceled)
+
+	require.NotNil(t, store.snap, "a world that found no snapshot must still write one on shutdown")
+	want, err := w.world.ToProto()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(want, store.snap.GetWorldState()),
+		"the final snapshot must hold the world the run ended with")
+}
+
+// TestShutdownSnapshotsRestoredWorld is the ordinary lifetime: restore succeeded, so the world is
+// the persisted state and shutdown writes it back.
+func TestShutdownSnapshotsRestoredWorld(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	store := &memSnapshotStorage{t: t}
+	src, state := newSnapshotTestWorld(t, store)
+	seedSnapshotWorld(t, state)
+	src.currentTick.height = 3
+
+	worldState, err := src.world.ToProto()
+	require.NoError(t, err)
+	src.snapshot(ctx, time.Unix(1700000000, 0).UTC(), worldState)
+	require.NotNil(t, store.snap)
+
+	w, _ := newSnapshotTestWorld(t, store)
+	w.options.TickRate = 1
+	require.ErrorIs(t, runThenShutdown(t, w), context.Canceled)
+
+	assert.Equal(t, uint64(4), store.snap.GetTickHeight(), "the final snapshot carries the resumed tick")
+	assert.True(t, proto.Equal(worldState, store.snap.GetWorldState()),
+		"the final snapshot must hold the restored world, not an empty one")
 }
 
 // TestSnapshotStorageBytesAreStable guards that the same world always reaches storage as the same

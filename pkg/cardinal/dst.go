@@ -293,22 +293,27 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	})
 }
 
-// TODO: Our serialization isn't deterministic because the msgpack serialization doesn't sort map
-// keys. This makes it difficult to verify the roundtrip property deserialize(serialize(x)) == x.
-// Either we sort all maps (via reflection?) or we make our own msgpack lib.
+// TODO: Our serialization isn't deterministic, so the roundtrip property
+// deserialize(serialize(x)) == x cannot be checked by comparing bytes, and this check stays off.
+// The envelope itself marshals deterministically, but each component payload inside it is an opaque
+// blob produced by that component's own MarshalWire, and a map field has no defined encoding order —
+// so the same world can serialize to two different byte strings. Fixing it means ordering maps at
+// the component codec level (via reflection?), not at the snapshot level.
 // func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
 // 	t.Helper()
 // 	if f.storage.snap == nil {
 // 		return // No snapshot stored yet, nothing to verify.
 // 	}
 //
-// 	// Serialize the restored state and compare with what was stored.
+// 	// Serialize the restored state and compare with the world state that was stored.
 // 	worldState, err := f.world.world.ToProto()
 // 	require.NoError(t, err)
 // 	restoredBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 // 	require.NoError(t, err)
+// 	storedBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(f.storage.snap.GetWorldState())
+// 	require.NoError(t, err)
 //
-// 	assert.Equal(t, f.storage.snap.Data, restoredBytes,
+// 	assert.Equal(t, storedBytes, restoredBytes,
 // 		"snapshot roundtrip: restored state differs from stored snapshot")
 // }
 
