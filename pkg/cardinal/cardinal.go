@@ -33,8 +33,9 @@ type World struct {
 	address         *micro.ServiceAddress // This world's NATS address
 	service         *service              // ConnectRPC direct client-facing service
 	snapshotStorage snapshot.Storage      // Snapshot storage; the read side of the snapshot path
-	// The write side. Snapshots do not go to storage from the tick goroutine: the tick hands the
-	// envelope here and returns, and the writer uploads it. See asyncSnapshotWriter for the
+	// The write side. Inline by default, so a hand-ticked world owns no background goroutine.
+	// StartGame — the only caller with a guaranteed shutdown to stop it — swaps in the async writer,
+	// which takes the upload off the tick goroutine; see asyncSnapshotWriter for the
 	// single-flight/latest-wins rule and the durability trade that buys.
 	snapshotWriter snapshotWriter
 	// Latest world state; swap only, never mutate. Its only reader is DebugService.GetState,
@@ -144,8 +145,10 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		panic("unreachable")
 	}
 
-	// Snapshot uploads run on the writer's goroutine, never the tick's.
-	world.snapshotWriter = newAsyncSnapshotWriter(world.snapshotStorage, tel.GetLogger("snapshot"))
+	// Snapshots are written inline until something takes responsibility for stopping a background
+	// writer. StartGame does, and swaps in the async one; a world ticked by hand never has a
+	// goroutine to stop. See World.useAsyncSnapshotWriter.
+	world.snapshotWriter = newInlineSnapshotWriter(world.snapshotStorage, tel.GetLogger("snapshot"))
 
 	// Create the debug module only if debug is on.
 	if *options.Debug {
@@ -167,6 +170,11 @@ func (w *World) StartGame() {
 
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
+
+	// Take snapshot uploads off the tick goroutine. This is the one place it may happen: the
+	// deferred shutdown above is what stops the writer's goroutine again, and no other way of
+	// running a World has one. See World.useAsyncSnapshotWriter.
+	w.useAsyncSnapshotWriter()
 
 	// pprof comes up before any producer (NATS, tick loop) so a profile stays
 	// reachable during boot hangs. DebugService is no longer started here — it
