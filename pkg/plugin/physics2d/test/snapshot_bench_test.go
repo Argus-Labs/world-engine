@@ -32,9 +32,16 @@ import (
 // Helpers
 // ---------------------------------------------------------------------------
 
+// snapshotBenchWarmupTicks is how far the scene is driven before any measurement, so that the
+// timed loop only ever sees the steady state (see BenchmarkSnapshotTick). Per-tick cost was
+// observed to stop drifting by tick ~400 at 5000 bodies; 600 leaves margin.
+const snapshotBenchWarmupTicks = 600
+
 // snapshotBenchWorld creates a production-shaped world: debug off, Nop snapshot storage, and the
-// given snapshot rate. Rate 1_000_000 means "never snapshot" over a benchmark run.
-func snapshotBenchWorld(b *testing.B, rate uint32, bodies int) *cardinal.World {
+// given snapshot rate. Rate 1_000_000 means "never snapshot" over a benchmark run. warmup is the
+// number of ticks run before returning; pass snapshotBenchWarmupTicks whenever the world is about
+// to be timed.
+func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal.World {
 	b.Helper()
 	b.Setenv("LOG_LEVEL", "disabled")
 	debug := false
@@ -51,19 +58,25 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies int) *cardinal.World {
 	if err != nil {
 		b.Fatal(err)
 	}
+	// Zero gravity, together with restingBodiesSystem's spacing, is what makes one tick equal to
+	// the next: nothing accelerates, nothing collides, nothing changes state.
 	cardinal.RegisterPlugin(w, physics.NewPlugin(physics.Config{
-		Gravity:  physics.Vec2{X: 0, Y: -10},
+		Gravity:  physics.Vec2{},
 		TickRate: 60,
 	}))
-	cardinal.RegisterSystem(w, fallingBodiesSystem(bodies), cardinal.WithHook(cardinal.Init))
+	cardinal.RegisterSystem(w, restingBodiesSystem(bodies), cardinal.WithHook(cardinal.Init))
 	initCardinalECS(w)
-	benchTickN(w, 10) // settle
+	benchTickN(w, warmup)
 	return w
 }
 
-// fallingBodiesSystem spawns a static floor plus count dynamic circles on tick 0, mirroring
-// BenchmarkStep's scene so snapshot numbers are comparable to the physics throughput numbers.
-func fallingBodiesSystem(count int) func(state *struct {
+// restingBodiesSystem spawns a static floor plus count dynamic circles on tick 0, in the same grid
+// and with the same components and shapes as BenchmarkStep's scene, but at rest: the circles carry
+// GravityScale 0 in a zero-gravity world, and the grid pitch of 2.0 against a radius of 0.5 leaves
+// a 1.0 gap, so no collider ever touches another. The entity count, archetype layout and component
+// payloads — everything the snapshot path costs money on — are unchanged by that; what changes is
+// that the scene stops evolving, which is what makes the benchmark reproducible.
+func restingBodiesSystem(count int) func(state *struct {
 	cardinal.BaseSystemState
 	Spawn spawnArchetype
 }) {
@@ -97,7 +110,7 @@ func fallingBodiesSystem(count int) func(state *struct {
 				Y: float64(rowIdx)*2.0 + 5.0,
 			}})
 			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
+			r.PB.Set(newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeCircle,
 				Radius:       0.5,
 				Density:      1,
@@ -135,10 +148,12 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 	return ws
 }
 
-// snapshotBenchEnvelope returns the snapshot envelope Cardinal hands to Storage.Store.
+// snapshotBenchEnvelope returns the snapshot envelope Cardinal hands to Storage.Store. Only the
+// shape of the graph matters here — the envelope is built once, outside any timed loop — so the
+// world is not warmed up.
 func snapshotBenchEnvelope(b *testing.B, bodies int) *cardinalv1.Snapshot {
 	b.Helper()
-	w := snapshotBenchWorld(b, 1_000_000, bodies)
+	w := snapshotBenchWorld(b, 1_000_000, bodies, 1)
 	return &cardinalv1.Snapshot{
 		TickHeight: 1,
 		Timestamp:  timestamppb.New(time.Unix(0, 0)),
@@ -154,11 +169,41 @@ func snapshotBenchEnvelope(b *testing.B, bodies int) *cardinalv1.Snapshot {
 // Rate 1_000_000 never snapshots (physics-only floor). Rate 50 is what every template ships. Rate 1
 // snapshots every tick, isolating the snapshot tick itself — the difference against rate 1_000_000
 // is the cost this optimization work targets.
+//
+// Comparability is the reason the scene is built the way it is. b.N ticks of the SAME world are
+// timed, so unless every tick does the same work, ns/op is a function of b.N: a run at one
+// -benchtime cannot be compared with a run at another, and neither can a before/after pair. An
+// evolving physics scene does not give that. The scene this benchmark used to run — the bodies of
+// BenchmarkStep, falling onto a floor and piling up — averaged (machine below, 1000 bodies, no
+// snapshots) 759 us/tick over ticks 0-200, 1139 us over ticks 200-400, and then drifted down to
+// 946 us by tick 3000: a 50% spread with nothing changed but how long the loop ran.
+//
+// So restingBodiesSystem builds a scene that cannot evolve, and snapshotBenchWarmupTicks drives it
+// past the point where per-tick cost settles before the timer starts. Every timed tick then
+// serializes the same world and steps the same physics. This deliberately is not a physics
+// throughput benchmark — BenchmarkStep is, and it keeps the falling scene.
+//
+// Re-verify after touching the scene, the warm-up or the tick path, by running two -benchtime
+// settings that differ by 4x and comparing ns/op column by column:
+//
+//	go test ./pkg/plugin/physics2d/test/ -run '^$' -bench 'BenchmarkSnapshotTick' -benchtime=300x
+//	go test ./pkg/plugin/physics2d/test/ -run '^$' -bench 'BenchmarkSnapshotTick' -benchtime=1200x
+//
+// Measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5. ns/op at 300x vs 1200x, worst case
+// of the six sub-benchmarks 2.0% apart:
+//
+//	sub-benchmark              300x       1200x     delta
+//	Bodies_1000/Rate_1000000    299.1 us   300.8 us  +0.6%
+//	Bodies_1000/Rate_50         314.3 us   319.3 us  +1.6%
+//	Bodies_1000/Rate_1         1069.4 us  1048.2 us  -2.0%
+//	Bodies_5000/Rate_1000000   1503.5 us  1517.9 us  +1.0%
+//	Bodies_5000/Rate_50        1606.7 us  1599.8 us  -0.4%
+//	Bodies_5000/Rate_1         5047.3 us  5039.7 us  -0.2%
 func BenchmarkSnapshotTick(b *testing.B) {
 	for _, bodies := range []int{1000, 5000} {
 		for _, rate := range []uint32{1_000_000, 50, 1} {
 			b.Run(fmt.Sprintf("Bodies_%d/Rate_%d", bodies, rate), func(b *testing.B) {
-				w := snapshotBenchWorld(b, rate, bodies)
+				w := snapshotBenchWorld(b, rate, bodies, snapshotBenchWarmupTicks)
 				ctx := context.Background()
 				b.ReportAllocs()
 				b.ResetTimer()
@@ -182,6 +227,18 @@ func BenchmarkSnapshotTick(b *testing.B) {
 //	SingleMarshal       — the current path: cardinal hands the envelope over, the backend marshals
 //	                      it exactly once (what JetStreamStorage and S3Storage now do).
 //	Nop                 — the default storage type; with no caller-side marshal it is free.
+//
+// What the current path saves, measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5:
+// five runs at -benchtime=200x, per-run LegacyDoubleMarshal minus SingleMarshal, median taken
+// across the five. Unlike a whole tick, each iteration here re-serializes one fixed envelope, so
+// the loop is comparable at any -benchtime; the repeats are only against machine noise.
+//
+//	bodies  snapshot bytes  legacy (median)  single (median)  saved per snapshot
+//	  1000         157_765         199.0 us          47.7 us    151 us (range 148-158)
+//	  5000         877_089         999.4 us         222.1 us    777 us (range 742-820)
+//
+// Allocation deltas do not vary run to run: at 5000 bodies 20105 -> 1 allocations and
+// 4_748_910 -> 884_737 B, i.e. 20104 allocations and 3.86 MB of garbage removed per snapshot.
 type legacyDoubleMarshalStorage struct {
 	sink []byte
 }
