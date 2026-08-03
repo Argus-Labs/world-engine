@@ -60,8 +60,9 @@ func goldenSnapshot() *cardinalv1.Snapshot {
 }
 
 // TestMarshalSnapshotByteStability pins the on-disk snapshot format. Every backend writes exactly
-// what marshalSnapshot produces, so a change here is a change to persisted data that no reader
-// would reject: snapshot.CurrentVersion is written but never validated on load.
+// what marshalSnapshot produces, so a change here is a change to persisted data. Existing
+// snapshots still carry CurrentVersion, so a layout change that keeps the version constant is
+// accepted by ValidateVersion and mis-read: bump CurrentVersion with the layout.
 func TestMarshalSnapshotByteStability(t *testing.T) {
 	t.Parallel()
 
@@ -139,6 +140,71 @@ func TestUnmarshalSnapshotValidates(t *testing.T) {
 	_, err = unmarshalSnapshot(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to validate snapshot")
+}
+
+// TestValidateVersion pins the acceptance policy: everything from 1 up to the version this build
+// writes is readable, an unset version is not, and a newer one is refused instead of mis-read.
+func TestValidateVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		version uint32
+		wantErr string
+	}{
+		{name: "current", version: CurrentVersion},
+		{name: "oldest supported", version: 1},
+		{name: "unset", version: 0, wantErr: "predates the versioned format"},
+		{name: "newer", version: CurrentVersion + 1, wantErr: "is version 2 but this build only reads up to version 1"},
+		{name: "far newer", version: 99, wantErr: "is version 99 but this build only reads up to version 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateVersion(tc.version)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.True(t, eris.Is(err, ErrUnsupportedVersion), "must be identifiable as a version error")
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// TestUnmarshalSnapshotChecksVersion covers the decode boundary both real backends share: bytes
+// from a build with a newer format must be refused, not decoded into a world state.
+func TestUnmarshalSnapshotChecksVersion(t *testing.T) {
+	t.Parallel()
+
+	t.Run("current version loads", func(t *testing.T) {
+		t.Parallel()
+
+		data, err := marshalSnapshot(goldenSnapshot())
+		require.NoError(t, err)
+
+		got, err := unmarshalSnapshot(data)
+		require.NoError(t, err)
+		assert.Equal(t, CurrentVersion, got.GetVersion())
+	})
+
+	for name, version := range map[string]uint32{"newer": CurrentVersion + 1, "unset": 0} {
+		t.Run(name+" version is rejected", func(t *testing.T) {
+			t.Parallel()
+
+			snap := goldenSnapshot()
+			snap.Version = version
+			data, err := marshalSnapshot(snap)
+			require.NoError(t, err)
+
+			got, err := unmarshalSnapshot(data)
+			assert.Nil(t, got, "a snapshot this build cannot read must not be handed back")
+			require.Error(t, err)
+			assert.True(t, eris.Is(err, ErrUnsupportedVersion))
+		})
+	}
 }
 
 // TestNopStorage documents the default storage type: Store does no work and Load always reports

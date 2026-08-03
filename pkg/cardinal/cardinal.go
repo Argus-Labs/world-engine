@@ -306,6 +306,15 @@ func (w *World) restore(ctx context.Context) error {
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
+	// Refuse a snapshot this build cannot interpret. Checked again here, after the backends check
+	// their own bytes, because Storage is an interface: an implementation that never decodes bytes
+	// (the in-memory test storage, for instance) has nothing to check them against. Failing the
+	// restore stops the world, which is the point — starting from a mis-read world would overwrite
+	// the good snapshot with a wrong one on the next snapshot tick.
+	if err := snapshot.ValidateVersion(snap.GetVersion()); err != nil {
+		return eris.Wrap(err, "refusing to restore snapshot")
+	}
+
 	// Restore the ECS world from the loaded proto; storage already unmarshaled it.
 	// A stored envelope without a world state is degenerate, but the published state must never
 	// be nil, so substitute an empty one.
