@@ -75,15 +75,19 @@ func ValidateVersion(version uint32) error {
 type Storage interface {
 	// Store saves the snapshot, atomically replacing any existing snapshot.
 	//
-	// Ownership: the caller keeps the message, and it is the LIVE world state. Cardinal passes the
-	// very graph its tick just built, the same one it publishes to the debug reader, and the next
-	// tick is free to touch it. An implementation must therefore consume the message before Store
-	// returns — marshal it (marshalSnapshot) or deep-copy what it needs — and must not:
+	// Ownership: the caller keeps the message, and it is SHARED. Cardinal passes the very graph its
+	// tick built — no copy — and that same graph is concurrently readable by the debug module, which
+	// serializes it into an RPC response on another goroutine. The graph is frozen once built (every
+	// slice in it is freshly allocated by ToProto and never written again), so any number of readers
+	// is safe and no reader may become a writer. An implementation must therefore consume the
+	// message before Store returns — marshal it (marshalSnapshot) or deep-copy what it needs — and
+	// must not:
 	//   - retain the pointer, or anything reachable from it, past the return;
 	//   - hand it to a goroutine, timer or retry that outlives the call;
 	//   - mutate the message or any submessage, however harmlessly.
-	// Snapshot bytes are the shard's only durable state, so an implementation that keeps the
-	// pointer stores whatever a later tick happens to have made of it.
+	// Cardinal already writes snapshots off the tick goroutine, one at a time and newest-first, so
+	// a backend that starts its own background write does not make anything faster — it only breaks
+	// that ordering, and snapshot bytes are the shard's only durable state.
 	//
 	// No implementation retains the replaced snapshot: JetStream purges the superseded chunks
 	// as soon as the new object commits, and S3 leaves retention to the bucket's own versioning

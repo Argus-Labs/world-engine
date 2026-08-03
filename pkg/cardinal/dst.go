@@ -223,9 +223,12 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 		return nil
 	})
 
-	// Replace snapshot storage with in-memory storage.
+	// Replace snapshot storage with in-memory storage, written inline rather than through the
+	// background writer. DST trades tick latency for reproducibility: a seed must produce one run,
+	// and an upload goroutine decides which snapshots survive latest-wins by how it interleaves
+	// with the tick loop. memSnapshotStorage also asserts on t, which only this goroutine may do.
 	storage := &memSnapshotStorage{t: t}
-	w.snapshotStorage = storage
+	w.useInlineSnapshotStorage(storage)
 
 	// Initialize ECS and run init systems.
 	w.world.Init()
@@ -345,6 +348,13 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 // In-memory snapshot storage
 // -------------------------------------------------------------------------------------------------
 
+// memSnapshotStorage keeps the last snapshot in memory and checks the envelope on the way in.
+//
+// It must only be driven by the inline snapshot writer (World.useInlineSnapshotStorage), never by
+// the background one. The reason is the assertions, not the field: require fails a test by calling
+// t.FailNow, which is only valid on the goroutine running the test, so a mutex around snap would
+// silence the race detector while leaving the actual defect in place. Storage that is worth
+// pointing an async writer at is storage that does not assert.
 type memSnapshotStorage struct {
 	t    *testing.T
 	snap *cardinalv1.Snapshot
