@@ -15,8 +15,10 @@ type physicsBodyRow struct {
 }
 
 // gatherRebuildEntries collects physics archetype rows for reconcile/rebuild, appending into
-// dst (reset to length 0 first) so steady-state callers can reuse one buffer across ticks
-// instead of re-growing a fresh slice every tick. Pass nil for a one-shot gather.
+// dst (reset to length 0 first) so callers reuse one buffer instead of re-growing a fresh slice
+// every tick. Both callers pass Runtime.RebuildEntriesScratch() and hand the result back through
+// Runtime.KeepRebuildEntriesScratch, so the init gather starts from whatever capacity is already
+// there and the steady-state gather inherits the capacity init built.
 func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 	iter cardinal.SearchResult[cardinal.EntityID, physicsBodyRow],
 ) []internal.PhysicsRebuildEntry {
@@ -51,7 +53,8 @@ func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
 		ensurePhysicsSingleton(&state.Singleton)
 
-		entries := gatherRebuildEntries(nil, state.Bodies.Iter())
+		entries := rt.KeepRebuildEntriesScratch(
+			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}

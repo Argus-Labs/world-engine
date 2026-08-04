@@ -1,9 +1,6 @@
 package internal
 
 import (
-	"cmp"
-	"maps"
-	"slices"
 	"sort"
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
@@ -85,10 +82,10 @@ func (rt *Runtime) adoptLiveContactsWithoutEmit() {
 	if rt.World == nil {
 		return
 	}
-	live := rt.gatherLiveContacts()
-	clear(rt.ActiveContacts)
-	maps.Copy(rt.ActiveContacts, live)
-	if len(live) > 0 {
+	// Gathering straight into ActiveContacts (which gatherLiveContactsInto clears) replaces it
+	// wholesale, which is exactly the intent here.
+	rt.gatherLiveContactsInto(rt.ActiveContacts)
+	if len(rt.ActiveContacts) > 0 {
 		rt.ActiveContactsDirty = true
 	}
 }
@@ -101,7 +98,8 @@ func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) 
 		return
 	}
 
-	liveContacts := rt.gatherLiveContacts()
+	liveContacts := rt.liveContacts()
+	rt.gatherLiveContactsInto(liveContacts)
 
 	var events []BufferedContactEvent
 
@@ -132,28 +130,24 @@ func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) 
 	}
 }
 
-// gatherLiveContacts enumerates the currently touching contact pairs by walking every
-// tracked body (sorted by entity id for determinism) and reading its touching contact data
-// from the world. Pairs are normalized and deduplicated via the map key: Box2D reports each
-// contact from both endpoints. Replaces the CGO bridge's bridge_gather_live_contacts.
+// gatherLiveContactsInto fills dst (cleared first) with the currently touching contact pairs,
+// by walking every tracked body and reading its touching contact data from the world. Pairs are
+// normalized and deduplicated: Box2D reports each contact from both endpoints. Replaces the CGO
+// bridge's bridge_gather_live_contacts.
 //
-// The returned map aliases rt.liveContactsScratch (reused across calls to avoid per-tick
-// allocation) and is invalidated by the next gatherLiveContacts call. Callers only read it
-// or copy values out before then.
-func (rt *Runtime) gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
-	result := rt.resetLiveContactsScratch()
+// Body iteration order is rt.Bodies map order, which is deliberate: the result does not depend
+// on it. World.BodyContactData fills ShapeIDA/ShapeIDB and the manifold from the contact record
+// itself, not from the endpoint that asked, so both endpoints of a pair produce a byte-identical
+// ContactPairInfo and it cannot matter which one is recorded first. Every consumer of dst is
+// order-free as well (a keyed lookup, or a total sort of the derived events).
+func (rt *Runtime) gatherLiveContactsInto(dst map[ContactPairKey]ContactPairInfo) {
+	clear(dst)
 	w := rt.World
 
-	ids := rt.liveIDsScratch[:0]
-	for id := range rt.Bodies {
-		ids = append(ids, id)
-	}
-	slices.SortFunc(ids, cmp.Compare)
-	rt.liveIDsScratch = ids
+	rt.beginContactGather()
 
 	buf := rt.contactDataScratch
-	for _, id := range ids {
-		bodyID := rt.Bodies[id]
+	for _, bodyID := range rt.Bodies {
 		capacity := w.BodyContactCapacity(bodyID)
 		if capacity == 0 {
 			continue
@@ -162,20 +156,47 @@ func (rt *Runtime) gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
 			buf = make([]box2d.ContactData, capacity)
 		}
 		n := w.BodyContactData(bodyID, buf[:capacity])
-		rt.collectBodyContacts(buf[:n], result)
+		rt.collectBodyContacts(buf[:n], dst)
 	}
 	rt.contactDataScratch = buf
-	return result
 }
 
-// resetLiveContactsScratch returns the reusable live-contacts map, cleared for a fresh gather.
-func (rt *Runtime) resetLiveContactsScratch() map[ContactPairKey]ContactPairInfo {
+// liveContacts returns the reusable live-contacts map for callers that need a gather target
+// separate from ActiveContacts. gatherLiveContactsInto clears it.
+func (rt *Runtime) liveContacts() map[ContactPairKey]ContactPairInfo {
 	if rt.liveContactsScratch == nil {
 		rt.liveContactsScratch = make(map[ContactPairKey]ContactPairInfo)
-	} else {
-		clear(rt.liveContactsScratch)
 	}
 	return rt.liveContactsScratch
+}
+
+// beginContactGather advances the stamp epoch used by markContactSeen. Wrapping back to 0 would
+// make stale stamps compare equal, so that one epoch is spent clearing instead.
+func (rt *Runtime) beginContactGather() {
+	rt.gatherEpoch++
+	if rt.gatherEpoch == 0 {
+		clear(rt.seenContactsScratch)
+		rt.gatherEpoch = 1
+	}
+}
+
+// markContactSeen reports whether this contact was already folded into the current gather, and
+// records it if not. Both endpoints of a pair report the same contact, so this discards the
+// second one before it pays for two shapeIdentity resolutions (three world lookups each).
+func (rt *Runtime) markContactSeen(id box2d.ContactID) bool {
+	index := int(box2d.PackContactID(id)[0])
+	if index >= len(rt.seenContactsScratch) {
+		// Grow through append so the backing array grows geometrically. Sizing
+		// it to exactly index+1 would reallocate once per contact in a scene
+		// that first sees its contact indices in ascending order.
+		rt.seenContactsScratch = append(rt.seenContactsScratch,
+			make([]uint32, index+1-len(rt.seenContactsScratch))...)
+	}
+	if rt.seenContactsScratch[index] == rt.gatherEpoch {
+		return true
+	}
+	rt.seenContactsScratch[index] = rt.gatherEpoch
+	return false
 }
 
 // collectBodyContacts normalizes and records one body's touching contact data into result,
@@ -184,10 +205,17 @@ func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[
 	w := rt.World
 	for j := range contacts {
 		cd := &contacts[j]
+		if rt.markContactSeen(cd.ContactID) {
+			continue
+		}
+
 		entityA, shapeIndexA := rt.shapeIdentity(cd.ShapeIDA)
 		entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
 
 		key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
+		// Belt and braces: one contact maps to exactly one normalized pair key, so the stamp
+		// above already covers this. Keeping the map check means a stamp bug can only cost
+		// work, never drop or duplicate a pair.
 		if _, seen := result[key]; seen {
 			continue
 		}
@@ -257,7 +285,8 @@ func (rt *Runtime) refreshActiveContactsFromLive() {
 	if rt.World == nil || len(rt.ActiveContacts) == 0 {
 		return
 	}
-	live := rt.gatherLiveContacts()
+	live := rt.liveContacts()
+	rt.gatherLiveContactsInto(live)
 	for k, prev := range rt.ActiveContacts {
 		li, ok := live[k]
 		if !ok {

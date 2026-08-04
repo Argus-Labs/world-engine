@@ -103,6 +103,14 @@ type Runtime struct {
 	// ActiveContacts from the live contact list without emitting Begin/End (physics singleton entity missing).
 	NoPersistedActiveContactsBaseline bool
 
+	// ---------------------------------------------------------------------
+	// Per-tick scratch. RULE: every buffer reused across ticks lives here, not
+	// in a caller's closure, so Reset() can drop it and so nothing holds ECS
+	// refs or component memory past the tick that gathered them. Slice scratch
+	// is truncated with clearScratchTail, never a bare [:0], because the tail
+	// beyond the new length keeps whatever it last held alive.
+	// ---------------------------------------------------------------------
+
 	// castScratch and overlapScratch are reusable query callback contexts. Box2D
 	// callbacks take their context as `any`, so a stack local would be heap
 	// allocated on every Raycast/CircleSweep/OverlapAABB call. See query.go.
@@ -113,12 +121,34 @@ type Runtime struct {
 	// across ticks so the per-tick clone does not allocate. Only valid within one call.
 	reconcileSortScratch []PhysicsRebuildEntry
 
-	// liveContactsScratch, liveIDsScratch, and contactDataScratch are reused by
-	// gatherLiveContacts, which runs up to twice per tick. The map returned by
-	// gatherLiveContacts aliases liveContactsScratch and is invalidated by the next call.
+	// rebuildEntriesScratch and writebackScratch back the pipeline system's two
+	// per-tick archetype gathers (see RebuildEntriesScratch / WritebackScratch).
+	// They hold component values and cardinal.Refs, so their tails pin ECS
+	// memory for destroyed entities until cleared.
+	rebuildEntriesScratch []PhysicsRebuildEntry
+	writebackScratch      []WritebackEntry
+
+	// liveContactsScratch and contactDataScratch are reused by
+	// gatherLiveContactsInto, which runs up to twice per tick.
 	liveContactsScratch map[ContactPairKey]ContactPairInfo
-	liveIDsScratch      []cardinal.EntityID
 	contactDataScratch  []box2d.ContactData
+
+	// seenContactsScratch stamps contact indices already folded into the
+	// current gather, so the second endpoint of a pair is discarded before it
+	// pays for two shapeIdentity resolutions. Indexed by the contact's packed
+	// index1; a slot counts as seen only when it holds gatherEpoch, which
+	// advances per gather so no clearing pass is needed.
+	seenContactsScratch []uint32
+	gatherEpoch         uint32
+}
+
+// clearScratchTail zeroes the unused capacity of a reused gather buffer. A bare
+// s = s[:0] followed by appends leaves everything past the new length reachable
+// from the backing array, which for these buffers means component values and
+// cardinal.Refs belonging to entities that no longer exist.
+func clearScratchTail[T any](s []T) []T {
+	clear(s[len(s):cap(s)])
+	return s
 }
 
 // defaultFixedDT is the step size used when a non-positive FixedDT is supplied (60 Hz).
@@ -189,9 +219,42 @@ func (rt *Runtime) Reset() {
 	rt.ActiveContactsDirty = false
 	rt.NoPersistedActiveContactsBaseline = false
 	rt.reconcileSortScratch = nil
+	rt.rebuildEntriesScratch = nil
+	rt.writebackScratch = nil
 	rt.liveContactsScratch = nil
-	rt.liveIDsScratch = nil
 	rt.contactDataScratch = nil
+	rt.seenContactsScratch = nil
+	rt.gatherEpoch = 0
+}
+
+// RebuildEntriesScratch returns the runtime-owned buffer for the pipeline
+// system's reconcile/rebuild gather, emptied and ready to append into. Hand the
+// grown slice back with KeepRebuildEntriesScratch so the capacity survives the
+// tick and the tail stops pinning ECS memory.
+func (rt *Runtime) RebuildEntriesScratch() []PhysicsRebuildEntry {
+	return rt.rebuildEntriesScratch[:0]
+}
+
+// KeepRebuildEntriesScratch stores the gathered slice back on the runtime and
+// clears everything past its length. Returns it for convenient chaining.
+func (rt *Runtime) KeepRebuildEntriesScratch(entries []PhysicsRebuildEntry) []PhysicsRebuildEntry {
+	rt.rebuildEntriesScratch = clearScratchTail(entries)
+	return entries
+}
+
+// WritebackScratch returns the runtime-owned buffer for the pipeline system's
+// writeback gather, emptied and ready to append into. Pair with
+// KeepWritebackScratch.
+func (rt *Runtime) WritebackScratch() []WritebackEntry {
+	return rt.writebackScratch[:0]
+}
+
+// KeepWritebackScratch stores the gathered slice back on the runtime and clears
+// everything past its length. WritebackEntry holds cardinal.Refs, so an
+// uncleared tail keeps archetype storage for destroyed entities alive.
+func (rt *Runtime) KeepWritebackScratch(entries []WritebackEntry) []WritebackEntry {
+	rt.writebackScratch = clearScratchTail(entries)
+	return entries
 }
 
 // WorldExists reports whether this runtime's Box2D world has been created and is alive.
