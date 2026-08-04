@@ -102,7 +102,9 @@ func (w *World) OverlapAABB(aabb AABB, filter QueryFilter, fcn OverlapResultFcn,
 		return treeStats
 	}
 
-	assert(IsValidAABB(aabb))
+	if debugAsserts {
+		assert(IsValidAABB(aabb))
+	}
 
 	// See worldQueryScratch: reused storage keeps the context off the heap.
 	saved := w.queryScratch.query
@@ -282,8 +284,10 @@ func (w *World) CastRay(origin, translation Vec2, filter QueryFilter, fcn CastRe
 		return treeStats
 	}
 
-	assert(IsValidVec2(origin))
-	assert(IsValidVec2(translation))
+	if debugAsserts {
+		assert(IsValidVec2(origin))
+		assert(IsValidVec2(translation))
+	}
 
 	// See worldQueryScratch: reused storage keeps the input and the context
 	// off the heap.
@@ -351,8 +355,10 @@ func (w *World) CastRayClosest(origin, translation Vec2, filter QueryFilter) Ray
 		return result
 	}
 
-	assert(IsValidVec2(origin))
-	assert(IsValidVec2(translation))
+	if debugAsserts {
+		assert(IsValidVec2(origin))
+		assert(IsValidVec2(translation))
+	}
 
 	// See worldQueryScratch: reused storage keeps the input, the context and
 	// the RayResult the callback writes through off the heap. The result is
@@ -448,7 +454,9 @@ func (w *World) CastShape(proxy *ShapeProxy, translation Vec2, filter QueryFilte
 		return treeStats
 	}
 
-	assert(IsValidVec2(translation))
+	if debugAsserts {
+		assert(IsValidVec2(translation))
+	}
 
 	// See worldQueryScratch: reused storage keeps the input and the context
 	// off the heap.
@@ -531,7 +539,9 @@ func moverCastCallback(input *ShapeCastInput, proxyID int, userData uint64, cont
 // b2World_CastMover). This is a special shape cast that handles sliding along
 // other shapes while reducing clipping.
 func (w *World) CastMover(mover *Capsule, translation Vec2, filter QueryFilter) float64 {
-	assert(IsValidVec2(translation))
+	if debugAsserts {
+		assert(IsValidVec2(translation))
+	}
 	assert(mover.Radius > 2.0*LinearSlop)
 
 	assert(!w.locked)

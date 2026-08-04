@@ -720,10 +720,12 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		wB += float64(iB * lb)
 	}
 
-	assert(IsValidVec2(vA))
-	assert(IsValidFloat(wA))
-	assert(IsValidVec2(vB))
-	assert(IsValidFloat(wB))
+	if debugAsserts {
+		assert(IsValidVec2(vA))
+		assert(IsValidFloat(wA))
+		assert(IsValidVec2(vB))
+		assert(IsValidFloat(wB))
+	}
 
 	if stateA.flags&dynamicFlag != 0 {
 		stateA.linearVelocity = vA

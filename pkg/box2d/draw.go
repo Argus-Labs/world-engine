@@ -193,7 +193,9 @@ func (w *World) Draw(draw *DebugDraw) {
 		return
 	}
 
-	assert(IsValidAABB(draw.DrawingBounds))
+	if debugAsserts {
+		assert(IsValidAABB(draw.DrawingBounds))
+	}
 
 	bodyCapacity := getIDCapacity(&w.bodyIDPool)
 	setBitCountAndClear(&w.debugBodySet, uint32(bodyCapacity))

@@ -4,7 +4,15 @@ package box2d
 
 // assert mirrors B2_ASSERT. Assertions are compiled out when debugAsserts is
 // false (the default build; the box2d_asserts build tag flips it — see
-// core_asserts_off.go); the condition is still evaluated at the call site.
+// core_asserts_off.go), but the condition is still EVALUATED at the call
+// site unless the caller guards it. Upstream's release macro is `((void)0)`,
+// which discards the expression unevaluated, so match it per site by cost:
+// a bare assert(...) is fine when the condition inlines to nothing (field
+// compares, IsValidFloat), but a condition that does real work — the
+// multi-line validators (IsValidVec2/AABB/Rotation/Transform/Ray/Plane,
+// ValidateHull) exceed the inline budget and survive as real calls in the
+// release binary — must be wrapped in `if debugAsserts { ... }` so the
+// compile-time const folds the whole evaluation away.
 func assert(cond bool) {
 	if debugAsserts && !cond {
 		panic("box2d: assertion failed")

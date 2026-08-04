@@ -94,7 +94,9 @@ func requireValidPolygonShapeCount(polygon *Polygon) {
 //
 // Do not manually fill in the hull data, it must come directly from ComputeHull.
 func MakePolygon(hull *Hull, radius float64) Polygon {
-	assert(ValidateHull(hull))
+	if debugAsserts {
+		assert(ValidateHull(hull))
+	}
 
 	if hull.Count < 3 {
 		// Handle a bad hull when assertions are disabled
@@ -141,7 +143,9 @@ func MakeOffsetPolygon(hull *Hull, position Vec2, rotation Rot) Polygon {
 //
 // Do not manually fill in the hull data, it must come directly from ComputeHull.
 func MakeOffsetRoundedPolygon(hull *Hull, position Vec2, rotation Rot, radius float64) Polygon {
-	assert(ValidateHull(hull))
+	if debugAsserts {
+		assert(ValidateHull(hull))
+	}
 
 	if hull.Count < 3 {
 		// Handle a bad hull when assertions are disabled
@@ -572,7 +576,9 @@ func PointInPolygon(shape *Polygon, point Vec2) bool {
 // Precision Improvements for Ray / Sphere Intersection - Ray Tracing Gems 2019
 // http://www.codercorner.com/blog/?p=321
 func RayCastCircle(shape *Circle, input *RayCastInput) CastOutput {
-	assert(IsValidRay(input))
+	if debugAsserts {
+		assert(IsValidRay(input))
+	}
 
 	p := shape.Center
 
@@ -643,7 +649,9 @@ func RayCastCircle(shape *Circle, input *RayCastInput) CastOutput {
 // RayCastCapsule casts a ray against a capsule shape in local space (upstream
 // b2RayCastCapsule).
 func RayCastCapsule(shape *Capsule, input *RayCastInput) CastOutput {
-	assert(IsValidRay(input))
+	if debugAsserts {
+		assert(IsValidRay(input))
+	}
 
 	var output CastOutput
 
@@ -841,7 +849,9 @@ func RayCastSegment(shape *Segment, input *RayCastInput, oneSided bool) CastOutp
 // RayCastPolygon casts a ray against a polygon shape in local space (upstream
 // b2RayCastPolygon).
 func RayCastPolygon(shape *Polygon, input *RayCastInput) CastOutput {
-	assert(IsValidRay(input))
+	if debugAsserts {
+		assert(IsValidRay(input))
+	}
 
 	if shape.Radius == 0.0 {
 		// Shift all math to first vertex since the polygon may be far

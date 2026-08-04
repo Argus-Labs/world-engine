@@ -358,8 +358,10 @@ func (w *World) CreateBody(def *BodyDef) BodyID {
 	requireValidDefField(IsValidRotation(def.Rotation), "BodyDef", "Rotation",
 		"must be a normalized rotation (the zero Rot{} is not; use DefaultBodyDef or MakeRot)")
 
-	assert(IsValidVec2(def.Position))
-	assert(IsValidVec2(def.LinearVelocity))
+	if debugAsserts {
+		assert(IsValidVec2(def.Position))
+		assert(IsValidVec2(def.LinearVelocity))
+	}
 	assert(IsValidFloat(def.AngularVelocity))
 	assert(IsValidFloat(def.LinearDamping) && def.LinearDamping >= 0.0)
 	assert(IsValidFloat(def.AngularDamping) && def.AngularDamping >= 0.0)
@@ -875,8 +877,10 @@ func (w *World) BodyWorldVector(bodyID BodyID, localVector Vec2) Vec2 {
 // Note: generally you should create a body with the intended transform.
 // (upstream b2Body_SetTransform).
 func (w *World) SetBodyTransform(bodyID BodyID, position Vec2, rotation Rot) {
-	assert(IsValidVec2(position))
-	assert(IsValidRotation(rotation))
+	if debugAsserts {
+		assert(IsValidVec2(position))
+		assert(IsValidRotation(rotation))
+	}
 	assert(w.IsBodyValid(bodyID))
 	assert(!w.locked)
 
@@ -1507,7 +1511,9 @@ func (w *World) BodyWorldCenterOfMass(bodyID BodyID) Vec2 {
 func (w *World) SetBodyMassData(bodyID BodyID, massData MassData) {
 	assert(IsValidFloat(massData.Mass) && massData.Mass >= 0.0)
 	assert(IsValidFloat(massData.RotationalInertia) && massData.RotationalInertia >= 0.0)
-	assert(IsValidVec2(massData.Center))
+	if debugAsserts {
+		assert(IsValidVec2(massData.Center))
+	}
 
 	if w.locked {
 		assert(false)

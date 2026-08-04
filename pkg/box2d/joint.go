@@ -304,8 +304,10 @@ func (w *World) destroyContactsBetweenBodies(bodyA, bodyB *body) {
 // createJointInternal creates the joint bookkeeping and sim for any joint
 // type (upstream static b2CreateJoint).
 func (w *World) createJointInternal(def *JointDef, jointType JointType) jointPair {
-	assert(IsValidTransform(def.LocalFrameA))
-	assert(IsValidTransform(def.LocalFrameB))
+	if debugAsserts {
+		assert(IsValidTransform(def.LocalFrameA))
+		assert(IsValidTransform(def.LocalFrameB))
+	}
 	assert(w.worldID == def.BodyIDA.world0)
 	assert(w.worldID == def.BodyIDB.world0)
 	assert(def.BodyIDA != def.BodyIDB)
@@ -827,7 +829,9 @@ func (w *World) JointBodyB(jointID JointID) BodyID {
 // SetJointLocalFrameA sets the local frame on bodyA
 // (upstream b2Joint_SetLocalFrameA).
 func (w *World) SetJointLocalFrameA(jointID JointID, localFrame Transform) {
-	assert(IsValidTransform(localFrame))
+	if debugAsserts {
+		assert(IsValidTransform(localFrame))
+	}
 
 	j := w.getJointFullID(jointID)
 	js := w.getJointSim(j)
@@ -845,7 +849,9 @@ func (w *World) JointLocalFrameA(jointID JointID) Transform {
 // SetJointLocalFrameB sets the local frame on bodyB
 // (upstream b2Joint_SetLocalFrameB).
 func (w *World) SetJointLocalFrameB(jointID JointID, localFrame Transform) {
-	assert(IsValidTransform(localFrame))
+	if debugAsserts {
+		assert(IsValidTransform(localFrame))
+	}
 
 	j := w.getJointFullID(jointID)
 	js := w.getJointSim(j)

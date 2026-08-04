@@ -14,7 +14,11 @@ package box2d
 //     nothing for them, and compiled in under the box2d_asserts build tag
 //     (core_asserts_on.go). CI runs the full suite with the tag so the
 //     invariant net is exercised on every change; run it locally with
-//     `go test -tags box2d_asserts ./pkg/box2d/`.
+//     `go test -tags box2d_asserts ./pkg/box2d/`. Compiled out is not the
+//     same as unevaluated: wrap any assert whose condition is a
+//     non-inlinable validator (IsValid*/ValidateHull) in
+//     `if debugAsserts { ... }` so the release build, like upstream's
+//     `((void)0)` macro, never evaluates it — see the assert doc in core.go.
 //
 //   - Public API preconditions (a caller passing a definition struct that was
 //     never built by its Default* constructor, or a field value that would

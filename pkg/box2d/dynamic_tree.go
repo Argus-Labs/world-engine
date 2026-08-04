@@ -861,7 +861,9 @@ func (tree *DynamicTree) GetProxyCount() int {
 // MoveProxy moves a proxy to a new AABB by removing and reinserting it
 // (upstream b2DynamicTree_MoveProxy).
 func (tree *DynamicTree) MoveProxy(proxyID int, aabb AABB) {
-	assert(IsValidAABB(aabb))
+	if debugAsserts {
+		assert(IsValidAABB(aabb))
+	}
 	assert(aabb.UpperBound.X-aabb.LowerBound.X < Huge)
 	assert(aabb.UpperBound.Y-aabb.LowerBound.Y < Huge)
 	assert(0 <= proxyID && proxyID < tree.nodeCapacity)
@@ -880,7 +882,9 @@ func (tree *DynamicTree) MoveProxy(proxyID int, aabb AABB) {
 func (tree *DynamicTree) EnlargeProxy(proxyID int, aabb AABB) {
 	nodes := tree.nodes
 
-	assert(IsValidAABB(aabb))
+	if debugAsserts {
+		assert(IsValidAABB(aabb))
+	}
 	assert(aabb.UpperBound.X-aabb.LowerBound.X < Huge)
 	assert(aabb.UpperBound.Y-aabb.LowerBound.Y < Huge)
 	assert(0 <= proxyID && proxyID < tree.nodeCapacity)
