@@ -1537,6 +1537,12 @@ func TestOracleCastRayZeroFractionStops(t *testing.T) {
 func TestOracleShapeAPIIsInertWhileTheWorldIsLocked(t *testing.T) {
 	t.Parallel()
 
+	if buildWithAsserts {
+		t.Skip("locked-world guards are B2_ASSERT-then-ignore in C; the box2d_asserts build " +
+			"panics in the assert like an upstream debug build, so only the release build " +
+			"can observe the ignore semantics this test pins")
+	}
+
 	worldDef := box2d.DefaultWorldDef()
 	world := box2d.NewWorld(&worldDef)
 	t.Cleanup(world.Destroy)
@@ -1651,6 +1657,12 @@ func TestOracleShapeAPIIsInertWhileTheWorldIsLocked(t *testing.T) {
 // mover cast, and never invokes the user callback.
 func TestOracleWorldQueryIsInertWhileTheWorldIsLocked(t *testing.T) {
 	t.Parallel()
+
+	if buildWithAsserts {
+		t.Skip("locked-world guards are B2_ASSERT-then-ignore in C; the box2d_asserts build " +
+			"panics in the assert like an upstream debug build, so only the release build " +
+			"can observe the ignore semantics this test pins")
+	}
 
 	worldDef := box2d.DefaultWorldDef()
 	world := box2d.NewWorld(&worldDef)

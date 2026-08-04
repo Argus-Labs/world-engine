@@ -837,9 +837,11 @@ func TestOracleIdPool_GetIdBytesGoWidth(t *testing.T) {
 
 // TestOracleCore_AssertTiers checks the two assertion tiers of core.go.
 //
-// assert stands in for B2_ASSERT (src/core.h) and is compiled out here, exactly
-// as upstream compiles B2_ASSERT out of a release build, so it must accept a
-// false condition without panicking.
+// assert stands in for B2_ASSERT (src/core.h). In the default build it is
+// compiled out, exactly as upstream compiles B2_ASSERT out of a release build,
+// so it must accept a false condition without panicking; under the
+// box2d_asserts build tag it is compiled in and must panic instead, like an
+// upstream debug build.
 //
 // requireInitialized and requireValidDefField replace upstream's B2_CHECK_DEF
 // (src/core.h:140, "B2_ASSERT( DEF->internalValue == B2_SECRET_COOKIE )") for
@@ -848,8 +850,12 @@ func TestOracleIdPool_GetIdBytesGoWidth(t *testing.T) {
 func TestOracleCore_AssertTiers(t *testing.T) {
 	t.Parallel()
 
-	tassert.False(t, debugAsserts, "internal asserts are compiled out by default")
-	tassert.NotPanics(t, func() { assert(false) }, "assert is a no-op when debugAsserts is false")
+	if debugAsserts {
+		tassert.PanicsWithValue(t, "box2d: assertion failed", func() { assert(false) },
+			"assert panics on a false condition under the box2d_asserts tag")
+	} else {
+		tassert.NotPanics(t, func() { assert(false) }, "assert is a no-op when debugAsserts is false")
+	}
 	tassert.NotPanics(t, func() { assert(true) }, "assert accepts a true condition")
 
 	tassert.NotPanics(t, func() { requireInitialized(true, "WorldDef", "DefaultWorldDef") },

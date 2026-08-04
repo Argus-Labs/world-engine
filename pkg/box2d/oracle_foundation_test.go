@@ -206,6 +206,17 @@ func TestOracleMathTest_RotationBetweenUnitVectors(t *testing.T) {
 			}
 
 			u := box2d.Normalize(box2d.Vec2{X: x, Y: y})
+			if u == (box2d.Vec2{}) {
+				// The float64 loop accumulator crosses zero at ~7.5e-16 rather
+				// than exactly 0.0, so the x==0&&y==0 guard above (upstream's,
+				// written for a float32 accumulator with a larger residual)
+				// misses the singular point and Normalize returns the zero
+				// vector — not a unit vector, so the comparison below would be
+				// zero-against-zero and ComputeRotationBetweenUnitVectors'
+				// unit-length precondition (asserted under box2d_asserts)
+				// would be violated. Skip it like upstream intends.
+				continue
+			}
 			r := box2d.ComputeRotationBetweenUnitVectors(v, u)
 			w := box2d.RotateVector(r, v)
 
@@ -982,6 +993,18 @@ func TestOracleContactID_CReference(t *testing.T) {
 	// the id back therefore yields the truncated word.
 	truncating := box2d.UnpackContactID([3]uint32{7, 0x00012345, 9})
 	assert.Equal(t, [3]uint32{7, 0x2345, 9}, box2d.PackContactID(truncating), "world0 truncation")
+
+	// Slot 0 must feed index1 SPECIFICALLY, not merely survive a round trip:
+	// index1 and generation are both lossless 32-bit fields, so every check
+	// above would also pass if both Pack and Unpack swapped slots 0 and 2 in
+	// concert. IsNull is defined as index1 == 0, which makes it the one
+	// external observer that can tell the slots apart. PackContactID's doc
+	// promises slot 0 as a compact table key (physics2d's contact gather
+	// indexes its seen-stamp table by it), so pin the order here.
+	assert.True(t, box2d.UnpackContactID([3]uint32{7, 5, 0}).IsNonNull(),
+		"a nonzero slot 0 alone makes the id non-null: slot 0 is index1")
+	assert.True(t, box2d.UnpackContactID([3]uint32{0, 5, 7}).IsNull(),
+		"a nonzero generation alone leaves the id null: slot 2 is not index1")
 
 	// The zero value of the Go struct is also null, matching the C's
 	// documented "you may also use zero initialization to get null".

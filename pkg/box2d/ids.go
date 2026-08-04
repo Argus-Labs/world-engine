@@ -51,6 +51,12 @@ func (id ContactID) IsNull() bool { return id.index1 == 0 }
 func (id ContactID) IsNonNull() bool { return id.index1 != 0 }
 
 // PackContactID stores a contact id into three uint32s (upstream b2StoreContactId).
+//
+// Slot 0 is the contact's 1-based dense per-world index (index1: the contact
+// pool index plus one, with 0 reserved for null) — a documented part of the
+// format, not an accident of layout: callers may use it as a compact table
+// key for live contacts (physics2d's contact gather does).
+// TestOracleContactID_CReference pins the layout.
 func PackContactID(id ContactID) [3]uint32 {
 	return [3]uint32{uint32(id.index1), uint32(id.world0), id.generation}
 }

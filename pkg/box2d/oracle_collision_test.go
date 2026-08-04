@@ -1139,7 +1139,15 @@ func TestOracleShapeDistance(t *testing.T) {
 		t.Parallel()
 		// The release build stores exactly the initial simplex
 		// (distance.c:424; later stores sit under #ifndef NDEBUG and this
-		// port compiles them out via debugAsserts=false).
+		// port compiles them out via debugAsserts=false). The box2d_asserts
+		// build mirrors an upstream debug build: every GJK iteration stores
+		// its simplex too, and this input converges in three iterations after
+		// the initial store. The count is deterministic either way.
+		wantSimplexes := 1
+		if buildWithAsserts {
+			wantSimplexes = 4
+		}
+
 		var input box2d.DistanceInput
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
@@ -1150,7 +1158,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		var cache box2d.SimplexCache
 		simplexes := make([]box2d.Simplex, 8)
 		out := box2d.ShapeDistance(&input, &cache, simplexes)
-		require.Equal(t, 1, out.SimplexCount)
+		require.Equal(t, wantSimplexes, out.SimplexCount)
 		require.InDelta(t, 1.0, out.Distance, 1e-9)
 
 		// Warm restart from the produced cache converges immediately.
@@ -1565,13 +1573,17 @@ func TestOracleMakeOffsetRoundedPolygon(t *testing.T) {
 	requireVec(t, poly.Centroid, flat.Centroid, 1e-12)
 
 	// geometry.c b2MakeOffsetRoundedPolygon "handle a bad hull when
-	// assertions are disabled": an empty hull yields b2MakeSquare(0.5).
-	var bad box2d.Hull
-	fallback := box2d.MakeOffsetRoundedPolygon(&bad, box2d.Vec2{X: 9, Y: 9}, box2d.RotIdentity, 0.5)
-	require.Equal(t, 4, fallback.Count)
-	require.InDelta(t, 0.0, fallback.Radius, 0)
-	requireVec(t, box2d.Vec2{X: -0.5, Y: -0.5}, fallback.Vertices[0], 0)
-	requireVec(t, box2d.Vec2{X: 0.5, Y: 0.5}, fallback.Vertices[2], 0)
+	// assertions are disabled": an empty hull yields b2MakeSquare(0.5). The
+	// box2d_asserts build panics in assert(ValidateHull) before the fallback,
+	// like an upstream debug build, so only the release build can reach it.
+	if !buildWithAsserts {
+		var bad box2d.Hull
+		fallback := box2d.MakeOffsetRoundedPolygon(&bad, box2d.Vec2{X: 9, Y: 9}, box2d.RotIdentity, 0.5)
+		require.Equal(t, 4, fallback.Count)
+		require.InDelta(t, 0.0, fallback.Radius, 0)
+		requireVec(t, box2d.Vec2{X: -0.5, Y: -0.5}, fallback.Vertices[0], 0)
+		requireVec(t, box2d.Vec2{X: 0.5, Y: 0.5}, fallback.Vertices[2], 0)
+	}
 }
 
 // ---------------------------------------------------------------------------
