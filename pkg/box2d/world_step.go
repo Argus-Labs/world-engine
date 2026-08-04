@@ -392,6 +392,16 @@ func (w *World) collide(ctx *stepContext) {
 // (usually 1/60). subStepCount is the number of sub-steps, increasing the
 // sub-step count can increase accuracy (usually 4).
 func (w *World) Step(timeStep float64, subStepCount int) {
+	// Checked before the reentrancy guard below: a poisoned world also has
+	// locked latched true, and the silent reentrancy return would otherwise
+	// mask this. Always on (require* tier, not assert): stepping a world
+	// whose previous Step was unwound is a caller-state error, and letting
+	// it freeze silently is far worse to diagnose than a crash.
+	if w.stepPanicked {
+		panic("box2d: Step called on a world whose previous Step was unwound by a panic; " +
+			"the simulation state is incomplete — destroy this world and rebuild it")
+	}
+
 	assert(IsValidFloat(timeStep))
 	assert(0 < subStepCount)
 
@@ -421,6 +431,23 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 	}
 
 	w.locked = true
+
+	// A panic out of a user callback (pre-solve, custom filter) — or an
+	// engine assert under the box2d_asserts build — unwinds past the unlock
+	// at the end of this function, abandoning a half-integrated step. Poison
+	// the world so the next Step fails loudly (the check at the top) instead
+	// of freezing on the latched lock. A completion flag rather than
+	// recover(): the original panic value re-raises untouched
+	// (TestPanicInCallbackPropagatesOriginalValue pins that) and a
+	// runtime.Goexit unwind is caught too. destroyArena documents the same
+	// unwind path; Destroy stays valid on a poisoned world.
+	stepCompleted := false
+	defer func() {
+		if !stepCompleted {
+			w.stepPanicked = true
+		}
+	}()
+
 	w.taskCount = 0
 
 	// Update collision pairs and create contacts
@@ -475,6 +502,8 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 	w.endEventArrayIndex = 1 - w.endEventArrayIndex
 	w.sensorEndEvents[w.endEventArrayIndex] = w.sensorEndEvents[w.endEventArrayIndex][:0]
 	w.contactEndEvents[w.endEventArrayIndex] = w.contactEndEvents[w.endEventArrayIndex][:0]
+
+	stepCompleted = true
 	w.locked = false
 }
 

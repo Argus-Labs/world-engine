@@ -6,6 +6,7 @@
 package box2d_test
 
 import (
+	"fmt"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -88,6 +89,57 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	buildWorkerScene(w2, 6, 4, 4, 1)
 	for range 5 {
 		w2.Step(1.0/60.0, 4)
+	}
+}
+
+// TestStepAfterCallbackPanicFailsLoudly locks in the poison contract: a
+// panic that unwinds Step abandons a half-integrated simulation state, so
+// re-stepping the SAME world must fail loudly with a panic naming the cause —
+// in every build — rather than freeze on the latched world lock. A server
+// with panic-recovery middleware around its tick would otherwise keep calling
+// Step and silently stop simulating, which is far worse to diagnose than a
+// crash; and a world resumed from half a step would silently diverge from
+// every deterministic replica. Destroy stays valid on the poisoned world
+// (the t.Cleanup exercises it). Serial and parallel unwind paths differ
+// (direct panic vs pool capture-and-re-raise), so both worker counts run.
+func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
+	t.Parallel()
+
+	for _, workers := range []int{1, 4} {
+		t.Run(fmt.Sprintf("workers_%d", workers), func(t *testing.T) {
+			t.Parallel()
+
+			def := box2d.DefaultWorldDef()
+			def.WorkerCount = workers
+			w := box2d.NewWorld(&def)
+			t.Cleanup(w.Destroy)
+
+			buildWorkerStressScene(w)
+
+			var fired atomic.Bool
+			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+				if fired.CompareAndSwap(false, true) {
+					panic(workerBoom{tag: "poison boom"})
+				}
+				return true
+			}, nil)
+
+			require.Panics(t, func() { w.Step(1.0/60.0, 4) }, "the callback panic must propagate out of Step")
+			require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
+
+			// Re-stepping the same world must panic with the explicit poison
+			// message, not silently no-op (release) or trip a bare assert
+			// (box2d_asserts build).
+			var second any
+			func() {
+				defer func() { second = recover() }()
+				w.Step(1.0/60.0, 4)
+			}()
+			require.NotNil(t, second, "re-stepping a panicked world must panic, not silently no-op")
+			msg, ok := second.(string)
+			require.Truef(t, ok, "poison panic must be the explicit message string, got %T: %v", second, second)
+			require.Contains(t, msg, "unwound by a panic")
+		})
 	}
 }
 

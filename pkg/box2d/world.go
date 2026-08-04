@@ -236,9 +236,18 @@ type World struct {
 	locked                 bool
 	enableWarmStarting     bool
 	enableContactSoftening bool
-	enableContinuous       bool
-	enableSpeculative      bool
-	inUse                  bool
+
+	// stepPanicked is set when a panic (or runtime.Goexit) unwound Step
+	// mid-flight, abandoning a half-integrated simulation state. Step checks
+	// it first and panics loudly in every build: continuing would silently
+	// diverge from any deterministic replica, and the latched locked flag
+	// would otherwise turn every later Step into a silent no-op. Destroy
+	// still works on a poisoned world. Go-only state — upstream C has no
+	// recoverable unwind out of b2World_Step.
+	stepPanicked      bool
+	enableContinuous  bool
+	enableSpeculative bool
+	inUse             bool
 
 	// Single-threaded query scratch: the callback contexts and tree inputs
 	// that upstream keeps on the C stack. Go must assume a pointer passed to
