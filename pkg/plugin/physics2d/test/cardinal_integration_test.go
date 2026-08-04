@@ -24,7 +24,7 @@ type harnessTag struct {
 func (harnessTag) Name() string { return "physics2d_e2e_harness_tag" }
 
 func (c harnessTag) MarshalWire() ([]byte, error) { return json.Marshal(c) }
-func (harnessTag) UnmarshalWire(b []byte) (harnessTag, error) {
+func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	var v harnessTag
 	err := json.Unmarshal(b, &v)
 	return v, err

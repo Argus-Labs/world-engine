@@ -56,13 +56,13 @@ func (SimpleComponent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleComponent](b)
 }
 
-func (c ComponentA) MarshalWire() ([]byte, error)             { return gobMarshal(c) }
+func (c ComponentA) MarshalWire() ([]byte, error)      { return gobMarshal(c) }
 func (ComponentA) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentA](b) }
 
-func (c ComponentB) MarshalWire() ([]byte, error)             { return gobMarshal(c) }
+func (c ComponentB) MarshalWire() ([]byte, error)      { return gobMarshal(c) }
 func (ComponentB) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentB](b) }
 
-func (c ComponentC) MarshalWire() ([]byte, error)             { return gobMarshal(c) }
+func (c ComponentC) MarshalWire() ([]byte, error)      { return gobMarshal(c) }
 func (ComponentC) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentC](b) }
 
 func gobMarshal(v any) ([]byte, error) {

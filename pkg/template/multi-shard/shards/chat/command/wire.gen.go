@@ -3,9 +3,6 @@
 package command
 
 import (
-	"fmt"
-
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 	command "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,26 +25,14 @@ func (c UserChat) FromProto(p *command.UserChat) UserChat {
 	return c
 }
 
-type userChatCodec struct{}
-
-func (userChatCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(UserChat)
-	if !ok {
-		return nil, fmt.Errorf("expected UserChat, got %T", p)
-	}
+func (c UserChat) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (userChatCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c UserChat) UnmarshalWire(data []byte) (any, error) {
 	var p command.UserChat
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c UserChat
-	c = c.FromProto(&p)
-	return c, nil
-}
-
-func init() {
-	cardinal.RegisterCommandCodec("user-chat", userChatCodec{})
+	return c.FromProto(&p), nil
 }

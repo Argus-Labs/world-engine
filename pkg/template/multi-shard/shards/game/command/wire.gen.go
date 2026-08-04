@@ -3,9 +3,6 @@
 package command
 
 import (
-	"fmt"
-
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 	command "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,24 +25,16 @@ func (c MovePlayer) FromProto(p *command.MovePlayer) MovePlayer {
 	return c
 }
 
-type movePlayerCodec struct{}
-
-func (movePlayerCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(MovePlayer)
-	if !ok {
-		return nil, fmt.Errorf("expected MovePlayer, got %T", p)
-	}
+func (c MovePlayer) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (movePlayerCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c MovePlayer) UnmarshalWire(data []byte) (any, error) {
 	var p command.MovePlayer
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c MovePlayer
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c PlayerLeave) ToProto() *command.PlayerLeave {
@@ -62,24 +51,16 @@ func (c PlayerLeave) FromProto(p *command.PlayerLeave) PlayerLeave {
 	return c
 }
 
-type playerLeaveCodec struct{}
-
-func (playerLeaveCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(PlayerLeave)
-	if !ok {
-		return nil, fmt.Errorf("expected PlayerLeave, got %T", p)
-	}
+func (c PlayerLeave) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (playerLeaveCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c PlayerLeave) UnmarshalWire(data []byte) (any, error) {
 	var p command.PlayerLeave
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c PlayerLeave
-	c = c.FromProto(&p)
-	return c, nil
+	return c.FromProto(&p), nil
 }
 
 func (c PlayerSpawn) ToProto() *command.PlayerSpawn {
@@ -102,28 +83,14 @@ func (c PlayerSpawn) FromProto(p *command.PlayerSpawn) PlayerSpawn {
 	return c
 }
 
-type playerSpawnCodec struct{}
-
-func (playerSpawnCodec) Marshal(p cardinal.Command) ([]byte, error) {
-	c, ok := p.(PlayerSpawn)
-	if !ok {
-		return nil, fmt.Errorf("expected PlayerSpawn, got %T", p)
-	}
+func (c PlayerSpawn) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (playerSpawnCodec) Unmarshal(data []byte) (cardinal.Command, error) {
+func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
 	var p command.PlayerSpawn
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
-	var c PlayerSpawn
-	c = c.FromProto(&p)
-	return c, nil
-}
-
-func init() {
-	cardinal.RegisterCommandCodec("move-player", movePlayerCodec{})
-	cardinal.RegisterCommandCodec("player-leave", playerLeaveCodec{})
-	cardinal.RegisterCommandCodec("player-spawn", playerSpawnCodec{})
+	return c.FromProto(&p), nil
 }
