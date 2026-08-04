@@ -414,12 +414,26 @@ const solverColorGrain = 32
 // items dispatch.
 //
 // INVARIANT NOTE: retuning these stages is safe for the presize/merge bound
-// documented in taskContext because none of them write per-worker state —
-// every write is item-owned. The only per-color stage with a per-worker
-// output is solve/relax (taskContext.jointStateBitSet, written by
-// solveJointsColor), and maxColorWorkers in solve() derives its bound from
-// the SAME (itemCount, solverColorGrain) pair that dispatch still uses.
+// documented in taskContext under TWO conditions, both of which must survive
+// any future retune:
+//
+//  1. None of the light stages writes per-worker state — every write is
+//     item-owned. The only per-color stage with a per-worker output is
+//     solve/relax (taskContext.jointStateBitSet, written by solveJointsColor),
+//     and maxColorWorkers in solve() derives its bound from the SAME
+//     (itemCount, solverColorGrain) pair that the solve/relax dispatch uses.
+//  2. solverLightColorGrain >= solverColorGrain. forRangeWorkers is
+//     non-increasing in grain, so a light stage on the same itemCount can only
+//     engage FEWER workers than maxColorWorkers — never more. If the light
+//     grain ever dropped below the heavy one, a light stage could out-fan the
+//     presize bound. The declaration below makes that a compile error rather
+//     than a comment.
 const solverLightColorGrain = 1024
+
+// Compile-time assertion for condition 2 above: an untyped negative constant
+// cannot convert to uint, so this line fails to build if a future retune sets
+// solverLightColorGrain < solverColorGrain.
+const _ = uint(solverLightColorGrain - solverColorGrain)
 
 // integrateVelocitiesTask integrates velocities and applies damping, gravity
 // and speed clamps (upstream b2IntegrateVelocitiesTask).
@@ -740,16 +754,18 @@ func (w *World) solve(ctx *stepContext) {
 	}
 
 	// Per-stage engaged worker counts — pure functions of (item count, grain,
-	// workerCount), so INVARIANT: dispatch bound == presize bound == merge
-	// bound at every stage. finalizeWorkers bounds every output written by
-	// the finalize dispatch (enlargedSimBitSet, awakeIslandBitSet, sensorHits,
-	// bulletBodies, split candidates); maxColorWorkers bounds the
-	// jointStateBitSet written by the per-color solve dispatches (each color
-	// engages forRangeWorkers(itemCount, solverColorGrain, ...) workers, so
-	// the max over active colors covers them all; overflow runs serially on
-	// slot 0, hence the floor of 1). Slots >= a stage's bound are never
-	// written this step and never merged this step, so stale content in them
-	// is harmless.
+	// workerCount), so INVARIANT: presize bound >= dispatch bound, and merge
+	// bound == presize bound, at every stage. finalizeWorkers bounds every
+	// output written by the finalize dispatch (enlargedSimBitSet,
+	// awakeIslandBitSet, sensorHits, bulletBodies, split candidates) exactly —
+	// same (itemCount, grain) pair as its dispatch. maxColorWorkers bounds the
+	// jointStateBitSet written by the per-color solve dispatches: it is exact
+	// for solve/relax, which dispatch at solverColorGrain, and an upper bound
+	// for the light per-color stages, which dispatch the same colors at the
+	// coarser solverLightColorGrain and so engage no more workers (see the
+	// INVARIANT NOTE on solverLightColorGrain). Overflow runs serially on slot
+	// 0, hence the floor of 1. Slots >= a stage's bound are never written this
+	// step and never merged this step, so stale content in them is harmless.
 	finalizeWorkers := forRangeWorkers(awakeBodyCount, solverBodyGrain, w.workerCount)
 	maxColorWorkers := 1
 
@@ -807,11 +823,13 @@ func (w *World) solve(ctx *stepContext) {
 		assert(base == totalContactCount)
 
 		// Clear the joint event bit set (upstream sizes it per worker before
-		// spawning the solver tasks). INVARIANT: presize bound == dispatch
-		// bound == merge bound == maxColorWorkers — the per-color solve
-		// dispatches engage at most that many workers, so slots >=
-		// maxColorWorkers are never written this step and never merged this
-		// step; stale bits or block counts in them are harmless.
+		// spawning the solver tasks). INVARIANT: presize bound == merge bound
+		// == maxColorWorkers >= dispatch bound — solveJointsColor is the only
+		// writer, it runs from the per-color solve/relax dispatch, and that
+		// dispatch uses the same (itemCount, solverColorGrain) pair
+		// maxColorWorkers was computed from. Slots >= maxColorWorkers are
+		// never written this step and never merged this step; stale bits or
+		// block counts in them are harmless.
 		jointIDCapacity := getIDCapacity(&w.jointIDPool)
 		for k := range maxColorWorkers {
 			setBitCountAndClear(&w.taskContexts[k].jointStateBitSet, uint32(jointIDCapacity))

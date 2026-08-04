@@ -4,10 +4,15 @@
 // Deviations from upstream:
 //
 //   - All floats are float64.
-//   - Tree indices are Go int in every signature and local, but the TreeNode
-//     child/parent fields keep upstream's int32 width: with float64 AABBs the
-//     node is exactly 64 bytes (one cache line, two nodes per Apple M 128-byte
-//     line), and the query/ray-cast hot loops are bound by node loads. No
+//   - Tree indices are Go int in every signature. Storage is narrower where
+//     width is load bearing: the TreeNode child/parent fields keep upstream's
+//     int32, which with float64 AABBs makes the node exactly 64 bytes (one
+//     cache line, two nodes per Apple M 128-byte line) and the query/ray-cast
+//     hot loops are bound by node loads. A few locals are int32 too, for the
+//     same reason rather than by oversight — the fixed traversal stacks
+//     ([treeStackSize]int32 in Query, QueryAll, RayCast and ShapeCast, 4 KiB
+//     of frame instead of 8) and removeLeaf's sibling scratch, all of which
+//     hold values read straight out of those int32 fields. No
 //     index ever approaches 2^31, so the narrow storage cannot affect
 //     determinism — ints convert losslessly on store and load. Height and
 //     flags keep their uint16 width because b2MaxUInt16 arithmetic and the

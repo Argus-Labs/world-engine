@@ -79,8 +79,22 @@ func TestNoFusedMultiplyAdd(t *testing.T) {
 		t.Fatalf("committed PGO profile missing (%v): the doc.go and CI claims "+
 			"that the FMA scan covers PGO-shaped codegen depend on this file", statErr)
 	}
+	// -a is deliberately NOT carried into the PGO copies. The non-PGO
+	// "package" build above keeps it, so the from-scratch rebuild that proves
+	// no stale artifact is hiding a regression still happens once per run;
+	// repeating it under -pgo only re-does the same compilation with a
+	// different inlining budget. Correctness does not rest on -a in the first
+	// place: the package source hash is part of every build action ID, PGO or
+	// not, so an edited source file can never hit a cached object.
 	for _, build := range builds[:len(builds):len(builds)] {
-		args := append([]string{build.args[0], "-pgo=" + pgoProfile}, build.args[1:]...)
+		args := make([]string, 0, len(build.args)+1)
+		args = append(args, build.args[0], "-pgo="+pgoProfile)
+		for _, arg := range build.args[1:] {
+			if arg == "-a" {
+				continue
+			}
+			args = append(args, arg)
+		}
 		builds = append(builds, struct {
 			what string
 			args []string

@@ -83,16 +83,20 @@ func TestGoldenJoint3Workers(t *testing.T) {
 	runGoldenWorkerMatrix(t, "golden_joint3.json", computeGoldenJoint3Workers)
 }
 
-// buildWorkerStressScene builds a scene big enough to push EVERY dispatch in
-// World.Step past its inline grain threshold at 8 workers, so the parallel
-// code paths genuinely execute (the golden scenes are small and mostly run
-// inline): a 20-row pyramid (210 boxes — awake bodies > the body grain,
-// hundreds of contacts across the graph colors), 80 independent pendulums
-// (80 body-disjoint revolute joints landing in one color, with force
-// thresholds so the joint-event bookkeeping runs), 40 sensors starting inside
-// the pyramid (40/sensorMinRange 16 = 2 engaged workers under capped
-// engagement), and 6 bullets fired through the sensors (bullet gather +
-// serial bullet stage + continuous sensor hits).
+// buildWorkerStressScene builds a scene big enough to push every dispatch in
+// World.Step that runs at the body or HEAVY per-color grain past its inline
+// threshold at 8 workers, so those parallel code paths genuinely execute (the
+// golden scenes are small and mostly run inline): a 20-row pyramid (210
+// boxes — awake bodies > the body grain, hundreds of contacts across the graph
+// colors), 80 independent pendulums (80 body-disjoint revolute joints landing
+// in one color, with force thresholds so the joint-event bookkeeping runs), 40
+// sensors starting inside the pyramid (40/sensorMinRange 16 = 2 engaged
+// workers under capped engagement), and 6 bullets fired through the sensors
+// (bullet gather + serial bullet stage + continuous sensor hits).
+//
+// It does NOT reach the five LIGHT per-color stages, which dispatch at
+// solverLightColorGrain and need thousands of items in one color; that is what
+// BuildLightStageColorScene (solver_light_stage_internal_test.go) is for.
 func buildWorkerStressScene(w *box2d.World) []box2d.BodyID {
 	return buildWorkerScene(w, 20, 80, 40, 6)
 }
@@ -380,11 +384,12 @@ func workerStressSignature(workerCount, stepCount int, withCallbacks bool) []uin
 }
 
 // TestWorkerStressSceneMatchesSerial proves byte-identity on a scene large
-// enough that every stage actually dispatches to the pool (see
-// buildWorkerStressScene), including the event streams — the golden scenes
-// alone cannot show this because most of their dispatches fall below the
-// grain thresholds and run inline. Run with -race to prove the dispatches
-// are race-clean.
+// enough that every body-grain and heavy per-color stage actually dispatches
+// to the pool (see buildWorkerStressScene), including the event streams — the
+// golden scenes alone cannot show this because most of their dispatches fall
+// below the grain thresholds and run inline. The five light per-color stages
+// are covered by TestWorkerStressLightStageColorMatchesSerial below. Run with
+// -race to prove the dispatches are race-clean.
 func TestWorkerStressSceneMatchesSerial(t *testing.T) {
 	const stepCount = 150
 
@@ -421,6 +426,65 @@ func TestWorkerStressCallbacksMatchSerial(t *testing.T) {
 			got := workerStressSignature(workerCount, stepCount, true)
 			require.Equal(t, want, got,
 				"stress scene with callbacks installed at WorkerCount=%d diverges from the callbacks-off serial run",
+				workerCount)
+		})
+	}
+}
+
+// lightStageColorSignature steps the single-color light-stage scene
+// (BuildLightStageColorScene) and records the same per-step signature
+// workerStressSignature does.
+func lightStageColorSignature(workerCount, stepCount int) []uint64 {
+	def := box2d.DefaultWorldDef()
+	def.WorkerCount = workerCount
+	// Nothing may sleep: the whole point is to keep thousands of constraints
+	// in one awake color for every step of the run.
+	def.EnableSleep = false
+	w := box2d.NewWorld(&def)
+	defer w.Destroy()
+
+	bodies := box2d.BuildLightStageColorScene(w)
+
+	signature := make([]uint64, 0, stepCount)
+	for range stepCount {
+		w.Step(1.0/60.0, 4)
+
+		hash := hashWorldState(w, bodies)
+		hash = foldWorkerEventStreams(hash, w)
+		hash = djb2Fold(hash, uint64(w.Counters().TaskCount))
+		signature = append(signature, hash)
+	}
+
+	return signature
+}
+
+// TestWorkerStressLightStageColorMatchesSerial is the byte-identity gate for
+// the five LIGHT per-color solver stages — prepare joints, prepare contacts,
+// warm start, apply restitution, store impulses. They dispatch at
+// solverLightColorGrain, which no other scene in the suite comes close to, so
+// without this test their parallel path never runs at all: every other suite
+// executes them inline on the dispatching goroutine.
+//
+// The scene puts >= 2*solverLightColorGrain joints AND >= 2*solverLightColorGrain
+// contacts into a single graph color; that premise is asserted separately by
+// TestLightStageColorSceneEngagesMultipleWorkers (internal test, which can read
+// the per-color joint/contact split the public Counters cannot show). workers=8
+// additionally fans warm start out to 4 workers.
+//
+// The name is deliberately prefixed TestWorkerStress so CI's -race pattern
+// picks it up without a workflow edit. Step count is kept low because the scene
+// is ~6.6k bodies.
+func TestWorkerStressLightStageColorMatchesSerial(t *testing.T) {
+	const stepCount = 30
+
+	want := lightStageColorSignature(1, stepCount)
+
+	for _, workerCount := range []int{2, 8} {
+		t.Run(fmt.Sprintf("workers=%d", workerCount), func(t *testing.T) {
+			got := lightStageColorSignature(workerCount, stepCount)
+			require.Equal(t, want, got,
+				"light-stage scene at WorkerCount=%d diverges from serial — prepare/warm-start/restitution/"+
+					"store-impulses per-color dispatch determinism broken",
 				workerCount)
 		})
 	}

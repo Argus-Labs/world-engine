@@ -619,12 +619,20 @@ func TestZeroTimeStep(t *testing.T) {
 	require.Empty(t, w.BodyEvents().MoveEvents)
 }
 
-// TestBodyMoveIndexInvalidatedOnAwakeSetExit is the regression test for a
-// stale bodyMoveIndex found by the E14 op-sequence fuzzer: a body that left
-// the awake set through SetBodyType kept the move-event index assigned by an
-// earlier, larger step, and a later forced sleep indexed a shorter buffer
+// TestStaleBodyMoveIndexNotDereferencedOnAwakeSetExit is the regression test
+// for a stale bodyMoveIndex found by the E14 op-sequence fuzzer: a body that
+// left the awake set through SetBodyType kept the move-event index assigned by
+// an earlier, larger step, and a later forced sleep indexed a shorter buffer
 // (upstream C has the same gap and reads out of bounds unchecked).
-func TestBodyMoveIndexInvalidatedOnAwakeSetExit(t *testing.T) {
+//
+// The index is NOT invalidated on awake-set exit — it must stay valid for the
+// whole post-step window, which is exactly when upstream reports fellAsleep.
+// What shipped instead is a bounds-and-identity guard at the read site
+// (trySleepIsland, solver_set.go): the slot is only written when the index is
+// still in range AND the event there still names this body and generation.
+// This test pins that guard, so it must exercise the dangling index rather
+// than assert the index was cleared.
+func TestStaleBodyMoveIndexNotDereferencedOnAwakeSetExit(t *testing.T) {
 	t.Parallel()
 
 	def := box2d.DefaultWorldDef()

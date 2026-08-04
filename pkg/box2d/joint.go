@@ -237,6 +237,15 @@ func (w *World) getJointSim(j *joint) *jointSim {
 // getJointSimCheckType returns the joint sim for a joint id, asserting the
 // joint type (upstream b2GetJointSimCheckType). Returns nil when the world is
 // locked, matching the upstream NULL return.
+//
+// Every public joint accessor resolves through here — with exactly one upstream
+// exemption: b2PrismaticJoint_GetSpeed resolves the sim itself (b2GetWorld +
+// b2GetJointSim) and so keeps working while the world is locked, i.e. when
+// called from a step-time user callback. PrismaticJointSpeed reproduces that,
+// deliberately; routing it through this helper instead returns nil here and
+// panics at the caller's first field access. Do not "fix" that asymmetry
+// without checking upstream first (see the note on PrismaticJointSpeed in
+// prismatic_joint.go).
 func (w *World) getJointSimCheckType(jointID JointID, jointType JointType) *jointSim {
 	assert(!w.locked)
 	if w.locked {
