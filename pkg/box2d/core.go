@@ -2,29 +2,9 @@
 
 package box2d
 
-// debugAsserts gates the port's *internal* invariant checks only.
-//
-// This package splits upstream's single B2_ASSERT into two tiers:
-//
-//   - Internal invariants (the hundreds of assert calls across the solver,
-//     collision and broad-phase code) state facts the port must uphold on its
-//     own. They are compiled out when debugAsserts is false so release builds
-//     pay nothing for them. Flip this to true when debugging the port itself.
-//
-//   - Public API preconditions (a caller passing a definition struct that was
-//     never built by its Default* constructor, or a field value that would
-//     silently corrupt the simulation rather than fail loudly) are *always*
-//     checked, regardless of this flag, via requireInitialized and
-//     requireValidDefField below. Those are programmer errors in calling code,
-//     they are cheap to detect at creation time, and leaving them unchecked
-//     turns a one-line mistake into garbage simulation or a confusing panic
-//     far from the cause.
-//
-// When adding a check, ask whose bug it catches: the port's (assert) or the
-// caller's (require*).
-const debugAsserts = false
-
-// assert mirrors B2_ASSERT. Assertions are compiled out when debugAsserts is false; the condition is still evaluated at the call site.
+// assert mirrors B2_ASSERT. Assertions are compiled out when debugAsserts is
+// false (the default build; the box2d_asserts build tag flips it — see
+// core_asserts_off.go); the condition is still evaluated at the call site.
 func assert(cond bool) {
 	if debugAsserts && !cond {
 		panic("box2d: assertion failed")

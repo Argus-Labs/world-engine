@@ -49,11 +49,14 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
 // any ID repeats. The returned slice is backed by rt.reconcileSortScratch (reused across ticks
-// to avoid re-cloning every reconcile); it is only valid until the next call.
+// to avoid re-cloning every reconcile); it is only valid until the next call. The scratch tail
+// past the new length is cleared per the Runtime scratch RULE: PhysicsRebuildEntry holds shape
+// and vertex slices, so a bare [:0] would pin component memory for destroyed entities after
+// the entity count shrinks.
 func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 	entries []PhysicsRebuildEntry,
 ) ([]PhysicsRebuildEntry, error) {
-	rt.reconcileSortScratch = append(rt.reconcileSortScratch[:0], entries...)
+	rt.reconcileSortScratch = clearScratchTail(append(rt.reconcileSortScratch[:0], entries...))
 	sorted := rt.reconcileSortScratch
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
 		return cmp.Compare(a.EntityID, b.EntityID)

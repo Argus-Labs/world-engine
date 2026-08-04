@@ -103,9 +103,12 @@ func createArena() arena {
 	return arena{}
 }
 
-// destroyArena mirrors b2DestroyArenaAllocator.
+// destroyArena mirrors b2DestroyArenaAllocator, which frees unconditionally —
+// no assertion that every item was returned first. That tolerance is
+// load-bearing here: when a user callback panics out of Step, the unwind
+// leaves the step's arena items outstanding, and World.Destroy must still
+// complete (see TestPanicInCallbackPropagatesOriginalValue).
 func destroyArena(a *arena) {
-	assert(a.allocation == 0)
 	*a = arena{}
 }
 

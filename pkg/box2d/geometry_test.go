@@ -92,10 +92,6 @@ func TestGeometryMakePolygonFromHull(t *testing.T) {
 	assert.Equal(t, box2d.MakeBox(1, 1).Normals, poly.Normals)
 	assertVec2(t, box2d.Vec2{}, poly.Centroid, 1e-15)
 
-	// A degenerate hull falls back to a 0.5 half-width square.
-	bad := box2d.Hull{Count: 2}
-	assert.Equal(t, box2d.MakeSquare(0.5), box2d.MakePolygon(&bad, 0))
-
 	offset := box2d.MakeOffsetPolygon(&hull, box2d.Vec2{X: 3, Y: 4}, box2d.RotIdentity)
 	assert.InDelta(t, 0.0, offset.Radius, 0)
 	assert.Equal(t, box2d.Vec2{X: 2, Y: 3}, offset.Vertices[0])

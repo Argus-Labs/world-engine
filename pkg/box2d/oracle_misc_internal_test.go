@@ -544,17 +544,16 @@ func TestOracleArenaCapacityFromWorldStep(t *testing.T) {
 // island.c
 // ---------------------------------------------------------------------------
 
-// TestOracleValidateIslandIsCompiledOut documents that b2ValidateIsland
-// (src/island.c) is gated behind B2_VALIDATE in C and behind the compile-time
-// `debugAsserts` constant in this port (core.go). With debugAsserts false the
-// function body is unreachable, exactly like a C release build, so the only
-// behaviour a test can pin down is that it is a total no-op for every input,
-// including a null island id.
-func TestOracleValidateIslandIsCompiledOut(t *testing.T) {
+// TestOracleValidateIsland documents that b2ValidateIsland (src/island.c) is
+// gated behind B2_VALIDATE in C and behind the compile-time `debugAsserts`
+// constant in this port (core_asserts_off.go). In the default build the
+// function body is unreachable, exactly like a C release build, so it is a
+// total no-op for every input, including a null island id. Under the
+// box2d_asserts tag the checks are live: a healthy island must validate clean
+// and a null island id still returns before validation. Either way both calls
+// below must not panic.
+func TestOracleValidateIsland(t *testing.T) {
 	t.Parallel()
-
-	require.False(t, debugAsserts,
-		"this port ships with validation off, matching a C release build")
 
 	def := DefaultWorldDef()
 	w := NewWorld(&def)
@@ -895,10 +894,13 @@ func TestOracleTreeValidateEmptyTreeIsTrivial(t *testing.T) {
 }
 
 // TestOracleShapeHelpersDefaultArm encodes the `default:` arm that every
-// shape-type switch in src/shape.c carries. In C those arms are
-// `B2_ASSERT( false )` plus a neutral return value, so a release build (this
-// port, with debugAsserts off) must produce that neutral value rather than
-// panic or read a stale union member.
+// shape-type switch in src/shape.c carries: a neutral return value rather
+// than a panic or a read of a stale union member. Only two of the arms assert
+// in C — b2ComputeShapeAABB (shape.c:650) and b2MakeShapeDistanceProxy
+// (shape.c:1020) — so those two are release-build-only here (the
+// box2d_asserts build panics in the assert like an upstream debug build); the
+// rest return their neutral value silently in every build, C debug included,
+// and are pinned unconditionally.
 //
 // The switch subject is b2ShapeType, and b2_shapeTypeCount is the sentinel
 // that is never a real shape type, so it drives every default arm at once.
@@ -909,9 +911,12 @@ func TestOracleShapeHelpersDefaultArm(t *testing.T) {
 
 	xf := Transform{P: Vec2{X: 3.0, Y: 4.0}, Q: RotIdentity}
 
-	// b2ComputeShapeAABB (src/shape.c:648-653): `b2AABB empty = { xf.p, xf.p }`.
-	aabb := computeShapeAABB(&s, xf)
-	tassert.Equal(t, AABB{LowerBound: xf.P, UpperBound: xf.P}, aabb)
+	// b2ComputeShapeAABB (src/shape.c:648-653): `b2AABB empty = { xf.p, xf.p }`
+	// behind B2_ASSERT( false ).
+	if !debugAsserts {
+		aabb := computeShapeAABB(&s, xf)
+		tassert.Equal(t, AABB{LowerBound: xf.P, UpperBound: xf.P}, aabb)
+	}
 
 	// b2GetShapeCentroid: the C returns b2Vec2_zero.
 	tassert.Equal(t, Vec2Zero, getShapeCentroid(&s))
@@ -958,8 +963,11 @@ func TestOracleShapeHelpersDefaultArm(t *testing.T) {
 	tassert.False(t, result.Hit)
 	tassert.Equal(t, PlaneResult{}, result)
 
-	// b2MakeShapeDistanceProxy returns a zeroed b2ShapeProxy.
-	tassert.Equal(t, ShapeProxy{}, makeShapeDistanceProxy(&s))
+	// b2MakeShapeDistanceProxy (src/shape.c:1020) returns a zeroed
+	// b2ShapeProxy behind B2_ASSERT( false ).
+	if !debugAsserts {
+		tassert.Equal(t, ShapeProxy{}, makeShapeDistanceProxy(&s))
+	}
 }
 
 // TestOracleShapeCastShapeRejectsEmptyProxy encodes the head of

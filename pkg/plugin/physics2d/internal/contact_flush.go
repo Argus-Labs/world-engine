@@ -213,9 +213,15 @@ func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[
 		entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
 
 		key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
-		// Belt and braces: one contact maps to exactly one normalized pair key, so the stamp
-		// above already covers this. Keeping the map check means a stamp bug can only cost
-		// work, never drop or duplicate a pair.
+		// One contact maps to exactly one normalized pair key, so the stamp above already
+		// covers this; the map check is what makes a stamp FALSE NEGATIVE free (both endpoints
+		// build a byte-identical ContactPairInfo, so a re-record would be a no-op). It does
+		// NOT cover the other direction: a false-positive stamp hits the `continue` at the
+		// markContactSeen call above and the pair is dropped silently — a spurious End for a
+		// still-touching persisted pair, a missing Begin for a new one, stale sensor/filter
+		// metadata for the rest. What holds that side is the ContactID layout — PackContactID
+		// slot 0 is the contact's 1-based dense index (index1), pinned by
+		// TestOracleContactID_CReference in pkg/box2d.
 		if _, seen := result[key]; seen {
 			continue
 		}

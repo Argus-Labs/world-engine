@@ -19,9 +19,11 @@
 // rigid joints holding their rest length) get analytic bounds from the physics
 // plus the C constants, never a pasted Go result.
 //
-// Note on preconditions: the port compiles B2_ASSERT out (core.go
-// debugAsserts == false), so the C `B2_ASSERT` preconditions are not
-// observable as panics and are not asserted here.
+// Note on preconditions: the default build compiles B2_ASSERT out
+// (core_asserts_off.go debugAsserts == false), so the C `B2_ASSERT`
+// preconditions are only observable as panics under the box2d_asserts build
+// tag, and are not asserted here; these tests never feed assert-tripping
+// inputs, so they run identically in both builds.
 
 package box2d_test
 

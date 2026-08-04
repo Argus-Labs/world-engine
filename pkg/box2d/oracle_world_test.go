@@ -260,6 +260,12 @@ func TestOracleContactTuningAndRecycleDistance(t *testing.T) {
 func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 	t.Parallel()
 
+	if buildWithAsserts {
+		t.Skip("locked-world guards are B2_ASSERT-then-ignore in C; the box2d_asserts build " +
+			"panics in the assert like an upstream debug build, so only the release build " +
+			"can observe the ignore semantics this test pins")
+	}
+
 	w := wboNewWorld(t)
 	wboGround(t, w)
 

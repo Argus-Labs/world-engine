@@ -104,3 +104,15 @@ jobs:
 
       - name: Run deterministic op-sequence fuzz corpus
         run: go test ./pkg/box2d/ -run 'TestWorldOpSequenceDeterminism|FuzzWorldOps' -count=1 -v
+
+      # Full suite with the internal invariant net compiled in. The default
+      # build compiles the hundreds of assert(...) calls out (core_asserts_off.go),
+      # so without this step no build anywhere ever executes them and the
+      # cheapest defence against invariant drift in a mechanical 29k-line port
+      # is dead code. Release/consumer builds are unaffected — the tag exists
+      # only here and for local debugging. A handful of tests pin the
+      # release-build guard semantics (ignore bad input instead of panicking);
+      # those skip themselves under the tag via the buildWithAsserts mirror
+      # (asserts_tag_off_test.go).
+      - name: Run full suite with internal asserts compiled in
+        run: go test -tags box2d_asserts ./pkg/box2d/ -count=1
