@@ -897,10 +897,10 @@ func TestOracleTreeValidateEmptyTreeIsTrivial(t *testing.T) {
 // shape-type switch in src/shape.c carries: a neutral return value rather
 // than a panic or a read of a stale union member. Only two of the arms assert
 // in C — b2ComputeShapeAABB (shape.c:650) and b2MakeShapeDistanceProxy
-// (shape.c:1020) — so those two are release-build-only here (the
-// box2d_asserts build panics in the assert like an upstream debug build); the
-// rest return their neutral value silently in every build, C debug included,
-// and are pinned unconditionally.
+// (shape.c:1020) — so those two fork on the build: the release build pins the
+// neutral value, the box2d_asserts build pins the panic, like an upstream
+// debug build. The rest return their neutral value silently in every build,
+// C debug included, and are pinned unconditionally.
 //
 // The switch subject is b2ShapeType, and b2_shapeTypeCount is the sentinel
 // that is never a real shape type, so it drives every default arm at once.
@@ -913,7 +913,11 @@ func TestOracleShapeHelpersDefaultArm(t *testing.T) {
 
 	// b2ComputeShapeAABB (src/shape.c:648-653): `b2AABB empty = { xf.p, xf.p }`
 	// behind B2_ASSERT( false ).
-	if !debugAsserts {
+	if debugAsserts {
+		// The box2d_asserts build mirrors an upstream debug build: the
+		// B2_ASSERT( false ) fires before the neutral return.
+		tassert.Panics(t, func() { computeShapeAABB(&s, xf) })
+	} else {
 		aabb := computeShapeAABB(&s, xf)
 		tassert.Equal(t, AABB{LowerBound: xf.P, UpperBound: xf.P}, aabb)
 	}
@@ -965,7 +969,9 @@ func TestOracleShapeHelpersDefaultArm(t *testing.T) {
 
 	// b2MakeShapeDistanceProxy (src/shape.c:1020) returns a zeroed
 	// b2ShapeProxy behind B2_ASSERT( false ).
-	if !debugAsserts {
+	if debugAsserts {
+		tassert.Panics(t, func() { makeShapeDistanceProxy(&s) })
+	} else {
 		tassert.Equal(t, ShapeProxy{}, makeShapeDistanceProxy(&s))
 	}
 }

@@ -115,7 +115,9 @@ func (w *World) Explode(explosionDef *ExplosionDef) {
 	falloff := explosionDef.Falloff
 	impulsePerLength := explosionDef.ImpulsePerLength
 
-	assert(IsValidVec2(position))
+	if debugAsserts {
+		assert(IsValidVec2(position))
+	}
 	assert(IsValidFloat(radius) && radius >= 0.0)
 	assert(IsValidFloat(falloff) && falloff >= 0.0)
 	assert(IsValidFloat(impulsePerLength))

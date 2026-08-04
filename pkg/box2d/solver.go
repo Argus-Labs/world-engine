@@ -597,8 +597,10 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		v := state.linearVelocity
 		wAng := state.angularVelocity
 
-		assert(IsValidVec2(v))
-		assert(IsValidFloat(wAng))
+		if debugAsserts {
+			assert(IsValidVec2(v))
+			assert(IsValidFloat(wAng))
+		}
 
 		sim.center = Add(sim.center, state.deltaPosition)
 		sim.transform.Q = NormalizeRot(MulRot(state.deltaRotation, sim.transform.Q))
