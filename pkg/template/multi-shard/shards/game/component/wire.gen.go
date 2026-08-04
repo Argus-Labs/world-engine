@@ -30,10 +30,10 @@ func (c OnlineStatus) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c OnlineStatus) UnmarshalWire(data []byte) (OnlineStatus, error) {
+func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
 	var p component.OnlineStatus
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return OnlineStatus{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -58,10 +58,10 @@ func (c PlayerTag) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c PlayerTag) UnmarshalWire(data []byte) (PlayerTag, error) {
+func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 	var p component.PlayerTag
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return PlayerTag{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -86,10 +86,10 @@ func (c Position) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c Position) UnmarshalWire(data []byte) (Position, error) {
+func (c Position) UnmarshalWire(data []byte) (any, error) {
 	var p component.Position
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return Position{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }

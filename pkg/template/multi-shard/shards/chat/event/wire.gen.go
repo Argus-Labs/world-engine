@@ -33,3 +33,11 @@ func (c UserChat) FromProto(p *event.UserChat) UserChat {
 func (c UserChat) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
+
+func (c UserChat) UnmarshalWire(data []byte) (any, error) {
+	var p event.UserChat
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}

@@ -25,6 +25,14 @@ func (c PlayerDeparture) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
+	var p event.PlayerDeparture
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c PlayerMovement) ToProto() *event.PlayerMovement {
 	p := &event.PlayerMovement{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
@@ -49,6 +57,14 @@ func (c PlayerMovement) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
+func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
+	var p event.PlayerMovement
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
 func (c PlayerSpawn) ToProto() *event.PlayerSpawn {
 	p := &event.PlayerSpawn{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
@@ -71,4 +87,12 @@ func (c PlayerSpawn) FromProto(p *event.PlayerSpawn) PlayerSpawn {
 
 func (c PlayerSpawn) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
+}
+
+func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
+	var p event.PlayerSpawn
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
 }

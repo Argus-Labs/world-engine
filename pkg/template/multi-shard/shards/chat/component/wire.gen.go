@@ -30,10 +30,10 @@ func (c Chat) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c Chat) UnmarshalWire(data []byte) (Chat, error) {
+func (c Chat) UnmarshalWire(data []byte) (any, error) {
 	var p component.Chat
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return Chat{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -58,10 +58,10 @@ func (c UserTag) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c UserTag) UnmarshalWire(data []byte) (UserTag, error) {
+func (c UserTag) UnmarshalWire(data []byte) (any, error) {
 	var p component.UserTag
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return UserTag{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }

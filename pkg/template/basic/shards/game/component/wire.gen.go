@@ -25,10 +25,10 @@ func (c Gravestone) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c Gravestone) UnmarshalWire(data []byte) (Gravestone, error) {
+func (c Gravestone) UnmarshalWire(data []byte) (any, error) {
 	var p component.Gravestone
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return Gravestone{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -51,10 +51,10 @@ func (c Health) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c Health) UnmarshalWire(data []byte) (Health, error) {
+func (c Health) UnmarshalWire(data []byte) (any, error) {
 	var p component.Health
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return Health{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
@@ -77,10 +77,10 @@ func (c PlayerTag) MarshalWire() ([]byte, error) {
 	return proto.Marshal(c.ToProto())
 }
 
-func (c PlayerTag) UnmarshalWire(data []byte) (PlayerTag, error) {
+func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 	var p component.PlayerTag
 	if err := proto.Unmarshal(data, &p); err != nil {
-		return PlayerTag{}, err
+		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
