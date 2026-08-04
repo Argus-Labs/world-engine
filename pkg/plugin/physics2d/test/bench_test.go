@@ -17,8 +17,9 @@ import (
 // ---------------------------------------------------------------------------
 
 // benchWorld creates a Cardinal world suitable for benchmarks (no logging), returning the world
-// and the registered plugin instance.
-func benchWorld(b *testing.B, gravity physics.Vec2) (*cardinal.World, *physics.Plugin) {
+// and the registered plugin instance. workers is the physics Config.Workers for this world
+// (0 = serial); results are byte-identical for every value, so it is a throughput knob only.
+func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	b.Helper()
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
@@ -37,17 +38,11 @@ func benchWorld(b *testing.B, gravity physics.Vec2) (*cardinal.World, *physics.P
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
-		Workers:  benchWorkers,
+		Workers:  workers,
 	})
 	cardinal.RegisterPlugin(w, plugin)
 	return w, plugin
 }
-
-// benchWorkers is the physics Config.Workers used by benchWorld. The step
-// benchmarks run once serially and once at the full core count
-// (BenchmarkStepWorkers) by flipping it around the inner run; results are
-// byte-identical either way, this is throughput only.
-var benchWorkers int
 
 // benchTickN ticks the world n times without test failure checks.
 func benchTickN(w *cardinal.World, n int) {
@@ -64,7 +59,7 @@ func benchTickN(w *cardinal.World, n int) {
 func BenchmarkStep(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			stepBenchScene(b, n)
+			stepBenchScene(b, n, 0)
 		})
 	}
 }
@@ -73,20 +68,18 @@ func BenchmarkStep(b *testing.B) {
 // full core count (Config.Workers = NumCPU). Only the scene sizes where the
 // engine's per-stage grains can actually fan out are interesting.
 func BenchmarkStepWorkers(b *testing.B) {
-	benchWorkers = runtime.NumCPU()
-	defer func() { benchWorkers = 0 }()
 	for _, n := range []int{1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			stepBenchScene(b, n)
+			stepBenchScene(b, n, runtime.NumCPU())
 		})
 	}
 }
 
 // stepBenchScene runs the shared falling-circles step scene at the given body
-// count with the current benchWorkers setting.
-func stepBenchScene(b *testing.B, n int) {
+// count and physics worker count.
+func stepBenchScene(b *testing.B, n, workers int) {
 	b.Helper()
-	w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10})
+	w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10}, workers)
 	bodyCount := n
 
 	cardinal.RegisterSystem(w, func(state *struct {
@@ -150,7 +143,7 @@ func stepBenchScene(b *testing.B, n int) {
 func BenchmarkRaycast(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0})
+			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
@@ -181,7 +174,7 @@ func BenchmarkRaycast(b *testing.B) {
 func BenchmarkOverlapAABB(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0})
+			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
@@ -212,7 +205,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 func BenchmarkCircleSweep(b *testing.B) {
 	for _, n := range []int{100, 500, 1000, 5000} {
 		b.Run(fmt.Sprintf("Bodies_%d", n), func(b *testing.B) {
-			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0})
+			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
 			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))

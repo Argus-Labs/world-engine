@@ -72,15 +72,15 @@ func loadContactBaseline(
 //  2. Step: advance physics simulation, buffer contact/trigger events
 //  3. Writeback: sync Box2D -> ECS (write post-step positions/velocities back to components)
 func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemState) {
-	// Per-tick gather buffers, reused across ticks to avoid re-growing them every call.
-	// Systems for one world run sequentially, so the closure-owned scratch is never shared.
-	var entriesScratch []internal.PhysicsRebuildEntry
-	var wbScratch []internal.WritebackEntry
+	// Both per-tick gather buffers live on the Runtime, not in this closure: they hold
+	// component values and cardinal.Refs, so Reset() has to be able to drop them and each
+	// gather has to clear the tail past its new length (the Keep* helpers do that). Systems
+	// for one world run sequentially, so the runtime-owned scratch is never shared.
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
 		ensurePhysicsSingleton(&state.Singleton)
-		entriesScratch = gatherRebuildEntries(entriesScratch, state.Bodies.Iter())
-		entries := entriesScratch
+		entries := rt.KeepRebuildEntriesScratch(
+			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 
 		if !rt.WorldExists() {
 			if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
@@ -105,15 +105,15 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		}
 
 		// --- 3. Writeback (Box2D -> ECS) ---
-		wbScratch = wbScratch[:0]
+		wb := rt.WritebackScratch()
 		for eid, row := range state.Bodies.Iter() {
-			wbScratch = append(wbScratch, internal.WritebackEntry{
+			wb = append(wb, internal.WritebackEntry{
 				EntityID:    eid,
 				Transform:   row.Transform,
 				Velocity:    row.Velocity,
 				PhysicsBody: row.PhysicsBody,
 			})
 		}
-		rt.WritebackFromStepResults(wbScratch)
+		rt.WritebackFromStepResults(rt.KeepWritebackScratch(wb))
 	}
 }

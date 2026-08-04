@@ -87,11 +87,15 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 
 // sortedEntriesContainID reports whether an EntityID-sorted entries slice contains id.
 // Index-based binary search: comparisons touch only the EntityID field instead of copying
-// whole PhysicsRebuildEntry values the way slices.BinarySearchFunc would.
+// whole PhysicsRebuildEntry values (transform, velocity and the collider with its shape slice)
+// on every step the way slices.BinarySearchFunc's by-value comparator would.
+//
+// The midpoint is lo+(hi-lo)/2 rather than (lo+hi)/2: same overflow safety, but no unsigned
+// round trip, so no integer-conversion lint suppression is needed either.
 func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) bool {
 	lo, hi := 0, len(sorted)
 	for lo < hi {
-		mid := int(uint(lo+hi) >> 1) //nolint:gosec // lo,hi are non-negative slice indices
+		mid := lo + (hi-lo)/2
 		if sorted[mid].EntityID < id {
 			lo = mid + 1
 		} else {
