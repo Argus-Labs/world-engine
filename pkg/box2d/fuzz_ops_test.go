@@ -18,17 +18,22 @@
 // external test package cannot call it. The cheap structural check performed
 // instead is the Counters() sanity pass in checkOpCounters.
 //
-// Known open finding (E14a, not fixed here because this file is test-only):
-// extended `go test -fuzz FuzzWorldOps` runs reach an out-of-range panic in
-// (*World).trySleepIsland at solver_set.go:266, because body.bodyMoveIndex is
-// only cleared in trySleepIsland and at body creation. A body that leaves and
-// re-enters the awake set through SetBodyType keeps the index it was given by
-// an earlier, larger step, and the next SetBodyAwake(id, false) reads it out
-// of the current (shorter) bodyMoveEvents slice. Minimal repro: create three
-// dynamic bodies, Step, SetBodyType(third, StaticBody), destroy the other two,
-// Step, SetBodyType(third, DynamicBody), SetBodyAwake(third, false).
-// Upstream C has the same lifetime gap; there the stale read is unchecked
-// rather than a panic.
+// Finding E14a, found by extended `go test -fuzz FuzzWorldOps` runs and since
+// FIXED: an out-of-range panic in (*World).trySleepIsland, because
+// body.bodyMoveIndex is only cleared in trySleepIsland and at body creation, so
+// a body that leaves and re-enters the awake set through SetBodyType keeps the
+// index it was given by an earlier, larger step and the next
+// SetBodyAwake(id, false) reads it out of the current (shorter)
+// bodyMoveEvents slice. Upstream C has the same lifetime gap; there the stale
+// read is unchecked rather than a panic.
+//
+// The fix is a bounds-and-identity guard at the read site in trySleepIsland
+// (solver_set.go) rather than invalidation at the source, because a move index
+// legitimately stays valid for the whole post-step window. Both halves are
+// pinned by dedicated tests in world_step_test.go:
+// TestStaleBodyMoveIndexNotDereferencedOnAwakeSetExit (the dangling read) and
+// TestFellAsleepReportedAfterAwakeSetRoundTrip (the notification the guard must
+// not cost).
 
 package box2d_test
 
