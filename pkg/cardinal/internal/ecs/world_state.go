@@ -350,23 +350,3 @@ func (ws *worldState) archExact(components bitmap.Bitmap) (archetypeID, bool) {
 	}
 	return 0, false
 }
-
-// archContains returns all archetypes that have the given component types.
-func (ws *worldState) archContains(components bitmap.Bitmap) []archetypeID {
-	result := make([]archetypeID, 0)
-	for aid, archetype := range ws.archetypes {
-		if archetype.contains(components) {
-			result = append(result, aid)
-		}
-	}
-	return result
-}
-
-// archAll returns all archetypes.
-func (ws *worldState) archAll() []archetypeID {
-	result := make([]archetypeID, len(ws.archetypes))
-	for aid := range ws.archetypes {
-		result[aid] = aid
-	}
-	return result
-}

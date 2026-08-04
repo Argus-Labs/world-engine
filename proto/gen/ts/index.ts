@@ -11,7 +11,6 @@ export * from './gateway/v1/unsubscribe_events_pb.js'
 export * from './isc/v1/command_pb.js'
 export * from './isc/v1/epoch_pb.js'
 export * from './isc/v1/event_pb.js'
-export * from './isc/v1/query_pb.js'
 export * from './isc/v1/persona_pb.js'
 
 // Micro v1 exports
