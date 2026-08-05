@@ -642,6 +642,7 @@ func (w *World) DestroyChain(chainID ChainID) {
 // ChainSegmentCount returns the number of segments on this chain shape
 // (upstream b2Chain_GetSegmentCount).
 func (w *World) ChainSegmentCount(chainID ChainID) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -655,6 +656,7 @@ func (w *World) ChainSegmentCount(chainID ChainID) int {
 // up to len(segmentArray), and returns the number of ids stored
 // (upstream b2Chain_GetSegments).
 func (w *World) ChainSegments(chainID ChainID, segmentArray []ShapeID) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -1578,6 +1580,7 @@ func (w *World) ChainSurfaceMaterial(chainID ChainID, segmentIndex int) SurfaceM
 // all the touching contacts on a shape
 // (upstream b2Shape_GetContactCapacity).
 func (w *World) ShapeContactCapacity(shapeID ShapeID) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -1598,6 +1601,7 @@ func (w *World) ShapeContactCapacity(shapeID ShapeID) int {
 // involving a shape, up to len(contactData) elements, and returns the number
 // of elements stored (upstream b2Shape_GetContactData).
 func (w *World) ShapeContactData(shapeID ShapeID, contactData []ContactData) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -1657,6 +1661,7 @@ func (w *World) ShapeContactData(shapeID ShapeID, contactData []ContactData) int
 // all the overlapped shapes on a sensor shape. This returns 0 if the provided
 // shape is not a sensor (upstream b2Shape_GetSensorCapacity).
 func (w *World) ShapeSensorCapacity(shapeID ShapeID) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -1676,6 +1681,7 @@ func (w *World) ShapeSensorCapacity(shapeID ShapeID) int {
 // Overlaps may contain destroyed shapes so use IsShapeValid to confirm each
 // overlap (upstream b2Shape_GetSensorData).
 func (w *World) ShapeSensorData(shapeID ShapeID, visitorIDs []ShapeID) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
