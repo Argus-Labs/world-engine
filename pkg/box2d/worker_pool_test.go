@@ -139,6 +139,35 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 			msg, ok := second.(string)
 			require.Truef(t, ok, "poison panic must be the explicit message string, got %T: %v", second, second)
 			require.Contains(t, msg, "unwound by a panic")
+
+			// The read paths must fail the same way. The latched world lock
+			// would otherwise make every query answer with a zero value — a
+			// wrong answer, not a no-op: a recovering game loop reads (line
+			// of sight, triggers, event drain) before it steps, so it would
+			// act on "nothing is there" for a tick before the Step panic
+			// ever fires.
+			for name, call := range map[string]func(){
+				"CastRay": func() {
+					w.CastRay(box2d.Vec2{X: -20, Y: 1}, box2d.Vec2{X: 40, Y: 0}, box2d.DefaultQueryFilter(),
+						func(box2d.ShapeID, box2d.Vec2, box2d.Vec2, float64, any) float64 { return 1 }, nil)
+				},
+				"OverlapAABB": func() {
+					w.OverlapAABB(box2d.AABB{LowerBound: box2d.Vec2{X: -20, Y: -20}, UpperBound: box2d.Vec2{X: 20, Y: 20}},
+						box2d.DefaultQueryFilter(), func(box2d.ShapeID, any) bool { return true }, nil)
+				},
+				"BodyEvents":    func() { w.BodyEvents() },
+				"ContactEvents": func() { w.ContactEvents() },
+			} {
+				var got any
+				func() {
+					defer func() { got = recover() }()
+					call()
+				}()
+				require.NotNilf(t, got, "%s on a poisoned world must panic, not return a zero value", name)
+				gotMsg, isString := got.(string)
+				require.Truef(t, isString, "%s poison panic must be the explicit message string, got %T: %v", name, got, got)
+				require.Contains(t, gotMsg, "unwound by a panic")
+			}
 		})
 	}
 }
