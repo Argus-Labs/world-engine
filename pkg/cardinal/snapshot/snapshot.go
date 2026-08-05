@@ -32,6 +32,10 @@ type Storage interface {
 	// Load retrieves the current snapshot.
 	// Returns an error if no snapshot exists.
 	Load(ctx context.Context) (*Snapshot, error)
+
+	// Flush blocks until all pending writes have completed or ctx expires.
+	// Synchronous implementations have nothing pending and return nil immediately.
+	Flush(ctx context.Context) error
 }
 
 // StorageType defines the type of snapshot storage to use.

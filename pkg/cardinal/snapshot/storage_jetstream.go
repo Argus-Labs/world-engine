@@ -166,3 +166,8 @@ func (opt *JetStreamStorageOptions) Validate() error {
 	// SnapshotStorageMaxBytes can be 0 which means unlimited storage. No need to validate here.
 	return nil
 }
+
+// Flush is a no-op: JetStreamStorage writes synchronously in Store, so nothing is ever pending.
+func (j *JetStreamStorage) Flush(_ context.Context) error {
+	return nil
+}

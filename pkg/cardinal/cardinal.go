@@ -127,6 +127,9 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		panic("unreachable")
 	}
 
+	// Snapshot writes asynchronous so a slow storage backend can never stall the tick loop.
+	world.snapshotStorage = snapshot.NewAsync(world.snapshotStorage, tel.GetLogger("snapshot"))
+
 	// Create the debug module only if debug is on.
 	if *options.Debug {
 		world.debug = newDebugModule(world)
@@ -265,9 +268,6 @@ func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 // snapshot writes an already-serialized world state to storage, best-effort: errors are logged, not
 // returned, so a failed write doesn't stop the world and lose unsaved state — the next snapshot retries.
 func (w *World) snapshot(ctx context.Context, timestamp time.Time, worldState *cardinalv1.WorldState) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
 	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 	if err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("failed to marshal world state to bytes")
@@ -336,12 +336,18 @@ func (w *World) shutdown() {
 	// instead of being severed on the first cleanup step. Telemetry goes last
 	// so it can flush log lines emitted by every preceding step.
 
-	// 1. Final snapshot. Producer-side; serialize world state for snapshot.
+	// 1. Final snapshot, best-effort: enqueue, then drain the background writer on a short
+	// budget of its own so a hung backend can't starve steps 2-4.
 	if worldState, err := w.world.ToProto(); err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
 	} else {
 		w.snapshot(ctx, time.Now(), worldState)
 	}
+	flushCtx, cancelFlush := context.WithTimeout(ctx, 2*time.Second)
+	if err := w.snapshotStorage.Flush(flushCtx); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("final snapshot may not have persisted")
+	}
+	cancelFlush()
 
 	// 2. Shard service (NATS) — drain queued commands/events. Typically quick,
 	// but the producer side should stop before observers do.
