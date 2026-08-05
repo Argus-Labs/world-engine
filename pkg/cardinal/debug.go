@@ -227,6 +227,8 @@ func timingBatchToProto(b performance.Batch) *cardinalv1.WatchSystemsTimingRespo
 func profileBatchToProto(b performance.Batch) *cardinalv1.ProfileSystemsResponse {
 	ticks := make([]*cardinalv1.SystemsProfile, 0, len(b.Ticks))
 	for _, ts := range b.Ticks {
+		// Do not conflate an unprofiled tick with a profiled tick where no
+		// systems ran; only the latter is meaningful on the profile stream.
 		if !ts.Profiled {
 			continue
 		}
