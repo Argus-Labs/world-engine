@@ -394,13 +394,10 @@ func (w *World) collide(ctx *stepContext) {
 func (w *World) Step(timeStep float64, subStepCount int) {
 	// Checked before the reentrancy guard below: a poisoned world also has
 	// locked latched true, and the silent reentrancy return would otherwise
-	// mask this. Always on (require* tier, not assert): stepping a world
-	// whose previous Step was unwound is a caller-state error, and letting
-	// it freeze silently is far worse to diagnose than a crash.
-	if w.stepPanicked {
-		panic("box2d: Step called on a world whose previous Step was unwound by a panic; " +
-			"the simulation state is incomplete — destroy this world and rebuild it")
-	}
+	// mask this. Stepping a world whose previous Step was unwound is a
+	// caller-state error, and letting it freeze silently is far worse to
+	// diagnose than a crash.
+	w.panicIfPoisoned()
 
 	assert(IsValidFloat(timeStep))
 	assert(0 < subStepCount)
@@ -511,6 +508,7 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 // data is transient — do not store references (upstream
 // b2World_GetBodyEvents).
 func (w *World) BodyEvents() BodyEvents {
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return BodyEvents{}
@@ -525,6 +523,7 @@ func (w *World) BodyEvents() BodyEvents {
 // Step; end events come from the previous end-event buffer, which Step swaps
 // after publishing.
 func (w *World) SensorEvents() SensorEvents {
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return SensorEvents{}
@@ -543,6 +542,7 @@ func (w *World) SensorEvents() SensorEvents {
 // event data is transient — do not store references (upstream
 // b2World_GetContactEvents).
 func (w *World) ContactEvents() ContactEvents {
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return ContactEvents{}
@@ -562,6 +562,7 @@ func (w *World) ContactEvents() ContactEvents {
 // data is transient — do not store references (upstream
 // b2World_GetJointEvents).
 func (w *World) JointEvents() JointEvents {
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return JointEvents{}

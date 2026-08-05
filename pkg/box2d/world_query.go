@@ -97,6 +97,7 @@ func treeQueryCallback(proxyID int, userData uint64, context any) bool {
 func (w *World) OverlapAABB(aabb AABB, filter QueryFilter, fcn OverlapResultFcn, context any) TreeStats {
 	var treeStats TreeStats
 
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return treeStats
@@ -186,6 +187,7 @@ func treeOverlapCallback(proxyID int, userData uint64, context any) bool {
 func (w *World) OverlapShape(proxy *ShapeProxy, filter QueryFilter, fcn OverlapResultFcn, context any) TreeStats {
 	var treeStats TreeStats
 
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return treeStats
@@ -279,6 +281,7 @@ func rayCastCallback(input *RayCastInput, proxyID int, userData uint64, context 
 func (w *World) CastRay(origin, translation Vec2, filter QueryFilter, fcn CastResultFcn, context any) TreeStats {
 	var treeStats TreeStats
 
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return treeStats
@@ -350,6 +353,7 @@ func rayCastClosestFcn(shapeID ShapeID, point, normal Vec2, fraction float64, co
 func (w *World) CastRayClosest(origin, translation Vec2, filter QueryFilter) RayResult {
 	var result RayResult
 
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return result
@@ -449,6 +453,7 @@ func (w *World) CastShape(proxy *ShapeProxy, translation Vec2, filter QueryFilte
 ) TreeStats {
 	var treeStats TreeStats
 
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return treeStats
@@ -544,6 +549,7 @@ func (w *World) CastMover(mover *Capsule, translation Vec2, filter QueryFilter) 
 	}
 	assert(mover.Radius > 2.0*LinearSlop)
 
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return 1.0
@@ -648,6 +654,7 @@ func treeCollideCallback(proxyID int, userData uint64, context any) bool {
 // It is tempting to use a shape proxy for the mover, but this makes handling
 // deep overlap difficult and the generality may not be worth it.
 func (w *World) CollideMover(mover *Capsule, filter QueryFilter, fcn PlaneResultFcn, context any) {
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return

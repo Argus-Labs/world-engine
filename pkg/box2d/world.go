@@ -238,11 +238,13 @@ type World struct {
 	enableContactSoftening bool
 
 	// stepPanicked is set when a panic (or runtime.Goexit) unwound Step
-	// mid-flight, abandoning a half-integrated simulation state. Step checks
-	// it first and panics loudly in every build: continuing would silently
-	// diverge from any deterministic replica, and the latched locked flag
-	// would otherwise turn every later Step into a silent no-op. Destroy
-	// still works on a poisoned world. Go-only state — upstream C has no
+	// mid-flight, abandoning a half-integrated simulation state. Step and
+	// every world-level read path (queries, event accessors, Draw) check it
+	// first via panicIfPoisoned and fail loudly in every build: continuing
+	// would silently diverge from any deterministic replica, and the latched
+	// locked flag would otherwise turn every later Step into a silent no-op
+	// and every read into a silent zero-value wrong answer. Destroy still
+	// works on a poisoned world. Go-only state — upstream C has no
 	// recoverable unwind out of b2World_Step.
 	stepPanicked      bool
 	enableContinuous  bool
@@ -548,6 +550,25 @@ func (w *World) IsWorldValid(id WorldID) bool {
 // reject foreign ids itself. See the file header.
 func (w *World) ownsToken(world0 uint16) bool {
 	return world0 == w.worldID
+}
+
+// stepPanickedMsg names both the cause and the remedy; every poisoned-world
+// panic uses it so a recovered tick fails the same way no matter which entry
+// point it hits first.
+const stepPanickedMsg = "box2d: this world's previous Step was unwound by a panic; " +
+	"the simulation state is incomplete — destroy this world and rebuild it"
+
+// panicIfPoisoned fails loudly on a world whose Step was unwound by a panic
+// (see the stepPanicked field). It runs BEFORE the assert(!w.locked)
+// reentrancy guards so the box2d_asserts build reports this message instead
+// of a bare assertion failure, and it is always on (require* tier): the
+// latched lock would otherwise turn reads into silent zero-value wrong
+// answers. On the genuinely reentrant path (a query from inside a step
+// callback) stepPanicked is false, so behavior there is unchanged.
+func (w *World) panicIfPoisoned() {
+	if w.stepPanicked {
+		panic(stepPanickedMsg)
+	}
 }
 
 // IsBodyValid reports whether a body id is valid in this world. Can be used

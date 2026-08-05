@@ -188,6 +188,7 @@ const (
 // bit per touched body; the second pass then walks the body bit set so each
 // body is visited exactly once regardless of how many shapes it owns.
 func (w *World) Draw(draw *DebugDraw) {
+	w.panicIfPoisoned()
 	assert(!w.locked)
 	if w.locked {
 		return
