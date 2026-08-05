@@ -75,6 +75,30 @@ func TestCollector_UnsubscribeIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestCollector_LastUnsubscribeClearsPendingTicks(t *testing.T) {
+	c := NewCollector(5)
+	ch := c.SubscribeTimings()
+
+	now := time.Now()
+	for i := range 3 {
+		captureSystemSpans := c.StartTick()
+		c.RecordTick(captureSystemSpans, uint64(i), now, time.Now())
+	}
+	c.Unsubscribe(ch)
+
+	freshCh := c.SubscribeTimings()
+	t.Cleanup(func() { c.Unsubscribe(freshCh) })
+	for i := range 5 {
+		captureSystemSpans := c.StartTick()
+		c.RecordTick(captureSystemSpans, uint64(100+i), now, time.Now())
+	}
+
+	batch := <-freshCh
+	require.Len(t, batch.Ticks, 5)
+	assert.Equal(t, uint64(100), batch.Ticks[0].TickHeight)
+	assert.Equal(t, uint64(104), batch.Ticks[4].TickHeight)
+}
+
 func TestCollector_NonBlockingSend(t *testing.T) {
 	c := NewCollector(1)
 	c.SubscribeTimings()
@@ -261,4 +285,24 @@ func TestCollector_ProfileSubscriberDisconnectingMidTickFinishesCapturedTick(t *
 	assert.True(t, batch.Ticks[0].Profiled)
 	assert.Len(t, batch.Ticks[0].Spans, 1)
 	assert.False(t, c.StartTick(), "the next tick should not capture after the profile subscriber leaves")
+}
+
+func TestCollector_ProfileSubscriberReplacingMidTickReceivesCapturedTick(t *testing.T) {
+	c := NewCollector(1)
+	profilesCh := c.SubscribeProfiles()
+
+	captureSystemSpans := c.StartTick()
+	require.True(t, captureSystemSpans)
+	systemPhaseStartedAt := time.Now()
+	c.RecordSpan(TickSpan{SystemName: "sys", StartTime: systemPhaseStartedAt})
+	c.Unsubscribe(profilesCh)
+
+	replacementCh := c.SubscribeProfiles()
+	t.Cleanup(func() { c.Unsubscribe(replacementCh) })
+	c.RecordTick(captureSystemSpans, 1, time.Now(), systemPhaseStartedAt)
+
+	batch := <-replacementCh
+	require.Len(t, batch.Ticks, 1)
+	assert.True(t, batch.Ticks[0].Profiled)
+	assert.Len(t, batch.Ticks[0].Spans, 1)
 }

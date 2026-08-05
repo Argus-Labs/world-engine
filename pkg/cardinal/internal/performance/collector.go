@@ -67,9 +67,10 @@ func NewCollector(batchSize int) *Collector {
 	}
 }
 
-// StartTick returns whether the next tick should capture per-system spans. The
-// result must be carried through RecordTick so one tick cannot be partially
-// profiled when a profile subscriber connects or disconnects mid-tick.
+// StartTick returns whether the tick that is about to run should capture
+// per-system spans. The result must be carried through RecordTick so one tick
+// cannot be partially profiled when a profile subscriber connects or
+// disconnects mid-tick.
 func (c *Collector) StartTick() bool {
 	if c.systemSpanSubscriberCount.Load() == 0 {
 		return false
@@ -203,6 +204,8 @@ func (c *Collector) Unsubscribe(ch <-chan Batch) {
 			}
 			if len(c.subscribers) == 0 {
 				c.pending = c.pending[:0]
+				// Keep currentSpans: StartTick latches capture for the whole tick,
+				// and a new profile subscriber may join before RecordTick flushes it.
 			}
 			return
 		}
