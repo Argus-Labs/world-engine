@@ -116,6 +116,13 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 
 			buildWorkerStressScene(w)
 
+			// A live body id for the per-body read paths below.
+			probeDef := box2d.DefaultBodyDef()
+			probeDef.Type = box2d.DynamicBody
+			probeDef.Position = box2d.Vec2{X: 0.0, Y: 30.0}
+			probeBody := w.CreateBody(&probeDef)
+			require.True(t, w.IsBodyValid(probeBody))
+
 			var fired atomic.Bool
 			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 				if fired.CompareAndSwap(false, true) {
@@ -157,6 +164,12 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 				},
 				"BodyEvents":    func() { w.BodyEvents() },
 				"ContactEvents": func() { w.ContactEvents() },
+				// The per-body read paths feed physics2d's contact gather; a
+				// silent zero capacity there turns into a spurious ContactEnd
+				// for every persisted touching pair.
+				"BodyContactCapacity": func() { w.BodyContactCapacity(probeBody) },
+				"BodyContactData":     func() { w.BodyContactData(probeBody, nil) },
+				"ComputeBodyAABB":     func() { w.ComputeBodyAABB(probeBody) },
 			} {
 				var got any
 				func() {

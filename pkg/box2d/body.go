@@ -605,6 +605,7 @@ func (w *World) DestroyBody(bodyID BodyID) {
 // BodyContactCapacity returns the maximum capacity required for retrieving
 // all the touching contacts on a body (upstream b2Body_GetContactCapacity).
 func (w *World) BodyContactCapacity(bodyID BodyID) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -620,6 +621,7 @@ func (w *World) BodyContactCapacity(bodyID BodyID) int {
 // body, up to len(contactData) elements, and returns the number of elements
 // stored (upstream b2Body_GetContactData).
 func (w *World) BodyContactData(bodyID BodyID, contactData []ContactData) int {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return 0
@@ -676,6 +678,7 @@ func (w *World) BodyContactData(bodyID BodyID, contactData []ContactData) int {
 // are no shapes attached then the returned AABB is empty and centered on the
 // body origin (upstream b2Body_ComputeAABB).
 func (w *World) ComputeBodyAABB(bodyID BodyID) AABB {
+	w.panicIfPoisoned()
 	if w.locked {
 		assert(false)
 		return AABB{}

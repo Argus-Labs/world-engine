@@ -565,6 +565,14 @@ const stepPanickedMsg = "box2d: this world's previous Step was unwound by a pani
 // latched lock would otherwise turn reads into silent zero-value wrong
 // answers. On the genuinely reentrant path (a query from inside a step
 // callback) stepPanicked is false, so behavior there is unchanged.
+//
+// Scope — a deliberate contract call: Step and every READ path (the world
+// queries, event accessors, Draw, and the per-body/shape/chain data getters)
+// check the poison, because a zero-value read is a wrong answer a caller
+// acts on. The MUTATORS keep their plain locked-guard shape unchecked: a
+// recovered tick cannot complete without hitting a read or Step, so it dies
+// loudly before its writes can matter, and threading the check through the
+// ~30 locked-guarded setters would buy no additional safety for the churn.
 func (w *World) panicIfPoisoned() {
 	if w.stepPanicked {
 		panic(stepPanickedMsg)
