@@ -14,7 +14,7 @@ import (
 // CurrentVersion is the snapshot format this build writes and the only one it reads. Bump it
 // whenever the envelope or the world state inside it stops being readable by the previous layout,
 // and see ValidateVersion for what a bump obliges you to write first.
-const CurrentVersion uint32 = 1
+const CurrentVersion uint32 = 2
 
 var (
 	ErrSnapshotNotFound = errors.New("snapshot not found")
@@ -34,8 +34,9 @@ var (
 //   - version > CurrentVersion is refused. The snapshot comes from a newer build whose layout this
 //     one does not know. Protobuf decodes unknown layouts happily, so without this check a newer
 //     snapshot would be silently mis-read into a wrong world rather than refused.
-//   - 0 < version < CurrentVersion is refused. Unreachable while CurrentVersion is 1, and it stays
-//     refused after a bump until somebody writes the migration described below.
+//   - 0 < version < CurrentVersion is refused until somebody writes the migration described below.
+//     Protobuf ignores fields it no longer knows, so a version-1 snapshot still decodes cleanly and
+//     this check is all that stands between it and a silently wrong world.
 //   - version == 0 is refused. The field is unset, meaning either a writer from before the envelope
 //     carried a version or a corrupt envelope. Every writer since the field existed sets it, so 0
 //     is never something this code could have produced.

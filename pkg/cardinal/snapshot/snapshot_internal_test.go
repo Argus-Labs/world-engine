@@ -14,31 +14,28 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// goldenSnapshotBytes is the wire encoding of goldenSnapshot(), captured from the write path that
-// marshaled the world state in cardinal.go and re-marshaled the envelope inside the backend. The
-// envelope is a persisted format: these bytes must not change.
-const goldenSnapshotBytes = "082a120b0880e2cfaa0610959aef3a1a750807120203051a0d00fffffffffffffffff" +
-	"f01010022391201031a0c00ffffffffffffffffff0101220201042a110a08506f736974696f6e12020102120103" +
-	"2a0f0a0856656c6f6369747912001201ff22230801120205001a0bffffffffffffffffff01002201022a0b0a064" +
-	"865616c746812012a2001"
+// goldenSnapshotBytes is the wire encoding of goldenSnapshot() at format version 2, the first
+// version that no longer persists the derived sparse-set tables (Archetype.rows and
+// WorldState.entity_arch). The envelope is a persisted format: these bytes must not change.
+const goldenSnapshotBytes = "082a120b0880e2cfaa0610959aef3a1a4b080712020305222b12010322020104" +
+	"2a110a08506f736974696f6e120201021201032a0f0a0856656c6f6369747912001201ff2216080112020500" +
+	"2201022a0b0a064865616c746812012a2002"
 
 // goldenSnapshot is a fixed envelope covering every field of Snapshot, WorldState, Archetype and
-// Column, including the edge cases that are easy to break: a negative sparse-set tombstone, an
-// empty component blob, and a multi-byte bitmap.
+// Column, including the edge cases that are easy to break: an empty component blob and a
+// multi-byte bitmap.
 func goldenSnapshot() *cardinalv1.Snapshot {
 	return &cardinalv1.Snapshot{
 		TickHeight: 42,
 		Timestamp:  timestamppb.New(time.Unix(1700000000, 123456789).UTC()),
 		Version:    CurrentVersion,
 		WorldState: &cardinalv1.WorldState{
-			NextId:     7,
-			FreeIds:    []uint32{3, 5},
-			EntityArch: []int64{0, -1, 1, 0},
+			NextId:  7,
+			FreeIds: []uint32{3, 5},
 			Archetypes: []*cardinalv1.Archetype{
 				{
 					Id:               0,
 					ComponentsBitmap: []byte{0x03},
-					Rows:             []int64{0, -1, 1},
 					Entities:         []uint32{1, 4},
 					Columns: []*cardinalv1.Column{
 						{ComponentName: "Position", Components: [][]byte{{0x01, 0x02}, {0x03}}},
@@ -48,7 +45,6 @@ func goldenSnapshot() *cardinalv1.Snapshot {
 				{
 					Id:               1,
 					ComponentsBitmap: []byte{0x05, 0x00},
-					Rows:             []int64{-1, 0},
 					Entities:         []uint32{2},
 					Columns: []*cardinalv1.Column{
 						{ComponentName: "Health", Components: [][]byte{{0x2a}}},
@@ -92,9 +88,9 @@ func TestMarshalSnapshotDetectsEnvelopeChange(t *testing.T) {
 			ents := s.GetWorldState().GetArchetypes()[0].GetEntities()
 			ents[0], ents[1] = ents[1], ents[0]
 		},
-		"sparse set length": func(s *cardinalv1.Snapshot) {
+		"free list": func(s *cardinalv1.Snapshot) {
 			ws := s.GetWorldState()
-			ws.EntityArch = append(ws.GetEntityArch(), -1)
+			ws.FreeIds = append(ws.GetFreeIds(), 9)
 		},
 	}
 	for name, mutate := range mutations {
@@ -155,12 +151,13 @@ func TestValidateVersion(t *testing.T) {
 	cases := []versionCase{
 		{name: "current", version: CurrentVersion},
 		{name: "unset", version: 0, wantErr: "predates the versioned format"},
-		{name: "newer", version: CurrentVersion + 1, wantErr: "is version 2 but this build only reads version 1"},
-		{name: "far newer", version: 99, wantErr: "is version 99 but this build only reads version 1"},
+		{name: "newer", version: CurrentVersion + 1, wantErr: "is version 3 but this build only reads version 2"},
+		{name: "far newer", version: 99, wantErr: "is version 99 but this build only reads version 2"},
 	}
-	// Refusing an older version is unreachable while CurrentVersion is 1. The case is written
-	// anyway so that a bump exercises it: after one, an old snapshot must fail at boot rather than
-	// be decoded into the new layout, until somebody adds the read path ValidateVersion demands.
+	// An older version must fail at boot rather than be decoded into the new layout, until somebody
+	// adds the read path ValidateVersion demands. Version 1 is decodable by the current schema,
+	// which reserves the fields it dropped, so this case is what keeps "decodable" from being
+	// mistaken for "accepted".
 	if CurrentVersion > 1 {
 		cases = append(cases, versionCase{
 			name:    "older",

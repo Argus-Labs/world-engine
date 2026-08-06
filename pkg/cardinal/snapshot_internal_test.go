@@ -2,6 +2,8 @@ package cardinal
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -135,6 +137,108 @@ func TestSnapshotRoundTripThroughStorage(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(want, got), "restore must rebuild the world whether or not debug is on")
 	assert.Nil(t, quiet.state.Load(), "restore must not publish state when debug is off")
+}
+
+// TestRestoredWorldStaysUsable drives a restored world instead of only comparing it.
+//
+// Since format version 2 the entity -> archetype and entity -> row tables are rebuilt on load
+// rather than persisted, which leaves two things a proto comparison cannot see. ToProto no longer
+// emits either table, so TestSnapshotRoundTripThroughStorage's proto.Equal would pass even if the
+// rebuild produced garbage. And a rebuilt table is sized to the highest live entity, while the
+// table it replaces grew to the high-water mark of every ID ever allocated — so the restored world
+// starts with shorter backing arrays than the one it came from.
+//
+// The cover for both is to use the world after restoring it: read every survivor, then create,
+// destroy, and snapshot again.
+func TestRestoredWorldStaysUsable(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	store := &memSnapshotStorage{t: t}
+
+	src, srcState := newSnapshotTestWorld(t, store)
+	seedSnapshotWorld(t, srcState)
+	src.currentTick.height = 7
+
+	// The world as it stood before it was ever serialized. seedSnapshotWorld destroys one of the
+	// entities it creates, so the tables being rebuilt carry a tombstone and the free list is
+	// non-empty — the shape most likely to expose a bad rebuild.
+	want := map[EntityID]Position3D{}
+	for eid, e := range srcState.Entities.Iter() {
+		want[eid] = e.Position.Get()
+	}
+	require.Len(t, want, 5, "fixture should leave five live entities")
+
+	pb, err := src.world.ToProto()
+	require.NoError(t, err)
+	src.snapshot(time.Unix(1700000000, 0).UTC(), pb)
+
+	dst, dstState := newSnapshotTestWorld(t, store)
+	require.NoError(t, dst.restore(ctx))
+
+	// Every survivor resolves through the rebuilt tables, by iteration and by ID. Iteration walks
+	// archetype entity lists; GetByID goes through entityArch and rows, so the two paths agreeing
+	// is what says the rebuild matches the data it was derived from.
+	got := map[EntityID]Position3D{}
+	for eid, e := range dstState.Entities.Iter() {
+		got[eid] = e.Position.Get()
+	}
+	assert.Equal(t, want, got, "restored world iterates a different entity set")
+
+	for eid, pos := range want {
+		e, err := dstState.Entities.GetByID(eid)
+		require.NoError(t, err, "entity %d unreachable after restore", eid)
+		assert.Equal(t, pos, e.Position.Get(), "entity %d has the wrong position after restore", eid)
+	}
+
+	// A create must extend the shortened tables rather than write past them, and must not hand out
+	// an ID that is already live.
+	newID, newEntity := dstState.Entities.Create()
+	newEntity.Position.Set(Position3D{X: 99})
+	assert.NotContains(t, want, newID, "create reused a live entity ID")
+
+	fetched, err := dstState.Entities.GetByID(newID)
+	require.NoError(t, err, "entity created after restore is unreachable")
+	assert.Equal(t, Position3D{X: 99}, fetched.Position.Get())
+
+	// Destroying a restored entity swap-removes it from its archetype, which rewrites the row of
+	// whichever entity was moved into the freed slot. Sorted so a failure names the same entity on
+	// every run.
+	doomed := slices.Sorted(maps.Keys(want))[0]
+	require.True(t, dstState.Entities.Destroy(doomed))
+	_, err = dstState.Entities.GetByID(doomed)
+	require.Error(t, err, "destroyed entity still resolves after restore")
+
+	for eid, pos := range want {
+		if eid == doomed {
+			continue
+		}
+		e, err := dstState.Entities.GetByID(eid)
+		require.NoError(t, err, "entity %d was lost when %d was destroyed", eid, doomed)
+		assert.Equal(t, pos, e.Position.Get(), "entity %d took the wrong row when %d was destroyed", eid, doomed)
+	}
+
+	// Finally, the mutated world has to survive being snapshotted and restored again. A rebuild
+	// that is self-consistent but disagrees with the archetype entity lists can pass everything
+	// above and still produce a second-generation snapshot that does not match.
+	dst.currentTick.height = 11
+	mutated, err := dst.world.ToProto()
+	require.NoError(t, err)
+	dst.snapshot(time.Unix(1700000001, 0).UTC(), mutated)
+
+	third, thirdState := newSnapshotTestWorld(t, store)
+	require.NoError(t, third.restore(ctx))
+
+	reloaded, err := third.world.ToProto()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(mutated, reloaded), "second-generation restore differs from what was stored")
+
+	final := map[EntityID]Position3D{}
+	for eid, e := range thirdState.Entities.Iter() {
+		final[eid] = e.Position.Get()
+	}
+	assert.Len(t, final, len(want), "entity count drifted across two restores")
+	assert.NotContains(t, final, doomed, "destroyed entity came back through a second restore")
 }
 
 // TestRestoreChecksSnapshotVersion covers the guard that makes a future format change safe: a

@@ -98,8 +98,6 @@ type WorldState struct {
 	// Entity manager state
 	NextId  uint32   `protobuf:"varint,1,opt,name=next_id,json=nextId,proto3" json:"next_id,omitempty"`
 	FreeIds []uint32 `protobuf:"varint,2,rep,packed,name=free_ids,json=freeIds,proto3" json:"free_ids,omitempty"`
-	// Entity to archetype mapping as sparse set
-	EntityArch []int64 `protobuf:"varint,3,rep,packed,name=entity_arch,json=entityArch,proto3" json:"entity_arch,omitempty"`
 	// Archetypes in the world state
 	Archetypes    []*Archetype `protobuf:"bytes,4,rep,name=archetypes,proto3" json:"archetypes,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -150,13 +148,6 @@ func (x *WorldState) GetFreeIds() []uint32 {
 	return nil
 }
 
-func (x *WorldState) GetEntityArch() []int64 {
-	if x != nil {
-		return x.EntityArch
-	}
-	return nil
-}
-
 func (x *WorldState) GetArchetypes() []*Archetype {
 	if x != nil {
 		return x.Archetypes
@@ -171,8 +162,6 @@ type Archetype struct {
 	Id int32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Bitmap representing component types in this archetype
 	ComponentsBitmap []byte `protobuf:"bytes,2,opt,name=components_bitmap,json=componentsBitmap,proto3" json:"components_bitmap,omitempty"`
-	// Entity to row mapping as sparse set
-	Rows []int64 `protobuf:"varint,3,rep,packed,name=rows,proto3" json:"rows,omitempty"`
 	// List of entity IDs in this archetype
 	Entities []uint32 `protobuf:"varint,4,rep,packed,name=entities,proto3" json:"entities,omitempty"`
 	// Columns containing component data
@@ -221,13 +210,6 @@ func (x *Archetype) GetId() int32 {
 func (x *Archetype) GetComponentsBitmap() []byte {
 	if x != nil {
 		return x.ComponentsBitmap
-	}
-	return nil
-}
-
-func (x *Archetype) GetRows() []int64 {
-	if x != nil {
-		return x.Rows
 	}
 	return nil
 }
@@ -312,20 +294,17 @@ const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12D\n" +
 	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateR\n" +
 	"worldState\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\rR\aversion\"\xa5\x01\n" +
+	"\aversion\x18\x04 \x01(\rR\aversion\"\x84\x01\n" +
 	"\n" +
 	"WorldState\x12\x17\n" +
 	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12\x19\n" +
-	"\bfree_ids\x18\x02 \x03(\rR\afreeIds\x12\x1f\n" +
-	"\ventity_arch\x18\x03 \x03(\x03R\n" +
-	"entityArch\x12B\n" +
+	"\bfree_ids\x18\x02 \x03(\rR\afreeIds\x12B\n" +
 	"\n" +
 	"archetypes\x18\x04 \x03(\v2\".worldengine.cardinal.v1.ArchetypeR\n" +
-	"archetypes\"\xb3\x01\n" +
+	"archetypes\"\x9f\x01\n" +
 	"\tArchetype\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12+\n" +
-	"\x11components_bitmap\x18\x02 \x01(\fR\x10componentsBitmap\x12\x12\n" +
-	"\x04rows\x18\x03 \x03(\x03R\x04rows\x12\x1a\n" +
+	"\x11components_bitmap\x18\x02 \x01(\fR\x10componentsBitmap\x12\x1a\n" +
 	"\bentities\x18\x04 \x03(\rR\bentities\x129\n" +
 	"\acolumns\x18\x05 \x03(\v2\x1f.worldengine.cardinal.v1.ColumnR\acolumns\"X\n" +
 	"\x06Column\x12.\n" +
