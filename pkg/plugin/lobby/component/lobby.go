@@ -319,6 +319,13 @@ func (idx *LobbyIndexComponent) GetLobbyByInviteCode(inviteCode string) (string,
 	return lobbyID, exists
 }
 
+// InviteCodeCount returns how many invite codes the index currently resolves. Intended
+// for diagnostics: a failed join against a count of zero means the index holds no codes
+// at all, which is a different fault from a single lobby having gone away.
+func (idx *LobbyIndexComponent) InviteCodeCount() int {
+	return len(idx.InviteCodeToLobby)
+}
+
 // GetPlayerLobby returns the lobby ID for a player.
 func (idx *LobbyIndexComponent) GetPlayerLobby(playerID string) (string, bool) {
 	lobbyID, exists := idx.PlayerToLobby[playerID]

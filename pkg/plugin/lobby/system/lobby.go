@@ -963,10 +963,8 @@ func processTimedOutLobby(
 		lobbyIndex.RemovePlayerFromLobby(p.playerID)
 		playerEntities = append(playerEntities, cardinal.EntityID(p.playerEntityID))
 
-		// Warn, not info: a client that stopped heartbeating is a fault, not a lifecycle
-		// event. It is also the only server-side evidence that a player was dropped
-		// without asking to leave, so it must stay visible at any threshold an operator
-		// would realistically run.
+		// Warn: the only server-side evidence that a player was dropped without asking to
+		// leave. Expect routine volume from mobile clients backgrounding or losing network.
 		state.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("player_id", p.playerID).
@@ -978,18 +976,15 @@ func processTimedOutLobby(
 	// Check if lobby is empty
 	if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
 		lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
-		// Mirrors the field set on the leave-path deletion so both causes can be
-		// compared directly; see that call site for why each field is here. Warn rather
-		// than info because losing a lobby to heartbeat expiry means its members were
-		// disconnected without asking to leave — unlike the leave path, which is the
-		// normal way a lobby ends and stays at info.
+		// Warn rather than info: losing a lobby to heartbeat expiry means its members were
+		// disconnected without asking to leave, unlike the leave path which stays at info.
 		state.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", lobby.InviteCode).
 			Str("reason", "empty_after_timeout").
 			Str("leader_id", lobby.LeaderID).
 			Str("session_state", string(lobby.Session.State)).
-			Msg("Lobby marked for deletion (empty after timeout)")
+			Msg("Lobby deleted")
 		state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{LobbyID: lobbyID})
 		return playerEntities, &lobbyToDestroy{
 			entityID: cardinal.EntityID(lobbyEntityID),
@@ -1026,14 +1021,12 @@ func processHeartbeatCommands(
 		playerID := cmd.Persona
 		lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 
-		// A heartbeat for a player the index does not know is dropped, and that drop is
-		// the only evidence of several real faults: a client heartbeating under a
-		// different persona than it joined with, or one still heartbeating for a lobby
-		// that has already been deleted. Logging it at debug hid those in production, so
-		// the dropped case is a warning while the healthy case stays at debug. It only
-		// fires when something is genuinely wrong, so it does not add steady-state noise.
+		// Deliberately Debug, not Warn: this branch is dominated by the benign case of a
+		// client whose player was already removed still beating until it notices, which at
+		// client beat intervals is a sustained stream per client. Raise to Warn only
+		// temporarily, when hunting a specific incident.
 		if !exists {
-			state.Logger().Warn().
+			state.Logger().Debug().
 				Str("player_id", playerID).
 				Msg("heartbeat dropped: player not in any lobby")
 			continue
@@ -1274,14 +1267,13 @@ func processCreateLobbyCommands(
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
 
-		// invite_code is recorded here because this is the only point at which a code
-		// is bound to a lobby ID. Without it, an operator holding a code that failed
-		// to join has no way to reach the lobby it belonged to, and so no way to find
-		// out how or when that lobby ended.
+		// Deliberately does NOT log invite_code: the code is live at this point, and it is
+		// the only gate on joining this lobby, so writing it here would let anyone with
+		// log access join. Correlate via leader_id (the creating persona) and lobby_id;
+		// the code appears only once it is dead, on the deletion and rotation paths.
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("leader_id", playerID).
-			Str("invite_code", inviteCode).
 			Str("preset", payload.Preset).
 			Str("request_id", payload.RequestID).
 			Int64("created_at", now).
@@ -1326,32 +1318,26 @@ func processJoinLobbyCommands(
 			continue
 		}
 
-		// Find lobby by invite code.
-		//
-		// known_codes distinguishes the two very different causes of this rejection: a
-		// count of zero means the index holds no codes at all (systemic — nothing can be
-		// joined), while a non-zero count means this one lobby is gone while others are
-		// fine. Both present identically to the player, so without the count an operator
-		// cannot tell a dead lobby from a broken shard.
+		// known_codes separates a systemic empty index from a single lobby having gone
+		// away; both present identically to the player. Note it cannot distinguish either
+		// from a code retired by rotation — see the old_invite_code field on
+		// processGenerateInviteCodeCommands for that case.
 		lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
 		if !exists {
 			state.Logger().Warn().
 				Str("invite_code", payload.InviteCode).
 				Str("player_id", playerID).
 				Str("request_id", payload.RequestID).
-				Int("known_codes", len(lobbyIndex.InviteCodeToLobby)).
+				Int("known_codes", lobbyIndex.InviteCodeCount()).
 				Msg("invalid invite code")
 			emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
 			continue
 		}
 
-		// Both branches below are index corruption, not user error: the invite code
-		// resolved to a lobby ID, so InviteCodeToLobby and LobbyIDToEntity disagree, or
-		// the entity they agree on has been destroyed. Either means some lobby is
-		// permanently unjoinable while still advertising a working code. Logged at error
-		// because it is an invariant violation in this plugin that no operator action can
-		// cause, and both paths were previously silent — the player saw "lobby not found"
-		// and the server recorded nothing.
+		// Both branches are index corruption, not user error: the code resolved, so
+		// InviteCodeToLobby and LobbyIDToEntity disagree, or the entity they agree on is
+		// gone. Either leaves a lobby permanently unjoinable while advertising a working
+		// code. Error, because only a bug in this plugin can produce it.
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
 		if !exists {
 			state.Logger().Error().
@@ -1420,11 +1406,11 @@ func processJoinLobbyCommands(
 		)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, targetTeam.TeamID, uint32(playerEntityID), now+timeout)
 
+		// invite_code omitted: still live. See the note on "Lobby created".
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("team_id", targetTeam.TeamID).
-			Str("invite_code", payload.InviteCode).
 			Str("request_id", payload.RequestID).
 			Msg("Player joined lobby")
 
@@ -1589,12 +1575,10 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 			lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
 			state.Lobbies.Destroy(result.entityID)
 
-			// reason is a field rather than part of the message so the two deletion
-			// paths can be aggregated and compared. triggered_by names the leave that
-			// emptied the lobby: this line is emitted before the "Player left lobby"
-			// line below, so without it the cause has to be inferred from adjacency.
-			// request_id makes a redelivered or duplicated leave visible as the same
-			// ID appearing twice.
+			// Both deletion paths share this message so reason is the aggregation
+			// dimension. triggered_by names the leave that emptied the lobby, since this
+			// line precedes "Player left lobby". request_id exposes a duplicated or
+			// redelivered leave as the same ID appearing twice.
 			state.Logger().Info().
 				Str("lobby_id", lobbyID).
 				Str("invite_code", lobby.InviteCode).
@@ -1603,7 +1587,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 				Str("request_id", payload.RequestID).
 				Str("leader_id", lobby.LeaderID).
 				Str("session_state", string(lobby.Session.State)).
-				Msg("Lobby deleted (empty)")
+				Msg("Lobby deleted")
 
 			// Emit broadcast event for lobby deletion
 			state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{
@@ -2261,9 +2245,12 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 
 		lobbyIndex.UpdateInviteCode(lobbyID, oldCode, newCode)
 
+		// Only the retired code is logged; the new one is live. Rotation removes oldCode
+		// from the index, so anyone still holding it gets "invalid invite code" against a
+		// healthy index and a live lobby — untraceable unless recorded here.
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
-			Str("invite_code", newCode).
+			Str("old_invite_code", oldCode).
 			Msg("New invite code generated")
 
 		// Emit broadcast event
@@ -2472,13 +2459,9 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *component
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		// Get caller's lobby.
-		//
-		// Clients typically send this to resync after losing and regaining focus, so this
-		// rejection is the moment a client learns its lobby is gone. It is the server-side
-		// counterpart to a client silently tearing down its lobby view, and was previously
-		// unlogged — leaving no way to correlate a client that gave up with the server
-		// state that caused it.
+		// Clients send this to resync after regaining focus, so this rejection is the
+		// moment one learns its lobby is gone — the server-side counterpart to a client
+		// silently tearing down its lobby view.
 		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
 		if result == nil {
 			state.Logger().Warn().
@@ -2628,9 +2611,9 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 	for _, toDestroy := range lobbiesToDestroy {
 		failPendingAssignment(&state.StartSessionResults, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
 		state.Lobbies.Destroy(toDestroy.entityID)
-		state.Logger().Info().
-			Str("lobby_id", toDestroy.lobbyID).
-			Msg("Lobby deleted (empty after timeout)")
+		// No log here: processTimedOutLobby already recorded this deletion in the same
+		// tick, with the invite code and reason. A second line for one event, at a
+		// different level and wording, only made the pair ambiguous.
 	}
 
 	// Save lobby index
