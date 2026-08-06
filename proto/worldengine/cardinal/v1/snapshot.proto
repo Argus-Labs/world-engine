@@ -26,9 +26,6 @@ message WorldState {
 
   repeated uint32 free_ids = 2;
 
-  // Entity to archetype mapping as sparse set
-  repeated int64 entity_arch = 3;
-  
   // Archetypes in the world state
   repeated Archetype archetypes = 4;
 }
@@ -40,9 +37,6 @@ message Archetype {
 
   // Bitmap representing component types in this archetype
   bytes components_bitmap = 2;
-
-  // Entity to row mapping as sparse set
-  repeated int64 rows = 3;
 
   // List of entity IDs in this archetype
   repeated uint32 entities = 4;

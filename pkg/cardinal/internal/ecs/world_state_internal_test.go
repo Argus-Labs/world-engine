@@ -525,7 +525,7 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 	assert.Equal(t, ws1.nextID, ws2.nextID)
 	assert.Equal(t, ws1.free, ws2.free)
-	assert.Equal(t, ws1.entityArch, ws2.entityArch)
+	assertSparseSetEqual(t, ws1.entityArch, ws2.entityArch)
 
 	assert.Len(t, ws2.archetypes, len(ws1.archetypes))
 	for i := range ws1.archetypes {
