@@ -994,7 +994,6 @@ func createPlayerEntity(
 // lobbyToDestroy holds info about a lobby to be destroyed.
 type lobbyToDestroy struct {
 	entityID cardinal.EntityID
-	lobbyID  string
 	// lobby is the last-read snapshot of the lobby component, used by the
 	// caller to emit a failure StartSessionResult if the lobby was in
 	// SessionStateAwaitingAllocation at destruction time.
@@ -1028,8 +1027,11 @@ func processTimedOutLobby(
 		lobbyIndex.RemovePlayerFromLobby(p.playerID)
 		playerEntities = append(playerEntities, cardinal.EntityID(p.playerEntityID))
 
-		// Warn: the only server-side evidence that a player was dropped without asking to
-		// leave. Expect routine volume from mobile clients backgrounding or losing network.
+		// Deliberately elevated to Warn for an open investigation into lobbies dying under
+		// active hosts; this is the only line naming which player was dropped and when.
+		// Bounded at one per player, so it cannot flood. Restore to Info once that is
+		// closed: a backgrounded mobile client reaching here is routine, not actionable,
+		// and "Lobby deleted" below carries the actionable signal at lower volume.
 		state.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("player_id", p.playerID).
@@ -1053,7 +1055,6 @@ func processTimedOutLobby(
 		state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{LobbyID: lobbyID})
 		return playerEntities, &lobbyToDestroy{
 			entityID: cardinal.EntityID(lobbyEntityID),
-			lobbyID:  lobbyID,
 			lobby:    lobby,
 		}
 	}
@@ -2634,13 +2635,11 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 
 	// Destroy empty lobbies
 	for _, toDestroy := range lobbiesToDestroy {
-		// The reason names the lobby: it is delivered to a client whose session start is
-		// being failed, and "which lobby" is the first thing needed to act on it.
-		failPendingAssignment(
-			&state.StartSessionResults,
-			&toDestroy.lobby,
-			"lobby "+toDestroy.lobbyID+" deleted (timeout) before shard assignment",
-		)
+		// reason must stay a constant: it is broadcast to the client in
+		// StartSessionResult.Message, which clients may match on or use as a
+		// localization key. The lobby is derivable there from the RequestID they
+		// minted for it.
+		failPendingAssignment(&state.StartSessionResults, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
 		state.Lobbies.Destroy(toDestroy.entityID)
 		// No log here: processTimedOutLobby already recorded this deletion in the same
 		// tick, with the invite code and reason. A second line for one event, at a
