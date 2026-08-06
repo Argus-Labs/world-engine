@@ -762,6 +762,71 @@ func getPlayerLobby(
 	}
 }
 
+// resolveLobbyByInviteCode turns a join command's invite code into the live lobby it
+// names. It owns every failure on that path: it logs the cause and emits the join
+// failure, then returns nil, so callers only branch on nil.
+//
+// known_codes on the first rejection separates a systemic empty index from a single
+// lobby having gone away; both present identically to the player. Neither is
+// distinguishable from a code retired by rotation — see old_invite_code on
+// processGenerateInviteCodeCommands for that case.
+//
+// The two Error branches are index corruption, not user error: the code resolved, so
+// InviteCodeToLobby and LobbyIDToEntity disagree, or the entity they agree on is gone.
+// Either leaves a lobby permanently unreachable. Logging the code there does not
+// contradict the live-code rule documented on "Lobby created": this is the only join
+// path, so a code that lands here cannot be used by anyone to join.
+func resolveLobbyByInviteCode(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	playerID string,
+	payload JoinLobbyCommand,
+) *lobbyLookupResult {
+	lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
+	if !exists {
+		state.Logger().Warn().
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Int("known_codes", lobbyIndex.InviteCodeCount()).
+			Msg("invalid invite code")
+		emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
+		return nil
+	}
+
+	lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
+	if !exists {
+		state.Logger().Error().
+			Str("lobby_id", lobbyID).
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Msg("index corruption: invite code maps to a lobby with no entity")
+		emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
+		return nil
+	}
+
+	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+	if err != nil {
+		state.Logger().Error().Err(err).
+			Str("lobby_id", lobbyID).
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Uint32("lobby_entity_id", lobbyEntityID).
+			Msg("index corruption: lobby entity in index no longer exists")
+		emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
+		return nil
+	}
+
+	return &lobbyLookupResult{
+		lobbyID:  lobbyID,
+		entityID: cardinal.EntityID(lobbyEntityID),
+		lobby:    lobbyEntity.Lobby.Get(),
+		lobbyRef: lobbyEntity.Lobby,
+	}
+}
+
 // LobbySystem processes lobby commands.
 func LobbySystem(state *LobbySystemState) {
 	now := state.Timestamp().Unix()
@@ -1318,52 +1383,12 @@ func processJoinLobbyCommands(
 			continue
 		}
 
-		// known_codes separates a systemic empty index from a single lobby having gone
-		// away; both present identically to the player. Note it cannot distinguish either
-		// from a code retired by rotation — see the old_invite_code field on
-		// processGenerateInviteCodeCommands for that case.
-		lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
-		if !exists {
-			state.Logger().Warn().
-				Str("invite_code", payload.InviteCode).
-				Str("player_id", playerID).
-				Str("request_id", payload.RequestID).
-				Int("known_codes", lobbyIndex.InviteCodeCount()).
-				Msg("invalid invite code")
-			emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
+		resolved := resolveLobbyByInviteCode(state, lobbyIndex, playerID, payload)
+		if resolved == nil {
 			continue
 		}
-
-		// Both branches are index corruption, not user error: the code resolved, so
-		// InviteCodeToLobby and LobbyIDToEntity disagree, or the entity they agree on is
-		// gone. Either leaves a lobby permanently unjoinable while advertising a working
-		// code. Error, because only a bug in this plugin can produce it.
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
-		if !exists {
-			state.Logger().Error().
-				Str("lobby_id", lobbyID).
-				Str("invite_code", payload.InviteCode).
-				Str("player_id", playerID).
-				Str("request_id", payload.RequestID).
-				Msg("index corruption: invite code maps to a lobby with no entity")
-			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
-			continue
-		}
-
-		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
-		if err != nil {
-			state.Logger().Error().Err(err).
-				Str("lobby_id", lobbyID).
-				Str("invite_code", payload.InviteCode).
-				Str("player_id", playerID).
-				Str("request_id", payload.RequestID).
-				Uint32("lobby_entity_id", lobbyEntityID).
-				Msg("index corruption: lobby entity in index no longer exists")
-			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
+		lobbyID := resolved.lobbyID
+		lobby := resolved.lobby
 
 		// Check if lobby is in session
 		if lobby.Session.State == component.SessionStateInSession {
@@ -1394,7 +1419,7 @@ func processJoinLobbyCommands(
 			continue
 		}
 
-		lobbyEntity.Lobby.Set(lobby)
+		resolved.lobbyRef.Set(lobby)
 
 		// Create player entity
 		playerPassthrough, err := DecodePassthrough(payload.PlayerPassthroughData)
@@ -2609,7 +2634,13 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 
 	// Destroy empty lobbies
 	for _, toDestroy := range lobbiesToDestroy {
-		failPendingAssignment(&state.StartSessionResults, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
+		// The reason names the lobby: it is delivered to a client whose session start is
+		// being failed, and "which lobby" is the first thing needed to act on it.
+		failPendingAssignment(
+			&state.StartSessionResults,
+			&toDestroy.lobby,
+			"lobby "+toDestroy.lobbyID+" deleted (timeout) before shard assignment",
+		)
 		state.Lobbies.Destroy(toDestroy.entityID)
 		// No log here: processTimedOutLobby already recorded this deletion in the same
 		// tick, with the invite code and reason. A second line for one event, at a
