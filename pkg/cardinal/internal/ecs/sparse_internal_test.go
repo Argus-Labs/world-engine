@@ -106,36 +106,19 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 	}
 }
 
-// -------------------------------------------------------------------------------------------------
-// Serialization smoke test
-// -------------------------------------------------------------------------------------------------
-// We don't extensively test toInt64Slice/fromInt64Slice because:
-// 1. The implementation is a trivial type conversion loop (int -> int64 and back).
-// 2. There's no complex branching or error handling.
-// 3. Heavy property-based testing would mostly verify Go's type conversion, not our logic.
-// -------------------------------------------------------------------------------------------------
+// assertSparseSetEqual checks that two sparse sets hold the same mapping. It compares get()
+// results over the combined key domain rather than the backing arrays, because backing length
+// depends on growth history: a set rebuilt from a snapshot is sized to the highest live key,
+// while the original grew to its high-water mark.
+func assertSparseSetEqual(t *testing.T, s1, s2 sparseSet) {
+	t.Helper()
 
-func TestSparseSet_SerializationSmoke(t *testing.T) {
-	t.Parallel()
-	prng := testutils.NewRand(t)
-
-	const (
-		opsMax = 100
-		eidMax = 10_000
-	)
-
-	impl1 := newSparseSet()
-	for range opsMax {
-		key := EntityID(prng.IntN(eidMax))
-		value := prng.Int()
-		impl1.set(key, value)
+	for key := range max(len(s1), len(s2)) {
+		v1, ok1 := s1.get(EntityID(key))
+		v2, ok2 := s2.get(EntityID(key))
+		assert.Equal(t, ok1, ok2, "key %d existence mismatch", key)
+		if ok1 && ok2 {
+			assert.Equal(t, v1, v2, "key %d value mismatch", key)
+		}
 	}
-
-	data := impl1.toInt64Slice()
-
-	impl2 := newSparseSet()
-	impl2.fromInt64Slice(data)
-
-	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, impl1, impl2) // assert.Equal uses reflect.DeepEqual
 }

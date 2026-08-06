@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/snapshot.proto.
  */
 export const file_worldengine_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEioQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlQga6SAPIAQESDwoHdmVyc2lvbhgEIAEoDSJ8CgpXb3JsZFN0YXRlEg8KB25leHRfaWQYASABKA0SEAoIZnJlZV9pZHMYAiADKA0SEwoLZW50aXR5X2FyY2gYAyADKAMSNgoKYXJjaGV0eXBlcxgEIAMoCzIiLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkFyY2hldHlwZSKEAQoJQXJjaGV0eXBlEgoKAmlkGAEgASgFEhkKEWNvbXBvbmVudHNfYml0bWFwGAIgASgMEgwKBHJvd3MYAyADKAMSEAoIZW50aXRpZXMYBCADKA0SMAoHY29sdW1ucxgFIAMoCzIfLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNvbHVtbiI9CgZDb2x1bW4SHwoOY29tcG9uZW50X25hbWUYASABKAlCB7pIBHICEAESEgoKY29tcG9uZW50cxgCIAMoDEJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEioQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlQga6SAPIAQESDwoHdmVyc2lvbhgEIAEoDSJnCgpXb3JsZFN0YXRlEg8KB25leHRfaWQYASABKA0SEAoIZnJlZV9pZHMYAiADKA0SNgoKYXJjaGV0eXBlcxgEIAMoCzIiLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkFyY2hldHlwZSJ2CglBcmNoZXR5cGUSCgoCaWQYASABKAUSGQoRY29tcG9uZW50c19iaXRtYXAYAiABKAwSEAoIZW50aXRpZXMYBCADKA0SMAoHY29sdW1ucxgFIAMoCzIfLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNvbHVtbiI9CgZDb2x1bW4SHwoOY29tcG9uZW50X25hbWUYASABKAlCB7pIBHICEAESEgoKY29tcG9uZW50cxgCIAMoDEJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Snapshot represents a point-in-time capture of shard state.
@@ -68,13 +68,6 @@ export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
   freeIds: number[];
 
   /**
-   * Entity to archetype mapping as sparse set
-   *
-   * @generated from field: repeated int64 entity_arch = 3;
-   */
-  entityArch: bigint[];
-
-  /**
    * Archetypes in the world state
    *
    * @generated from field: repeated worldengine.cardinal.v1.Archetype archetypes = 4;
@@ -108,13 +101,6 @@ export type Archetype = Message<"worldengine.cardinal.v1.Archetype"> & {
    * @generated from field: bytes components_bitmap = 2;
    */
   componentsBitmap: Uint8Array;
-
-  /**
-   * Entity to row mapping as sparse set
-   *
-   * @generated from field: repeated int64 rows = 3;
-   */
-  rows: bigint[];
 
   /**
    * List of entity IDs in this archetype
