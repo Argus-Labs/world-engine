@@ -319,6 +319,13 @@ func (idx *LobbyIndexComponent) GetLobbyByInviteCode(inviteCode string) (string,
 	return lobbyID, exists
 }
 
+// InviteCodeCount returns how many invite codes the index currently knows.
+// Logged on a rejected join to separate "this one code is missing" from "the index is
+// empty", which look identical to the player.
+func (idx *LobbyIndexComponent) InviteCodeCount() int {
+	return len(idx.InviteCodeToLobby)
+}
+
 // GetPlayerLobby returns the lobby ID for a player.
 func (idx *LobbyIndexComponent) GetPlayerLobby(playerID string) (string, bool) {
 	lobbyID, exists := idx.PlayerToLobby[playerID]
