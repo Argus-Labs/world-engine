@@ -19,6 +19,6 @@ message Event {
     }
   ];
 
-  // The event payload serialized as MessagePack bytes.
+  // The event payload serialized by the event type's wire codec.
   bytes payload = 2 [(buf.validate.field).required = true];
 }

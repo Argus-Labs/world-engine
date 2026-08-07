@@ -293,25 +293,6 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	})
 }
 
-// TODO: Our serialization isn't deterministic because the msgpack serialization doesn't sort map
-// keys. This makes it difficult to verify the roundtrip property deserialize(serialize(x)) == x.
-// Either we sort all maps (via reflection?) or we make our own msgpack lib.
-// func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
-// 	t.Helper()
-// 	if f.storage.snap == nil {
-// 		return // No snapshot stored yet, nothing to verify.
-// 	}
-//
-// 	// Serialize the restored state and compare with what was stored.
-// 	worldState, err := f.world.world.ToProto()
-// 	require.NoError(t, err)
-// 	restoredBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
-// 	require.NoError(t, err)
-//
-// 	assert.Equal(t, f.storage.snap.Data, restoredBytes,
-// 		"snapshot roundtrip: restored state differs from stored snapshot")
-// }
-
 // fillRandom recursively fills a reflect.Value with random data based on its type.
 func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 	t := v.Type()

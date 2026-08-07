@@ -109,7 +109,7 @@ namespace WorldEngine.Proto.Isc.V1 {
     public const int PayloadFieldNumber = 2;
     private pb::ByteString payload_ = pb::ByteString.Empty;
     /// <summary>
-    /// The event payload serialized as MessagePack bytes.
+    /// The event payload serialized by the event type's wire codec.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
