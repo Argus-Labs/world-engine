@@ -195,6 +195,13 @@ type streamSubscriber struct {
 	mu     sync.Mutex
 }
 
+func (s *streamSubscriber) send(response *cardinalv1.StartEventStreamResponse) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.stream.Send(response)
+}
+
 func (s *service) SendCommand(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SendCommandRequest],
@@ -295,7 +302,8 @@ func (s *service) StartEventStream(
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated stream context")
 
-	if err := s.addSubscriber(ctx, user, stream); err != nil {
+	subscriber, err := s.addSubscriber(ctx, user, stream)
+	if err != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	defer s.removeSubscriber(user)
@@ -307,7 +315,7 @@ func (s *service) StartEventStream(
 	}
 	s.subscribeEvents(user, req.Msg.GetSubscriptions())
 
-	if err := stream.Send(&cardinalv1.StartEventStreamResponse{}); err != nil {
+	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
 	}
 
@@ -324,7 +332,7 @@ func (s *service) StartEventStream(
 			}
 			return nil
 		case <-ticker.C:
-			if err := stream.Send(&cardinalv1.StartEventStreamResponse{}); err != nil {
+			if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 				return err
 			}
 		}
@@ -377,20 +385,21 @@ func (s *service) addSubscriber(
 	ctx context.Context,
 	user *User,
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse],
-) error {
+) (*streamSubscriber, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, exists := s.subscribers[user.ID]; exists {
-		return eris.Errorf("user %s already has an open stream", user.ID)
+		return nil, eris.Errorf("user %s already has an open stream", user.ID)
 	}
 
-	s.subscribers[user.ID] = &streamSubscriber{
+	subscriber := &streamSubscriber{
 		ctx:    ctx,
 		stream: stream,
 		events: make(map[string]struct{}),
 	}
-	return nil
+	s.subscribers[user.ID] = subscriber
+	return subscriber, nil
 }
 
 func (s *service) removeSubscriber(user *User) {
@@ -505,12 +514,10 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 		default:
 		}
 
-		subscriber.mu.Lock()
-		err := subscriber.stream.Send(&cardinalv1.StartEventStreamResponse{
+		err := subscriber.send(&cardinalv1.StartEventStreamResponse{
 			Address: s.world.address,
 			Event:   eventPb,
 		})
-		subscriber.mu.Unlock()
 		if err != nil {
 			s.log.Error().Err(err).Str("event", eventPb.GetName()).Msg("failed to send event to subscriber")
 			continue
