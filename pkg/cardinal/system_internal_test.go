@@ -15,6 +15,181 @@ import (
 
 // TODO: test system registration, e.g. duplicate field detection, etc.
 
+type privateStateSystem struct {
+	BaseSystemState
+
+	dependency *int
+	scratch    []int
+}
+
+func (s *privateStateSystem) Run() {
+	(*s.dependency)++
+	s.scratch = append(s.scratch, *s.dependency)
+}
+
+type privateDependencySystem struct {
+	BaseSystemState
+
+	events WithEvent[testutils.SimpleEvent]
+}
+
+func (s *privateDependencySystem) Run() {
+	_ = s.events
+}
+
+type privatePointerDependencySystem struct {
+	BaseSystemState
+
+	events *WithEvent[testutils.SimpleEvent]
+}
+
+func (s *privatePointerDependencySystem) Run() {
+	_ = s.events
+}
+
+type exportedPointerDependencySystem struct {
+	BaseSystemState
+
+	Events *WithEvent[testutils.SimpleEvent]
+}
+
+func (s *exportedPointerDependencySystem) Run() {
+	_ = s.Events
+}
+
+type valueSystem struct {
+	BaseSystemState
+}
+
+func (valueSystem) Run() {}
+
+type indirectBaseState struct {
+	BaseSystemState
+}
+
+type indirectBaseSystem struct {
+	indirectBaseState
+}
+
+func (*indirectBaseSystem) Run() {}
+
+func TestRegisterSystemV2_UsesCallerOwnedInstance(t *testing.T) {
+	t.Parallel()
+
+	dependency := 40
+	world := &World{world: ecs.NewWorld()}
+	s := &privateStateSystem{dependency: &dependency}
+
+	RegisterSystemV2(world, s)
+	world.world.Init()
+	world.world.Tick()
+	world.world.Tick()
+
+	assert.Same(t, world, s.world)
+	assert.Equal(t, 42, dependency)
+	assert.Equal(t, []int{41, 42}, s.scratch)
+}
+
+func TestRegisterSystemV2_HonorsHook(t *testing.T) {
+	t.Parallel()
+
+	dependency := 40
+	world := &World{world: ecs.NewWorld()}
+	s := &privateStateSystem{dependency: &dependency}
+
+	RegisterSystemV2(world, s, WithHook(Init))
+	assert.Equal(t, 40, dependency)
+
+	world.world.Init()
+	assert.Equal(t, 41, dependency)
+
+	world.world.Tick()
+	world.world.Tick()
+
+	assert.Equal(t, 41, dependency)
+	assert.Equal(t, []int{41}, s.scratch)
+}
+
+func TestRegisterSystemV2_RejectsPrivateCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	t.Run("value", func(t *testing.T) {
+		t.Parallel()
+
+		world := &World{world: ecs.NewWorld()}
+		require.PanicsWithError(
+			t,
+			"error initializing system fields: field events must be exported",
+			func() {
+				RegisterSystemV2(world, &privateDependencySystem{})
+			},
+		)
+	})
+
+	t.Run("pointer", func(t *testing.T) {
+		t.Parallel()
+
+		world := &World{world: ecs.NewWorld()}
+		require.PanicsWithError(
+			t,
+			"error initializing system fields: field events must be exported",
+			func() {
+				RegisterSystemV2(world, &privatePointerDependencySystem{})
+			},
+		)
+	})
+}
+
+func TestRegisterSystemV2_RejectsPointerCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	world := &World{world: ecs.NewWorld()}
+	require.PanicsWithError(
+		t,
+		"error initializing system fields: field Events must be declared as a value",
+		func() {
+			RegisterSystemV2(world, &exportedPointerDependencySystem{})
+		},
+	)
+}
+
+func TestRegisterSystemV2_RejectsInvalidInstances(t *testing.T) {
+	t.Parallel()
+
+	world := &World{world: ecs.NewWorld()}
+
+	t.Run("typed nil", func(t *testing.T) {
+		t.Parallel()
+
+		var s *privateStateSystem
+		require.PanicsWithError(
+			t,
+			"system *cardinal.privateStateSystem must be a non-nil pointer to a struct",
+			func() { RegisterSystemV2(world, s) },
+		)
+	})
+
+	t.Run("value receiver", func(t *testing.T) {
+		t.Parallel()
+
+		require.PanicsWithError(
+			t,
+			"system *cardinal.valueSystem Run method must use a pointer receiver",
+			func() { RegisterSystemV2(world, &valueSystem{}) },
+		)
+	})
+
+	t.Run("indirect base state", func(t *testing.T) {
+		t.Parallel()
+
+		require.PanicsWithError(
+			t,
+			"system *cardinal.indirectBaseSystem must embed cardinal.BaseSystemState",
+			func() { RegisterSystemV2(world, &indirectBaseSystem{}) },
+		)
+	})
+}
+
 // -------------------------------------------------------------------------------------------------
 // WithCommand smoke tests
 // -------------------------------------------------------------------------------------------------
