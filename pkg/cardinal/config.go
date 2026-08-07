@@ -17,12 +17,31 @@ type WorldOptions struct {
 	ShardID             string               // Unique ID for of world's instance
 	TickRate            float64              // Number of ticks per second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
-	SnapshotRate        uint32               // Number of ticks per snapshot
-	Debug               *bool                // Enable debug server
-	Pprof               *bool                // Enable pprof server
-	NATSConfig          *micro.NATSConfig    // Optional NATS config override (nil = use env/defaults)
-	AuthMode            AuthMode             // Auth mode for the client-facing ConnectRPC service
-	ArgusAuthURL        string               // URL of the Argus Auth service when AuthMode is ARGUS
+	// SnapshotRate is the number of ticks per snapshot, and with it the amount of play a crash may
+	// undo: at 60 ticks/s a rate of 300 means up to five seconds of the world is at risk.
+	//
+	// It is NOT a durability guarantee, because a shard run by StartGame writes snapshots
+	// asynchronously and best-effort (a World you tick yourself writes them inline instead):
+	//
+	//   - The snapshot is handed to a background writer and the tick returns immediately, so a
+	//     crash between the tick and the end of that upload loses that snapshot. The next one is
+	//     written normally; storage always holds a complete, valid snapshot, just possibly an older
+	//     one.
+	//   - Only one upload runs at a time, and a snapshot produced while one is in flight REPLACES
+	//     the one waiting instead of queueing behind it. So a rate faster than the backend can
+	//     absorb does not make snapshots more current — it drops the intermediate ones. A dropped
+	//     snapshot is logged at warn ("superseded a pending snapshot") with a running dropped_total,
+	//     rate limited to the first and then every 100th, and the run's total is logged again at
+	//     shutdown. Seeing that line means the shard is snapshotting faster than storage accepts:
+	//     raise SnapshotRate (snapshot less often) or move to a faster backend.
+	//
+	// Shutdown takes a final snapshot and waits for it, so an orderly stop loses nothing.
+	SnapshotRate uint32
+	Debug        *bool             // Enable debug server
+	Pprof        *bool             // Enable pprof server
+	NATSConfig   *micro.NATSConfig // Optional NATS config override (nil = use env/defaults)
+	AuthMode     AuthMode          // Auth mode for the client-facing ConnectRPC service
+	ArgusAuthURL string            // URL of the Argus Auth service when AuthMode is ARGUS
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
@@ -161,7 +180,8 @@ type worldOptionsEnv struct {
 	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").
 	SnapshotStorageTypeStr string `env:"CARDINAL_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
-	// Number of ticks per snapshot.
+	// Number of ticks per snapshot. See WorldOptions.SnapshotRate for what a snapshot does and does
+	// not promise, and for the log line that says the backend cannot keep up with the rate.
 	SnapshotRate uint32 `env:"CARDINAL_SNAPSHOT_RATE"`
 
 	// Enable debug server.

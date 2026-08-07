@@ -223,9 +223,12 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 		return nil
 	})
 
-	// Replace snapshot storage with in-memory storage.
+	// Replace snapshot storage with in-memory storage, written inline rather than through the
+	// background writer. DST trades tick latency for reproducibility: a seed must produce one run,
+	// and an upload goroutine decides which snapshots survive latest-wins by how it interleaves
+	// with the tick loop. memSnapshotStorage also asserts on t, which only this goroutine may do.
 	storage := &memSnapshotStorage{t: t}
-	w.snapshotStorage = storage
+	w.useInlineSnapshotStorage(storage)
 
 	// Initialize ECS and run init systems.
 	w.world.Init()
@@ -293,22 +296,27 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	})
 }
 
-// TODO: Our serialization isn't deterministic because the msgpack serialization doesn't sort map
-// keys. This makes it difficult to verify the roundtrip property deserialize(serialize(x)) == x.
-// Either we sort all maps (via reflection?) or we make our own msgpack lib.
+// TODO: Our serialization isn't deterministic, so the roundtrip property
+// deserialize(serialize(x)) == x cannot be checked by comparing bytes, and this check stays off.
+// The envelope itself marshals deterministically, but each component payload inside it is an opaque
+// blob produced by that component's own MarshalWire, and a map field has no defined encoding order —
+// so the same world can serialize to two different byte strings. Fixing it means ordering maps at
+// the component codec level (via reflection?), not at the snapshot level.
 // func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
 // 	t.Helper()
 // 	if f.storage.snap == nil {
 // 		return // No snapshot stored yet, nothing to verify.
 // 	}
 //
-// 	// Serialize the restored state and compare with what was stored.
+// 	// Serialize the restored state and compare with the world state that was stored.
 // 	worldState, err := f.world.world.ToProto()
 // 	require.NoError(t, err)
 // 	restoredBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(worldState)
 // 	require.NoError(t, err)
+// 	storedBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(f.storage.snap.GetWorldState())
+// 	require.NoError(t, err)
 //
-// 	assert.Equal(t, f.storage.snap.Data, restoredBytes,
+// 	assert.Equal(t, storedBytes, restoredBytes,
 // 		"snapshot roundtrip: restored state differs from stored snapshot")
 // }
 
@@ -364,36 +372,48 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 // In-memory snapshot storage
 // -------------------------------------------------------------------------------------------------
 
+// memSnapshotStorage keeps the last snapshot in memory and checks the envelope on the way in.
+//
+// It must only be driven by the inline snapshot writer (World.useInlineSnapshotStorage), never by
+// the background one. The reason is the assertions, not the field: require fails a test by calling
+// t.FailNow, which is only valid on the goroutine running the test, so a mutex around snap would
+// silence the race detector while leaving the actual defect in place. Storage that is worth
+// pointing an async writer at is storage that does not assert.
 type memSnapshotStorage struct {
 	t    *testing.T
-	snap *snapshot.Snapshot
+	snap *cardinalv1.Snapshot
 }
 
 var _ snapshot.Storage = (*memSnapshotStorage)(nil)
 
-func (m *memSnapshotStorage) Store(_ context.Context, s *snapshot.Snapshot) error {
-	// Invariant: data must be non-empty (serialized ECS world always produces bytes).
-	assert.NotEmpty(m.t, s.Data, "snapshot: Store called with empty data")
-	// Invariant: data must be valid protobuf (must unmarshal into WorldState).
-	var ws cardinalv1.WorldState
-	require.NoError(m.t, proto.Unmarshal(s.Data, &ws), "snapshot: Store data is not valid WorldState protobuf")
+func (m *memSnapshotStorage) Store(_ context.Context, s *cardinalv1.Snapshot) error {
+	// Invariant: the envelope must carry a world state (a serialized ECS world is never nil).
+	require.NotNil(m.t, s.GetWorldState(), "snapshot: Store called without a world state")
+	// Invariant: the envelope must survive the wire format a real backend would write it to.
+	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(s)
+	require.NoError(m.t, err, "snapshot: Store envelope failed to marshal")
+	assert.NotEmpty(m.t, data, "snapshot: Store produced empty bytes")
+	var rt cardinalv1.Snapshot
+	require.NoError(m.t, proto.Unmarshal(data, &rt), "snapshot: Store bytes are not a valid Snapshot protobuf")
+	assert.True(m.t, proto.Equal(s, &rt), "snapshot: Store envelope did not survive a wire roundtrip")
 
-	cp := *s
-	cp.Data = make([]byte, len(s.Data))
-	copy(cp.Data, s.Data)
-	m.snap = &cp
+	// Storage.Store hands over the caller's own world-state graph and keeps ownership of it, so a
+	// backend must consume the message before it returns. The graph itself is frozen — ToProto
+	// builds a fresh one per call and nothing writes into it afterwards — so the rule is not about
+	// mutation racing this copy; it is that the caller owns the memory and every reader of it, and
+	// a backend holding on would pin a full world-state graph it has no claim to. A real backend
+	// satisfies the rule by serializing inside Store; this one copies, which is the same promise.
+	m.snap = proto.CloneOf(s)
 	return nil
 }
 
-func (m *memSnapshotStorage) Load(_ context.Context) (*snapshot.Snapshot, error) {
+func (m *memSnapshotStorage) Load(_ context.Context) (*cardinalv1.Snapshot, error) {
 	if m.snap == nil {
 		return nil, snapshot.ErrSnapshotNotFound
 	}
 
-	// Return a defensive copy so callers cannot corrupt stored state.
-	cp := *m.snap
-	cp.Data = make([]byte, len(m.snap.Data))
-	copy(cp.Data, m.snap.Data)
-
-	return &cp, nil
+	// Storage.Load transfers ownership to the caller, which publishes the message and feeds it to
+	// FromProto, so the retained copy must not escape. A real backend decodes fresh bytes, which
+	// gives the caller a private message for the same reason.
+	return proto.CloneOf(m.snap), nil
 }
