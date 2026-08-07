@@ -2,6 +2,7 @@ package performance
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -11,7 +12,6 @@ const subscriberChanBuf = 4
 
 // TickSpan represents a single system execution span within a tick.
 type TickSpan struct {
-	TickHeight uint64
 	SystemHook uint8
 	SystemName string
 	StartTime  time.Time
@@ -20,9 +20,12 @@ type TickSpan struct {
 
 // TickTimeline groups spans that occurred within a single tick.
 type TickTimeline struct {
-	TickHeight uint64
-	TickStart  time.Time
-	Spans      []TickSpan
+	TickHeight           uint64
+	TickStart            time.Time
+	SystemPhaseStartedAt time.Time
+	SystemPhaseElapsed   time.Duration
+	Profiled             bool
+	Spans                []TickSpan
 }
 
 // Batch is a batch of completed tick timelines pushed to subscribers.
@@ -38,8 +41,19 @@ type Collector struct {
 	mu           sync.Mutex
 	currentSpans []TickSpan
 	pending      []TickTimeline
-	subscribers  []chan Batch
+	subscribers  []subscription
 	batchSize    int
+
+	// subscriberCount provides a lock-free fast path when metrics are unwatched.
+	subscriberCount atomic.Int64
+
+	// systemSpanSubscriberCount enables per-system span capture when non-zero.
+	systemSpanSubscriberCount atomic.Int64
+}
+
+type subscription struct {
+	ch                  chan Batch
+	requestsSystemSpans bool
 }
 
 // NewCollector creates a Collector that flushes every batchSize ticks.
@@ -53,12 +67,19 @@ func NewCollector(batchSize int) *Collector {
 	}
 }
 
-// StartTick initializes span collection for a new tick.
-// Call exactly once per tick before any RecordSpan calls.
-func (c *Collector) StartTick() {
+// StartTick returns whether the tick that is about to run should capture
+// per-system spans. The result must be carried through RecordTick so one tick
+// cannot be partially profiled when a profile subscriber connects or
+// disconnects mid-tick.
+func (c *Collector) StartTick() bool {
+	if c.systemSpanSubscriberCount.Load() == 0 {
+		return false
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.currentSpans = c.currentSpans[:0]
+	return true
 }
 
 // RecordSpan appends a span to the current tick.
@@ -68,23 +89,44 @@ func (c *Collector) RecordSpan(span TickSpan) {
 	c.currentSpans = append(c.currentSpans, span)
 }
 
-// RecordTick finalizes the current tick, appending a TickTimeline to the
-// pending batch. When the batch reaches batchSize, it is flushed to all
-// subscribers via non-blocking channel sends performed outside the lock.
-func (c *Collector) RecordTick(tickHeight uint64, tickStart time.Time) {
-	c.mu.Lock()
+// RecordTick measures and records a completed tick. When the batch reaches
+// batchSize, it is flushed to all subscribers via non-blocking channel sends
+// performed outside the lock.
+func (c *Collector) RecordTick(
+	captureSystemSpans bool,
+	tickHeight uint64,
+	tickStart time.Time,
+	systemPhaseStartedAt time.Time,
+) {
+	if c.subscriberCount.Load() == 0 {
+		return
+	}
 
-	spans := make([]TickSpan, len(c.currentSpans))
-	copy(spans, c.currentSpans)
+	systemPhaseElapsed := time.Since(systemPhaseStartedAt)
+
+	c.mu.Lock()
+	if len(c.subscribers) == 0 {
+		c.mu.Unlock()
+		return
+	}
+
+	var spans []TickSpan
+	if captureSystemSpans {
+		spans = make([]TickSpan, len(c.currentSpans))
+		copy(spans, c.currentSpans)
+	}
 
 	c.pending = append(c.pending, TickTimeline{
-		TickHeight: tickHeight,
-		TickStart:  tickStart,
-		Spans:      spans,
+		TickHeight:           tickHeight,
+		TickStart:            tickStart,
+		SystemPhaseStartedAt: systemPhaseStartedAt,
+		SystemPhaseElapsed:   systemPhaseElapsed,
+		Profiled:             captureSystemSpans,
+		Spans:                spans,
 	})
 
 	var batch Batch
-	var subs []chan Batch
+	var subs []subscription
 
 	assert.That(len(c.pending) <= c.batchSize,
 		"performance.Collector: pending ticks (%d) exceeded batchSize (%d)", len(c.pending), c.batchSize)
@@ -95,22 +137,17 @@ func (c *Collector) RecordTick(tickHeight uint64, tickStart time.Time) {
 		batch = Batch{Ticks: ticks}
 		c.pending = make([]TickTimeline, 0, c.batchSize)
 
-		subs = make([]chan Batch, len(c.subscribers))
+		subs = make([]subscription, len(c.subscribers))
 		copy(subs, c.subscribers)
 	}
 
 	c.mu.Unlock()
 
 	for _, sub := range subs {
-		// Non-blocking send; recover guards against closed channels
-		// (which can happen when Unsubscribe races with an in-flight flush).
-		func() {
-			defer func() { _ = recover() }()
-			select {
-			case sub <- batch:
-			default:
-			}
-		}()
+		select {
+		case sub.ch <- batch:
+		default:
+		}
 	}
 }
 
@@ -123,13 +160,29 @@ func (c *Collector) Reset() {
 	c.pending = c.pending[:0]
 }
 
-// Subscribe returns a channel that receives Batch values whenever the
-// collector flushes. The caller must eventually call Unsubscribe to avoid
-// leaking the channel.
-func (c *Collector) Subscribe() <-chan Batch {
+// SubscribeTimings returns aggregate system timing batches. The caller must
+// eventually call Unsubscribe.
+func (c *Collector) SubscribeTimings() <-chan Batch {
+	return c.subscribe(false)
+}
+
+// SubscribeProfiles returns timing batches with per-system spans and keeps span
+// capture enabled until the caller unsubscribes.
+func (c *Collector) SubscribeProfiles() <-chan Batch {
+	return c.subscribe(true)
+}
+
+func (c *Collector) subscribe(requestsSystemSpans bool) <-chan Batch {
 	ch := make(chan Batch, subscriberChanBuf)
 	c.mu.Lock()
-	c.subscribers = append(c.subscribers, ch)
+	c.subscribers = append(c.subscribers, subscription{
+		ch:                  ch,
+		requestsSystemSpans: requestsSystemSpans,
+	})
+	c.subscriberCount.Add(1)
+	if requestsSystemSpans {
+		c.systemSpanSubscriberCount.Add(1)
+	}
 	c.mu.Unlock()
 	return ch
 }
@@ -143,8 +196,17 @@ func (c *Collector) Unsubscribe(ch <-chan Batch) {
 	defer c.mu.Unlock()
 
 	for i, sub := range c.subscribers {
-		if sub == ch {
+		if sub.ch == ch {
 			c.subscribers = append(c.subscribers[:i], c.subscribers[i+1:]...)
+			c.subscriberCount.Add(-1)
+			if sub.requestsSystemSpans {
+				c.systemSpanSubscriberCount.Add(-1)
+			}
+			if len(c.subscribers) == 0 {
+				c.pending = c.pending[:0]
+				// Keep currentSpans: StartTick latches capture for the whole tick,
+				// and a new profile subscriber may join before RecordTick flushes it.
+			}
 			return
 		}
 	}

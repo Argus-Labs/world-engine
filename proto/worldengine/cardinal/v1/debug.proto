@@ -3,8 +3,8 @@ syntax = "proto3";
 package worldengine.cardinal.v1;
 
 import "google/protobuf/struct.proto";
-import "worldengine/cardinal/v1/snapshot.proto";
 import "google/protobuf/timestamp.proto";
+import "worldengine/cardinal/v1/snapshot.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Cardinal.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1";
@@ -31,10 +31,13 @@ service DebugService {
   // GetState returns the current world state snapshot.
   rpc GetState(GetStateRequest) returns (GetStateResponse);
 
-  // StreamPerf streams batches of per-tick timing data to clients.
-  // The server pushes a PerfBatch every N ticks; clients accumulate the full
-  // history and compute their own aggregations (avg, P95, etc.).
-  rpc StreamPerf(StreamPerfRequest) returns (stream PerfBatch);
+  // WatchSystemsTiming streams the time spent executing Cardinal systems each
+  // tick without enabling per-system span capture.
+  rpc WatchSystemsTiming(WatchSystemsTimingRequest) returns (stream WatchSystemsTimingResponse);
+
+  // ProfileSystems captures per-system spans while the stream is open.
+  // Cancelling the stream stops detailed span capture.
+  rpc ProfileSystems(ProfileSystemsRequest) returns (stream ProfileSystemsResponse);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -128,21 +131,33 @@ message GetStateResponse {
 }
 
 // -------------------------------------------------------------------------------------------------
-// StreamPerf
+// Systems performance
 // -------------------------------------------------------------------------------------------------
 
-// StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
-message StreamPerfRequest {}
+message WatchSystemsTimingRequest {}
 
-// PerfBatch is a batch of completed tick timelines pushed to the client.
-message PerfBatch {
-  repeated TickTimeline ticks = 1;
+message WatchSystemsTimingResponse {
+  repeated SystemsTiming ticks = 1;
 }
 
-message TickTimeline {
+message ProfileSystemsRequest {}
+
+message ProfileSystemsResponse {
+  repeated SystemsProfile ticks = 1;
+}
+
+message SystemsTiming {
   uint64 tick_height = 1;
   google.protobuf.Timestamp tick_start = 2;
-  repeated SystemSpan spans = 3;
+  // Wall-clock time spent executing the ECS system phase (w.world.Tick).
+  // This excludes command draining, event dispatch, snapshots, and debug
+  // state serialization outside that phase.
+  uint64 duration_ns = 3;
+}
+
+message SystemsProfile {
+  SystemsTiming timing = 1;
+  repeated SystemSpan spans = 2;
 }
 
 // SystemHook defines when a system executes in the tick lifecycle.
@@ -157,7 +172,7 @@ enum SystemHook {
 message SystemSpan {
   SystemHook system_hook = 1;
   string system = 2;
-  // Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
+  // Nanoseconds elapsed from the start of the ECS system phase to when this span began.
   uint64 start_offset_ns = 3;
   // Duration of this span in nanoseconds.
   uint64 duration_ns = 4;

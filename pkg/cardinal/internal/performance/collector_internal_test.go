@@ -9,54 +9,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCollector_BatchFlushesAfterNTicks(t *testing.T) {
+func TestCollector_FlushesAtBatchSize(t *testing.T) {
 	c := NewCollector(3)
-	ch := c.Subscribe()
+	ch := c.SubscribeProfiles()
 
 	now := time.Now()
-	for i := range 3 {
-		c.StartTick()
-		c.RecordSpan(TickSpan{SystemName: "sys", TickHeight: uint64(i)})
-		c.RecordTick(uint64(i), now)
+	for i := range 2 {
+		captureSystemSpans := c.StartTick()
+		c.RecordSpan(TickSpan{SystemName: "sys"})
+		c.RecordTick(captureSystemSpans, uint64(i), now, time.Now().Add(-5*time.Millisecond))
 		now = now.Add(50 * time.Millisecond)
 	}
+
+	select {
+	case <-ch:
+		t.Fatal("should not receive a batch before reaching batch size")
+	default:
+	}
+
+	captureSystemSpans := c.StartTick()
+	c.RecordSpan(TickSpan{SystemName: "sys"})
+	c.RecordTick(captureSystemSpans, 2, now, time.Now().Add(-5*time.Millisecond))
 
 	select {
 	case batch := <-ch:
 		assert.Len(t, batch.Ticks, 3)
 		assert.Equal(t, uint64(0), batch.Ticks[0].TickHeight)
 		assert.Equal(t, uint64(2), batch.Ticks[2].TickHeight)
+		assert.GreaterOrEqual(t, batch.Ticks[0].SystemPhaseElapsed, 5*time.Millisecond)
 		assert.Len(t, batch.Ticks[0].Spans, 1)
 	default:
-		t.Fatal("expected a batch after 3 ticks")
-	}
-}
-
-func TestCollector_NoBatchBeforeThreshold(t *testing.T) {
-	c := NewCollector(5)
-	ch := c.Subscribe()
-
-	now := time.Now()
-	for i := range 4 {
-		c.StartTick()
-		c.RecordTick(uint64(i), now)
-	}
-
-	select {
-	case <-ch:
-		t.Fatal("should not have received a batch before reaching batchSize")
-	default:
+		t.Fatal("expected a batch after reaching batch size")
 	}
 }
 
 func TestCollector_MultipleSubscribers(t *testing.T) {
 	c := NewCollector(1)
-	ch1 := c.Subscribe()
-	ch2 := c.Subscribe()
+	ch1 := c.SubscribeTimings()
+	ch2 := c.SubscribeTimings()
 
 	now := time.Now()
-	c.StartTick()
-	c.RecordTick(0, now)
+	captureSystemSpans := c.StartTick()
+	c.RecordTick(captureSystemSpans, 0, now, time.Now())
 
 	batch1 := <-ch1
 	batch2 := <-ch2
@@ -64,14 +58,15 @@ func TestCollector_MultipleSubscribers(t *testing.T) {
 	assert.Len(t, batch2.Ticks, 1)
 }
 
-func TestCollector_Unsubscribe(t *testing.T) {
+func TestCollector_UnsubscribeIsIdempotent(t *testing.T) {
 	c := NewCollector(1)
-	ch := c.Subscribe()
+	ch := c.SubscribeTimings()
+	c.Unsubscribe(ch)
 	c.Unsubscribe(ch)
 
 	now := time.Now()
-	c.StartTick()
-	c.RecordTick(0, now)
+	captureSystemSpans := c.StartTick()
+	c.RecordTick(captureSystemSpans, 0, now, time.Now())
 
 	select {
 	case <-ch:
@@ -80,66 +75,71 @@ func TestCollector_Unsubscribe(t *testing.T) {
 	}
 }
 
-func TestCollector_NonBlockingSend(t *testing.T) {
-	c := NewCollector(1)
-	ch := c.Subscribe()
+func TestCollector_LastUnsubscribeClearsPendingTicks(t *testing.T) {
+	c := NewCollector(5)
+	ch := c.SubscribeTimings()
 
 	now := time.Now()
-	for i := range subscriberChanBuf + 2 {
-		c.StartTick()
-		c.RecordTick(uint64(i), now)
+	for i := range 3 {
+		captureSystemSpans := c.StartTick()
+		c.RecordTick(captureSystemSpans, uint64(i), now, time.Now())
+	}
+	c.Unsubscribe(ch)
+
+	freshCh := c.SubscribeTimings()
+	t.Cleanup(func() { c.Unsubscribe(freshCh) })
+	for i := range 5 {
+		captureSystemSpans := c.StartTick()
+		c.RecordTick(captureSystemSpans, uint64(100+i), now, time.Now())
 	}
 
-	received := 0
-	for range subscriberChanBuf {
-		select {
-		case <-ch:
-			received++
-		default:
-		}
-	}
-	assert.Equal(t, subscriberChanBuf, received)
+	batch := <-freshCh
+	require.Len(t, batch.Ticks, 5)
+	assert.Equal(t, uint64(100), batch.Ticks[0].TickHeight)
+	assert.Equal(t, uint64(104), batch.Ticks[4].TickHeight)
 }
 
-func TestCollector_Reset(t *testing.T) {
-	c := NewCollector(10)
-	ch := c.Subscribe()
+func TestCollector_NonBlockingSend(t *testing.T) {
+	c := NewCollector(1)
+	c.SubscribeTimings()
 
-	now := time.Now()
-	c.StartTick()
-	c.RecordSpan(TickSpan{SystemName: "sys"})
-	c.RecordTick(0, now)
-
-	c.Reset()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		now := time.Now()
+		for i := range 100 {
+			captureSystemSpans := c.StartTick()
+			c.RecordTick(captureSystemSpans, uint64(i), now, time.Now())
+		}
+	}()
 
 	select {
-	case <-ch:
-		t.Fatal("should not have received a batch after reset")
-	default:
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("recording blocked on a slow subscriber")
 	}
 }
 
 func TestCollector_SpansCopied(t *testing.T) {
 	c := NewCollector(1)
-	ch := c.Subscribe()
+	ch := c.SubscribeProfiles()
 
 	now := time.Now()
-	c.StartTick()
+	captureSystemSpans := c.StartTick()
 	c.RecordSpan(TickSpan{SystemName: "a"})
-	c.RecordTick(0, now)
+	c.RecordTick(captureSystemSpans, 0, now, time.Now())
 
 	batch := <-ch
 	require.Len(t, batch.Ticks, 1)
 	require.Len(t, batch.Ticks[0].Spans, 1)
 
-	c.StartTick()
+	captureSystemSpans = c.StartTick()
 	c.RecordSpan(TickSpan{SystemName: "b"})
-	c.RecordTick(1, now)
+	c.RecordTick(captureSystemSpans, 1, now, time.Now())
 
 	assert.Equal(t, "a", batch.Ticks[0].Spans[0].SystemName)
 }
 
-// Fix #3: Verify thread safety of Subscribe/Unsubscribe concurrent with the tick loop.
 func TestCollector_ConcurrentSubscribeUnsubscribe(t *testing.T) {
 	c := NewCollector(1)
 
@@ -153,9 +153,11 @@ func TestCollector_ConcurrentSubscribeUnsubscribe(t *testing.T) {
 		defer wg.Done()
 		now := time.Now()
 		for i := range writerTicks {
-			c.StartTick()
-			c.RecordSpan(TickSpan{SystemName: "sys", TickHeight: uint64(i)})
-			c.RecordTick(uint64(i), now)
+			captureSystemSpans := c.StartTick()
+			if captureSystemSpans {
+				c.RecordSpan(TickSpan{SystemName: "sys"})
+			}
+			c.RecordTick(captureSystemSpans, uint64(i), now, time.Now())
 			now = now.Add(50 * time.Millisecond)
 		}
 	}()
@@ -165,7 +167,7 @@ func TestCollector_ConcurrentSubscribeUnsubscribe(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range writerTicks / 4 {
-				ch := c.Subscribe()
+				ch := c.SubscribeProfiles()
 				// Drain a few batches to exercise the send path.
 				for range 2 {
 					select {
@@ -181,46 +183,126 @@ func TestCollector_ConcurrentSubscribeUnsubscribe(t *testing.T) {
 	wg.Wait()
 }
 
-// Fix #10: Double-Unsubscribe should be a harmless no-op.
-func TestCollector_DoubleUnsubscribe(t *testing.T) {
-	c := NewCollector(1)
-	ch := c.Subscribe()
-	c.Unsubscribe(ch)
-	c.Unsubscribe(ch) // must not panic
-
-	now := time.Now()
-	c.StartTick()
-	c.RecordTick(0, now)
-
-	select {
-	case <-ch:
-		t.Fatal("should not receive after double unsubscribe")
-	default:
-	}
-}
-
-// Fix #10: Reset while subscribers exist should not emit partial data.
-func TestCollector_ResetWithSubscribers(t *testing.T) {
+func TestCollector_ResetClearsPendingTicks(t *testing.T) {
 	c := NewCollector(5)
-	ch := c.Subscribe()
+	ch := c.SubscribeProfiles()
 
 	now := time.Now()
 	for i := range 3 {
-		c.StartTick()
+		captureSystemSpans := c.StartTick()
 		c.RecordSpan(TickSpan{SystemName: "sys"})
-		c.RecordTick(uint64(i), now)
+		c.RecordTick(captureSystemSpans, uint64(i), now, time.Now())
 	}
 
 	c.Reset()
 
 	// Continue ticking to a full batch after reset.
 	for i := range 5 {
-		c.StartTick()
+		captureSystemSpans := c.StartTick()
 		c.RecordSpan(TickSpan{SystemName: "post-reset"})
-		c.RecordTick(uint64(100+i), now)
+		c.RecordTick(captureSystemSpans, uint64(100+i), now, time.Now())
 	}
 
 	batch := <-ch
 	assert.Len(t, batch.Ticks, 5, "should receive a full batch from post-reset ticks only")
 	assert.Equal(t, uint64(100), batch.Ticks[0].TickHeight, "first tick should be post-reset")
+}
+
+func TestCollector_SystemSpanCaptureRequiresProfileSubscriber(t *testing.T) {
+	c := NewCollector(1)
+
+	assert.False(t, c.StartTick(), "no subscriber")
+
+	timingsCh := c.SubscribeTimings()
+	captureSystemSpans := c.StartTick()
+	assert.False(t, captureSystemSpans, "timing subscriber")
+	c.RecordTick(captureSystemSpans, 0, time.Now(), time.Now().Add(-2*time.Millisecond))
+
+	timingsBatch := <-timingsCh
+	require.Len(t, timingsBatch.Ticks, 1)
+	assert.Empty(t, timingsBatch.Ticks[0].Spans)
+	assert.GreaterOrEqual(t, timingsBatch.Ticks[0].SystemPhaseElapsed, 2*time.Millisecond)
+
+	profilesCh := c.SubscribeProfiles()
+	captureSystemSpans = c.StartTick()
+	assert.True(t, captureSystemSpans, "profile subscriber")
+	c.RecordSpan(TickSpan{SystemName: "sys"})
+	c.RecordTick(captureSystemSpans, 1, time.Now(), time.Now().Add(-3*time.Millisecond))
+
+	assert.Len(t, (<-profilesCh).Ticks[0].Spans, 1)
+	<-timingsCh
+
+	c.Unsubscribe(profilesCh)
+	assert.False(t, c.StartTick(), "profile subscriber disconnected")
+}
+
+func TestCollector_ProfileSubscriberJoiningMidBatchMarksOnlyCapturedTicks(t *testing.T) {
+	c := NewCollector(3)
+	timingsCh := c.SubscribeTimings()
+	t.Cleanup(func() { c.Unsubscribe(timingsCh) })
+
+	tickStart := time.Now()
+	for i := range 2 {
+		captureSystemSpans := c.StartTick()
+		require.False(t, captureSystemSpans)
+		c.RecordTick(captureSystemSpans, uint64(i), tickStart, time.Now())
+	}
+
+	profilesCh := c.SubscribeProfiles()
+	t.Cleanup(func() { c.Unsubscribe(profilesCh) })
+
+	captureSystemSpans := c.StartTick()
+	require.True(t, captureSystemSpans)
+	systemPhaseStartedAt := time.Now()
+	c.RecordSpan(TickSpan{SystemName: "sys", StartTime: systemPhaseStartedAt})
+	c.RecordTick(captureSystemSpans, 2, tickStart, systemPhaseStartedAt)
+
+	for _, batch := range []Batch{<-timingsCh, <-profilesCh} {
+		require.Len(t, batch.Ticks, 3)
+		assert.False(t, batch.Ticks[0].Profiled)
+		assert.False(t, batch.Ticks[1].Profiled)
+		assert.True(t, batch.Ticks[2].Profiled)
+		assert.Equal(t, systemPhaseStartedAt, batch.Ticks[2].SystemPhaseStartedAt)
+		assert.Len(t, batch.Ticks[2].Spans, 1)
+	}
+}
+
+func TestCollector_ProfileSubscriberDisconnectingMidTickFinishesCapturedTick(t *testing.T) {
+	c := NewCollector(1)
+	timingsCh := c.SubscribeTimings()
+	t.Cleanup(func() { c.Unsubscribe(timingsCh) })
+	profilesCh := c.SubscribeProfiles()
+
+	captureSystemSpans := c.StartTick()
+	require.True(t, captureSystemSpans)
+	systemPhaseStartedAt := time.Now()
+	c.RecordSpan(TickSpan{SystemName: "sys", StartTime: systemPhaseStartedAt})
+	c.Unsubscribe(profilesCh)
+	c.RecordTick(captureSystemSpans, 1, time.Now(), systemPhaseStartedAt)
+
+	batch := <-timingsCh
+	require.Len(t, batch.Ticks, 1)
+	assert.True(t, batch.Ticks[0].Profiled)
+	assert.Len(t, batch.Ticks[0].Spans, 1)
+	assert.False(t, c.StartTick(), "the next tick should not capture after the profile subscriber leaves")
+}
+
+func TestCollector_ProfileSubscriberReplacingMidTickReceivesCapturedTick(t *testing.T) {
+	c := NewCollector(1)
+	profilesCh := c.SubscribeProfiles()
+
+	captureSystemSpans := c.StartTick()
+	require.True(t, captureSystemSpans)
+	systemPhaseStartedAt := time.Now()
+	c.RecordSpan(TickSpan{SystemName: "sys", StartTime: systemPhaseStartedAt})
+	c.Unsubscribe(profilesCh)
+
+	replacementCh := c.SubscribeProfiles()
+	t.Cleanup(func() { c.Unsubscribe(replacementCh) })
+	c.RecordTick(captureSystemSpans, 1, time.Now(), systemPhaseStartedAt)
+
+	batch := <-replacementCh
+	require.Len(t, batch.Ticks, 1)
+	assert.True(t, batch.Ticks[0].Profiled)
+	assert.Len(t, batch.Ticks[0].Spans, 1)
 }

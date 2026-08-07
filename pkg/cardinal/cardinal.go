@@ -217,12 +217,21 @@ func (w *World) Tick(ctx context.Context, timestamp time.Time) {
 	_ = w.commands.Drain()
 
 	w.currentTick.timestamp = timestamp
-	w.debug.startPerfTick()
+	w.currentTick.captureSystemSpans = w.debug.startSystemSpanCapture()
 
 	// Tick ECS world.
+	var systemPhaseStartedAt time.Time
+	if w.debug != nil {
+		systemPhaseStartedAt = time.Now()
+	}
 	w.world.Tick()
 
-	w.debug.recordTick(w.currentTick.height, timestamp)
+	w.debug.recordTick(
+		w.currentTick.captureSystemSpans,
+		w.currentTick.height,
+		timestamp,
+		systemPhaseStartedAt,
+	)
 
 	// Emit events.
 	if err := w.events.Dispatch(); err != nil {
@@ -368,6 +377,10 @@ func (w *World) shutdown() {
 }
 
 func (w *World) reset() {
+	// Clear the whole tick before init systems run so they cannot inherit a
+	// span-capture latch from the previous tick.
+	w.currentTick = Tick{}
+
 	// Reset ECS world and rerun the init systems.
 	w.world.Reset()
 	w.world.Init()
@@ -375,10 +388,6 @@ func (w *World) reset() {
 	// Clear command and event buffers from previous tick.
 	w.commands.Clear()
 	w.events.Clear()
-
-	// Reset tick bookkeeping fields.
-	w.currentTick.height = 0
-	w.currentTick.timestamp = time.Time{}
 
 	// Republish state so it doesn't describe the pre-reset world, and clear perf data.
 	if worldState, err := w.world.ToProto(); err != nil {
@@ -394,6 +403,7 @@ func (w *World) reset() {
 }
 
 type Tick struct {
-	height    uint64
-	timestamp time.Time
+	height             uint64
+	timestamp          time.Time
+	captureSystemSpans bool
 }

@@ -2,7 +2,9 @@ package cardinal
 
 import (
 	"testing"
+	"time"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/invopop/jsonschema"
 	"github.com/shamaton/msgpack/v3"
 	"github.com/stretchr/testify/assert"
@@ -74,4 +76,59 @@ func mapKeys(m map[string]any) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestPerformanceBatchConverters(t *testing.T) {
+	tickStart := time.Now()
+	systemPhaseStartedAt := tickStart.Add(time.Millisecond)
+	batch := performance.Batch{
+		Ticks: []performance.TickTimeline{{
+			TickHeight:           42,
+			TickStart:            tickStart,
+			SystemPhaseStartedAt: systemPhaseStartedAt,
+			SystemPhaseElapsed:   3 * time.Millisecond,
+			Profiled:             true,
+			Spans: []performance.TickSpan{{
+				SystemName: "move",
+				StartTime:  systemPhaseStartedAt.Add(time.Millisecond),
+				EndTime:    systemPhaseStartedAt.Add(2 * time.Millisecond),
+			}},
+		}},
+	}
+
+	overview := timingBatchToProto(batch)
+	require.Len(t, overview.GetTicks(), 1)
+	assert.Equal(t, uint64(3*time.Millisecond), overview.GetTicks()[0].GetDurationNs())
+
+	profile := profileBatchToProto(batch)
+	require.Len(t, profile.GetTicks(), 1)
+	require.Len(t, profile.GetTicks()[0].GetSpans(), 1)
+	assert.Equal(t, "move", profile.GetTicks()[0].GetSpans()[0].GetSystem())
+	assert.Equal(t, uint64(time.Millisecond), profile.GetTicks()[0].GetSpans()[0].GetStartOffsetNs())
+	assert.Equal(t, uint64(3*time.Millisecond), profile.GetTicks()[0].GetTiming().GetDurationNs())
+}
+
+func TestProfileBatchToProtoFiltersUnprofiledTicks(t *testing.T) {
+	now := time.Now()
+	batch := performance.Batch{Ticks: []performance.TickTimeline{
+		{TickHeight: 1, TickStart: now},
+		{TickHeight: 2, TickStart: now, SystemPhaseStartedAt: now, Profiled: true},
+	}}
+
+	overview := timingBatchToProto(batch)
+	require.Len(t, overview.GetTicks(), 2, "timing subscribers keep the whole batch")
+
+	profile := profileBatchToProto(batch)
+	require.Len(t, profile.GetTicks(), 1)
+	assert.Equal(t, uint64(2), profile.GetTicks()[0].GetTiming().GetTickHeight())
+	assert.Empty(t, profile.GetTicks()[0].GetSpans(), "a profiled tick with no systems remains visible")
+}
+
+func TestProfileBatchToProtoDropsEntirelyUnprofiledBatch(t *testing.T) {
+	response := profileBatchToProto(performance.Batch{Ticks: []performance.TickTimeline{{
+		TickHeight: 1,
+		TickStart:  time.Now(),
+	}}})
+
+	assert.Empty(t, response.GetTicks())
 }
