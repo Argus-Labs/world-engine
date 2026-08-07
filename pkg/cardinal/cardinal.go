@@ -157,9 +157,6 @@ func (w *World) StartGame() {
 	// above are already running, so a goroutine/stack profile is reachable
 	// during the panic window via the deferred shutdown chain.
 	// Start the ConnectRPC client-facing service.
-	if err := w.debug.finalizeCatalog(); err != nil {
-		panic(eris.Wrap(err, "failed to finalize introspection catalog"))
-	}
 	if err := w.service.init(addressService); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}

@@ -42,6 +42,14 @@ func (sample schemaSample) MarshalWire() ([]byte, error) {
 	return proto.Marshal(sample.ToProto())
 }
 
+func (schemaSample) FormSchema() []byte {
+	return []byte(`{"properties":{"ID":{"type":"integer","x-cardinal-proto-field":"Id"},"Label":{"type":"string","x-cardinal-proto-field":"Name"}}}`)
+}
+
+func (schemaSample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
+}
+
 func (sample schemaSample) UnmarshalWire(data []byte) (any, error) {
 	var message cardinalv1.SystemNode
 	if err := proto.Unmarshal(data, &message); err != nil {
@@ -65,7 +73,6 @@ func newIntrospectionTestModule() *debugModule {
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true,
 			ExpandedStruct: true,
-			FieldNameTag:   "protowire",
 		},
 	}
 }
@@ -94,9 +101,9 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 		properties, ok := schema.GetSchema().AsMap()["properties"].(map[string]any)
 		require.True(t, ok, "schema should have properties")
 		assert.ElementsMatch(t, []string{"ID", "Label"}, mapKeys(properties))
-		assert.NotContains(t, properties, "legacy_id")
-		assert.NotContains(t, properties, "id")
-		assert.NotContains(t, properties, "label")
+		id, ok := properties["ID"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Id", id["x-cardinal-proto-field"])
 	}
 
 	var set descriptorpb.FileDescriptorSet

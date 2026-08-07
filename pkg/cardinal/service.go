@@ -131,6 +131,9 @@ func (s *service) init(address string) error {
 	mux.Handle(cardinalPath, authMiddleware.Wrap(cardinalHandler))
 
 	if s.world.debug != nil {
+		if err := s.world.debug.finalizeCatalog(); err != nil {
+			return eris.Wrap(err, "failed to finalize introspection catalog")
+		}
 		debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
 			s.world.debug,
 			connect.WithInterceptors(otelInterceptor, validateInterceptor),
