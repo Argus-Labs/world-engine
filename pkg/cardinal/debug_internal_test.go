@@ -16,11 +16,11 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
-// schemaSample deliberately carries JSON and legacy msgpack tags that disagree with its generated
-// protobuf mapping. Introspection must follow the generated mapping for every registered type kind.
+// schemaSample deliberately carries JSON tags that disagree with its generated protobuf mapping.
+// Introspection must follow the generated mapping for every registered type kind.
 type schemaSample struct {
-	ID    uint32 `json:"id"    msgpack:"legacy_id"`
-	Label string `json:"label" msgpack:"-"`
+	ID    uint32 `json:"id"`
+	Label string `json:"label"`
 }
 
 func (schemaSample) Name() string { return "schema-sample" }
