@@ -3,7 +3,6 @@ package cardinal
 import (
 	"context"
 	"math"
-	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -64,9 +63,6 @@ func newDebugModule(world *World) *debugModule {
 		reflector: &jsonschema.Reflector{
 			Anonymous:      true, // Don't add $id based on package path
 			ExpandedStruct: true, // Inline the struct fields directly
-			// Generated protobuf mappings are based on Go field names. Use a tag no user
-			// struct defines so JSON or legacy msgpack tags cannot change the advertised name.
-			FieldNameTag: "protowire",
 		},
 		perf: perf,
 	}
@@ -104,12 +100,20 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 	if _, exists := catalog[name]; exists {
 		return nil
 	}
-	descriptor := protoMessageDescriptor(value)
-
-	jsonSchema := d.reflector.Reflect(value)
-	data, err := json.Marshal(jsonSchema)
-	if err != nil {
-		return eris.Wrap(err, "failed to marshal json schema")
+	var descriptor protoreflect.MessageDescriptor
+	var data []byte
+	if introspectable, ok := value.(schema.Introspectable); ok {
+		descriptor = introspectable.ProtoDescriptor()
+		data = introspectable.FormSchema()
+	} else {
+		// Keep non-generated Serializable implementations useful in tests and custom integrations.
+		// Generated protobuf wire types take the explicit metadata path above.
+		jsonSchema := d.reflector.Reflect(value)
+		var err error
+		data, err = json.Marshal(jsonSchema)
+		if err != nil {
+			return eris.Wrap(err, "failed to marshal json schema")
+		}
 	}
 
 	var schemaMap map[string]any
@@ -129,30 +133,6 @@ func (d *debugModule) register(kind string, value schema.Serializable) error {
 
 	catalog[name] = introspectedType{schema: schemaStruct, descriptor: descriptor}
 	return nil
-}
-
-// protoMessageDescriptor resolves the generated protobuf message returned by ToProto without invoking
-// the method. Go does not support covariant interface return types, so generated ToProto methods that
-// each return a different concrete protobuf type must be inspected via reflection.
-func protoMessageDescriptor(value any) protoreflect.MessageDescriptor {
-	if value == nil {
-		return nil
-	}
-
-	t := reflect.TypeOf(value)
-	method, ok := t.MethodByName("ToProto")
-	if !ok && t.Kind() != reflect.Pointer {
-		method, ok = reflect.PointerTo(t).MethodByName("ToProto")
-	}
-	if !ok || method.Type.NumIn() != 1 || method.Type.NumOut() != 1 {
-		return nil
-	}
-
-	message, ok := reflect.Zero(method.Type.Out(0)).Interface().(proto.Message)
-	if !ok {
-		return nil
-	}
-	return message.ProtoReflect().Descriptor()
 }
 
 // finalizeCatalog freezes type registration and caches the descriptor set before the debug service
@@ -219,6 +199,9 @@ func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, erro
 	}
 
 	set := &descriptorpb.FileDescriptorSet{File: files}
+	if _, err := protodesc.NewFiles(set); err != nil {
+		return nil, eris.Wrap(err, "invalid protobuf descriptor set")
+	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
 }
 
