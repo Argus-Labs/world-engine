@@ -43,7 +43,10 @@ func (sample schemaSample) MarshalWire() ([]byte, error) {
 }
 
 func (schemaSample) FormSchema() []byte {
-	return []byte(`{"properties":{"ID":{"type":"integer","x-cardinal-proto-field":"Id"},"Label":{"type":"string","x-cardinal-proto-field":"Name"}}}`)
+	return []byte(
+		`{"properties":{"ID":{"type":"integer","x-cardinal-proto-field":"Id"},` +
+			`"Label":{"type":"string","x-cardinal-proto-field":"Name"}}}`,
+	)
 }
 
 func (schemaSample) ProtoDescriptor() protoreflect.MessageDescriptor {
