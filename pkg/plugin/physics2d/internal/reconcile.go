@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
-// ReconcileFromECS incrementally syncs the C-side Box2D world from authoritative ECS entries
+// ReconcileFromECS incrementally syncs the Box2D world from authoritative ECS entries
 // using shadow-copy diffing. It is the hot-path counterpart to FullRebuildFromECS.
 //
 // Structural vs mutable changes:
@@ -24,33 +24,40 @@ import (
 //     and per-shape sensor, friction, restitution, density, and filter category/mask/group.
 //     Applied in place without recreating shapes.
 //
-// Requires non-nil Runtime() with a live C-side world (for example after an initial
+// Requires a live world on this runtime (for example after an initial
 // FullRebuildFromECS). Entries are sorted by EntityID; duplicate IDs are an error. Entities
 // absent from entries are removed from the runtime (body destroyed, shadow dropped).
 //
 // ReconcileFromECS does not touch SuppressContactsStep or Emitter; it does not step the world.
-func ReconcileFromECS(entries []PhysicsRebuildEntry) error {
-	rt := Runtime()
-	if !cbridge.WorldExists() {
+func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
+	if rt.World == nil {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
 	}
 
-	sorted, err := cloneSortAndCheckDuplicateReconcileEntries(entries)
+	sorted, err := rt.cloneSortAndCheckDuplicateReconcileEntries(entries)
 	if err != nil {
 		return err
 	}
-	destroyOrphanBodies(rt, sorted)
+	rt.destroyOrphanBodies(sorted)
 	for _, e := range sorted {
-		if err := reconcileOneEntry(rt, e); err != nil {
+		if err := rt.reconcileOneEntry(e); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if any ID repeats.
-func cloneSortAndCheckDuplicateReconcileEntries(entries []PhysicsRebuildEntry) ([]PhysicsRebuildEntry, error) {
-	sorted := slices.Clone(entries)
+// cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
+// any ID repeats. The returned slice is backed by rt.reconcileSortScratch (reused across ticks
+// to avoid re-cloning every reconcile); it is only valid until the next call. The scratch tail
+// past the new length is cleared per the Runtime scratch RULE: PhysicsRebuildEntry holds shape
+// and vertex slices, so a bare [:0] would pin component memory for destroyed entities after
+// the entity count shrinks.
+func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
+	entries []PhysicsRebuildEntry,
+) ([]PhysicsRebuildEntry, error) {
+	rt.reconcileSortScratch = clearScratchTail(append(rt.reconcileSortScratch[:0], entries...))
+	sorted := rt.reconcileSortScratch
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
 		return cmp.Compare(a.EntityID, b.EntityID)
 	})
@@ -62,50 +69,68 @@ func cloneSortAndCheckDuplicateReconcileEntries(entries []PhysicsRebuildEntry) (
 	return sorted, nil
 }
 
-// destroyOrphanBodies removes C-side bodies (and shadow/active-contact rows) for entities not present in sorted.
-func destroyOrphanBodies(rt *PhysicsRuntime, sorted []PhysicsRebuildEntry) {
-	wanted := make(map[cardinal.EntityID]struct{}, len(sorted))
-	for _, e := range sorted {
-		wanted[e.EntityID] = struct{}{}
-	}
+// destroyOrphanBodies removes bodies (and shadow/active-contact rows) for entities not present
+// in sorted. Membership uses binary search on the EntityID-sorted entries, avoiding a per-tick
+// set allocation.
+func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	var orphans []cardinal.EntityID
 	for id := range rt.KnownEntities {
-		if _, ok := wanted[id]; !ok {
+		if !sortedEntriesContainID(sorted, id) {
 			orphans = append(orphans, id)
 		}
 	}
 	slices.SortFunc(orphans, cmp.Compare)
 	for _, id := range orphans {
-		cbridge.DestroyBody(uint32(id))
+		rt.DestroyEntityBody(id)
 		delete(rt.KnownEntities, id)
 		delete(rt.Shadow, id)
 		rt.PruneActiveContactsInvolvingEntity(id)
 	}
 }
 
+// sortedEntriesContainID reports whether an EntityID-sorted entries slice contains id.
+// Index-based binary search: comparisons touch only the EntityID field instead of copying
+// whole PhysicsRebuildEntry values (transform, velocity and the collider with its shape slice)
+// on every step the way slices.BinarySearchFunc's by-value comparator would.
+//
+// The midpoint is lo+(hi-lo)/2 rather than (lo+hi)/2: same overflow safety, but no unsigned
+// round trip, so no integer-conversion lint suppression is needed either.
+func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) bool {
+	lo, hi := 0, len(sorted)
+	for lo < hi {
+		mid := lo + (hi-lo)/2
+		if sorted[mid].EntityID < id {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	return lo < len(sorted) && sorted[lo].EntityID == id
+}
+
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
-func reconcileOneEntry(rt *PhysicsRuntime, e PhysicsRebuildEntry) error {
+func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if len(e.PhysicsBody.Shapes) == 0 {
 		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
 	}
 	prev, hadPrev := rt.Shadow[e.EntityID]
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
-		return createBodyForEntry(rt, e)
+		return rt.createBodyForEntry(e)
 	}
 	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) {
 		return nil
 	}
-	if err := reconcileExistingBody(rt, hadPrev, prev, e); err != nil {
+	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
 	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
-// createBodyForEntry builds a new C-side body with shapes and records KnownEntities and Shadow.
-func createBodyForEntry(rt *PhysicsRuntime, e PhysicsRebuildEntry) error {
-	if err := CreateBodyWithCollider(
+// createBodyForEntry builds a new body with shapes and records KnownEntities and Shadow.
+func (rt *Runtime) createBodyForEntry(e PhysicsRebuildEntry) error {
+	if err := rt.CreateBodyWithCollider(
 		e.EntityID,
 		e.Transform,
 		e.Velocity,
@@ -118,36 +143,37 @@ func createBodyForEntry(rt *PhysicsRuntime, e PhysicsRebuildEntry) error {
 	return nil
 }
 
-// reconcileExistingBody applies component diffs to the C-side body; rebuilds if shadow was missing or inconsistent.
-func reconcileExistingBody(
-	rt *PhysicsRuntime,
+// reconcileExistingBody applies component diffs to the body; rebuilds if shadow was missing or inconsistent.
+func (rt *Runtime) reconcileExistingBody(
 	hadPrev bool,
 	prev ShadowState,
 	e PhysicsRebuildEntry,
 ) error {
 	if !hadPrev {
 		// No shadow: treat as inconsistent; rebuild this body from scratch.
-		cbridge.DestroyBody(uint32(e.EntityID))
+		rt.DestroyEntityBody(e.EntityID)
 		delete(rt.KnownEntities, e.EntityID)
 		delete(rt.Shadow, e.EntityID)
 		rt.PruneActiveContactsInvolvingEntity(e.EntityID)
-		return createBodyForEntry(rt, e)
+		return rt.createBodyForEntry(e)
 	}
 
 	if err := validatePhysicsRebuildEntry(e); err != nil {
 		return err
 	}
 
-	eid := uint32(e.EntityID)
+	bodyID := rt.Bodies[e.EntityID]
 
 	if prev.BodyParamsDiffer(e.PhysicsBody) {
-		applyBodyParamsInPlace(e.EntityID, e.PhysicsBody)
+		rt.applyBodyParamsInPlace(e.EntityID, e.PhysicsBody)
 	}
 	if prev.TransformDiffers(e.Transform) {
-		cbridge.SetTransform(eid, e.Transform.Position.X, e.Transform.Position.Y, e.Transform.Rotation)
+		rt.World.SetBodyTransform(bodyID,
+			box2d.Vec2{X: e.Transform.Position.X, Y: e.Transform.Position.Y},
+			box2d.MakeRot(e.Transform.Rotation))
 	}
 	if prev.ShapesDiffer(e.PhysicsBody) {
-		if err := reconcileShapesChange(rt, e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
+		if err := rt.reconcileShapesChange(e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
 			return err
 		}
 	}
@@ -156,32 +182,31 @@ func reconcileExistingBody(
 	// For all other body types, push ECS velocity into Box2D when it changes.
 	switch {
 	case e.PhysicsBody.BodyType == component.BodyTypeManual:
-		cbridge.SetLinearVelocity(eid, 0, 0)
-		cbridge.SetAngularVelocity(eid, 0)
+		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{})
+		rt.World.SetBodyAngularVelocity(bodyID, 0)
 	case e.PhysicsBody.FixedRotation:
-		cbridge.SetAngularVelocity(eid, 0)
+		rt.World.SetBodyAngularVelocity(bodyID, 0)
 		if prev.VelocityDiffers(e.Velocity) {
-			cbridge.SetLinearVelocity(eid, e.Velocity.Linear.X, e.Velocity.Linear.Y)
+			rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		}
 	case prev.VelocityDiffers(e.Velocity):
-		cbridge.SetLinearVelocity(eid, e.Velocity.Linear.X, e.Velocity.Linear.Y)
-		cbridge.SetAngularVelocity(eid, e.Velocity.Angular)
+		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
+		rt.World.SetBodyAngularVelocity(bodyID, e.Velocity.Angular)
 	}
 	return nil
 }
 
 // reconcileShapesChange applies structural shape rebuild or in-place mutable updates when
 // shadow shapes differ from ECS.
-func reconcileShapesChange(
-	rt *PhysicsRuntime,
+func (rt *Runtime) reconcileShapesChange(
 	entityID cardinal.EntityID,
 	prev, live []component.ColliderShape,
 ) error {
 	if ShapesStructuralEqual(prev, live) {
-		return applyMutableShapeFixtures(entityID, prev, live)
+		return rt.applyMutableShapeFixtures(entityID, prev, live)
 	}
-	cbridge.DestroyAllShapes(uint32(entityID))
-	if err := AttachColliderFixtures(entityID, live); err != nil {
+	rt.destroyAllShapesForEntity(entityID)
+	if err := rt.AttachColliderFixtures(entityID, live); err != nil {
 		return err
 	}
 	rt.PruneActiveContactsInvolvingEntity(entityID)
@@ -202,22 +227,43 @@ func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 	return nil
 }
 
-// applyBodyParamsInPlace sets body type, damping, gravity scale, and body flags via cbridge.
-func applyBodyParamsInPlace(entityID cardinal.EntityID, pb component.PhysicsBody2D) {
-	eid := uint32(entityID)
-	cbridge.SetBodyType(eid, mapBodyType(pb.BodyType))
-	cbridge.SetLinearDamping(eid, pb.LinearDamping)
-	cbridge.SetAngularDamping(eid, pb.AngularDamping)
-	cbridge.SetGravityScale(eid, pb.GravityScale)
-	cbridge.SetBodyEnabled(eid, pb.Active)
-	cbridge.SetBullet(eid, pb.Bullet)
-	cbridge.SetFixedRotation(eid, pb.FixedRotation)
-	cbridge.SetSleepEnabled(eid, pb.SleepingAllowed)
-	cbridge.SetAwake(eid, pb.Awake)
+// applyBodyParamsInPlace sets body type, damping, gravity scale, and body flags in place.
+func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb component.PhysicsBody2D) {
+	bodyID, ok := rt.Bodies[entityID]
+	if !ok {
+		return
+	}
+	rt.World.SetBodyType(bodyID, mapBodyType(pb.BodyType))
+	rt.World.SetBodyLinearDamping(bodyID, pb.LinearDamping)
+	rt.World.SetBodyAngularDamping(bodyID, pb.AngularDamping)
+	rt.World.SetBodyGravityScale(bodyID, pb.GravityScale)
+	rt.setBodyEnabled(bodyID, pb.Active)
+	rt.World.SetBodyBullet(bodyID, pb.Bullet)
+	rt.setFixedRotation(bodyID, pb.FixedRotation)
+	rt.World.EnableBodySleep(bodyID, pb.SleepingAllowed)
+	rt.World.SetBodyAwake(bodyID, pb.Awake)
+}
+
+// setBodyEnabled enables or disables the body only when the state actually changes,
+// matching the CGO bridge's bridge_set_body_enabled.
+func (rt *Runtime) setBodyEnabled(bodyID box2d.BodyID, enabled bool) {
+	switch {
+	case enabled && !rt.World.IsBodyEnabled(bodyID):
+		rt.World.EnableBody(bodyID)
+	case !enabled && rt.World.IsBodyEnabled(bodyID):
+		rt.World.DisableBody(bodyID)
+	}
+}
+
+// setFixedRotation toggles the angular-Z motion lock, preserving the linear locks.
+func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
+	locks := rt.World.BodyMotionLocks(bodyID)
+	locks.AngularZ = flag
+	rt.World.SetBodyMotionLocks(bodyID, locks)
 }
 
 // applyMutableShapeFixtures updates sensor, friction, restitution, density, and filter per shape index in place.
-func applyMutableShapeFixtures(
+func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
 	prev []component.ColliderShape,
 	live []component.ColliderShape,
@@ -227,7 +273,7 @@ func applyMutableShapeFixtures(
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
-	eid := uint32(entityID)
+	slots := rt.Shapes[entityID]
 	var densityTouched bool
 	for i := range live {
 		if ColliderShapeMutableFieldsEqual(prev[i], live[i]) {
@@ -236,16 +282,26 @@ func applyMutableShapeFixtures(
 		if prev[i].Density != live[i].Density {
 			densityTouched = true
 		}
+		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
+		// (its per-shape setters could not resolve chain shape indices either).
+		if i >= len(slots) || slots[i].IsNull() {
+			continue
+		}
+		sid := slots[i]
 		sh := live[i]
-		cbridge.SetShapeFriction(eid, i, sh.Friction)
-		cbridge.SetShapeRestitution(eid, i, sh.Restitution)
-		cbridge.SetShapeDensity(eid, i, sh.Density)
-		cbridge.SetShapeFilter(eid, i, sh.CategoryBits, sh.MaskBits, sh.GroupIndex)
+		rt.World.SetShapeFriction(sid, sh.Friction)
+		rt.World.SetShapeRestitution(sid, sh.Restitution)
+		rt.World.SetShapeDensity(sid, sh.Density, true)
+		rt.World.SetShapeFilter(sid, box2d.Filter{
+			CategoryBits: sh.CategoryBits,
+			MaskBits:     sh.MaskBits,
+			GroupIndex:   int(sh.GroupIndex),
+		})
 	}
 	if densityTouched {
-		// Only non-static bodies need mass recalculation after density changes.
-		// The cbridge handles the static check internally.
-		cbridge.ResetMassData(eid)
+		if bodyID, ok := rt.Bodies[entityID]; ok {
+			rt.World.ApplyBodyMassFromShapes(bodyID)
+		}
 	}
 	return nil
 }

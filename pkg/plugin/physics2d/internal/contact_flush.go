@@ -1,13 +1,12 @@
 package internal
 
 import (
-	"maps"
 	"sort"
 
+	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
 // FlushBufferedContacts turns buffered contact records into physics2d events via the
@@ -28,8 +27,7 @@ import (
 // If NoPersistedActiveContactsBaseline is set (missing singleton on a suppressed step), the
 // suppressed flush adopts live contacts into the map without emitting events so one-shot
 // Begin handlers do not all fire spuriously; the flag is cleared.
-func FlushBufferedContacts() {
-	rt := Runtime()
+func (rt *Runtime) FlushBufferedContacts() {
 	stepHadEmitter := rt.Emitter != nil
 	wasSuppressed := rt.SuppressContactsStep
 	defer func() {
@@ -55,10 +53,10 @@ func FlushBufferedContacts() {
 		// No ECS baseline: seed map from live contacts only; do not emit Begins for every overlap.
 		if rt.NoPersistedActiveContactsBaseline {
 			rt.NoPersistedActiveContactsBaseline = false
-			adoptLiveContactsWithoutEmit(rt)
+			rt.adoptLiveContactsWithoutEmit()
 			return
 		}
-		diffActiveContactsAfterRebuild(rt, em)
+		rt.diffActiveContactsAfterRebuild(em)
 		return
 	}
 
@@ -75,19 +73,19 @@ func FlushBufferedContacts() {
 		}
 		flushOneBufferedContact(em, buf)
 	}
-	refreshActiveContactsFromLive(rt)
+	rt.refreshActiveContactsFromLive()
 }
 
 // adoptLiveContactsWithoutEmit replaces the in-memory map with the current live touching pairs
 // and does not emit system events (no persisted baseline when the singleton entity is missing).
-func adoptLiveContactsWithoutEmit(rt *PhysicsRuntime) {
-	if !cbridge.WorldExists() {
+func (rt *Runtime) adoptLiveContactsWithoutEmit() {
+	if rt.World == nil {
 		return
 	}
-	live := gatherLiveContacts()
-	clear(rt.ActiveContacts)
-	maps.Copy(rt.ActiveContacts, live)
-	if len(live) > 0 {
+	// Gathering straight into ActiveContacts (which gatherLiveContactsInto clears) replaces it
+	// wholesale, which is exactly the intent here.
+	rt.gatherLiveContactsInto(rt.ActiveContacts)
+	if len(rt.ActiveContacts) > 0 {
 		rt.ActiveContactsDirty = true
 	}
 }
@@ -95,12 +93,13 @@ func adoptLiveContactsWithoutEmit(rt *PhysicsRuntime) {
 // diffActiveContactsAfterRebuild walks the live contact list and diffs against the persisted
 // ActiveContacts map. Emits Begin for genuinely new overlaps and End for contacts that no
 // longer exist in the simulation. Events are sorted for deterministic ordering.
-func diffActiveContactsAfterRebuild(rt *PhysicsRuntime, em event.ContactEventEmitter) {
-	if !cbridge.WorldExists() {
+func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) {
+	if rt.World == nil {
 		return
 	}
 
-	liveContacts := gatherLiveContacts()
+	liveContacts := rt.liveContacts()
+	rt.gatherLiveContactsInto(liveContacts)
 
 	var events []BufferedContactEvent
 
@@ -131,30 +130,107 @@ func diffActiveContactsAfterRebuild(rt *PhysicsRuntime, em event.ContactEventEmi
 	}
 }
 
-// gatherLiveContacts calls cbridge.GatherLiveContacts and converts the results into the
-// normalized ContactPairKey -> ContactPairInfo map.
-func gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
-	result := make(map[ContactPairKey]ContactPairInfo)
-	liveEvents := cbridge.GatherLiveContacts()
-	for _, c := range liveEvents {
-		entityA := cardinal.EntityID(c.EntityA)
-		entityB := cardinal.EntityID(c.EntityB)
-		shapeIndexA := c.ShapeIndexA
-		shapeIndexB := c.ShapeIndexB
+// gatherLiveContactsInto fills dst (cleared first) with the currently touching contact pairs,
+// by walking every tracked body and reading its touching contact data from the world. Pairs are
+// normalized and deduplicated: Box2D reports each contact from both endpoints. Replaces the CGO
+// bridge's bridge_gather_live_contacts.
+//
+// Body iteration order is rt.Bodies map order, which is deliberate: the result does not depend
+// on it. World.BodyContactData fills ShapeIDA/ShapeIDB and the manifold from the contact record
+// itself, not from the endpoint that asked, so both endpoints of a pair produce a byte-identical
+// ContactPairInfo and it cannot matter which one is recorded first. Every consumer of dst is
+// order-free as well (a keyed lookup, or a total sort of the derived events).
+func (rt *Runtime) gatherLiveContactsInto(dst map[ContactPairKey]ContactPairInfo) {
+	clear(dst)
+	w := rt.World
+
+	rt.beginContactGather()
+
+	buf := rt.contactDataScratch
+	for _, bodyID := range rt.Bodies {
+		capacity := w.BodyContactCapacity(bodyID)
+		if capacity == 0 {
+			continue
+		}
+		if cap(buf) < capacity {
+			buf = make([]box2d.ContactData, capacity)
+		}
+		n := w.BodyContactData(bodyID, buf[:capacity])
+		rt.collectBodyContacts(buf[:n], dst)
+	}
+	rt.contactDataScratch = buf
+}
+
+// liveContacts returns the reusable live-contacts map for callers that need a gather target
+// separate from ActiveContacts. gatherLiveContactsInto clears it.
+func (rt *Runtime) liveContacts() map[ContactPairKey]ContactPairInfo {
+	if rt.liveContactsScratch == nil {
+		rt.liveContactsScratch = make(map[ContactPairKey]ContactPairInfo)
+	}
+	return rt.liveContactsScratch
+}
+
+// beginContactGather advances the stamp epoch used by markContactSeen. Wrapping back to 0 would
+// make stale stamps compare equal, so that one epoch is spent clearing instead.
+func (rt *Runtime) beginContactGather() {
+	rt.gatherEpoch++
+	if rt.gatherEpoch == 0 {
+		clear(rt.seenContactsScratch)
+		rt.gatherEpoch = 1
+	}
+}
+
+// markContactSeen reports whether this contact was already folded into the current gather, and
+// records it if not. Both endpoints of a pair report the same contact, so this discards the
+// second one before it pays for two shapeIdentity resolutions (three world lookups each).
+func (rt *Runtime) markContactSeen(id box2d.ContactID) bool {
+	index := int(box2d.PackContactID(id)[0])
+	if index >= len(rt.seenContactsScratch) {
+		// Grow through append so the backing array grows geometrically. Sizing
+		// it to exactly index+1 would reallocate once per contact in a scene
+		// that first sees its contact indices in ascending order.
+		rt.seenContactsScratch = append(rt.seenContactsScratch,
+			make([]uint32, index+1-len(rt.seenContactsScratch))...)
+	}
+	if rt.seenContactsScratch[index] == rt.gatherEpoch {
+		return true
+	}
+	rt.seenContactsScratch[index] = rt.gatherEpoch
+	return false
+}
+
+// collectBodyContacts normalizes and records one body's touching contact data into result,
+// skipping pairs already recorded from the other endpoint.
+func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[ContactPairKey]ContactPairInfo) {
+	w := rt.World
+	for j := range contacts {
+		cd := &contacts[j]
+		if rt.markContactSeen(cd.ContactID) {
+			continue
+		}
+
+		entityA, shapeIndexA := rt.shapeIdentity(cd.ShapeIDA)
+		entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
 
 		key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
-		info := ContactPairInfo{IsSensor: c.IsSensor}
+		// One contact maps to exactly one normalized pair key, so the stamp above already
+		// covers this; the map check is what makes a stamp FALSE NEGATIVE free (both endpoints
+		// build a byte-identical ContactPairInfo, so a re-record would be a no-op). It does
+		// NOT cover the other direction: a false-positive stamp hits the `continue` at the
+		// markContactSeen call above and the pair is dropped silently — a spurious End for a
+		// still-touching persisted pair, a missing Begin for a new one, stale sensor/filter
+		// metadata for the rest. What holds that side is the ContactID layout — PackContactID
+		// slot 0 is the contact's 1-based dense index (index1), pinned by
+		// TestOracleContactID_CReference in pkg/box2d.
+		if _, seen := result[key]; seen {
+			continue
+		}
+		info := ContactPairInfo{
+			IsSensor: w.IsShapeSensor(cd.ShapeIDA) || w.IsShapeSensor(cd.ShapeIDB),
+		}
 
-		fda := event.FixtureFilterBits{
-			CategoryBits: c.CatA,
-			MaskBits:     c.MaskA,
-			GroupIndex:   c.GroupA,
-		}
-		fdb := event.FixtureFilterBits{
-			CategoryBits: c.CatB,
-			MaskBits:     c.MaskB,
-			GroupIndex:   c.GroupB,
-		}
+		fda := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDA))
+		fdb := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDB))
 		if entityA == key.EntityA && shapeIndexA == key.ShapeIndexA {
 			info.FilterA = fda
 			info.FilterB = fdb
@@ -163,19 +239,19 @@ func gatherLiveContacts() map[ContactPairKey]ContactPairInfo {
 			info.FilterB = fda
 		}
 
-		if c.NormalValid {
-			info.Normal = component.Vec2{X: c.NormalX, Y: c.NormalY}
+		if cd.Manifold.PointCount > 0 {
+			info.Normal = component.Vec2{X: cd.Manifold.Normal.X, Y: cd.Manifold.Normal.Y}
 			info.NormalValid = true
-		}
-		if c.PointValid {
-			info.Point = component.Vec2{X: c.PointX, Y: c.PointY}
+			info.Point = component.Vec2{
+				X: cd.Manifold.Points[0].AnchorA.X,
+				Y: cd.Manifold.Points[0].AnchorA.Y,
+			}
 			info.PointValid = true
+			info.ManifoldPointCount = cd.Manifold.PointCount
 		}
-		info.ManifoldPointCount = c.ManifoldPointCount
 
 		result[key] = info
 	}
-	return result
 }
 
 // normalizeContactPairKey returns a stable map key: the lexicographically smaller (entity, shapeIndex) pair is A.
@@ -211,11 +287,12 @@ func contactInfoNormalizedFromBuffered(buf BufferedContactEvent, key ContactPair
 // refreshActiveContactsFromLive overwrites each ActiveContacts entry that still exists in the
 // live contact list with the latest sensor/filter snapshot. Marks the ECS component dirty when
 // those fields change.
-func refreshActiveContactsFromLive(rt *PhysicsRuntime) {
-	if !cbridge.WorldExists() || len(rt.ActiveContacts) == 0 {
+func (rt *Runtime) refreshActiveContactsFromLive() {
+	if rt.World == nil || len(rt.ActiveContacts) == 0 {
 		return
 	}
-	live := gatherLiveContacts()
+	live := rt.liveContacts()
+	rt.gatherLiveContactsInto(live)
 	for k, prev := range rt.ActiveContacts {
 		li, ok := live[k]
 		if !ok {
@@ -296,8 +373,9 @@ func flushOneBufferedContact(em event.ContactEventEmitter, buf BufferedContactEv
 
 // SetStepEmitter stores the contact event sink for the upcoming simulation step. The step driver
 // should set this before the step and call FlushBufferedContacts after the step.
-func SetStepEmitter(emitter event.ContactEventEmitter) {
-	if rt := Runtime(); rt != nil {
-		rt.Emitter = emitter
+func (rt *Runtime) SetStepEmitter(emitter event.ContactEventEmitter) {
+	if rt == nil {
+		return
 	}
+	rt.Emitter = emitter
 }

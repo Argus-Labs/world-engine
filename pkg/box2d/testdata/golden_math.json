@@ -1,0 +1,125 @@
+[
+  {
+    "name": "atan2",
+    "bits": [
+      "0000000000000000",
+      "3ff921fb5fdd3550",
+      "bff921fb5fdd3550",
+      "0000000000000000",
+      "400921fb5fdd3550",
+      "3fe9223547f1976e",
+      "bfe9223547f1976e",
+      "4002d96e0de0cf74",
+      "c002d96e0de0cf74",
+      "3eb0c6f7a0b5e76d",
+      "3ff921fa536dbb45",
+      "bfecfdf1302939b9",
+      "3ff921fb759b7c80",
+      "0010000000000000",
+      "0004000000000000"
+    ]
+  },
+  {
+    "name": "cos_sin",
+    "bits": [
+      "3ff0000000000000",
+      "0000000000000000",
+      "3fec12877538bfbf",
+      "3fdeb884c014490e",
+      "3fec12877538bfbf",
+      "bfdeb884c014490e",
+      "3f19b8865b5980b5",
+      "3feffffffd6a70c2",
+      "3f19b8865b5980b5",
+      "bfeffffffd6a70c2",
+      "bfeffffffd9beeaf",
+      "3f18bd70b86cdb07",
+      "bfeffffffd9beeaf",
+      "bf18bd70b86cdb07",
+      "3fef3d49e3540fcc",
+      "3fcbbdd165fef9a9",
+      "3fef3d49e3540fcc",
+      "bfcbbdd165fef9a9",
+      "3feebb442e4ea078",
+      "bfd1d744a203d78a",
+      "3feebb442e4ea078",
+      "3fd1d744a203d78a",
+      "3fedf63ae8b1f808",
+      "bfd679c228530dc6",
+      "3fedf63ae8b1f808",
+      "3fd679c228530dc6",
+      "3fe6a09e667f3d15",
+      "3fe6a09e667f3a84"
+    ]
+  },
+  {
+    "name": "integrate_rotation_chain",
+    "bits": [
+      "bfe4820cde54b154",
+      "bfe8908c4afb15ed"
+    ]
+  },
+  {
+    "name": "vector_pipeline_chain",
+    "bits": [
+      "3fd0de35737d77fd",
+      "bfc38b23f521c7d6"
+    ]
+  },
+  {
+    "name": "nlerp_angular_velocity",
+    "bits": [
+      "bfe9a1cb1b600ae4",
+      "bfe32841a837a460",
+      "0000000000000000",
+      "bfebfd46fb34d540",
+      "bfdf05b439d47911",
+      "c0203e87a291a869",
+      "bfee86a4e22062f4",
+      "bfd3335d4e130eac",
+      "c033d8c4b435a76c",
+      "bfefffa56eed215b",
+      "bf83087957bf1441",
+      "c041bc5f06bdd478",
+      "bfedc983e14369b9",
+      "3fd762c7964b5d56",
+      "c0497fa6bcd68dfc",
+      "bfe7405b4689e3dd",
+      "3fe5fc596a1454e6",
+      "c04d8f490b3c621c",
+      "bfdfafdae7202da7",
+      "3febcd772dd021f4",
+      "c04dc5270e507b20",
+      "bfd3ed339e1caea2",
+      "3fee68cfe5fb8484",
+      "c04c6d6d5c7ee6b0",
+      "bfc70535c3095c33",
+      "3fef7a6d47d61197",
+      "c04ade43836789e8"
+    ]
+  },
+  {
+    "name": "mat22",
+    "bits": [
+      "0000000000000000",
+      "8000000000000000",
+      "0000000000000000",
+      "8000000000000000",
+      "8000000000000000",
+      "0000000000000000",
+      "3fe60511be1958b7",
+      "bfe59faee41e6a75",
+      "3fcbe1958b67ebb9",
+      "3fc1be1958b67ebc",
+      "bfa958b67ebb907a",
+      "3fae6a74981446f8"
+    ]
+  },
+  {
+    "name": "spring_damper",
+    "bits": [
+      "9ea22eb81e2bf43e",
+      "1f172d73dc6f2172"
+    ]
+  }
+]

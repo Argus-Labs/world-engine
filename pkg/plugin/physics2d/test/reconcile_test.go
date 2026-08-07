@@ -13,7 +13,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestReconcile_DestroyEntityRemovesBody(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -52,7 +53,7 @@ func TestReconcile_DestroyEntityRemovesBody(t *testing.T) {
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
 	}) {
-		ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ov := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: -3, Y: -3},
 			Max: physics.Vec2{X: 3, Y: 3},
 		})
@@ -80,7 +81,8 @@ func TestReconcile_DestroyEntityRemovesBody(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_TransformChangeMovesBody(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -131,7 +133,7 @@ func TestReconcile_TransformChangeMovesBody(t *testing.T) {
 			return
 		}
 		// Should NOT be at old position.
-		ovOld := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ovOld := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: -2, Y: -2},
 			Max: physics.Vec2{X: 2, Y: 2},
 		})
@@ -142,7 +144,7 @@ func TestReconcile_TransformChangeMovesBody(t *testing.T) {
 		}
 
 		// Should be at new position.
-		ovNew := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ovNew := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: 48, Y: -2},
 			Max: physics.Vec2{X: 52, Y: 2},
 		})
@@ -165,7 +167,8 @@ func TestReconcile_TransformChangeMovesBody(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_MidSimEntityCreation(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var newID cardinal.EntityID
 
@@ -207,7 +210,7 @@ func TestReconcile_MidSimEntityCreation(t *testing.T) {
 		if state.Tick() < 12 {
 			return
 		}
-		ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ov := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: -3, Y: -3},
 			Max: physics.Vec2{X: 3, Y: 3},
 		})
@@ -229,7 +232,8 @@ func TestReconcile_MidSimEntityCreation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_MutableFrictionChange(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -279,7 +283,7 @@ func TestReconcile_MutableFrictionChange(t *testing.T) {
 		if state.Tick() != 15 {
 			return
 		}
-		ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ov := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: -3, Y: -3},
 			Max: physics.Vec2{X: 3, Y: 3},
 		})
@@ -301,7 +305,8 @@ func TestReconcile_MutableFrictionChange(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_StructuralRadiusChange(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -350,7 +355,7 @@ func TestReconcile_StructuralRadiusChange(t *testing.T) {
 	}) {
 		if state.Tick() == 5 {
 			// Before resize — small radius, check at X=3 should miss.
-			ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+			ov := p.OverlapAABB(physics.AABBOverlapRequest{
 				Min: physics.Vec2{X: 2, Y: -1},
 				Max: physics.Vec2{X: 4, Y: 1},
 			})
@@ -362,7 +367,7 @@ func TestReconcile_StructuralRadiusChange(t *testing.T) {
 		}
 		if state.Tick() == 15 {
 			// After resize to R=5, check at X=3 should hit.
-			ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+			ov := p.OverlapAABB(physics.AABBOverlapRequest{
 				Min: physics.Vec2{X: 2, Y: -1},
 				Max: physics.Vec2{X: 4, Y: 1},
 			})
@@ -386,7 +391,8 @@ func TestReconcile_StructuralRadiusChange(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_AddShape(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -440,7 +446,7 @@ func TestReconcile_AddShape(t *testing.T) {
 		if state.Tick() != 15 {
 			return
 		}
-		ov := physics.OverlapAABB(physics.AABBOverlapRequest{
+		ov := p.OverlapAABB(physics.AABBOverlapRequest{
 			Min: physics.Vec2{X: 18, Y: -2},
 			Max: physics.Vec2{X: 22, Y: 2},
 		})
@@ -462,7 +468,8 @@ func TestReconcile_AddShape(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_DampingChangeMidSim(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -531,7 +538,8 @@ func TestReconcile_DampingChangeMidSim(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_VelocityChangeInECS(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -597,7 +605,8 @@ func TestReconcile_VelocityChangeInECS(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestReconcile_RotationChange(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -647,7 +656,7 @@ func TestReconcile_RotationChange(t *testing.T) {
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
 	}) {
-		ray := physics.Raycast(physics.RaycastRequest{
+		ray := p.Raycast(physics.RaycastRequest{
 			Origin: physics.Vec2{X: -5, Y: 3},
 			End:    physics.Vec2{X: 5, Y: 3},
 		})

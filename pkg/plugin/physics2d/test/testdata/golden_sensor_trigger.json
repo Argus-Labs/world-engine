@@ -1,0 +1,789 @@
+{
+  "scenario": "sensor_trigger",
+  "tick_count": 200,
+  "frames": [
+    {
+      "tick": 0,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "9.9982643127441406",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.1666666716337204",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 10,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "9.828125",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.8333326578140259",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 20,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "9.3802080154418945",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-3.5000019073486328",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 30,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "8.6545133590698242",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-5.1666650772094727",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 40,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "7.6510419845581055",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-6.8333253860473633",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 50,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "6.3697934150695801",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-8.4999914169311523",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 60,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "4.8107662200927734",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-10.166670799255371",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 70,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "2.97395920753479",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-11.83335018157959",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 80,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.85937190055847168",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-13.500029563903809",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 90,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "1.0677222013473511",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "1.4000059366226196",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 100,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "1.1586953401565552",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.26666060090065002",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 110,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.97189086675643921",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-1.9333266019821167",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 120,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.80686992406845093",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "-0.31333443522453308",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 130,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79993468523025513",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 140,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.7999299168586731",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 150,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 160,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 170,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 180,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 190,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    },
+    {
+      "tick": 199,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "floor",
+          "pos_x": "0",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "sensor_gate",
+          "pos_x": "0",
+          "pos_y": "5",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "faller",
+          "pos_x": "0",
+          "pos_y": "0.79992973804473877",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "tick": 54,
+      "kind": "trigger_begin",
+      "sensor": true,
+      "entity_a": 2,
+      "entity_b": 3,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 65,
+      "kind": "trigger_end",
+      "sensor": true,
+      "entity_a": 2,
+      "entity_b": 3,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 82,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 3,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 85,
+      "kind": "contact_end",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 3,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    },
+    {
+      "tick": 115,
+      "kind": "contact_begin",
+      "sensor": false,
+      "entity_a": 1,
+      "entity_b": 3,
+      "shape_index_a": 0,
+      "shape_index_b": 0
+    }
+  ],
+  "queries": []
+}

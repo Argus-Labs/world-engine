@@ -1,0 +1,76 @@
+[
+  {
+    "name": "prismatic_elevator",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "a868b2f52faf737d"
+      },
+      {
+        "step": 60,
+        "hash": "9486a4bd1d50f6e5"
+      },
+      {
+        "step": 90,
+        "hash": "5aa3ba1f4b38c4ef"
+      },
+      {
+        "step": 120,
+        "hash": "ba76410db659a79a"
+      },
+      {
+        "step": 150,
+        "hash": "d743135afd73241a"
+      },
+      {
+        "step": 180,
+        "hash": "7eb2d2b99aba5f22"
+      },
+      {
+        "step": 210,
+        "hash": "9da0a83c3e639c25"
+      },
+      {
+        "step": 240,
+        "hash": "9da0a83c3e639c25"
+      }
+    ]
+  },
+  {
+    "name": "wheel_suspension",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "f882d7b26431daed"
+      },
+      {
+        "step": 60,
+        "hash": "393f41ae5166f400"
+      },
+      {
+        "step": 90,
+        "hash": "7fdf208e53d27765"
+      },
+      {
+        "step": 120,
+        "hash": "50672b6fa786b3bd"
+      },
+      {
+        "step": 150,
+        "hash": "a60917d44820e0ac"
+      },
+      {
+        "step": 180,
+        "hash": "c85df552302d08a3"
+      },
+      {
+        "step": 210,
+        "hash": "755bbeb3e615193c"
+      },
+      {
+        "step": 240,
+        "hash": "b80e310c444ed158"
+      }
+    ]
+  }
+]

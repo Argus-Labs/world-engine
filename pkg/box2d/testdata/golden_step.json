@@ -1,0 +1,113 @@
+[
+  {
+    "name": "pyramid",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "26506db162d600fd"
+      },
+      {
+        "step": 60,
+        "hash": "5e93eaa410d9df55"
+      },
+      {
+        "step": 90,
+        "hash": "d895a50988b07654"
+      },
+      {
+        "step": 120,
+        "hash": "d895a50988b07654"
+      },
+      {
+        "step": 150,
+        "hash": "d895a50988b07654"
+      },
+      {
+        "step": 180,
+        "hash": "d895a50988b07654"
+      },
+      {
+        "step": 210,
+        "hash": "d895a50988b07654"
+      },
+      {
+        "step": 240,
+        "hash": "d895a50988b07654"
+      }
+    ]
+  },
+  {
+    "name": "mixed_rain",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "a2be51d8d301ad55"
+      },
+      {
+        "step": 60,
+        "hash": "04d685515a3d5ecb"
+      },
+      {
+        "step": 90,
+        "hash": "41f6f426dbd03462"
+      },
+      {
+        "step": 120,
+        "hash": "92fcbdce2193c435"
+      },
+      {
+        "step": 150,
+        "hash": "6f23c325670102c4"
+      },
+      {
+        "step": 180,
+        "hash": "9c0ee5d707dd95a0"
+      },
+      {
+        "step": 210,
+        "hash": "3edb9cd3cd902ae6"
+      },
+      {
+        "step": 240,
+        "hash": "2e5763d0670a7bb3"
+      }
+    ]
+  },
+  {
+    "name": "restitution_balls",
+    "hashes": [
+      {
+        "step": 30,
+        "hash": "a49f3345099d3169"
+      },
+      {
+        "step": 60,
+        "hash": "c6e8788690183bde"
+      },
+      {
+        "step": 90,
+        "hash": "a573046024112f57"
+      },
+      {
+        "step": 120,
+        "hash": "5920d907afa17e93"
+      },
+      {
+        "step": 150,
+        "hash": "07e079235cff9bd9"
+      },
+      {
+        "step": 180,
+        "hash": "025d853aff6215aa"
+      },
+      {
+        "step": 210,
+        "hash": "4aeff490178bd02a"
+      },
+      {
+        "step": 240,
+        "hash": "69734c53d72d5990"
+      }
+    ]
+  }
+]

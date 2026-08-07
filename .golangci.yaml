@@ -202,6 +202,30 @@ linters:
       - linters:
           - govet
         text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
+      # pkg/box2d is a faithful port of Box2D v3 (C). Solver and collision
+      # routines are transliterated 1:1 from upstream for auditability and
+      # determinism, which makes size/complexity/duplication limits and
+      # magic-number rules unenforceable there. Correctness linters
+      # (errcheck, govet, exhaustive, staticcheck, ...) remain enabled.
+      - linters:
+          - cyclop
+          - dupl
+          - funlen
+          - gochecknoglobals
+          - gocognit
+          - goconst
+          - gocyclo
+          - lll
+          - nestif
+        path: ^pkg/box2d/
+      # Narrow gosec exception: G115 flags the integer-width conversions in the
+      # ported id packing/hashing, which are deliberate and carry no security
+      # surface. Every other gosec rule stays on for pkg/box2d -- a blanket
+      # exclusion here previously hid the G602 slice-bounds diagnostics.
+      - linters:
+          - gosec
+        text: 'G115'
+        path: ^pkg/box2d/
     paths:
       - dagger/internal
       - third_party$
