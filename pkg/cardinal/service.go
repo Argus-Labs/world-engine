@@ -130,16 +130,8 @@ func (s *service) init(address string) error {
 	)
 	mux.Handle(cardinalPath, authMiddleware.Wrap(cardinalHandler))
 
-	if s.world.debug != nil {
-		if err := s.world.debug.finalizeCatalog(); err != nil {
-			return eris.Wrap(err, "failed to finalize introspection catalog")
-		}
-		debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
-			s.world.debug,
-			connect.WithInterceptors(otelInterceptor, validateInterceptor),
-		)
-		mux.Handle(debugPath, debugHandler)
-		s.log.Info().Msg("DebugService mounted on client-facing port (dev)")
+	if err := s.mountDebugService(mux, otelInterceptor, validateInterceptor); err != nil {
+		return err
 	}
 
 	s.server = &http.Server{
@@ -160,6 +152,22 @@ func (s *service) init(address string) error {
 		}
 	}()
 
+	return nil
+}
+
+func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.Interceptor) error {
+	if s.world.debug == nil {
+		return nil
+	}
+	if err := s.world.debug.finalizeCatalog(); err != nil {
+		return eris.Wrap(err, "failed to finalize introspection catalog")
+	}
+	debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
+		s.world.debug,
+		connect.WithInterceptors(interceptors...),
+	)
+	mux.Handle(debugPath, debugHandler)
+	s.log.Info().Msg("DebugService mounted on client-facing port (dev)")
 	return nil
 }
 
