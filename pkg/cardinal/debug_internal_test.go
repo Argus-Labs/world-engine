@@ -13,28 +13,29 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	templatecommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
 // schemaSample deliberately carries JSON tags that disagree with its generated protobuf mapping.
 // Introspection must follow the generated mapping for every registered type kind.
 type schemaSample struct {
-	ID    uint32 `json:"id"`
-	Label string `json:"label"`
+	ArgusAuthID string `json:"argus_auth_id"`
+	X           uint32 `json:"x"`
 }
 
 func (schemaSample) Name() string { return "schema-sample" }
 
-func (sample schemaSample) ToProto() *cardinalv1.SystemNode {
-	return &cardinalv1.SystemNode{Id: sample.ID, Name: sample.Label}
+func (sample schemaSample) ToProto() *templatecommand.MovePlayer {
+	return &templatecommand.MovePlayer{ArgusAuthID: sample.ArgusAuthID, X: sample.X}
 }
 
-func (sample schemaSample) FromProto(message *cardinalv1.SystemNode) schemaSample {
+func (sample schemaSample) FromProto(message *templatecommand.MovePlayer) schemaSample {
 	if message == nil {
 		return sample
 	}
-	sample.ID = message.GetId()
-	sample.Label = message.GetName()
+	sample.ArgusAuthID = message.GetArgusAuthID()
+	sample.X = message.GetX()
 	return sample
 }
 
@@ -44,17 +45,16 @@ func (sample schemaSample) MarshalWire() ([]byte, error) {
 
 func (schemaSample) FormSchema() []byte {
 	return []byte(
-		`{"properties":{"ID":{"type":"integer","x-cardinal-proto-field":"Id"},` +
-			`"Label":{"type":"string","x-cardinal-proto-field":"Name"}}}`,
+		`{"properties":{"ArgusAuthID":{"type":"string"},"X":{"type":"integer"}}}`,
 	)
 }
 
 func (schemaSample) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
+	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
 }
 
 func (sample schemaSample) UnmarshalWire(data []byte) (any, error) {
-	var message cardinalv1.SystemNode
+	var message templatecommand.MovePlayer
 	if err := proto.Unmarshal(data, &message); err != nil {
 		return nil, err
 	}
@@ -99,20 +99,19 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	} {
 		require.Len(t, schemas, 1)
 		schema := schemas[0]
-		assert.Equal(t, "worldengine.cardinal.v1.SystemNode", schema.GetProtoMessageName())
+		assert.Equal(t, schemaSample{}.ProtoDescriptor().FullName(), protoreflect.FullName(schema.GetProtoMessageName()))
 
 		properties, ok := schema.GetSchema().AsMap()["properties"].(map[string]any)
 		require.True(t, ok, "schema should have properties")
-		assert.ElementsMatch(t, []string{"ID", "Label"}, mapKeys(properties))
-		id, ok := properties["ID"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "Id", id["x-cardinal-proto-field"])
+		assert.ElementsMatch(t, []string{"ArgusAuthID", "X"}, mapKeys(properties))
+		for property := range properties {
+			assert.NotNil(t, schemaSample{}.ProtoDescriptor().Fields().ByName(protoreflect.Name(property)))
+		}
 	}
 
 	var set descriptorpb.FileDescriptorSet
 	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
-	require.NotNil(t, findMessageDescriptor(&set, "SystemNode"))
-	assert.True(t, hasFile(&set, "google/protobuf/struct.proto"), "transitive imports must be included")
+	require.NotNil(t, findMessageDescriptor(&set, "MovePlayer"))
 }
 
 func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
@@ -166,6 +165,7 @@ func TestBuildDescriptorSetIsDeterministicAndDeduplicated(t *testing.T) {
 		require.False(t, seen[file.GetName()], "duplicate file in descriptor set: %s", file.GetName())
 		seen[file.GetName()] = true
 	}
+	assert.True(t, hasFile(&set, "google/protobuf/struct.proto"), "transitive imports must be included")
 }
 
 func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *descriptorpb.DescriptorProto {
