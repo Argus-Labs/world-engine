@@ -966,6 +966,7 @@ func processTimedOutLobby(
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", p.playerID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Player timed out due to missed heartbeats")
 
 		state.PlayerTimedOutEvents.Broadcast(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
@@ -974,7 +975,13 @@ func processTimedOutLobby(
 	// Check if lobby is empty
 	if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
 		lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
-		state.Logger().Info().Str("lobby_id", lobbyID).Msg("Lobby marked for deletion (empty after timeout)")
+		// The other way a code dies, and the only one no player asked for: everyone
+		// stopped heartbeating. A code that disappears with no "Lobby deleted (empty)"
+		// line ended here.
+		state.Logger().Info().
+			Str("lobby_id", lobbyID).
+			Str("invite_code", lobby.InviteCode).
+			Msg("Lobby marked for deletion (empty after timeout)")
 		state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{LobbyID: lobbyID})
 		return playerEntities, &lobbyToDestroy{
 			entityID: cardinal.EntityID(lobbyEntityID),
@@ -991,6 +998,7 @@ func processTimedOutLobby(
 			Str("lobby_id", lobbyID).
 			Str("old_leader", oldLeaderID).
 			Str("new_leader", lobby.LeaderID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Leadership auto-transferred after timeout")
 		state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
 			LobbyID: lobbyID, OldLeaderID: oldLeaderID, NewLeaderID: lobby.LeaderID,
@@ -1242,9 +1250,14 @@ func processCreateLobbyCommands(
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
 
+		// invite_code is logged so an "invalid invite code" report can be traced back to
+		// the moment the code was issued. Without it there is no way to tell a code the
+		// server never issued from one it issued and then lost.
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("leader_id", playerID).
+			Str("invite_code", inviteCode).
+			Str("request_id", payload.RequestID).
 			Msg("Lobby created")
 
 		// Emit broadcast event
@@ -1265,6 +1278,125 @@ func processCreateLobbyCommands(
 	}
 }
 
+// resolveInviteCode turns a join command's invite code into the lobby it names. It logs
+// the cause and emits the join failure itself, so callers only branch on ok.
+//
+// The two Error branches are the only ones that mean the server is at fault: the code
+// resolved to a lobby, so the invite index and the entity index disagree, or the entity
+// they agree on is gone. A code whose trace ends there was lost by the backend, not by
+// the player.
+func resolveInviteCode(
+	state *LobbySystemState,
+	lobbyIndex *component.LobbyIndexComponent,
+	playerID string,
+	payload JoinLobbyCommand,
+) (string, cardinal.Ref[component.LobbyComponent], bool) {
+	var none cardinal.Ref[component.LobbyComponent]
+
+	lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
+	if !exists {
+		// known_codes distinguishes "this one code is missing" from "the index is
+		// empty", which look identical to the player but mean very different things.
+		state.Logger().Warn().
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Int("known_codes", lobbyIndex.InviteCodeCount()).
+			Msg("invalid invite code")
+		emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
+		return "", none, false
+	}
+
+	lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
+	if !exists {
+		state.Logger().Error().
+			Str("invite_code", payload.InviteCode).
+			Str("lobby_id", lobbyID).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Msg("invite code maps to a lobby with no entity")
+		emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
+		return "", none, false
+	}
+
+	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+	if err != nil {
+		state.Logger().Error().Err(err).
+			Str("invite_code", payload.InviteCode).
+			Str("lobby_id", lobbyID).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Msg("invite code maps to a lobby entity that no longer exists")
+		emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
+		return "", none, false
+	}
+
+	return lobbyID, lobbyEntity.Lobby, true
+}
+
+// admitToTeam runs the join guards that apply once the invite code has already resolved,
+// and places the player on a team. It logs the cause and emits the join failure itself,
+// so callers only branch on ok.
+//
+// Every rejection here carries invite_code even though the code is valid in all of them:
+// a grep for the code has to surface attempts that failed for some other reason, or the
+// code looks unused when it was actually tried and refused.
+//
+// lobby is mutated in place on success — the player is appended to the target team.
+func admitToTeam(
+	state *LobbySystemState,
+	lobby *component.LobbyComponent,
+	lobbyID, playerID string,
+	payload JoinLobbyCommand,
+) (*component.Team, bool) {
+	if lobby.Session.State == component.SessionStateInSession {
+		state.Logger().Warn().
+			Str("lobby_id", lobbyID).
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Msg("lobby is in session")
+		emitJoinLobbyFailure(state, payload.RequestID, "lobby is in session")
+		return nil, false
+	}
+
+	// Game-specific validation (version, region, level, etc.)
+	if ok, reason := storedProvider.ValidateJoin(lobby, payload); !ok {
+		state.Logger().Warn().
+			Str("lobby_id", lobbyID).
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("reason", reason).
+			Msg("join rejected by provider")
+		emitJoinLobbyFailure(state, payload.RequestID, reason)
+		return nil, false
+	}
+
+	targetTeam, errMsg := findTargetTeam(lobby, payload.TeamID)
+	if targetTeam == nil {
+		state.Logger().Warn().
+			Str("lobby_id", lobbyID).
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Str("team_id", payload.TeamID).
+			Msg(errMsg)
+		emitJoinLobbyFailure(state, payload.RequestID, errMsg)
+		return nil, false
+	}
+
+	if !lobby.AddPlayerToTeam(playerID, targetTeam.TeamID) {
+		state.Logger().Warn().
+			Str("lobby_id", lobbyID).
+			Str("invite_code", payload.InviteCode).
+			Str("player_id", playerID).
+			Msg("failed to join team")
+		emitJoinLobbyFailure(state, payload.RequestID, "failed to join team")
+		return nil, false
+	}
+
+	return targetTeam, true
+}
+
 func processJoinLobbyCommands(
 	state *LobbySystemState,
 	lobbyIndex *component.LobbyIndexComponent,
@@ -1274,65 +1406,32 @@ func processJoinLobbyCommands(
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		// Check if player is already in a lobby
-		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
-			state.Logger().Warn().Str("player_id", playerID).Msg("player already in a lobby")
+		// Check if player is already in a lobby. invite_code is logged even though the
+		// code is not the problem here: a grep for the code must surface every attempt to
+		// use it, including the ones rejected for an unrelated reason.
+		if existingLobbyID, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
+			state.Logger().Warn().
+				Str("player_id", playerID).
+				Str("invite_code", payload.InviteCode).
+				Str("lobby_id", existingLobbyID).
+				Str("request_id", payload.RequestID).
+				Msg("player already in a lobby")
 			emitJoinLobbyFailure(state, payload.RequestID, "player already in a lobby")
 			continue
 		}
 
-		// Find lobby by invite code
-		lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
-		if !exists {
-			state.Logger().Warn().Str("invite_code", payload.InviteCode).Msg("invalid invite code")
-			emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
+		lobbyID, lobbyRef, found := resolveInviteCode(state, lobbyIndex, playerID, payload)
+		if !found {
+			continue
+		}
+		lobby := lobbyRef.Get()
+
+		targetTeam, admitted := admitToTeam(state, &lobby, lobbyID, playerID, payload)
+		if !admitted {
 			continue
 		}
 
-		lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
-		if !exists {
-			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
-			continue
-		}
-
-		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
-		if err != nil {
-			emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
-			continue
-		}
-
-		lobby := lobbyEntity.Lobby.Get()
-
-		// Check if lobby is in session
-		if lobby.Session.State == component.SessionStateInSession {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("lobby is in session")
-			emitJoinLobbyFailure(state, payload.RequestID, "lobby is in session")
-			continue
-		}
-
-		// Game-specific validation (version, region, level, etc.)
-		if ok, reason := storedProvider.ValidateJoin(&lobby, payload); !ok {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("reason", reason).Msg("join rejected by provider")
-			emitJoinLobbyFailure(state, payload.RequestID, reason)
-			continue
-		}
-
-		// Find target team
-		targetTeam, errMsg := findTargetTeam(&lobby, payload.TeamID)
-		if targetTeam == nil {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_id", payload.TeamID).Msg(errMsg)
-			emitJoinLobbyFailure(state, payload.RequestID, errMsg)
-			continue
-		}
-
-		// Add player ID to team
-		if !lobby.AddPlayerToTeam(playerID, targetTeam.TeamID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("failed to join team")
-			emitJoinLobbyFailure(state, payload.RequestID, "failed to join team")
-			continue
-		}
-
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyRef.Set(lobby)
 
 		// Create player entity
 		playerPassthrough, err := DecodePassthrough(payload.PlayerPassthroughData)
@@ -1348,6 +1447,8 @@ func processJoinLobbyCommands(
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("team_id", targetTeam.TeamID).
+			Str("invite_code", payload.InviteCode).
+			Str("request_id", payload.RequestID).
 			Msg("Player joined lobby")
 
 		// Emit broadcast event
@@ -1452,6 +1553,8 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			Str("player_id", playerID).
 			Str("old_team", oldTeamID).
 			Str("new_team", newTeam.TeamID).
+			Str("request_id", payload.RequestID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Player changed team")
 
 		// Emit broadcast event
@@ -1505,14 +1608,29 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 			PlayerID: playerID,
 		})
 
+		// Logged before the branch below, not after it: when this is the last player, the
+		// lobby is deleted as a consequence of the leave, and the deletion line has to be
+		// the final entry for this code. Logging it afterwards made "Player left lobby"
+		// the last thing a grep sees for a lobby that no longer exists.
+		state.Logger().Info().
+			Str("lobby_id", lobbyID).
+			Str("player_id", playerID).
+			Str("invite_code", lobby.InviteCode).
+			Str("request_id", payload.RequestID).
+			Msg("Player left lobby")
+
 		// If lobby is empty, delete it - use index for O(1) check
 		if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
 			failPendingAssignment(&state.StartSessionResults, &lobby, "lobby deleted before shard assignment")
 			lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
 			state.Lobbies.Destroy(result.entityID)
 
+			// The code dies here: RemoveLobby drops it from the invite index. This is the
+			// end of the trace for that code, and the reason a later join is rejected.
 			state.Logger().Info().
 				Str("lobby_id", lobbyID).
+				Str("invite_code", lobby.InviteCode).
+				Str("triggered_by", playerID).
 				Msg("Lobby deleted (empty)")
 
 			// Emit broadcast event for lobby deletion
@@ -1535,6 +1653,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 					Str("lobby_id", lobbyID).
 					Str("old_leader", oldLeaderID).
 					Str("new_leader", lobby.LeaderID).
+					Str("invite_code", lobby.InviteCode).
 					Msg("Leadership auto-transferred")
 
 				// Emit broadcast event for leader change
@@ -1547,11 +1666,6 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *component.Lo
 
 			result.lobbyRef.Set(lobby)
 		}
-
-		state.Logger().Info().
-			Str("lobby_id", lobbyID).
-			Str("player_id", playerID).
-			Msg("Player left lobby")
 
 		state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
 			RequestID: payload.RequestID,
@@ -1615,6 +1729,8 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *component.Lobb
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Bool("is_ready", payload.IsReady).
+			Str("request_id", payload.RequestID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Player ready status changed")
 
 		// Emit broadcast event
@@ -1696,6 +1812,8 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *component.Lo
 			Str("lobby_id", lobbyID).
 			Str("player_id", payload.TargetPlayerID).
 			Str("kicker_id", playerID).
+			Str("request_id", payload.RequestID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Player kicked from lobby")
 
 		// Emit broadcast event
@@ -1761,6 +1879,8 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *componen
 			Str("lobby_id", lobbyID).
 			Str("old_leader", oldLeaderID).
 			Str("new_leader", payload.TargetPlayerID).
+			Str("request_id", payload.RequestID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Leadership transferred")
 
 		// Emit broadcast event
@@ -1849,8 +1969,13 @@ func processStartSessionCommands(
 		lobby.Session.PendingStartedAt = state.Timestamp().Unix()
 		result.lobbyRef.Set(lobby)
 
+		// player_id is the leader who started it — this line had no actor at all, so a
+		// session start could not be attributed to anyone.
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
+			Str("player_id", playerID).
+			Str("request_id", payload.RequestID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Session pending shard assignment")
 
 		state.SessionAwaitingAllocationEvents.Broadcast(SessionAwaitingAllocationEvent{
@@ -1956,6 +2081,7 @@ func dispatchSessionStart(
 	state.Logger().Info().
 		Str("lobby_id", lobbyID).
 		Str("game_shard", lobby.GameWorld.ShardID).
+		Str("invite_code", lobby.InviteCode).
 		Msg("[CROSS-SHARD] Sent NotifySessionStartCommand to game shard")
 }
 
@@ -2031,6 +2157,7 @@ func processAssignShardCommands(
 		state.Logger().Info().
 			Str("lobby_id", payload.LobbyID).
 			Str("game_shard", lobby.GameWorld.ShardID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Session started (async assignment)")
 
 		state.SessionStartedEvents.Broadcast(SessionStartedEvent{
@@ -2114,6 +2241,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *compon
 
 		state.Logger().Info().
 			Str("lobby_id", payload.LobbyID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Session ended")
 
 		// Emit broadcast event
@@ -2170,9 +2298,14 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *comp
 
 		lobbyIndex.UpdateInviteCode(lobbyID, oldCode, newCode)
 
+		// old_invite_code is the one a game dev will be holding when they report a code
+		// that stopped working. Logging only the new one leaves the retired code with no
+		// death record, which is indistinguishable from the server losing it.
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", newCode).
+			Str("old_invite_code", oldCode).
+			Str("rotated_by", playerID).
 			Msg("New invite code generated")
 
 		// Emit broadcast event
@@ -2229,6 +2362,7 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
+			Str("invite_code", lobby.InviteCode).
 			Msg("Session passthrough data updated")
 
 		// Emit broadcast event
@@ -2292,6 +2426,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
+			Str("invite_code", result.lobby.InviteCode).
 			Msg("Player passthrough data updated")
 
 		// Emit broadcast event
@@ -2529,6 +2664,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 		state.Lobbies.Destroy(toDestroy.entityID)
 		state.Logger().Info().
 			Str("lobby_id", toDestroy.lobbyID).
+			Str("invite_code", toDestroy.lobby.InviteCode).
 			Msg("Lobby deleted (empty after timeout)")
 	}
 
