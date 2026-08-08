@@ -152,7 +152,7 @@ export type Column = Message<"worldengine.cardinal.v1.Column"> & {
   componentName: string;
 
   /**
-   * Dense array of serialized component data (JSON)
+   * Dense array of serialized component wire data.
    *
    * @generated from field: repeated bytes components = 2;
    */
@@ -165,4 +165,3 @@ export type Column = Message<"worldengine.cardinal.v1.Column"> & {
  */
 export const ColumnSchema: GenMessage<Column> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_snapshot, 3);
-

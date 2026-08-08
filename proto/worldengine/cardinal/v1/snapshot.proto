@@ -56,6 +56,6 @@ message Column {
   // Name of the component stored in this column
   string component_name = 1 [(buf.validate.field).string.min_len = 1];
 
-  // Dense array of serialized component data (JSON)
+  // Dense array of serialized component wire data.
   repeated bytes components = 2;
 }
