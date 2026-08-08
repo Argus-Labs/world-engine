@@ -1084,7 +1084,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForBytes(18);
     private readonly pbc::RepeatedField<pb::ByteString> components_ = new pbc::RepeatedField<pb::ByteString>();
     /// <summary>
-    /// Dense array of serialized component data (JSON)
+    /// Dense array of serialized component wire data.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
