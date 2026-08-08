@@ -3,20 +3,11 @@ package cardinal
 import (
 	"context"
 	"math"
-	"sort"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/goccy/go-json"
-	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
@@ -27,24 +18,13 @@ import (
 
 const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches.
 
-type introspectedType struct {
-	schema     *structpb.Struct
-	descriptor protoreflect.MessageDescriptor
-}
-
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
-	world            *World
-	control          *tickControl
-	reflector        *jsonschema.Reflector
-	catalogMu        sync.Mutex
-	catalogFinalized bool
-	commands         map[string]introspectedType
-	events           map[string]introspectedType
-	components       map[string]introspectedType
-	descriptorSet    []byte
-	perf             *performance.Collector
+	world   *World
+	control *tickControl
+	catalog *introspectionCatalog
+	perf    *performance.Collector
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -55,16 +35,10 @@ func newDebugModule(world *World) *debugModule {
 	perf := performance.NewCollector(batchSize)
 
 	d := &debugModule{
-		world:      world,
-		control:    newTickControl(),
-		commands:   make(map[string]introspectedType),
-		events:     make(map[string]introspectedType),
-		components: make(map[string]introspectedType),
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true, // Don't add $id based on package path
-			ExpandedStruct: true, // Inline the struct fields directly
-		},
-		perf: perf,
+		world:   world,
+		control: newTickControl(),
+		catalog: newIntrospectionCatalog(),
+		perf:    perf,
 	}
 	return d
 }
@@ -73,136 +47,19 @@ func newDebugModule(world *World) *debugModule {
 // Introspect
 // -------------------------------------------------------------------------------------------------
 
-// register records the JSON schema of a command, event, or component type for introspection.
-func (d *debugModule) register(kind string, value schema.Serializable) error {
+// register is nil-safe because worlds without debug enabled do not have a debug module.
+func (d *debugModule) register(kind introspectionKind, value schema.Serializable) error {
 	if d == nil {
 		return nil
 	}
-	d.catalogMu.Lock()
-	defer d.catalogMu.Unlock()
-	if d.catalogFinalized {
-		return eris.New("introspection catalog is finalized")
-	}
-
-	var catalog map[string]introspectedType
-	switch kind {
-	case "command":
-		catalog = d.commands
-	case "event":
-		catalog = d.events
-	case "component":
-		catalog = d.components
-	default:
-		panic("this is an internal function, this should never panic")
-	}
-
-	name := value.Name()
-	if _, exists := catalog[name]; exists {
-		return nil
-	}
-	var descriptor protoreflect.MessageDescriptor
-	var data []byte
-	if introspectable, ok := value.(schema.Introspectable); ok {
-		descriptor = introspectable.ProtoDescriptor()
-		data = introspectable.FormSchema()
-	} else {
-		// Keep non-generated Serializable implementations useful in tests and custom integrations.
-		// Generated protobuf wire types take the explicit metadata path above.
-		jsonSchema := d.reflector.Reflect(value)
-		var err error
-		data, err = json.Marshal(jsonSchema)
-		if err != nil {
-			return eris.Wrap(err, "failed to marshal json schema")
-		}
-	}
-
-	var schemaMap map[string]any
-	if err := json.Unmarshal(data, &schemaMap); err != nil {
-		return eris.Wrap(err, "failed to unmarshal json schema")
-	}
-
-	// Remove redundant fields.
-	delete(schemaMap, "$schema")
-	delete(schemaMap, "type")
-	delete(schemaMap, "additionalProperties")
-
-	schemaStruct, err := structpb.NewStruct(schemaMap)
-	if err != nil {
-		return eris.Wrap(err, "failed to create struct from schema")
-	}
-
-	catalog[name] = introspectedType{schema: schemaStruct, descriptor: descriptor}
-	return nil
+	return d.catalog.Register(kind, value)
 }
 
-// finalizeCatalog freezes type registration and caches the descriptor set before the debug service
-// becomes reachable.
 func (d *debugModule) finalizeCatalog() error {
 	if d == nil {
 		return nil
 	}
-
-	d.catalogMu.Lock()
-	defer d.catalogMu.Unlock()
-	if d.catalogFinalized {
-		return nil
-	}
-
-	descriptors := make([]protoreflect.MessageDescriptor, 0, len(d.commands)+len(d.components)+len(d.events))
-	for _, catalog := range []map[string]introspectedType{d.commands, d.components, d.events} {
-		for _, entry := range catalog {
-			if entry.descriptor != nil {
-				descriptors = append(descriptors, entry.descriptor)
-			}
-		}
-	}
-
-	descriptorSet, err := buildDescriptorSet(descriptors)
-	if err != nil {
-		return eris.Wrap(err, "failed to build introspection descriptor set")
-	}
-	d.descriptorSet = descriptorSet
-	d.catalogFinalized = true
-	return nil
-}
-
-// buildDescriptorSet serializes the files containing the supplied messages and every transitive
-// import. Message and file ordering is deterministic, and shared files are emitted once.
-func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
-	if len(messages) == 0 {
-		return nil, nil
-	}
-
-	sortedMessages := append([]protoreflect.MessageDescriptor(nil), messages...)
-	sort.Slice(sortedMessages, func(i, j int) bool {
-		return sortedMessages[i].FullName() < sortedMessages[j].FullName()
-	})
-
-	seen := make(map[string]bool)
-	files := make([]*descriptorpb.FileDescriptorProto, 0, len(sortedMessages))
-	var addFile func(protoreflect.FileDescriptor)
-	addFile = func(file protoreflect.FileDescriptor) {
-		if seen[file.Path()] {
-			return
-		}
-		seen[file.Path()] = true
-
-		imports := file.Imports()
-		for i := range imports.Len() {
-			addFile(imports.Get(i).FileDescriptor)
-		}
-		files = append(files, protodesc.ToFileDescriptorProto(file))
-	}
-
-	for _, message := range sortedMessages {
-		addFile(message.ParentFile())
-	}
-
-	set := &descriptorpb.FileDescriptorSet{File: files}
-	if _, err := protodesc.NewFiles(set); err != nil {
-		return nil, eris.Wrap(err, "invalid protobuf descriptor set")
-	}
-	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
+	return d.catalog.Finalize()
 }
 
 // Introspect returns metadata about the registered types in the world.
@@ -210,20 +67,17 @@ func (d *debugModule) Introspect(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
-	d.catalogMu.Lock()
-	finalized := d.catalogFinalized
-	d.catalogMu.Unlock()
-	if !finalized {
+	if !d.catalog.Finalized() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("introspection catalog is not finalized"))
 	}
 
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
-		Commands:           d.buildTypeSchemas(d.commands),
-		Components:         d.buildTypeSchemas(d.components),
-		Events:             d.buildTypeSchemas(d.events),
+		Commands:           d.catalog.Commands(),
+		Components:         d.catalog.Components(),
+		Events:             d.catalog.Events(),
 		TickRateHz:         d.world.options.TickRate,
 		Schedules:          d.buildSchedules(),
-		ProtoDescriptorSet: d.descriptorSet,
+		ProtoDescriptorSet: d.catalog.DescriptorSet(),
 	}), nil
 }
 
@@ -350,22 +204,6 @@ func (d *debugModule) recordSpan(span performance.TickSpan) {
 		return
 	}
 	d.perf.RecordSpan(span)
-}
-
-// buildTypeSchemas converts the internal schema cache to proto TypeSchema messages.
-func (d *debugModule) buildTypeSchemas(cache map[string]introspectedType) []*cardinalv1.TypeSchema {
-	schemas := make([]*cardinalv1.TypeSchema, 0, len(cache))
-	for name, entry := range cache {
-		typeSchema := &cardinalv1.TypeSchema{
-			Name:   name,
-			Schema: entry.schema,
-		}
-		if entry.descriptor != nil {
-			typeSchema.ProtoMessageName = string(entry.descriptor.FullName())
-		}
-		schemas = append(schemas, typeSchema)
-	}
-	return schemas
 }
 
 // -------------------------------------------------------------------------------------------------

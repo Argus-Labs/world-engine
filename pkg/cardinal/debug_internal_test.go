@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/invopop/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -67,16 +66,21 @@ func (wireOnlySample) Name() string                      { return "wire-only" }
 func (wireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
 
+type namedSchemaSample struct {
+	schemaSample
+	name string
+}
+
+func (sample namedSchemaSample) Name() string { return sample.name }
+
+type nilDescriptorSample struct{ schemaSample }
+
+func (nilDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor { return nil }
+
 func newIntrospectionTestModule() *debugModule {
 	return &debugModule{
-		world:      &World{world: ecs.NewWorld()},
-		commands:   make(map[string]introspectedType),
-		events:     make(map[string]introspectedType),
-		components: make(map[string]introspectedType),
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true,
-			ExpandedStruct: true,
-		},
+		world:   &World{world: ecs.NewWorld()},
+		catalog: newIntrospectionCatalog(),
 	}
 }
 
@@ -84,7 +88,7 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	for _, kind := range []string{"command", "component", "event"} {
+	for _, kind := range []introspectionKind{introspectionCommand, introspectionComponent, introspectionEvent} {
 		require.NoError(t, d.register(kind, schemaSample{}))
 	}
 	require.NoError(t, d.finalizeCatalog())
@@ -118,13 +122,13 @@ func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register("command", wireOnlySample{}))
+	require.NoError(t, d.register(introspectionCommand, wireOnlySample{}))
 	require.NoError(t, d.finalizeCatalog())
 
-	schemas := d.buildTypeSchemas(d.commands)
+	schemas := d.catalog.Commands()
 	require.Len(t, schemas, 1)
 	assert.Empty(t, schemas[0].GetProtoMessageName())
-	assert.Empty(t, d.descriptorSet)
+	assert.Empty(t, d.catalog.DescriptorSet())
 }
 
 func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
@@ -132,9 +136,39 @@ func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
 
 	d := newIntrospectionTestModule()
 	require.NoError(t, d.finalizeCatalog())
-	err := d.register("command", schemaSample{})
+	err := d.register(introspectionCommand, schemaSample{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "catalog is finalized")
+}
+
+func TestIntrospectionCatalogSortsTypesByName(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, namedSchemaSample{name: "z-command"}))
+	require.NoError(t, d.register(introspectionCommand, namedSchemaSample{name: "a-command"}))
+	require.NoError(t, d.finalizeCatalog())
+
+	types := d.catalog.Commands()
+	require.Len(t, types, 2)
+	assert.Equal(t, "a-command", types[0].GetName())
+	assert.Equal(t, "z-command", types[1].GetName())
+}
+
+func TestDebugRegistrationIsNilSafe(t *testing.T) {
+	t.Parallel()
+
+	var d *debugModule
+	require.NoError(t, d.register(introspectionCommand, schemaSample{}))
+}
+
+func TestIntrospectionCatalogRejectsNilGeneratedDescriptor(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	err := d.register(introspectionCommand, nilDescriptorSample{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "generated protobuf descriptor is nil")
 }
 
 func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {
