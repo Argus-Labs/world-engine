@@ -121,7 +121,7 @@ func (c *column[T]) remove(row int) {
 }
 
 // toProto converts the column to a protobuf message for serialization. Each component encodes through its
-// generated MarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so MarshalWire
+// generated protobuf MarshalWire. T is a Component (embeds schema.Serializable), so MarshalWire
 // is guaranteed by the type; an ungenerated component wouldn't satisfy the constraint and wouldn't compile.
 func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	componentData := make([][]byte, len(c.components))
@@ -140,7 +140,7 @@ func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 }
 
 // fromProto populates the column from a protobuf message. Each component decodes through its generated
-// UnmarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so UnmarshalWire is
+// generated protobuf UnmarshalWire. T is a Component (embeds schema.Serializable), so UnmarshalWire is
 // guaranteed by the type (see toProto).
 func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	if pb == nil {

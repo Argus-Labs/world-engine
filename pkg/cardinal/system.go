@@ -221,7 +221,7 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 		return eris.Wrapf(err, "failed to register command %s", name)
 	}
 
-	if err := meta.world.debug.register("command", zero); err != nil {
+	if err := meta.world.debug.register(introspectionCommand, zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 
@@ -321,7 +321,7 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
 	}
 
-	if err := meta.world.debug.register("event", zero); err != nil {
+	if err := meta.world.debug.register(introspectionEvent, zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 

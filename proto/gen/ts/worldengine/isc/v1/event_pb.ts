@@ -27,7 +27,7 @@ export type Event = Message<"worldengine.isc.v1.Event"> & {
   name: string;
 
   /**
-   * The event payload serialized as MessagePack bytes.
+   * The event payload serialized by the event type's wire codec.
    *
    * @generated from field: bytes payload = 2;
    */
@@ -40,4 +40,3 @@ export type Event = Message<"worldengine.isc.v1.Event"> & {
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
   messageDesc(file_worldengine_isc_v1_event, 0);
-

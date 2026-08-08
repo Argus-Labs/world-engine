@@ -1,77 +1,231 @@
 package cardinal
 
 import (
+	"context"
 	"testing"
 
-	"github.com/invopop/jsonschema"
-	"github.com/shamaton/msgpack/v3"
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	templatecommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
-// schemaSample mixes the tag cases that decide a field's wire name: a msgpack
-// tag, a json-only tag whose value differs from the field name, an untagged
-// field, and an explicitly excluded field.
+// schemaSample deliberately carries JSON tags that disagree with its generated protobuf mapping.
+// Introspection must follow the generated mapping for every registered type kind.
 type schemaSample struct {
-	Tagged   string `json:"tagged"   msgpack:"nickname"` // msgpack tag wins
-	JSONOnly string `json:"jsonOnly"`                    // json tag ignored -> field name
-	Plain    int    // no tags -> field name
-	Skipped  string `msgpack:"-"` // excluded from the wire
+	ArgusAuthID string `json:"argus_auth_id"`
+	X           uint32 `json:"x"`
 }
 
 func (schemaSample) Name() string { return "schema-sample" }
 
-func (c schemaSample) MarshalWire() ([]byte, error) { return msgpack.Marshal(c) }
-func (schemaSample) UnmarshalWire(b []byte) (any, error) {
-	var v schemaSample
-	err := msgpack.Unmarshal(b, &v)
-	return v, err
+func (sample schemaSample) ToProto() *templatecommand.MovePlayer {
+	return &templatecommand.MovePlayer{ArgusAuthID: sample.ArgusAuthID, X: sample.X}
 }
 
-// TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize
-// contract: the field names advertised by the introspection schema must equal
-// the keys shamaton/msgpack actually reads and writes, so a client that fills a
-// command/component from the schema isn't silently dropped on the wire.
-// Regression for the create-player "nickname" mismatch.
-func TestIntrospectSchemaNamesMatchWireFormat(t *testing.T) {
+func (sample schemaSample) FromProto(message *templatecommand.MovePlayer) schemaSample {
+	if message == nil {
+		return sample
+	}
+	sample.ArgusAuthID = message.GetArgusAuthID()
+	sample.X = message.GetX()
+	return sample
+}
+
+func (sample schemaSample) MarshalWire() ([]byte, error) {
+	return proto.Marshal(sample.ToProto())
+}
+
+func (schemaSample) FormSchema() []byte {
+	return []byte(
+		`{"properties":{"ArgusAuthID":{"type":"string"},"X":{"type":"integer"}}}`,
+	)
+}
+
+func (schemaSample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
+}
+
+func (sample schemaSample) UnmarshalWire(data []byte) (any, error) {
+	var message templatecommand.MovePlayer
+	if err := proto.Unmarshal(data, &message); err != nil {
+		return nil, err
+	}
+	return sample.FromProto(&message), nil
+}
+
+type wireOnlySample struct{}
+
+func (wireOnlySample) Name() string                      { return "wire-only" }
+func (wireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
+
+type namedSchemaSample struct {
+	schemaSample
+	name string
+}
+
+func (sample namedSchemaSample) Name() string { return sample.name }
+
+type nilDescriptorSample struct{ schemaSample }
+
+func (nilDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor { return nil }
+
+func newIntrospectionTestModule() *debugModule {
+	return &debugModule{
+		world:   &World{world: ecs.NewWorld()},
+		catalog: newIntrospectionCatalog(),
+	}
+}
+
+func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	t.Parallel()
 
-	// Names the wire format actually uses.
-	encoded, err := msgpack.Marshal(schemaSample{Tagged: "a", JSONOnly: "b", Plain: 1, Skipped: "x"})
-	require.NoError(t, err)
-	var wire map[string]any
-	require.NoError(t, msgpack.Unmarshal(encoded, &wire))
-
-	// Names introspection advertises, via the real register() path.
-	d := &debugModule{
-		commands: make(map[string]*structpb.Struct),
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true, // Don't add $id based on package path
-			ExpandedStruct: true, // Inline the struct fields directly
-			FieldNameTag:   "msgpack",
-		},
+	d := newIntrospectionTestModule()
+	for _, kind := range []introspectionKind{introspectionCommand, introspectionComponent, introspectionEvent} {
+		require.NoError(t, d.register(kind, schemaSample{}))
 	}
-	require.NoError(t, d.register("command", schemaSample{}))
-	schemaMap := d.commands["schema-sample"].AsMap()
-	props, ok := schemaMap["properties"].(map[string]any)
-	require.True(t, ok, "schema should have properties")
+	require.NoError(t, d.finalizeCatalog())
 
-	assert.ElementsMatch(t, mapKeys(wire), mapKeys(props),
-		"introspect schema field names must match the msgpack wire keys")
+	response, err := d.Introspect(context.Background(), (*connect.Request[cardinalv1.IntrospectRequest])(nil))
+	require.NoError(t, err)
 
-	// Spot-check the specifics the fix turns on.
-	assert.Contains(t, props, "nickname")   // msgpack tag wins over json
-	assert.Contains(t, props, "JSONOnly")   // json tag ignored; Go field name used
-	assert.Contains(t, props, "Plain")      // untagged -> field name
-	assert.NotContains(t, props, "Skipped") // msgpack:"-" excluded
-	assert.NotContains(t, props, "tagged")  // the json tag value must not leak through
+	for _, schemas := range [][]*cardinalv1.TypeSchema{
+		response.Msg.GetCommands(),
+		response.Msg.GetComponents(),
+		response.Msg.GetEvents(),
+	} {
+		require.Len(t, schemas, 1)
+		schema := schemas[0]
+		assert.Equal(t, schemaSample{}.ProtoDescriptor().FullName(), protoreflect.FullName(schema.GetProtoMessageName()))
+
+		properties, ok := schema.GetSchema().AsMap()["properties"].(map[string]any)
+		require.True(t, ok, "schema should have properties")
+		assert.ElementsMatch(t, []string{"ArgusAuthID", "X"}, mapKeys(properties))
+		for property := range properties {
+			assert.NotNil(t, schemaSample{}.ProtoDescriptor().Fields().ByName(protoreflect.Name(property)))
+		}
+	}
+
+	var set descriptorpb.FileDescriptorSet
+	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
+	require.NotNil(t, findMessageDescriptor(&set, "MovePlayer"))
 }
 
-func mapKeys(m map[string]any) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
+func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, wireOnlySample{}))
+	require.NoError(t, d.finalizeCatalog())
+
+	schemas := d.catalog.Commands()
+	require.Len(t, schemas, 1)
+	assert.Empty(t, schemas[0].GetProtoMessageName())
+	assert.Empty(t, d.catalog.DescriptorSet())
+}
+
+func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.finalizeCatalog())
+	err := d.register(introspectionCommand, schemaSample{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "catalog is finalized")
+}
+
+func TestIntrospectionCatalogSortsTypesByName(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, namedSchemaSample{name: "z-command"}))
+	require.NoError(t, d.register(introspectionCommand, namedSchemaSample{name: "a-command"}))
+	require.NoError(t, d.finalizeCatalog())
+
+	types := d.catalog.Commands()
+	require.Len(t, types, 2)
+	assert.Equal(t, "a-command", types[0].GetName())
+	assert.Equal(t, "z-command", types[1].GetName())
+}
+
+func TestDebugRegistrationIsNilSafe(t *testing.T) {
+	t.Parallel()
+
+	var d *debugModule
+	require.NoError(t, d.register(introspectionCommand, schemaSample{}))
+}
+
+func TestIntrospectionCatalogRejectsNilGeneratedDescriptor(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	err := d.register(introspectionCommand, nilDescriptorSample{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "generated protobuf descriptor is nil")
+}
+
+func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	_, err := d.Introspect(context.Background(), (*connect.Request[cardinalv1.IntrospectRequest])(nil))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestBuildDescriptorSetIsDeterministicAndDeduplicated(t *testing.T) {
+	t.Parallel()
+
+	systemNode := (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
+	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
+
+	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{systemNode, snapshot, systemNode})
+	require.NoError(t, err)
+	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, systemNode})
+	require.NoError(t, err)
+	assert.Equal(t, first, second)
+
+	var set descriptorpb.FileDescriptorSet
+	require.NoError(t, proto.Unmarshal(first, &set))
+	seen := make(map[string]bool, len(set.GetFile()))
+	for _, file := range set.GetFile() {
+		require.False(t, seen[file.GetName()], "duplicate file in descriptor set: %s", file.GetName())
+		seen[file.GetName()] = true
 	}
-	return out
+	assert.True(t, hasFile(&set, "google/protobuf/struct.proto"), "transitive imports must be included")
+}
+
+func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *descriptorpb.DescriptorProto {
+	for _, file := range set.GetFile() {
+		for _, message := range file.GetMessageType() {
+			if message.GetName() == name {
+				return message
+			}
+		}
+	}
+	return nil
+}
+
+func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
+	for _, file := range set.GetFile() {
+		if file.GetName() == path {
+			return true
+		}
+	}
+	return false
+}
+
+func mapKeys(values map[string]any) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	return keys
 }

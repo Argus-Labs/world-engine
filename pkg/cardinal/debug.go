@@ -7,10 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/goccy/go-json"
-	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
@@ -24,13 +21,10 @@ const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
-	world      *World
-	control    *tickControl
-	reflector  *jsonschema.Reflector
-	commands   map[string]*structpb.Struct
-	events     map[string]*structpb.Struct
-	components map[string]*structpb.Struct
-	perf       *performance.Collector
+	world   *World
+	control *tickControl
+	catalog *introspectionCatalog
+	perf    *performance.Collector
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -41,20 +35,10 @@ func newDebugModule(world *World) *debugModule {
 	perf := performance.NewCollector(batchSize)
 
 	d := &debugModule{
-		world:      world,
-		control:    newTickControl(),
-		commands:   make(map[string]*structpb.Struct),
-		events:     make(map[string]*structpb.Struct),
-		components: make(map[string]*structpb.Struct),
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true, // Don't add $id based on package path
-			ExpandedStruct: true, // Inline the struct fields directly
-			// FieldNameTag="msgpack" makes advertised field names match the shamaton wire
-			// format (msgpack tag, else Go field name; see internal/schema); the json-tag
-			// default would mismatch and silently drop fields on decode.
-			FieldNameTag: "msgpack",
-		},
-		perf: perf,
+		world:   world,
+		control: newTickControl(),
+		catalog: newIntrospectionCatalog(),
+		perf:    perf,
 	}
 	return d
 }
@@ -63,52 +47,19 @@ func newDebugModule(world *World) *debugModule {
 // Introspect
 // -------------------------------------------------------------------------------------------------
 
-// register records the JSON schema of a command, event, or component type for introspection.
-func (d *debugModule) register(kind string, value schema.Serializable) error {
+// register is nil-safe because worlds without debug enabled do not have a debug module.
+func (d *debugModule) register(kind introspectionKind, value schema.Serializable) error {
 	if d == nil {
 		return nil
 	}
+	return d.catalog.Register(kind, value)
+}
 
-	var catalog map[string]*structpb.Struct
-	switch kind {
-	case "command":
-		catalog = d.commands
-	case "event":
-		catalog = d.events
-	case "component":
-		catalog = d.components
-	default:
-		panic("this is an internal function, this should never panic")
-	}
-
-	name := value.Name()
-	if _, exists := catalog[name]; exists {
+func (d *debugModule) finalizeCatalog() error {
+	if d == nil {
 		return nil
 	}
-
-	jsonSchema := d.reflector.Reflect(value)
-	data, err := json.Marshal(jsonSchema)
-	if err != nil {
-		return eris.Wrap(err, "failed to marshal json schema")
-	}
-
-	var schemaMap map[string]any
-	if err := json.Unmarshal(data, &schemaMap); err != nil {
-		return eris.Wrap(err, "failed to unmarshal json schema")
-	}
-
-	// Remove redundant fields.
-	delete(schemaMap, "$schema")
-	delete(schemaMap, "type")
-	delete(schemaMap, "additionalProperties")
-
-	schemaStruct, err := structpb.NewStruct(schemaMap)
-	if err != nil {
-		return eris.Wrap(err, "failed to create struct from schema")
-	}
-
-	catalog[name] = schemaStruct
-	return nil
+	return d.catalog.Finalize()
 }
 
 // Introspect returns metadata about the registered types in the world.
@@ -116,12 +67,17 @@ func (d *debugModule) Introspect(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
+	if !d.catalog.Finalized() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("introspection catalog is not finalized"))
+	}
+
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
-		Commands:   d.buildTypeSchemas(d.commands),
-		Components: d.buildTypeSchemas(d.components),
-		Events:     d.buildTypeSchemas(d.events),
-		TickRateHz: d.world.options.TickRate,
-		Schedules:  d.buildSchedules(),
+		Commands:           d.catalog.Commands(),
+		Components:         d.catalog.Components(),
+		Events:             d.catalog.Events(),
+		TickRateHz:         d.world.options.TickRate,
+		Schedules:          d.buildSchedules(),
+		ProtoDescriptorSet: d.catalog.DescriptorSet(),
 	}), nil
 }
 
@@ -248,18 +204,6 @@ func (d *debugModule) recordSpan(span performance.TickSpan) {
 		return
 	}
 	d.perf.RecordSpan(span)
-}
-
-// buildTypeSchemas converts the internal schema cache to proto TypeSchema messages.
-func (d *debugModule) buildTypeSchemas(cache map[string]*structpb.Struct) []*cardinalv1.TypeSchema {
-	schemas := make([]*cardinalv1.TypeSchema, 0, len(cache))
-	for name, schemaStruct := range cache {
-		schemas = append(schemas, &cardinalv1.TypeSchema{
-			Name:   name,
-			Schema: schemaStruct,
-		})
-	}
-	return schemas
 }
 
 // -------------------------------------------------------------------------------------------------
