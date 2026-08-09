@@ -1189,7 +1189,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int SchemaFieldNumber = 2;
     private global::Google.Protobuf.WellKnownTypes.Struct schema_;
     /// <summary>
-    /// JSON schema for the type.
+    /// Form schema derived from the registered Go type.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1204,7 +1204,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoMessageNameFieldNumber = 3;
     private string protoMessageName_ = "";
     /// <summary>
-    /// Fully-qualified protobuf message name for this type.
+    /// Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
+    /// protobuf metadata is unavailable.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
