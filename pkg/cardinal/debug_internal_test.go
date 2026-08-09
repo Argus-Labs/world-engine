@@ -248,8 +248,8 @@ func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
 	assert.Contains(t, required, "Tagged")
 
 	fixed := properties["Fixed"].(map[string]any)
-	assert.Equal(t, float64(2), fixed["minItems"])
-	assert.Equal(t, float64(2), fixed["maxItems"])
+	assert.InDelta(t, 2, fixed["minItems"], 0)
+	assert.InDelta(t, 2, fixed["maxItems"], 0)
 	assert.Equal(t, "base64", properties["Blob"].(map[string]any)["contentEncoding"])
 	namedBlob := properties["NamedBlob"].(map[string]any)
 	assert.Equal(t, "array", namedBlob["type"])

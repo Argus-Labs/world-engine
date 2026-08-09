@@ -9,11 +9,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var (
-	timeType = reflect.TypeFor[time.Time]()
-	byteType = reflect.TypeFor[byte]()
-)
-
 // buildFormSchema describes the authored Go value shown by editor forms. Field names intentionally
 // come from Go, not JSON tags, because the generated protobuf fields use the same names.
 func buildFormSchema(value any) map[string]any {
@@ -69,7 +64,7 @@ func (b *formSchemaBuilder) structSchema(t reflect.Type) map[string]any {
 }
 
 func (b *formSchemaBuilder) typeSchema(t reflect.Type) map[string]any {
-	if t == timeType {
+	if t == reflect.TypeFor[time.Time]() {
 		return map[string]any{"type": "string", "format": "date-time"}
 	}
 	if t.Kind() == reflect.Pointer {
@@ -87,7 +82,7 @@ func (b *formSchemaBuilder) typeSchema(t reflect.Type) map[string]any {
 	case reflect.String:
 		return map[string]any{"type": "string"}
 	case reflect.Slice:
-		if t.Elem() == byteType {
+		if t.Elem() == reflect.TypeFor[byte]() {
 			return map[string]any{"type": "string", "contentEncoding": "base64"}
 		}
 		return map[string]any{"type": "array", "items": b.typeSchema(t.Elem())}
@@ -109,10 +104,12 @@ func (b *formSchemaBuilder) typeSchema(t reflect.Type) map[string]any {
 			delete(b.building, t)
 		}
 		return map[string]any{"$ref": "#/$defs/" + key}
-	default:
+	case reflect.Invalid, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func,
+		reflect.Interface, reflect.Pointer, reflect.UnsafePointer:
 		// Values encoded as JSON inside protobuf bytes remain free-form.
 		return map[string]any{}
 	}
+	return map[string]any{}
 }
 
 func formDefinitionKey(t reflect.Type) string {
