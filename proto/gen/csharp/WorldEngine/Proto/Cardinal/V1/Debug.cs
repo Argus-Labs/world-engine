@@ -416,8 +416,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoDescriptorSetFieldNumber = 6;
     private pb::ByteString protoDescriptorSet_ = pb::ByteString.Empty;
     /// <summary>
-    /// Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
-    /// this response, plus transitive dependencies. Empty if the world registers no introspected types.
+    /// Protobuf type definitions for the commands, components, and events in this response,
+    /// including any types they depend on. Clients use them to encode and decode protobuf data.
+    /// Empty when none are available.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
