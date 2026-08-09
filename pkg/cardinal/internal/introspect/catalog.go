@@ -36,10 +36,14 @@ type introspectedType struct {
 // Catalog collects registered types before the debug service starts. Finalize freezes
 // registration and builds the immutable form and protobuf metadata used by Introspect.
 type Catalog struct {
-	mu          sync.RWMutex
-	finalized   bool
-	registered  [3]map[string]schema.Serializable
-	types       [3][]*cardinalv1.TypeSchema
+	mu        sync.RWMutex
+	finalized bool
+
+	// The three slots are commands, components, and events, indexed by Kind.
+	registered [3]map[string]schema.Serializable
+	// Finalized API metadata using the same Kind indexes.
+	types [3][]*cardinalv1.TypeSchema
+	// Shared serialized protobuf definitions returned by Introspect.
 	descriptors []byte
 }
 
@@ -75,19 +79,24 @@ func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
 	return nil
 }
 
-func (c *Catalog) inspect(value schema.Serializable) (introspectedType, error) {
+// inspectType builds the form and protobuf metadata for one registered type.
+func (c *Catalog) inspectType(value schema.Serializable) (introspectedType, error) {
 	var descriptor protoreflect.MessageDescriptor
+
+	// ProtoDescriber is optional so older wire types remain usable.
 	if describer, ok := value.(schema.ProtoDescriber); ok {
 		descriptor = describer.ProtoDescriptor()
 		if descriptor == nil {
 			return introspectedType{}, eris.New("generated protobuf descriptor is nil")
 		}
+		// Omit incomplete metadata rather than return a descriptor bundle clients cannot load.
 		if !hasCompleteDescriptor(descriptor.ParentFile()) {
 			descriptor = nil
 		}
 	}
 
 	schemaMap := buildFormSchema(descriptor)
+	// Preserve the existing Introspect shape; clients already treat the root as an object.
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
 
@@ -98,6 +107,7 @@ func (c *Catalog) inspect(value schema.Serializable) (introspectedType, error) {
 	return introspectedType{schema: schemaStruct, descriptor: descriptor}, nil
 }
 
+// hasCompleteDescriptor checks that a protobuf file and all its imports are available.
 func hasCompleteDescriptor(file protoreflect.FileDescriptor) bool {
 	imports := file.Imports()
 	for i := range imports.Len() {
@@ -117,12 +127,13 @@ func (c *Catalog) Finalize() error {
 		return nil
 	}
 
+	// Build everything first so a failure leaves the catalog unchanged and retryable.
 	var types [3][]*cardinalv1.TypeSchema
 	descriptors := make([]protoreflect.MessageDescriptor, 0)
 	for kind, registered := range c.registered {
 		inspected := make(map[string]introspectedType, len(registered))
 		for name, value := range registered {
-			entry, err := c.inspect(value)
+			entry, err := c.inspectType(value)
 			if err != nil {
 				return eris.Wrapf(err, "failed to inspect %s", name)
 			}
@@ -179,6 +190,7 @@ func (c *Catalog) DescriptorSet() []byte {
 	return slices.Clone(c.descriptors)
 }
 
+// buildTypeSchemas creates the sorted command, component, or event list returned by Introspect.
 func buildTypeSchemas(registered map[string]introspectedType) []*cardinalv1.TypeSchema {
 	names := make([]string, 0, len(registered))
 	for name := range registered {
@@ -198,11 +210,13 @@ func buildTypeSchemas(registered map[string]introspectedType) []*cardinalv1.Type
 	return types
 }
 
+// buildDescriptorSet packages every referenced protobuf file and its imports into one validated bundle.
 func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
 	if len(messages) == 0 {
 		return nil, nil
 	}
 
+	// Stable ordering makes the same catalog produce the same bytes.
 	sortedMessages := slices.Clone(messages)
 	slices.SortFunc(sortedMessages, func(a, b protoreflect.MessageDescriptor) int {
 		return cmp.Compare(a.FullName(), b.FullName())
@@ -212,6 +226,7 @@ func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, erro
 	files := make([]*descriptorpb.FileDescriptorProto, 0, len(sortedMessages))
 	var addFile func(protoreflect.FileDescriptor)
 	addFile = func(file protoreflect.FileDescriptor) {
+		// Add imports first and include each file only once.
 		if seen[file.Path()] {
 			return
 		}

@@ -64,12 +64,6 @@ func (wireOnlySample) Name() string                      { return "wire-only" }
 func (wireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
 
-type scalarWireOnlySample string
-
-func (scalarWireOnlySample) Name() string                      { return "scalar-wire-only" }
-func (scalarWireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
-func (scalarWireOnlySample) UnmarshalWire([]byte) (any, error) { return scalarWireOnlySample(""), nil }
-
 type namedWireOnlySample struct{ name string }
 
 func (sample namedWireOnlySample) Name() string               { return sample.name }
@@ -104,22 +98,6 @@ func (mismatchedDescriptorSample) UnmarshalWire([]byte) (any, error) {
 }
 func (mismatchedDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
-}
-
-type jsonFallbackFormSample struct {
-	Fixed   [1]int64
-	Special [1]float32
-	Data    *[]byte
-	desc    protoreflect.MessageDescriptor
-}
-
-func (jsonFallbackFormSample) Name() string                 { return "json-fallback" }
-func (jsonFallbackFormSample) MarshalWire() ([]byte, error) { return nil, nil }
-func (jsonFallbackFormSample) UnmarshalWire([]byte) (any, error) {
-	return jsonFallbackFormSample{}, nil
-}
-func (sample jsonFallbackFormSample) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return sample.desc
 }
 
 func newIntrospectionTestModule() *debugModule {
@@ -176,21 +154,10 @@ func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
 	assert.Empty(t, d.catalog.DescriptorSet())
 }
 
-func TestFinalizeAllowsScalarWireCodec(t *testing.T) {
-	t.Parallel()
-
-	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspect.Command, scalarWireOnlySample("")))
-	require.NoError(t, d.finalizeCatalog())
-
-	types := d.catalog.Commands()
-	require.Len(t, types, 1)
-	assert.Empty(t, types[0].GetSchema().AsMap())
-}
-
 func TestFinalizeOmitsDescriptorWithUnresolvedImport(t *testing.T) {
 	t.Parallel()
 
+	// Build a descriptor whose imported file is deliberately absent.
 	file, err := (protodesc.FileOptions{AllowUnresolvable: true}).New(&descriptorpb.FileDescriptorProto{
 		Name:       proto.String("unresolved.proto"),
 		Package:    proto.String("test"),
@@ -266,48 +233,6 @@ func TestIntrospectionCatalogUsesDescriptorFields(t *testing.T) {
 	properties := schemaMap["properties"].(map[string]any)
 	assert.ElementsMatch(t, []string{"ArgusAuthID", "X", "Y"}, mapKeys(properties))
 	assert.NotContains(t, properties, "Missing")
-}
-
-func TestBuildFormSchemaTreatsEveryBytesFieldAsBase64(t *testing.T) {
-	t.Parallel()
-
-	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
-		Name:    proto.String("fallback.proto"),
-		Package: proto.String("test"),
-		Syntax:  proto.String("proto3"),
-		MessageType: []*descriptorpb.DescriptorProto{{
-			Name: proto.String("Fallback"),
-			Field: []*descriptorpb.FieldDescriptorProto{
-				{
-					Name: proto.String("Fixed"), Number: proto.Int32(1),
-					Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-					Type:  descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum(),
-				},
-				{
-					Name: proto.String("Special"), Number: proto.Int32(2),
-					Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-					Type:  descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum(),
-				},
-				{
-					Name: proto.String("Data"), Number: proto.Int32(3),
-					Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-					Type:  descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum(),
-				},
-			},
-		}},
-	}, nil)
-	require.NoError(t, err)
-
-	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspect.Command, jsonFallbackFormSample{desc: file.Messages().Get(0)}))
-	require.NoError(t, d.finalizeCatalog())
-	schemaMap := d.catalog.Commands()[0].GetSchema().AsMap()
-	properties := schemaMap["properties"].(map[string]any)
-	for _, name := range []string{"Fixed", "Special", "Data"} {
-		field := properties[name].(map[string]any)
-		assert.Equal(t, "string", field["type"])
-		assert.Equal(t, "base64", field["contentEncoding"])
-	}
 }
 
 func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {

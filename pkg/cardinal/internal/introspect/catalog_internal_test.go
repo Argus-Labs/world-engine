@@ -16,6 +16,7 @@ import (
 func TestBuildFormSchemaFromProtobufDescriptor(t *testing.T) {
 	t.Parallel()
 
+	// Build an in-memory descriptor covering recursion, bytes, lists, maps, and enums.
 	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
 		Name:    proto.String("form.proto"),
 		Package: proto.String("test"),
@@ -33,6 +34,8 @@ func TestBuildFormSchemaFromProtobufDescriptor(t *testing.T) {
 				Field: []*descriptorpb.FieldDescriptorProto{
 					formTestField("Count", 1, descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL,
 						descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
+					formTestField("Next", 2, descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL,
+						descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, ".test.Child"),
 				},
 			},
 			{
@@ -73,7 +76,9 @@ func TestBuildFormSchemaFromProtobufDescriptor(t *testing.T) {
 	labels := properties["Labels"].(map[string]any)["additionalProperties"].(map[string]any)
 	assert.Equal(t, "#/$defs/test.Child", labels["$ref"])
 	assert.Equal(t, []any{"MODE_UNSPECIFIED", "MODE_ACTIVE"}, properties["Mode"].(map[string]any)["enum"])
-	assert.Contains(t, schema["$defs"].(map[string]any), "test.Child")
+	child := schema["$defs"].(map[string]any)["test.Child"].(map[string]any)
+	next := child["properties"].(map[string]any)["Next"].(map[string]any)
+	assert.Equal(t, "#/$defs/test.Child", next["$ref"])
 }
 
 func formTestField(
