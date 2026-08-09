@@ -87,44 +87,11 @@ func (b *formSchemaBuilder) typeSchema(
 	if t.Kind() == reflect.Pointer {
 		return b.typeSchema(t.Elem(), wireField, jsonEncoded)
 	}
+	if schema := scalarFormSchema(t.Kind(), jsonEncoded); schema != nil {
+		return schema
+	}
 
 	switch t.Kind() {
-	case reflect.Bool:
-		return map[string]any{"type": "boolean"}
-	case reflect.Int, reflect.Int64:
-		if jsonEncoded {
-			return map[string]any{"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991}
-		}
-		return map[string]any{"type": "string", "pattern": "^-?[0-9]+$"}
-	case reflect.Uint, reflect.Uint64:
-		if jsonEncoded {
-			return map[string]any{"type": "integer", "minimum": 0, "maximum": 9007199254740991}
-		}
-		return map[string]any{"type": "string", "pattern": "^[0-9]+$"}
-	case reflect.Int8:
-		return map[string]any{"type": "integer", "minimum": -128, "maximum": 127}
-	case reflect.Int16:
-		return map[string]any{"type": "integer", "minimum": -32768, "maximum": 32767}
-	case reflect.Uint8:
-		return map[string]any{"type": "integer", "minimum": 0, "maximum": 255}
-	case reflect.Uint16:
-		return map[string]any{"type": "integer", "minimum": 0, "maximum": 65535}
-	case reflect.Int32:
-		return map[string]any{"type": "integer", "minimum": -2147483648, "maximum": 2147483647}
-	case reflect.Uint32:
-		return map[string]any{"type": "integer", "minimum": 0, "maximum": 4294967295}
-	case reflect.Float32:
-		if jsonEncoded {
-			return map[string]any{"type": "number", "minimum": -math.MaxFloat32, "maximum": math.MaxFloat32}
-		}
-		return protobufFloatSchema()
-	case reflect.Float64:
-		if jsonEncoded {
-			return map[string]any{"type": "number", "minimum": -math.MaxFloat64, "maximum": math.MaxFloat64}
-		}
-		return protobufFloatSchema()
-	case reflect.String:
-		return map[string]any{"type": "string"}
 	case reflect.Slice:
 		if isByteSlice(t) {
 			schema := map[string]any{"type": "string"}
@@ -167,6 +134,49 @@ func (b *formSchemaBuilder) typeSchema(
 		return map[string]any{}
 	}
 	return map[string]any{}
+}
+
+func scalarFormSchema(kind reflect.Kind, jsonEncoded bool) map[string]any {
+	switch kind {
+	case reflect.Bool:
+		return map[string]any{"type": "boolean"}
+	case reflect.Int, reflect.Int64:
+		if jsonEncoded {
+			return map[string]any{"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991}
+		}
+		return map[string]any{"type": "string", "pattern": "^-?[0-9]+$"}
+	case reflect.Uint, reflect.Uint64:
+		if jsonEncoded {
+			return map[string]any{"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+		}
+		return map[string]any{"type": "string", "pattern": "^[0-9]+$"}
+	case reflect.Int8:
+		return map[string]any{"type": "integer", "minimum": -128, "maximum": 127}
+	case reflect.Int16:
+		return map[string]any{"type": "integer", "minimum": -32768, "maximum": 32767}
+	case reflect.Uint8:
+		return map[string]any{"type": "integer", "minimum": 0, "maximum": 255}
+	case reflect.Uint16:
+		return map[string]any{"type": "integer", "minimum": 0, "maximum": 65535}
+	case reflect.Int32:
+		return map[string]any{"type": "integer", "minimum": -2147483648, "maximum": 2147483647}
+	case reflect.Uint32:
+		return map[string]any{"type": "integer", "minimum": 0, "maximum": 4294967295}
+	case reflect.Float32:
+		if jsonEncoded {
+			return map[string]any{"type": "number", "minimum": -math.MaxFloat32, "maximum": math.MaxFloat32}
+		}
+		return protobufFloatSchema()
+	case reflect.Float64:
+		if jsonEncoded {
+			return map[string]any{"type": "number", "minimum": -math.MaxFloat64, "maximum": math.MaxFloat64}
+		}
+		return protobufFloatSchema()
+	case reflect.String:
+		return map[string]any{"type": "string"}
+	default:
+		return nil
+	}
 }
 
 func protobufFloatSchema() map[string]any {
