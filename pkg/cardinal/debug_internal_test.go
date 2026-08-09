@@ -2,6 +2,8 @@ package cardinal
 
 import (
 	"context"
+	"math"
+	"reflect"
 	"testing"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 
@@ -75,6 +78,19 @@ func (sample namedWireOnlySample) Name() string               { return sample.na
 func (namedWireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
 func (namedWireOnlySample) UnmarshalWire([]byte) (any, error) { return namedWireOnlySample{}, nil }
 
+type unresolvedDescriptorSample struct {
+	descriptor protoreflect.MessageDescriptor
+}
+
+func (unresolvedDescriptorSample) Name() string                 { return "unresolved-descriptor" }
+func (unresolvedDescriptorSample) MarshalWire() ([]byte, error) { return nil, nil }
+func (unresolvedDescriptorSample) UnmarshalWire([]byte) (any, error) {
+	return unresolvedDescriptorSample{}, nil
+}
+func (sample unresolvedDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return sample.descriptor
+}
+
 type nilDescriptorSample struct{ schemaSample }
 
 func (nilDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor { return nil }
@@ -99,13 +115,25 @@ type nestedFormSample struct {
 type namedByte byte
 
 type formSchemaSample struct {
-	Tagged    string `json:"different_name"`
-	Optional  *string
-	Fixed     [2]nestedFormSample
-	Blob      []byte
-	NamedBlob []namedByte
-	Created   time.Time
-	Fallback  any
+	Tagged     string `json:"different_name"`
+	Signed     int64
+	Unsigned   uint64
+	Small      int32
+	Narrow     uint8
+	NarrowList []int8
+	Ratio      float32
+	Optional   *string
+	Fixed      [2]nestedFormSample
+	Blob       []byte
+	NamedBlob  []namedByte
+	Created    time.Time
+	Fallback   any
+}
+
+type jsonFallbackFormSample struct {
+	Fixed   [1]int64
+	Special [1]float32
+	Data    *[]byte
 }
 
 func (formSchemaSample) Name() string                      { return "form-schema" }
@@ -178,6 +206,32 @@ func TestFinalizeAllowsScalarWireCodec(t *testing.T) {
 	assert.Empty(t, types[0].GetSchema().AsMap())
 }
 
+func TestFinalizeOmitsDescriptorWithUnresolvedImport(t *testing.T) {
+	t.Parallel()
+
+	file, err := (protodesc.FileOptions{AllowUnresolvable: true}).New(&descriptorpb.FileDescriptorProto{
+		Name:       proto.String("unresolved.proto"),
+		Package:    proto.String("test"),
+		Syntax:     proto.String("proto3"),
+		Dependency: []string{"missing.proto"},
+		MessageType: []*descriptorpb.DescriptorProto{
+			{Name: proto.String("Command")},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, unresolvedDescriptorSample{
+		descriptor: file.Messages().Get(0),
+	}))
+	require.NoError(t, d.finalizeCatalog())
+
+	types := d.catalog.Commands()
+	require.Len(t, types, 1)
+	assert.Empty(t, types[0].GetProtoMessageName())
+	assert.Empty(t, d.catalog.DescriptorSet())
+}
+
 func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
 	t.Parallel()
 
@@ -246,10 +300,24 @@ func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
 	required := schemaMap["required"].([]any)
 	assert.NotContains(t, required, "Optional")
 	assert.Contains(t, required, "Tagged")
+	assert.Equal(t, "string", properties["Signed"].(map[string]any)["type"])
+	assert.Equal(t, "^-?[0-9]+$", properties["Signed"].(map[string]any)["pattern"])
+	assert.Equal(t, "string", properties["Unsigned"].(map[string]any)["type"])
+	assert.Equal(t, "^[0-9]+$", properties["Unsigned"].(map[string]any)["pattern"])
+	assert.Equal(t, "integer", properties["Small"].(map[string]any)["type"])
+	assert.InDelta(t, 0, properties["Narrow"].(map[string]any)["minimum"], 0)
+	assert.InDelta(t, 255, properties["Narrow"].(map[string]any)["maximum"], 0)
+	narrowItems := properties["NarrowList"].(map[string]any)["items"].(map[string]any)
+	assert.InDelta(t, -128, narrowItems["minimum"], 0)
+	assert.InDelta(t, 127, narrowItems["maximum"], 0)
+	assert.Len(t, properties["Ratio"].(map[string]any)["anyOf"], 2)
 
 	fixed := properties["Fixed"].(map[string]any)
 	assert.InDelta(t, 2, fixed["minItems"], 0)
 	assert.InDelta(t, 2, fixed["maxItems"], 0)
+	nestedKey := formDefinitionKey(reflect.TypeFor[nestedFormSample]())
+	assert.Contains(t, schemaMap["$defs"], nestedKey)
+	assert.Equal(t, "#/$defs/"+jsonPointerToken(nestedKey), fixed["items"].(map[string]any)["$ref"])
 	assert.Equal(t, "base64", properties["Blob"].(map[string]any)["contentEncoding"])
 	namedBlob := properties["NamedBlob"].(map[string]any)
 	assert.Equal(t, "array", namedBlob["type"])
@@ -257,6 +325,50 @@ func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
 	assert.Equal(t, "date-time", properties["Created"].(map[string]any)["format"])
 	assert.Empty(t, properties["Fallback"].(map[string]any))
 	assert.NotEmpty(t, schemaMap["$defs"])
+}
+
+func TestBuildFormSchemaUsesJSONValuesForFallbackBytes(t *testing.T) {
+	t.Parallel()
+
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Name:    proto.String("fallback.proto"),
+		Package: proto.String("test"),
+		Syntax:  proto.String("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{{
+			Name: proto.String("Fallback"),
+			Field: []*descriptorpb.FieldDescriptorProto{
+				{
+					Name: proto.String("Fixed"), Number: proto.Int32(1),
+					Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+					Type:  descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum(),
+				},
+				{
+					Name: proto.String("Special"), Number: proto.Int32(2),
+					Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+					Type:  descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum(),
+				},
+				{
+					Name: proto.String("Data"), Number: proto.Int32(3),
+					Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+					Type:  descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum(),
+				},
+			},
+		}},
+	}, nil)
+	require.NoError(t, err)
+
+	schemaMap := buildFormSchema(jsonFallbackFormSample{}, file.Messages().Get(0))
+	properties := schemaMap["properties"].(map[string]any)
+	fixedItems := properties["Fixed"].(map[string]any)["items"].(map[string]any)
+	assert.Equal(t, "integer", fixedItems["type"])
+	assert.InDelta(t, 9007199254740991, fixedItems["maximum"], 0)
+	specialItems := properties["Special"].(map[string]any)["items"].(map[string]any)
+	assert.Equal(t, "number", specialItems["type"])
+	assert.InDelta(t, math.MaxFloat32, specialItems["maximum"], 0)
+	assert.NotContains(t, specialItems, "anyOf")
+	data := properties["Data"].(map[string]any)
+	assert.Equal(t, "string", data["type"])
+	assert.NotContains(t, data, "contentEncoding")
 }
 
 func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {

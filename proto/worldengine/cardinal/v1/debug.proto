@@ -85,10 +85,11 @@ message TypeSchema {
   // Name of the type.
   string name = 1;
 
-  // JSON schema for the type.
+  // Form schema derived from the registered Go type.
   google.protobuf.Struct schema = 2;
 
-  // Fully-qualified protobuf message name for this type.
+  // Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
+  // protobuf metadata is unavailable.
   string proto_message_name = 3;
 }
 

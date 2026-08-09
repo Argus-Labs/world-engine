@@ -154,14 +154,15 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   name: string;
 
   /**
-   * JSON schema for the type.
+   * Form schema derived from the registered Go type.
    *
    * @generated from field: google.protobuf.Struct schema = 2;
    */
   schema?: JsonObject;
 
   /**
-   * Fully-qualified protobuf message name for this type.
+   * Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
+   * protobuf metadata is unavailable.
    *
    * @generated from field: string proto_message_name = 3;
    */
@@ -567,4 +568,3 @@ export const DebugService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
-

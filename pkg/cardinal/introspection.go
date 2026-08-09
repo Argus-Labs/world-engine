@@ -79,9 +79,12 @@ func (c *introspectionCatalog) inspect(value schema.Serializable) (introspectedT
 		if err := validateDescriptorFields(value, descriptor); err != nil {
 			return introspectedType{}, err
 		}
+		if !hasCompleteDescriptor(descriptor.ParentFile()) {
+			descriptor = nil
+		}
 	}
 
-	schemaMap := buildFormSchema(value)
+	schemaMap := buildFormSchema(value, descriptor)
 	delete(schemaMap, "$schema")
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
@@ -91,6 +94,17 @@ func (c *introspectionCatalog) inspect(value schema.Serializable) (introspectedT
 		return introspectedType{}, eris.Wrap(err, "failed to create struct from schema")
 	}
 	return introspectedType{schema: schemaStruct, descriptor: descriptor}, nil
+}
+
+func hasCompleteDescriptor(file protoreflect.FileDescriptor) bool {
+	imports := file.Imports()
+	for i := range imports.Len() {
+		dependency := imports.Get(i)
+		if dependency.IsPlaceholder() || !hasCompleteDescriptor(dependency.FileDescriptor) {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *introspectionCatalog) Finalize() error {
