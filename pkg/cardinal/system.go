@@ -88,8 +88,8 @@ func registerSystem(world *World, name string, hook SystemHook, run func()) {
 	// If debug is enabled, wrap the system with performance instrumentation.
 	if world.debug != nil {
 		fn = func() {
-			if !world.currentTick.captureSystemSpans {
-				system(state)
+			if !world.currentTick.capture.SystemSpans {
+				run()
 				return
 			}
 

@@ -214,20 +214,17 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 func TestPerformanceBatchConverters(t *testing.T) {
 	tickStart := time.Now()
 	systemPhaseStartedAt := tickStart.Add(time.Millisecond)
-	batch := performance.Batch{
-		Ticks: []performance.TickTimeline{{
-			TickHeight:           42,
-			TickStart:            tickStart,
-			SystemPhaseStartedAt: systemPhaseStartedAt,
-			SystemPhaseElapsed:   3 * time.Millisecond,
-			Profiled:             true,
-			Spans: []performance.TickSpan{{
-				SystemName: "move",
-				StartTime:  systemPhaseStartedAt.Add(time.Millisecond),
-				EndTime:    systemPhaseStartedAt.Add(2 * time.Millisecond),
-			}},
+	batch := []performance.TickTimeline{{
+		TickHeight:           42,
+		TickStart:            tickStart,
+		SystemPhaseStartedAt: systemPhaseStartedAt,
+		SystemPhaseElapsed:   3 * time.Millisecond,
+		Spans: []performance.TickSpan{{
+			SystemName: "move",
+			StartTime:  systemPhaseStartedAt.Add(time.Millisecond),
+			EndTime:    systemPhaseStartedAt.Add(2 * time.Millisecond),
 		}},
-	}
+	}}
 
 	overview := timingBatchToProto(batch)
 	require.Len(t, overview.GetTicks(), 1)
@@ -239,29 +236,46 @@ func TestPerformanceBatchConverters(t *testing.T) {
 	assert.Equal(t, "move", profile.GetTicks()[0].GetSpans()[0].GetSystem())
 	assert.Equal(t, uint64(time.Millisecond), profile.GetTicks()[0].GetSpans()[0].GetStartOffsetNs())
 	assert.Equal(t, uint64(3*time.Millisecond), profile.GetTicks()[0].GetTiming().GetDurationNs())
+
+	legacy := legacyPerfBatchToProto(batch)
+	require.Len(t, legacy.GetTicks(), 1)
+	assert.Equal(t, uint64(2*time.Millisecond), legacy.GetTicks()[0].GetSpans()[0].GetStartOffsetNs())
 }
 
-func TestProfileBatchToProtoFiltersUnprofiledTicks(t *testing.T) {
+func TestProfileBatchToProtoKeepsTickWithNoSystems(t *testing.T) {
 	now := time.Now()
-	batch := performance.Batch{Ticks: []performance.TickTimeline{
-		{TickHeight: 1, TickStart: now},
-		{TickHeight: 2, TickStart: now, SystemPhaseStartedAt: now, Profiled: true},
-	}}
-
-	overview := timingBatchToProto(batch)
-	require.Len(t, overview.GetTicks(), 2, "timing subscribers keep the whole batch")
-
-	profile := profileBatchToProto(batch)
+	profile := profileBatchToProto([]performance.TickTimeline{{
+		TickHeight: 2,
+		TickStart:  now,
+	}})
 	require.Len(t, profile.GetTicks(), 1)
 	assert.Equal(t, uint64(2), profile.GetTicks()[0].GetTiming().GetTickHeight())
 	assert.Empty(t, profile.GetTicks()[0].GetSpans(), "a profiled tick with no systems remains visible")
 }
 
-func TestProfileBatchToProtoDropsEntirelyUnprofiledBatch(t *testing.T) {
-	response := profileBatchToProto(performance.Batch{Ticks: []performance.TickTimeline{{
-		TickHeight: 1,
-		TickStart:  time.Now(),
-	}}})
+func TestStreamTickBatchesDoesNotMixResetGenerations(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	assert.Empty(t, response.GetTicks())
+	ticks := make(chan performance.TickTimeline, 3)
+	sent := make(chan []performance.TickTimeline, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- streamTickBatches(ctx, ticks, 2, func(batch []performance.TickTimeline) error {
+			sent <- append([]performance.TickTimeline(nil), batch...)
+			return nil
+		})
+	}()
+
+	ticks <- performance.TickTimeline{TickHeight: 7, Generation: 0}
+	ticks <- performance.TickTimeline{TickHeight: 0, Generation: 1}
+	ticks <- performance.TickTimeline{TickHeight: 1, Generation: 1}
+
+	batch := <-sent
+	require.Len(t, batch, 2)
+	assert.Equal(t, uint64(0), batch[0].TickHeight)
+	assert.Equal(t, uint64(1), batch[1].TickHeight)
+
+	cancel()
+	assert.ErrorIs(t, <-done, context.Canceled)
 }

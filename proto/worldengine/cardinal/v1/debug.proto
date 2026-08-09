@@ -30,6 +30,12 @@ service DebugService {
   // GetState returns the current world state snapshot.
   rpc GetState(GetStateRequest) returns (GetStateResponse);
 
+  // StreamPerf is kept for compatibility. Use ProfileSystems instead.
+  // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+  rpc StreamPerf(StreamPerfRequest) returns (stream PerfBatch) {
+    option deprecated = true;
+  }
+
   // WatchSystemsTiming streams the time spent executing Cardinal systems each
   // tick without enabling per-system span capture.
   rpc WatchSystemsTiming(WatchSystemsTimingRequest) returns (stream WatchSystemsTimingResponse);
@@ -141,6 +147,22 @@ message GetStateResponse {
 // Systems performance
 // -------------------------------------------------------------------------------------------------
 
+// Kept for compatibility; use ProfileSystemsRequest.
+message StreamPerfRequest {}
+
+// Kept for compatibility; use ProfileSystemsResponse.
+message PerfBatch {
+  repeated TickTimeline ticks = 1;
+}
+
+// Kept for compatibility; use SystemsProfile.
+message TickTimeline {
+  uint64 tick_height = 1;
+  google.protobuf.Timestamp tick_start = 2;
+  // Span offsets are measured from tick_start.
+  repeated SystemSpan spans = 3;
+}
+
 message WatchSystemsTimingRequest {}
 
 message WatchSystemsTimingResponse {
@@ -164,6 +186,7 @@ message SystemsTiming {
 
 message SystemsProfile {
   SystemsTiming timing = 1;
+  // Span offsets are measured from the start of the ECS system phase.
   repeated SystemSpan spans = 2;
 }
 
@@ -179,7 +202,7 @@ enum SystemHook {
 message SystemSpan {
   SystemHook system_hook = 1;
   string system = 2;
-  // Nanoseconds elapsed from the start of the ECS system phase to when this span began.
+  // Start offset within the containing timeline.
   uint64 start_offset_ns = 3;
   // Duration of this span in nanoseconds.
   uint64 duration_ns = 4;

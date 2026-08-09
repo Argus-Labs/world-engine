@@ -45,6 +45,8 @@ const (
 	DebugServiceResetProcedure = "/worldengine.cardinal.v1.DebugService/Reset"
 	// DebugServiceGetStateProcedure is the fully-qualified name of the DebugService's GetState RPC.
 	DebugServiceGetStateProcedure = "/worldengine.cardinal.v1.DebugService/GetState"
+	// DebugServiceStreamPerfProcedure is the fully-qualified name of the DebugService's StreamPerf RPC.
+	DebugServiceStreamPerfProcedure = "/worldengine.cardinal.v1.DebugService/StreamPerf"
 	// DebugServiceWatchSystemsTimingProcedure is the fully-qualified name of the DebugService's
 	// WatchSystemsTiming RPC.
 	DebugServiceWatchSystemsTimingProcedure = "/worldengine.cardinal.v1.DebugService/WatchSystemsTiming"
@@ -68,6 +70,11 @@ type DebugServiceClient interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
+	// StreamPerf is kept for compatibility. Use ProfileSystems instead.
+	// buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+	//
+	// Deprecated: do not use.
+	StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest]) (*connect.ServerStreamForClient[v1.PerfBatch], error)
 	// WatchSystemsTiming streams the time spent executing Cardinal systems each
 	// tick without enabling per-system span capture.
 	WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest]) (*connect.ServerStreamForClient[v1.WatchSystemsTimingResponse], error)
@@ -123,6 +130,12 @@ func NewDebugServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(debugServiceMethods.ByName("GetState")),
 			connect.WithClientOptions(opts...),
 		),
+		streamPerf: connect.NewClient[v1.StreamPerfRequest, v1.PerfBatch](
+			httpClient,
+			baseURL+DebugServiceStreamPerfProcedure,
+			connect.WithSchema(debugServiceMethods.ByName("StreamPerf")),
+			connect.WithClientOptions(opts...),
+		),
 		watchSystemsTiming: connect.NewClient[v1.WatchSystemsTimingRequest, v1.WatchSystemsTimingResponse](
 			httpClient,
 			baseURL+DebugServiceWatchSystemsTimingProcedure,
@@ -146,6 +159,7 @@ type debugServiceClient struct {
 	step               *connect.Client[v1.StepRequest, v1.StepResponse]
 	reset              *connect.Client[v1.ResetRequest, v1.ResetResponse]
 	getState           *connect.Client[v1.GetStateRequest, v1.GetStateResponse]
+	streamPerf         *connect.Client[v1.StreamPerfRequest, v1.PerfBatch]
 	watchSystemsTiming *connect.Client[v1.WatchSystemsTimingRequest, v1.WatchSystemsTimingResponse]
 	profileSystems     *connect.Client[v1.ProfileSystemsRequest, v1.ProfileSystemsResponse]
 }
@@ -180,6 +194,13 @@ func (c *debugServiceClient) GetState(ctx context.Context, req *connect.Request[
 	return c.getState.CallUnary(ctx, req)
 }
 
+// StreamPerf calls worldengine.cardinal.v1.DebugService.StreamPerf.
+//
+// Deprecated: do not use.
+func (c *debugServiceClient) StreamPerf(ctx context.Context, req *connect.Request[v1.StreamPerfRequest]) (*connect.ServerStreamForClient[v1.PerfBatch], error) {
+	return c.streamPerf.CallServerStream(ctx, req)
+}
+
 // WatchSystemsTiming calls worldengine.cardinal.v1.DebugService.WatchSystemsTiming.
 func (c *debugServiceClient) WatchSystemsTiming(ctx context.Context, req *connect.Request[v1.WatchSystemsTimingRequest]) (*connect.ServerStreamForClient[v1.WatchSystemsTimingResponse], error) {
 	return c.watchSystemsTiming.CallServerStream(ctx, req)
@@ -205,6 +226,11 @@ type DebugServiceHandler interface {
 	Reset(context.Context, *connect.Request[v1.ResetRequest]) (*connect.Response[v1.ResetResponse], error)
 	// GetState returns the current world state snapshot.
 	GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error)
+	// StreamPerf is kept for compatibility. Use ProfileSystems instead.
+	// buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+	//
+	// Deprecated: do not use.
+	StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest], *connect.ServerStream[v1.PerfBatch]) error
 	// WatchSystemsTiming streams the time spent executing Cardinal systems each
 	// tick without enabling per-system span capture.
 	WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest], *connect.ServerStream[v1.WatchSystemsTimingResponse]) error
@@ -256,6 +282,12 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(debugServiceMethods.ByName("GetState")),
 		connect.WithHandlerOptions(opts...),
 	)
+	debugServiceStreamPerfHandler := connect.NewServerStreamHandler(
+		DebugServiceStreamPerfProcedure,
+		svc.StreamPerf,
+		connect.WithSchema(debugServiceMethods.ByName("StreamPerf")),
+		connect.WithHandlerOptions(opts...),
+	)
 	debugServiceWatchSystemsTimingHandler := connect.NewServerStreamHandler(
 		DebugServiceWatchSystemsTimingProcedure,
 		svc.WatchSystemsTiming,
@@ -282,6 +314,8 @@ func NewDebugServiceHandler(svc DebugServiceHandler, opts ...connect.HandlerOpti
 			debugServiceResetHandler.ServeHTTP(w, r)
 		case DebugServiceGetStateProcedure:
 			debugServiceGetStateHandler.ServeHTTP(w, r)
+		case DebugServiceStreamPerfProcedure:
+			debugServiceStreamPerfHandler.ServeHTTP(w, r)
 		case DebugServiceWatchSystemsTimingProcedure:
 			debugServiceWatchSystemsTimingHandler.ServeHTTP(w, r)
 		case DebugServiceProfileSystemsProcedure:
@@ -317,6 +351,10 @@ func (UnimplementedDebugServiceHandler) Reset(context.Context, *connect.Request[
 
 func (UnimplementedDebugServiceHandler) GetState(context.Context, *connect.Request[v1.GetStateRequest]) (*connect.Response[v1.GetStateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.GetState is not implemented"))
+}
+
+func (UnimplementedDebugServiceHandler) StreamPerf(context.Context, *connect.Request[v1.StreamPerfRequest], *connect.ServerStream[v1.PerfBatch]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("worldengine.cardinal.v1.DebugService.StreamPerf is not implemented"))
 }
 
 func (UnimplementedDebugServiceHandler) WatchSystemsTiming(context.Context, *connect.Request[v1.WatchSystemsTimingRequest], *connect.ServerStream[v1.WatchSystemsTimingResponse]) error {

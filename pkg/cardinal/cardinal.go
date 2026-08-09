@@ -10,6 +10,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -229,7 +230,7 @@ func (w *World) Tick(timestamp time.Time) {
 	_ = w.commands.Drain()
 
 	w.currentTick.timestamp = timestamp
-	w.currentTick.captureSystemSpans = w.debug.startSystemSpanCapture()
+	w.currentTick.capture = w.debug.startSystemSpanCapture()
 
 	var systemPhaseStartedAt time.Time
 	if w.debug != nil {
@@ -240,7 +241,7 @@ func (w *World) Tick(timestamp time.Time) {
 	w.world.Tick()
 
 	w.debug.recordTick(
-		w.currentTick.captureSystemSpans,
+		w.currentTick.capture,
 		w.currentTick.height,
 		timestamp,
 		systemPhaseStartedAt,
@@ -391,7 +392,7 @@ func (w *World) reset() {
 }
 
 type Tick struct {
-	height             uint64
-	timestamp          time.Time
-	captureSystemSpans bool
+	height    uint64
+	timestamp time.Time
+	capture   performance.TickCapture
 }
