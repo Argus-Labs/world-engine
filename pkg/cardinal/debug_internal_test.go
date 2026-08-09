@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -21,12 +22,13 @@ import (
 type schemaSample struct {
 	ArgusAuthID string `json:"argus_auth_id"`
 	X           uint32 `json:"x"`
+	Y           uint32 `json:"y"`
 }
 
 func (schemaSample) Name() string { return "schema-sample" }
 
 func (sample schemaSample) ToProto() *templatecommand.MovePlayer {
-	return &templatecommand.MovePlayer{ArgusAuthID: sample.ArgusAuthID, X: sample.X}
+	return &templatecommand.MovePlayer{ArgusAuthID: sample.ArgusAuthID, X: sample.X, Y: sample.Y}
 }
 
 func (sample schemaSample) FromProto(message *templatecommand.MovePlayer) schemaSample {
@@ -35,17 +37,12 @@ func (sample schemaSample) FromProto(message *templatecommand.MovePlayer) schema
 	}
 	sample.ArgusAuthID = message.GetArgusAuthID()
 	sample.X = message.GetX()
+	sample.Y = message.GetY()
 	return sample
 }
 
 func (sample schemaSample) MarshalWire() ([]byte, error) {
 	return proto.Marshal(sample.ToProto())
-}
-
-func (schemaSample) FormSchema() []byte {
-	return []byte(
-		`{"properties":{"ArgusAuthID":{"type":"string"},"X":{"type":"integer"}}}`,
-	)
 }
 
 func (schemaSample) ProtoDescriptor() protoreflect.MessageDescriptor {
@@ -66,16 +63,54 @@ func (wireOnlySample) Name() string                      { return "wire-only" }
 func (wireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
 
-type namedSchemaSample struct {
-	schemaSample
-	name string
-}
+type scalarWireOnlySample string
 
-func (sample namedSchemaSample) Name() string { return sample.name }
+func (scalarWireOnlySample) Name() string                      { return "scalar-wire-only" }
+func (scalarWireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (scalarWireOnlySample) UnmarshalWire([]byte) (any, error) { return scalarWireOnlySample(""), nil }
+
+type namedWireOnlySample struct{ name string }
+
+func (sample namedWireOnlySample) Name() string               { return sample.name }
+func (namedWireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (namedWireOnlySample) UnmarshalWire([]byte) (any, error) { return namedWireOnlySample{}, nil }
 
 type nilDescriptorSample struct{ schemaSample }
 
 func (nilDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor { return nil }
+
+type mismatchedDescriptorSample struct {
+	Missing string
+}
+
+func (mismatchedDescriptorSample) Name() string                 { return "mismatched" }
+func (mismatchedDescriptorSample) MarshalWire() ([]byte, error) { return nil, nil }
+func (mismatchedDescriptorSample) UnmarshalWire([]byte) (any, error) {
+	return mismatchedDescriptorSample{}, nil
+}
+func (mismatchedDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
+}
+
+type nestedFormSample struct {
+	Count uint32
+}
+
+type namedByte byte
+
+type formSchemaSample struct {
+	Tagged    string `json:"different_name"`
+	Optional  *string
+	Fixed     [2]nestedFormSample
+	Blob      []byte
+	NamedBlob []namedByte
+	Created   time.Time
+	Fallback  any
+}
+
+func (formSchemaSample) Name() string                      { return "form-schema" }
+func (formSchemaSample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (formSchemaSample) UnmarshalWire([]byte) (any, error) { return formSchemaSample{}, nil }
 
 func newIntrospectionTestModule() *debugModule {
 	return &debugModule{
@@ -107,7 +142,7 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 
 		properties, ok := schema.GetSchema().AsMap()["properties"].(map[string]any)
 		require.True(t, ok, "schema should have properties")
-		assert.ElementsMatch(t, []string{"ArgusAuthID", "X"}, mapKeys(properties))
+		assert.ElementsMatch(t, []string{"ArgusAuthID", "X", "Y"}, mapKeys(properties))
 		for property := range properties {
 			assert.NotNil(t, schemaSample{}.ProtoDescriptor().Fields().ByName(protoreflect.Name(property)))
 		}
@@ -131,6 +166,18 @@ func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
 	assert.Empty(t, d.catalog.DescriptorSet())
 }
 
+func TestFinalizeAllowsScalarWireCodec(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, scalarWireOnlySample("")))
+	require.NoError(t, d.finalizeCatalog())
+
+	types := d.catalog.Commands()
+	require.Len(t, types, 1)
+	assert.Empty(t, types[0].GetSchema().AsMap())
+}
+
 func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
 	t.Parallel()
 
@@ -145,8 +192,8 @@ func TestIntrospectionCatalogSortsTypesByName(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, namedSchemaSample{name: "z-command"}))
-	require.NoError(t, d.register(introspectionCommand, namedSchemaSample{name: "a-command"}))
+	require.NoError(t, d.register(introspectionCommand, namedWireOnlySample{name: "z-command"}))
+	require.NoError(t, d.register(introspectionCommand, namedWireOnlySample{name: "a-command"}))
 	require.NoError(t, d.finalizeCatalog())
 
 	types := d.catalog.Commands()
@@ -166,9 +213,50 @@ func TestIntrospectionCatalogRejectsNilGeneratedDescriptor(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	err := d.register(introspectionCommand, nilDescriptorSample{})
+	require.NoError(t, d.register(introspectionCommand, nilDescriptorSample{}))
+	err := d.finalizeCatalog()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "generated protobuf descriptor is nil")
+}
+
+func TestIntrospectionCatalogRejectsDescriptorFieldMismatch(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, mismatchedDescriptorSample{}))
+	err := d.finalizeCatalog()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has no field for Go field Missing")
+}
+
+func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
+	t.Parallel()
+
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspectionCommand, formSchemaSample{}))
+	require.NoError(t, d.finalizeCatalog())
+
+	types := d.catalog.Commands()
+	require.Len(t, types, 1)
+	schemaMap := types[0].GetSchema().AsMap()
+	properties := schemaMap["properties"].(map[string]any)
+	assert.Contains(t, properties, "Tagged")
+	assert.NotContains(t, properties, "different_name")
+
+	required := schemaMap["required"].([]any)
+	assert.NotContains(t, required, "Optional")
+	assert.Contains(t, required, "Tagged")
+
+	fixed := properties["Fixed"].(map[string]any)
+	assert.Equal(t, float64(2), fixed["minItems"])
+	assert.Equal(t, float64(2), fixed["maxItems"])
+	assert.Equal(t, "base64", properties["Blob"].(map[string]any)["contentEncoding"])
+	namedBlob := properties["NamedBlob"].(map[string]any)
+	assert.Equal(t, "array", namedBlob["type"])
+	assert.Equal(t, "integer", namedBlob["items"].(map[string]any)["type"])
+	assert.Equal(t, "date-time", properties["Created"].(map[string]any)["format"])
+	assert.Empty(t, properties["Fallback"].(map[string]any))
+	assert.NotEmpty(t, schemaMap["$defs"])
 }
 
 func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {

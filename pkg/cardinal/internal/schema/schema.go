@@ -18,10 +18,8 @@ type Serializable interface {
 	UnmarshalWire([]byte) (any, error)
 }
 
-// Introspectable is implemented by SDK-generated wire types. It is deliberately separate from
-// Serializable: tests and integrations may use a different wire codec, while editor introspection is
-// specifically metadata for generated protobuf-backed types.
-type Introspectable interface {
-	FormSchema() []byte
+// ProtoDescriber is implemented by SDK-generated protobuf wire types. It stays separate from
+// Serializable because tests and integrations may use another wire codec.
+type ProtoDescriber interface {
 	ProtoDescriptor() protoreflect.MessageDescriptor
 }

@@ -5,8 +5,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/goccy/go-json"
-	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -31,27 +29,22 @@ type introspectedType struct {
 	descriptor protoreflect.MessageDescriptor
 }
 
-// introspectionCatalog collects generated form and protobuf metadata before the debug service starts.
-// Finalize freezes registration and builds the immutable response data used by Introspect.
+// introspectionCatalog collects registered types before the debug service starts. Finalize freezes
+// registration and builds the immutable form and protobuf metadata used by Introspect.
 type introspectionCatalog struct {
 	mu          sync.RWMutex
-	reflector   *jsonschema.Reflector
 	finalized   bool
-	registered  [3]map[string]introspectedType
+	registered  [3]map[string]schema.Serializable
 	types       [3][]*cardinalv1.TypeSchema
 	descriptors []byte
 }
 
 func newIntrospectionCatalog() *introspectionCatalog {
 	return &introspectionCatalog{
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true,
-			ExpandedStruct: true,
-		},
-		registered: [3]map[string]introspectedType{
-			make(map[string]introspectedType),
-			make(map[string]introspectedType),
-			make(map[string]introspectedType),
+		registered: [3]map[string]schema.Serializable{
+			make(map[string]schema.Serializable),
+			make(map[string]schema.Serializable),
+			make(map[string]schema.Serializable),
 		},
 	}
 }
@@ -72,36 +65,23 @@ func (c *introspectionCatalog) Register(kind introspectionKind, value schema.Ser
 		return nil
 	}
 
-	entry, err := c.inspect(value)
-	if err != nil {
-		return eris.Wrapf(err, "failed to inspect %s", name)
-	}
-	catalog[name] = entry
+	catalog[name] = value
 	return nil
 }
 
 func (c *introspectionCatalog) inspect(value schema.Serializable) (introspectedType, error) {
 	var descriptor protoreflect.MessageDescriptor
-	var data []byte
-	if introspectable, ok := value.(schema.Introspectable); ok {
-		descriptor = introspectable.ProtoDescriptor()
+	if describer, ok := value.(schema.ProtoDescriber); ok {
+		descriptor = describer.ProtoDescriptor()
 		if descriptor == nil {
 			return introspectedType{}, eris.New("generated protobuf descriptor is nil")
 		}
-		data = introspectable.FormSchema()
-	} else {
-		jsonSchema := c.reflector.Reflect(value)
-		var err error
-		data, err = json.Marshal(jsonSchema)
-		if err != nil {
-			return introspectedType{}, eris.Wrap(err, "failed to marshal json schema")
+		if err := validateDescriptorFields(value, descriptor); err != nil {
+			return introspectedType{}, err
 		}
 	}
 
-	var schemaMap map[string]any
-	if err := json.Unmarshal(data, &schemaMap); err != nil {
-		return introspectedType{}, eris.Wrap(err, "failed to unmarshal json schema")
-	}
+	schemaMap := buildFormSchema(value)
 	delete(schemaMap, "$schema")
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
@@ -120,20 +100,28 @@ func (c *introspectionCatalog) Finalize() error {
 		return nil
 	}
 
+	var types [3][]*cardinalv1.TypeSchema
 	descriptors := make([]protoreflect.MessageDescriptor, 0)
 	for kind, registered := range c.registered {
-		c.types[kind] = buildTypeSchemas(registered)
-		for _, entry := range registered {
+		inspected := make(map[string]introspectedType, len(registered))
+		for name, value := range registered {
+			entry, err := c.inspect(value)
+			if err != nil {
+				return eris.Wrapf(err, "failed to inspect %s", name)
+			}
+			inspected[name] = entry
 			if entry.descriptor != nil {
 				descriptors = append(descriptors, entry.descriptor)
 			}
 		}
+		types[kind] = buildTypeSchemas(inspected)
 	}
 
 	descriptorSet, err := buildDescriptorSet(descriptors)
 	if err != nil {
 		return eris.Wrap(err, "failed to build introspection descriptor set")
 	}
+	c.types = types
 	c.descriptors = descriptorSet
 	c.finalized = true
 	return nil
