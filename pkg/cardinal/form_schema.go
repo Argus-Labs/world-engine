@@ -90,8 +90,15 @@ func (b *formSchemaBuilder) typeSchema(
 	if schema := scalarFormSchema(t.Kind(), jsonEncoded); schema != nil {
 		return schema
 	}
+	return b.compositeFormSchema(t, wireField, jsonEncoded)
+}
 
-	switch t.Kind() {
+func (b *formSchemaBuilder) compositeFormSchema(
+	t reflect.Type,
+	wireField protoreflect.FieldDescriptor,
+	jsonEncoded bool,
+) map[string]any {
+	switch t.Kind() { //nolint:exhaustive // scalar kinds are handled before this call
 	case reflect.Slice:
 		if isByteSlice(t) {
 			schema := map[string]any{"type": "string"}
@@ -137,7 +144,7 @@ func (b *formSchemaBuilder) typeSchema(
 }
 
 func scalarFormSchema(kind reflect.Kind, jsonEncoded bool) map[string]any {
-	switch kind {
+	switch kind { //nolint:exhaustive // composite kinds are handled by compositeFormSchema
 	case reflect.Bool:
 		return map[string]any{"type": "boolean"}
 	case reflect.Int, reflect.Int64:
