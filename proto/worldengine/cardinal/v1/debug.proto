@@ -61,8 +61,9 @@ message IntrospectResponse {
   // System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
   repeated SystemSchedule schedules = 5;
 
-  // Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
-  // this response, plus transitive dependencies. Empty if no registered type provides protobuf metadata.
+  // Protobuf type definitions for the commands, components, and events in this response,
+  // including any types they depend on. Clients use them to encode and decode protobuf data.
+  // Empty when none are available.
   bytes proto_descriptor_set = 6;
 }
 

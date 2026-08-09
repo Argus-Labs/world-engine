@@ -129,8 +129,9 @@ type IntrospectResponse struct {
 	TickRateHz float64 `protobuf:"fixed64,4,opt,name=tick_rate_hz,json=tickRateHz,proto3" json:"tick_rate_hz,omitempty"`
 	// System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
 	Schedules []*SystemSchedule `protobuf:"bytes,5,rep,name=schedules,proto3" json:"schedules,omitempty"`
-	// Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
-	// this response, plus transitive dependencies. Empty if no registered type provides protobuf metadata.
+	// Protobuf type definitions for the commands, components, and events in this response,
+	// including any types they depend on. Clients use them to encode and decode protobuf data.
+	// Empty when none are available.
 	ProtoDescriptorSet []byte `protobuf:"bytes,6,opt,name=proto_descriptor_set,json=protoDescriptorSet,proto3" json:"proto_descriptor_set,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache

@@ -73,8 +73,9 @@ export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResp
   schedules: SystemSchedule[];
 
   /**
-   * Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
-   * this response, plus transitive dependencies. Empty if the world registers no introspected types.
+   * Protobuf type definitions for the commands, components, and events in this response,
+   * including any types they depend on. Clients use them to encode and decode protobuf data.
+   * Empty when none are available.
    *
    * @generated from field: bytes proto_descriptor_set = 6;
    */
