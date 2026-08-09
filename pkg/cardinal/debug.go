@@ -10,6 +10,7 @@ import (
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -23,7 +24,7 @@ const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches
 type debugModule struct {
 	world   *World
 	control *tickControl
-	catalog *introspectionCatalog
+	catalog *introspect.Catalog
 	perf    *performance.Collector
 }
 
@@ -37,7 +38,7 @@ func newDebugModule(world *World) *debugModule {
 	d := &debugModule{
 		world:   world,
 		control: newTickControl(),
-		catalog: newIntrospectionCatalog(),
+		catalog: introspect.NewCatalog(),
 		perf:    perf,
 	}
 	return d
@@ -48,7 +49,7 @@ func newDebugModule(world *World) *debugModule {
 // -------------------------------------------------------------------------------------------------
 
 // register is nil-safe because worlds without debug enabled do not have a debug module.
-func (d *debugModule) register(kind introspectionKind, value schema.Serializable) error {
+func (d *debugModule) register(kind introspect.Kind, value schema.Serializable) error {
 	if d == nil {
 		return nil
 	}

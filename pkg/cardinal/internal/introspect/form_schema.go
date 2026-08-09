@@ -1,4 +1,4 @@
-package cardinal
+package introspect
 
 import (
 	"math"

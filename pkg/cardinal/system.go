@@ -10,6 +10,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/kelindar/bitmap"
@@ -221,7 +222,7 @@ func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
 		return eris.Wrapf(err, "failed to register command %s", name)
 	}
 
-	if err := meta.world.debug.register(introspectionCommand, zero); err != nil {
+	if err := meta.world.debug.register(introspect.Command, zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 
@@ -321,7 +322,7 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
 	}
 
-	if err := meta.world.debug.register(introspectionEvent, zero); err != nil {
+	if err := meta.world.debug.register(introspect.Event, zero); err != nil {
 		return eris.Wrapf(err, "failed to register command to debug module %s", name)
 	}
 

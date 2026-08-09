@@ -1,4 +1,4 @@
-package cardinal
+package introspect
 
 import (
 	"cmp"
@@ -16,12 +16,16 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
-type introspectionKind uint8
+// Kind identifies a category of registered world type.
+type Kind uint8
 
 const (
-	introspectionCommand introspectionKind = iota
-	introspectionComponent
-	introspectionEvent
+	// Command identifies command types.
+	Command Kind = iota
+	// Component identifies component types.
+	Component
+	// Event identifies event types.
+	Event
 )
 
 type introspectedType struct {
@@ -29,9 +33,9 @@ type introspectedType struct {
 	descriptor protoreflect.MessageDescriptor
 }
 
-// introspectionCatalog collects registered types before the debug service starts. Finalize freezes
+// Catalog collects registered types before the debug service starts. Finalize freezes
 // registration and builds the immutable form and protobuf metadata used by Introspect.
-type introspectionCatalog struct {
+type Catalog struct {
 	mu          sync.RWMutex
 	finalized   bool
 	registered  [3]map[string]schema.Serializable
@@ -39,8 +43,9 @@ type introspectionCatalog struct {
 	descriptors []byte
 }
 
-func newIntrospectionCatalog() *introspectionCatalog {
-	return &introspectionCatalog{
+// NewCatalog creates an empty catalog.
+func NewCatalog() *Catalog {
+	return &Catalog{
 		registered: [3]map[string]schema.Serializable{
 			make(map[string]schema.Serializable),
 			make(map[string]schema.Serializable),
@@ -49,13 +54,14 @@ func newIntrospectionCatalog() *introspectionCatalog {
 	}
 }
 
-func (c *introspectionCatalog) Register(kind introspectionKind, value schema.Serializable) error {
+// Register adds a type before the catalog is finalized.
+func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.finalized {
 		return eris.New("introspection catalog is finalized")
 	}
-	if kind > introspectionEvent {
+	if kind > Event {
 		return eris.Errorf("unknown introspection kind: %d", kind)
 	}
 
@@ -69,7 +75,7 @@ func (c *introspectionCatalog) Register(kind introspectionKind, value schema.Ser
 	return nil
 }
 
-func (c *introspectionCatalog) inspect(value schema.Serializable) (introspectedType, error) {
+func (c *Catalog) inspect(value schema.Serializable) (introspectedType, error) {
 	var descriptor protoreflect.MessageDescriptor
 	if describer, ok := value.(schema.ProtoDescriber); ok {
 		descriptor = describer.ProtoDescriptor()
@@ -107,7 +113,8 @@ func hasCompleteDescriptor(file protoreflect.FileDescriptor) bool {
 	return true
 }
 
-func (c *introspectionCatalog) Finalize() error {
+// Finalize builds the metadata and prevents further registration.
+func (c *Catalog) Finalize() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.finalized {
@@ -141,31 +148,36 @@ func (c *introspectionCatalog) Finalize() error {
 	return nil
 }
 
-func (c *introspectionCatalog) Finalized() bool {
+// Finalized reports whether the catalog has been finalized.
+func (c *Catalog) Finalized() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.finalized
 }
 
-func (c *introspectionCatalog) Commands() []*cardinalv1.TypeSchema {
-	return c.schemas(introspectionCommand)
+// Commands returns the registered command metadata.
+func (c *Catalog) Commands() []*cardinalv1.TypeSchema {
+	return c.schemas(Command)
 }
 
-func (c *introspectionCatalog) Components() []*cardinalv1.TypeSchema {
-	return c.schemas(introspectionComponent)
+// Components returns the registered component metadata.
+func (c *Catalog) Components() []*cardinalv1.TypeSchema {
+	return c.schemas(Component)
 }
 
-func (c *introspectionCatalog) Events() []*cardinalv1.TypeSchema {
-	return c.schemas(introspectionEvent)
+// Events returns the registered event metadata.
+func (c *Catalog) Events() []*cardinalv1.TypeSchema {
+	return c.schemas(Event)
 }
 
-func (c *introspectionCatalog) schemas(kind introspectionKind) []*cardinalv1.TypeSchema {
+func (c *Catalog) schemas(kind Kind) []*cardinalv1.TypeSchema {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return slices.Clone(c.types[kind])
 }
 
-func (c *introspectionCatalog) DescriptorSet() []byte {
+// DescriptorSet returns the shared protobuf descriptor set.
+func (c *Catalog) DescriptorSet() []byte {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return slices.Clone(c.descriptors)
