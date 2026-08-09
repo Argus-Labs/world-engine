@@ -2,10 +2,7 @@ package cardinal
 
 import (
 	"context"
-	"math"
-	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -109,38 +106,12 @@ func (mismatchedDescriptorSample) ProtoDescriptor() protoreflect.MessageDescript
 	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
 }
 
-type nestedFormSample struct {
-	Count uint32
-}
-
-type namedByte byte
-
-type formSchemaSample struct {
-	Tagged     string `json:"different_name"`
-	Signed     int64
-	Unsigned   uint64
-	Small      int32
-	Narrow     uint8
-	NarrowList []int8
-	Ratio      float32
-	Optional   *string
-	Fixed      [2]nestedFormSample
-	Blob       []byte
-	NamedBlob  []namedByte
-	Created    time.Time
-	Fallback   any
-}
-
 type jsonFallbackFormSample struct {
 	Fixed   [1]int64
 	Special [1]float32
 	Data    *[]byte
 	desc    protoreflect.MessageDescriptor
 }
-
-func (formSchemaSample) Name() string                      { return "form-schema" }
-func (formSchemaSample) MarshalWire() ([]byte, error)      { return nil, nil }
-func (formSchemaSample) UnmarshalWire([]byte) (any, error) { return formSchemaSample{}, nil }
 
 func (jsonFallbackFormSample) Name() string                 { return "json-fallback" }
 func (jsonFallbackFormSample) MarshalWire() ([]byte, error) { return nil, nil }
@@ -284,64 +255,20 @@ func TestIntrospectionCatalogRejectsNilGeneratedDescriptor(t *testing.T) {
 	assert.Contains(t, err.Error(), "generated protobuf descriptor is nil")
 }
 
-func TestIntrospectionCatalogRejectsDescriptorFieldMismatch(t *testing.T) {
+func TestIntrospectionCatalogUsesDescriptorFields(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
 	require.NoError(t, d.register(introspect.Command, mismatchedDescriptorSample{}))
-	err := d.finalizeCatalog()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "has no field for Go field Missing")
-}
-
-func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
-	t.Parallel()
-
-	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspect.Command, formSchemaSample{}))
 	require.NoError(t, d.finalizeCatalog())
 
-	types := d.catalog.Commands()
-	require.Len(t, types, 1)
-	schemaMap := types[0].GetSchema().AsMap()
+	schemaMap := d.catalog.Commands()[0].GetSchema().AsMap()
 	properties := schemaMap["properties"].(map[string]any)
-	assert.Contains(t, properties, "Tagged")
-	assert.NotContains(t, properties, "different_name")
-
-	required := schemaMap["required"].([]any)
-	assert.NotContains(t, required, "Optional")
-	assert.Contains(t, required, "Tagged")
-	assert.Equal(t, "string", properties["Signed"].(map[string]any)["type"])
-	assert.Equal(t, "^-?[0-9]+$", properties["Signed"].(map[string]any)["pattern"])
-	assert.Equal(t, "string", properties["Unsigned"].(map[string]any)["type"])
-	assert.Equal(t, "^[0-9]+$", properties["Unsigned"].(map[string]any)["pattern"])
-	assert.Equal(t, "integer", properties["Small"].(map[string]any)["type"])
-	assert.InDelta(t, 0, properties["Narrow"].(map[string]any)["minimum"], 0)
-	assert.InDelta(t, 255, properties["Narrow"].(map[string]any)["maximum"], 0)
-	narrowItems := properties["NarrowList"].(map[string]any)["items"].(map[string]any)
-	assert.InDelta(t, -128, narrowItems["minimum"], 0)
-	assert.InDelta(t, 127, narrowItems["maximum"], 0)
-	assert.Len(t, properties["Ratio"].(map[string]any)["anyOf"], 2)
-
-	fixed := properties["Fixed"].(map[string]any)
-	assert.InDelta(t, 2, fixed["minItems"], 0)
-	assert.InDelta(t, 2, fixed["maxItems"], 0)
-	defs := schemaMap["$defs"].(map[string]any)
-	require.Len(t, defs, 1)
-	for nestedKey := range defs {
-		token := strings.NewReplacer("~", "~0", "/", "~1").Replace(nestedKey)
-		assert.Equal(t, "#/$defs/"+token, fixed["items"].(map[string]any)["$ref"])
-	}
-	assert.Equal(t, "base64", properties["Blob"].(map[string]any)["contentEncoding"])
-	namedBlob := properties["NamedBlob"].(map[string]any)
-	assert.Equal(t, "array", namedBlob["type"])
-	assert.Equal(t, "integer", namedBlob["items"].(map[string]any)["type"])
-	assert.Equal(t, "date-time", properties["Created"].(map[string]any)["format"])
-	assert.Empty(t, properties["Fallback"].(map[string]any))
-	assert.NotEmpty(t, schemaMap["$defs"])
+	assert.ElementsMatch(t, []string{"ArgusAuthID", "X", "Y"}, mapKeys(properties))
+	assert.NotContains(t, properties, "Missing")
 }
 
-func TestBuildFormSchemaUsesJSONValuesForFallbackBytes(t *testing.T) {
+func TestBuildFormSchemaTreatsEveryBytesFieldAsBase64(t *testing.T) {
 	t.Parallel()
 
 	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
@@ -376,16 +303,11 @@ func TestBuildFormSchemaUsesJSONValuesForFallbackBytes(t *testing.T) {
 	require.NoError(t, d.finalizeCatalog())
 	schemaMap := d.catalog.Commands()[0].GetSchema().AsMap()
 	properties := schemaMap["properties"].(map[string]any)
-	fixedItems := properties["Fixed"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, "integer", fixedItems["type"])
-	assert.InDelta(t, 9007199254740991, fixedItems["maximum"], 0)
-	specialItems := properties["Special"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, "number", specialItems["type"])
-	assert.InDelta(t, math.MaxFloat32, specialItems["maximum"], 0)
-	assert.NotContains(t, specialItems, "anyOf")
-	data := properties["Data"].(map[string]any)
-	assert.Equal(t, "string", data["type"])
-	assert.NotContains(t, data, "contentEncoding")
+	for _, name := range []string{"Fixed", "Special", "Data"} {
+		field := properties[name].(map[string]any)
+		assert.Equal(t, "string", field["type"])
+		assert.Equal(t, "base64", field["contentEncoding"])
+	}
 }
 
 func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {

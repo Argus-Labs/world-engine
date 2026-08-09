@@ -130,7 +130,7 @@ type IntrospectResponse struct {
 	// System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
 	Schedules []*SystemSchedule `protobuf:"bytes,5,rep,name=schedules,proto3" json:"schedules,omitempty"`
 	// Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
-	// this response, plus transitive dependencies. Empty if the world registers no introspected types.
+	// this response, plus transitive dependencies. Empty if no registered type provides protobuf metadata.
 	ProtoDescriptorSet []byte `protobuf:"bytes,6,opt,name=proto_descriptor_set,json=protoDescriptorSet,proto3" json:"proto_descriptor_set,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
@@ -321,7 +321,7 @@ type TypeSchema struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Form schema derived from the registered Go type.
+	// Form schema derived from the protobuf message descriptor.
 	Schema *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 	// Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
 	// protobuf metadata is unavailable.
