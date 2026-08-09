@@ -1205,8 +1205,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoMessageNameFieldNumber = 3;
     private string protoMessageName_ = "";
     /// <summary>
-    /// Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
-    /// protobuf metadata is unavailable.
+    /// Name of this command, component, or event in proto_descriptor_set.
+    /// Clients use it to find the correct protobuf type definition.
+    /// Empty when no definition is available.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

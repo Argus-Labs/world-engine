@@ -324,8 +324,9 @@ type TypeSchema struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Form schema derived from the protobuf message descriptor.
 	Schema *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
-	// Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
-	// protobuf metadata is unavailable.
+	// Name of this command, component, or event in proto_descriptor_set.
+	// Clients use it to find the correct protobuf type definition.
+	// Empty when no definition is available.
 	ProtoMessageName string `protobuf:"bytes,3,opt,name=proto_message_name,json=protoMessageName,proto3" json:"proto_message_name,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache

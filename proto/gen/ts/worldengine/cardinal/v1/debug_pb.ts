@@ -162,8 +162,9 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   schema?: JsonObject;
 
   /**
-   * Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
-   * protobuf metadata is unavailable.
+   * Name of this command, component, or event in proto_descriptor_set.
+   * Clients use it to find the correct protobuf type definition.
+   * Empty when no definition is available.
    *
    * @generated from field: string proto_message_name = 3;
    */
