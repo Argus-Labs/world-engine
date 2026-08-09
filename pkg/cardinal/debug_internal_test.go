@@ -3,7 +3,7 @@ package cardinal
 import (
 	"context"
 	"math"
-	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	templatecommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
@@ -134,16 +135,26 @@ type jsonFallbackFormSample struct {
 	Fixed   [1]int64
 	Special [1]float32
 	Data    *[]byte
+	desc    protoreflect.MessageDescriptor
 }
 
 func (formSchemaSample) Name() string                      { return "form-schema" }
 func (formSchemaSample) MarshalWire() ([]byte, error)      { return nil, nil }
 func (formSchemaSample) UnmarshalWire([]byte) (any, error) { return formSchemaSample{}, nil }
 
+func (jsonFallbackFormSample) Name() string                 { return "json-fallback" }
+func (jsonFallbackFormSample) MarshalWire() ([]byte, error) { return nil, nil }
+func (jsonFallbackFormSample) UnmarshalWire([]byte) (any, error) {
+	return jsonFallbackFormSample{}, nil
+}
+func (sample jsonFallbackFormSample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return sample.desc
+}
+
 func newIntrospectionTestModule() *debugModule {
 	return &debugModule{
 		world:   &World{world: ecs.NewWorld()},
-		catalog: newIntrospectionCatalog(),
+		catalog: introspect.NewCatalog(),
 	}
 }
 
@@ -151,7 +162,7 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	for _, kind := range []introspectionKind{introspectionCommand, introspectionComponent, introspectionEvent} {
+	for _, kind := range []introspect.Kind{introspect.Command, introspect.Component, introspect.Event} {
 		require.NoError(t, d.register(kind, schemaSample{}))
 	}
 	require.NoError(t, d.finalizeCatalog())
@@ -185,7 +196,7 @@ func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, wireOnlySample{}))
+	require.NoError(t, d.register(introspect.Command, wireOnlySample{}))
 	require.NoError(t, d.finalizeCatalog())
 
 	schemas := d.catalog.Commands()
@@ -198,7 +209,7 @@ func TestFinalizeAllowsScalarWireCodec(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, scalarWireOnlySample("")))
+	require.NoError(t, d.register(introspect.Command, scalarWireOnlySample("")))
 	require.NoError(t, d.finalizeCatalog())
 
 	types := d.catalog.Commands()
@@ -221,7 +232,7 @@ func TestFinalizeOmitsDescriptorWithUnresolvedImport(t *testing.T) {
 	require.NoError(t, err)
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, unresolvedDescriptorSample{
+	require.NoError(t, d.register(introspect.Command, unresolvedDescriptorSample{
 		descriptor: file.Messages().Get(0),
 	}))
 	require.NoError(t, d.finalizeCatalog())
@@ -237,7 +248,7 @@ func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {
 
 	d := newIntrospectionTestModule()
 	require.NoError(t, d.finalizeCatalog())
-	err := d.register(introspectionCommand, schemaSample{})
+	err := d.register(introspect.Command, schemaSample{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "catalog is finalized")
 }
@@ -246,8 +257,8 @@ func TestIntrospectionCatalogSortsTypesByName(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, namedWireOnlySample{name: "z-command"}))
-	require.NoError(t, d.register(introspectionCommand, namedWireOnlySample{name: "a-command"}))
+	require.NoError(t, d.register(introspect.Command, namedWireOnlySample{name: "z-command"}))
+	require.NoError(t, d.register(introspect.Command, namedWireOnlySample{name: "a-command"}))
 	require.NoError(t, d.finalizeCatalog())
 
 	types := d.catalog.Commands()
@@ -260,14 +271,14 @@ func TestDebugRegistrationIsNilSafe(t *testing.T) {
 	t.Parallel()
 
 	var d *debugModule
-	require.NoError(t, d.register(introspectionCommand, schemaSample{}))
+	require.NoError(t, d.register(introspect.Command, schemaSample{}))
 }
 
 func TestIntrospectionCatalogRejectsNilGeneratedDescriptor(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, nilDescriptorSample{}))
+	require.NoError(t, d.register(introspect.Command, nilDescriptorSample{}))
 	err := d.finalizeCatalog()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "generated protobuf descriptor is nil")
@@ -277,7 +288,7 @@ func TestIntrospectionCatalogRejectsDescriptorFieldMismatch(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, mismatchedDescriptorSample{}))
+	require.NoError(t, d.register(introspect.Command, mismatchedDescriptorSample{}))
 	err := d.finalizeCatalog()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has no field for Go field Missing")
@@ -287,7 +298,7 @@ func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspectionCommand, formSchemaSample{}))
+	require.NoError(t, d.register(introspect.Command, formSchemaSample{}))
 	require.NoError(t, d.finalizeCatalog())
 
 	types := d.catalog.Commands()
@@ -315,9 +326,12 @@ func TestFinalizeBuildsFormSchemaFromGoType(t *testing.T) {
 	fixed := properties["Fixed"].(map[string]any)
 	assert.InDelta(t, 2, fixed["minItems"], 0)
 	assert.InDelta(t, 2, fixed["maxItems"], 0)
-	nestedKey := formDefinitionKey(reflect.TypeFor[nestedFormSample]())
-	assert.Contains(t, schemaMap["$defs"], nestedKey)
-	assert.Equal(t, "#/$defs/"+jsonPointerToken(nestedKey), fixed["items"].(map[string]any)["$ref"])
+	defs := schemaMap["$defs"].(map[string]any)
+	require.Len(t, defs, 1)
+	for nestedKey := range defs {
+		token := strings.NewReplacer("~", "~0", "/", "~1").Replace(nestedKey)
+		assert.Equal(t, "#/$defs/"+token, fixed["items"].(map[string]any)["$ref"])
+	}
 	assert.Equal(t, "base64", properties["Blob"].(map[string]any)["contentEncoding"])
 	namedBlob := properties["NamedBlob"].(map[string]any)
 	assert.Equal(t, "array", namedBlob["type"])
@@ -357,7 +371,10 @@ func TestBuildFormSchemaUsesJSONValuesForFallbackBytes(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	schemaMap := buildFormSchema(jsonFallbackFormSample{}, file.Messages().Get(0))
+	d := newIntrospectionTestModule()
+	require.NoError(t, d.register(introspect.Command, jsonFallbackFormSample{desc: file.Messages().Get(0)}))
+	require.NoError(t, d.finalizeCatalog())
+	schemaMap := d.catalog.Commands()[0].GetSchema().AsMap()
 	properties := schemaMap["properties"].(map[string]any)
 	fixedItems := properties["Fixed"].(map[string]any)["items"].(map[string]any)
 	assert.Equal(t, "integer", fixedItems["type"])
@@ -380,28 +397,6 @@ func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
-func TestBuildDescriptorSetIsDeterministicAndDeduplicated(t *testing.T) {
-	t.Parallel()
-
-	systemNode := (&cardinalv1.SystemNode{}).ProtoReflect().Descriptor()
-	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
-
-	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{systemNode, snapshot, systemNode})
-	require.NoError(t, err)
-	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, systemNode})
-	require.NoError(t, err)
-	assert.Equal(t, first, second)
-
-	var set descriptorpb.FileDescriptorSet
-	require.NoError(t, proto.Unmarshal(first, &set))
-	seen := make(map[string]bool, len(set.GetFile()))
-	for _, file := range set.GetFile() {
-		require.False(t, seen[file.GetName()], "duplicate file in descriptor set: %s", file.GetName())
-		seen[file.GetName()] = true
-	}
-	assert.True(t, hasFile(&set, "google/protobuf/struct.proto"), "transitive imports must be included")
-}
-
 func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *descriptorpb.DescriptorProto {
 	for _, file := range set.GetFile() {
 		for _, message := range file.GetMessageType() {
@@ -411,15 +406,6 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 		}
 	}
 	return nil
-}
-
-func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
-	for _, file := range set.GetFile() {
-		if file.GetName() == path {
-			return true
-		}
-	}
-	return false
 }
 
 func mapKeys(values map[string]any) []string {
