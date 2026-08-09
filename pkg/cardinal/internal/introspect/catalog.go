@@ -82,16 +82,12 @@ func (c *Catalog) inspect(value schema.Serializable) (introspectedType, error) {
 		if descriptor == nil {
 			return introspectedType{}, eris.New("generated protobuf descriptor is nil")
 		}
-		if err := validateDescriptorFields(value, descriptor); err != nil {
-			return introspectedType{}, err
-		}
 		if !hasCompleteDescriptor(descriptor.ParentFile()) {
 			descriptor = nil
 		}
 	}
 
-	schemaMap := buildFormSchema(value, descriptor)
-	delete(schemaMap, "$schema")
+	schemaMap := buildFormSchema(descriptor)
 	delete(schemaMap, "type")
 	delete(schemaMap, "additionalProperties")
 

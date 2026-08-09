@@ -62,7 +62,7 @@ message IntrospectResponse {
   repeated SystemSchedule schedules = 5;
 
   // Serialized google.protobuf.FileDescriptorSet covering every protobuf-backed type advertised by
-  // this response, plus transitive dependencies. Empty if the world registers no introspected types.
+  // this response, plus transitive dependencies. Empty if no registered type provides protobuf metadata.
   bytes proto_descriptor_set = 6;
 }
 
@@ -85,7 +85,7 @@ message TypeSchema {
   // Name of the type.
   string name = 1;
 
-  // Form schema derived from the registered Go type.
+  // Form schema derived from the protobuf message descriptor.
   google.protobuf.Struct schema = 2;
 
   // Fully-qualified protobuf message name resolvable in proto_descriptor_set. Empty when generated
