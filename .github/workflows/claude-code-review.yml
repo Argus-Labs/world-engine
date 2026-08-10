@@ -22,17 +22,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Probe Claude authentication and model
+      - name: Probe current Claude SDK and CLI
         id: claude
         continue-on-error: true
-        uses: anthropics/claude-code-base-action@beta
+        uses: anthropics/claude-code-action/base-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          model: claude-opus-5
-          max_turns: "1"
           show_full_output: true
           prompt: |
             This is an isolated CI diagnostic. Reply with exactly: diagnostic-ok
+          claude_args: |
+            --model claude-opus-5
+            --max-turns 1
 
       - name: Summarize Claude diagnostic output
         if: always()
