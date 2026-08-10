@@ -14,11 +14,8 @@ env:
 jobs:
   claude-review:
     name: Review
-    # Fork PRs receive no secrets, so CLAUDE_CODE_OAUTH_TOKEN would be empty and
-    # the action would fail on every external contribution.
-    if: |
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    # Diagnostic branch: permit a draft PR so this isolated probe can run.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: namespace-profile-claude
     permissions:
       contents: read
@@ -45,7 +42,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: false # Namespace cache volume below handles this
+          cache: false
 
       - uses: namespacelabs/nscloud-cache-action@v1
         with:
@@ -55,24 +52,15 @@ jobs:
             ~/.cache/go-build
             ~/.cache/golangci-lint
 
-      # NOTE: common-go-ci.yaml's `Setup envtest` / KUBEBUILDER_ASSETS steps are
-      # deliberately not mirrored here. Nothing outside .github references
-      # envtest or KUBEBUILDER_ASSETS, and controller-runtime is not even a
-      # dependency -- the step is vestigial and downloads ~150 MB per run.
-
       - name: Run Claude Code Review
         id: claude-review
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
           use_sticky_comment: true
-          # No allowed_bots: this repo is public, and allowed bots bypass the
-          # repository write-permission check. See claude-code-action
-          # docs/security.md. Add a single bot name here if one ever needs to
-          # trigger Claude -- never "*".
-          # Without this the `actions: read` permission above is inert and
-          # Claude cannot read the CI run it is reviewing.
+          show_full_output: true
           additional_permissions: |-
             actions: read
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
@@ -85,3 +73,21 @@ jobs:
           claude_args: |
             --model claude-opus-5
             --allowedTools "Read,Edit,Bash(git:*),Bash(task lint),Bash(task lint:fix),Bash(task test),Bash(task test:unit),Bash(task test:ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh run view:*),mcp__github_inline_comment__create_inline_comment,mcp__github_inline_comment__list_inline_comments,mcp__github_inline_comment__delete_inline_comment"
+
+      - name: Summarize Claude diagnostic output
+        if: always()
+        env:
+          ACTION_OUTCOME: ${{ steps.claude-review.outcome }}
+          ACTION_CONCLUSION: ${{ steps.claude-review.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          echo "action_outcome=$ACTION_OUTCOME"
+          echo "action_conclusion=$ACTION_CONCLUSION"
+          echo "execution_file=$EXECUTION_FILE"
+          if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
+            echo "execution_file_bytes=$(wc -c < "$EXECUTION_FILE")"
+            jq -c '.. | objects | select(.type? == "system" or .type? == "result")' "$EXECUTION_FILE"
+          else
+            echo "Execution file is unavailable"
+          fi
+          [[ "$ACTION_OUTCOME" == "success" ]]
