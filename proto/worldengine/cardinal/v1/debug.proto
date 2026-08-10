@@ -87,6 +87,7 @@ message TypeSchema {
   string name = 1;
 
   // Form schema derived from the protobuf message descriptor.
+  // Empty when proto_message_name is empty.
   google.protobuf.Struct schema = 2;
 
   // Name of this command, component, or event in proto_descriptor_set.

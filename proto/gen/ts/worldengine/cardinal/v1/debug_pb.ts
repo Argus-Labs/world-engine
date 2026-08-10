@@ -155,7 +155,8 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   name: string;
 
   /**
-   * Form schema derived from the registered Go type.
+   * Form schema derived from the protobuf message descriptor.
+   * Empty when proto_message_name is empty.
    *
    * @generated from field: google.protobuf.Struct schema = 2;
    */

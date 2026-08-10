@@ -1190,7 +1190,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int SchemaFieldNumber = 2;
     private global::Google.Protobuf.WellKnownTypes.Struct schema_;
     /// <summary>
-    /// Form schema derived from the registered Go type.
+    /// Form schema derived from the protobuf message descriptor.
+    /// Empty when proto_message_name is empty.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

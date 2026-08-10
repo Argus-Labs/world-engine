@@ -323,7 +323,7 @@ func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
 	}
 
 	if err := meta.world.debug.register(introspect.Event, zero); err != nil {
-		return eris.Wrapf(err, "failed to register command to debug module %s", name)
+		return eris.Wrapf(err, "failed to register event to debug module %s", name)
 	}
 
 	meta.events[name] = struct{}{} // Add to system events set for duplicate field check
