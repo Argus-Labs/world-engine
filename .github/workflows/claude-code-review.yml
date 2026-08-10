@@ -8,85 +8,45 @@ concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  GO_VERSION: 1.26.5
-
 jobs:
   claude-review:
     name: Review
-    # Diagnostic branch: permit a draft PR so this isolated probe can run.
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: namespace-profile-claude
     permissions:
       contents: read
-      pull-requests: write
-      issues: read
-      id-token: write
-      actions: read
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: namespacelabs/nscloud-checkout-action@v9
         with:
           fetch-depth: 0
 
-      - name: Configure Git for private repos
-        run: git config --global url."https://x-token-auth:${{ github.token }}@github.com/".insteadOf "https://github.com/"
-
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.x
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: false
-
-      - uses: namespacelabs/nscloud-cache-action@v1
-        with:
-          cache: go
-          path: |
-            ~/go/pkg
-            ~/.cache/go-build
-            ~/.cache/golangci-lint
-
-      - name: Run Claude Code Review
-        id: claude-review
+      - name: Probe Claude authentication and model
+        id: claude
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-base-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          track_progress: true
-          use_sticky_comment: true
+          model: claude-opus-5
+          max_turns: "1"
           show_full_output: true
-          additional_permissions: |-
-            actions: read
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
           prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
-          claude_args: |
-            --model claude-opus-5
-            --allowedTools "Read,Edit,Bash(git:*),Bash(task lint),Bash(task lint:fix),Bash(task test),Bash(task test:unit),Bash(task test:ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh run view:*),mcp__github_inline_comment__create_inline_comment,mcp__github_inline_comment__list_inline_comments,mcp__github_inline_comment__delete_inline_comment"
+            This is an isolated CI diagnostic. Reply with exactly: diagnostic-ok
 
       - name: Summarize Claude diagnostic output
         if: always()
         env:
-          ACTION_OUTCOME: ${{ steps.claude-review.outcome }}
-          ACTION_CONCLUSION: ${{ steps.claude-review.outputs.conclusion }}
-          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+          ACTION_OUTCOME: ${{ steps.claude.outcome }}
+          ACTION_CONCLUSION: ${{ steps.claude.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
           echo "action_outcome=$ACTION_OUTCOME"
           echo "action_conclusion=$ACTION_CONCLUSION"
           echo "execution_file=$EXECUTION_FILE"
           if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
             echo "execution_file_bytes=$(wc -c < "$EXECUTION_FILE")"
-            jq -c '.. | objects | select(.type? == "system" or .type? == "result")' "$EXECUTION_FILE"
+            jq -c '.. | objects | select(.type? == "system" or .type? == "result" or .type? == "assistant")' "$EXECUTION_FILE"
           else
             echo "Execution file is unavailable"
           fi
