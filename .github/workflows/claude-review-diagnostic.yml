@@ -1,0 +1,62 @@
+name: Claude Review Diagnostic
+
+on:
+  push:
+    branches:
+      - ryandi/diagnose-claude-review-20260810
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+  actions: read
+
+jobs:
+  diagnose:
+    name: Diagnose
+    runs-on: namespace-profile-claude
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: namespacelabs/nscloud-checkout-action@v9
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code Review diagnostic
+        id: claude
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          additional_permissions: |-
+            actions: read
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: |
+            REPO: Argus-Labs/world-engine
+            PR NUMBER: 937
+
+            /code-review:code-review Argus-Labs/world-engine/pull/937
+          claude_args: |
+            --model claude-opus-5
+            --allowedTools "Read,Edit,Bash(git:*),Bash(task lint),Bash(task lint:fix),Bash(task test),Bash(task test:unit),Bash(task test:ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh run view:*),mcp__github_inline_comment__create_inline_comment,mcp__github_inline_comment__list_inline_comments,mcp__github_inline_comment__delete_inline_comment"
+
+      - name: Summarize Claude diagnostic output
+        if: always()
+        env:
+          ACTION_OUTCOME: ${{ steps.claude.outcome }}
+          ACTION_CONCLUSION: ${{ steps.claude.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          echo "action_outcome=$ACTION_OUTCOME"
+          echo "action_conclusion=$ACTION_CONCLUSION"
+          echo "execution_file=$EXECUTION_FILE"
+          if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
+            echo "execution_file_bytes=$(wc -c < "$EXECUTION_FILE")"
+            jq -c '.. | objects | select(.type? == "system" or .type? == "result")' "$EXECUTION_FILE"
+          else
+            echo "Execution file is unavailable"
+          fi
+          [[ "$ACTION_OUTCOME" == "success" ]]
