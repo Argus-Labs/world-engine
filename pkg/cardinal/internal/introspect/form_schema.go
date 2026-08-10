@@ -72,7 +72,7 @@ func (b *formSchemaBuilder) valueSchema(field protoreflect.FieldDescriptor) map[
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 		return map[string]any{"type": "integer", "minimum": -2147483648, "maximum": 2147483647}
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return map[string]any{"type": "integer", "minimum": 0, "maximum": 4294967295}
+		return map[string]any{"type": "integer", "minimum": 0, "maximum": int64(4294967295)}
 	// Use decimal strings because JavaScript numbers cannot safely represent all 64-bit integers.
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
 		return map[string]any{"type": "string", "pattern": "^-?[0-9]+$"}
@@ -99,6 +99,7 @@ func (b *formSchemaBuilder) nestedMessageSchema(descriptor protoreflect.MessageD
 	if descriptor == nil || descriptor.IsPlaceholder() {
 		return map[string]any{}
 	}
+	// Timestamp is the only well-known type emitted by the SDK generator.
 	if descriptor.FullName() == "google.protobuf.Timestamp" {
 		return map[string]any{"type": "string", "format": "date-time"}
 	}

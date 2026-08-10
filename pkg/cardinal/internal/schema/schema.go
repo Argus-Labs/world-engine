@@ -18,8 +18,8 @@ type Serializable interface {
 	UnmarshalWire([]byte) (any, error)
 }
 
-// ProtoDescriber is implemented by SDK-generated protobuf wire types. It stays separate from
-// Serializable because tests and integrations may use another wire codec.
+// ProtoDescriber supplies protobuf metadata for SDK-generated wire types.
+// It stays separate from Serializable so worlds using older generated code still run.
 type ProtoDescriber interface {
 	ProtoDescriptor() protoreflect.MessageDescriptor
 }
