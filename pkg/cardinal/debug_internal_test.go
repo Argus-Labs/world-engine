@@ -151,6 +151,7 @@ func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
 	schemas := d.catalog.Commands()
 	require.Len(t, schemas, 1)
 	assert.Empty(t, schemas[0].GetProtoMessageName())
+	assert.Empty(t, schemas[0].GetSchema().AsMap())
 	assert.Empty(t, d.catalog.DescriptorSet())
 }
 
@@ -178,6 +179,7 @@ func TestFinalizeOmitsDescriptorWithUnresolvedImport(t *testing.T) {
 	types := d.catalog.Commands()
 	require.Len(t, types, 1)
 	assert.Empty(t, types[0].GetProtoMessageName())
+	assert.Empty(t, types[0].GetSchema().AsMap())
 	assert.Empty(t, d.catalog.DescriptorSet())
 }
 

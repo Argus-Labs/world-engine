@@ -323,6 +323,7 @@ type TypeSchema struct {
 	// Name of the type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Form schema derived from the protobuf message descriptor.
+	// Empty when proto_message_name is empty.
 	Schema *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 	// Name of this command, component, or event in proto_descriptor_set.
 	// Clients use it to find the correct protobuf type definition.
