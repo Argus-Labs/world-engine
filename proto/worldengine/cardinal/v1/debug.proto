@@ -46,13 +46,13 @@ message IntrospectRequest {}
 
 // IntrospectResponse contains introspection metadata about the world.
 message IntrospectResponse {
-  // JSON schemas for registered commands.
+  // Metadata for registered commands.
   repeated TypeSchema commands = 1;
 
-  // JSON schemas for registered components.
+  // Metadata for registered components.
   repeated TypeSchema components = 2;
 
-  // JSON schemas for registered events.
+  // Metadata for registered events.
   repeated TypeSchema events = 3;
 
   // Tick rate in Hz (e.g. 20.0). Clients derive tick_budget_ms as 1000/tick_rate_hz.
@@ -81,13 +81,12 @@ message SystemNode {
   string name = 2;
 }
 
-// TypeSchema represents the JSON schema for a registered type.
+// TypeSchema describes a registered type.
 message TypeSchema {
   // Name of the type.
   string name = 1;
 
-  // Form schema derived from the protobuf message descriptor.
-  // Empty when proto_message_name is empty.
+  // Reserved for clients that provide a JSON form schema. World Engine leaves this empty.
   google.protobuf.Struct schema = 2;
 
   // Name of this command, component, or event in proto_descriptor_set.

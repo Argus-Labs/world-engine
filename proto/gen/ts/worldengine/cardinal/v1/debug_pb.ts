@@ -38,21 +38,21 @@ export const IntrospectRequestSchema: GenMessage<IntrospectRequest> = /*@__PURE_
  */
 export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResponse"> & {
   /**
-   * JSON schemas for registered commands.
+   * Metadata for registered commands.
    *
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema commands = 1;
    */
   commands: TypeSchema[];
 
   /**
-   * JSON schemas for registered components.
+   * Metadata for registered components.
    *
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema components = 2;
    */
   components: TypeSchema[];
 
   /**
-   * JSON schemas for registered events.
+   * Metadata for registered events.
    *
    * @generated from field: repeated worldengine.cardinal.v1.TypeSchema events = 3;
    */
@@ -142,7 +142,7 @@ export const SystemNodeSchema: GenMessage<SystemNode> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 3);
 
 /**
- * TypeSchema represents the JSON schema for a registered type.
+ * TypeSchema describes a registered type.
  *
  * @generated from message worldengine.cardinal.v1.TypeSchema
  */
@@ -155,8 +155,7 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   name: string;
 
   /**
-   * Form schema derived from the protobuf message descriptor.
-   * Empty when proto_message_name is empty.
+   * Reserved for clients that provide a JSON form schema. World Engine leaves this empty.
    *
    * @generated from field: google.protobuf.Struct schema = 2;
    */

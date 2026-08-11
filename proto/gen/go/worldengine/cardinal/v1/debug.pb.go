@@ -119,11 +119,11 @@ func (*IntrospectRequest) Descriptor() ([]byte, []int) {
 // IntrospectResponse contains introspection metadata about the world.
 type IntrospectResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// JSON schemas for registered commands.
+	// Metadata for registered commands.
 	Commands []*TypeSchema `protobuf:"bytes,1,rep,name=commands,proto3" json:"commands,omitempty"`
-	// JSON schemas for registered components.
+	// Metadata for registered components.
 	Components []*TypeSchema `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
-	// JSON schemas for registered events.
+	// Metadata for registered events.
 	Events []*TypeSchema `protobuf:"bytes,3,rep,name=events,proto3" json:"events,omitempty"`
 	// Tick rate in Hz (e.g. 20.0). Clients derive tick_budget_ms as 1000/tick_rate_hz.
 	TickRateHz float64 `protobuf:"fixed64,4,opt,name=tick_rate_hz,json=tickRateHz,proto3" json:"tick_rate_hz,omitempty"`
@@ -317,13 +317,12 @@ func (x *SystemNode) GetName() string {
 	return ""
 }
 
-// TypeSchema represents the JSON schema for a registered type.
+// TypeSchema describes a registered type.
 type TypeSchema struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Form schema derived from the protobuf message descriptor.
-	// Empty when proto_message_name is empty.
+	// Reserved for clients that provide a JSON form schema. World Engine leaves this empty.
 	Schema *structpb.Struct `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 	// Name of this command, component, or event in proto_descriptor_set.
 	// Clients use it to find the correct protobuf type definition.

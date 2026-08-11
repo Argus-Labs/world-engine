@@ -347,7 +347,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(10, global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema> commands_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema>();
     /// <summary>
-    /// JSON schemas for registered commands.
+    /// Metadata for registered commands.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -361,7 +361,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(18, global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema> components_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema>();
     /// <summary>
-    /// JSON schemas for registered components.
+    /// Metadata for registered components.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -375,7 +375,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema> events_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.TypeSchema>();
     /// <summary>
-    /// JSON schemas for registered events.
+    /// Metadata for registered events.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1122,7 +1122,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// TypeSchema represents the JSON schema for a registered type.
+  /// TypeSchema describes a registered type.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class TypeSchema : pb::IMessage<TypeSchema>
@@ -1190,8 +1190,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int SchemaFieldNumber = 2;
     private global::Google.Protobuf.WellKnownTypes.Struct schema_;
     /// <summary>
-    /// Form schema derived from the protobuf message descriptor.
-    /// Empty when proto_message_name is empty.
+    /// Reserved for clients that provide a JSON form schema. World Engine leaves this empty.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

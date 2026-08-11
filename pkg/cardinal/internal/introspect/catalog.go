@@ -10,7 +10,6 @@ import (
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -28,13 +27,8 @@ const (
 	Event
 )
 
-type introspectedType struct {
-	schema     *structpb.Struct
-	descriptor protoreflect.MessageDescriptor
-}
-
 // Catalog collects registered types before the debug service starts. Finalize freezes
-// registration and builds the immutable form and protobuf metadata used by Introspect.
+// registration and builds the immutable protobuf metadata used by Introspect.
 type Catalog struct {
 	mu        sync.RWMutex
 	finalized bool
@@ -79,32 +73,22 @@ func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
 	return nil
 }
 
-// inspectType builds the form and protobuf metadata for one registered type.
-func (c *Catalog) inspectType(value schema.Serializable) (introspectedType, error) {
+// inspectType finds the protobuf metadata for one registered type.
+func inspectType(value schema.Serializable) (protoreflect.MessageDescriptor, error) {
 	var descriptor protoreflect.MessageDescriptor
 
 	// ProtoDescriber is optional so older wire types remain usable.
 	if describer, ok := value.(schema.ProtoDescriber); ok {
 		descriptor = describer.ProtoDescriptor()
 		if descriptor == nil {
-			return introspectedType{}, eris.New("generated protobuf descriptor is nil")
+			return nil, eris.New("generated protobuf descriptor is nil")
 		}
 		// Omit incomplete metadata rather than return a descriptor bundle clients cannot load.
 		if !hasCompleteDescriptor(descriptor.ParentFile()) {
 			descriptor = nil
 		}
 	}
-
-	schemaMap := buildFormSchema(descriptor)
-	// Preserve the existing Introspect shape; clients already treat the root as an object.
-	delete(schemaMap, "type")
-	delete(schemaMap, "additionalProperties")
-
-	schemaStruct, err := structpb.NewStruct(schemaMap)
-	if err != nil {
-		return introspectedType{}, eris.Wrap(err, "failed to create struct from schema")
-	}
-	return introspectedType{schema: schemaStruct, descriptor: descriptor}, nil
+	return descriptor, nil
 }
 
 // hasCompleteDescriptor checks that a protobuf file and all its imports are available.
@@ -131,15 +115,15 @@ func (c *Catalog) Finalize() error {
 	var types [3][]*cardinalv1.TypeSchema
 	descriptors := make([]protoreflect.MessageDescriptor, 0)
 	for kind, registered := range c.registered {
-		inspected := make(map[string]introspectedType, len(registered))
+		inspected := make(map[string]protoreflect.MessageDescriptor, len(registered))
 		for name, value := range registered {
-			entry, err := c.inspectType(value)
+			descriptor, err := inspectType(value)
 			if err != nil {
 				return eris.Wrapf(err, "failed to inspect %s", name)
 			}
-			inspected[name] = entry
-			if entry.descriptor != nil {
-				descriptors = append(descriptors, entry.descriptor)
+			inspected[name] = descriptor
+			if descriptor != nil {
+				descriptors = append(descriptors, descriptor)
 			}
 		}
 		types[kind] = buildTypeSchemas(inspected)
@@ -191,7 +175,7 @@ func (c *Catalog) DescriptorSet() []byte {
 }
 
 // buildTypeSchemas creates the sorted command, component, or event list returned by Introspect.
-func buildTypeSchemas(registered map[string]introspectedType) []*cardinalv1.TypeSchema {
+func buildTypeSchemas(registered map[string]protoreflect.MessageDescriptor) []*cardinalv1.TypeSchema {
 	names := make([]string, 0, len(registered))
 	for name := range registered {
 		names = append(names, name)
@@ -200,10 +184,10 @@ func buildTypeSchemas(registered map[string]introspectedType) []*cardinalv1.Type
 
 	types := make([]*cardinalv1.TypeSchema, 0, len(names))
 	for _, name := range names {
-		entry := registered[name]
-		typeSchema := &cardinalv1.TypeSchema{Name: name, Schema: entry.schema}
-		if entry.descriptor != nil {
-			typeSchema.ProtoMessageName = string(entry.descriptor.FullName())
+		descriptor := registered[name]
+		typeSchema := &cardinalv1.TypeSchema{Name: name}
+		if descriptor != nil {
+			typeSchema.ProtoMessageName = string(descriptor.FullName())
 		}
 		types = append(types, typeSchema)
 	}
