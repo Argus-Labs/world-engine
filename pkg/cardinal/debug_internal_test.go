@@ -91,19 +91,6 @@ type nilDescriptorSample struct{ schemaSample }
 
 func (nilDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor { return nil }
 
-type mismatchedDescriptorSample struct {
-	Missing string
-}
-
-func (mismatchedDescriptorSample) Name() string                 { return "mismatched" }
-func (mismatchedDescriptorSample) MarshalWire() ([]byte, error) { return nil, nil }
-func (mismatchedDescriptorSample) UnmarshalWire([]byte) (any, error) {
-	return mismatchedDescriptorSample{}, nil
-}
-func (mismatchedDescriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
-}
-
 func newIntrospectionTestModule() *debugModule {
 	return &debugModule{
 		world:   &World{world: ecs.NewWorld()},
@@ -131,13 +118,6 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 		require.Len(t, schemas, 1)
 		schema := schemas[0]
 		assert.Equal(t, schemaSample{}.ProtoDescriptor().FullName(), protoreflect.FullName(schema.GetProtoMessageName()))
-
-		properties, ok := schema.GetSchema().AsMap()["properties"].(map[string]any)
-		require.True(t, ok, "schema should have properties")
-		assert.ElementsMatch(t, []string{"ArgusAuthID", "X", "Y"}, mapKeys(properties))
-		for property := range properties {
-			assert.NotNil(t, schemaSample{}.ProtoDescriptor().Fields().ByName(protoreflect.Name(property)))
-		}
 	}
 
 	var set descriptorpb.FileDescriptorSet
@@ -225,19 +205,6 @@ func TestIntrospectionCatalogRejectsNilGeneratedDescriptor(t *testing.T) {
 	assert.Contains(t, err.Error(), "generated protobuf descriptor is nil")
 }
 
-func TestIntrospectionCatalogUsesDescriptorFields(t *testing.T) {
-	t.Parallel()
-
-	d := newIntrospectionTestModule()
-	require.NoError(t, d.register(introspect.Command, mismatchedDescriptorSample{}))
-	require.NoError(t, d.finalizeCatalog())
-
-	schemaMap := d.catalog.Commands()[0].GetSchema().AsMap()
-	properties := schemaMap["properties"].(map[string]any)
-	assert.ElementsMatch(t, []string{"ArgusAuthID", "X", "Y"}, mapKeys(properties))
-	assert.NotContains(t, properties, "Missing")
-}
-
 func TestIntrospectRequiresFinalizedCatalog(t *testing.T) {
 	t.Parallel()
 
@@ -256,12 +223,4 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 		}
 	}
 	return nil
-}
-
-func mapKeys(values map[string]any) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	return keys
 }
