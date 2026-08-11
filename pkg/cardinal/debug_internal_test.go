@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -69,6 +70,9 @@ type namedWireOnlySample struct{ name string }
 func (sample namedWireOnlySample) Name() string               { return sample.name }
 func (namedWireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
 func (namedWireOnlySample) UnmarshalWire([]byte) (any, error) { return namedWireOnlySample{}, nil }
+func (namedWireOnlySample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&templatecommand.MovePlayer{}).ProtoReflect().Descriptor()
+}
 
 type unresolvedDescriptorSample struct {
 	descriptor protoreflect.MessageDescriptor
@@ -141,21 +145,21 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	require.NotNil(t, findMessageDescriptor(&set, "MovePlayer"))
 }
 
-func TestIntrospectAllowsTypesWithoutGeneratedProtobufDescriptor(t *testing.T) {
+func TestFinalizeRequiresGeneratedProtobufDescriptor(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
 	require.NoError(t, d.register(introspect.Command, wireOnlySample{}))
-	require.NoError(t, d.finalizeCatalog())
-
-	schemas := d.catalog.Commands()
-	require.Len(t, schemas, 1)
-	assert.Empty(t, schemas[0].GetProtoMessageName())
-	assert.Empty(t, schemas[0].GetSchema().AsMap())
-	assert.Empty(t, d.catalog.DescriptorSet())
+	require.NoError(t, d.register(introspect.Component, nilDescriptorSample{}))
+	err := d.finalizeCatalog()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to inspect wire-only")
+	assert.Contains(t, err.Error(), "failed to inspect schema-sample")
+	assert.Contains(t, err.Error(), "regenerate wire code")
+	assert.Less(t, strings.Index(err.Error(), "schema-sample"), strings.Index(err.Error(), "wire-only"))
 }
 
-func TestFinalizeOmitsDescriptorWithUnresolvedImport(t *testing.T) {
+func TestFinalizeRejectsDescriptorWithUnresolvedImport(t *testing.T) {
 	t.Parallel()
 
 	// Build a descriptor whose imported file is deliberately absent.
@@ -174,13 +178,10 @@ func TestFinalizeOmitsDescriptorWithUnresolvedImport(t *testing.T) {
 	require.NoError(t, d.register(introspect.Command, unresolvedDescriptorSample{
 		descriptor: file.Messages().Get(0),
 	}))
-	require.NoError(t, d.finalizeCatalog())
-
-	types := d.catalog.Commands()
-	require.Len(t, types, 1)
-	assert.Empty(t, types[0].GetProtoMessageName())
-	assert.Empty(t, types[0].GetSchema().AsMap())
-	assert.Empty(t, d.catalog.DescriptorSet())
+	err = d.finalizeCatalog()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to inspect unresolved-descriptor")
+	assert.Contains(t, err.Error(), "unresolved imports")
 }
 
 func TestFinalizeIntrospectionCatalogRejectsLaterRegistration(t *testing.T) {

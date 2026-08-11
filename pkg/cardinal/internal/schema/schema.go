@@ -19,7 +19,7 @@ type Serializable interface {
 }
 
 // ProtoDescriber supplies protobuf metadata for SDK-generated wire types.
-// It stays separate from Serializable so worlds using older generated code still run.
+// Debug introspection requires registered types to implement it.
 type ProtoDescriber interface {
 	ProtoDescriptor() protoreflect.MessageDescriptor
 }

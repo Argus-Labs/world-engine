@@ -3,6 +3,7 @@ package introspect
 import (
 	"cmp"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/rotisserie/eris"
@@ -81,18 +82,16 @@ func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
 
 // inspectType builds the form and protobuf metadata for one registered type.
 func (c *Catalog) inspectType(value schema.Serializable) (introspectedType, error) {
-	var descriptor protoreflect.MessageDescriptor
-
-	// ProtoDescriber is optional so older wire types remain usable.
-	if describer, ok := value.(schema.ProtoDescriber); ok {
-		descriptor = describer.ProtoDescriptor()
-		if descriptor == nil {
-			return introspectedType{}, eris.New("generated protobuf descriptor is nil")
-		}
-		// Omit incomplete metadata rather than return a descriptor bundle clients cannot load.
-		if !hasCompleteDescriptor(descriptor.ParentFile()) {
-			descriptor = nil
-		}
+	describer, ok := value.(schema.ProtoDescriber)
+	if !ok {
+		return introspectedType{}, eris.New("protobuf metadata is missing; regenerate wire code with the latest World CLI")
+	}
+	descriptor := describer.ProtoDescriptor()
+	if descriptor == nil {
+		return introspectedType{}, eris.New("generated protobuf descriptor is nil")
+	}
+	if !hasCompleteDescriptor(descriptor.ParentFile()) {
+		return introspectedType{}, eris.Errorf("protobuf descriptor %q has unresolved imports", descriptor.ParentFile().Path())
 	}
 
 	schemaMap := buildFormSchema(descriptor)
@@ -130,12 +129,14 @@ func (c *Catalog) Finalize() error {
 	// Build everything first so a failure leaves the catalog unchanged and retryable.
 	var types [3][]*cardinalv1.TypeSchema
 	descriptors := make([]protoreflect.MessageDescriptor, 0)
+	issues := make([]string, 0)
 	for kind, registered := range c.registered {
 		inspected := make(map[string]introspectedType, len(registered))
 		for name, value := range registered {
 			entry, err := c.inspectType(value)
 			if err != nil {
-				return eris.Wrapf(err, "failed to inspect %s", name)
+				issues = append(issues, eris.Wrapf(err, "failed to inspect %s", name).Error())
+				continue
 			}
 			inspected[name] = entry
 			if entry.descriptor != nil {
@@ -143,6 +144,10 @@ func (c *Catalog) Finalize() error {
 			}
 		}
 		types[kind] = buildTypeSchemas(inspected)
+	}
+	if len(issues) > 0 {
+		slices.Sort(issues)
+		return eris.Errorf("invalid protobuf metadata:\n  %s", strings.Join(issues, "\n  "))
 	}
 
 	descriptorSet, err := buildDescriptorSet(descriptors)
