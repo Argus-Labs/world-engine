@@ -11,7 +11,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
 
