@@ -19,7 +19,7 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +50,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
 
@@ -123,7 +123,7 @@ jobs:
   #   name: Benchmark
   #   needs: optimize_ci
   #   if: needs.optimize_ci.outputs.skip == 'false'
-  #   runs-on: namespace-profile-linux-8vcpu-16gb-cached
+  #   runs-on: namespace-profile-linux-ci-large
   #   steps:
   #     - uses: actions/checkout@v4
   #
