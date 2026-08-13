@@ -48,7 +48,7 @@ func newDebugModule(world *World) *debugModule {
 // Introspect
 // -------------------------------------------------------------------------------------------------
 
-// register is nil-safe because worlds without debug enabled do not have a debug module.
+// register adds a world type to introspection. It is a no-op when debug is disabled.
 func (d *debugModule) register(kind introspect.Kind, value schema.Serializable) error {
 	if d == nil {
 		return nil
@@ -56,6 +56,7 @@ func (d *debugModule) register(kind introspect.Kind, value schema.Serializable) 
 	return d.catalog.Register(kind, value)
 }
 
+// finalizeCatalog freezes registration and builds the metadata returned by Introspect.
 func (d *debugModule) finalizeCatalog() error {
 	if d == nil {
 		return nil
@@ -68,10 +69,6 @@ func (d *debugModule) Introspect(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
-	if !d.catalog.Finalized() {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("introspection catalog is not finalized"))
-	}
-
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
 		Commands:           d.catalog.Commands(),
 		Components:         d.catalog.Components(),

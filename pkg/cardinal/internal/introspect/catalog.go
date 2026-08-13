@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -31,7 +30,6 @@ const (
 // Catalog collects registered types before the debug service starts. Finalize freezes
 // registration and builds the immutable protobuf metadata used by Introspect.
 type Catalog struct {
-	mu        sync.RWMutex
 	finalized bool
 
 	// The three slots are commands, components, and events, indexed by Kind.
@@ -55,8 +53,6 @@ func NewCatalog() *Catalog {
 
 // Register adds a type before the catalog is finalized.
 func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.finalized {
 		return eris.New("introspection catalog is finalized")
 	}
@@ -104,8 +100,6 @@ func hasCompleteDescriptor(file protoreflect.FileDescriptor) bool {
 
 // Finalize builds the metadata and prevents further registration.
 func (c *Catalog) Finalize() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.finalized {
 		return nil
 	}
@@ -142,13 +136,6 @@ func (c *Catalog) Finalize() error {
 	return nil
 }
 
-// Finalized reports whether the catalog has been finalized.
-func (c *Catalog) Finalized() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.finalized
-}
-
 // Commands returns the registered command metadata.
 func (c *Catalog) Commands() []*cardinalv1.TypeSchema {
 	return c.schemas(Command)
@@ -165,16 +152,12 @@ func (c *Catalog) Events() []*cardinalv1.TypeSchema {
 }
 
 func (c *Catalog) schemas(kind Kind) []*cardinalv1.TypeSchema {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return slices.Clone(c.types[kind])
+	return c.types[kind]
 }
 
 // DescriptorSet returns the shared protobuf descriptor set.
 func (c *Catalog) DescriptorSet() []byte {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return slices.Clone(c.descriptors)
+	return c.descriptors
 }
 
 // buildTypeSchemas creates the sorted command, component, or event list returned by Introspect.
@@ -219,10 +202,7 @@ func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, erro
 
 		imports := file.Imports()
 		for i := range imports.Len() {
-			dependency := imports.Get(i)
-			if !dependency.IsPlaceholder() {
-				addFile(dependency.FileDescriptor)
-			}
+			addFile(imports.Get(i).FileDescriptor)
 		}
 		files = append(files, protodesc.ToFileDescriptorProto(file))
 	}

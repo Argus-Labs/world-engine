@@ -174,7 +174,7 @@ func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
 
 	fixture := newServiceFixture(t, testutils.NewRand(t), false)
 	debug := newIntrospectionTestModule()
-	require.NoError(t, debug.register(introspect.Command, schemaSample{}))
+	require.NoError(t, debug.register(introspect.Command, introspectionSample{}))
 	fixture.world.debug = debug
 
 	mux := http.NewServeMux()
