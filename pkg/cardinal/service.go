@@ -130,13 +130,8 @@ func (s *service) init(address string) error {
 	)
 	mux.Handle(cardinalPath, authMiddleware.Wrap(cardinalHandler))
 
-	if s.world.debug != nil {
-		debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
-			s.world.debug,
-			connect.WithInterceptors(otelInterceptor, validateInterceptor),
-		)
-		mux.Handle(debugPath, debugHandler)
-		s.log.Info().Msg("DebugService mounted on client-facing port (dev)")
+	if err := s.mountDebugService(mux, otelInterceptor, validateInterceptor); err != nil {
+		return err
 	}
 
 	s.server = &http.Server{
@@ -160,19 +155,36 @@ func (s *service) init(address string) error {
 	return nil
 }
 
-func (s *service) shutdown(ctx context.Context) error {
-	assert.That(s.server != nil, "Don't call shutdown before you init server")
-	assert.That(s.client != nil, "Don't call shutdown before you init server")
+func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.Interceptor) error {
+	if s.world.debug == nil {
+		return nil
+	}
+	if err := s.world.debug.finalizeCatalog(); err != nil {
+		return eris.Wrap(err, "failed to finalize introspection catalog")
+	}
+	debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
+		s.world.debug,
+		connect.WithInterceptors(interceptors...),
+	)
+	mux.Handle(debugPath, debugHandler)
+	s.log.Info().Msg("DebugService mounted on client-facing port (dev)")
+	return nil
+}
 
-	if err := s.server.Shutdown(ctx); err != nil {
-		return eris.Wrap(err, "failed to shutdown service server")
+func (s *service) shutdown(ctx context.Context) error {
+	if s.server != nil {
+		if err := s.server.Shutdown(ctx); err != nil {
+			return eris.Wrap(err, "failed to shutdown service server")
+		}
 	}
 	if s.microService != nil {
 		if err := s.microService.Close(); err != nil {
 			return eris.Wrap(err, "failed to close micro service")
 		}
 	}
-	s.client.Close()
+	if s.client != nil {
+		s.client.Close()
+	}
 
 	return nil
 }

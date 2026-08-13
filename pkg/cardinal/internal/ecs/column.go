@@ -120,9 +120,7 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// toProto converts the column to a protobuf message for serialization. Each component encodes through its
-// generated MarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so MarshalWire
-// is guaranteed by the type; an ungenerated component wouldn't satisfy the constraint and wouldn't compile.
+// toProto serializes each component with its generated protobuf codec.
 func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	componentData := make([][]byte, len(c.components))
 	for i, component := range c.components {
@@ -139,9 +137,7 @@ func (c *column[T]) toProto() (*cardinalv1.Column, error) {
 	}, nil
 }
 
-// fromProto populates the column from a protobuf message. Each component decodes through its generated
-// UnmarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so UnmarshalWire is
-// guaranteed by the type (see toProto).
+// fromProto decodes each component with its generated protobuf codec.
 func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
 	if pb == nil {
 		return eris.New("protobuf column is nil")

@@ -251,7 +251,7 @@ type Column struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the component stored in this column
 	ComponentName string `protobuf:"bytes,1,opt,name=component_name,json=componentName,proto3" json:"component_name,omitempty"`
-	// Dense array of serialized component data (JSON)
+	// Dense array of serialized component wire data.
 	Components    [][]byte `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

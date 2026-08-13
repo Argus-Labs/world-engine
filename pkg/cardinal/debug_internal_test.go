@@ -1,77 +1,84 @@
 package cardinal
 
 import (
+	"context"
 	"testing"
 
-	"github.com/invopop/jsonschema"
-	"github.com/shamaton/msgpack/v3"
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
-// schemaSample mixes the tag cases that decide a field's wire name: a msgpack
-// tag, a json-only tag whose value differs from the field name, an untagged
-// field, and an explicitly excluded field.
-type schemaSample struct {
-	Tagged   string `json:"tagged"   msgpack:"nickname"` // msgpack tag wins
-	JSONOnly string `json:"jsonOnly"`                    // json tag ignored -> field name
-	Plain    int    // no tags -> field name
-	Skipped  string `msgpack:"-"` // excluded from the wire
+type introspectionSample struct{}
+
+func (introspectionSample) Name() string                 { return "introspection-sample" }
+func (introspectionSample) MarshalWire() ([]byte, error) { return nil, nil }
+func (introspectionSample) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()
+}
+func (introspectionSample) UnmarshalWire([]byte) (any, error) {
+	return introspectionSample{}, nil
 }
 
-func (schemaSample) Name() string { return "schema-sample" }
-
-func (c schemaSample) MarshalWire() ([]byte, error) { return msgpack.Marshal(c) }
-func (schemaSample) UnmarshalWire(b []byte) (any, error) {
-	var v schemaSample
-	err := msgpack.Unmarshal(b, &v)
-	return v, err
+func newIntrospectionTestModule() *debugModule {
+	return &debugModule{
+		world:   &World{world: ecs.NewWorld()},
+		catalog: introspect.NewCatalog(),
+	}
 }
 
-// TestIntrospectSchemaNamesMatchWireFormat guards the introspect↔serialize
-// contract: the field names advertised by the introspection schema must equal
-// the keys shamaton/msgpack actually reads and writes, so a client that fills a
-// command/component from the schema isn't silently dropped on the wire.
-// Regression for the create-player "nickname" mismatch.
-func TestIntrospectSchemaNamesMatchWireFormat(t *testing.T) {
+func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	t.Parallel()
 
-	// Names the wire format actually uses.
-	encoded, err := msgpack.Marshal(schemaSample{Tagged: "a", JSONOnly: "b", Plain: 1, Skipped: "x"})
-	require.NoError(t, err)
-	var wire map[string]any
-	require.NoError(t, msgpack.Unmarshal(encoded, &wire))
-
-	// Names introspection advertises, via the real register() path.
-	d := &debugModule{
-		commands: make(map[string]*structpb.Struct),
-		reflector: &jsonschema.Reflector{
-			Anonymous:      true, // Don't add $id based on package path
-			ExpandedStruct: true, // Inline the struct fields directly
-			FieldNameTag:   "msgpack",
-		},
+	d := newIntrospectionTestModule()
+	for _, kind := range []introspect.Kind{introspect.Command, introspect.Component, introspect.Event} {
+		require.NoError(t, d.register(kind, introspectionSample{}))
 	}
-	require.NoError(t, d.register("command", schemaSample{}))
-	schemaMap := d.commands["schema-sample"].AsMap()
-	props, ok := schemaMap["properties"].(map[string]any)
-	require.True(t, ok, "schema should have properties")
+	require.NoError(t, d.finalizeCatalog())
 
-	assert.ElementsMatch(t, mapKeys(wire), mapKeys(props),
-		"introspect schema field names must match the msgpack wire keys")
+	response, err := d.Introspect(context.Background(), (*connect.Request[cardinalv1.IntrospectRequest])(nil))
+	require.NoError(t, err)
 
-	// Spot-check the specifics the fix turns on.
-	assert.Contains(t, props, "nickname")   // msgpack tag wins over json
-	assert.Contains(t, props, "JSONOnly")   // json tag ignored; Go field name used
-	assert.Contains(t, props, "Plain")      // untagged -> field name
-	assert.NotContains(t, props, "Skipped") // msgpack:"-" excluded
-	assert.NotContains(t, props, "tagged")  // the json tag value must not leak through
+	for _, schemas := range [][]*cardinalv1.TypeSchema{
+		response.Msg.GetCommands(),
+		response.Msg.GetComponents(),
+		response.Msg.GetEvents(),
+	} {
+		require.Len(t, schemas, 1)
+		schema := schemas[0]
+		assert.Equal(
+			t,
+			introspectionSample{}.ProtoDescriptor().FullName(),
+			protoreflect.FullName(schema.GetProtoMessageName()),
+		)
+	}
+
+	var set descriptorpb.FileDescriptorSet
+	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
+	require.NotNil(t, findMessageDescriptor(&set, "TypeSchema"))
 }
 
-func mapKeys(m map[string]any) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
+func TestDebugRegistrationIsNilSafe(t *testing.T) {
+	t.Parallel()
+
+	var d *debugModule
+	require.NoError(t, d.register(introspect.Command, introspectionSample{}))
+}
+
+func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *descriptorpb.DescriptorProto {
+	for _, file := range set.GetFile() {
+		for _, message := range file.GetMessageType() {
+			if message.GetName() == name {
+				return message
+			}
+		}
 	}
-	return out
+	return nil
 }

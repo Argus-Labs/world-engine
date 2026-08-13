@@ -257,7 +257,7 @@ func (SimpleEvent) Name() string {
 }
 
 // MarshalWire / UnmarshalWire are a test double for generated event wire code — the engine requires the
-// wire codec (no msgpack fallback). Deliberately an explicit encoding, not a serialization library, so
+// wire codec. Deliberately an explicit encoding, not a serialization library, so
 // testutils stays free of any wire-format dependency.
 func (s SimpleEvent) MarshalWire() ([]byte, error) {
 	return binary.AppendVarint(nil, int64(s.Value)), nil

@@ -27,7 +27,7 @@ type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The event name.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The event payload serialized as MessagePack bytes.
+	// The event payload serialized by the event type's wire codec.
 	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

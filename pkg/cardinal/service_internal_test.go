@@ -3,6 +3,8 @@ package cardinal
 import (
 	"context"
 	"math/rand/v2"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/authn"
@@ -10,15 +12,21 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -159,6 +167,44 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 		assert.Equal(t, payload, cmds[0].Payload)
 		assert.Equal(t, sender, cmds[0].Persona)
 	})
+}
+
+func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
+	t.Parallel()
+
+	fixture := newServiceFixture(t, testutils.NewRand(t), false)
+	debug := newIntrospectionTestModule()
+	require.NoError(t, debug.register(introspect.Command, introspectionSample{}))
+	fixture.world.debug = debug
+
+	mux := http.NewServeMux()
+	require.NoError(t, fixture.svc.mountDebugService(mux))
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	client := cardinalv1connect.NewDebugServiceClient(server.Client(), server.URL)
+	response, err := client.Introspect(
+		context.Background(),
+		connect.NewRequest(&cardinalv1.IntrospectRequest{}),
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, response.Msg.GetProtoDescriptorSet())
+	require.NotEmpty(t, response.Msg.GetCommands())
+
+	var set descriptorpb.FileDescriptorSet
+	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
+	files, err := protodesc.NewFiles(&set)
+	require.NoError(t, err)
+	for _, command := range response.Msg.GetCommands() {
+		_, err := files.FindDescriptorByName(protoreflect.FullName(command.GetProtoMessageName()))
+		require.NoError(t, err)
+	}
+}
+
+func TestService_ShutdownBeforeInitializationCompletes(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, (&service{}).shutdown(context.Background()))
 }
 
 // -------------------------------------------------------------------------------------------------

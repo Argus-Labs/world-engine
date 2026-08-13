@@ -10,6 +10,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -86,9 +87,9 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	// Seed a valid empty state so GetState is always servable, even before the first tick.
 	world.state.Store(&cardinalv1.Snapshot{WorldState: &cardinalv1.WorldState{}})
 
-	// Set ECS on componet register callback (used for introspect).
+	// Set ECS on component register callback (used for introspection).
 	world.world.OnComponentRegister(func(zero ecs.Component) error {
-		return world.debug.register("component", zero)
+		return world.debug.register(introspect.Component, zero)
 	})
 
 	// Create the ConnectRPC client-facing service.

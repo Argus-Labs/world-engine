@@ -52,7 +52,7 @@ const (
 // DebugServiceClient is a client for the worldengine.cardinal.v1.DebugService service.
 type DebugServiceClient interface {
 	// Introspect returns metadata about the registered types in the world.
-	// The result includes JSON schemas for commands, components, and events.
+	// The result includes protobuf metadata for commands, components, and events.
 	Introspect(context.Context, *connect.Request[v1.IntrospectRequest]) (*connect.Response[v1.IntrospectResponse], error)
 	// Pause stops tick execution. The world remains running but no ticks are processed.
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.PauseResponse], error)
@@ -175,7 +175,7 @@ func (c *debugServiceClient) StreamPerf(ctx context.Context, req *connect.Reques
 // DebugServiceHandler is an implementation of the worldengine.cardinal.v1.DebugService service.
 type DebugServiceHandler interface {
 	// Introspect returns metadata about the registered types in the world.
-	// The result includes JSON schemas for commands, components, and events.
+	// The result includes protobuf metadata for commands, components, and events.
 	Introspect(context.Context, *connect.Request[v1.IntrospectRequest]) (*connect.Response[v1.IntrospectResponse], error)
 	// Pause stops tick execution. The world remains running but no ticks are processed.
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.PauseResponse], error)
