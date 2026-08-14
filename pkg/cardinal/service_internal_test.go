@@ -55,7 +55,7 @@ func TestService_SendCommand(t *testing.T) {
 			Payload: payloadBytes,
 		}
 
-		_, err = fixture.svc.SendCommand(
+		_, err = fixture.svc.shardServer.SendCommand(
 			serviceTestContext(userID),
 			connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmdPb}),
 		)
@@ -84,7 +84,7 @@ func TestService_SendCommand(t *testing.T) {
 			Payload: payloadBytes,
 		}
 
-		_, err = fixture.svc.SendCommand(
+		_, err = fixture.svc.shardServer.SendCommand(
 			serviceTestContext(testutils.RandString(prng, 8)),
 			connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmdPb}),
 		)
@@ -97,33 +97,36 @@ func TestService_SendCommand(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 // publishDefaultEvent smoke tests
 // -------------------------------------------------------------------------------------------------
-// Verifies that publishing a default event serializes the payload and delivers it to registered
-// ConnectRPC reply waiters with round-trip integrity.
+// Verifies the world's half of event publishing: marshaling a world event and handing it to the
+// shared server. Who receives a published event, and with what payload, is the server's contract
+// and is covered by the conformance suite in pkg/shard.
 // -------------------------------------------------------------------------------------------------
 
 func TestService_PublishDefaultEvent(t *testing.T) {
 	t.Parallel()
 
-	t.Run("reply waiter", func(t *testing.T) {
+	t.Run("marshals and publishes", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
 		fixture := newServiceFixture(t, prng, false)
 
-		payload := testutils.SimpleEvent{Value: prng.Int()}
-		waiter := fixture.svc.addReplyWaiter(payload.Name())
-		defer fixture.svc.removeReplyWaiter(payload.Name(), waiter)
+		require.NoError(t, fixture.svc.publishDefaultEvent(event.Event{
+			Kind:    event.KindDefault,
+			Payload: testutils.SimpleEvent{Value: prng.Int()},
+		}))
+	})
+
+	t.Run("rejects a payload that is not an event", func(t *testing.T) {
+		t.Parallel()
+		prng := testutils.NewRand(t)
+		fixture := newServiceFixture(t, prng, false)
 
 		err := fixture.svc.publishDefaultEvent(event.Event{
 			Kind:    event.KindDefault,
-			Payload: payload,
+			Payload: nil,
 		})
-		require.NoError(t, err)
-
-		eventPb := <-waiter
-		assert.Equal(t, payload.Name(), eventPb.GetName())
-		decoded, err := testutils.SimpleEvent{}.UnmarshalWire(eventPb.GetPayload())
-		require.NoError(t, err)
-		assert.Equal(t, payload, decoded)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid event payload type")
 	})
 }
 
@@ -239,7 +242,8 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 	cmdID, err := w.commands.Register(testutils.SimpleCommand{}.Name(), queue)
 	require.NoError(t, err)
 
-	svc := newService(w, AuthModeDev, "")
+	svc, err := newService(w, AuthModeDev, "")
+	require.NoError(t, err)
 	svc.registerCommandHandler(testutils.SimpleCommand{}.Name())
 	w.service = svc
 
@@ -261,7 +265,7 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 
 		require.NoError(t, microService.ServeCommands(
 			[]string{testutils.SimpleCommand{}.Name()},
-			svc.enqueueInterShardCommand,
+			svc.Submit,
 		))
 		require.NoError(t, client.Flush())
 	}

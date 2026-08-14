@@ -93,7 +93,10 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	})
 
 	// Create the ConnectRPC client-facing service.
-	world.service = newService(world, options.AuthMode, options.ArgusAuthURL)
+	world.service, err = newService(world, options.AuthMode, options.ArgusAuthURL)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create client-facing service")
+	}
 
 	// Register event handlers with the ConnectRPC service publishers.
 	world.events.RegisterHandler(event.KindDefault, world.service.publishDefaultEvent)

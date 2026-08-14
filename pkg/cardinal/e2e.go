@@ -196,7 +196,9 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 		w.options.NATSConfig.URL = natsURL
 	}
 	w.options.AuthMode = AuthModeDev
-	w.service = newService(w, w.options.AuthMode, w.options.ArgusAuthURL)
+	svc, err := newService(w, w.options.AuthMode, w.options.ArgusAuthURL)
+	require.NoError(t, err, "e2e failed to create service")
+	w.service = svc
 	w.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 
 	connectAddr := "127.0.0.1:5000"

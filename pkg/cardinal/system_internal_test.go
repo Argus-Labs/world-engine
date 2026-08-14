@@ -97,14 +97,16 @@ func newCommandFixture(t *testing.T) *commandFixture {
 
 	world := &World{
 		commands: command.NewManager(),
+		address:  RandServiceAddress(testutils.NewRand(t)),
 	}
-	world.service = newService(world, AuthModeDev, "")
+	svc, err := newService(world, AuthModeDev, "")
+	require.NoError(t, err)
+	world.service = svc
 
 	fixture := &commandFixture{world: world}
 
 	meta := &systemInitMetadata{world: world, commands: make(map[string]struct{}), events: make(map[string]struct{})}
-	err := fixture.Command.init(meta)
-	require.NoError(t, err)
+	require.NoError(t, fixture.Command.init(meta))
 
 	return fixture
 }
