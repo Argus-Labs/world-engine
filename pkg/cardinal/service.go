@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -10,20 +9,17 @@ import (
 	"time"
 
 	"buf.build/go/protovalidate"
-	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
 	"connectrpc.com/validate"
-	"github.com/MicahParks/keyfunc/v3"
 	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/auth"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	"github.com/goccy/go-json"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
@@ -104,22 +100,10 @@ func (s *service) init(address string) error {
 
 	mux := http.NewServeMux()
 
-	var authenticate func(context.Context, *http.Request) (any, error)
-	switch s.authMode {
-	case AuthModeArgus:
-		authenticator, err := newAuthenticatorArgus(s.argusAuthURL)
-		if err != nil {
-			return eris.Wrap(err, "failed to create argus authenticator")
-		}
-		authenticate = authenticator.authenticate
-	case AuthModeDev:
-		authenticate = authenticatorDev{}.authenticate
-	case AuthModeUndefined:
-		fallthrough
-	default:
-		return eris.Errorf("invalid service auth mode: %s", s.authMode)
+	authMiddleware, err := auth.NewMiddleware(s.authMode, s.argusAuthURL)
+	if err != nil {
+		return err
 	}
-	authMiddleware := authn.NewMiddleware(authenticate)
 
 	cardinalPath, cardinalHandler := cardinalv1connect.NewCardinalServiceHandler(
 		s,
@@ -619,153 +603,4 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 
 	return nil
-}
-
-// -------------------------------------------------------------------------------------------------
-// Authentication
-// -------------------------------------------------------------------------------------------------
-
-type User struct {
-	jwt.RegisteredClaims
-
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-// AuthMode selects the authentication mode for the client-facing ConnectRPC service.
-type AuthMode uint8
-
-const (
-	AuthModeUndefined AuthMode = iota
-	AuthModeArgus
-	AuthModeDev
-)
-
-const (
-	argusAuthModeString     = "ARGUS"
-	devAuthModeString       = "DEV"
-	undefinedAuthModeString = "UNDEFINED"
-)
-
-func (a AuthMode) String() string {
-	switch a {
-	case AuthModeUndefined:
-		return undefinedAuthModeString
-	case AuthModeArgus:
-		return argusAuthModeString
-	case AuthModeDev:
-		return devAuthModeString
-	default:
-		return undefinedAuthModeString
-	}
-}
-
-func (a AuthMode) IsValid() bool {
-	return a == AuthModeArgus || a == AuthModeDev
-}
-
-func ParseAuthMode(s string) (AuthMode, error) {
-	switch strings.ToUpper(s) {
-	case argusAuthModeString:
-		return AuthModeArgus, nil
-	case devAuthModeString:
-		return AuthModeDev, nil
-	default:
-		return AuthModeUndefined, eris.Errorf("invalid auth mode: %s", s)
-	}
-}
-
-func UserFromContext(ctx context.Context) *User {
-	info := authn.GetInfo(ctx)
-	if info == nil {
-		return nil
-	}
-	user, ok := info.(*User)
-	if !ok {
-		return nil
-	}
-	return user
-}
-
-// -------------------------------------------------------------------------------------------------
-// Argus Auth
-// -------------------------------------------------------------------------------------------------
-
-type authenticatorArgus struct {
-	keyfunc keyfunc.Keyfunc
-}
-
-func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
-	assert.That(argusAuthURL != "", "Should've validated the URL")
-
-	jwksURL := argusAuthURL + "/auth/jwks"
-	client := &http.Client{
-		Timeout: 3 * time.Second,
-	}
-
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, jwksURL, nil)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create JWKS request")
-	}
-
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to fetch JWKS")
-	}
-	defer func() { _ = response.Body.Close() }()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, eris.Errorf("HTTP error: %d - %s", response.StatusCode, response.Status)
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to read response body")
-	}
-
-	keyfn, err := keyfunc.NewJWKSetJSON(json.RawMessage(body))
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create keyfunc")
-	}
-
-	return &authenticatorArgus{keyfunc: keyfn}, nil
-}
-
-func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) (any, error) {
-	jwtString, ok := authn.BearerToken(req)
-	if !ok {
-		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
-	}
-
-	user := &User{}
-	token, err := jwt.ParseWithClaims(jwtString, user, a.keyfunc.Keyfunc)
-	if err != nil {
-		return nil, eris.Wrap(err, "JWT parse error")
-	}
-	if !token.Valid {
-		return nil, eris.New("JWT token is invalid")
-	}
-
-	// TODO: Remove this comment once persona ID is removed from the JWT.
-	// if u.PersonaID == "" {
-	// 	return nil, authn.Errorf("JWT token is missing persona ID")
-	// }
-
-	return user, nil
-}
-
-// -------------------------------------------------------------------------------------------------
-// Dev Auth
-// -------------------------------------------------------------------------------------------------
-
-type authenticatorDev struct{}
-
-func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
-	email := strings.TrimSpace(req.Header.Get("X-Email"))
-	if email == "" {
-		return nil, authn.Errorf("X-Email header is required")
-	}
-
-	return &User{ID: email, Email: email}, nil
 }
