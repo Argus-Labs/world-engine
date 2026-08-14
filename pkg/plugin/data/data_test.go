@@ -174,6 +174,51 @@ func TestPlugin_LoadsRegisteredKind(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
+// Tests — world-free load
+// -------------------------------------------------------------------------------------------------
+
+// TestPlugin_LoadWithoutWorld verifies Plugin.Load populates the catalog and wires Get[T] with no
+// cardinal.World in the process at all. This is the load path for tickless, snapshot-free runtimes:
+// they never construct a world, so the only thing they may skip is the reconcile system.
+func TestPlugin_LoadWithoutWorld(t *testing.T) {
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[Abilities](plugin)
+	plugin.Load()
+
+	got := data.Get[Abilities]()
+	require.Equal(t, []AbilityRecord{
+		{ID: "fireball", Cooldown: 2.5},
+		{ID: "frostbolt", Cooldown: 3.0},
+	}, got.Items)
+}
+
+// TestPlugin_LoadRunsResolverThroughEmbed verifies Load takes the same Resolver path as
+// Register(world): hooks fetch through the local embed, never the primary Source. The primary fake
+// errors on any file but the kind's own, so a resolver fetch through it would fail the test.
+func TestPlugin_LoadRunsResolverThroughEmbed(t *testing.T) {
+	primarySrc := &mainOnlyFake{
+		mainFile:  "resolver_main.json",
+		mainBytes: []byte(`{"include":"testdata/resolver_side.json"}`),
+	}
+
+	plugin := data.NewPlugin(data.Config{Source: primarySrc, EmbeddedFS: testFS})
+	data.Register[resolverKind](plugin)
+	plugin.Load()
+
+	got := data.Get[resolverKind]()
+	require.Equal(t, "testdata/resolver_side.json", got.Include)
+	require.JSONEq(t, "{\"extra\":\"hello\"}\n", got.Side)
+}
+
+// TestPlugin_LoadValidateErrorPanics verifies Load keeps the fail-loud discipline of
+// Register(world): a Validator returning an error panics rather than loading bad config.
+func TestPlugin_LoadValidateErrorPanics(t *testing.T) {
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[rejectingAbilities](plugin)
+	require.Panics(t, func() { plugin.Load() })
+}
+
+// -------------------------------------------------------------------------------------------------
 // Tests — manifest component lifecycle
 // -------------------------------------------------------------------------------------------------
 

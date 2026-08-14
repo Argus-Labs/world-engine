@@ -32,6 +32,10 @@
 // kind into the catalog before the tick loop begins. Get[T] is valid immediately after
 // cardinal.RegisterPlugin returns.
 //
+// A runtime that has no world — no tick loop, no snapshots — calls Plugin.Load in place of
+// cardinal.RegisterPlugin. The catalog and Get[T] behave identically; only the snapshot-restore
+// reconcile system is skipped, having nothing to reconcile against.
+//
 // The plugin picks the underlying Source based on the runtime environment (embedded files for
 // local dev; operator/forge integration is a future addition that flips automatically when
 // OPERATOR_ADDR is set). Shards do not select a source themselves — they hand the plugin their
@@ -136,7 +140,7 @@ func Register[T Definition](p *Plugin) {
 var registered *Plugin
 
 // Get returns the loaded value for kind T from the registered plugin. Call this from any game
-// system after cardinal.RegisterPlugin(world, dataPlugin) has run:
+// system after cardinal.RegisterPlugin(world, dataPlugin) — or dataPlugin.Load() — has run:
 //
 //	mobs := data.Get[component.Mobs]()
 //
@@ -144,7 +148,7 @@ var registered *Plugin
 // both are wiring bugs and should be caught loudly the first time any system reads.
 func Get[T Definition]() T {
 	if registered == nil {
-		panic("data: no plugin registered — call cardinal.RegisterPlugin(world, dataPlugin) first")
+		panic("data: no plugin registered — call cardinal.RegisterPlugin(world, dataPlugin) or dataPlugin.Load() first")
 	}
 	var zero T
 	v, ok := registered.state.MustGet(zero.Name()).(T)
@@ -157,18 +161,35 @@ func Get[T Definition]() T {
 	return v
 }
 
+// Load fetches every registered kind into the catalog and stashes the plugin as the process-global
+// backing data.Get[T](), without a cardinal.World. Call it after every Register[T] and before the
+// first data.Get[T]().
+//
+// This is the load path for runtimes that have no tick loop and no snapshots. Such a runtime holds
+// its state elsewhere, so there is no ConfigManifest to restore and nothing for the reconcile
+// system to reconcile against — the one thing Register(world) does that this does not. Worlds
+// built with cardinal.NewWorld should go through cardinal.RegisterPlugin instead, which calls this
+// and then installs reconcile.
+func (p *Plugin) Load() {
+	// Resolver hooks always go through the local embed regardless of how the primary source is
+	// configured (operator, fake, etc.). Resolver-fetched files are heavy designer-bundled assets
+	// — tilemaps, prefab manifests — that ship with the binary and aren't operator-editable.
+	p.state.LoadAll(context.Background(), p.config.Source, p.resolverSource())
+	registered = p
+}
+
+// resolverSource is the Source used for Resolver hooks. See Load for why it is always the embed.
+func (p *Plugin) resolverSource() Source {
+	return system.EmbedSource{FS: p.config.EmbeddedFS}
+}
+
 // Register implements cardinal.Plugin. Called synchronously by cardinal.RegisterPlugin, before
 // StartGame. Loads every registered kind into the catalog, stashes the plugin as the
 // process-global for data.Get[T](), and registers the per-tick reconcile system that keeps the
 // catalog matched to whatever ConfigManifest the snapshot restored.
 func (p *Plugin) Register(world *cardinal.World) {
-	// Resolver hooks always go through the local embed regardless of how the primary source is
-	// configured (operator, fake, etc.). Resolver-fetched files are heavy designer-bundled assets
-	// — tilemaps, prefab manifests — that ship with the binary and aren't operator-editable.
-	resolverSource := system.EmbedSource{FS: p.config.EmbeddedFS}
-	p.state.LoadAll(context.Background(), p.config.Source, resolverSource)
-	registered = p
+	p.Load()
 	cardinal.RegisterSystem(world, func(rs *system.ReconcileState) {
-		p.state.Reconcile(rs, p.config.Source, resolverSource)
+		p.state.Reconcile(rs, p.config.Source, p.resolverSource())
 	}, cardinal.WithHook(cardinal.PreUpdate))
 }
