@@ -126,7 +126,7 @@ func TestAsyncWriterDrainReportsStoreFailure(t *testing.T) {
 
 	err := writer.Drain(t.Context())
 	require.Error(t, err)
-	assert.ErrorIs(t, err, finalErr)
+	require.ErrorIs(t, err, finalErr)
 	assert.NotErrorIs(t, err, firstErr)
 }
 
@@ -152,7 +152,7 @@ func TestAsyncWriterContinuesAfterAcceptedDrainIsCanceled(t *testing.T) {
 	cancel()
 	select {
 	case err := <-drained:
-		assert.ErrorIs(t, err, context.Canceled)
+		require.ErrorIs(t, err, context.Canceled)
 	case <-time.After(5 * time.Second):
 		t.Fatal("canceled Drain did not return")
 	}
