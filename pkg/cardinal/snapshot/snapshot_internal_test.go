@@ -156,13 +156,13 @@ func randomSnapshot(prng *rand.Rand) *cardinalv1.Snapshot {
 		EntityArch: make([]int64, prng.IntN(32)),
 		Archetypes: make([]*cardinalv1.Archetype, prng.IntN(16)),
 	}
-	for i := range worldState.FreeIds {
+	for i := range worldState.GetFreeIds() {
 		worldState.FreeIds[i] = prng.Uint32()
 	}
-	for i := range worldState.EntityArch {
+	for i := range worldState.GetEntityArch() {
 		worldState.EntityArch[i] = prng.Int64()
 	}
-	for i := range worldState.Archetypes {
+	for i := range worldState.GetArchetypes() {
 		archetype := &cardinalv1.Archetype{
 			Id:               prng.Int32(),
 			ComponentsBitmap: randomBytes(prng.IntN(32)),
@@ -170,13 +170,13 @@ func randomSnapshot(prng *rand.Rand) *cardinalv1.Snapshot {
 			Entities:         make([]uint32, prng.IntN(32)),
 			Columns:          make([]*cardinalv1.Column, prng.IntN(16)),
 		}
-		for j := range archetype.Rows {
+		for j := range archetype.GetRows() {
 			archetype.Rows[j] = prng.Int64()
 		}
-		for j := range archetype.Entities {
+		for j := range archetype.GetEntities() {
 			archetype.Entities[j] = prng.Uint32()
 		}
-		for j := range archetype.Columns {
+		for j := range archetype.GetColumns() {
 			components := make([][]byte, prng.IntN(32))
 			for k := range components {
 				components[k] = randomBytes(prng.IntN(256))

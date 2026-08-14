@@ -143,7 +143,6 @@ func NewWorld(opts WorldOptions) (*World, error) {
 func (w *World) StartGame() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	defer w.tel.RecoverAndFlush(true)
 
 	// Move snapshot writes off the tick goroutine.
 	w.snapshotWriter.Stop(context.Background())
@@ -156,6 +155,8 @@ func (w *World) StartGame() {
 	if err := w.service.init(addressService); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
+	defer w.shutdown()
+	defer w.tel.RecoverAndFlush(true)
 
 	w.tel.CaptureEvent(ctx, "Start Game", nil)
 
@@ -163,8 +164,6 @@ func (w *World) StartGame() {
 		w.tel.CaptureException(ctx, err)
 		w.tel.Logger.Error().Err(err).Msg("failed running world")
 	}
-
-	w.shutdown()
 }
 
 func (w *World) run(ctx context.Context) error {
