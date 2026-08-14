@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
 	"connectrpc.com/validate"
@@ -22,8 +21,11 @@ import (
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
-	"google.golang.org/grpc/codes"
 )
+
+// interShardSendTimeout bounds a single shard-to-shard send. See publishInterShardCommand for why
+// this blocking is worth revisiting.
+const interShardSendTimeout = 10 * time.Second
 
 // service hosts the direct client-facing Cardinal service.
 type service struct {
@@ -83,13 +85,12 @@ func (s *service) init(address string) error {
 
 	// Keep these for now cuz ISC requires a bit more work than client connections. Will need another
 	// refactor after the current clients are migrated to connect directly to the shards.
-	if err = s.microService.AddEndpoint("ping", s.handlePing); err != nil {
-		return eris.Wrap(err, "failed to register ping handler")
-	}
+	commandNames := make([]string, 0, len(s.commands))
 	for cmd := range s.commands {
-		if err := s.microService.AddGroup("command").AddEndpoint(cmd, s.handleInterShardCommand); err != nil {
-			return eris.Wrapf(err, "failed to register %s command handler", cmd)
-		}
+		commandNames = append(commandNames, cmd)
+	}
+	if err := s.microService.ServeCommands(commandNames, s.enqueueInterShardCommand); err != nil {
+		return eris.Wrap(err, "failed to register inter-shard command handlers")
 	}
 
 	otelInterceptor, err := otelconnect.NewInterceptor()
@@ -534,38 +535,10 @@ func matchesEvent(subscription string, eventName string) bool {
 // ISC
 // -------------------------------------------------------------------------------------------------
 
-func (s *service) handlePing(_ context.Context, req *micro.Request) *micro.Response {
-	return micro.NewSuccessResponse(req, nil)
-}
-
-func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Request) *micro.Response {
-	select {
-	case <-ctx.Done():
-		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
-	default:
-	}
-
-	cmd := &iscv1.Command{}
-	if err := req.Payload.UnmarshalTo(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
-	}
-
-	if err := protovalidate.Validate(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
-	}
-	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
-	}
-
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
-	}
-
-	if err := s.world.commands.Enqueue(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
-	}
-
-	return micro.NewSuccessResponse(req, nil)
+// enqueueInterShardCommand is the runtime half of inter-shard command handling: micro validates the
+// command and proves it belongs to this shard, and the world queues it for the next tick.
+func (s *service) enqueueInterShardCommand(_ context.Context, cmd *iscv1.Command) error {
+	return s.world.commands.Enqueue(cmd)
 }
 
 func (s *service) publishInterShardCommand(evt event.Event) error {
@@ -583,21 +556,13 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 		return nil
 	}
 
-	commandPb := &iscv1.Command{
-		Name:    isc.Payload.Name(),
-		Address: isc.Address,
-		Persona: &iscv1.Persona{Id: isc.Persona},
-		Payload: payload,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), interShardSendTimeout)
 	defer cancel()
 
 	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
 	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
 	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
-	_, err = s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
-	if err != nil {
+	if err := s.client.SendCommand(ctx, isc.Address, isc.Payload.Name(), isc.Persona, payload); err != nil {
 		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
 		return nil
 	}
