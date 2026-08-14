@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"buf.build/go/protovalidate"
+	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -23,94 +24,42 @@ var (
 	ErrUnsupportedVersion = errors.New("unsupported snapshot version")
 )
 
-// ValidateVersion reports whether a stored snapshot may be interpreted by this build.
-//
-// The policy is exact equality: only CurrentVersion is read, everything else is refused. The
-// restore path has one read path — FromProto against the layout this build writes — so "accepted"
-// and "readable" are the same set, and the check is written to say so.
-//
-//   - version == CurrentVersion is accepted. It is the layout this build writes and the only one
-//     any code here knows how to interpret.
-//   - version > CurrentVersion is refused. The snapshot comes from a newer build whose layout this
-//     one does not know. Protobuf decodes unknown layouts happily, so without this check a newer
-//     snapshot would be silently mis-read into a wrong world rather than refused.
-//   - 0 < version < CurrentVersion is refused. Unreachable while CurrentVersion is 1, and it stays
-//     refused after a bump until somebody writes the migration described below.
-//   - version == 0 is refused. The field is unset, meaning either a writer from before the envelope
-//     carried a version or a corrupt envelope. Every writer since the field existed sets it, so 0
-//     is never something this code could have produced.
-//
-// WIDENING THIS SET IS PART OF BUMPING CurrentVersion, NEVER A SEPARATE STEP. A bump that only
-// changes the constant leaves every snapshot already in storage carrying the old version, which
-// this function then refuses — loudly, at boot, which is the safe failure. Accepting an older
-// version without first giving restore a per-version read path converts that loud failure into a
-// silent mis-read: protobuf happily decodes the old bytes into the new layout, the world comes up
-// wrong, and the next snapshot tick overwrites the good snapshot with the wrong world. So when the
-// format changes: add the migration or the versioned read path in the restore direction first,
-// then widen this check to name exactly the versions that path handles.
+// ValidateVersion reports whether a snapshot uses the format this build can read. Only
+// CurrentVersion is valid; all other versions are rejected.
 func ValidateVersion(version uint32) error {
-	switch {
-	case version == CurrentVersion:
+	if version == CurrentVersion {
 		return nil
-	case version == 0:
-		return eris.Wrapf(ErrUnsupportedVersion,
-			"snapshot carries no version, so it predates the versioned format and cannot be read as version %d",
-			CurrentVersion)
-	case version > CurrentVersion:
-		return eris.Wrapf(ErrUnsupportedVersion,
-			"snapshot is version %d but this build only reads version %d", version, CurrentVersion)
-	default:
-		return eris.Wrapf(ErrUnsupportedVersion,
-			"snapshot is version %d and this build only reads version %d; reading it needs a migration path that does not exist",
-			version, CurrentVersion)
 	}
+	return eris.Wrapf(ErrUnsupportedVersion, "expected version %d, got %d", CurrentVersion, version)
 }
 
-// Storage provides persistence for shard snapshots.
+// Storage persists shard snapshots.
 //
-// Implementations take the snapshot envelope as a protobuf message and serialize it themselves,
-// so the envelope is marshaled exactly once on the write path and unmarshaled exactly once on the
-// read path. Passing a live message instead of bytes makes ownership part of the interface, so
-// each method states who owns the message it is handed or hands back.
+// Implementations serialize Snapshot messages. Store and Load define ownership of their messages.
 type Storage interface {
 	// Store saves the snapshot, atomically replacing any existing snapshot.
 	//
-	// Ownership: the caller keeps the message, and it is SHARED. Cardinal passes the very graph its
-	// tick built — no copy — and that same graph is concurrently readable by the debug module, which
-	// serializes it into an RPC response on another goroutine. The graph is frozen once built (every
-	// slice in it is freshly allocated by ToProto and never written again), so any number of readers
-	// is safe and no reader may become a writer. An implementation must therefore consume the
-	// message before Store returns — marshal it (marshalSnapshot) or deep-copy what it needs — and
-	// must not:
-	//   - retain the pointer, or anything reachable from it, past the return;
-	//   - hand it to a goroutine, timer or retry that outlives the call;
-	//   - mutate the message or any submessage, however harmlessly.
-	// Cardinal already writes snapshots off the tick goroutine, one at a time and newest-first, so
-	// a backend that starts its own background write does not make anything faster — it only breaks
-	// that ordering, and snapshot bytes are the shard's only durable state.
+	// Ownership: The caller keeps the message. Store must treat it as read-only.
 	//
-	// No implementation retains the replaced snapshot: JetStream purges the superseded chunks
-	// as soon as the new object commits, and S3 leaves retention to the bucket's own versioning
-	// configuration.
+	// Before Store returns, it must marshal the message or make a deep copy. It must not retain or
+	// use the caller's message, or its data, after it returns.
+	//
+	// Cardinal calls Store synchronously, with the newest snapshot first. Store must not start a
+	// background write that can change this order.
 	Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error
 
-	// Load retrieves the current snapshot.
-	// Returns an error wrapping ErrSnapshotNotFound if no snapshot exists.
+	// Load retrieves the current snapshot, returns an error if no snapshot exists.
 	//
-	// Ownership: the returned message belongs to the caller, exclusively. Cardinal publishes it to
-	// the debug reader and feeds its world state to FromProto, so an implementation must return a
-	// message nothing else holds — freshly decoded bytes (unmarshalSnapshot), or a deep copy of
-	// anything it keeps — and must neither read nor write that message afterwards. Returning a
-	// cached or shared message would let a restore race a reader, or let one caller's use corrupt
-	// what the next Load hands out.
+	// Ownership: The returned message belongs only to the caller. Load must return a newly decoded
+	// message or a deep copy. It must not read or write the message after it returns.
 	Load(ctx context.Context) (*cardinalv1.Snapshot, error)
 }
 
-// marshalSnapshot encodes the snapshot envelope for a backend to hand to its transport.
-// Backends must call this exactly once per Store so that the on-disk bytes stay identical
-// across implementations. It is also how a backend satisfies Store's ownership rule: the returned
-// bytes are a copy, so once it has returned the caller's graph is no longer needed.
+// marshalSnapshot encodes a snapshot into independent bytes.
 func marshalSnapshot(snapshot *cardinalv1.Snapshot) ([]byte, error) {
+	assert.That(snapshot.GetVersion() == CurrentVersion,
+		"snapshot version must be %d, got %d", CurrentVersion, snapshot.GetVersion())
+
 	// Deterministic only sorts map entries, and neither Snapshot nor WorldState declares a map
 	// field today, so it is currently a no-op that costs nothing. It is kept so the intent
 	// survives if a map field is ever added to the envelope.

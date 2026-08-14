@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -15,12 +16,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// fakeS3 answers PutObject and GetObject without a network, recording every body the SDK actually
-// wrote. It is deliberately dumb: the point is to see the bytes S3Storage produced, not to emulate
-// S3.
+// fakeS3 records PUT request bodies and supplies GET response bodies. It does not use a network.
 type fakeS3 struct {
-	puts [][]byte // one entry per PutObject, in order
-	get  []byte   // body GetObject returns
+	puts [][]byte // PUT request bodies, in request order
+	get  []byte   // GET response body
 }
 
 func (f *fakeS3) Do(req *http.Request) (*http.Response, error) {
@@ -46,9 +45,8 @@ func (f *fakeS3) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// newFakeS3Storage builds the real S3Storage against the fake transport. The struct is assembled
-// directly because NewS3Storage resolves credentials and endpoints from the environment; every
-// field that Store and Load touch is the production one.
+// newFakeS3Storage creates an S3Storage that uses fakeS3 as its HTTP transport.
+// It does not call NewS3Storage because that function reads credentials and endpoints from the environment.
 func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 	t.Helper()
 
@@ -66,19 +64,24 @@ func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 	return &S3Storage{client: client, bucket: "bucket", key: "org/project/0/snapshot"}, fake
 }
 
-// TestS3StorageStoreOwnership is the production-backend half of Storage.Store's ownership rule.
-// Cardinal hands Store the live world-state graph and keeps owning it, so the bytes S3 receives
-// must be fixed before Store returns, and the graph must come back untouched.
+// TestS3StorageStoreOwnership verifies the ownership rules for S3Storage.Store.
+// Store must write the snapshot before it returns. Store must not change or retain the snapshot.
 //
-// The edits below are a PROBE for a retained reference, not a reproduction of caller behaviour: a
-// snapshot graph is frozen once built, so nothing in cardinal ever writes into one it handed over.
-// Mutating it here is just how a test tells "serialized at call time" from "kept the pointer".
+// Cardinal does not change a snapshot after it calls Store. This test changes the snapshot only to
+// detect a retained reference.
 func TestS3StorageStoreOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+	prng := testutils.NewRand(t)
 
 	store, fake := newFakeS3Storage(t)
-	snap := goldenSnapshot()
+	snap := randomSnapshot(prng)
+	snap.WorldState.Archetypes = append(snap.WorldState.GetArchetypes(), &cardinalv1.Archetype{
+		Columns: []*cardinalv1.Column{{
+			ComponentName: "ownership-probe",
+			Components:    [][]byte{{byte(prng.Uint32())}},
+		}},
+	})
 
 	before, err := marshalSnapshot(snap)
 	require.NoError(t, err)
@@ -88,44 +91,45 @@ func TestS3StorageStoreOwnership(t *testing.T) {
 	written := fake.puts[0]
 	assert.Equal(t, before, written, "the object S3 received must be the envelope handed to Store")
 
-	// Store must not have modified the caller's graph.
+	// Store must not change the caller's snapshot.
 	unchanged, err := marshalSnapshot(snap)
 	require.NoError(t, err)
 	assert.Equal(t, before, unchanged, "Store mutated the caller's snapshot")
 
-	// Edit the graph the caller still owns. What was already written must not follow along, which
-	// is only true because Store finished reading before it returned.
-	snap.GetWorldState().NextId += 1000
-	snap.GetWorldState().GetArchetypes()[0].GetColumns()[0].Components[0] = []byte{0xde, 0xad}
+	// A later change to the snapshot must not change the stored bytes.
+	snap.GetWorldState().NextId ^= 1
+	probe := snap.GetWorldState().GetArchetypes()[len(snap.GetWorldState().GetArchetypes())-1]
+	probe.GetColumns()[0].Components[0][0] ^= 1
 	assert.Equal(t, before, fake.puts[0], "S3Storage kept a reference to the caller's graph")
 
-	// And a second Store writes the mutated graph, so the first write was not a stale cache.
+	// A second Store must write the changed snapshot.
 	require.NoError(t, store.Store(ctx, snap))
 	require.Len(t, fake.puts, 2)
 	assert.NotEqual(t, written, fake.puts[1], "Store must write the graph as it is at call time")
 }
 
-// TestS3StorageLoadOwnership is the read half: cardinal publishes the returned message to the debug
-// reader and feeds it to FromProto, so every Load must hand back a message nothing else holds.
+// TestS3StorageLoadOwnership verifies that each Load returns an independent snapshot.
 func TestS3StorageLoadOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+	prng := testutils.NewRand(t)
 
 	store, fake := newFakeS3Storage(t)
-	stored, err := marshalSnapshot(goldenSnapshot())
+	expected := randomSnapshot(prng)
+	stored, err := marshalSnapshot(expected)
 	require.NoError(t, err)
 	fake.get = stored
 
 	first, err := store.Load(ctx)
 	require.NoError(t, err)
-	assert.True(t, proto.Equal(goldenSnapshot(), first), "Load did not return what was stored")
+	assert.True(t, proto.Equal(expected, first), "Load did not return what was stored")
 
-	// A caller owns what it gets, so corrupting it must not reach the next caller.
+	// A change to one result must not change the next result.
 	first.TickHeight = 999
 	first.WorldState = &cardinalv1.WorldState{}
 
 	second, err := store.Load(ctx)
 	require.NoError(t, err)
 	assert.NotSame(t, first, second, "Load must not hand out a shared message")
-	assert.True(t, proto.Equal(goldenSnapshot(), second), "a previous caller's mutation reached the next Load")
+	assert.True(t, proto.Equal(expected, second), "a previous caller's mutation reached the next Load")
 }

@@ -8,20 +8,15 @@ import (
 )
 
 // NopStorage is a no-op implementation of SnapshotStorage.
-// It's used when snapshots are not needed (e.g., development, testing).
-// Store does no work at all: serialization happens inside the backends, so nothing is
-// marshaled on behalf of a snapshot that is then discarded.
+// It's used when snapshots are not needed (e.g., ephemeral shards, development, testing).
 type NopStorage struct{}
 
 var _ Storage = (*NopStorage)(nil)
 
-// NewNopStorage creates a new no-op snapshot storage.
 func NewNopStorage() *NopStorage {
 	return &NopStorage{}
 }
 
-// Store discards the snapshot. It never touches the caller's message, which satisfies Store's
-// ownership rule the cheapest way there is.
 func (n *NopStorage) Store(_ context.Context, _ *cardinalv1.Snapshot) error {
 	return nil
 }

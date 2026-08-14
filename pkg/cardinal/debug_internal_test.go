@@ -2,7 +2,9 @@ package cardinal
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
@@ -81,4 +84,105 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 		}
 	}
 	return nil
+}
+
+// TestDebugGetStatePublishesEveryTick checks snapshot content and ownership after each tick.
+func TestDebugGetStatePublishesEveryTick(t *testing.T) {
+	w, state := newDebugStateWorld(t)
+	seedSnapshotWorld(t, state)
+
+	for range 12 {
+		resp, err := w.debug.GetState(
+			context.Background(), connect.NewRequest(&cardinalv1.GetStateRequest{}),
+		)
+		require.NoError(t, err)
+		held := resp.Msg.GetSnapshot()
+		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
+		require.NoError(t, err)
+
+		_, e := state.Entities.Create()
+		e.Position.Set(Position3D{X: float64(w.currentTick.height)})
+
+		completed := w.currentTick.height
+		w.Tick(time.Now())
+
+		resp, err = w.debug.GetState(
+			context.Background(), connect.NewRequest(&cardinalv1.GetStateRequest{}),
+		)
+		require.NoError(t, err)
+		snap := resp.Msg.GetSnapshot()
+		assert.Equal(t, completed, snap.GetTickHeight())
+		assert.NotEmpty(t, snap.GetWorldState().GetArchetypes())
+
+		after, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
+		require.NoError(t, err)
+		assert.Equal(t, frozen, after, "a tick changed a published snapshot")
+	}
+}
+
+// TestDebugGetStateConcurrentWithTicks checks concurrent reads and writes. Run it with -race.
+func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
+	w, state := newDebugStateWorld(t)
+	seedSnapshotWorld(t, state)
+
+	const readers = 4
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	for range readers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				resp, err := w.debug.GetState(
+					context.Background(), connect.NewRequest(&cardinalv1.GetStateRequest{}),
+				)
+				if err != nil {
+					t.Errorf("GetState failed: %v", err)
+					return
+				}
+				snap := resp.Msg.GetSnapshot()
+				if _, err := proto.Marshal(snap); err != nil {
+					t.Errorf("failed to serialize the published snapshot: %v", err)
+					return
+				}
+			}
+		}()
+	}
+
+	for range 100 {
+		w.Tick(time.Now())
+	}
+	close(stop)
+	wg.Wait()
+
+	assert.Equal(t, uint64(100), w.currentTick.height)
+}
+
+func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
+	t.Helper()
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	debug := true
+	w, err := NewWorld(WorldOptions{
+		Region:              "debug-state",
+		Organization:        "debug-state",
+		Project:             "debug-state",
+		ShardID:             "0",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        5,
+		Debug:               &debug,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, w.debug)
+
+	state := &snapshotEntities{}
+	require.NoError(t, initSystemFields(state, w))
+	w.world.Init()
+	return w, state
 }

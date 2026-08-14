@@ -14,7 +14,7 @@ message Snapshot {
 
   google.protobuf.Timestamp timestamp = 2;
 
-  WorldState world_state = 3;
+  WorldState world_state = 3 [(buf.validate.field).required = true];
 
   uint32 version = 4;
 }

@@ -22,10 +22,11 @@ const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
-	world   *World
-	control *tickControl
-	catalog *introspect.Catalog
-	perf    *performance.Collector
+	world    *World
+	control  *tickControl
+	catalog  *introspect.Catalog
+	perf     *performance.Collector
+	snapshot atomic.Pointer[cardinalv1.Snapshot]
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -41,7 +42,15 @@ func newDebugModule(world *World) *debugModule {
 		catalog: introspect.NewCatalog(),
 		perf:    perf,
 	}
+	d.publishSnapshot(&cardinalv1.Snapshot{WorldState: &cardinalv1.WorldState{}})
 	return d
+}
+
+func (d *debugModule) publishSnapshot(snapshot *cardinalv1.Snapshot) {
+	if d == nil {
+		return
+	}
+	d.snapshot.Store(snapshot)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -300,7 +309,7 @@ func (d *debugModule) GetState(
 ) (*connect.Response[cardinalv1.GetStateResponse], error) {
 	return connect.NewResponse(&cardinalv1.GetStateResponse{
 		IsPaused: d.control.isPaused.Load(),
-		Snapshot: d.world.state.Load(),
+		Snapshot: d.snapshot.Load(),
 	}), nil
 }
 

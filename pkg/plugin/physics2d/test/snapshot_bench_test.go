@@ -204,11 +204,10 @@ func BenchmarkSnapshotTick(b *testing.B) {
 		for _, rate := range []uint32{1_000_000, 50, 1} {
 			b.Run(fmt.Sprintf("Bodies_%d/Rate_%d", bodies, rate), func(b *testing.B) {
 				w := snapshotBenchWorld(b, rate, bodies, snapshotBenchWarmupTicks)
-				ctx := context.Background()
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := range b.N {
-					w.Tick(ctx, time.Unix(int64(100+i), 0))
+					w.Tick(time.Unix(int64(100+i), 0))
 				}
 			})
 		}
