@@ -52,11 +52,21 @@ func newComponentManager() componentManager {
 
 var componentNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
+// maxComponentNameLength matches the snapshot schema's limit on Column.name (snapshot.proto).
+const maxComponentNameLength = 32
+
 // validateComponentName validates that a component name follows expr identifier rules.
 // See: https://expr-lang.org/docs/language-definition#variables
 func validateComponentName(name string) error {
 	if name == "" {
 		return eris.New("component name cannot be empty")
+	}
+
+	if len(name) > maxComponentNameLength {
+		return eris.Errorf(
+			"component name '%s' is %d characters, max is %d",
+			name, len(name), maxComponentNameLength,
+		)
 	}
 
 	if !componentNamePattern.MatchString(name) {

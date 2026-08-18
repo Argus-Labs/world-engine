@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -151,6 +152,12 @@ func TestComponent_NameValidationFuzz(t *testing.T) {
 			}
 		}
 
+		// Corruption flips characters but never changes length, and the generator stays within the
+		// registration limit — so occasionally pad past it to exercise the length cap.
+		if prng.Float64() < 0.1 {
+			b = append(b, []byte(strings.Repeat("a", prng.IntN(8)+1))...)
+		}
+
 		name := string(b)
 		expected := assertNameProperties(name)
 		actual := validateComponentName(name) == nil
@@ -168,6 +175,10 @@ func TestComponent_NameValidationFuzz(t *testing.T) {
 func assertNameProperties(name string) bool {
 	// Property: name cannot be empty.
 	if name == "" {
+		return false
+	}
+	// Property: name cannot exceed the snapshot schema's Column.name limit.
+	if len(name) > maxComponentNameLength {
 		return false
 	}
 	// Property: name must start with a letter or underscore.
@@ -188,7 +199,7 @@ func assertNameProperties(name string) bool {
 func randValidComponentName(prng *rand.Rand) string {
 	const firstChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 	const restChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	length := prng.IntN(100) + 1 // 1-100 characters
+	length := prng.IntN(maxComponentNameLength) + 1 // 1 to the registration limit
 	b := make([]byte, length)
 	b[0] = firstChars[prng.IntN(len(firstChars))]
 	for i := 1; i < length; i++ {
