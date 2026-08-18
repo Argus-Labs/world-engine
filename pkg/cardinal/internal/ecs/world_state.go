@@ -2,6 +2,9 @@ package ecs
 
 import (
 	"math"
+	"slices"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -274,52 +277,173 @@ func removeComponent[T Component](ws *worldState, eid EntityID) error {
 // Serialization
 // -------------------------------------------------------------------------------------------------
 
-// toProto converts the worldState to a protobuf message for serialization.
+// toProto converts the worldState to its wire form: entities and their components by name,
+// nothing of the runtime layout. Sorting (columns by name, ID lists ascending) is part of the
+// format protobuf's deterministic marshal doesn't sort repeated fields, so identical worlds
+// producing identical bytes happens here or not at all.
 func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
-	freeIDs := make([]uint32, len(ws.free))
-	for i, entityID := range ws.free {
-		freeIDs[i] = uint32(entityID)
-	}
+	live := make([]uint32, 0)
+	merged := make(map[string]*cardinalv1.Column)
 
-	pbArchetypes := make([]*cardinalv1.Archetype, len(ws.archetypes))
-	for i, arch := range ws.archetypes {
-		pbArch, err := arch.toProto()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize archetype %d", i)
+	for _, arch := range ws.archetypes {
+		for _, eid := range arch.entities { // Track all entities to not lose any void entities.
+			live = append(live, uint32(eid))
 		}
-		pbArchetypes[i] = pbArch
+		// Merge each archetype's columns into one column per component name.
+		for _, col := range arch.columns {
+			payloads, err := col.encodeRows()
+			if err != nil {
+				return nil, eris.Wrapf(err, "failed to serialize column %q", col.name())
+			}
+			pbCol := merged[col.name()]
+			if pbCol == nil {
+				pbCol = &cardinalv1.Column{Name: col.name()}
+				merged[col.name()] = pbCol
+			}
+			for row, payload := range payloads {
+				pbCol.EntityIds = append(pbCol.EntityIds, uint32(arch.entities[row]))
+				pbCol.Payloads = append(pbCol.Payloads, payload)
+			}
+		}
 	}
+	slices.Sort(live)
+
+	columns := make([]*cardinalv1.Column, 0, len(merged))
+	for _, pbCol := range merged {
+		sort.Sort(columnSorter{pbCol})
+		columns = append(columns, pbCol)
+	}
+	slices.SortFunc(columns, func(a, b *cardinalv1.Column) int {
+		return strings.Compare(a.GetName(), b.GetName())
+	})
 
 	return &cardinalv1.WorldState{
-		NextId:     uint32(ws.nextID),
-		FreeIds:    freeIDs,
-		Archetypes: pbArchetypes,
+		NextId:        uint32(ws.nextID),
+		LiveEntityIds: live,
+		Columns:       columns,
 	}, nil
 }
 
-// fromProto populates the worldState from a protobuf message.
-func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
-	ws.nextID = EntityID(pb.GetNextId())
+// columnSorter sorts a column's (entity, payload) pairs by entity ID, swapping both slices in
+// lockstep so the pairing cannot drift.
+type columnSorter struct{ c *cardinalv1.Column }
 
-	ws.free = make([]EntityID, len(pb.GetFreeIds()))
-	for i, freeID := range pb.GetFreeIds() {
-		ws.free[i] = EntityID(freeID)
+func (s columnSorter) Len() int           { return len(s.c.GetEntityIds()) }
+func (s columnSorter) Less(i, j int) bool { return s.c.GetEntityIds()[i] < s.c.GetEntityIds()[j] }
+func (s columnSorter) Swap(i, j int) {
+	s.c.EntityIds[i], s.c.EntityIds[j] = s.c.GetEntityIds()[j], s.c.GetEntityIds()[i]
+	s.c.Payloads[i], s.c.Payloads[j] = s.c.GetPayloads()[j], s.c.GetPayloads()[i]
+}
+
+// pendingComponent is one component awaiting restore: which type, and its encoded value.
+type pendingComponent struct {
+	cid  ComponentID
+	data []byte
+}
+
+// fromProto rebuilds the worldState from its wire form. The file only says which entities have
+// which components; archetypes, rows and the entity-archetype index are whatever this rebuild
+// produces. More work than rehydrating structs, but it's a boot-time path.
+func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
+	nextID := EntityID(pb.GetNextId())
+
+	liveSet, err := validateLiveList(pb.GetLiveEntityIds(), nextID)
+	if err != nil {
+		return err
+	}
+	// Collect all components from the columns mapped by entity ID.
+	pending, err := ws.collectColumns(pb.GetColumns(), liveSet)
+	if err != nil {
+		return err
 	}
 
-	ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
-	for i, pbArch := range pb.GetArchetypes() {
-		ws.archetypes[i] = &archetype{}
-		if err := ws.archetypes[i].fromProto(pbArch, &ws.components); err != nil {
-			return eris.Wrapf(err, "failed to deserialize archetype %d", i)
+	// Reset to just the void archetype, then create every live entity directly in the archetype its
+	// component set implies. Ascending order keeps the rebuilt runtime deterministic for a given file.
+	ws.nextID = nextID
+	ws.archetypes = make([]*archetype, 1)
+	ws.archetypes[voidArchetypeID] = ws.newArchetype(voidArchetypeID, bitmap.Bitmap{})
+	ws.entityArch = newSparseSet()
+
+	for _, eid := range pb.GetLiveEntityIds() {
+		if err := ws.restoreEntity(EntityID(eid), pending[eid]); err != nil {
+			return err
 		}
 	}
 
-	// entityArch is derived data — which archetype's entity list an entity appears in — so it is
-	// not persisted: rebuild it now that every archetype is populated.
-	ws.entityArch = newSparseSet()
-	for _, arch := range ws.archetypes {
-		for _, eid := range arch.entities {
-			ws.entityArch.set(eid, arch.id)
+	// The free list is derived: every ID below next_id that is not alive, ascending.
+	ws.free = ws.free[:0]
+	for eid := uint32(0); EntityID(eid) < nextID; eid++ {
+		if _, ok := liveSet[eid]; !ok {
+			ws.free = append(ws.free, EntityID(eid))
+		}
+	}
+	return nil
+}
+
+// validateLiveList checks the live list before anything touches the world: strictly ascending
+// (dupes and disorder are producer bugs, not tolerable variants) and below next_id.
+func validateLiveList(liveIDs []uint32, nextID EntityID) (map[uint32]struct{}, error) {
+	liveSet := make(map[uint32]struct{}, len(liveIDs))
+	for i, eid := range liveIDs {
+		if EntityID(eid) >= nextID {
+			return nil, eris.Errorf("live entity %d is not below next_id %d", eid, nextID)
+		}
+		if i > 0 && liveIDs[i-1] >= eid {
+			return nil, eris.Errorf("live_entity_ids not strictly ascending at index %d", i)
+		}
+		liveSet[eid] = struct{}{}
+	}
+	return liveSet, nil
+}
+
+// collectColumns gathers each entity's components from the wire columns. Unknown names and columns
+// referencing entities outside the live list are hard errors: silently skipping either would lose
+// saved data with no record.
+func (ws *worldState) collectColumns(
+	columns []*cardinalv1.Column, liveSet map[uint32]struct{},
+) (map[uint32][]pendingComponent, error) {
+	pending := make(map[uint32][]pendingComponent, len(liveSet))
+	for _, pbCol := range columns {
+		name := pbCol.GetName()
+		ids := pbCol.GetEntityIds()
+		payloads := pbCol.GetPayloads()
+
+		cid, err := ws.components.getID(name)
+		if err != nil {
+			return nil, eris.Wrapf(err, "snapshot column %q does not match any registered component", name)
+		}
+		if len(ids) != len(payloads) { // A column must pair every entity with exactly one payload.
+			return nil, eris.Errorf("column %q has %d entities but %d payloads", name, len(ids), len(payloads))
+		}
+
+		for i, eid := range ids {
+			if _, ok := liveSet[eid]; !ok {
+				return nil, eris.Errorf("column %q references entity %d which is not in live_entity_ids", name, eid)
+			}
+			pending[eid] = append(pending[eid], pendingComponent{cid: cid, data: payloads[i]})
+		}
+	}
+	return pending, nil
+}
+
+// restoreEntity creates one entity directly in the archetype its component set implies and decodes
+// its component values into place.
+func (ws *worldState) restoreEntity(eid EntityID, components []pendingComponent) error {
+	var comps bitmap.Bitmap
+	for _, pc := range components {
+		comps.Set(pc.cid)
+	}
+
+	aid := ws.findOrCreateArchetype(comps)
+	arch := ws.archetypes[aid]
+	arch.newEntity(eid)
+	ws.entityArch.set(eid, aid)
+
+	row, ok := arch.rows.get(eid)
+	assert.That(ok, "entity was just created in this archetype")
+	for _, pc := range components {
+		if err := arch.columnByID(pc.cid).decodeRow(row, pc.data); err != nil {
+			return eris.Wrapf(err, "failed to restore entity %d", eid)
 		}
 	}
 	return nil

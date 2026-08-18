@@ -126,7 +126,7 @@ const (
 var engineOps = []string{ //nolint:gochecknoglobals // DST operation table
 	opTick,
 	// opRestart,
-	// opSnapshotRestore,
+	opSnapshotRestore,
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -255,15 +255,10 @@ func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unuse
 	}
 	t.Logf("world state (%s):", label)
 	t.Logf("  next_entity_id: %d", ws.GetNextId())
-	t.Logf("  free_ids:       %v", ws.GetFreeIds())
-	t.Logf("  archetypes:     %d", len(ws.GetArchetypes()))
-	for _, arch := range ws.GetArchetypes() {
-		compNames := make([]string, 0, len(arch.GetColumns()))
-		for _, col := range arch.GetColumns() {
-			compNames = append(compNames, col.GetComponentName())
-		}
-		t.Logf("    archetype %d: entities=%d components=%v",
-			arch.GetId(), len(arch.GetEntities()), compNames)
+	t.Logf("  live_entities:  %d", len(ws.GetLiveEntityIds()))
+	t.Logf("  columns:        %d", len(ws.GetColumns()))
+	for _, col := range ws.GetColumns() {
+		t.Logf("    column %s: entities=%d", col.GetName(), len(col.GetEntityIds()))
 	}
 }
 

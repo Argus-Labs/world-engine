@@ -105,20 +105,3 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 		assert.Equal(t, modelValue, implValue, "key %d value mismatch", key)
 	}
 }
-
-// assertSparseSetEqual checks that two sparse sets hold the same mapping. It compares get()
-// results over the combined key domain rather than the backing arrays, because backing length
-// depends on growth history: a set rebuilt from a snapshot is sized to the highest live key,
-// while the original grew to its high-water mark.
-func assertSparseSetEqual(t *testing.T, s1, s2 sparseSet) {
-	t.Helper()
-
-	for key := range max(len(s1), len(s2)) {
-		v1, ok1 := s1.get(EntityID(key))
-		v2, ok2 := s2.get(EntityID(key))
-		assert.Equal(t, ok1, ok2, "key %d existence mismatch", key)
-		if ok1 && ok2 {
-			assert.Equal(t, v1, v2, "key %d value mismatch", key)
-		}
-	}
-}

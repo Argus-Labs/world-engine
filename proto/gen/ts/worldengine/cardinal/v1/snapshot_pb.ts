@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/snapshot.proto.
  */
 export const file_worldengine_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEioQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlQga6SAPIAQESDwoHdmVyc2lvbhgEIAEoDSJnCgpXb3JsZFN0YXRlEg8KB25leHRfaWQYASABKA0SEAoIZnJlZV9pZHMYAiADKA0SNgoKYXJjaGV0eXBlcxgEIAMoCzIiLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkFyY2hldHlwZSJ2CglBcmNoZXR5cGUSCgoCaWQYASABKAUSGQoRY29tcG9uZW50c19iaXRtYXAYAiABKAwSEAoIZW50aXRpZXMYBCADKA0SMAoHY29sdW1ucxgFIAMoCzIfLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNvbHVtbiI9CgZDb2x1bW4SHwoOY29tcG9uZW50X25hbWUYASABKAlCB7pIBHICEAESEgoKY29tcG9uZW50cxgCIAMoDEJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEioQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlQga6SAPIAQESDwoHdmVyc2lvbhgEIAEoDSJoCgpXb3JsZFN0YXRlEg8KB25leHRfaWQYASABKA0SFwoPbGl2ZV9lbnRpdHlfaWRzGAIgAygNEjAKB2NvbHVtbnMYAyADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW4iRwoGQ29sdW1uEhcKBG5hbWUYASABKAlCCbpIBnIEEAEYIBISCgplbnRpdHlfaWRzGAIgAygNEhAKCHBheWxvYWRzGAMgAygMQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Snapshot represents a point-in-time capture of shard state.
@@ -50,29 +50,35 @@ export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_snapshot, 0);
 
 /**
- * WorldState represents the ECS world state.
+ * WorldState describes the world's contents: which entities exist and which components each one
+ * has, addressed by component name. It deliberately carries none of the runtime's storage layout
+ * (archetypes, index tables, numeric component IDs), so nothing in the file depends on
+ * registration order or creation order.
  *
  * @generated from message worldengine.cardinal.v1.WorldState
  */
 export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
   /**
-   * Entity manager state
+   * Entity ID counter: the next never-used ID.
    *
    * @generated from field: uint32 next_id = 1;
    */
   nextId: number;
 
   /**
-   * @generated from field: repeated uint32 free_ids = 2;
+   * Every alive entity, exactly once, ascending. This is the authoritative entity list: an entity
+   * with no components appears in no column, so without this list it would vanish on restore.
+   *
+   * @generated from field: repeated uint32 live_entity_ids = 2;
    */
-  freeIds: number[];
+  liveEntityIds: number[];
 
   /**
-   * Archetypes in the world state
+   * One column per component type present in the world, sorted by name.
    *
-   * @generated from field: repeated worldengine.cardinal.v1.Archetype archetypes = 4;
+   * @generated from field: repeated worldengine.cardinal.v1.Column columns = 3;
    */
-  archetypes: Archetype[];
+  columns: Column[];
 };
 
 /**
@@ -83,49 +89,7 @@ export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_snapshot, 1);
 
 /**
- * Archetype represents a collection of entities with the same component types.
- *
- * @generated from message worldengine.cardinal.v1.Archetype
- */
-export type Archetype = Message<"worldengine.cardinal.v1.Archetype"> & {
-  /**
-   * Unique identifier for this archetype (corresponds to index in archetypes array)
-   *
-   * @generated from field: int32 id = 1;
-   */
-  id: number;
-
-  /**
-   * Bitmap representing component types in this archetype
-   *
-   * @generated from field: bytes components_bitmap = 2;
-   */
-  componentsBitmap: Uint8Array;
-
-  /**
-   * List of entity IDs in this archetype
-   *
-   * @generated from field: repeated uint32 entities = 4;
-   */
-  entities: number[];
-
-  /**
-   * Columns containing component data
-   *
-   * @generated from field: repeated worldengine.cardinal.v1.Column columns = 5;
-   */
-  columns: Column[];
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.Archetype.
- * Use `create(ArchetypeSchema)` to create a new message.
- */
-export const ArchetypeSchema: GenMessage<Archetype> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_snapshot, 2);
-
-/**
- * Column represents a sparse set data structure for storing component data.
+ * Column holds every instance of one component type across the whole world.
  *
  * @generated from message worldengine.cardinal.v1.Column
  */
@@ -133,16 +97,23 @@ export type Column = Message<"worldengine.cardinal.v1.Column"> & {
   /**
    * Name of the component stored in this column
    *
-   * @generated from field: string component_name = 1;
+   * @generated from field: string name = 1;
    */
-  componentName: string;
+  name: string;
 
   /**
-   * Dense array of serialized component wire data.
+   * Entities that have this component, ascending.
    *
-   * @generated from field: repeated bytes components = 2;
+   * @generated from field: repeated uint32 entity_ids = 2;
    */
-  components: Uint8Array[];
+  entityIds: number[];
+
+  /**
+   * Serialized component values, one per entity_ids entry, same order.
+   *
+   * @generated from field: repeated bytes payloads = 3;
+   */
+  payloads: Uint8Array[];
 };
 
 /**
@@ -150,4 +121,5 @@ export type Column = Message<"worldengine.cardinal.v1.Column"> & {
  * Use `create(ColumnSchema)` to create a new message.
  */
 export const ColumnSchema: GenMessage<Column> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_snapshot, 3);
+  messageDesc(file_worldengine_cardinal_v1_snapshot, 2);
+

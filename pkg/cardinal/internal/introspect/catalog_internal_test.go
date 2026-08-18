@@ -99,11 +99,11 @@ func TestBuildDescriptorSetIsDeterministicAndDeduplicated(t *testing.T) {
 	t.Parallel()
 
 	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
-	archetype := (&cardinalv1.Archetype{}).ProtoReflect().Descriptor()
+	worldState := (&cardinalv1.WorldState{}).ProtoReflect().Descriptor()
 
-	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{archetype, snapshot, archetype})
+	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{worldState, snapshot, worldState})
 	require.NoError(t, err)
-	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, archetype})
+	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, worldState})
 	require.NoError(t, err)
 	assert.Equal(t, first, second)
 

@@ -1,12 +1,8 @@
 package ecs
 
 import (
-	"bytes"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
-	"github.com/rotisserie/eris"
 )
 
 // archetypeID is the unique identifier for an archetype.
@@ -52,6 +48,12 @@ func (a *archetype) contains(components bitmap.Bitmap) bool {
 	intersect := components.Clone(nil)
 	intersect.And(a.components)
 	return intersect.Count() == components.Count()
+}
+
+// columnByID returns the column storing the given component ID.
+func (a *archetype) columnByID(cid ComponentID) abstractColumn {
+	assert.That(a.components.Contains(cid), "archetype does not contain component")
+	return a.columns[a.components.CountTo(cid)]
 }
 
 func (a *archetype) reset() {
@@ -150,83 +152,4 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 
 	// Remove the entity from the current archetype, which also updates the row mapping.
 	a.removeEntity(eid)
-}
-
-// -------------------------------------------------------------------------------------------------
-// Serialization
-// -------------------------------------------------------------------------------------------------
-
-// toProto converts the archetype to a protobuf message for serialization.
-func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
-	componentsBitmap := bytes.Clone(a.components.ToBytes())
-
-	entities := make([]uint32, len(a.entities))
-	for i, eid := range a.entities {
-		entities[i] = uint32(eid)
-	}
-
-	columns := make([]*cardinalv1.Column, len(a.columns))
-	for i, column := range a.columns {
-		data, err := column.toProto()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize column %d", i)
-		}
-		columns[i] = data
-	}
-
-	return &cardinalv1.Archetype{
-		Id:               int32(a.id), //nolint:gosec // it's ok
-		ComponentsBitmap: componentsBitmap,
-		Entities:         entities,
-		Columns:          columns,
-	}, nil
-}
-
-// fromProto populates the archetype from a protobuf message. We pass a reference to the component
-// manager to get the column factories needed to create the correct column[T].
-func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) error {
-	if pb == nil {
-		return eris.New("protobuf archetype is nil")
-	}
-
-	a.id = archetypeID(pb.GetId())
-
-	// If a serialized snapshot is corrupted in such a way that the length of the bitmap is not a
-	// multiple of 8, bitmap.FromBytes will panic. We'll explicitly handle this here and return an
-	// error so we don't just crash.
-	bitmapBytes := pb.GetComponentsBitmap()
-	if len(bitmapBytes)%8 != 0 {
-		return eris.Errorf("invalid bitmap length %d (must be multiple of 8)", len(bitmapBytes))
-	}
-	a.components = bitmap.FromBytes(bitmapBytes)
-
-	a.entities = make([]EntityID, len(pb.GetEntities()))
-	for i, eid := range pb.GetEntities() {
-		a.entities[i] = EntityID(eid)
-	}
-
-	// rows is the inverse of entities (rows[eid] = row where entities[row] = eid), so it is not
-	// persisted: rebuild it from the entity list.
-	a.rows = newSparseSet()
-	for row, eid := range a.entities {
-		a.rows.set(eid, row)
-	}
-
-	a.columns = make([]abstractColumn, len(pb.GetColumns()))
-	for i, pbCol := range pb.GetColumns() {
-		cid, err := cm.getID(pbCol.GetComponentName())
-		if err != nil {
-			return eris.Wrap(err, "failed to get component id")
-		}
-
-		factory := cm.factories[cid]
-		column := factory()
-
-		if err := column.fromProto(pbCol); err != nil {
-			return eris.Wrapf(err, "failed to deserialize column %d", i)
-		}
-		a.columns[i] = column
-	}
-	a.compCount = len(a.columns)
-	return nil
 }

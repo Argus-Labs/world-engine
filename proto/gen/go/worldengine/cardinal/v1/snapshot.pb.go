@@ -92,14 +92,19 @@ func (x *Snapshot) GetVersion() uint32 {
 	return 0
 }
 
-// WorldState represents the ECS world state.
+// WorldState describes the world's contents: which entities exist and which components each one
+// has, addressed by component name. It deliberately carries none of the runtime's storage layout
+// (archetypes, index tables, numeric component IDs), so nothing in the file depends on
+// registration order or creation order.
 type WorldState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Entity manager state
-	NextId  uint32   `protobuf:"varint,1,opt,name=next_id,json=nextId,proto3" json:"next_id,omitempty"`
-	FreeIds []uint32 `protobuf:"varint,2,rep,packed,name=free_ids,json=freeIds,proto3" json:"free_ids,omitempty"`
-	// Archetypes in the world state
-	Archetypes    []*Archetype `protobuf:"bytes,4,rep,name=archetypes,proto3" json:"archetypes,omitempty"`
+	// Entity ID counter: the next never-used ID.
+	NextId uint32 `protobuf:"varint,1,opt,name=next_id,json=nextId,proto3" json:"next_id,omitempty"`
+	// Every alive entity, exactly once, ascending. This is the authoritative entity list: an entity
+	// with no components appears in no column, so without this list it would vanish on restore.
+	LiveEntityIds []uint32 `protobuf:"varint,2,rep,packed,name=live_entity_ids,json=liveEntityIds,proto3" json:"live_entity_ids,omitempty"`
+	// One column per component type present in the world, sorted by name.
+	Columns       []*Column `protobuf:"bytes,3,rep,name=columns,proto3" json:"columns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -141,107 +146,36 @@ func (x *WorldState) GetNextId() uint32 {
 	return 0
 }
 
-func (x *WorldState) GetFreeIds() []uint32 {
+func (x *WorldState) GetLiveEntityIds() []uint32 {
 	if x != nil {
-		return x.FreeIds
+		return x.LiveEntityIds
 	}
 	return nil
 }
 
-func (x *WorldState) GetArchetypes() []*Archetype {
-	if x != nil {
-		return x.Archetypes
-	}
-	return nil
-}
-
-// Archetype represents a collection of entities with the same component types.
-type Archetype struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique identifier for this archetype (corresponds to index in archetypes array)
-	Id int32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Bitmap representing component types in this archetype
-	ComponentsBitmap []byte `protobuf:"bytes,2,opt,name=components_bitmap,json=componentsBitmap,proto3" json:"components_bitmap,omitempty"`
-	// List of entity IDs in this archetype
-	Entities []uint32 `protobuf:"varint,4,rep,packed,name=entities,proto3" json:"entities,omitempty"`
-	// Columns containing component data
-	Columns       []*Column `protobuf:"bytes,5,rep,name=columns,proto3" json:"columns,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Archetype) Reset() {
-	*x = Archetype{}
-	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Archetype) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Archetype) ProtoMessage() {}
-
-func (x *Archetype) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Archetype.ProtoReflect.Descriptor instead.
-func (*Archetype) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Archetype) GetId() int32 {
-	if x != nil {
-		return x.Id
-	}
-	return 0
-}
-
-func (x *Archetype) GetComponentsBitmap() []byte {
-	if x != nil {
-		return x.ComponentsBitmap
-	}
-	return nil
-}
-
-func (x *Archetype) GetEntities() []uint32 {
-	if x != nil {
-		return x.Entities
-	}
-	return nil
-}
-
-func (x *Archetype) GetColumns() []*Column {
+func (x *WorldState) GetColumns() []*Column {
 	if x != nil {
 		return x.Columns
 	}
 	return nil
 }
 
-// Column represents a sparse set data structure for storing component data.
+// Column holds every instance of one component type across the whole world.
 type Column struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the component stored in this column
-	ComponentName string `protobuf:"bytes,1,opt,name=component_name,json=componentName,proto3" json:"component_name,omitempty"`
-	// Dense array of serialized component wire data.
-	Components    [][]byte `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Entities that have this component, ascending.
+	EntityIds []uint32 `protobuf:"varint,2,rep,packed,name=entity_ids,json=entityIds,proto3" json:"entity_ids,omitempty"`
+	// Serialized component values, one per entity_ids entry, same order.
+	Payloads      [][]byte `protobuf:"bytes,3,rep,name=payloads,proto3" json:"payloads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Column) Reset() {
 	*x = Column{}
-	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[3]
+	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -253,7 +187,7 @@ func (x *Column) String() string {
 func (*Column) ProtoMessage() {}
 
 func (x *Column) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[3]
+	mi := &file_worldengine_cardinal_v1_snapshot_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -266,19 +200,26 @@ func (x *Column) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Column.ProtoReflect.Descriptor instead.
 func (*Column) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP(), []int{3}
+	return file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *Column) GetComponentName() string {
+func (x *Column) GetName() string {
 	if x != nil {
-		return x.ComponentName
+		return x.Name
 	}
 	return ""
 }
 
-func (x *Column) GetComponents() [][]byte {
+func (x *Column) GetEntityIds() []uint32 {
 	if x != nil {
-		return x.Components
+		return x.EntityIds
+	}
+	return nil
+}
+
+func (x *Column) GetPayloads() [][]byte {
+	if x != nil {
+		return x.Payloads
 	}
 	return nil
 }
@@ -294,24 +235,17 @@ const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12L\n" +
 	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"worldState\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\rR\aversion\"\x84\x01\n" +
+	"\aversion\x18\x04 \x01(\rR\aversion\"\x88\x01\n" +
 	"\n" +
 	"WorldState\x12\x17\n" +
-	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12\x19\n" +
-	"\bfree_ids\x18\x02 \x03(\rR\afreeIds\x12B\n" +
+	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12&\n" +
+	"\x0flive_entity_ids\x18\x02 \x03(\rR\rliveEntityIds\x129\n" +
+	"\acolumns\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.ColumnR\acolumns\"b\n" +
+	"\x06Column\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x04name\x12\x1d\n" +
 	"\n" +
-	"archetypes\x18\x04 \x03(\v2\".worldengine.cardinal.v1.ArchetypeR\n" +
-	"archetypes\"\x9f\x01\n" +
-	"\tArchetype\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12+\n" +
-	"\x11components_bitmap\x18\x02 \x01(\fR\x10componentsBitmap\x12\x1a\n" +
-	"\bentities\x18\x04 \x03(\rR\bentities\x129\n" +
-	"\acolumns\x18\x05 \x03(\v2\x1f.worldengine.cardinal.v1.ColumnR\acolumns\"X\n" +
-	"\x06Column\x12.\n" +
-	"\x0ecomponent_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\rcomponentName\x12\x1e\n" +
-	"\n" +
-	"components\x18\x02 \x03(\fR\n" +
-	"componentsBtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
+	"entity_ids\x18\x02 \x03(\rR\tentityIds\x12\x1a\n" +
+	"\bpayloads\x18\x03 \x03(\fR\bpayloadsBtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
 
 var (
 	file_worldengine_cardinal_v1_snapshot_proto_rawDescOnce sync.Once
@@ -325,24 +259,22 @@ func file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP() []byte {
 	return file_worldengine_cardinal_v1_snapshot_proto_rawDescData
 }
 
-var file_worldengine_cardinal_v1_snapshot_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_worldengine_cardinal_v1_snapshot_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_worldengine_cardinal_v1_snapshot_proto_goTypes = []any{
 	(*Snapshot)(nil),              // 0: worldengine.cardinal.v1.Snapshot
 	(*WorldState)(nil),            // 1: worldengine.cardinal.v1.WorldState
-	(*Archetype)(nil),             // 2: worldengine.cardinal.v1.Archetype
-	(*Column)(nil),                // 3: worldengine.cardinal.v1.Column
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*Column)(nil),                // 2: worldengine.cardinal.v1.Column
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_worldengine_cardinal_v1_snapshot_proto_depIdxs = []int32{
-	4, // 0: worldengine.cardinal.v1.Snapshot.timestamp:type_name -> google.protobuf.Timestamp
+	3, // 0: worldengine.cardinal.v1.Snapshot.timestamp:type_name -> google.protobuf.Timestamp
 	1, // 1: worldengine.cardinal.v1.Snapshot.world_state:type_name -> worldengine.cardinal.v1.WorldState
-	2, // 2: worldengine.cardinal.v1.WorldState.archetypes:type_name -> worldengine.cardinal.v1.Archetype
-	3, // 3: worldengine.cardinal.v1.Archetype.columns:type_name -> worldengine.cardinal.v1.Column
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 2: worldengine.cardinal.v1.WorldState.columns:type_name -> worldengine.cardinal.v1.Column
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_snapshot_proto_init() }
@@ -356,7 +288,7 @@ func file_worldengine_cardinal_v1_snapshot_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_cardinal_v1_snapshot_proto_rawDesc), len(file_worldengine_cardinal_v1_snapshot_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 )
 
@@ -19,8 +18,8 @@ type abstractColumn interface {
 	getAbstract(row int) Component
 	remove(row int)
 
-	toProto() (*cardinalv1.Column, error)
-	fromProto(*cardinalv1.Column) error
+	encodeRows() ([][]byte, error)
+	decodeRow(row int, data []byte) error
 }
 
 var _ abstractColumn = &column[Component]{}
@@ -120,47 +119,34 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// toProto serializes each component with its generated protobuf codec.
-func (c *column[T]) toProto() (*cardinalv1.Column, error) {
-	componentData := make([][]byte, len(c.components))
+// encodeRows serializes every component in the column, in row order. Each component encodes through
+// its generated MarshalWire (proto) — no msgpack. T is a Component (embeds schema.Serializable), so
+// MarshalWire is guaranteed by the type; an ungenerated component wouldn't satisfy the constraint
+// and wouldn't compile.
+func (c *column[T]) encodeRows() ([][]byte, error) {
+	payloads := make([][]byte, len(c.components))
 	for i, component := range c.components {
 		data, err := component.MarshalWire()
 		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize component at index %d", i)
+			return nil, eris.Wrapf(err, "failed to serialize component at row %d", i)
 		}
-		componentData[i] = data
+		payloads[i] = data
 	}
-
-	return &cardinalv1.Column{
-		ComponentName: c.compName,
-		Components:    componentData,
-	}, nil
+	return payloads, nil
 }
 
-// fromProto decodes each component with its generated protobuf codec.
-func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
-	if pb == nil {
-		return eris.New("protobuf column is nil")
-	}
-
-	if pb.GetComponentName() != c.compName {
-		return eris.Errorf("component name mismatch: expected %s, got %s", c.compName, pb.GetComponentName())
-	}
-
+// decodeRow deserializes one component payload into an existing row. Each component decodes through
+// its generated UnmarshalWire (proto) — no msgpack (see encodeRows).
+func (c *column[T]) decodeRow(row int, data []byte) error {
 	var zero T
-	components := make([]T, len(pb.GetComponents()))
-	for i, data := range pb.GetComponents() {
-		decoded, err := zero.UnmarshalWire(data)
-		if err != nil {
-			return eris.Wrapf(err, "failed to deserialize component at index %d", i)
-		}
-		typed, ok := decoded.(T)
-		if !ok {
-			return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
-		}
-		components[i] = typed
+	decoded, err := zero.UnmarshalWire(data)
+	if err != nil {
+		return eris.Wrapf(err, "failed to deserialize component %q", c.compName)
 	}
-
-	c.components = components
+	typed, ok := decoded.(T)
+	if !ok {
+		return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
+	}
+	c.components[row] = typed
 	return nil
 }

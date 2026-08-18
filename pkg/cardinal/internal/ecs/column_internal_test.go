@@ -106,7 +106,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 // Serialization smoke test
 // -------------------------------------------------------------------------------------------------
-// We don't extensively test toProto/fromProto because:
+// We don't extensively test encodeRows/decodeRow because:
 // 1. The implementation is a thin wrapper around each component's generated MarshalWire/UnmarshalWire.
 // 2. The loop logic is trivial with no complex branching.
 // 3. Heavy property-based testing would mostly exercise the component codec, not our code.
@@ -119,50 +119,38 @@ func TestColumn_SerializationSmoke(t *testing.T) {
 	const lengthMax = 1000
 
 	col1 := newColumn[testutils.SimpleComponent]()
-	for i := range prng.IntN(lengthMax) {
+	length := prng.IntN(lengthMax)
+	for i := range length {
 		col1.extend()
 		col1.set(i, testutils.SimpleComponent{Value: i})
 	}
 
-	pb, err := col1.toProto()
+	payloads, err := col1.encodeRows()
 	require.NoError(t, err)
+	require.Len(t, payloads, length)
 
 	col2 := newColumn[testutils.SimpleComponent]()
-	err = col2.fromProto(pb)
-	require.NoError(t, err)
+	for i, payload := range payloads {
+		col2.extend()
+		require.NoError(t, col2.decodeRow(i, payload))
+	}
 
-	// Property: deserialize(serialize(x)) == x.
+	// Property: decode(encode(x)) == x.
 	assert.Equal(t, col1, col2) // assert.Equal uses reflect.DeepEqual
 }
 
 // -------------------------------------------------------------------------------------------------
 // Deserialization edge cases
 // -------------------------------------------------------------------------------------------------
-// Examples of some edge cases of fromProto we care about.
-// -------------------------------------------------------------------------------------------------
 
-func TestColumn_FromProto(t *testing.T) {
+func TestColumn_DecodeRow(t *testing.T) {
 	t.Parallel()
 
-	t.Run("rejects nil", func(t *testing.T) {
+	t.Run("rejects garbage payload", func(t *testing.T) {
 		t.Parallel()
 		col := newColumn[testutils.SimpleComponent]()
-		err := col.fromProto(nil)
-		assert.Error(t, err)
-	})
-
-	t.Run("rejects component name mismatch", func(t *testing.T) {
-		t.Parallel()
-
-		colA := newColumn[testutils.ComponentA]()
-		colA.extend()
-		colA.set(0, testutils.ComponentA{X: 1, Y: 2, Z: 3})
-
-		pb, err := colA.toProto()
-		require.NoError(t, err)
-
-		colB := newColumn[testutils.ComponentB]()
-		err = colB.fromProto(pb)
+		col.extend()
+		err := col.decodeRow(0, []byte{0xFF, 0xFE, 0xFD, 0x01, 0x02, 0x03})
 		assert.Error(t, err)
 	})
 }

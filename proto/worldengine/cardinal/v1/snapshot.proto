@@ -19,37 +19,30 @@ message Snapshot {
   uint32 version = 4;
 }
 
-// WorldState represents the ECS world state.
+// WorldState describes the world's contents: which entities exist and which components each one
+// has, addressed by component name. It deliberately carries none of the runtime's storage layout
+// (archetypes, index tables, numeric component IDs), so nothing in the file depends on
+// registration order or creation order.
 message WorldState {
-  // Entity manager state
+  // Entity ID counter: the next never-used ID.
   uint32 next_id = 1;
 
-  repeated uint32 free_ids = 2;
+  // Every alive entity, exactly once, ascending. This is the authoritative entity list: an entity
+  // with no components appears in no column, so without this list it would vanish on restore.
+  repeated uint32 live_entity_ids = 2;
 
-  // Archetypes in the world state
-  repeated Archetype archetypes = 4;
+  // One column per component type present in the world, sorted by name.
+  repeated Column columns = 3;
 }
 
-// Archetype represents a collection of entities with the same component types.
-message Archetype {
-  // Unique identifier for this archetype (corresponds to index in archetypes array)
-  int32 id = 1;
-
-  // Bitmap representing component types in this archetype
-  bytes components_bitmap = 2;
-
-  // List of entity IDs in this archetype
-  repeated uint32 entities = 4;
-
-  // Columns containing component data
-  repeated Column columns = 5;
-}
-
-// Column represents a sparse set data structure for storing component data.
+// Column holds every instance of one component type across the whole world.
 message Column {
   // Name of the component stored in this column
-  string component_name = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
 
-  // Dense array of serialized component wire data.
-  repeated bytes components = 2;
+  // Entities that have this component, ascending.
+  repeated uint32 entity_ids = 2;
+
+  // Serialized component values, one per entity_ids entry, same order.
+  repeated bytes payloads = 3;
 }

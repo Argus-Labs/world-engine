@@ -1,146 +1,240 @@
 package snapshot
 
 import (
+	"context"
+	"encoding/hex"
 	"fmt"
 	"math/rand/v2"
 	"testing"
 	"time"
 
-	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// TestMarshalSnapshotByteStability verifies that repeatedly marshaling the same snapshot produces
-// stable bytes.
+// goldenSnapshotBytes is the wire encoding of goldenSnapshot() at format version 2, which
+// describes the world (entities and their components by name) instead of mirroring the runtime
+// layout. The envelope is a persisted format: these bytes must not change.
+const goldenSnapshotBytes = "082a120b0880e2cfaa0610959aef3a1a4408071204010204061a0e0a064865616c" +
+	"74681201021a012a1a150a08506f736974696f6e120201041a0201021a01031a130a0856656c6f63697479120201" +
+	"041a001a01ff2002"
+
+// goldenSnapshot is a fixed envelope covering every field of Snapshot, WorldState and Column,
+// including the edge cases that are easy to break: an empty payload, a column spanning
+// non-contiguous entities, and a live entity that appears in no column (entity 6 has zero
+// components). Entities 1, 2, 4, 6 are alive of next_id 7, so 0, 3 and 5 are implied free.
+func goldenSnapshot() *cardinalv1.Snapshot {
+	return &cardinalv1.Snapshot{
+		TickHeight: 42,
+		Timestamp:  timestamppb.New(time.Unix(1700000000, 123456789).UTC()),
+		Version:    CurrentVersion,
+		WorldState: &cardinalv1.WorldState{
+			NextId:        7,
+			LiveEntityIds: []uint32{1, 2, 4, 6},
+			Columns: []*cardinalv1.Column{
+				{Name: "Health", EntityIds: []uint32{2}, Payloads: [][]byte{{0x2a}}},
+				{Name: "Position", EntityIds: []uint32{1, 4}, Payloads: [][]byte{{0x01, 0x02}, {0x03}}},
+				{Name: "Velocity", EntityIds: []uint32{1, 4}, Payloads: [][]byte{{}, {0xff}}},
+			},
+		},
+	}
+}
+
+// TestMarshalSnapshotByteStability pins the on-disk snapshot format. Every backend writes exactly
+// what marshalSnapshot produces, so a change here is a change to persisted data. Existing
+// snapshots still carry CurrentVersion, so a layout change that keeps the version constant is
+// accepted by ValidateVersion and mis-read: bump CurrentVersion with the layout.
 func TestMarshalSnapshotByteStability(t *testing.T) {
 	t.Parallel()
-	prng := testutils.NewRand(t)
 
-	const (
-		snapshotCountMax = 10
-		marshalCountMax  = 10
-	)
+	data, err := marshalSnapshot(goldenSnapshot())
+	require.NoError(t, err)
+	assert.Equal(t, goldenSnapshotBytes, hex.EncodeToString(data),
+		"snapshot envelope encoding changed; existing snapshots would be read differently")
+}
 
-	snapshotCount := 2 + prng.IntN(snapshotCountMax-1)
-	for range snapshotCount {
-		snapshot := randomSnapshot(prng)
-		expected, err := marshalSnapshot(snapshot)
-		require.NoError(t, err)
+// TestMarshalSnapshotDetectsEnvelopeChange proves the byte-stability assertion above is load
+// bearing: any envelope field or ordering change moves the bytes.
+func TestMarshalSnapshotDetectsEnvelopeChange(t *testing.T) {
+	t.Parallel()
 
-		marshalCount := 2 + prng.IntN(marshalCountMax-1)
-		for range marshalCount - 1 {
-			actual, err := marshalSnapshot(snapshot)
+	golden, err := marshalSnapshot(goldenSnapshot())
+	require.NoError(t, err)
+
+	// No "version" mutation: marshalSnapshot asserts the version it writes, and the version byte
+	// is already pinned by goldenSnapshotBytes.
+	mutations := map[string]func(*cardinalv1.Snapshot){
+		"tick height": func(s *cardinalv1.Snapshot) { s.TickHeight++ },
+		"timestamp":   func(s *cardinalv1.Snapshot) { s.Timestamp = timestamppb.New(time.Unix(1, 0)) },
+		"column order": func(s *cardinalv1.Snapshot) {
+			cols := s.GetWorldState().GetColumns()
+			cols[0], cols[1] = cols[1], cols[0]
+		},
+		"entity order": func(s *cardinalv1.Snapshot) {
+			ents := s.GetWorldState().GetColumns()[1].GetEntityIds()
+			ents[0], ents[1] = ents[1], ents[0]
+		},
+		"live list": func(s *cardinalv1.Snapshot) {
+			ws := s.GetWorldState()
+			ws.LiveEntityIds = append(ws.GetLiveEntityIds(), 9)
+		},
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			snap := goldenSnapshot()
+			mutate(snap)
+			data, err := marshalSnapshot(snap)
 			require.NoError(t, err)
-
-			// Property: serialize(a) == serialize(a).
-			assert.Equal(t, expected, actual)
-		}
+			assert.NotEqual(t, golden, data, "mutating the %s must change the encoded bytes", name)
+		})
 	}
 }
 
 // TestSnapshotWireRoundTrip covers the marshal/unmarshal pair the backends share.
 func TestSnapshotWireRoundTrip(t *testing.T) {
 	t.Parallel()
-	prng := testutils.NewRand(t)
 
-	const (
-		snapshotCountMax  = 10
-		roundTripCountMax = 10
-	)
+	want := goldenSnapshot()
+	data, err := marshalSnapshot(want)
+	require.NoError(t, err)
 
-	snapshotCount := 2 + prng.IntN(snapshotCountMax-1)
-	for range snapshotCount {
-		expected := randomSnapshot(prng)
+	got, err := unmarshalSnapshot(data)
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(want, got), "snapshot did not survive a wire roundtrip")
 
-		roundTripCount := 2 + prng.IntN(roundTripCountMax-1)
-		for range roundTripCount {
-			data, err := marshalSnapshot(expected)
-			require.NoError(t, err)
+	// Re-encoding the decoded envelope must reproduce the same bytes.
+	again, err := marshalSnapshot(got)
+	require.NoError(t, err)
+	assert.Equal(t, data, again)
+}
 
-			actual, err := unmarshalSnapshot(data)
-			require.NoError(t, err)
+// TestUnmarshalSnapshotValidates guards the one protovalidate rule the schema carries: a column
+// must name its component, otherwise a restore cannot match it back to a registered type.
+func TestUnmarshalSnapshotValidates(t *testing.T) {
+	t.Parallel()
 
-			// Property: deserialize(serialize(x)) == x.
-			assert.True(t, proto.Equal(expected, actual), "snapshot did not survive a wire roundtrip")
-		}
+	snap := goldenSnapshot()
+	snap.GetWorldState().GetColumns()[0].Name = ""
+	data, err := marshalSnapshot(snap)
+	require.NoError(t, err)
+
+	_, err = unmarshalSnapshot(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to validate snapshot")
+}
+
+// TestUnmarshalSnapshotRejectsMalformedBytes: corrupt wire data must error, never decode into a
+// world state.
+func TestUnmarshalSnapshotRejectsMalformedBytes(t *testing.T) {
+	t.Parallel()
+
+	data, err := marshalSnapshot(goldenSnapshot())
+	require.NoError(t, err)
+	data = append(data, 0x80) // unterminated varint
+
+	snap, err := unmarshalSnapshot(data)
+	assert.Nil(t, snap)
+	require.Error(t, err)
+}
+
+// TestValidateVersion pins the acceptance policy: exactly the version this build writes is
+// readable, and every other value — unset, older, newer — is refused instead of mis-read.
+func TestValidateVersion(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, ValidateVersion(CurrentVersion))
+
+	// An older version must fail rather than be decoded into the new layout: version 1 is still
+	// decodable by the current schema, so this check is all that stands between it and a silently
+	// wrong world. Newer and unset are refused for the same reason.
+	for name, version := range map[string]uint32{
+		"unset":     0,
+		"older":     CurrentVersion - 1,
+		"newer":     CurrentVersion + 1,
+		"far newer": 99,
+	} {
+		t.Run(name+" is rejected", func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateVersion(version)
+			require.Error(t, err)
+			assert.True(t, eris.Is(err, ErrUnsupportedVersion), "must be identifiable as a version error")
+		})
 	}
 }
 
-func TestUnmarshalSnapshotNegative(t *testing.T) {
+// TestUnmarshalSnapshotChecksVersion covers the decode boundary both real backends share: bytes
+// from a build with a newer format must be refused, not decoded into a world state.
+func TestUnmarshalSnapshotChecksVersion(t *testing.T) {
 	t.Parallel()
 
-	t.Run("rejects malformed wire data", func(t *testing.T) {
+	t.Run("current version loads", func(t *testing.T) {
 		t.Parallel()
-		prng := testutils.NewRand(t)
 
-		const snapshotCountMax = 10
+		data, err := marshalSnapshot(goldenSnapshot())
+		require.NoError(t, err)
 
-		snapshotCount := 2 + prng.IntN(snapshotCountMax-1)
-		for range snapshotCount {
-			data, err := marshalSnapshot(randomSnapshot(prng))
+		got, err := unmarshalSnapshot(data)
+		require.NoError(t, err)
+		assert.Equal(t, CurrentVersion, got.GetVersion())
+	})
+
+	for name, version := range map[string]uint32{"newer": CurrentVersion + 1, "unset": 0} {
+		t.Run(name+" version is rejected", func(t *testing.T) {
+			t.Parallel()
+
+			// Raw proto.Marshal, not marshalSnapshot: the writer path asserts the version it
+			// writes, and this test is about the decode boundary refusing foreign bytes.
+			snap := goldenSnapshot()
+			snap.Version = version
+			data, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
 			require.NoError(t, err)
 
-			// Append an unterminated, randomly sized varint to corrupt the protobuf wire data.
-			for range 1 + prng.IntN(10) {
-				data = append(data, 0x80)
-			}
-
-			actual, err := unmarshalSnapshot(data)
-			assert.Nil(t, actual)
-			assert.Error(t, err)
-		}
-	})
-
-	t.Run("rejects empty component name", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-
-		snapshot := randomSnapshot(prng)
-		data, err := marshalSnapshot(snapshot)
-		require.NoError(t, err)
-
-		invalidWorldState, err := proto.Marshal(&cardinalv1.WorldState{
-			Archetypes: []*cardinalv1.Archetype{{
-				Columns: []*cardinalv1.Column{{ComponentName: ""}},
-			}},
+			got, err := unmarshalSnapshot(data)
+			assert.Nil(t, got, "a snapshot this build cannot read must not be handed back")
+			require.Error(t, err)
+			assert.True(t, eris.Is(err, ErrUnsupportedVersion))
 		})
-		require.NoError(t, err)
-		data = protowire.AppendTag(data, 3, protowire.BytesType)
-		data = protowire.AppendBytes(data, invalidWorldState)
-
-		actual, err := unmarshalSnapshot(data)
-		assert.Nil(t, actual)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to validate snapshot")
-	})
-
-	t.Run("rejects wrong version", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-
-		version := prng.Uint32()
-		for version == CurrentVersion {
-			version = prng.Uint32()
-		}
-		snapshot := randomSnapshot(prng)
-		data, err := marshalSnapshot(snapshot)
-		require.NoError(t, err)
-		data = protowire.AppendTag(data, 4, protowire.VarintType)
-		data = protowire.AppendVarint(data, uint64(version))
-
-		actual, err := unmarshalSnapshot(data)
-		assert.Nil(t, actual)
-		require.Error(t, err)
-		assert.True(t, eris.Is(err, ErrUnsupportedVersion))
-	})
+	}
 }
 
+// TestNopStorage documents the default storage type: Store does no work and Load always reports
+// that no snapshot exists.
+func TestNopStorage(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	store := NewNopStorage()
+	require.NoError(t, store.Store(ctx, goldenSnapshot()))
+
+	got, err := store.Load(ctx)
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.True(t, eris.Is(err, ErrSnapshotNotFound))
+}
+
+// TestNopStorageIsFree pins the reason Store takes a proto instead of pre-marshaled bytes: with
+// the default storage type a snapshot must cost nothing.
+func TestNopStorageIsFree(t *testing.T) {
+	ctx := context.Background()
+	store := NewNopStorage()
+	snap := goldenSnapshot()
+
+	allocs := testing.AllocsPerRun(100, func() {
+		if err := store.Store(ctx, snap); err != nil {
+			t.Fatal(err)
+		}
+	})
+	assert.Zero(t, allocs, "NopStorage.Store must not allocate")
+}
+
+// randomSnapshot builds a valid flat-format snapshot with randomized contents, for tests that need
+// distinct snapshots (the writer's ordering tests) rather than pinned bytes.
 func randomSnapshot(prng *rand.Rand) *cardinalv1.Snapshot {
 	randomBytes := func(length int) []byte {
 		data := make([]byte, length)
@@ -150,35 +244,24 @@ func randomSnapshot(prng *rand.Rand) *cardinalv1.Snapshot {
 		return data
 	}
 
-	worldState := &cardinalv1.WorldState{
-		NextId:     prng.Uint32(),
-		FreeIds:    make([]uint32, prng.IntN(32)),
-		Archetypes: make([]*cardinalv1.Archetype, prng.IntN(16)),
+	live := make([]uint32, prng.IntN(32))
+	for i := range live {
+		live[i] = prng.Uint32()
 	}
-	for i := range worldState.GetFreeIds() {
-		worldState.FreeIds[i] = prng.Uint32()
-	}
-	for i := range worldState.GetArchetypes() {
-		archetype := &cardinalv1.Archetype{
-			Id:               prng.Int32(),
-			ComponentsBitmap: randomBytes(prng.IntN(32)),
-			Entities:         make([]uint32, prng.IntN(32)),
-			Columns:          make([]*cardinalv1.Column, prng.IntN(16)),
+
+	columns := make([]*cardinalv1.Column, prng.IntN(8))
+	for i := range columns {
+		ids := make([]uint32, prng.IntN(16))
+		payloads := make([][]byte, len(ids))
+		for j := range ids {
+			ids[j] = prng.Uint32()
+			payloads[j] = randomBytes(prng.IntN(64))
 		}
-		for j := range archetype.GetEntities() {
-			archetype.Entities[j] = prng.Uint32()
+		columns[i] = &cardinalv1.Column{
+			Name:      fmt.Sprintf("component_%d", i),
+			EntityIds: ids,
+			Payloads:  payloads,
 		}
-		for j := range archetype.GetColumns() {
-			components := make([][]byte, prng.IntN(32))
-			for k := range components {
-				components[k] = randomBytes(prng.IntN(256))
-			}
-			archetype.Columns[j] = &cardinalv1.Column{
-				ComponentName: fmt.Sprintf("component-%d", prng.Uint64()),
-				Components:    components,
-			}
-		}
-		worldState.Archetypes[i] = archetype
 	}
 
 	return &cardinalv1.Snapshot{
@@ -187,7 +270,11 @@ func randomSnapshot(prng *rand.Rand) *cardinalv1.Snapshot {
 			prng.Int64N(4_102_444_800),
 			prng.Int64N(int64(time.Second)),
 		).UTC()),
-		WorldState: worldState,
-		Version:    CurrentVersion,
+		Version: CurrentVersion,
+		WorldState: &cardinalv1.WorldState{
+			NextId:        prng.Uint32(),
+			LiveEntityIds: live,
+			Columns:       columns,
+		},
 	}
 }

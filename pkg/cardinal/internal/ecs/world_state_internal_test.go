@@ -11,6 +11,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -514,21 +515,59 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	err = ws2.fromProto(pb)
 	require.NoError(t, err)
 
-	// Property: deserialize(serialize(x)) == x.
+	// Property: deserialize(serialize(x)) describes the same world as x.
 	assertWorldStateEqual(t, ws1, ws2)
+
+	// Property: re-serializing the restored world reproduces the exact same message. This is the
+	// determinism guarantee the format's sorting rules exist for.
+	pb2, err := ws2.toProto()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(pb, pb2), "snapshot -> restore -> snapshot must be byte-stable")
 }
 
-// assertWorldStateEqual checks if two worldStates are structurally equal. This function is
-// extracted so it can be reused in serialization tests "above" this layer.
+// assertWorldStateEqual checks that two worldStates describe the same world: the same entities,
+// each with the same components and values.
 func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 	t.Helper()
 
 	assert.Equal(t, ws1.nextID, ws2.nextID)
-	assert.Equal(t, ws1.free, ws2.free)
-	assertSparseSetEqual(t, ws1.entityArch, ws2.entityArch)
 
-	assert.Len(t, ws2.archetypes, len(ws1.archetypes))
-	for i := range ws1.archetypes {
-		assertArchetypeEqual(t, ws1.archetypes[i], ws2.archetypes[i])
+	// The free list is order-insensitive: a restore rebuilds it ascending, a live world grows it
+	// in destruction order. Both describe the same set of reusable IDs.
+	free1 := slices.Clone(ws1.free)
+	free2 := slices.Clone(ws2.free)
+	slices.Sort(free1)
+	slices.Sort(free2)
+	assert.Equal(t, free1, free2)
+
+	assert.ElementsMatch(t, liveEntities(ws1), liveEntities(ws2))
+	for _, eid := range liveEntities(ws1) {
+		assert.Equal(t, componentsOf(t, ws1, eid), componentsOf(t, ws2, eid),
+			"entity %d components mismatch", eid)
 	}
+}
+
+// liveEntities returns every alive entity ID.
+func liveEntities(ws *worldState) []EntityID {
+	live := make([]EntityID, 0)
+	for _, arch := range ws.archetypes {
+		live = append(live, arch.entities...)
+	}
+	return live
+}
+
+// componentsOf returns an entity's components by name.
+func componentsOf(t *testing.T, ws *worldState, eid EntityID) map[string]Component {
+	t.Helper()
+	aid, ok := ws.entityArch.get(eid)
+	require.True(t, ok, "entity %d has no archetype", eid)
+	arch := ws.archetypes[aid]
+	row, ok := arch.rows.get(eid)
+	require.True(t, ok, "entity %d not in its archetype", eid)
+
+	comps := make(map[string]Component, len(arch.columns))
+	for _, col := range arch.columns {
+		comps[col.name()] = col.getAbstract(row)
+	}
+	return comps
 }

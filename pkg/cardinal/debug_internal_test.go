@@ -134,7 +134,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		require.NoError(t, err)
 		snap := resp.Msg.GetSnapshot()
 		assert.Equal(t, completed, snap.GetTickHeight())
-		assert.NotEmpty(t, snap.GetWorldState().GetArchetypes())
+		assert.NotEmpty(t, snap.GetWorldState().GetLiveEntityIds())
 
 		after, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)

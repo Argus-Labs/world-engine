@@ -562,3 +562,4 @@ export const DebugService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
+
