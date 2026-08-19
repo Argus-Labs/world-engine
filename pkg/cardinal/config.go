@@ -160,8 +160,8 @@ type worldOptionsEnv struct {
 	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").
 	SnapshotStorageTypeStr string `env:"CARDINAL_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
-	// Number of ticks between snapshots. See WorldOptions.SnapshotRate for durability limits and
-	// information about slow storage.
+	// Number of ticks between snapshots. See docs/cardinal/snapshots.mdx for the durability trade
+	// and what happens when storage is slower than the snapshot rate.
 	SnapshotRate uint32 `env:"CARDINAL_SNAPSHOT_RATE"`
 
 	// Enables the debug server.

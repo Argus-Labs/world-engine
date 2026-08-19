@@ -148,6 +148,9 @@ func (w *World) StartGame() {
 	w.snapshotWriter.Stop(context.Background())
 	w.snapshotWriter = snapshot.NewAsyncWriter(w.snapshotStorage, &w.tel)
 
+	defer w.shutdown()
+	defer w.tel.RecoverAndFlush(true)
+
 	// Start pprof before the service to support profiles during startup failures.
 	w.pprof.Init(addressPProf)
 
@@ -155,8 +158,6 @@ func (w *World) StartGame() {
 	if err := w.service.init(addressService); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
-	defer w.shutdown()
-	defer w.tel.RecoverAndFlush(true)
 
 	w.tel.CaptureEvent(ctx, "Start Game", nil)
 
