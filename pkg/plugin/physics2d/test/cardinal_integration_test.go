@@ -4,7 +4,6 @@
 package physics2d_test
 
 import (
-	"context"
 	"encoding/json"
 	"math"
 	"sync/atomic"
@@ -777,11 +776,10 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 
 	initCardinalECS(world)
 
-	ctx := context.Background()
 	const lastTick = tickCrash2Verify + 5
 	// Deterministic timestamps; loop count covers all scripted phases including post–crash 2 buffer.
 	for i := range lastTick + 1 {
-		world.Tick(ctx, time.Unix(int64(i), 0))
+		world.Tick(time.Unix(int64(i), 0))
 		if t.Failed() {
 			t.Fatalf("failed at cardinal tick loop i=%d", i)
 		}
