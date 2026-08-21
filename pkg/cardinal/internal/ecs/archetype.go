@@ -179,7 +179,6 @@ func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
 		ComponentsBitmap: componentsBitmap,
 		Entities:         entities,
 		Columns:          columns,
-		Rows:             a.rows.toInt64Slice(),
 	}, nil
 }
 
@@ -201,11 +200,16 @@ func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) er
 	}
 	a.components = bitmap.FromBytes(bitmapBytes)
 
-	a.rows.fromInt64Slice(pb.GetRows())
-
 	a.entities = make([]EntityID, len(pb.GetEntities()))
 	for i, eid := range pb.GetEntities() {
 		a.entities[i] = EntityID(eid)
+	}
+
+	// rows is the inverse of entities (rows[eid] = row where entities[row] = eid), so it is not
+	// persisted: rebuild it from the entity list.
+	a.rows = newSparseSet()
+	for row, eid := range a.entities {
+		a.rows.set(eid, row)
 	}
 
 	a.columns = make([]abstractColumn, len(pb.GetColumns()))

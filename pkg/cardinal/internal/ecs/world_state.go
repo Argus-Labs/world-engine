@@ -293,7 +293,6 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 	return &cardinalv1.WorldState{
 		NextId:     uint32(ws.nextID),
 		FreeIds:    freeIDs,
-		EntityArch: ws.entityArch.toInt64Slice(),
 		Archetypes: pbArchetypes,
 	}, nil
 }
@@ -307,13 +306,20 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		ws.free[i] = EntityID(freeID)
 	}
 
-	ws.entityArch.fromInt64Slice(pb.GetEntityArch())
-
 	ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
 	for i, pbArch := range pb.GetArchetypes() {
 		ws.archetypes[i] = &archetype{}
 		if err := ws.archetypes[i].fromProto(pbArch, &ws.components); err != nil {
 			return eris.Wrapf(err, "failed to deserialize archetype %d", i)
+		}
+	}
+
+	// entityArch is derived data — which archetype's entity list an entity appears in — so it is
+	// not persisted: rebuild it now that every archetype is populated.
+	ws.entityArch = newSparseSet()
+	for _, arch := range ws.archetypes {
+		for _, eid := range arch.entities {
+			ws.entityArch.set(eid, arch.id)
 		}
 	}
 	return nil

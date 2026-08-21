@@ -70,20 +70,3 @@ func (s *sparseSet) clear() {
 		(*s)[i] = sparseTombstone
 	}
 }
-
-// toInt64Slice converts the sparseSet to a []int64 for protobuf serialization.
-func (s *sparseSet) toInt64Slice() []int64 {
-	result := make([]int64, len(*s))
-	for i, value := range *s {
-		result[i] = int64(value)
-	}
-	return result
-}
-
-// fromInt64Slice populates the sparseSet from a []int64.
-func (s *sparseSet) fromInt64Slice(data []int64) {
-	*s = make(sparseSet, len(data))
-	for i, value := range data {
-		(*s)[i] = int(value)
-	}
-}

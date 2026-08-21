@@ -31,26 +31,24 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
             "ZXN0YW1wEkwKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
             "ZGluYWwudjEuV29ybGRTdGF0ZUIGukgDyAEBUgp3b3JsZFN0YXRlEhgKB3Zl",
-            "cnNpb24YBCABKA1SB3ZlcnNpb24ipQEKCldvcmxkU3RhdGUSFwoHbmV4dF9p",
-            "ZBgBIAEoDVIGbmV4dElkEhkKCGZyZWVfaWRzGAIgAygNUgdmcmVlSWRzEh8K",
-            "C2VudGl0eV9hcmNoGAMgAygDUgplbnRpdHlBcmNoEkIKCmFyY2hldHlwZXMY",
-            "BCADKAsyIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5BcmNoZXR5cGVSCmFy",
-            "Y2hldHlwZXMiswEKCUFyY2hldHlwZRIOCgJpZBgBIAEoBVICaWQSKwoRY29t",
-            "cG9uZW50c19iaXRtYXAYAiABKAxSEGNvbXBvbmVudHNCaXRtYXASEgoEcm93",
-            "cxgDIAMoA1IEcm93cxIaCghlbnRpdGllcxgEIAMoDVIIZW50aXRpZXMSOQoH",
-            "Y29sdW1ucxgFIAMoCzIfLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNvbHVt",
-            "blIHY29sdW1ucyJYCgZDb2x1bW4SLgoOY29tcG9uZW50X25hbWUYASABKAlC",
-            "B7pIBHICEAFSDWNvbXBvbmVudE5hbWUSHgoKY29tcG9uZW50cxgCIAMoDFIK",
-            "Y29tcG9uZW50c0J0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5n",
-            "aW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJk",
-            "aW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3Rv",
-            "Mw=="));
+            "cnNpb24YBCABKA1SB3ZlcnNpb24ihAEKCldvcmxkU3RhdGUSFwoHbmV4dF9p",
+            "ZBgBIAEoDVIGbmV4dElkEhkKCGZyZWVfaWRzGAIgAygNUgdmcmVlSWRzEkIK",
+            "CmFyY2hldHlwZXMYBCADKAsyIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5B",
+            "cmNoZXR5cGVSCmFyY2hldHlwZXMinwEKCUFyY2hldHlwZRIOCgJpZBgBIAEo",
+            "BVICaWQSKwoRY29tcG9uZW50c19iaXRtYXAYAiABKAxSEGNvbXBvbmVudHNC",
+            "aXRtYXASGgoIZW50aXRpZXMYBCADKA1SCGVudGl0aWVzEjkKB2NvbHVtbnMY",
+            "BSADKAsyHy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Db2x1bW5SB2NvbHVt",
+            "bnMiWAoGQ29sdW1uEi4KDmNvbXBvbmVudF9uYW1lGAEgASgJQge6SARyAhAB",
+            "Ug1jb21wb25lbnROYW1lEh4KCmNvbXBvbmVudHMYAiADKAxSCmNvbXBvbmVu",
+            "dHNCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90",
+            "by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoC",
+            "HVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Rows", "Entities", "Columns" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "Archetypes" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Entities", "Columns" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Column), global::WorldEngine.Proto.Cardinal.V1.Column.Parser, new[]{ "ComponentName", "Components" }, null, null, null, null)
           }));
     }
@@ -428,7 +426,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public WorldState(WorldState other) : this() {
       nextId_ = other.nextId_;
       freeIds_ = other.freeIds_.Clone();
-      entityArch_ = other.entityArch_.Clone();
       archetypes_ = other.archetypes_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -465,20 +462,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       get { return freeIds_; }
     }
 
-    /// <summary>Field number for the "entity_arch" field.</summary>
-    public const int EntityArchFieldNumber = 3;
-    private static readonly pb::FieldCodec<long> _repeated_entityArch_codec
-        = pb::FieldCodec.ForInt64(26);
-    private readonly pbc::RepeatedField<long> entityArch_ = new pbc::RepeatedField<long>();
-    /// <summary>
-    /// Entity to archetype mapping as sparse set
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<long> EntityArch {
-      get { return entityArch_; }
-    }
-
     /// <summary>Field number for the "archetypes" field.</summary>
     public const int ArchetypesFieldNumber = 4;
     private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.Archetype> _repeated_archetypes_codec
@@ -510,7 +493,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (NextId != other.NextId) return false;
       if(!freeIds_.Equals(other.freeIds_)) return false;
-      if(!entityArch_.Equals(other.entityArch_)) return false;
       if(!archetypes_.Equals(other.archetypes_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -521,7 +503,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       int hash = 1;
       if (NextId != 0) hash ^= NextId.GetHashCode();
       hash ^= freeIds_.GetHashCode();
-      hash ^= entityArch_.GetHashCode();
       hash ^= archetypes_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -546,7 +527,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteUInt32(NextId);
       }
       freeIds_.WriteTo(output, _repeated_freeIds_codec);
-      entityArch_.WriteTo(output, _repeated_entityArch_codec);
       archetypes_.WriteTo(output, _repeated_archetypes_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -563,7 +543,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteUInt32(NextId);
       }
       freeIds_.WriteTo(ref output, _repeated_freeIds_codec);
-      entityArch_.WriteTo(ref output, _repeated_entityArch_codec);
       archetypes_.WriteTo(ref output, _repeated_archetypes_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -579,7 +558,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         size += 1 + pb::CodedOutputStream.ComputeUInt32Size(NextId);
       }
       size += freeIds_.CalculateSize(_repeated_freeIds_codec);
-      size += entityArch_.CalculateSize(_repeated_entityArch_codec);
       size += archetypes_.CalculateSize(_repeated_archetypes_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -597,7 +575,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         NextId = other.NextId;
       }
       freeIds_.Add(other.freeIds_);
-      entityArch_.Add(other.entityArch_);
       archetypes_.Add(other.archetypes_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -625,11 +602,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           case 18:
           case 16: {
             freeIds_.AddEntriesFrom(input, _repeated_freeIds_codec);
-            break;
-          }
-          case 26:
-          case 24: {
-            entityArch_.AddEntriesFrom(input, _repeated_entityArch_codec);
             break;
           }
           case 34: {
@@ -662,11 +634,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           case 18:
           case 16: {
             freeIds_.AddEntriesFrom(ref input, _repeated_freeIds_codec);
-            break;
-          }
-          case 26:
-          case 24: {
-            entityArch_.AddEntriesFrom(ref input, _repeated_entityArch_codec);
             break;
           }
           case 34: {
@@ -720,7 +687,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public Archetype(Archetype other) : this() {
       id_ = other.id_;
       componentsBitmap_ = other.componentsBitmap_;
-      rows_ = other.rows_.Clone();
       entities_ = other.entities_.Clone();
       columns_ = other.columns_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -760,20 +726,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       set {
         componentsBitmap_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
       }
-    }
-
-    /// <summary>Field number for the "rows" field.</summary>
-    public const int RowsFieldNumber = 3;
-    private static readonly pb::FieldCodec<long> _repeated_rows_codec
-        = pb::FieldCodec.ForInt64(26);
-    private readonly pbc::RepeatedField<long> rows_ = new pbc::RepeatedField<long>();
-    /// <summary>
-    /// Entity to row mapping as sparse set
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<long> Rows {
-      get { return rows_; }
     }
 
     /// <summary>Field number for the "entities" field.</summary>
@@ -821,7 +773,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       if (Id != other.Id) return false;
       if (ComponentsBitmap != other.ComponentsBitmap) return false;
-      if(!rows_.Equals(other.rows_)) return false;
       if(!entities_.Equals(other.entities_)) return false;
       if(!columns_.Equals(other.columns_)) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -833,7 +784,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       int hash = 1;
       if (Id != 0) hash ^= Id.GetHashCode();
       if (ComponentsBitmap.Length != 0) hash ^= ComponentsBitmap.GetHashCode();
-      hash ^= rows_.GetHashCode();
       hash ^= entities_.GetHashCode();
       hash ^= columns_.GetHashCode();
       if (_unknownFields != null) {
@@ -862,7 +812,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteBytes(ComponentsBitmap);
       }
-      rows_.WriteTo(output, _repeated_rows_codec);
       entities_.WriteTo(output, _repeated_entities_codec);
       columns_.WriteTo(output, _repeated_columns_codec);
       if (_unknownFields != null) {
@@ -883,7 +832,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(18);
         output.WriteBytes(ComponentsBitmap);
       }
-      rows_.WriteTo(ref output, _repeated_rows_codec);
       entities_.WriteTo(ref output, _repeated_entities_codec);
       columns_.WriteTo(ref output, _repeated_columns_codec);
       if (_unknownFields != null) {
@@ -902,7 +850,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (ComponentsBitmap.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeBytesSize(ComponentsBitmap);
       }
-      size += rows_.CalculateSize(_repeated_rows_codec);
       size += entities_.CalculateSize(_repeated_entities_codec);
       size += columns_.CalculateSize(_repeated_columns_codec);
       if (_unknownFields != null) {
@@ -923,7 +870,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (other.ComponentsBitmap.Length != 0) {
         ComponentsBitmap = other.ComponentsBitmap;
       }
-      rows_.Add(other.rows_);
       entities_.Add(other.entities_);
       columns_.Add(other.columns_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
@@ -951,11 +897,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           }
           case 18: {
             ComponentsBitmap = input.ReadBytes();
-            break;
-          }
-          case 26:
-          case 24: {
-            rows_.AddEntriesFrom(input, _repeated_rows_codec);
             break;
           }
           case 34:
@@ -992,11 +933,6 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           }
           case 18: {
             ComponentsBitmap = input.ReadBytes();
-            break;
-          }
-          case 26:
-          case 24: {
-            rows_.AddEntriesFrom(ref input, _repeated_rows_codec);
             break;
           }
           case 34:
