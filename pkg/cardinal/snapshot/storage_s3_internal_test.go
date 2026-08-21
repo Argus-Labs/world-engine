@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -71,9 +72,15 @@ func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 func TestS3StorageStoreOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+	prng := testutils.NewRand(t)
 
 	store, fake := newFakeS3Storage(t)
-	snap := goldenSnapshot()
+	snap := randomSnapshot(prng)
+	snap.WorldState.Columns = append(snap.WorldState.GetColumns(), &cardinalv1.Column{
+		Name:      "ownership-probe",
+		EntityIds: []uint32{prng.Uint32()},
+		Payloads:  [][]byte{{byte(prng.Uint32())}},
+	})
 
 	before, err := marshalSnapshot(snap)
 	require.NoError(t, err)
@@ -90,7 +97,8 @@ func TestS3StorageStoreOwnership(t *testing.T) {
 
 	// A later change to the snapshot must not change the stored bytes.
 	snap.GetWorldState().NextId ^= 1
-	snap.GetWorldState().GetColumns()[0].Payloads[0] = []byte{0xde, 0xad}
+	probe := snap.GetWorldState().GetColumns()[len(snap.GetWorldState().GetColumns())-1]
+	probe.Payloads[0][0] ^= 1
 	assert.Equal(t, before, fake.puts[0], "S3Storage kept a reference to the caller's graph")
 
 	// A second Store must write the changed snapshot.
@@ -103,9 +111,10 @@ func TestS3StorageStoreOwnership(t *testing.T) {
 func TestS3StorageLoadOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
+	prng := testutils.NewRand(t)
 
 	store, fake := newFakeS3Storage(t)
-	expected := goldenSnapshot()
+	expected := randomSnapshot(prng)
 	stored, err := marshalSnapshot(expected)
 	require.NoError(t, err)
 	fake.get = stored
