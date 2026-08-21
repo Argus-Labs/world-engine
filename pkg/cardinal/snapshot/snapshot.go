@@ -15,7 +15,7 @@ import (
 // CurrentVersion is the snapshot format this build writes and the only one it reads. Bump it
 // whenever the envelope or the world state inside it stops being readable by the previous layout,
 // and see ValidateVersion for what a bump obliges you to write first.
-const CurrentVersion uint32 = 2
+const CurrentVersion uint32 = 1
 
 var (
 	ErrSnapshotNotFound = errors.New("snapshot not found")
