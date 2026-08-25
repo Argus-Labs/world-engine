@@ -70,7 +70,7 @@ func (w *World) Schedules() []ScheduleInfo {
 				Name: sys.name,
 			}
 		}
-		schedules[hook] = ScheduleInfo{Hook: SystemHook(hook), Systems: systems} //nolint: gosec // it's ok
+		schedules[hook] = ScheduleInfo{Hook: SystemHook(hook), Systems: systems}
 	}
 	return schedules
 }
@@ -86,7 +86,7 @@ func (w *World) LiveEntityIDs() []EntityID {
 		if aid == sparseTombstone {
 			continue
 		}
-		ids = append(ids, EntityID(i)) //nolint:gosec // entityArch indices are entity IDs
+		ids = append(ids, EntityID(i))
 	}
 	return ids
 }
@@ -195,7 +195,7 @@ func CheckWorld(t *testing.T, w *World) {
 		if val == sparseTombstone {
 			continue
 		}
-		eid := EntityID(i) //nolint:gosec // sparset max length is entity id max
+		eid := EntityID(i)
 		_, exists := liveEntities[eid]
 		require.True(t, exists,
 			"entityArch has entity %d -> archetype %d but entity not in any archetype", eid, val)
