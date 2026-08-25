@@ -1,7 +1,6 @@
 package physics2d_test
 
 import (
-	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -52,9 +51,8 @@ func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ColliderShap
 
 func tickN(t *testing.T, w *cardinal.World, n int) {
 	t.Helper()
-	ctx := context.Background()
 	for i := range n {
-		w.Tick(ctx, time.Unix(int64(i), 0))
+		w.Tick(time.Unix(int64(i), 0))
 		if t.Failed() {
 			t.Fatalf("failed at tick %d", i)
 		}

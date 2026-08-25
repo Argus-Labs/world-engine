@@ -80,7 +80,7 @@ func initCardinalECS(t *testing.T, w *cardinal.World) {
 
 func tickOnce(t *testing.T, w *cardinal.World) {
 	t.Helper()
-	w.Tick(context.Background(), time.Unix(0, 0))
+	w.Tick(time.Unix(0, 0))
 }
 
 func sha256hex(b []byte) string {

@@ -1,7 +1,6 @@
 package physics2d_test
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"testing"
@@ -43,9 +42,8 @@ func benchWorld(b *testing.B, gravity physics.Vec2) *cardinal.World {
 
 // benchTickN ticks the world n times without test failure checks.
 func benchTickN(w *cardinal.World, n int) {
-	ctx := context.Background()
 	for i := range n {
-		w.Tick(ctx, time.Unix(int64(i), 0))
+		w.Tick(time.Unix(int64(i), 0))
 	}
 }
 
@@ -109,9 +107,8 @@ func BenchmarkStep(b *testing.B) {
 			benchTickN(w, 10)
 
 			b.ResetTimer()
-			ctx := context.Background()
 			for i := range b.N {
-				w.Tick(ctx, time.Unix(int64(100+i), 0))
+				w.Tick(time.Unix(int64(100+i), 0))
 			}
 		})
 	}

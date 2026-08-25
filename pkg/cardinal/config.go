@@ -11,31 +11,30 @@ import (
 const MinEpochFrequency = 10
 
 type WorldOptions struct {
-	Region              string               // Region the shard is deployed to
-	Organization        string               // The organization that owns this world
-	Project             string               // Name of the project within the organization
-	ShardID             string               // Unique ID for of world's instance
-	TickRate            float64              // Number of ticks per second
+	Region              string               // Region that contains the shard
+	Organization        string               // Organization that owns the world
+	Project             string               // Project name within the organization
+	ShardID             string               // Unique ID of the world instance
+	TickRate            float64              // Number of ticks each second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
-	SnapshotRate        uint32               // Number of ticks per snapshot
-	Debug               *bool                // Enable debug server
-	Pprof               *bool                // Enable pprof server
-	NATSConfig          *micro.NATSConfig    // Optional NATS config override (nil = use env/defaults)
-	AuthMode            AuthMode             // Auth mode for the client-facing ConnectRPC service
-	ArgusAuthURL        string               // URL of the Argus Auth service when AuthMode is ARGUS
+	SnapshotRate        uint32               // Number of ticks between snapshots
+	Debug               *bool                // Enables the debug server
+	Pprof               *bool                // Enables the pprof server
+	NATSConfig          *micro.NATSConfig    // Optional NATS configuration; nil uses environment values or defaults
+	AuthMode            AuthMode             // Authentication mode for the client ConnectRPC service
+	ArgusAuthURL        string               // Argus Auth service URL; required when AuthMode is ARGUS
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
 func newDefaultWorldOptions() WorldOptions {
-	// Initialize optional fields with defaults and initialize required fields with invalid values to
-	// force callers to provide them explicitly.
+	// Set defaults for optional fields. Set invalid values for fields that callers must provide.
 	return WorldOptions{
 		Region:              "",
 		Organization:        "",
 		Project:             "",
 		ShardID:             "",
 		TickRate:            0,
-		SnapshotStorageType: snapshot.StorageTypeNop, // Default to nop snapshot
+		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        0,
 		Debug:               nil,
 		Pprof:               nil,
@@ -44,7 +43,7 @@ func newDefaultWorldOptions() WorldOptions {
 	}
 }
 
-// apply merges the given options into the current options, overriding non-zero values.
+// apply replaces each option that has a nonzero value in newOpt.
 func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.Region != "" {
 		opt.Region = newOpt.Region
@@ -84,7 +83,7 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 }
 
-// validate checks that all required options are set and valid.
+// validate checks that all required options have valid values.
 func (opt *WorldOptions) validate() error {
 	if opt.Region == "" {
 		return eris.New("region cannot be empty")
@@ -143,41 +142,42 @@ func (opt *WorldOptions) getSentryTags() map[string]string {
 // World options environment variables
 // -------------------------------------------------------------------------------------------------
 
-// TODO: update envs.
-// worldOptionsEnv are WorldOption values set through env variables.
+// TODO: Update the environment variables.
+// worldOptionsEnv contains WorldOptions values from environment variables.
 type worldOptionsEnv struct {
-	// Region the shard is deployed to.
+	// Region that contains the shard.
 	Region string `env:"CARDINAL_REGION"`
 
-	// The organization that owns this world.
+	// Organization that owns the world.
 	Organization string `env:"CARDINAL_ORG"`
 
-	// Name of the project within the organization.
+	// Project name within the organization.
 	Project string `env:"CARDINAL_PROJECT"`
 
-	// Unique ID of this world's instance.
+	// Unique ID of the world instance.
 	ShardID string `env:"CARDINAL_SHARD_ID"`
 
 	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").
 	SnapshotStorageTypeStr string `env:"CARDINAL_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`
 
-	// Number of ticks per snapshot.
+	// Number of ticks between snapshots. See docs/cardinal/snapshots.mdx for the durability trade
+	// and what happens when storage is slower than the snapshot rate.
 	SnapshotRate uint32 `env:"CARDINAL_SNAPSHOT_RATE"`
 
-	// Enable debug server.
+	// Enables the debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
 
-	// Enable pprof server.
+	// Enables the pprof server.
 	Pprof bool `env:"CARDINAL_PPROF" envDefault:"false"`
 
-	// Auth mode for the client-facing ConnectRPC service (ARGUS or DEV).
+	// Authentication mode for the client ConnectRPC service: ARGUS or DEV.
 	AuthModeStr string `env:"CARDINAL_AUTH_MODE" envDefault:"DEV"`
 
-	// URL of the Argus Auth service when AuthMode is ARGUS.
+	// Argus Auth service URL. This value is required when AuthMode is ARGUS.
 	ArgusAuthURL string `env:"CARDINAL_ARGUS_AUTH_URL"`
 }
 
-// loadWorldOptionsEnv loads the world options from environment variables.
+// loadWorldOptionsEnv reads and validates world options from environment variables.
 func loadWorldOptionsEnv() (worldOptionsEnv, error) {
 	cfg := worldOptionsEnv{}
 
@@ -192,7 +192,7 @@ func loadWorldOptionsEnv() (worldOptionsEnv, error) {
 	return cfg, nil
 }
 
-// validate performs validation on the loaded configuration.
+// validate checks the environment configuration.
 func (cfg *worldOptionsEnv) validate() error {
 	if _, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr); err != nil {
 		return err
@@ -207,7 +207,7 @@ func (cfg *worldOptionsEnv) validate() error {
 	return nil
 }
 
-// toOptions converts the worldOptionsEnv to WorldOptions.
+// toOptions converts the environment configuration to WorldOptions.
 func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 	snapshotStorageType, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr)
 	assert.That(err == nil, "config not validated")
