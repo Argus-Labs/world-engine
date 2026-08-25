@@ -125,3 +125,38 @@ func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
 	}
 	return false
 }
+
+// -------------------------------------------------------------------------------------------------
+// Fixed-array shape metadata
+// -------------------------------------------------------------------------------------------------
+
+type arrayShapes struct {
+	Flat   [8]int32    // one dimension: the flat field is already unambiguous
+	Grid   [4][8]int32 // two: 32 elements could be 4x8 or 8x4
+	Cube   [2][3][4]int32
+	Scalar int32
+	Slice  []int32
+	hidden [2][2]int32 //nolint:unused // unexported fields are never serialized
+}
+
+func (arrayShapes) Name() string                      { return "array_shapes" }
+func (arrayShapes) MarshalWire() ([]byte, error)      { return nil, nil }
+func (arrayShapes) UnmarshalWire([]byte) (any, error) { return arrayShapes{}, nil }
+
+func TestArrayFields_OnlyMultiDimensional(t *testing.T) {
+	t.Parallel()
+
+	got := arrayFields(arrayShapes{})
+	require.Len(t, got, 2, "only the multi-dimensional exported arrays carry a shape")
+
+	assert.Equal(t, "Grid", got[0].GetField())
+	assert.Equal(t, []uint32{4, 8}, got[0].GetDims())
+	assert.Equal(t, "Cube", got[1].GetField())
+	assert.Equal(t, []uint32{2, 3, 4}, got[1].GetDims())
+}
+
+func TestArrayFields_IgnoresNonStructs(t *testing.T) {
+	t.Parallel()
+
+	assert.Nil(t, arrayFields(nil))
+}

@@ -165,3 +165,4 @@ export type Column = Message<"worldengine.cardinal.v1.Column"> & {
  */
 export const ColumnSchema: GenMessage<Column> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_snapshot, 3);
+

@@ -40,3 +40,4 @@ export type Event = Message<"worldengine.isc.v1.Event"> & {
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
   messageDesc(file_worldengine_isc_v1_event, 0);
+
