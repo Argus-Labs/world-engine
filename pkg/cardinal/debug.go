@@ -166,8 +166,8 @@ func batchToProto(b performance.Batch) *cardinalv1.PerfBatch {
 			spans = append(spans, &cardinalv1.SystemSpan{
 				SystemHook:    ecsHookToProto(span.SystemHook),
 				System:        span.SystemName,
-				StartOffsetNs: uint64(startOffset),
-				DurationNs:    uint64(duration),
+				StartOffsetNs: uint64(startOffset), //nolint:gosec // clamped to >= 0 just above
+				DurationNs:    uint64(duration),    //nolint:gosec // clamped to >= 0 just above
 			})
 		}
 		ticks = append(ticks, &cardinalv1.TickTimeline{

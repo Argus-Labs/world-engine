@@ -17,7 +17,7 @@ import (
 var Seed uint64 //nolint:gochecknoglobals // intentionally global for test reproducibility
 
 func init() { //nolint:gochecknoinits // intentionally using init to set seed
-	Seed = uint64(time.Now().UnixNano())
+	Seed = uint64(time.Now().UnixNano()) //nolint:gosec // UnixNano is positive for any real clock
 	if envSeed := os.Getenv("TEST_SEED"); envSeed != "" {
 		parsed, err := strconv.ParseUint(envSeed, 0, 64)
 		if err == nil { // Only set using the env if it's valid
