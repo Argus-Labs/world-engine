@@ -1,7 +1,7 @@
 //go:build cgo && (linux || darwin)
 
-// Package nativeaot loads Cardinal NativeAOT modules through their stable C
-// ABI. Loaded shared libraries remain resident for process lifetime.
+// Package nativeaot loads Cardinal NativeAOT modules through their stable C ABI. Loaded shared
+// libraries remain resident for process lifetime.
 package nativeaot
 
 /*
@@ -14,14 +14,15 @@ import "C"
 
 import (
 	"bytes"
-	"fmt"
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
 	"sync"
 	"unsafe"
 
+	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalruntime "github.com/argus-labs/world-engine/pkg/cardinal/runtime"
+	"github.com/rotisserie/eris"
 )
 
 const maxLastErrorSize = 64 * 1024
@@ -37,41 +38,24 @@ type Runner struct {
 
 var _ cardinalruntime.Runner = (*Runner)(nil)
 
-// Open resolves path to a canonical absolute path and creates one module
-// handle with borrowed config bytes. Callers with a known application contract
-// should use OpenValidated so incompatible modules are rejected before create.
-func Open(path string, config []byte) (*Runner, error) {
-	return open(path, config, nil)
-}
-
-// OpenValidated loads a trusted module, validates its immutable contract, then
-// creates one handle. No module config or create callback is invoked when
-// validation fails.
-func OpenValidated(
+// Open loads a trusted module, validates its immutable contract, then creates one handle. No module
+// config or create callback is invoked when validation fails.
+func Open(
 	path string,
 	config []byte,
 	requirement cardinalruntime.ContractRequirement,
 ) (*Runner, error) {
-	return open(path, config, &requirement)
-}
-
-// Native libraries are executable code: callers must only pass trusted
-// artifacts. The library is never passed to dlclose, including on errors.
-func open(
-	path string,
-	config []byte,
-	requirement *cardinalruntime.ContractRequirement,
-) (*Runner, error) {
+	// Reject NUL bytes because C.CString truncates the path before dlopen reads it.
 	if path == "" || strings.IndexByte(path, 0) >= 0 {
-		return nil, fmt.Errorf("open NativeAOT runtime: %w", cardinalruntime.ErrInvalidArgument)
+		return nil, eris.Wrap(cardinalruntime.ErrInvalidArgument, "open NativeAOT runtime")
 	}
 	absolutePath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("resolve NativeAOT library %q: %w", path, err)
+		return nil, eris.Wrapf(err, "resolve NativeAOT library %q", path)
 	}
 	path, err = filepath.EvalSymlinks(absolutePath)
 	if err != nil {
-		return nil, fmt.Errorf("resolve NativeAOT library %q: %w", absolutePath, err)
+		return nil, eris.Wrapf(err, "resolve NativeAOT library %q", absolutePath)
 	}
 
 	// Errors before a module handle exists are thread-local in the ABI.
@@ -81,15 +65,17 @@ func open(
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
-	var loadError [1024]C.char
+	var loadError [1024]byte
 	library := C.cardinal_nativeaot_library_open(
 		cPath,
-		&loadError[0],
+		(*C.char)(unsafe.Pointer(&loadError[0])),
 		C.size_t(len(loadError)),
 	)
 	if library == nil {
-		message, _ := fixedCString(unsafe.Pointer(&loadError[0]), len(loadError))
-		return nil, fmt.Errorf("load NativeAOT library %q: %s", path, message)
+		message, _, terminated := bytes.Cut(loadError[:], []byte{0})
+		assert.That(terminated, "dynamic loader error is not NUL-terminated")
+
+		return nil, eris.Errorf("load NativeAOT library %q: %s", path, string(message))
 	}
 
 	runner := &Runner{library: library}
@@ -98,11 +84,9 @@ func open(
 		C.cardinal_nativeaot_library_forget(library)
 		return nil, err
 	}
-	if requirement != nil {
-		if err = requirement.Validate(contract); err != nil {
-			C.cardinal_nativeaot_library_forget(library)
-			return nil, fmt.Errorf("validate NativeAOT contract: %w", err)
-		}
+	if err = requirement.Validate(contract); err != nil {
+		C.cardinal_nativeaot_library_forget(library)
+		return nil, eris.Wrap(err, "validate NativeAOT contract")
 	}
 	runner.contract = contract
 
@@ -119,9 +103,9 @@ func open(
 	}
 	if createResult.handle == 0 {
 		C.cardinal_nativeaot_library_forget(library)
-		return nil, fmt.Errorf(
-			"create: %w: module returned the reserved zero handle",
+		return nil, eris.Wrap(
 			cardinalruntime.ErrABIMismatch,
+			"create: module returned the reserved zero handle",
 		)
 	}
 
@@ -268,53 +252,59 @@ func (r *Runner) loadContract() (cardinalruntime.Contract, error) {
 	}
 
 	if uint32(raw.abi_version) != cardinalruntime.ABIVersion {
-		return cardinalruntime.Contract{}, fmt.Errorf(
-			"get contract: %w: module=%d host=%d",
+		return cardinalruntime.Contract{}, eris.Wrapf(
 			cardinalruntime.ErrABIMismatch,
+			"get contract: module=%d host=%d",
 			uint32(raw.abi_version),
 			cardinalruntime.ABIVersion,
 		)
 	}
 	expectedSize := uint32(C.sizeof_cardinal_runtime_contract_v1)
 	if uint32(raw.struct_size) != expectedSize {
-		return cardinalruntime.Contract{}, fmt.Errorf(
-			"get contract: %w: contract size=%d expected=%d",
+		return cardinalruntime.Contract{}, eris.Wrapf(
 			cardinalruntime.ErrABIMismatch,
+			"get contract: contract size=%d expected=%d",
 			uint32(raw.struct_size),
 			expectedSize,
 		)
 	}
 	for index, value := range raw.reserved {
 		if value != 0 {
-			return cardinalruntime.Contract{}, fmt.Errorf(
-				"get contract: %w: reserved[%d]=%d expected=0",
+			return cardinalruntime.Contract{}, eris.Wrapf(
 				cardinalruntime.ErrABIMismatch,
+				"get contract: reserved[%d]=%d expected=0",
 				index,
 				uint64(value),
 			)
 		}
 	}
 
-	name, terminated := fixedCString(unsafe.Pointer(&raw.name[0]), len(raw.name))
+	name, _, terminated := bytes.Cut(
+		unsafe.Slice((*byte)(unsafe.Pointer(&raw.name[0])), len(raw.name)),
+		[]byte{0},
+	)
 	if !terminated {
-		return cardinalruntime.Contract{}, fmt.Errorf(
-			"get contract: %w: name is not NUL-terminated",
+		return cardinalruntime.Contract{}, eris.Wrap(
 			cardinalruntime.ErrABIMismatch,
+			"get contract: name is not NUL-terminated",
 		)
 	}
-	version, terminated := fixedCString(unsafe.Pointer(&raw.version[0]), len(raw.version))
+	version, _, terminated := bytes.Cut(
+		unsafe.Slice((*byte)(unsafe.Pointer(&raw.version[0])), len(raw.version)),
+		[]byte{0},
+	)
 	if !terminated {
-		return cardinalruntime.Contract{}, fmt.Errorf(
-			"get contract: %w: version is not NUL-terminated",
+		return cardinalruntime.Contract{}, eris.Wrap(
 			cardinalruntime.ErrABIMismatch,
+			"get contract: version is not NUL-terminated",
 		)
 	}
 
 	contract := cardinalruntime.Contract{
 		ABIVersion:   uint32(raw.abi_version),
 		Capabilities: cardinalruntime.Capabilities(raw.capabilities),
-		Name:         name,
-		Version:      version,
+		Name:         string(name),
+		Version:      string(version),
 	}
 	copy(
 		contract.SchemaHash[:],
@@ -328,10 +318,10 @@ func (r *Runner) checkCallLocked(
 	capability cardinalruntime.Capabilities,
 ) error {
 	if r.closed {
-		return fmt.Errorf("%s: %w", operation, cardinalruntime.ErrClosed)
+		return eris.Wrap(cardinalruntime.ErrClosed, operation)
 	}
 	if !r.contract.Supports(capability) {
-		return fmt.Errorf("%s: %w", operation, cardinalruntime.ErrUnsupported)
+		return eris.Wrap(cardinalruntime.ErrUnsupported, operation)
 	}
 	return nil
 }
@@ -343,20 +333,20 @@ func (r *Runner) outputResultLocked(
 ) (int, error) {
 	outputLen, valid := sizeToInt(result.output_len)
 	if !valid {
-		return 0, fmt.Errorf(
-			"%s: %w: module reported an output length too large for this host",
-			operation,
+		return 0, eris.Wrapf(
 			cardinalruntime.ErrExecutionFailed,
+			"%s: module reported an output length too large for this host",
+			operation,
 		)
 	}
 
 	switch result.status {
 	case C.CARDINAL_RUNTIME_STATUS_SUCCESS:
 		if outputLen > provided {
-			return 0, fmt.Errorf(
-				"%s: %w: module reported %d bytes written into capacity %d",
-				operation,
+			return 0, eris.Wrapf(
 				cardinalruntime.ErrExecutionFailed,
+				"%s: module reported %d bytes written into capacity %d",
+				operation,
 				outputLen,
 				provided,
 			)
@@ -364,10 +354,10 @@ func (r *Runner) outputResultLocked(
 		return outputLen, nil
 	case C.CARDINAL_RUNTIME_STATUS_BUFFER_TOO_SMALL:
 		if outputLen <= provided {
-			return 0, fmt.Errorf(
-				"%s: %w: module reported required capacity %d for capacity %d",
-				operation,
+			return 0, eris.Wrapf(
 				cardinalruntime.ErrExecutionFailed,
+				"%s: module reported required capacity %d for capacity %d",
+				operation,
 				outputLen,
 				provided,
 			)
@@ -409,9 +399,9 @@ func (r *Runner) statusErrorLocked(operation string, status C.int32_t) error {
 
 	message := r.lastErrorLocked()
 	if message == "" {
-		return fmt.Errorf("%s: %w (status %d)", operation, base, int32(status))
+		return eris.Wrapf(base, "%s: status %d", operation, int32(status))
 	}
-	return fmt.Errorf("%s: %w: %s", operation, base, message)
+	return eris.Wrapf(base, "%s: %s", operation, message)
 }
 
 func (r *Runner) lastErrorLocked() string {
@@ -461,15 +451,6 @@ func bytePointer(data []byte) *C.uint8_t {
 		return nil
 	}
 	return (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(data)))
-}
-
-func fixedCString(pointer unsafe.Pointer, capacity int) (string, bool) {
-	data := unsafe.Slice((*byte)(pointer), capacity)
-	terminator := bytes.IndexByte(data, 0)
-	if terminator < 0 {
-		return "", false
-	}
-	return string(data[:terminator]), true
 }
 
 func sizeToInt(value C.size_t) (int, bool) {

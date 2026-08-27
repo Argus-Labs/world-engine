@@ -74,7 +74,8 @@ static int32_t prepare_output(
     uint8_t *output,
     size_t output_capacity,
     size_t required,
-    size_t *output_len) {
+    size_t *output_len
+) {
     if (output_len == NULL) {
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
@@ -89,7 +90,8 @@ static int32_t prepare_output(
 }
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
-    cardinal_runtime_contract_v1 *contract) {
+    cardinal_runtime_contract_v1 *contract
+) {
     if (contract == NULL) {
         set_error(global_error, "contract output is null");
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
@@ -127,7 +129,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
     const uint8_t *config,
     size_t config_len,
-    cardinal_runtime_handle_v1 *handle) {
+    cardinal_runtime_handle_v1 *handle
+) {
     if (handle == NULL || !valid_input(config, config_len)) {
         set_error(global_error, "invalid create arguments");
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
@@ -156,7 +159,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_initialize(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len) {
+    size_t snapshot_len
+) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
@@ -188,7 +192,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
     size_t input_len,
     uint8_t *output,
     size_t output_capacity,
-    size_t *output_len) {
+    size_t *output_len
+) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
@@ -228,7 +233,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
     size_t input_len,
     uint8_t *output,
     size_t output_capacity,
-    size_t *output_len) {
+    size_t *output_len
+) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
@@ -253,7 +259,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
             (void)atomic_fetch_sub_explicit(
                 &active_probe_queries,
                 1,
-                memory_order_acq_rel);
+                memory_order_acq_rel
+            );
             set_error(state->error, "fixture observed concurrent calls");
             return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
         }
@@ -265,7 +272,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
         (void)atomic_fetch_sub_explicit(
             &active_probe_queries,
             1,
-            memory_order_acq_rel);
+            memory_order_acq_rel
+        );
     }
 
     size_t required = 4 + input_len;
@@ -287,7 +295,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
     size_t output_capacity,
-    size_t *output_len) {
+    size_t *output_len
+) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
@@ -311,7 +320,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len) {
+    size_t snapshot_len
+) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
@@ -333,7 +343,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
     size_t output_capacity,
-    size_t *output_len) {
+    size_t *output_len
+) {
     fixture_state *state = find_state(handle);
     const char *message = state == NULL ? global_error : state->error;
     size_t required = strlen(message);
@@ -349,7 +360,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
 }
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_destroy(
-    cardinal_runtime_handle_v1 handle) {
+    cardinal_runtime_handle_v1 handle
+) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
