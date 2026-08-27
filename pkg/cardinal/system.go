@@ -20,6 +20,12 @@ import (
 
 type EntityID = ecs.EntityID
 
+// System is a stateful Cardinal system. Implement it with a Run method on a pointer to a struct
+// that embeds BaseSystemState.
+type System interface {
+	Run()
+}
+
 func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
@@ -36,37 +42,73 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 	// Initialize the fields in the system state.
 	state := new(T)
 
-	if err := initSystemFields(state, world); err != nil {
+	if err := initSystemFields(reflect.ValueOf(state).Elem(), world); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
 	name := fmt.Sprintf("%T", system)
-	fn := func() { system(state) }
+	registerSystem(world, name, cfg.hook, func() { system(state) })
+}
 
-	// If debug is enabled, wrap the system function with performance instrumentation.
+// RegisterSystemV2 registers a caller-owned system instance. The instance must be a non-nil pointer
+// to a struct that embeds BaseSystemState.
+func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
+	cfg := newSystemConfig()
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	value := reflect.ValueOf(s)
+	if value.Kind() != reflect.Pointer || value.IsNil() || value.Elem().Kind() != reflect.Struct {
+		panic(eris.Errorf("system %T must be a non-nil pointer to a struct", s))
+	}
+
+	state := value.Elem()
+	stateType := state.Type()
+	if _, ok := stateType.MethodByName("Run"); ok {
+		panic(eris.Errorf("system %T Run method must use a pointer receiver", s))
+	}
+
+	baseField, ok := stateType.FieldByName("BaseSystemState")
+	if !ok || len(baseField.Index) != 1 || !baseField.Anonymous ||
+		baseField.Type != reflect.TypeFor[BaseSystemState]() {
+		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", s))
+	}
+
+	if err := initSystemFields(state, world); err != nil {
+		panic(eris.Wrapf(err, "error initializing system fields"))
+	}
+
+	registerSystem(world, fmt.Sprintf("%T", s), cfg.hook, s.Run)
+}
+
+func registerSystem(world *World, name string, hook SystemHook, run func()) {
+	fn := run
+
+	// If debug is enabled, wrap the system with performance instrumentation.
 	if world.debug != nil {
 		fn = func() {
 			ts := world.currentTick.timestamp
 			startTime := ts.Add(time.Since(ts))
-			system(state)
+			run()
 			endTime := ts.Add(time.Since(ts))
 			world.debug.recordSpan(performance.TickSpan{
 				TickHeight: world.currentTick.height,
 				SystemName: name,
-				SystemHook: uint8(cfg.hook),
+				SystemHook: uint8(hook),
 				StartTime:  startTime,
 				EndTime:    endTime,
 			})
 		}
 	}
 
-	err := ecs.RegisterSystem(world.world, name, cfg.hook, fn)
+	err := ecs.RegisterSystem(world.world, name, hook, fn)
 	if err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
 }
 
-func initSystemFields[T any](state *T, world *World) error {
+func initSystemFields(state reflect.Value, world *World) error {
 	meta := systemInitMetadata{
 		world:        world,
 		commands:     make(map[string]struct{}),
@@ -75,14 +117,21 @@ func initSystemFields[T any](state *T, world *World) error {
 	}
 
 	// For each field in the system state, initialize the field and collect its dependencies.
-	value := reflect.ValueOf(state).Elem()
-	for i := range value.NumField() {
-		field := value.Field(i)
-		fieldType := value.Type().Field(i)
+	for i := range state.NumField() {
+		field := state.Field(i)
+		fieldType := state.Type().Field(i)
 
-		// If the field is not exported, return an error.
-		if !field.CanAddr() {
-			return eris.Errorf("field %s must be exported", fieldType.Name)
+		if !fieldType.IsExported() {
+			systemFieldType := reflect.TypeFor[systemField]()
+			if field.Type().Implements(systemFieldType) ||
+				field.Addr().Type().Implements(systemFieldType) {
+				return eris.Errorf("field %s must be exported", fieldType.Name)
+			}
+			continue
+		}
+
+		if field.Type().Implements(reflect.TypeFor[systemField]()) {
+			return eris.Errorf("field %s must be declared as a value", fieldType.Name)
 		}
 
 		fieldInstance := field.Addr().Interface()

@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
@@ -13,7 +14,147 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: test system registration, e.g. duplicate field detection, etc.
+// -------------------------------------------------------------------------------------------------
+// System registration tests
+// -------------------------------------------------------------------------------------------------
+
+func TestRegisterSystems_IgnorePrivateFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("v1", func(t *testing.T) {
+		t.Parallel()
+
+		world := &World{world: ecs.NewWorld()}
+		require.NotPanics(t, func() {
+			RegisterSystem(world, func(*privateStateSystem) {})
+		})
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		t.Parallel()
+
+		world := &World{world: ecs.NewWorld()}
+		require.NotPanics(t, func() {
+			RegisterSystemV2(world, &privateStateSystem{})
+		})
+	})
+}
+
+func TestRegisterSystems_RejectPrivateCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	assertRejected := func(t *testing.T, register func(*World)) {
+		t.Helper()
+		world := &World{world: ecs.NewWorld()}
+		require.PanicsWithError(
+			t,
+			"error initializing system fields: field events must be exported",
+			func() { register(world) },
+		)
+	}
+
+	t.Run("v1", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("value field", func(t *testing.T) {
+			assertRejected(t, func(world *World) {
+				RegisterSystem(world, func(*privateDependencySystem) {})
+			})
+		})
+		t.Run("pointer field", func(t *testing.T) {
+			assertRejected(t, func(world *World) {
+				RegisterSystem(world, func(*privatePointerDependencySystem) {})
+			})
+		})
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("value field", func(t *testing.T) {
+			assertRejected(t, func(world *World) {
+				RegisterSystemV2(world, &privateDependencySystem{})
+			})
+		})
+		t.Run("pointer field", func(t *testing.T) {
+			assertRejected(t, func(world *World) {
+				RegisterSystemV2(world, &privatePointerDependencySystem{})
+			})
+		})
+	})
+}
+
+func TestRegisterSystems_RejectPointerCardinalDependency(t *testing.T) {
+	t.Parallel()
+
+	assertRejected := func(t *testing.T, register func(*World)) {
+		t.Helper()
+		world := &World{world: ecs.NewWorld()}
+		require.PanicsWithError(
+			t,
+			"error initializing system fields: field Events must be declared as a value",
+			func() { register(world) },
+		)
+	}
+
+	t.Run("v1", func(t *testing.T) {
+		t.Parallel()
+
+		assertRejected(t, func(world *World) {
+			RegisterSystem(world, func(*exportedPointerDependencySystem) {})
+		})
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		t.Parallel()
+
+		assertRejected(t, func(world *World) {
+			RegisterSystemV2(world, &exportedPointerDependencySystem{})
+		})
+	})
+}
+
+type privateStateSystem struct {
+	BaseSystemState
+
+	dependency *int
+	scratch    []int
+}
+
+func (s *privateStateSystem) Run() {
+	(*s.dependency)++
+	s.scratch = append(s.scratch, *s.dependency)
+}
+
+type privateDependencySystem struct {
+	BaseSystemState
+
+	events WithEvent[testutils.SimpleEvent]
+}
+
+func (s *privateDependencySystem) Run() {
+	_ = s.events
+}
+
+type privatePointerDependencySystem struct {
+	BaseSystemState
+
+	events *WithEvent[testutils.SimpleEvent]
+}
+
+func (s *privatePointerDependencySystem) Run() {
+	_ = s.events
+}
+
+type exportedPointerDependencySystem struct {
+	BaseSystemState
+
+	Events *WithEvent[testutils.SimpleEvent]
+}
+
+func (s *exportedPointerDependencySystem) Run() {
+	_ = s.Events
+}
 
 // -------------------------------------------------------------------------------------------------
 // WithCommand smoke tests
@@ -535,7 +676,7 @@ func newSearchFixture(t *testing.T) *searchFixture {
 
 	fixture := &searchFixture{}
 
-	err := initSystemFields(fixture, world)
+	err := initSystemFields(reflect.ValueOf(fixture).Elem(), world)
 	require.NoError(t, err)
 
 	return fixture

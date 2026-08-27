@@ -3,6 +3,7 @@ package cardinal
 import (
 	"bytes"
 	"encoding/gob"
+	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -786,7 +787,7 @@ func newBenchWorld() *World {
 
 func mustInitSystemFields[T any](b testing.TB, world *World, state *T) {
 	b.Helper()
-	err := initSystemFields(state, world)
+	err := initSystemFields(reflect.ValueOf(state).Elem(), world)
 	if err != nil {
 		b.Fatalf("failed to initialize system fields: %v", err)
 	}
