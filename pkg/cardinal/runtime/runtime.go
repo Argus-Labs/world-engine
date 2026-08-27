@@ -1,5 +1,4 @@
-// Package runtime defines the transport-neutral boundary for running a
-// Cardinal simulation module.
+// Package runtime defines the transport-neutral boundary for running a Cardinal simulation module.
 package runtime
 
 import (
@@ -19,8 +18,7 @@ const (
 	CapabilityQuery
 	CapabilitySnapshot
 	CapabilityRestore
-	// CapabilityStateless declares that calls do not depend on mutable
-	// per-handle simulation state.
+	// CapabilityStateless declares that calls do not depend on mutable per-handle simulation state.
 	CapabilityStateless
 )
 
@@ -29,8 +27,8 @@ func (c Capabilities) Has(requested Capabilities) bool {
 	return c&requested == requested
 }
 
-// Contract identifies a module and the operations and schema it implements.
-// SchemaHash is an opaque, module-defined compatibility fingerprint.
+// Contract identifies a module and the operations and schema it implements. SchemaHash is an
+// opaque, module-defined compatibility fingerprint.
 type Contract struct {
 	ABIVersion   uint32
 	Capabilities Capabilities
@@ -44,9 +42,9 @@ func (c Contract) Supports(requested Capabilities) bool {
 	return c.Capabilities.Has(requested)
 }
 
-// ContractRequirement is validated before a runtime module instance is
-// created. Name, Version, and SchemaHash require exact matches; Capabilities
-// is the minimum capability set the module must support.
+// ContractRequirement is validated before a runtime module instance is created. Name, Version, and
+// SchemaHash require exact matches; Capabilities is the minimum capability set the module must
+// support.
 type ContractRequirement struct {
 	Name         string
 	Version      string
@@ -86,22 +84,21 @@ func (r ContractRequirement) Validate(contract Contract) error {
 	}
 }
 
-// InitRequest supplies an optional snapshot to initialize a newly created
-// runner. The snapshot is borrowed for the duration of Initialize.
+// InitRequest supplies an optional snapshot to initialize a newly created runner. The snapshot is
+// borrowed for the duration of Initialize.
 type InitRequest struct {
 	Snapshot []byte
 }
 
-// TickRequest supplies one deterministic simulation step. Input is borrowed
-// for the duration of Tick.
+// TickRequest supplies one deterministic simulation step. Input is borrowed for the duration of
+// Tick.
 type TickRequest struct {
 	Tick         uint64
 	FixedDeltaNS uint64
 	Input        []byte
 }
 
-// QueryRequest supplies an application-defined query. Input is borrowed for
-// the duration of Query.
+// QueryRequest supplies an application-defined query. Input is borrowed for the duration of Query.
 type QueryRequest struct {
 	Kind  uint32
 	Input []byte
@@ -109,12 +106,11 @@ type QueryRequest struct {
 
 // Runner owns one isolated module instance.
 //
-// Tick, Query, and Snapshot write into caller-owned output buffers and return
-// the number of bytes written. Implementations return BufferSizeError when the
-// buffer is too small. Implementations must not retain request or output
-// buffers after a call returns. Callers that probe and retry after
-// BufferSizeError must prevent another operation from using the same Runner
-// between those calls.
+// Tick, Query, and Snapshot write into caller-owned output buffers and return the number of bytes
+// written. Implementations return BufferSizeError when the buffer is too small. Implementations
+// must not retain request or output buffers after a call returns. Callers that probe and retry
+// after BufferSizeError must prevent another operation from using the same Runner between those
+// calls.
 type Runner interface {
 	Contract() Contract
 	Initialize(InitRequest) error

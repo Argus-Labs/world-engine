@@ -15,6 +15,7 @@ import (
 
 	cardinalruntime "github.com/argus-labs/world-engine/pkg/cardinal/runtime"
 	"github.com/argus-labs/world-engine/pkg/cardinal/runtime/nativeaot"
+	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,7 +138,7 @@ func TestRunnerContract(t *testing.T) {
 }
 
 func TestOpenRejectsABIMismatch(t *testing.T) {
-	runner, err := nativeaot.Open(badABIFixtureLibrary, nil)
+	runner, err := nativeaot.Open(badABIFixtureLibrary, nil, fixtureContractRequirement())
 
 	assert.Nil(t, runner)
 	require.ErrorIs(t, err, cardinalruntime.ErrABIMismatch)
@@ -145,7 +146,7 @@ func TestOpenRejectsABIMismatch(t *testing.T) {
 }
 
 func TestOpenRejectsExtendedV1Contract(t *testing.T) {
-	runner, err := nativeaot.Open(badSizeFixtureLibrary, nil)
+	runner, err := nativeaot.Open(badSizeFixtureLibrary, nil, fixtureContractRequirement())
 
 	assert.Nil(t, runner)
 	require.ErrorIs(t, err, cardinalruntime.ErrABIMismatch)
@@ -155,7 +156,11 @@ func TestOpenRejectsExtendedV1Contract(t *testing.T) {
 func TestOpenRejectsNonzeroReservedContractWordsBeforeCreate(t *testing.T) {
 	for index, library := range badReservedFixtureLibraries {
 		t.Run(fmt.Sprintf("word_%d", index), func(t *testing.T) {
-			runner, err := nativeaot.Open(library, []byte("fail-create"))
+			runner, err := nativeaot.Open(
+				library,
+				[]byte("fail-create"),
+				fixtureContractRequirement(),
+			)
 
 			assert.Nil(t, runner)
 			require.ErrorIs(t, err, cardinalruntime.ErrABIMismatch)
@@ -163,7 +168,7 @@ func TestOpenRejectsNonzeroReservedContractWordsBeforeCreate(t *testing.T) {
 				t,
 				err,
 				fmt.Sprintf(
-					"get contract: runtime ABI mismatch: reserved[%d]=1 expected=0",
+					"get contract: reserved[%d]=1 expected=0: runtime ABI mismatch",
 					index,
 				),
 			)
@@ -171,11 +176,11 @@ func TestOpenRejectsNonzeroReservedContractWordsBeforeCreate(t *testing.T) {
 	}
 }
 
-func TestOpenValidatedRejectsContractBeforeCreate(t *testing.T) {
+func TestOpenRejectsContractBeforeCreate(t *testing.T) {
 	requirement := fixtureContractRequirement()
 	requirement.Version = "9.9.9"
 
-	runner, err := nativeaot.OpenValidated(
+	runner, err := nativeaot.Open(
 		fixtureLibrary,
 		[]byte("fail-create"),
 		requirement,
@@ -187,8 +192,8 @@ func TestOpenValidatedRejectsContractBeforeCreate(t *testing.T) {
 	assert.NotContains(t, err.Error(), "fixture create failure")
 }
 
-func TestOpenValidatedAcceptsMatchingContract(t *testing.T) {
-	runner, err := nativeaot.OpenValidated(
+func TestOpenAcceptsMatchingContract(t *testing.T) {
+	runner, err := nativeaot.Open(
 		fixtureLibrary,
 		nil,
 		fixtureContractRequirement(),
@@ -202,7 +207,11 @@ func TestOpenValidatedAcceptsMatchingContract(t *testing.T) {
 }
 
 func TestRunnerTranslatesModuleErrors(t *testing.T) {
-	runner, err := nativeaot.Open(fixtureLibrary, []byte("fail-create"))
+	runner, err := nativeaot.Open(
+		fixtureLibrary,
+		[]byte("fail-create"),
+		fixtureContractRequirement(),
+	)
 	assert.Nil(t, runner)
 	require.ErrorIs(t, err, cardinalruntime.ErrExecutionFailed)
 	require.ErrorContains(t, err, "fixture create failure")
@@ -282,7 +291,7 @@ func TestRunnerSerializesCalls(t *testing.T) {
 }
 
 func BenchmarkRunnerTick(b *testing.B) {
-	runner, err := nativeaot.Open(fixtureLibrary, nil)
+	runner, err := nativeaot.Open(fixtureLibrary, nil, fixtureContractRequirement())
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -319,7 +328,7 @@ func BenchmarkRunnerTick(b *testing.B) {
 func openFixture(t testing.TB, config []byte) *nativeaot.Runner {
 	t.Helper()
 
-	runner, err := nativeaot.Open(fixtureLibrary, config)
+	runner, err := nativeaot.Open(fixtureLibrary, config, fixtureContractRequirement())
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, runner.Close())
@@ -381,7 +390,7 @@ func compileFixture(
 	command := exec.Command(compiler[0], arguments...)
 	combinedOutput, err := command.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("%w\n%s", err, combinedOutput)
+		return "", eris.Wrapf(err, "compile fixture:\n%s", combinedOutput)
 	}
 	return output, nil
 }
