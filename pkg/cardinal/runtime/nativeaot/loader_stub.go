@@ -10,13 +10,7 @@ type Runner struct{}
 var _ cardinalruntime.Runner = (*Runner)(nil)
 
 // Open reports ErrUnavailable in builds without cgo and dlopen support.
-func Open(string, []byte) (*Runner, error) {
-	return nil, ErrUnavailable
-}
-
-// OpenValidated reports ErrUnavailable in builds without cgo and dlopen
-// support.
-func OpenValidated(
+func Open(
 	string,
 	[]byte,
 	cardinalruntime.ContractRequirement,

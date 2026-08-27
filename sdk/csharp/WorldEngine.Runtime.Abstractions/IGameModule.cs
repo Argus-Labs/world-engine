@@ -6,12 +6,11 @@ namespace WorldEngine.Runtime
     /// Deterministic game logic hosted in-process by Cardinal.
     /// </summary>
     /// <remarks>
-    /// Inputs are borrowed for the duration of a call. Outputs are written into
-    /// caller-owned memory. Implementations must set <c>outputLength</c> to the
-    /// required size when returning <see cref="RuntimeStatus.BufferTooSmall"/>.
-    /// A buffer-too-small call must not mutate module state or output because
-    /// the host can retry it with a larger buffer.
-    /// Calls for one module instance are serialized by the host.
+    /// Inputs are borrowed for the duration of a call. Outputs are written into caller-owned
+    /// memory. Implementations must set <c>outputLength</c> to the required size when returning
+    /// <see cref="RuntimeStatus.BufferTooSmall"/>. A buffer-too-small call must not mutate module
+    /// state or output because the host can retry it with a larger buffer. Calls for one module
+    /// instance are serialized by the host.
     /// </remarks>
     public interface IGameModule : IDisposable
     {
