@@ -20,11 +20,10 @@ import (
 
 type EntityID = ecs.EntityID
 
-// System is a stateful Cardinal system. Implement it with a Run method on a
-// pointer to a struct that embeds BaseSystemState.
+// System is a stateful Cardinal system. Implement it with a Run method on a pointer to a struct
+// that embeds BaseSystemState.
 type System interface {
 	Run()
-	cardinalSystem()
 }
 
 func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) {
@@ -43,7 +42,7 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 	// Initialize the fields in the system state.
 	state := new(T)
 
-	if err := initSystemFields(state, world); err != nil {
+	if err := initSystemFields(reflect.ValueOf(state).Elem(), world); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
@@ -51,8 +50,8 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 	registerSystem(world, name, cfg.hook, func() { system(state) })
 }
 
-// RegisterSystemV2 registers a caller-owned system instance. The instance must
-// be a non-nil pointer to a struct that embeds BaseSystemState.
+// RegisterSystemV2 registers a caller-owned system instance. The instance must be a non-nil pointer
+// to a struct that embeds BaseSystemState.
 func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
@@ -76,7 +75,7 @@ func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
 		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", s))
 	}
 
-	if err := initSystemV2Fields(state, world); err != nil {
+	if err := initSystemFields(state, world); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
@@ -109,15 +108,7 @@ func registerSystem(world *World, name string, hook SystemHook, run func()) {
 	}
 }
 
-func initSystemFields[T any](state *T, world *World) error {
-	return initSystemFieldValues(reflect.ValueOf(state).Elem(), world, false)
-}
-
-func initSystemV2Fields(state reflect.Value, world *World) error {
-	return initSystemFieldValues(state, world, true)
-}
-
-func initSystemFieldValues(state reflect.Value, world *World, allowPrivateState bool) error {
+func initSystemFields(state reflect.Value, world *World) error {
 	meta := systemInitMetadata{
 		world:        world,
 		commands:     make(map[string]struct{}),
@@ -130,7 +121,7 @@ func initSystemFieldValues(state reflect.Value, world *World, allowPrivateState 
 		field := state.Field(i)
 		fieldType := state.Type().Field(i)
 
-		if allowPrivateState && !fieldType.IsExported() {
+		if !fieldType.IsExported() {
 			systemFieldType := reflect.TypeFor[systemField]()
 			if field.Type().Implements(systemFieldType) ||
 				field.Addr().Type().Implements(systemFieldType) {
@@ -139,13 +130,8 @@ func initSystemFieldValues(state reflect.Value, world *World, allowPrivateState 
 			continue
 		}
 
-		if allowPrivateState && field.Type().Implements(reflect.TypeFor[systemField]()) {
+		if field.Type().Implements(reflect.TypeFor[systemField]()) {
 			return eris.Errorf("field %s must be declared as a value", fieldType.Name)
-		}
-
-		// If the field is not exported, return an error.
-		if !field.CanAddr() {
-			return eris.Errorf("field %s must be exported", fieldType.Name)
 		}
 
 		fieldInstance := field.Addr().Interface()
@@ -235,8 +221,6 @@ func WithHook(hook SystemHook) SystemOption {
 type BaseSystemState struct {
 	world *World
 }
-
-func (*BaseSystemState) cardinalSystem() {}
 
 func (b *BaseSystemState) init(meta *systemInitMetadata) error {
 	b.world = meta.world

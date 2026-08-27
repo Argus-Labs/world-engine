@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -204,7 +205,7 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	require.NotNil(t, w.debug)
 
 	state := &snapshotEntities{}
-	require.NoError(t, initSystemFields(state, w))
+	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))
 	w.world.Init()
 	return w, state
 }
