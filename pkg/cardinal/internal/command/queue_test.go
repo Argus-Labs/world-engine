@@ -41,8 +41,8 @@ func TestQueue_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
-			payload, err := cmd.MarshalWire()
-			require.NoError(t, err)
+			payload := cmd.MarshalWire()
+			require.NotNil(t, payload)
 
 			name := cmd.Name()
 			corruptName := prng.IntN(10) == 1 // 10% chance to corrupt the command name.
@@ -59,7 +59,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 			}
 
 			sizeBefore := impl.Len()
-			err = impl.Enqueue(cmdpb)
+			err := impl.Enqueue(cmdpb)
 
 			if corruptName {
 				// Property: enqueue with wrong name must fail.

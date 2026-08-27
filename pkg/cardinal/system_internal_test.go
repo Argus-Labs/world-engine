@@ -113,8 +113,8 @@ func newCommandFixture(t *testing.T) *commandFixture {
 func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, persona string) {
 	t.Helper()
 
-	bytes, err := payload.MarshalWire()
-	require.NoError(t, err)
+	bytes := payload.MarshalWire()
+	require.NotNil(t, bytes)
 
 	cmdpb := &iscv1.Command{
 		Name:    payload.Name(),
@@ -123,7 +123,7 @@ func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, p
 		Payload: bytes,
 	}
 
-	err = f.world.commands.Enqueue(cmdpb)
+	err := f.world.commands.Enqueue(cmdpb)
 	require.NoError(t, err)
 }
 

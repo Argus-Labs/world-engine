@@ -21,8 +21,8 @@ import (
 
 type introspectionSample struct{}
 
-func (introspectionSample) Name() string                 { return "introspection-sample" }
-func (introspectionSample) MarshalWire() ([]byte, error) { return nil, nil }
+func (introspectionSample) Name() string        { return "introspection-sample" }
+func (introspectionSample) MarshalWire() []byte { return nil }
 func (introspectionSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()
 }

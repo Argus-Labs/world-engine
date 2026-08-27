@@ -472,10 +472,7 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 
 	// Proto via the event's generated MarshalWire (dispatch by type, no registry). payload is an
 	// event.Payload (schema.Serializable), so MarshalWire is guaranteed by the type — no fallback.
-	payloadPb, err := payload.MarshalWire()
-	if err != nil {
-		return eris.Wrap(err, "failed to marshal event payload")
-	}
+	payloadPb := payload.MarshalWire()
 
 	eventPb := &iscv1.Event{
 		Name:    payload.Name(),
@@ -591,11 +588,12 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	payload, err := isc.Payload.MarshalWire()
-	if err != nil {
-		// Non-blocking but serious: a dropped shard-to-shard command must not halt the tick, so log at
-		// error level and move on rather than propagate (which would surface only as an aggregated warn).
-		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: marshal failed")
+	// MarshalWire asserts rather than returning an error, and yields nil only if encoding failed —
+	// which means a bug, already loud in dev and DST. A dropped shard-to-shard command must not halt
+	// the tick, so log and move on rather than send an empty payload the receiver would misread.
+	payload := isc.Payload.MarshalWire()
+	if payload == nil {
+		s.log.Error().Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: encoding failed")
 		return nil
 	}
 
@@ -612,7 +610,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
 	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
 	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
-	_, err = s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
+	_, err := s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
 	if err != nil {
 		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
 		return nil

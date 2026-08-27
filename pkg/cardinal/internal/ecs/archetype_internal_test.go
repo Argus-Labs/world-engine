@@ -384,11 +384,10 @@ func TestArchetype_SerializationSmoke(t *testing.T) {
 		}
 	}
 
-	pb, err := arch.toProto()
-	require.NoError(t, err)
+	pb := arch.toProto()
 
 	arch2 := &archetype{}
-	err = arch2.fromProto(pb, cm)
+	err := arch2.fromProto(pb, cm)
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
@@ -405,8 +404,7 @@ func TestArchetype_ToProtoBitmapNotAliased(t *testing.T) {
 	arch, _ := newSimpleArchetype(t)
 	arch.newEntity(0)
 
-	pb, err := arch.toProto()
-	require.NoError(t, err)
+	pb := arch.toProto()
 	require.NotEmpty(t, pb.GetComponentsBitmap())
 
 	before := pb.GetComponentsBitmap()[0]
@@ -450,14 +448,13 @@ func TestArchetype_DeserializationNegative(t *testing.T) {
 	arch, cm := newSimpleArchetype(t)
 	arch.newEntity(0)
 
-	pb, err := arch.toProto()
-	require.NoError(t, err)
+	pb := arch.toProto()
 
 	// Corrupt the bitmap by truncating to an invalid length (not a multiple of 8).
 	pb.ComponentsBitmap = pb.GetComponentsBitmap()[:len(pb.GetComponentsBitmap())-1]
 
 	arch2 := &archetype{}
-	err = arch2.fromProto(pb, cm)
+	err := arch2.fromProto(pb, cm)
 
 	// Property: corrupted bitmap should return an error, not panic.
 	assert.Error(t, err)

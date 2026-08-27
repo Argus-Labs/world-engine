@@ -19,7 +19,7 @@ type descriptorSample struct {
 }
 
 func (sample descriptorSample) Name() string               { return sample.name }
-func (descriptorSample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (descriptorSample) MarshalWire() []byte               { return nil }
 func (descriptorSample) UnmarshalWire([]byte) (any, error) { return descriptorSample{}, nil }
 func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return sample.descriptor
@@ -28,7 +28,7 @@ func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor 
 type wireOnlySample struct{ name string }
 
 func (sample wireOnlySample) Name() string               { return sample.name }
-func (wireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (wireOnlySample) MarshalWire() []byte               { return nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
 
 func TestFinalizeRequiresGeneratedProtobufDescriptor(t *testing.T) {
@@ -140,7 +140,7 @@ type arrayShapes struct {
 }
 
 func (arrayShapes) Name() string                      { return "array_shapes" }
-func (arrayShapes) MarshalWire() ([]byte, error)      { return nil, nil }
+func (arrayShapes) MarshalWire() []byte               { return nil }
 func (arrayShapes) UnmarshalWire([]byte) (any, error) { return arrayShapes{}, nil }
 
 func TestArrayFields_OnlyMultiDimensional(t *testing.T) {

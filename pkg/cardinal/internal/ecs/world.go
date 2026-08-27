@@ -102,7 +102,7 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 
 // ToProto converts the World's state to a proto message.
 // Only serializes the WorldState as components, systems, and managers are recreated on startup.
-func (w *World) ToProto() (*cardinalv1.WorldState, error) {
+func (w *World) ToProto() *cardinalv1.WorldState {
 	return w.state.toProto()
 }
 

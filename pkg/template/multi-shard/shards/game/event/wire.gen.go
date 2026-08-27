@@ -7,7 +7,6 @@ package event
 import (
 	event "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/event"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c PlayerDeparture) ToProto() *event.PlayerDeparture {
@@ -24,8 +23,12 @@ func (c PlayerDeparture) FromProto(p *event.PlayerDeparture) PlayerDeparture {
 	return c
 }
 
-func (c PlayerDeparture) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerDeparture) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerDeparture: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
@@ -34,10 +37,6 @@ func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerDeparture) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerDeparture{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerMovement) ToProto() *event.PlayerMovement {
@@ -60,8 +59,12 @@ func (c PlayerMovement) FromProto(p *event.PlayerMovement) PlayerMovement {
 	return c
 }
 
-func (c PlayerMovement) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerMovement) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerMovement: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
@@ -70,10 +73,6 @@ func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerMovement) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerMovement{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerSpawn) ToProto() *event.PlayerSpawn {
@@ -96,8 +95,12 @@ func (c PlayerSpawn) FromProto(p *event.PlayerSpawn) PlayerSpawn {
 	return c
 }
 
-func (c PlayerSpawn) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerSpawn) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerSpawn: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
@@ -106,8 +109,4 @@ func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerSpawn) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerSpawn{}).ProtoReflect().Descriptor()
 }

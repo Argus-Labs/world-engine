@@ -9,7 +9,6 @@ import (
 	lobby_component "github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	system "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/system"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c AssignShardCommand) ToProto() *system.AssignShardCommand {
@@ -32,8 +31,12 @@ func (c AssignShardCommand) FromProto(p *system.AssignShardCommand) AssignShardC
 	return c
 }
 
-func (c AssignShardCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c AssignShardCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal AssignShardCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c AssignShardCommand) UnmarshalWire(data []byte) (any, error) {
@@ -42,10 +45,6 @@ func (c AssignShardCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c AssignShardCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.AssignShardCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c CreateLobbyCommand) ToProto() *system.CreateLobbyCommand {
@@ -68,8 +67,12 @@ func (c CreateLobbyCommand) FromProto(p *system.CreateLobbyCommand) CreateLobbyC
 	return c
 }
 
-func (c CreateLobbyCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c CreateLobbyCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal CreateLobbyCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c CreateLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -78,10 +81,6 @@ func (c CreateLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c CreateLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.CreateLobbyCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c CreateLobbyResult) ToProto() *system.CreateLobbyResult {
@@ -106,8 +105,12 @@ func (c CreateLobbyResult) FromProto(p *system.CreateLobbyResult) CreateLobbyRes
 	return c
 }
 
-func (c CreateLobbyResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c CreateLobbyResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal CreateLobbyResult: " + err.Error())
+	}
+	return data
 }
 
 func (c CreateLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -116,10 +119,6 @@ func (c CreateLobbyResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c CreateLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.CreateLobbyResult{}).ProtoReflect().Descriptor()
 }
 
 func (c GenerateInviteCodeCommand) ToProto() *system.GenerateInviteCodeCommand {
@@ -136,8 +135,12 @@ func (c GenerateInviteCodeCommand) FromProto(p *system.GenerateInviteCodeCommand
 	return c
 }
 
-func (c GenerateInviteCodeCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GenerateInviteCodeCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GenerateInviteCodeCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c GenerateInviteCodeCommand) UnmarshalWire(data []byte) (any, error) {
@@ -146,10 +149,6 @@ func (c GenerateInviteCodeCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GenerateInviteCodeCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GenerateInviteCodeCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c GenerateInviteCodeResult) ToProto() *system.GenerateInviteCodeResult {
@@ -172,8 +171,12 @@ func (c GenerateInviteCodeResult) FromProto(p *system.GenerateInviteCodeResult) 
 	return c
 }
 
-func (c GenerateInviteCodeResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GenerateInviteCodeResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GenerateInviteCodeResult: " + err.Error())
+	}
+	return data
 }
 
 func (c GenerateInviteCodeResult) UnmarshalWire(data []byte) (any, error) {
@@ -182,10 +185,6 @@ func (c GenerateInviteCodeResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GenerateInviteCodeResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GenerateInviteCodeResult{}).ProtoReflect().Descriptor()
 }
 
 func (c GetAllPlayersCommand) ToProto() *system.GetAllPlayersCommand {
@@ -202,8 +201,12 @@ func (c GetAllPlayersCommand) FromProto(p *system.GetAllPlayersCommand) GetAllPl
 	return c
 }
 
-func (c GetAllPlayersCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GetAllPlayersCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GetAllPlayersCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c GetAllPlayersCommand) UnmarshalWire(data []byte) (any, error) {
@@ -212,10 +215,6 @@ func (c GetAllPlayersCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GetAllPlayersCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GetAllPlayersCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c GetAllPlayersResult) ToProto() *system.GetAllPlayersResult {
@@ -244,8 +243,12 @@ func (c GetAllPlayersResult) FromProto(p *system.GetAllPlayersResult) GetAllPlay
 	return c
 }
 
-func (c GetAllPlayersResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GetAllPlayersResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GetAllPlayersResult: " + err.Error())
+	}
+	return data
 }
 
 func (c GetAllPlayersResult) UnmarshalWire(data []byte) (any, error) {
@@ -254,10 +257,6 @@ func (c GetAllPlayersResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GetAllPlayersResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GetAllPlayersResult{}).ProtoReflect().Descriptor()
 }
 
 func (c GetLobbyCommand) ToProto() *system.GetLobbyCommand {
@@ -274,8 +273,12 @@ func (c GetLobbyCommand) FromProto(p *system.GetLobbyCommand) GetLobbyCommand {
 	return c
 }
 
-func (c GetLobbyCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GetLobbyCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GetLobbyCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c GetLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -284,10 +287,6 @@ func (c GetLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GetLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GetLobbyCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c GetLobbyResult) ToProto() *system.GetLobbyResult {
@@ -310,8 +309,12 @@ func (c GetLobbyResult) FromProto(p *system.GetLobbyResult) GetLobbyResult {
 	return c
 }
 
-func (c GetLobbyResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GetLobbyResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GetLobbyResult: " + err.Error())
+	}
+	return data
 }
 
 func (c GetLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -320,10 +323,6 @@ func (c GetLobbyResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GetLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GetLobbyResult{}).ProtoReflect().Descriptor()
 }
 
 func (c GetPlayerCommand) ToProto() *system.GetPlayerCommand {
@@ -342,8 +341,12 @@ func (c GetPlayerCommand) FromProto(p *system.GetPlayerCommand) GetPlayerCommand
 	return c
 }
 
-func (c GetPlayerCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GetPlayerCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GetPlayerCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c GetPlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -352,10 +355,6 @@ func (c GetPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GetPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GetPlayerCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c GetPlayerResult) ToProto() *system.GetPlayerResult {
@@ -378,8 +377,12 @@ func (c GetPlayerResult) FromProto(p *system.GetPlayerResult) GetPlayerResult {
 	return c
 }
 
-func (c GetPlayerResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c GetPlayerResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal GetPlayerResult: " + err.Error())
+	}
+	return data
 }
 
 func (c GetPlayerResult) UnmarshalWire(data []byte) (any, error) {
@@ -388,10 +391,6 @@ func (c GetPlayerResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c GetPlayerResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.GetPlayerResult{}).ProtoReflect().Descriptor()
 }
 
 func (c HeartbeatCommand) ToProto() *system.HeartbeatCommand {
@@ -406,8 +405,12 @@ func (c HeartbeatCommand) FromProto(p *system.HeartbeatCommand) HeartbeatCommand
 	return c
 }
 
-func (c HeartbeatCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c HeartbeatCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal HeartbeatCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c HeartbeatCommand) UnmarshalWire(data []byte) (any, error) {
@@ -416,10 +419,6 @@ func (c HeartbeatCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c HeartbeatCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.HeartbeatCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c InviteCodeGeneratedEvent) ToProto() *system.InviteCodeGeneratedEvent {
@@ -438,8 +437,12 @@ func (c InviteCodeGeneratedEvent) FromProto(p *system.InviteCodeGeneratedEvent) 
 	return c
 }
 
-func (c InviteCodeGeneratedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c InviteCodeGeneratedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal InviteCodeGeneratedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c InviteCodeGeneratedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -448,10 +451,6 @@ func (c InviteCodeGeneratedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c InviteCodeGeneratedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.InviteCodeGeneratedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c JoinLobbyCommand) ToProto() *system.JoinLobbyCommand {
@@ -474,8 +473,12 @@ func (c JoinLobbyCommand) FromProto(p *system.JoinLobbyCommand) JoinLobbyCommand
 	return c
 }
 
-func (c JoinLobbyCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c JoinLobbyCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal JoinLobbyCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c JoinLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -484,10 +487,6 @@ func (c JoinLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c JoinLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.JoinLobbyCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c JoinLobbyResult) ToProto() *system.JoinLobbyResult {
@@ -518,8 +517,12 @@ func (c JoinLobbyResult) FromProto(p *system.JoinLobbyResult) JoinLobbyResult {
 	return c
 }
 
-func (c JoinLobbyResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c JoinLobbyResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal JoinLobbyResult: " + err.Error())
+	}
+	return data
 }
 
 func (c JoinLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -528,10 +531,6 @@ func (c JoinLobbyResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c JoinLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.JoinLobbyResult{}).ProtoReflect().Descriptor()
 }
 
 func (c JoinTeamCommand) ToProto() *system.JoinTeamCommand {
@@ -550,8 +549,12 @@ func (c JoinTeamCommand) FromProto(p *system.JoinTeamCommand) JoinTeamCommand {
 	return c
 }
 
-func (c JoinTeamCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c JoinTeamCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal JoinTeamCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c JoinTeamCommand) UnmarshalWire(data []byte) (any, error) {
@@ -560,10 +563,6 @@ func (c JoinTeamCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c JoinTeamCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.JoinTeamCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c JoinTeamResult) ToProto() *system.JoinTeamResult {
@@ -586,8 +585,12 @@ func (c JoinTeamResult) FromProto(p *system.JoinTeamResult) JoinTeamResult {
 	return c
 }
 
-func (c JoinTeamResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c JoinTeamResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal JoinTeamResult: " + err.Error())
+	}
+	return data
 }
 
 func (c JoinTeamResult) UnmarshalWire(data []byte) (any, error) {
@@ -596,10 +599,6 @@ func (c JoinTeamResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c JoinTeamResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.JoinTeamResult{}).ProtoReflect().Descriptor()
 }
 
 func (c KickPlayerCommand) ToProto() *system.KickPlayerCommand {
@@ -618,8 +617,12 @@ func (c KickPlayerCommand) FromProto(p *system.KickPlayerCommand) KickPlayerComm
 	return c
 }
 
-func (c KickPlayerCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c KickPlayerCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal KickPlayerCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c KickPlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -628,10 +631,6 @@ func (c KickPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c KickPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.KickPlayerCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c KickPlayerResult) ToProto() *system.KickPlayerResult {
@@ -652,8 +651,12 @@ func (c KickPlayerResult) FromProto(p *system.KickPlayerResult) KickPlayerResult
 	return c
 }
 
-func (c KickPlayerResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c KickPlayerResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal KickPlayerResult: " + err.Error())
+	}
+	return data
 }
 
 func (c KickPlayerResult) UnmarshalWire(data []byte) (any, error) {
@@ -662,10 +665,6 @@ func (c KickPlayerResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c KickPlayerResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.KickPlayerResult{}).ProtoReflect().Descriptor()
 }
 
 func (c LeaderChangedEvent) ToProto() *system.LeaderChangedEvent {
@@ -686,8 +685,12 @@ func (c LeaderChangedEvent) FromProto(p *system.LeaderChangedEvent) LeaderChange
 	return c
 }
 
-func (c LeaderChangedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LeaderChangedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LeaderChangedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c LeaderChangedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -696,10 +699,6 @@ func (c LeaderChangedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LeaderChangedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.LeaderChangedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c LeaveLobbyCommand) ToProto() *system.LeaveLobbyCommand {
@@ -716,8 +715,12 @@ func (c LeaveLobbyCommand) FromProto(p *system.LeaveLobbyCommand) LeaveLobbyComm
 	return c
 }
 
-func (c LeaveLobbyCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LeaveLobbyCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LeaveLobbyCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c LeaveLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -726,10 +729,6 @@ func (c LeaveLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LeaveLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.LeaveLobbyCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c LeaveLobbyResult) ToProto() *system.LeaveLobbyResult {
@@ -750,8 +749,12 @@ func (c LeaveLobbyResult) FromProto(p *system.LeaveLobbyResult) LeaveLobbyResult
 	return c
 }
 
-func (c LeaveLobbyResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LeaveLobbyResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LeaveLobbyResult: " + err.Error())
+	}
+	return data
 }
 
 func (c LeaveLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -760,10 +763,6 @@ func (c LeaveLobbyResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LeaveLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.LeaveLobbyResult{}).ProtoReflect().Descriptor()
 }
 
 func (c LobbyCreatedEvent) ToProto() *system.LobbyCreatedEvent {
@@ -784,8 +783,12 @@ func (c LobbyCreatedEvent) FromProto(p *system.LobbyCreatedEvent) LobbyCreatedEv
 	return c
 }
 
-func (c LobbyCreatedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LobbyCreatedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LobbyCreatedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c LobbyCreatedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -794,10 +797,6 @@ func (c LobbyCreatedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LobbyCreatedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.LobbyCreatedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c LobbyDeletedEvent) ToProto() *system.LobbyDeletedEvent {
@@ -814,8 +813,12 @@ func (c LobbyDeletedEvent) FromProto(p *system.LobbyDeletedEvent) LobbyDeletedEv
 	return c
 }
 
-func (c LobbyDeletedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LobbyDeletedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LobbyDeletedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c LobbyDeletedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -824,10 +827,6 @@ func (c LobbyDeletedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LobbyDeletedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.LobbyDeletedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c NotifySessionEndCommand) ToProto() *system.NotifySessionEndCommand {
@@ -844,8 +843,12 @@ func (c NotifySessionEndCommand) FromProto(p *system.NotifySessionEndCommand) No
 	return c
 }
 
-func (c NotifySessionEndCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c NotifySessionEndCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal NotifySessionEndCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c NotifySessionEndCommand) UnmarshalWire(data []byte) (any, error) {
@@ -854,10 +857,6 @@ func (c NotifySessionEndCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c NotifySessionEndCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.NotifySessionEndCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c NotifySessionStartCommand) ToProto() *system.NotifySessionStartCommand {
@@ -876,8 +875,12 @@ func (c NotifySessionStartCommand) FromProto(p *system.NotifySessionStartCommand
 	return c
 }
 
-func (c NotifySessionStartCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c NotifySessionStartCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal NotifySessionStartCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c NotifySessionStartCommand) UnmarshalWire(data []byte) (any, error) {
@@ -886,10 +889,6 @@ func (c NotifySessionStartCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c NotifySessionStartCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.NotifySessionStartCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerChangedTeamEvent) ToProto() *system.PlayerChangedTeamEvent {
@@ -912,8 +911,12 @@ func (c PlayerChangedTeamEvent) FromProto(p *system.PlayerChangedTeamEvent) Play
 	return c
 }
 
-func (c PlayerChangedTeamEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerChangedTeamEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerChangedTeamEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerChangedTeamEvent) UnmarshalWire(data []byte) (any, error) {
@@ -922,10 +925,6 @@ func (c PlayerChangedTeamEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerChangedTeamEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerChangedTeamEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerJoinedEvent) ToProto() *system.PlayerJoinedEvent {
@@ -946,8 +945,12 @@ func (c PlayerJoinedEvent) FromProto(p *system.PlayerJoinedEvent) PlayerJoinedEv
 	return c
 }
 
-func (c PlayerJoinedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerJoinedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerJoinedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerJoinedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -956,10 +959,6 @@ func (c PlayerJoinedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerJoinedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerJoinedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerKickedEvent) ToProto() *system.PlayerKickedEvent {
@@ -980,8 +979,12 @@ func (c PlayerKickedEvent) FromProto(p *system.PlayerKickedEvent) PlayerKickedEv
 	return c
 }
 
-func (c PlayerKickedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerKickedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerKickedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerKickedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -990,10 +993,6 @@ func (c PlayerKickedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerKickedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerKickedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerLeftEvent) ToProto() *system.PlayerLeftEvent {
@@ -1012,8 +1011,12 @@ func (c PlayerLeftEvent) FromProto(p *system.PlayerLeftEvent) PlayerLeftEvent {
 	return c
 }
 
-func (c PlayerLeftEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerLeftEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerLeftEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerLeftEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1022,10 +1025,6 @@ func (c PlayerLeftEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerLeftEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerLeftEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerPassthroughUpdatedEvent) ToProto() *system.PlayerPassthroughUpdatedEvent {
@@ -1044,8 +1043,12 @@ func (c PlayerPassthroughUpdatedEvent) FromProto(p *system.PlayerPassthroughUpda
 	return c
 }
 
-func (c PlayerPassthroughUpdatedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerPassthroughUpdatedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerPassthroughUpdatedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1054,10 +1057,6 @@ func (c PlayerPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerPassthroughUpdatedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerPassthroughUpdatedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerReadyEvent) ToProto() *system.PlayerReadyEvent {
@@ -1076,8 +1075,12 @@ func (c PlayerReadyEvent) FromProto(p *system.PlayerReadyEvent) PlayerReadyEvent
 	return c
 }
 
-func (c PlayerReadyEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerReadyEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerReadyEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerReadyEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1086,10 +1089,6 @@ func (c PlayerReadyEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerReadyEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerReadyEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerTimedOutEvent) ToProto() *system.PlayerTimedOutEvent {
@@ -1108,8 +1107,12 @@ func (c PlayerTimedOutEvent) FromProto(p *system.PlayerTimedOutEvent) PlayerTime
 	return c
 }
 
-func (c PlayerTimedOutEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerTimedOutEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerTimedOutEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerTimedOutEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1118,10 +1121,6 @@ func (c PlayerTimedOutEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerTimedOutEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.PlayerTimedOutEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c SessionAwaitingAllocationEvent) ToProto() *system.SessionAwaitingAllocationEvent {
@@ -1138,8 +1137,12 @@ func (c SessionAwaitingAllocationEvent) FromProto(p *system.SessionAwaitingAlloc
 	return c
 }
 
-func (c SessionAwaitingAllocationEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c SessionAwaitingAllocationEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal SessionAwaitingAllocationEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c SessionAwaitingAllocationEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1148,10 +1151,6 @@ func (c SessionAwaitingAllocationEvent) UnmarshalWire(data []byte) (any, error) 
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c SessionAwaitingAllocationEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.SessionAwaitingAllocationEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c SessionEndedEvent) ToProto() *system.SessionEndedEvent {
@@ -1168,8 +1167,12 @@ func (c SessionEndedEvent) FromProto(p *system.SessionEndedEvent) SessionEndedEv
 	return c
 }
 
-func (c SessionEndedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c SessionEndedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal SessionEndedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c SessionEndedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1178,10 +1181,6 @@ func (c SessionEndedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c SessionEndedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.SessionEndedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c SessionPassthroughUpdatedEvent) ToProto() *system.SessionPassthroughUpdatedEvent {
@@ -1204,8 +1203,12 @@ func (c SessionPassthroughUpdatedEvent) FromProto(p *system.SessionPassthroughUp
 	return c
 }
 
-func (c SessionPassthroughUpdatedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c SessionPassthroughUpdatedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal SessionPassthroughUpdatedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c SessionPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1214,10 +1217,6 @@ func (c SessionPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) 
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c SessionPassthroughUpdatedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.SessionPassthroughUpdatedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c SessionStartedEvent) ToProto() *system.SessionStartedEvent {
@@ -1236,8 +1235,12 @@ func (c SessionStartedEvent) FromProto(p *system.SessionStartedEvent) SessionSta
 	return c
 }
 
-func (c SessionStartedEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c SessionStartedEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal SessionStartedEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c SessionStartedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1246,10 +1249,6 @@ func (c SessionStartedEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c SessionStartedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.SessionStartedEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c SetReadyCommand) ToProto() *system.SetReadyCommand {
@@ -1268,8 +1267,12 @@ func (c SetReadyCommand) FromProto(p *system.SetReadyCommand) SetReadyCommand {
 	return c
 }
 
-func (c SetReadyCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c SetReadyCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal SetReadyCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c SetReadyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1278,10 +1281,6 @@ func (c SetReadyCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c SetReadyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.SetReadyCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c SetReadyResult) ToProto() *system.SetReadyResult {
@@ -1304,8 +1303,12 @@ func (c SetReadyResult) FromProto(p *system.SetReadyResult) SetReadyResult {
 	return c
 }
 
-func (c SetReadyResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c SetReadyResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal SetReadyResult: " + err.Error())
+	}
+	return data
 }
 
 func (c SetReadyResult) UnmarshalWire(data []byte) (any, error) {
@@ -1314,10 +1317,6 @@ func (c SetReadyResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c SetReadyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.SetReadyResult{}).ProtoReflect().Descriptor()
 }
 
 func (c StartSessionCommand) ToProto() *system.StartSessionCommand {
@@ -1334,8 +1333,12 @@ func (c StartSessionCommand) FromProto(p *system.StartSessionCommand) StartSessi
 	return c
 }
 
-func (c StartSessionCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c StartSessionCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal StartSessionCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c StartSessionCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1344,10 +1347,6 @@ func (c StartSessionCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c StartSessionCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.StartSessionCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c StartSessionResult) ToProto() *system.StartSessionResult {
@@ -1370,8 +1369,12 @@ func (c StartSessionResult) FromProto(p *system.StartSessionResult) StartSession
 	return c
 }
 
-func (c StartSessionResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c StartSessionResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal StartSessionResult: " + err.Error())
+	}
+	return data
 }
 
 func (c StartSessionResult) UnmarshalWire(data []byte) (any, error) {
@@ -1380,10 +1383,6 @@ func (c StartSessionResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c StartSessionResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.StartSessionResult{}).ProtoReflect().Descriptor()
 }
 
 func (c TransferLeaderCommand) ToProto() *system.TransferLeaderCommand {
@@ -1402,8 +1401,12 @@ func (c TransferLeaderCommand) FromProto(p *system.TransferLeaderCommand) Transf
 	return c
 }
 
-func (c TransferLeaderCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c TransferLeaderCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal TransferLeaderCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c TransferLeaderCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1412,10 +1415,6 @@ func (c TransferLeaderCommand) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c TransferLeaderCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.TransferLeaderCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c TransferLeaderResult) ToProto() *system.TransferLeaderResult {
@@ -1436,8 +1435,12 @@ func (c TransferLeaderResult) FromProto(p *system.TransferLeaderResult) Transfer
 	return c
 }
 
-func (c TransferLeaderResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c TransferLeaderResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal TransferLeaderResult: " + err.Error())
+	}
+	return data
 }
 
 func (c TransferLeaderResult) UnmarshalWire(data []byte) (any, error) {
@@ -1446,10 +1449,6 @@ func (c TransferLeaderResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c TransferLeaderResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.TransferLeaderResult{}).ProtoReflect().Descriptor()
 }
 
 func (c UpdatePlayerPassthroughCommand) ToProto() *system.UpdatePlayerPassthroughCommand {
@@ -1468,8 +1467,12 @@ func (c UpdatePlayerPassthroughCommand) FromProto(p *system.UpdatePlayerPassthro
 	return c
 }
 
-func (c UpdatePlayerPassthroughCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c UpdatePlayerPassthroughCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal UpdatePlayerPassthroughCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c UpdatePlayerPassthroughCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1478,10 +1481,6 @@ func (c UpdatePlayerPassthroughCommand) UnmarshalWire(data []byte) (any, error) 
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c UpdatePlayerPassthroughCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.UpdatePlayerPassthroughCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c UpdatePlayerPassthroughResult) ToProto() *system.UpdatePlayerPassthroughResult {
@@ -1504,8 +1503,12 @@ func (c UpdatePlayerPassthroughResult) FromProto(p *system.UpdatePlayerPassthrou
 	return c
 }
 
-func (c UpdatePlayerPassthroughResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c UpdatePlayerPassthroughResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal UpdatePlayerPassthroughResult: " + err.Error())
+	}
+	return data
 }
 
 func (c UpdatePlayerPassthroughResult) UnmarshalWire(data []byte) (any, error) {
@@ -1514,10 +1517,6 @@ func (c UpdatePlayerPassthroughResult) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c UpdatePlayerPassthroughResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.UpdatePlayerPassthroughResult{}).ProtoReflect().Descriptor()
 }
 
 func (c UpdateSessionPassthroughCommand) ToProto() *system.UpdateSessionPassthroughCommand {
@@ -1536,8 +1535,12 @@ func (c UpdateSessionPassthroughCommand) FromProto(p *system.UpdateSessionPassth
 	return c
 }
 
-func (c UpdateSessionPassthroughCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c UpdateSessionPassthroughCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal UpdateSessionPassthroughCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c UpdateSessionPassthroughCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1546,10 +1549,6 @@ func (c UpdateSessionPassthroughCommand) UnmarshalWire(data []byte) (any, error)
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c UpdateSessionPassthroughCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.UpdateSessionPassthroughCommand{}).ProtoReflect().Descriptor()
 }
 
 func (c UpdateSessionPassthroughResult) ToProto() *system.UpdateSessionPassthroughResult {
@@ -1570,8 +1569,12 @@ func (c UpdateSessionPassthroughResult) FromProto(p *system.UpdateSessionPassthr
 	return c
 }
 
-func (c UpdateSessionPassthroughResult) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c UpdateSessionPassthroughResult) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal UpdateSessionPassthroughResult: " + err.Error())
+	}
+	return data
 }
 
 func (c UpdateSessionPassthroughResult) UnmarshalWire(data []byte) (any, error) {
@@ -1580,8 +1583,4 @@ func (c UpdateSessionPassthroughResult) UnmarshalWire(data []byte) (any, error) 
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c UpdateSessionPassthroughResult) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.UpdateSessionPassthroughResult{}).ProtoReflect().Descriptor()
 }

@@ -7,7 +7,6 @@ package component
 import (
 	component "github.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c ConfigManifest) ToProto() *component.ConfigManifest {
@@ -34,8 +33,12 @@ func (c ConfigManifest) FromProto(p *component.ConfigManifest) ConfigManifest {
 	return c
 }
 
-func (c ConfigManifest) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c ConfigManifest) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ConfigManifest: " + err.Error())
+	}
+	return data
 }
 
 func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
@@ -44,8 +47,4 @@ func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c ConfigManifest) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.ConfigManifest{}).ProtoReflect().Descriptor()
 }

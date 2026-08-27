@@ -275,7 +275,7 @@ func removeComponent[T Component](ws *worldState, eid EntityID) error {
 // -------------------------------------------------------------------------------------------------
 
 // toProto converts the worldState to a protobuf message for serialization.
-func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
+func (ws *worldState) toProto() *cardinalv1.WorldState {
 	freeIDs := make([]uint32, len(ws.free))
 	for i, entityID := range ws.free {
 		freeIDs[i] = uint32(entityID)
@@ -283,11 +283,7 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 
 	pbArchetypes := make([]*cardinalv1.Archetype, len(ws.archetypes))
 	for i, arch := range ws.archetypes {
-		pbArch, err := arch.toProto()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize archetype %d", i)
-		}
-		pbArchetypes[i] = pbArch
+		pbArchetypes[i] = arch.toProto()
 	}
 
 	return &cardinalv1.WorldState{
@@ -295,7 +291,7 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 		FreeIds:    freeIDs,
 		EntityArch: ws.entityArch.toInt64Slice(),
 		Archetypes: pbArchetypes,
-	}, nil
+	}
 }
 
 // fromProto populates the worldState from a protobuf message.

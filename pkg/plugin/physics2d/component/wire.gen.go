@@ -5,11 +5,9 @@
 package component
 
 import (
-	"encoding/json"
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
 	component "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c ActiveContacts) ToProto() *component.ActiveContacts {
@@ -32,8 +30,12 @@ func (c ActiveContacts) FromProto(p *component.ActiveContacts) ActiveContacts {
 	return c
 }
 
-func (c ActiveContacts) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c ActiveContacts) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ActiveContacts: " + err.Error())
+	}
+	return data
 }
 
 func (c ActiveContacts) UnmarshalWire(data []byte) (any, error) {
@@ -42,10 +44,6 @@ func (c ActiveContacts) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c ActiveContacts) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.ActiveContacts{}).ProtoReflect().Descriptor()
 }
 
 func (c ColliderShape) ToProto() *component.ColliderShape {
@@ -62,8 +60,8 @@ func (c ColliderShape) ToProto() *component.ColliderShape {
 	for i := range c.ChainPoints {
 		p.ChainPoints = append(p.ChainPoints, c.ChainPoints[i].ToProto())
 	}
-	if data, err := json.Marshal(c.EdgeVertices); err == nil {
-		p.EdgeVertices = data
+	for i0 := range c.EdgeVertices {
+		p.EdgeVertices = append(p.EdgeVertices, c.EdgeVertices[i0].ToProto())
 	}
 	p.CapsuleCenter1 = c.CapsuleCenter1.ToProto()
 	p.CapsuleCenter2 = c.CapsuleCenter2.ToProto()
@@ -96,8 +94,12 @@ func (c ColliderShape) FromProto(p *component.ColliderShape) ColliderShape {
 		v = v.FromProto(e)
 		c.ChainPoints = append(c.ChainPoints, v)
 	}
-	if len(p.EdgeVertices) > 0 {
-		_ = json.Unmarshal(p.EdgeVertices, &c.EdgeVertices)
+	for i, e := range p.EdgeVertices {
+		if i >= 2 {
+			break
+		}
+		var v Vec2
+		c.EdgeVertices[i] = v.FromProto(e)
 	}
 	c.CapsuleCenter1 = c.CapsuleCenter1.FromProto(p.CapsuleCenter1)
 	c.CapsuleCenter2 = c.CapsuleCenter2.FromProto(p.CapsuleCenter2)
@@ -182,8 +184,12 @@ func (c PhysicsBody2D) FromProto(p *component.PhysicsBody2D) PhysicsBody2D {
 	return c
 }
 
-func (c PhysicsBody2D) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PhysicsBody2D) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PhysicsBody2D: " + err.Error())
+	}
+	return data
 }
 
 func (c PhysicsBody2D) UnmarshalWire(data []byte) (any, error) {
@@ -192,10 +198,6 @@ func (c PhysicsBody2D) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PhysicsBody2D) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.PhysicsBody2D{}).ProtoReflect().Descriptor()
 }
 
 func (c PhysicsSingletonTag) ToProto() *component.PhysicsSingletonTag {
@@ -210,8 +212,12 @@ func (c PhysicsSingletonTag) FromProto(p *component.PhysicsSingletonTag) Physics
 	return c
 }
 
-func (c PhysicsSingletonTag) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PhysicsSingletonTag) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PhysicsSingletonTag: " + err.Error())
+	}
+	return data
 }
 
 func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (any, error) {
@@ -220,10 +226,6 @@ func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PhysicsSingletonTag) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.PhysicsSingletonTag{}).ProtoReflect().Descriptor()
 }
 
 func (c Transform2D) ToProto() *component.Transform2D {
@@ -242,8 +244,12 @@ func (c Transform2D) FromProto(p *component.Transform2D) Transform2D {
 	return c
 }
 
-func (c Transform2D) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c Transform2D) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal Transform2D: " + err.Error())
+	}
+	return data
 }
 
 func (c Transform2D) UnmarshalWire(data []byte) (any, error) {
@@ -252,10 +258,6 @@ func (c Transform2D) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c Transform2D) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.Transform2D{}).ProtoReflect().Descriptor()
 }
 
 func (c Vec2) ToProto() *component.Vec2 {
@@ -290,8 +292,12 @@ func (c Velocity2D) FromProto(p *component.Velocity2D) Velocity2D {
 	return c
 }
 
-func (c Velocity2D) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c Velocity2D) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal Velocity2D: " + err.Error())
+	}
+	return data
 }
 
 func (c Velocity2D) UnmarshalWire(data []byte) (any, error) {
@@ -300,8 +306,4 @@ func (c Velocity2D) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c Velocity2D) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.Velocity2D{}).ProtoReflect().Descriptor()
 }

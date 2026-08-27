@@ -7,7 +7,6 @@ package event
 import (
 	event "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/event"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c NewPlayer) ToProto() *event.NewPlayer {
@@ -24,8 +23,12 @@ func (c NewPlayer) FromProto(p *event.NewPlayer) NewPlayer {
 	return c
 }
 
-func (c NewPlayer) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c NewPlayer) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal NewPlayer: " + err.Error())
+	}
+	return data
 }
 
 func (c NewPlayer) UnmarshalWire(data []byte) (any, error) {
@@ -34,10 +37,6 @@ func (c NewPlayer) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c NewPlayer) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.NewPlayer{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerDeath) ToProto() *event.PlayerDeath {
@@ -54,8 +53,12 @@ func (c PlayerDeath) FromProto(p *event.PlayerDeath) PlayerDeath {
 	return c
 }
 
-func (c PlayerDeath) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerDeath) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerDeath: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
@@ -64,8 +67,4 @@ func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerDeath) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerDeath{}).ProtoReflect().Descriptor()
 }

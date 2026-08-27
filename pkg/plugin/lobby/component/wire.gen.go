@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	component "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c ConfigComponent) ToProto() *component.ConfigComponent {
@@ -37,8 +36,12 @@ func (c ConfigComponent) FromProto(p *component.ConfigComponent) ConfigComponent
 	return c
 }
 
-func (c ConfigComponent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c ConfigComponent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ConfigComponent: " + err.Error())
+	}
+	return data
 }
 
 func (c ConfigComponent) UnmarshalWire(data []byte) (any, error) {
@@ -47,10 +50,6 @@ func (c ConfigComponent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c ConfigComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.ConfigComponent{}).ProtoReflect().Descriptor()
 }
 
 func (c LobbyComponent) ToProto() *component.LobbyComponent {
@@ -85,8 +84,12 @@ func (c LobbyComponent) FromProto(p *component.LobbyComponent) LobbyComponent {
 	return c
 }
 
-func (c LobbyComponent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LobbyComponent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LobbyComponent: " + err.Error())
+	}
+	return data
 }
 
 func (c LobbyComponent) UnmarshalWire(data []byte) (any, error) {
@@ -95,10 +98,6 @@ func (c LobbyComponent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LobbyComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.LobbyComponent{}).ProtoReflect().Descriptor()
 }
 
 func (c LobbyIndexComponent) ToProto() *component.LobbyIndexComponent {
@@ -197,8 +196,12 @@ func (c LobbyIndexComponent) FromProto(p *component.LobbyIndexComponent) LobbyIn
 	return c
 }
 
-func (c LobbyIndexComponent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c LobbyIndexComponent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal LobbyIndexComponent: " + err.Error())
+	}
+	return data
 }
 
 func (c LobbyIndexComponent) UnmarshalWire(data []byte) (any, error) {
@@ -207,10 +210,6 @@ func (c LobbyIndexComponent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c LobbyIndexComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.LobbyIndexComponent{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerComponent) ToProto() *component.PlayerComponent {
@@ -241,8 +240,12 @@ func (c PlayerComponent) FromProto(p *component.PlayerComponent) PlayerComponent
 	return c
 }
 
-func (c PlayerComponent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerComponent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerComponent: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerComponent) UnmarshalWire(data []byte) (any, error) {
@@ -251,10 +254,6 @@ func (c PlayerComponent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.PlayerComponent{}).ProtoReflect().Descriptor()
 }
 
 func (c Session) ToProto() *component.Session {

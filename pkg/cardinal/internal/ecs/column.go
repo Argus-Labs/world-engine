@@ -19,7 +19,7 @@ type abstractColumn interface {
 	getAbstract(row int) Component
 	remove(row int)
 
-	toProto() (*cardinalv1.Column, error)
+	toProto() *cardinalv1.Column
 	fromProto(*cardinalv1.Column) error
 }
 
@@ -121,20 +121,16 @@ func (c *column[T]) remove(row int) {
 }
 
 // toProto serializes each component with its generated protobuf codec.
-func (c *column[T]) toProto() (*cardinalv1.Column, error) {
+func (c *column[T]) toProto() *cardinalv1.Column {
 	componentData := make([][]byte, len(c.components))
 	for i, component := range c.components {
-		data, err := component.MarshalWire()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize component at index %d", i)
-		}
-		componentData[i] = data
+		componentData[i] = component.MarshalWire()
 	}
 
 	return &cardinalv1.Column{
 		ComponentName: c.compName,
 		Components:    componentData,
-	}, nil
+	}
 }
 
 // fromProto decodes each component with its generated protobuf codec.

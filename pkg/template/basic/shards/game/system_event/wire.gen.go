@@ -7,7 +7,6 @@ package systemevent
 import (
 	systemevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system_event"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c PlayerDeath) ToProto() *systemevent.PlayerDeath {
@@ -24,8 +23,12 @@ func (c PlayerDeath) FromProto(p *systemevent.PlayerDeath) PlayerDeath {
 	return c
 }
 
-func (c PlayerDeath) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerDeath) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerDeath: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
@@ -34,8 +37,4 @@ func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerDeath) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&systemevent.PlayerDeath{}).ProtoReflect().Descriptor()
 }

@@ -157,7 +157,7 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 // -------------------------------------------------------------------------------------------------
 
 // toProto converts the archetype to a protobuf message for serialization.
-func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
+func (a *archetype) toProto() *cardinalv1.Archetype {
 	componentsBitmap := bytes.Clone(a.components.ToBytes())
 
 	entities := make([]uint32, len(a.entities))
@@ -167,11 +167,7 @@ func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
 
 	columns := make([]*cardinalv1.Column, len(a.columns))
 	for i, column := range a.columns {
-		data, err := column.toProto()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize column %d", i)
-		}
-		columns[i] = data
+		columns[i] = column.toProto()
 	}
 
 	return &cardinalv1.Archetype{
@@ -180,7 +176,7 @@ func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
 		Entities:         entities,
 		Columns:          columns,
 		Rows:             a.rows.toInt64Slice(),
-	}, nil
+	}
 }
 
 // fromProto populates the archetype from a protobuf message. We pass a reference to the component

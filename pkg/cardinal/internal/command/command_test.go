@@ -52,8 +52,8 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 			// Pick a random command type and enqueue.
 			payload := generators[prng.IntN(len(generators))]()
-			pbPayload, err := payload.MarshalWire()
-			require.NoError(t, err)
+			pbPayload := payload.MarshalWire()
+			require.NotNil(t, pbPayload)
 
 			persona := testutils.RandString(prng, 8)
 			cmdpb := &iscv1.Command{
@@ -63,7 +63,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 				Payload: pbPayload,
 			}
 
-			err = impl.Enqueue(cmdpb)
+			err := impl.Enqueue(cmdpb)
 			require.NoError(t, err)
 
 			model.enqueue(payload.Name(), command.Command{
@@ -314,11 +314,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
 				}
 
-				pbPayload, err := payload.MarshalWire()
-				if err != nil {
-					t.Errorf("Serialize failed: %v", err)
-					return
-				}
+				pbPayload := payload.MarshalWire()
 
 				cmdpb := &iscv1.Command{
 					Name:    payload.Name(),

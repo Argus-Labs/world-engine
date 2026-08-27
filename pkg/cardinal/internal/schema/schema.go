@@ -14,7 +14,11 @@ import "google.golang.org/protobuf/reflect/protoreflect"
 // back to it (e.g. decoded.(MoveCommand)).
 type Serializable interface {
 	Name() string
-	MarshalWire() ([]byte, error)
+	// MarshalWire encodes the value. It returns no error: encoding a value the backend already holds
+	// cannot fail for a reason the caller could act on, so the generated implementation asserts rather
+	// than propagating (see the generator's wireCodec). It returns nil if encoding did fail, so a
+	// partially encoded buffer is never handed on.
+	MarshalWire() []byte
 	UnmarshalWire([]byte) (any, error)
 }
 

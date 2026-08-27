@@ -7,7 +7,6 @@ package component
 import (
 	component "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/component"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -29,8 +28,12 @@ func (c OnlineStatus) FromProto(p *component.OnlineStatus) OnlineStatus {
 	return c
 }
 
-func (c OnlineStatus) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c OnlineStatus) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal OnlineStatus: " + err.Error())
+	}
+	return data
 }
 
 func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
@@ -39,10 +42,6 @@ func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c OnlineStatus) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.OnlineStatus{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerTag) ToProto() *component.PlayerTag {
@@ -61,8 +60,12 @@ func (c PlayerTag) FromProto(p *component.PlayerTag) PlayerTag {
 	return c
 }
 
-func (c PlayerTag) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerTag) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerTag: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
@@ -71,10 +74,6 @@ func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.PlayerTag{}).ProtoReflect().Descriptor()
 }
 
 func (c Position) ToProto() *component.Position {
@@ -93,8 +92,12 @@ func (c Position) FromProto(p *component.Position) Position {
 	return c
 }
 
-func (c Position) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c Position) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal Position: " + err.Error())
+	}
+	return data
 }
 
 func (c Position) UnmarshalWire(data []byte) (any, error) {
@@ -103,8 +106,4 @@ func (c Position) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c Position) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.Position{}).ProtoReflect().Descriptor()
 }

@@ -7,7 +7,6 @@ package component
 import (
 	component "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/component"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c Gravestone) ToProto() *component.Gravestone {
@@ -24,8 +23,12 @@ func (c Gravestone) FromProto(p *component.Gravestone) Gravestone {
 	return c
 }
 
-func (c Gravestone) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c Gravestone) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal Gravestone: " + err.Error())
+	}
+	return data
 }
 
 func (c Gravestone) UnmarshalWire(data []byte) (any, error) {
@@ -34,10 +37,6 @@ func (c Gravestone) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c Gravestone) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.Gravestone{}).ProtoReflect().Descriptor()
 }
 
 func (c Health) ToProto() *component.Health {
@@ -54,8 +53,12 @@ func (c Health) FromProto(p *component.Health) Health {
 	return c
 }
 
-func (c Health) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c Health) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal Health: " + err.Error())
+	}
+	return data
 }
 
 func (c Health) UnmarshalWire(data []byte) (any, error) {
@@ -64,10 +67,6 @@ func (c Health) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c Health) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.Health{}).ProtoReflect().Descriptor()
 }
 
 func (c PlayerTag) ToProto() *component.PlayerTag {
@@ -84,8 +83,12 @@ func (c PlayerTag) FromProto(p *component.PlayerTag) PlayerTag {
 	return c
 }
 
-func (c PlayerTag) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerTag) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerTag: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
@@ -94,8 +97,4 @@ func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.PlayerTag{}).ProtoReflect().Descriptor()
 }

@@ -8,7 +8,6 @@ import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
 	event "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func (c ContactBeginEvent) ToProto() *event.ContactBeginEvent {
@@ -25,8 +24,12 @@ func (c ContactBeginEvent) FromProto(p *event.ContactBeginEvent) ContactBeginEve
 	return c
 }
 
-func (c ContactBeginEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c ContactBeginEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ContactBeginEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
@@ -35,10 +38,6 @@ func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c ContactBeginEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.ContactBeginEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c ContactEndEvent) ToProto() *event.ContactEndEvent {
@@ -55,8 +54,12 @@ func (c ContactEndEvent) FromProto(p *event.ContactEndEvent) ContactEndEvent {
 	return c
 }
 
-func (c ContactEndEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c ContactEndEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ContactEndEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
@@ -65,10 +68,6 @@ func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c ContactEndEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.ContactEndEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c ContactEventPayload) ToProto() *event.ContactEventPayload {
@@ -135,8 +134,12 @@ func (c TriggerBeginEvent) FromProto(p *event.TriggerBeginEvent) TriggerBeginEve
 	return c
 }
 
-func (c TriggerBeginEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c TriggerBeginEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal TriggerBeginEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
@@ -145,10 +148,6 @@ func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c TriggerBeginEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.TriggerBeginEvent{}).ProtoReflect().Descriptor()
 }
 
 func (c TriggerEndEvent) ToProto() *event.TriggerEndEvent {
@@ -165,8 +164,12 @@ func (c TriggerEndEvent) FromProto(p *event.TriggerEndEvent) TriggerEndEvent {
 	return c
 }
 
-func (c TriggerEndEvent) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c TriggerEndEvent) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal TriggerEndEvent: " + err.Error())
+	}
+	return data
 }
 
 func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {
@@ -175,8 +178,4 @@ func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
-}
-
-func (c TriggerEndEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.TriggerEndEvent{}).ProtoReflect().Descriptor()
 }
