@@ -2,63 +2,79 @@ package performance
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/argus-labs/world-engine/pkg/assert"
 )
-
-const subscriberChanBuf = 4
 
 // TickSpan represents a single system execution span within a tick.
 type TickSpan struct {
-	TickHeight uint64
 	SystemHook uint8
 	SystemName string
 	StartTime  time.Time
 	EndTime    time.Time
 }
 
-// TickTimeline groups spans that occurred within a single tick.
+// TickTimeline groups spans that occurred within a single tick. Treat values
+// received from a Collector as read-only.
 type TickTimeline struct {
-	TickHeight uint64
-	TickStart  time.Time
-	Spans      []TickSpan
+	TickHeight           uint64
+	TickStart            time.Time
+	SystemPhaseStartedAt time.Time
+	SystemPhaseElapsed   time.Duration
+	Generation           uint64
+	Spans                []TickSpan
 }
 
-// Batch is a batch of completed tick timelines pushed to subscribers.
-// Treat as read-only: subscribers must not mutate Ticks or its elements.
-type Batch struct {
-	Ticks []TickTimeline
+// TickCapture fixes the profiling decision and reset generation for one tick.
+type TickCapture struct {
+	Generation  uint64
+	SystemSpans bool
 }
 
-// Collector accumulates per-tick span data and broadcasts it in batches to
-// streaming subscribers. It is designed for a single writer (the tick loop)
-// with concurrent reader subscriptions (gRPC stream handlers).
+// Collector measures completed ticks and publishes them without blocking the
+// tick loop. Streaming handlers own batching and other transport concerns.
 type Collector struct {
 	mu           sync.Mutex
 	currentSpans []TickSpan
-	pending      []TickTimeline
-	subscribers  []chan Batch
-	batchSize    int
+	subscribers  []subscription
+	bufferSize   int
+	generation   uint64
+
+	// subscriberCount provides a lock-free fast path when metrics are unwatched.
+	subscriberCount atomic.Int64
 }
 
-// NewCollector creates a Collector that flushes every batchSize ticks.
-func NewCollector(batchSize int) *Collector {
-	if batchSize <= 0 {
-		batchSize = 1
-	}
-	return &Collector{
-		pending:   make([]TickTimeline, 0, batchSize),
-		batchSize: batchSize,
-	}
+type subscription struct {
+	ch                  chan TickTimeline
+	requestsSystemSpans bool
+	active              bool
 }
 
-// StartTick initializes span collection for a new tick.
-// Call exactly once per tick before any RecordSpan calls.
-func (c *Collector) StartTick() {
+// NewCollector creates a Collector with a bounded queue for each subscriber.
+func NewCollector(bufferSize int) *Collector {
+	if bufferSize <= 0 {
+		bufferSize = 1
+	}
+	return &Collector{bufferSize: bufferSize}
+}
+
+// StartTick fixes the profiling decision and reset generation for the tick
+// that is about to run. RecordTick must receive the returned value.
+func (c *Collector) StartTick() TickCapture {
+	if c.subscriberCount.Load() == 0 {
+		return TickCapture{}
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	capture := TickCapture{Generation: c.generation}
+	for i := range c.subscribers {
+		c.subscribers[i].active = true
+		capture.SystemSpans = capture.SystemSpans || c.subscribers[i].requestsSystemSpans
+	}
 	c.currentSpans = c.currentSpans[:0]
+	return capture
 }
 
 // RecordSpan appends a span to the current tick.
@@ -68,68 +84,82 @@ func (c *Collector) RecordSpan(span TickSpan) {
 	c.currentSpans = append(c.currentSpans, span)
 }
 
-// RecordTick finalizes the current tick, appending a TickTimeline to the
-// pending batch. When the batch reaches batchSize, it is flushed to all
-// subscribers via non-blocking channel sends performed outside the lock.
-func (c *Collector) RecordTick(tickHeight uint64, tickStart time.Time) {
+// RecordTick measures a completed tick and offers it to active subscribers.
+func (c *Collector) RecordTick(
+	capture TickCapture,
+	tickHeight uint64,
+	tickStart time.Time,
+	systemPhaseStartedAt time.Time,
+) {
+	if c.subscriberCount.Load() == 0 {
+		return
+	}
+
+	systemPhaseElapsed := time.Since(systemPhaseStartedAt)
+
 	c.mu.Lock()
-
-	spans := make([]TickSpan, len(c.currentSpans))
-	copy(spans, c.currentSpans)
-
-	c.pending = append(c.pending, TickTimeline{
-		TickHeight: tickHeight,
-		TickStart:  tickStart,
-		Spans:      spans,
-	})
-
-	var batch Batch
-	var subs []chan Batch
-
-	assert.That(len(c.pending) <= c.batchSize,
-		"performance.Collector: pending ticks (%d) exceeded batchSize (%d)", len(c.pending), c.batchSize)
-	if len(c.pending) == c.batchSize {
-		// Detach from c.pending so future appends in RecordTick don't overwrite sent data.
-		ticks := make([]TickTimeline, len(c.pending))
-		copy(ticks, c.pending)
-		batch = Batch{Ticks: ticks}
-		c.pending = make([]TickTimeline, 0, c.batchSize)
-
-		subs = make([]chan Batch, len(c.subscribers))
-		copy(subs, c.subscribers)
+	if len(c.subscribers) == 0 || capture.Generation != c.generation {
+		c.mu.Unlock()
+		return
 	}
 
+	var spans []TickSpan
+	if capture.SystemSpans {
+		spans = make([]TickSpan, len(c.currentSpans))
+		copy(spans, c.currentSpans)
+	}
+
+	tick := TickTimeline{
+		TickHeight:           tickHeight,
+		TickStart:            tickStart,
+		SystemPhaseStartedAt: systemPhaseStartedAt,
+		SystemPhaseElapsed:   systemPhaseElapsed,
+		Generation:           capture.Generation,
+		Spans:                spans,
+	}
+
+	for _, sub := range c.subscribers {
+		if !sub.active {
+			continue
+		}
+		offerLatest(sub.ch, tick)
+	}
 	c.mu.Unlock()
-
-	for _, sub := range subs {
-		// Non-blocking send; recover guards against closed channels
-		// (which can happen when Unsubscribe races with an in-flight flush).
-		func() {
-			defer func() { _ = recover() }()
-			select {
-			case sub <- batch:
-			default:
-			}
-		}()
-	}
 }
 
-// Reset clears all buffered data. Use after a world reset or snapshot restore.
+// Reset clears queued measurements and starts a new tick generation.
 func (c *Collector) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.currentSpans = c.currentSpans[:0]
-	c.pending = c.pending[:0]
+	c.generation++
+	for i := range c.subscribers {
+		c.subscribers[i].active = false
+		drain(c.subscribers[i].ch)
+	}
 }
 
-// Subscribe returns a channel that receives Batch values whenever the
-// collector flushes. The caller must eventually call Unsubscribe to avoid
-// leaking the channel.
-func (c *Collector) Subscribe() <-chan Batch {
-	ch := make(chan Batch, subscriberChanBuf)
+// SubscribeTimings returns completed tick timings. The caller must eventually
+// call Unsubscribe.
+func (c *Collector) SubscribeTimings() <-chan TickTimeline {
+	return c.subscribe(false)
+}
+
+// SubscribeProfiles returns completed ticks with per-system spans and keeps
+// span capture enabled until the caller unsubscribes.
+func (c *Collector) SubscribeProfiles() <-chan TickTimeline {
+	return c.subscribe(true)
+}
+
+func (c *Collector) subscribe(requestsSystemSpans bool) <-chan TickTimeline {
+	ch := make(chan TickTimeline, c.bufferSize)
 	c.mu.Lock()
-	c.subscribers = append(c.subscribers, ch)
+	c.subscribers = append(c.subscribers, subscription{
+		ch:                  ch,
+		requestsSystemSpans: requestsSystemSpans,
+	})
+	c.subscriberCount.Add(1)
 	c.mu.Unlock()
 	return ch
 }
@@ -138,13 +168,43 @@ func (c *Collector) Subscribe() <-chan Batch {
 // The channel is intentionally not closed: closing would make receives
 // return zero values instead of blocking, breaking select/default patterns.
 // Callers should select on ctx.Done() to detect stream termination.
-func (c *Collector) Unsubscribe(ch <-chan Batch) {
+func (c *Collector) Unsubscribe(ch <-chan TickTimeline) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	for i, sub := range c.subscribers {
-		if sub == ch {
+		if sub.ch == ch {
 			c.subscribers = append(c.subscribers[:i], c.subscribers[i+1:]...)
+			c.subscriberCount.Add(-1)
+			return
+		}
+	}
+}
+
+// Keep live metrics current without ever blocking the tick loop.
+func offerLatest(ch chan TickTimeline, tick TickTimeline) {
+	select {
+	case ch <- tick:
+		return
+	default:
+	}
+
+	select {
+	case <-ch:
+	default:
+	}
+
+	select {
+	case ch <- tick:
+	default:
+	}
+}
+
+func drain(ch chan TickTimeline) {
+	for {
+		select {
+		case <-ch:
+		default:
 			return
 		}
 	}

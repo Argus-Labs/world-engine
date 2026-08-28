@@ -10,6 +10,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -229,12 +230,22 @@ func (w *World) Tick(timestamp time.Time) {
 	_ = w.commands.Drain()
 
 	w.currentTick.timestamp = timestamp
-	w.debug.startPerfTick()
+	w.currentTick.capture = w.debug.startSystemSpanCapture()
+
+	var systemPhaseStartedAt time.Time
+	if w.debug != nil {
+		systemPhaseStartedAt = time.Now()
+	}
 
 	// Advance the ECS world.
 	w.world.Tick()
 
-	w.debug.recordTick(w.currentTick.height, timestamp)
+	w.debug.recordTick(
+		w.currentTick.capture,
+		w.currentTick.height,
+		timestamp,
+		systemPhaseStartedAt,
+	)
 
 	// Send events.
 	if err := w.events.Dispatch(); err != nil {
@@ -353,6 +364,10 @@ func (w *World) shutdown() {
 }
 
 func (w *World) reset() {
+	// Clear the whole tick before init systems run so they cannot inherit a
+	// span-capture latch from the previous tick.
+	w.currentTick = Tick{}
+
 	// Reset the ECS world and run initialization systems again.
 	w.world.Reset()
 	w.world.Init()
@@ -360,10 +375,6 @@ func (w *World) reset() {
 	// Clear pending commands and events.
 	w.commands.Clear()
 	w.events.Clear()
-
-	// Reset the tick.
-	w.currentTick.height = 0
-	w.currentTick.timestamp = time.Time{}
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
@@ -383,4 +394,5 @@ func (w *World) reset() {
 type Tick struct {
 	height    uint64
 	timestamp time.Time
+	capture   performance.TickCapture
 }
