@@ -107,9 +107,8 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	// Final validation after all randomized operations complete.
 	ecs.CheckWorld(t, fix.world.world)
 
-	// Ensure final world state remains serializable.
-	_, err := fix.world.world.ToProto()
-	require.NoError(t, err)
+	// Ensure final world state remains serializable (a marshal failure panics).
+	fix.world.world.EncodeState(nil)
 
 	// fix.logWorldState(t, "after")
 }
@@ -248,23 +247,16 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 
 func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unused // Used
 	t.Helper()
-	ws, err := f.world.world.ToProto()
-	if err != nil {
-		t.Logf("world state (%s): failed to serialize: %v", label, err)
+	data := f.world.world.EncodeState(nil)
+	var ws cardinalv1.WorldState
+	if err := proto.Unmarshal(data, &ws); err != nil {
+		t.Logf("world state (%s): failed to decode: %v", label, err)
 		return
 	}
 	t.Logf("world state (%s):", label)
 	t.Logf("  next_entity_id: %d", ws.GetNextId())
-	t.Logf("  free_ids:       %v", ws.GetFreeIds())
-	t.Logf("  archetypes:     %d", len(ws.GetArchetypes()))
-	for _, arch := range ws.GetArchetypes() {
-		compNames := make([]string, 0, len(arch.GetColumns()))
-		for _, col := range arch.GetColumns() {
-			compNames = append(compNames, col.GetComponentName())
-		}
-		t.Logf("    archetype %d: entities=%d components=%v",
-			arch.GetId(), len(arch.GetEntities()), compNames)
-	}
+	t.Logf("  components:     %v", ws.GetComponents())
+	t.Logf("  entities:       %d", len(ws.GetEntities()))
 }
 
 func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *iscv1.Command {
@@ -365,39 +357,27 @@ func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
 // pointing an async writer at is storage that does not assert.
 type memSnapshotStorage struct {
 	t    *testing.T
-	snap *cardinalv1.Snapshot
+	data []byte
 }
 
 var _ snapshot.Storage = (*memSnapshotStorage)(nil)
 
-func (m *memSnapshotStorage) Store(_ context.Context, s *cardinalv1.Snapshot) error {
-	// Invariant: the envelope must carry a world state (a serialized ECS world is never nil).
-	require.NotNil(m.t, s.GetWorldState(), "snapshot: Store called without a world state")
-	// Invariant: the envelope must survive the wire format a real backend would write it to.
-	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(s)
-	require.NoError(m.t, err, "snapshot: Store envelope failed to marshal")
-	assert.NotEmpty(m.t, data, "snapshot: Store produced empty bytes")
-	var rt cardinalv1.Snapshot
-	require.NoError(m.t, proto.Unmarshal(data, &rt), "snapshot: Store bytes are not a valid Snapshot protobuf")
-	assert.True(m.t, proto.Equal(s, &rt), "snapshot: Store envelope did not survive a wire roundtrip")
+func (m *memSnapshotStorage) Store(_ context.Context, tick uint64, data []byte) error {
+	// Invariant: the bytes must be a complete, decodable envelope carrying a world state — what a
+	// real backend would persist and a later boot would have to read.
+	snap, err := snapshot.Decode(data)
+	require.NoError(m.t, err, "snapshot: Store bytes are not a valid Snapshot envelope")
+	require.NotNil(m.t, snap.GetWorldState(), "snapshot: Store called without a world state")
+	assert.Equal(m.t, tick, snap.GetTickHeight(), "snapshot: envelope tick disagrees with Store's tick")
 
-	// Storage.Store hands over the caller's own world-state graph and keeps ownership of it, so a
-	// backend must consume the message before it returns. The graph itself is frozen — ToProto
-	// builds a fresh one per call and nothing writes into it afterwards — so the rule is not about
-	// mutation racing this copy; it is that the caller owns the memory and every reader of it, and
-	// a backend holding on would pin a full world-state graph it has no claim to. A real backend
-	// satisfies the rule by serializing inside Store; this one copies, which is the same promise.
-	m.snap = proto.CloneOf(s)
+	// Ownership of the bytes transferred at Write, so retaining them is allowed.
+	m.data = data
 	return nil
 }
 
-func (m *memSnapshotStorage) Load(_ context.Context) (*cardinalv1.Snapshot, error) {
-	if m.snap == nil {
+func (m *memSnapshotStorage) Load(_ context.Context) ([]byte, error) {
+	if m.data == nil {
 		return nil, snapshot.ErrSnapshotNotFound
 	}
-
-	// Storage.Load transfers ownership to the caller, which publishes the message and feeds it to
-	// FromProto, so the retained copy must not escape. A real backend decodes fresh bytes, which
-	// gives the caller a private message for the same reason.
-	return proto.CloneOf(m.snap), nil
+	return m.data, nil
 }

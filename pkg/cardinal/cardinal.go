@@ -15,9 +15,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -176,17 +174,7 @@ func (w *World) run(ctx context.Context) error {
 	}
 	// Final snapshot.
 	defer func() {
-		worldState, err := w.world.ToProto()
-		if err != nil {
-			w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
-			return
-		}
-		w.snapshotWriter.Write(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.Now(),
-			WorldState: worldState,
-			Version:    snapshot.CurrentVersion,
-		})
+		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
 	}()
 
 	logger := w.tel.GetLogger("shard")
@@ -248,43 +236,38 @@ func (w *World) Tick(timestamp time.Time) {
 	w.currentTick.height++
 }
 
-// persistState serializes the world for snapshots and the debug service.
-// It logs errors and tries again on the next tick.
+// persistState serializes the world for snapshots and the debug service. Encoding cannot fail
+// (a component that cannot marshal asserts inside the ECS), so there is no retry path.
 func (w *World) persistState(timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {
 		return
 	}
 
-	worldState, err := w.world.ToProto()
-	if err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
-		return
-	}
-	// Publish state only when the debug service is enabled.
-	if w.debug != nil {
-		w.debug.publishSnapshot(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.New(timestamp),
-			WorldState: worldState,
-		})
-	}
+	data := w.encodeSnapshot(timestamp)
+
+	// Publish state only when the debug service is enabled. The decode allocates, so it happens
+	// only on this dev path — and before Write, which takes ownership of the bytes.
+	w.debug.publishState(data)
 
 	if snapshotDue {
-		w.snapshotWriter.Write(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.New(timestamp),
-			WorldState: worldState,
-			Version:    snapshot.CurrentVersion,
-		})
+		w.snapshotWriter.Write(w.currentTick.height, data)
 	}
+}
+
+// encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
+// streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
+// around it. No intermediate proto graph exists; the buffer is the freeze-frame.
+func (w *World) encodeSnapshot(timestamp time.Time) []byte {
+	bodySize := w.world.StateWireSize()
+	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
 }
 
 func (w *World) restore(ctx context.Context) error {
 	logger := w.tel.GetLogger("snapshot")
 
 	logger.Debug().Msg("restoring from snapshot")
-	snap, err := w.snapshotStorage.Load(ctx)
+	data, err := w.snapshotStorage.Load(ctx)
 	if err != nil {
 		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
 			logger.Debug().Msg("no snapshot found")
@@ -293,27 +276,21 @@ func (w *World) restore(ctx context.Context) error {
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
-	// Check the version because some Storage implementations do not decode bytes.
-	if err := snapshot.ValidateVersion(snap.GetVersion()); err != nil {
+	// Decode validates the bytes and refuses versions this build cannot read.
+	snap, err := snapshot.Decode(data)
+	if err != nil {
 		return eris.Wrap(err, "refusing to restore snapshot")
 	}
 
-	worldState := snap.GetWorldState()
-	if err := w.world.FromProto(worldState); err != nil {
+	if err := w.world.FromProto(snap.GetWorldState()); err != nil {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
 	// Update the tick only after a successful restore.
 	w.currentTick.height = snap.GetTickHeight() + 1
 
-	// Publish the restored state only when the debug service is enabled.
-	if w.debug != nil {
-		w.debug.publishSnapshot(&cardinalv1.Snapshot{
-			TickHeight: snap.GetTickHeight(),
-			Timestamp:  snap.GetTimestamp(),
-			WorldState: worldState,
-		})
-	}
+	// Publish the restored state for GetState; a no-op when the debug service is disabled.
+	w.debug.publishSnapshot(snap)
 	return nil
 }
 
@@ -367,15 +344,7 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		if worldState, err := w.world.ToProto(); err != nil {
-			w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
-		} else {
-			w.debug.publishSnapshot(&cardinalv1.Snapshot{
-				TickHeight: w.currentTick.height,
-				Timestamp:  timestamppb.New(w.currentTick.timestamp),
-				WorldState: worldState,
-			})
-		}
+		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
 	}
 	w.debug.resetPerf()
 }

@@ -1,12 +1,11 @@
 package ecs
 
 import (
-	"bytes"
+	"slices"
+	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
-	"github.com/rotisserie/eris"
 )
 
 // archetypeID is the unique identifier for an archetype.
@@ -24,11 +23,41 @@ type archetype struct {
 	entities   []EntityID       // List of entities of this archetype
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
+
+	// wireOrder is the column indices permuted into component-name order, computed once at
+	// creation. The snapshot walks columns in this order so each entity's component list comes out
+	// name-sorted with no per-snapshot sorting; wireCIDs are the matching component IDs, used to
+	// look up each column's index in the snapshot's name table.
+	wireOrder []int
+	wireCIDs  []ComponentID
 }
 
 // newArchetype creates an archetype for the given component types.
 func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractColumn) archetype {
 	assert.That(components.Count() == len(columns), "mismatched number of columns and components")
+
+	// Columns are laid out in ascending component-ID order (see worldState.newArchetype); the
+	// snapshot wants them in name order. Both orders are fixed for the archetype's lifetime, so the
+	// permutation is computed here, once, and the snapshot loop just reads it.
+	wireOrder := make([]int, len(columns))
+	for i := range wireOrder {
+		wireOrder[i] = i
+	}
+	slices.SortFunc(wireOrder, func(x, y int) int {
+		return strings.Compare(columns[x].name(), columns[y].name())
+	})
+
+	// cidsAsc[i] is the component ID of columns[i] (both follow ascending-ID order); wireCIDs
+	// permutes it by wireOrder so wireCIDs[k] belongs to columns[wireOrder[k]].
+	cidsAsc := make([]ComponentID, 0, len(columns))
+	components.Range(func(cid uint32) {
+		cidsAsc = append(cidsAsc, cid)
+	})
+	wireCIDs := make([]ComponentID, len(columns))
+	for k, colIdx := range wireOrder {
+		wireCIDs[k] = cidsAsc[colIdx]
+	}
+
 	return archetype{
 		id:         aid,
 		components: components,
@@ -36,6 +65,8 @@ func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractC
 		entities:   make([]EntityID, 0),
 		columns:    columns,
 		compCount:  len(columns),
+		wireOrder:  wireOrder,
+		wireCIDs:   wireCIDs,
 	}
 }
 
@@ -150,79 +181,4 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 
 	// Remove the entity from the current archetype, which also updates the row mapping.
 	a.removeEntity(eid)
-}
-
-// -------------------------------------------------------------------------------------------------
-// Serialization
-// -------------------------------------------------------------------------------------------------
-
-// toProto converts the archetype to a protobuf message for serialization.
-func (a *archetype) toProto() (*cardinalv1.Archetype, error) {
-	componentsBitmap := bytes.Clone(a.components.ToBytes())
-
-	entities := make([]uint32, len(a.entities))
-	for i, eid := range a.entities {
-		entities[i] = uint32(eid)
-	}
-
-	columns := make([]*cardinalv1.Column, len(a.columns))
-	for i, column := range a.columns {
-		data, err := column.toProto()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize column %d", i)
-		}
-		columns[i] = data
-	}
-
-	return &cardinalv1.Archetype{
-		Id:               int32(a.id), //nolint:gosec // it's ok
-		ComponentsBitmap: componentsBitmap,
-		Entities:         entities,
-		Columns:          columns,
-		Rows:             a.rows.toInt64Slice(),
-	}, nil
-}
-
-// fromProto populates the archetype from a protobuf message. We pass a reference to the component
-// manager to get the column factories needed to create the correct column[T].
-func (a *archetype) fromProto(pb *cardinalv1.Archetype, cm *componentManager) error {
-	if pb == nil {
-		return eris.New("protobuf archetype is nil")
-	}
-
-	a.id = archetypeID(pb.GetId())
-
-	// If a serialized snapshot is corrupted in such a way that the length of the bitmap is not a
-	// multiple of 8, bitmap.FromBytes will panic. We'll explicitly handle this here and return an
-	// error so we don't just crash.
-	bitmapBytes := pb.GetComponentsBitmap()
-	if len(bitmapBytes)%8 != 0 {
-		return eris.Errorf("invalid bitmap length %d (must be multiple of 8)", len(bitmapBytes))
-	}
-	a.components = bitmap.FromBytes(bitmapBytes)
-
-	a.rows.fromInt64Slice(pb.GetRows())
-
-	a.entities = make([]EntityID, len(pb.GetEntities()))
-	for i, eid := range pb.GetEntities() {
-		a.entities[i] = EntityID(eid)
-	}
-
-	a.columns = make([]abstractColumn, len(pb.GetColumns()))
-	for i, pbCol := range pb.GetColumns() {
-		cid, err := cm.getID(pbCol.GetComponentName())
-		if err != nil {
-			return eris.Wrap(err, "failed to get component id")
-		}
-
-		factory := cm.factories[cid]
-		column := factory()
-
-		if err := column.fromProto(pbCol); err != nil {
-			return eris.Wrapf(err, "failed to deserialize column %d", i)
-		}
-		a.columns[i] = column
-	}
-	a.compCount = len(a.columns)
-	return nil
 }

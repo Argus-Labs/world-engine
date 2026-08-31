@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 )
 
@@ -19,8 +18,12 @@ type abstractColumn interface {
 	getAbstract(row int) Component
 	remove(row int)
 
-	toProto() (*cardinalv1.Column, error)
-	fromProto(*cardinalv1.Column) error
+	rowWireSize(row int) int
+	appendRowWire(b []byte, row int) []byte
+	decodeRow(row int, data []byte) error
+
+	//TODO: removed when maps and slices are gone
+	stagedRowWireSize(row int) int
 }
 
 var _ abstractColumn = &column[Component]{}
@@ -30,6 +33,10 @@ var _ abstractColumn = &column[Component]{}
 type column[T Component] struct {
 	compName   string // The name of the component stored in this column
 	components []T    // Array containing the component data
+
+	//TODO: removed when maps and slices are gone
+	direct    bool     // Whether T carries the generated zero-alloc encoders.
+	wireCache [][]byte // The per-row staging area for types that don't (see rowWireSize).
 }
 
 const columnCapacity = 16
@@ -37,9 +44,11 @@ const columnCapacity = 16
 // newColumn creates a new column with the specified type.
 func newColumn[T Component]() column[T] {
 	var zero T
+	_, direct := any((*T)(nil)).(directWire) // Probs if contains pointer types, to be removed.
 	return column[T]{
 		compName:   zero.Name(),
 		components: make([]T, 0, columnCapacity),
+		direct:     direct,
 	}
 }
 
@@ -120,47 +129,112 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// toProto serializes each component with its generated protobuf codec.
-func (c *column[T]) toProto() (*cardinalv1.Column, error) {
-	componentData := make([][]byte, len(c.components))
-	for i, component := range c.components {
-		data, err := component.MarshalWire()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize component at index %d", i)
-		}
-		componentData[i] = data
-	}
-
-	return &cardinalv1.Column{
-		ComponentName: c.compName,
-		Components:    componentData,
-	}, nil
+// directWire is the generated fast encoding path: SizeWire reports the exact encoded size and
+// AppendWire writes exactly that many bytes into the caller's buffer, both without allocating.
+// The generator emits the pair only for value-shaped types (no slices, maps, or JSON-fallback
+// fields), so its presence is probed once per column and everything else takes the MarshalWire
+// fallback below.
+// TODO: remove when maps and slices removed.
+type directWire interface {
+	SizeWire() int
+	AppendWire([]byte) []byte
 }
 
-// fromProto decodes each component with its generated protobuf codec.
-func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
-	if pb == nil {
-		return eris.New("protobuf column is nil")
+// rowWireSize returns the encoded size of one row and stages what appendRowWire needs.
+//
+// Direct components are pure arithmetic. Fallback components must be encoded to be sized, so the
+// bytes are kept in wireCache (reused across snapshots, grow-only) and appendRowWire copies them
+// out — one allocation per row inside MarshalWire, the same cost the old path paid, gone entirely
+// once the component becomes value-shaped and picks up the generated encoders.
+//
+// TODO: delete the fallback path once every component is guaranteed direct. That needs two things
+// to land first: plugins regenerated with the SizeWire/AppendWire generator, and the slice/map
+// removal from component schemas — ineligible types are the only reason a generated component
+// lacks the direct encoders. Then SizeWire/AppendWire move onto the Component contract, the
+// directWire interface and its runtime probe disappear, and this whole function becomes:
+//
+//	func (c *column[T]) rowWireSize(row int) int {
+//		assert.That(row < len(c.components), "component doesn't exist")
+//		return c.components[row].SizeWire()
+//	}
+//
+// Going with it: the c.direct field and probe, wireCache, stagedRowWireSize (identical to
+// rowWireSize once nothing stages), the marshal-failure assert, and the pointer-boxing dance —
+// which only exists to keep the runtime type assertion allocation-free.
+func (c *column[T]) rowWireSize(row int) int {
+	assert.That(row < len(c.components), "component doesn't exist")
+	if c.direct {
+		dw, ok := any(&c.components[row]).(directWire)
+		assert.That(ok, "direct column element lost its wire encoders")
+		return dw.SizeWire()
 	}
 
-	if pb.GetComponentName() != c.compName {
-		return eris.Errorf("component name mismatch: expected %s, got %s", c.compName, pb.GetComponentName())
+	// Nothing recoverable reaches here: a component either cannot encode at all (a bug in its
+	// generated code) or holds a value protobuf rejects, such as a string with invalid UTF-8. Both
+	// repeat on every tick, so the alternative to crashing is a world that silently stops
+	// snapshotting behind a warning log.
+	data, err := c.components[row].MarshalWire()
+	assert.That(err == nil, "failed to serialize component %q at row %d: %v", c.compName, row, err)
+	for len(c.wireCache) <= row {
+		c.wireCache = append(c.wireCache, nil)
 	}
+	c.wireCache[row] = data
+	return len(data)
+}
+
+// stagedRowWireSize returns the size rowWireSize staged, without re-encoding: the append pass
+// needs each payload's length prefix a second time, and re-marshaling a fallback component there
+// would both allocate and race the size the first pass reported.
+// TODO: removed with slices and maps gone
+func (c *column[T]) stagedRowWireSize(row int) int {
+	assert.That(row < len(c.components), "component doesn't exist")
+	if c.direct {
+		dw, ok := any(&c.components[row]).(directWire)
+		assert.That(ok, "direct column element lost its wire encoders")
+		return dw.SizeWire()
+	}
+	assert.That(row < len(c.wireCache) && c.wireCache[row] != nil,
+		"stagedRowWireSize called without a staging rowWireSize call")
+	return len(c.wireCache[row])
+}
+
+// appendRowWire writes one row's encoded bytes. The caller must have called rowWireSize for this
+// row since the last world mutation — that call either proved the direct path or staged the
+// fallback bytes this one copies.
+//
+// TODO: with the fallback gone (see rowWireSize), the staging precondition goes with it and this
+// becomes:
+//
+//	func (c *column[T]) appendRowWire(b []byte, row int) []byte {
+//		assert.That(row < len(c.components), "component doesn't exist")
+//		return c.components[row].AppendWire(b)
+//	}
+func (c *column[T]) appendRowWire(b []byte, row int) []byte {
+	assert.That(row < len(c.components), "component doesn't exist")
+	if c.direct {
+		dw, ok := any(&c.components[row]).(directWire)
+		assert.That(ok, "direct column element lost its wire encoders")
+		return dw.AppendWire(b)
+	}
+
+	assert.That(row < len(c.wireCache) && c.wireCache[row] != nil,
+		"appendRowWire called without a staging rowWireSize call")
+	return append(b, c.wireCache[row]...)
+}
+
+// decodeRow deserializes one component payload into an existing row.
+func (c *column[T]) decodeRow(row int, data []byte) error {
+	assert.That(row < len(c.components), "component doesn't exist")
 
 	var zero T
-	components := make([]T, len(pb.GetComponents()))
-	for i, data := range pb.GetComponents() {
-		decoded, err := zero.UnmarshalWire(data)
-		if err != nil {
-			return eris.Wrapf(err, "failed to deserialize component at index %d", i)
-		}
-		typed, ok := decoded.(T)
-		if !ok {
-			return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
-		}
-		components[i] = typed
+	decoded, err := zero.UnmarshalWire(data)
+	if err != nil {
+		return eris.Wrapf(err, "failed to deserialize component %q", c.compName)
 	}
-
-	c.components = components
+	typed, ok := decoded.(T)
+	if !ok {
+		return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
+	}
+	c.components[row] = typed
 	return nil
 }

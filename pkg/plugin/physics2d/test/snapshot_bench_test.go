@@ -123,8 +123,9 @@ func restingBodiesSystem(count int) func(state *struct {
 	}
 }
 
-// worldStateProto reaches Cardinal's embedded *ecs.World and calls ToProto, the same reflection
-// escape hatch initCardinalECS uses (physics2d_test cannot import cardinal/internal/ecs).
+// worldStateProto reaches Cardinal's embedded *ecs.World and calls EncodeState, the same
+// reflection escape hatch initCardinalECS uses (physics2d_test cannot import cardinal/internal/ecs),
+// then decodes the bytes into the message the legacy benchmarks need.
 func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 	b.Helper()
 	v := reflect.ValueOf(w).Elem()
@@ -133,17 +134,18 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 		b.Fatal("cardinal.World: missing embedded ecs world field")
 	}
 	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
-	m := inner.MethodByName("ToProto")
+	m := inner.MethodByName("EncodeState")
 	if !m.IsValid() {
-		b.Fatal("ecs.World: missing ToProto method")
+		b.Fatal("ecs.World: missing EncodeState method")
 	}
-	out := m.Call(nil)
-	if !out[1].IsNil() {
-		b.Fatalf("ToProto: %v", out[1].Interface())
-	}
-	ws, ok := out[0].Interface().(*cardinalv1.WorldState)
+	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+	data, ok := out[0].Interface().([]byte)
 	if !ok {
-		b.Fatalf("ToProto returned %T, want *cardinalv1.WorldState", out[0].Interface())
+		b.Fatalf("EncodeState returned %T, want []byte", out[0].Interface())
+	}
+	ws := &cardinalv1.WorldState{}
+	if err := proto.Unmarshal(data, ws); err != nil {
+		b.Fatalf("decode world state: %v", err)
 	}
 	return ws
 }
@@ -291,11 +293,20 @@ func BenchmarkSnapshotStore(b *testing.B) {
 		}
 		snapshotBytes := float64(len(size))
 
+		nop := snapshot.NewNopStorage()
 		stores := []struct {
 			name  string
 			store func(context.Context, *cardinalv1.Snapshot) error
 		}{
-			{"Nop", snapshot.NewNopStorage().Store},
+			// The engine now hands storage pre-encoded bytes; marshaling here stands in for the
+			// encoder so the store-side comparison stays meaningful.
+			{"Nop", func(ctx context.Context, s *cardinalv1.Snapshot) error {
+				data, err := proto.Marshal(s)
+				if err != nil {
+					return err
+				}
+				return nop.Store(ctx, s.GetTickHeight(), data)
+			}},
 			{"SingleMarshal", (&singleMarshalStorage{}).Store},
 			{"LegacyDoubleMarshal", (&legacyDoubleMarshalStorage{}).Store},
 		}

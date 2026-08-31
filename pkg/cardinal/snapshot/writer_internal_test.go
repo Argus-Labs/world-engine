@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/telemetry"
-	"github.com/argus-labs/world-engine/pkg/testutils"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,11 +21,10 @@ func TestAsyncWriterWriteDoesNotBlock(t *testing.T) {
 
 	storage := newBlockingWriterStorage()
 	writer := newTestAsyncWriter(t, storage)
-	snap := randomSnapshot(testutils.NewRand(t))
 
 	written := make(chan struct{})
 	go func() {
-		writer.Write(snap)
+		writer.Write(1, []byte{1})
 		close(written)
 	}()
 
@@ -52,26 +49,18 @@ func TestAsyncWriterLatestWins(t *testing.T) {
 	t.Parallel()
 	storage := newBlockingWriterStorage()
 	writer := newTestAsyncWriter(t, storage)
-	prng := testutils.NewRand(t)
 
-	first := randomSnapshot(prng)
-	second := randomSnapshot(prng)
-	third := randomSnapshot(prng)
-	first.TickHeight = 1
-	second.TickHeight = 2
-	third.TickHeight = 3
-
-	writer.Write(first)
-	require.Equal(t, first.GetTickHeight(), storage.waitEntered(t))
-	writer.Write(second)
-	writer.Write(third)
+	writer.Write(1, []byte{1})
+	require.Equal(t, uint64(1), storage.waitEntered(t))
+	writer.Write(2, []byte{2})
+	writer.Write(3, []byte{3})
 
 	storage.release <- struct{}{}
-	require.Equal(t, third.GetTickHeight(), storage.waitEntered(t))
+	require.Equal(t, uint64(3), storage.waitEntered(t))
 	storage.release <- struct{}{}
 
 	require.NoError(t, writer.Drain(t.Context()))
-	assert.Equal(t, []uint64{first.GetTickHeight(), third.GetTickHeight()}, storage.storedTicks())
+	assert.Equal(t, []uint64{1, 3}, storage.storedTicks())
 }
 
 // TestAsyncWriterDrainWaitsForFinalSnapshot verifies that Drain waits for storage.
@@ -79,9 +68,8 @@ func TestAsyncWriterDrainWaitsForFinalSnapshot(t *testing.T) {
 	t.Parallel()
 	storage := newBlockingWriterStorage()
 	writer := newTestAsyncWriter(t, storage)
-	snap := randomSnapshot(testutils.NewRand(t))
 
-	writer.Write(snap)
+	writer.Write(7, []byte{7})
 	storage.waitEntered(t)
 
 	drainCtx := newObservedWriterContext()
@@ -105,7 +93,7 @@ func TestAsyncWriterDrainWaitsForFinalSnapshot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Drain did not return after storage finished")
 	}
-	assert.Equal(t, []uint64{snap.GetTickHeight()}, storage.storedTicks())
+	assert.Equal(t, []uint64{7}, storage.storedTicks())
 }
 
 // TestAsyncWriterDrainReportsStoreFailure verifies that Drain returns the final storage error.
@@ -115,11 +103,10 @@ func TestAsyncWriterDrainReportsStoreFailure(t *testing.T) {
 	finalErr := errors.New("final storage error")
 	storage := newSequencedErrorWriterStorage(firstErr, finalErr)
 	writer := newTestAsyncWriter(t, storage)
-	prng := testutils.NewRand(t)
 
-	writer.Write(randomSnapshot(prng))
+	writer.Write(1, []byte{1})
 	require.Equal(t, 0, storage.waitEntered(t))
-	writer.Write(randomSnapshot(prng))
+	writer.Write(2, []byte{2})
 	storage.release <- struct{}{}
 	require.Equal(t, 1, storage.waitEntered(t))
 	storage.release <- struct{}{}
@@ -136,13 +123,10 @@ func TestAsyncWriterContinuesAfterAcceptedDrainIsCanceled(t *testing.T) {
 	t.Parallel()
 	storage := newBlockingWriterStorage()
 	writer := newTestAsyncWriter(t, storage)
-	prng := testutils.NewRand(t)
 
 	// Set the state that exists after Write updates pending and before it sends wake.
-	first := randomSnapshot(prng)
-	first.TickHeight = 1
 	writer.mu.Lock()
-	writer.pending = first
+	writer.pending = pendingSnapshot{tick: 1, data: []byte{1}}
 	writer.mu.Unlock()
 
 	drainCtx, cancel := context.WithCancel(context.Background())
@@ -158,13 +142,11 @@ func TestAsyncWriterContinuesAfterAcceptedDrainIsCanceled(t *testing.T) {
 	}
 
 	storage.release <- struct{}{}
-	second := randomSnapshot(prng)
-	second.TickHeight = 2
-	writer.Write(second)
-	require.Equal(t, second.GetTickHeight(), storage.waitEntered(t))
+	writer.Write(2, []byte{2})
+	require.Equal(t, uint64(2), storage.waitEntered(t))
 	storage.release <- struct{}{}
 	require.NoError(t, writer.Drain(t.Context()))
-	assert.Equal(t, []uint64{first.GetTickHeight(), second.GetTickHeight()}, storage.storedTicks())
+	assert.Equal(t, []uint64{1, 2}, storage.storedTicks())
 }
 
 // TestAsyncWriterSurvivesStoragePanic verifies that a storage panic does not stop the worker.
@@ -172,20 +154,15 @@ func TestAsyncWriterSurvivesStoragePanic(t *testing.T) {
 	t.Parallel()
 	storage := &panickingWriterStorage{panics: 1}
 	writer := newTestAsyncWriter(t, storage)
-	prng := testutils.NewRand(t)
 
-	first := randomSnapshot(prng)
-	first.TickHeight = 1
-	writer.Write(first)
+	writer.Write(1, []byte{1})
 	err := writer.Drain(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "panicked")
 
-	second := randomSnapshot(prng)
-	second.TickHeight = 2
-	writer.Write(second)
+	writer.Write(2, []byte{2})
 	require.NoError(t, writer.Drain(t.Context()))
-	assert.Equal(t, []uint64{second.GetTickHeight()}, storage.storedTicks())
+	assert.Equal(t, []uint64{2}, storage.storedTicks())
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -211,9 +188,9 @@ func newBlockingWriterStorage() *blockingWriterStorage {
 	}
 }
 
-func (s *blockingWriterStorage) Store(ctx context.Context, snap *cardinalv1.Snapshot) error {
-	s.entered <- snap.GetTickHeight()
-	defer func() { s.returned <- snap.GetTickHeight() }()
+func (s *blockingWriterStorage) Store(ctx context.Context, tick uint64, _ []byte) error {
+	s.entered <- tick
+	defer func() { s.returned <- tick }()
 	select {
 	case <-s.release:
 	case <-ctx.Done():
@@ -222,11 +199,11 @@ func (s *blockingWriterStorage) Store(ctx context.Context, snap *cardinalv1.Snap
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.stored = append(s.stored, snap.GetTickHeight())
+	s.stored = append(s.stored, tick)
 	return nil
 }
 
-func (*blockingWriterStorage) Load(context.Context) (*cardinalv1.Snapshot, error) {
+func (*blockingWriterStorage) Load(context.Context) ([]byte, error) {
 	return nil, ErrSnapshotNotFound
 }
 
@@ -290,7 +267,7 @@ func newSequencedErrorWriterStorage(errs ...error) *sequencedErrorWriterStorage 
 	}
 }
 
-func (s *sequencedErrorWriterStorage) Store(ctx context.Context, _ *cardinalv1.Snapshot) error {
+func (s *sequencedErrorWriterStorage) Store(ctx context.Context, _ uint64, _ []byte) error {
 	s.mu.Lock()
 	index := s.next
 	s.next++
@@ -306,7 +283,7 @@ func (s *sequencedErrorWriterStorage) Store(ctx context.Context, _ *cardinalv1.S
 	}
 }
 
-func (*sequencedErrorWriterStorage) Load(context.Context) (*cardinalv1.Snapshot, error) {
+func (*sequencedErrorWriterStorage) Load(context.Context) ([]byte, error) {
 	return nil, ErrSnapshotNotFound
 }
 
@@ -327,18 +304,18 @@ type panickingWriterStorage struct {
 	stored []uint64
 }
 
-func (s *panickingWriterStorage) Store(_ context.Context, snap *cardinalv1.Snapshot) error {
+func (s *panickingWriterStorage) Store(_ context.Context, tick uint64, _ []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.panics > 0 {
 		s.panics--
 		panic("storage failed")
 	}
-	s.stored = append(s.stored, snap.GetTickHeight())
+	s.stored = append(s.stored, tick)
 	return nil
 }
 
-func (*panickingWriterStorage) Load(context.Context) (*cardinalv1.Snapshot, error) {
+func (*panickingWriterStorage) Load(context.Context) ([]byte, error) {
 	return nil, ErrSnapshotNotFound
 }
 
