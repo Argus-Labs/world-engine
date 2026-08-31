@@ -19,43 +19,34 @@ message Snapshot {
   uint32 version = 4;
 }
 
-// WorldState represents the ECS world state.
+// WorldState describes the world's contents: which entities exist and which components each one
+// has, addressed by component name through the name table. It carries none of the runtime's storage
+// layout (archetypes, index tables, numeric component IDs), so nothing in the file depends on
+// registration order or creation order — and the producer can stream it in one ascending scan.
+//
+// Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
+// component indices ascend. Identical worlds produce identical bytes.
 message WorldState {
-  // Entity manager state
+  // Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
+  // next_id that has no entity entry.
   uint32 next_id = 1;
 
-  repeated uint32 free_ids = 2;
+  // Name table: every registered component type, sorted by name, unique.
+  // Entity.components holds indices into this table.
+  repeated string components = 2 [(buf.validate.field).repeated.items.string.min_len = 1];
 
-  // Entity to archetype mapping as sparse set
-  repeated int64 entity_arch = 3;
-  
-  // Archetypes in the world state
-  repeated Archetype archetypes = 4;
+  // Every live entity exactly once, strictly ascending by id. An entity with no components still
+  // appears here (empty components/payloads), so nothing vanishes on restore.
+  repeated Entity entities = 3;
 }
 
-// Archetype represents a collection of entities with the same component types.
-message Archetype {
-  // Unique identifier for this archetype (corresponds to index in archetypes array)
-  int32 id = 1;
+// Entity is one live entity: its id and its component values.
+message Entity {
+  uint32 id = 1;
 
-  // Bitmap representing component types in this archetype
-  bytes components_bitmap = 2;
+  // Indices into WorldState.components, strictly ascending.
+  repeated uint32 components = 2;
 
-  // Entity to row mapping as sparse set
-  repeated int64 rows = 3;
-
-  // List of entity IDs in this archetype
-  repeated uint32 entities = 4;
-
-  // Columns containing component data
-  repeated Column columns = 5;
-}
-
-// Column represents a sparse set data structure for storing component data.
-message Column {
-  // Name of the component stored in this column
-  string component_name = 1 [(buf.validate.field).string.min_len = 1];
-
-  // Dense array of serialized component wire data.
-  repeated bytes components = 2;
+  // Serialized component values, one per components entry, same order.
+  repeated bytes payloads = 3;
 }

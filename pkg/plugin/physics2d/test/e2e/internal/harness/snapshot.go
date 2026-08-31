@@ -191,19 +191,18 @@ func DecodeSnapshot(raw []byte) (any, error) {
 // SnapshotWorld serializes a world exactly the way Cardinal's snapshot writer
 // does, component bytes and all.
 func SnapshotWorld(world *cardinal.World) (any, error) {
-	m := innerWorld(world).MethodByName("ToProto")
+	m := innerWorld(world).MethodByName("EncodeState")
 	if !m.IsValid() {
-		panic("ecs.World: no ToProto method; the snapshot shim needs updating")
+		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
-	out := m.Call(nil)
-	// ecs.World.ToProto returns the state alone; tolerate a trailing error if one
-	// is ever added so the shim keeps working across that change.
-	if len(out) == 2 {
-		if err, _ := out[1].Interface().(error); err != nil {
-			return nil, err
-		}
+	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+	data, ok := out[0].Interface().([]byte)
+	if !ok {
+		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())
 	}
-	return out[0].Interface(), nil
+	// The world encodes straight to wire bytes now, but RestoreWorld still feeds
+	// FromProto, so decode back into the message the rest of the shim passes around.
+	return DecodeSnapshot(data)
 }
 
 // RestoreWorld loads a serialized world state, the way World.restore does after

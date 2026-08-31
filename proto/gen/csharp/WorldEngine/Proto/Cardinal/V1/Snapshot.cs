@@ -31,27 +31,21 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
             "ZXN0YW1wEkwKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
             "ZGluYWwudjEuV29ybGRTdGF0ZUIGukgDyAEBUgp3b3JsZFN0YXRlEhgKB3Zl",
-            "cnNpb24YBCABKA1SB3ZlcnNpb24ipQEKCldvcmxkU3RhdGUSFwoHbmV4dF9p",
-            "ZBgBIAEoDVIGbmV4dElkEhkKCGZyZWVfaWRzGAIgAygNUgdmcmVlSWRzEh8K",
-            "C2VudGl0eV9hcmNoGAMgAygDUgplbnRpdHlBcmNoEkIKCmFyY2hldHlwZXMY",
-            "BCADKAsyIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5BcmNoZXR5cGVSCmFy",
-            "Y2hldHlwZXMiswEKCUFyY2hldHlwZRIOCgJpZBgBIAEoBVICaWQSKwoRY29t",
-            "cG9uZW50c19iaXRtYXAYAiABKAxSEGNvbXBvbmVudHNCaXRtYXASEgoEcm93",
-            "cxgDIAMoA1IEcm93cxIaCghlbnRpdGllcxgEIAMoDVIIZW50aXRpZXMSOQoH",
-            "Y29sdW1ucxgFIAMoCzIfLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkNvbHVt",
-            "blIHY29sdW1ucyJYCgZDb2x1bW4SLgoOY29tcG9uZW50X25hbWUYASABKAlC",
-            "B7pIBHICEAFSDWNvbXBvbmVudE5hbWUSHgoKY29tcG9uZW50cxgCIAMoDFIK",
-            "Y29tcG9uZW50c0J0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5n",
-            "aW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJk",
-            "aW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3Rv",
-            "Mw=="));
+            "cnNpb24YBCABKA1SB3ZlcnNpb24ikAEKCldvcmxkU3RhdGUSFwoHbmV4dF9p",
+            "ZBgBIAEoDVIGbmV4dElkEiwKCmNvbXBvbmVudHMYAiADKAlCDLpICZIBBiIE",
+            "cgIQAVIKY29tcG9uZW50cxI7CghlbnRpdGllcxgDIAMoCzIfLndvcmxkZW5n",
+            "aW5lLmNhcmRpbmFsLnYxLkVudGl0eVIIZW50aXRpZXMiVAoGRW50aXR5Eg4K",
+            "AmlkGAEgASgNUgJpZBIeCgpjb21wb25lbnRzGAIgAygNUgpjb21wb25lbnRz",
+            "EhoKCHBheWxvYWRzGAMgAygMUghwYXlsb2Fkc0J0WlJnaXRodWIuY29tL2Fy",
+            "Z3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2lu",
+            "ZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8u",
+            "Q2FyZGluYWwuVjFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "FreeIds", "EntityArch", "Archetypes" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Archetype), global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser, new[]{ "Id", "ComponentsBitmap", "Rows", "Entities", "Columns" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Column), global::WorldEngine.Proto.Cardinal.V1.Column.Parser, new[]{ "ComponentName", "Components" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "Components", "Entities" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Entity), global::WorldEngine.Proto.Cardinal.V1.Entity.Parser, new[]{ "Id", "Components", "Payloads" }, null, null, null, null)
           }));
     }
     #endregion
@@ -389,7 +383,13 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// WorldState represents the ECS world state.
+  /// WorldState describes the world's contents: which entities exist and which components each one
+  /// has, addressed by component name through the name table. It carries none of the runtime's storage
+  /// layout (archetypes, index tables, numeric component IDs), so nothing in the file depends on
+  /// registration order or creation order — and the producer can stream it in one ascending scan.
+  ///
+  /// Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
+  /// component indices ascend. Identical worlds produce identical bytes.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class WorldState : pb::IMessage<WorldState>
@@ -427,9 +427,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public WorldState(WorldState other) : this() {
       nextId_ = other.nextId_;
-      freeIds_ = other.freeIds_.Clone();
-      entityArch_ = other.entityArch_.Clone();
-      archetypes_ = other.archetypes_.Clone();
+      components_ = other.components_.Clone();
+      entities_ = other.entities_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -443,7 +442,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int NextIdFieldNumber = 1;
     private uint nextId_;
     /// <summary>
-    /// Entity manager state
+    /// Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
+    /// next_id that has no entity entry.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -454,43 +454,34 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
     }
 
-    /// <summary>Field number for the "free_ids" field.</summary>
-    public const int FreeIdsFieldNumber = 2;
-    private static readonly pb::FieldCodec<uint> _repeated_freeIds_codec
-        = pb::FieldCodec.ForUInt32(18);
-    private readonly pbc::RepeatedField<uint> freeIds_ = new pbc::RepeatedField<uint>();
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<uint> FreeIds {
-      get { return freeIds_; }
-    }
-
-    /// <summary>Field number for the "entity_arch" field.</summary>
-    public const int EntityArchFieldNumber = 3;
-    private static readonly pb::FieldCodec<long> _repeated_entityArch_codec
-        = pb::FieldCodec.ForInt64(26);
-    private readonly pbc::RepeatedField<long> entityArch_ = new pbc::RepeatedField<long>();
+    /// <summary>Field number for the "components" field.</summary>
+    public const int ComponentsFieldNumber = 2;
+    private static readonly pb::FieldCodec<string> _repeated_components_codec
+        = pb::FieldCodec.ForString(18);
+    private readonly pbc::RepeatedField<string> components_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// Entity to archetype mapping as sparse set
+    /// Name table: every registered component type, sorted by name, unique.
+    /// Entity.components holds indices into this table.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<long> EntityArch {
-      get { return entityArch_; }
+    public pbc::RepeatedField<string> Components {
+      get { return components_; }
     }
 
-    /// <summary>Field number for the "archetypes" field.</summary>
-    public const int ArchetypesFieldNumber = 4;
-    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.Archetype> _repeated_archetypes_codec
-        = pb::FieldCodec.ForMessage(34, global::WorldEngine.Proto.Cardinal.V1.Archetype.Parser);
-    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Archetype> archetypes_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Archetype>();
+    /// <summary>Field number for the "entities" field.</summary>
+    public const int EntitiesFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.Entity> _repeated_entities_codec
+        = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Cardinal.V1.Entity.Parser);
+    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Entity> entities_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Entity>();
     /// <summary>
-    /// Archetypes in the world state
+    /// Every live entity exactly once, strictly ascending by id. An entity with no components still
+    /// appears here (empty components/payloads), so nothing vanishes on restore.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Archetype> Archetypes {
-      get { return archetypes_; }
+    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Entity> Entities {
+      get { return entities_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -509,9 +500,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         return true;
       }
       if (NextId != other.NextId) return false;
-      if(!freeIds_.Equals(other.freeIds_)) return false;
-      if(!entityArch_.Equals(other.entityArch_)) return false;
-      if(!archetypes_.Equals(other.archetypes_)) return false;
+      if(!components_.Equals(other.components_)) return false;
+      if(!entities_.Equals(other.entities_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -520,9 +510,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (NextId != 0) hash ^= NextId.GetHashCode();
-      hash ^= freeIds_.GetHashCode();
-      hash ^= entityArch_.GetHashCode();
-      hash ^= archetypes_.GetHashCode();
+      hash ^= components_.GetHashCode();
+      hash ^= entities_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -545,9 +534,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(8);
         output.WriteUInt32(NextId);
       }
-      freeIds_.WriteTo(output, _repeated_freeIds_codec);
-      entityArch_.WriteTo(output, _repeated_entityArch_codec);
-      archetypes_.WriteTo(output, _repeated_archetypes_codec);
+      components_.WriteTo(output, _repeated_components_codec);
+      entities_.WriteTo(output, _repeated_entities_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -562,9 +550,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteRawTag(8);
         output.WriteUInt32(NextId);
       }
-      freeIds_.WriteTo(ref output, _repeated_freeIds_codec);
-      entityArch_.WriteTo(ref output, _repeated_entityArch_codec);
-      archetypes_.WriteTo(ref output, _repeated_archetypes_codec);
+      components_.WriteTo(ref output, _repeated_components_codec);
+      entities_.WriteTo(ref output, _repeated_entities_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -578,9 +565,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (NextId != 0) {
         size += 1 + pb::CodedOutputStream.ComputeUInt32Size(NextId);
       }
-      size += freeIds_.CalculateSize(_repeated_freeIds_codec);
-      size += entityArch_.CalculateSize(_repeated_entityArch_codec);
-      size += archetypes_.CalculateSize(_repeated_archetypes_codec);
+      size += components_.CalculateSize(_repeated_components_codec);
+      size += entities_.CalculateSize(_repeated_entities_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -596,9 +582,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (other.NextId != 0) {
         NextId = other.NextId;
       }
-      freeIds_.Add(other.freeIds_);
-      entityArch_.Add(other.entityArch_);
-      archetypes_.Add(other.archetypes_);
+      components_.Add(other.components_);
+      entities_.Add(other.entities_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -622,18 +607,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             NextId = input.ReadUInt32();
             break;
           }
-          case 18:
-          case 16: {
-            freeIds_.AddEntriesFrom(input, _repeated_freeIds_codec);
+          case 18: {
+            components_.AddEntriesFrom(input, _repeated_components_codec);
             break;
           }
-          case 26:
-          case 24: {
-            entityArch_.AddEntriesFrom(input, _repeated_entityArch_codec);
-            break;
-          }
-          case 34: {
-            archetypes_.AddEntriesFrom(input, _repeated_archetypes_codec);
+          case 26: {
+            entities_.AddEntriesFrom(input, _repeated_entities_codec);
             break;
           }
         }
@@ -659,18 +638,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             NextId = input.ReadUInt32();
             break;
           }
-          case 18:
-          case 16: {
-            freeIds_.AddEntriesFrom(ref input, _repeated_freeIds_codec);
+          case 18: {
+            components_.AddEntriesFrom(ref input, _repeated_components_codec);
             break;
           }
-          case 26:
-          case 24: {
-            entityArch_.AddEntriesFrom(ref input, _repeated_entityArch_codec);
-            break;
-          }
-          case 34: {
-            archetypes_.AddEntriesFrom(ref input, _repeated_archetypes_codec);
+          case 26: {
+            entities_.AddEntriesFrom(ref input, _repeated_entities_codec);
             break;
           }
         }
@@ -681,19 +654,19 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   }
 
   /// <summary>
-  /// Archetype represents a collection of entities with the same component types.
+  /// Entity is one live entity: its id and its component values.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class Archetype : pb::IMessage<Archetype>
+  public sealed partial class Entity : pb::IMessage<Entity>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<Archetype> _parser = new pb::MessageParser<Archetype>(() => new Archetype());
+    private static readonly pb::MessageParser<Entity> _parser = new pb::MessageParser<Entity>(() => new Entity());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<Archetype> Parser { get { return _parser; } }
+    public static pb::MessageParser<Entity> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -709,7 +682,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Archetype() {
+    public Entity() {
       OnConstruction();
     }
 
@@ -717,102 +690,68 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Archetype(Archetype other) : this() {
+    public Entity(Entity other) : this() {
       id_ = other.id_;
-      componentsBitmap_ = other.componentsBitmap_;
-      rows_ = other.rows_.Clone();
-      entities_ = other.entities_.Clone();
-      columns_ = other.columns_.Clone();
+      components_ = other.components_.Clone();
+      payloads_ = other.payloads_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Archetype Clone() {
-      return new Archetype(this);
+    public Entity Clone() {
+      return new Entity(this);
     }
 
     /// <summary>Field number for the "id" field.</summary>
     public const int IdFieldNumber = 1;
-    private int id_;
-    /// <summary>
-    /// Unique identifier for this archetype (corresponds to index in archetypes array)
-    /// </summary>
+    private uint id_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int Id {
+    public uint Id {
       get { return id_; }
       set {
         id_ = value;
       }
     }
 
-    /// <summary>Field number for the "components_bitmap" field.</summary>
-    public const int ComponentsBitmapFieldNumber = 2;
-    private pb::ByteString componentsBitmap_ = pb::ByteString.Empty;
+    /// <summary>Field number for the "components" field.</summary>
+    public const int ComponentsFieldNumber = 2;
+    private static readonly pb::FieldCodec<uint> _repeated_components_codec
+        = pb::FieldCodec.ForUInt32(18);
+    private readonly pbc::RepeatedField<uint> components_ = new pbc::RepeatedField<uint>();
     /// <summary>
-    /// Bitmap representing component types in this archetype
+    /// Indices into WorldState.components, strictly ascending.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString ComponentsBitmap {
-      get { return componentsBitmap_; }
-      set {
-        componentsBitmap_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
+    public pbc::RepeatedField<uint> Components {
+      get { return components_; }
     }
 
-    /// <summary>Field number for the "rows" field.</summary>
-    public const int RowsFieldNumber = 3;
-    private static readonly pb::FieldCodec<long> _repeated_rows_codec
-        = pb::FieldCodec.ForInt64(26);
-    private readonly pbc::RepeatedField<long> rows_ = new pbc::RepeatedField<long>();
+    /// <summary>Field number for the "payloads" field.</summary>
+    public const int PayloadsFieldNumber = 3;
+    private static readonly pb::FieldCodec<pb::ByteString> _repeated_payloads_codec
+        = pb::FieldCodec.ForBytes(26);
+    private readonly pbc::RepeatedField<pb::ByteString> payloads_ = new pbc::RepeatedField<pb::ByteString>();
     /// <summary>
-    /// Entity to row mapping as sparse set
+    /// Serialized component values, one per components entry, same order.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<long> Rows {
-      get { return rows_; }
-    }
-
-    /// <summary>Field number for the "entities" field.</summary>
-    public const int EntitiesFieldNumber = 4;
-    private static readonly pb::FieldCodec<uint> _repeated_entities_codec
-        = pb::FieldCodec.ForUInt32(34);
-    private readonly pbc::RepeatedField<uint> entities_ = new pbc::RepeatedField<uint>();
-    /// <summary>
-    /// List of entity IDs in this archetype
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<uint> Entities {
-      get { return entities_; }
-    }
-
-    /// <summary>Field number for the "columns" field.</summary>
-    public const int ColumnsFieldNumber = 5;
-    private static readonly pb::FieldCodec<global::WorldEngine.Proto.Cardinal.V1.Column> _repeated_columns_codec
-        = pb::FieldCodec.ForMessage(42, global::WorldEngine.Proto.Cardinal.V1.Column.Parser);
-    private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Column> columns_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Column>();
-    /// <summary>
-    /// Columns containing component data
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Column> Columns {
-      get { return columns_; }
+    public pbc::RepeatedField<pb::ByteString> Payloads {
+      get { return payloads_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as Archetype);
+      return Equals(other as Entity);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(Archetype other) {
+    public bool Equals(Entity other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -820,10 +759,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         return true;
       }
       if (Id != other.Id) return false;
-      if (ComponentsBitmap != other.ComponentsBitmap) return false;
-      if(!rows_.Equals(other.rows_)) return false;
-      if(!entities_.Equals(other.entities_)) return false;
-      if(!columns_.Equals(other.columns_)) return false;
+      if(!components_.Equals(other.components_)) return false;
+      if(!payloads_.Equals(other.payloads_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -832,10 +769,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public override int GetHashCode() {
       int hash = 1;
       if (Id != 0) hash ^= Id.GetHashCode();
-      if (ComponentsBitmap.Length != 0) hash ^= ComponentsBitmap.GetHashCode();
-      hash ^= rows_.GetHashCode();
-      hash ^= entities_.GetHashCode();
-      hash ^= columns_.GetHashCode();
+      hash ^= components_.GetHashCode();
+      hash ^= payloads_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -856,15 +791,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     #else
       if (Id != 0) {
         output.WriteRawTag(8);
-        output.WriteInt32(Id);
+        output.WriteUInt32(Id);
       }
-      if (ComponentsBitmap.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteBytes(ComponentsBitmap);
-      }
-      rows_.WriteTo(output, _repeated_rows_codec);
-      entities_.WriteTo(output, _repeated_entities_codec);
-      columns_.WriteTo(output, _repeated_columns_codec);
+      components_.WriteTo(output, _repeated_components_codec);
+      payloads_.WriteTo(output, _repeated_payloads_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -877,15 +807,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
       if (Id != 0) {
         output.WriteRawTag(8);
-        output.WriteInt32(Id);
+        output.WriteUInt32(Id);
       }
-      if (ComponentsBitmap.Length != 0) {
-        output.WriteRawTag(18);
-        output.WriteBytes(ComponentsBitmap);
-      }
-      rows_.WriteTo(ref output, _repeated_rows_codec);
-      entities_.WriteTo(ref output, _repeated_entities_codec);
-      columns_.WriteTo(ref output, _repeated_columns_codec);
+      components_.WriteTo(ref output, _repeated_components_codec);
+      payloads_.WriteTo(ref output, _repeated_payloads_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -897,14 +822,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public int CalculateSize() {
       int size = 0;
       if (Id != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Id);
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Id);
       }
-      if (ComponentsBitmap.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(ComponentsBitmap);
-      }
-      size += rows_.CalculateSize(_repeated_rows_codec);
-      size += entities_.CalculateSize(_repeated_entities_codec);
-      size += columns_.CalculateSize(_repeated_columns_codec);
+      size += components_.CalculateSize(_repeated_components_codec);
+      size += payloads_.CalculateSize(_repeated_payloads_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -913,280 +834,15 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(Archetype other) {
+    public void MergeFrom(Entity other) {
       if (other == null) {
         return;
       }
       if (other.Id != 0) {
         Id = other.Id;
       }
-      if (other.ComponentsBitmap.Length != 0) {
-        ComponentsBitmap = other.ComponentsBitmap;
-      }
-      rows_.Add(other.rows_);
-      entities_.Add(other.entities_);
-      columns_.Add(other.columns_);
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 8: {
-            Id = input.ReadInt32();
-            break;
-          }
-          case 18: {
-            ComponentsBitmap = input.ReadBytes();
-            break;
-          }
-          case 26:
-          case 24: {
-            rows_.AddEntriesFrom(input, _repeated_rows_codec);
-            break;
-          }
-          case 34:
-          case 32: {
-            entities_.AddEntriesFrom(input, _repeated_entities_codec);
-            break;
-          }
-          case 42: {
-            columns_.AddEntriesFrom(input, _repeated_columns_codec);
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 8: {
-            Id = input.ReadInt32();
-            break;
-          }
-          case 18: {
-            ComponentsBitmap = input.ReadBytes();
-            break;
-          }
-          case 26:
-          case 24: {
-            rows_.AddEntriesFrom(ref input, _repeated_rows_codec);
-            break;
-          }
-          case 34:
-          case 32: {
-            entities_.AddEntriesFrom(ref input, _repeated_entities_codec);
-            break;
-          }
-          case 42: {
-            columns_.AddEntriesFrom(ref input, _repeated_columns_codec);
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  /// <summary>
-  /// Column represents a sparse set data structure for storing component data.
-  /// </summary>
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class Column : pb::IMessage<Column>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<Column> _parser = new pb::MessageParser<Column>(() => new Column());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<Column> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor.MessageTypes[3]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Column() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Column(Column other) : this() {
-      componentName_ = other.componentName_;
-      components_ = other.components_.Clone();
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Column Clone() {
-      return new Column(this);
-    }
-
-    /// <summary>Field number for the "component_name" field.</summary>
-    public const int ComponentNameFieldNumber = 1;
-    private string componentName_ = "";
-    /// <summary>
-    /// Name of the component stored in this column
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string ComponentName {
-      get { return componentName_; }
-      set {
-        componentName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "components" field.</summary>
-    public const int ComponentsFieldNumber = 2;
-    private static readonly pb::FieldCodec<pb::ByteString> _repeated_components_codec
-        = pb::FieldCodec.ForBytes(18);
-    private readonly pbc::RepeatedField<pb::ByteString> components_ = new pbc::RepeatedField<pb::ByteString>();
-    /// <summary>
-    /// Dense array of serialized component wire data.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<pb::ByteString> Components {
-      get { return components_; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as Column);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(Column other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (ComponentName != other.ComponentName) return false;
-      if(!components_.Equals(other.components_)) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (ComponentName.Length != 0) hash ^= ComponentName.GetHashCode();
-      hash ^= components_.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (ComponentName.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(ComponentName);
-      }
-      components_.WriteTo(output, _repeated_components_codec);
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (ComponentName.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(ComponentName);
-      }
-      components_.WriteTo(ref output, _repeated_components_codec);
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (ComponentName.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(ComponentName);
-      }
-      size += components_.CalculateSize(_repeated_components_codec);
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(Column other) {
-      if (other == null) {
-        return;
-      }
-      if (other.ComponentName.Length != 0) {
-        ComponentName = other.ComponentName;
-      }
       components_.Add(other.components_);
+      payloads_.Add(other.payloads_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -1206,14 +862,19 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            ComponentName = input.ReadString();
+          case 8: {
+            Id = input.ReadUInt32();
             break;
           }
-          case 18: {
+          case 18:
+          case 16: {
             components_.AddEntriesFrom(input, _repeated_components_codec);
             break;
           }
+          case 26: {
+            payloads_.AddEntriesFrom(input, _repeated_payloads_codec);
+            break;
+          }
         }
       }
     #endif
@@ -1233,12 +894,17 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            ComponentName = input.ReadString();
+          case 8: {
+            Id = input.ReadUInt32();
             break;
           }
-          case 18: {
+          case 18:
+          case 16: {
             components_.AddEntriesFrom(ref input, _repeated_components_codec);
+            break;
+          }
+          case 26: {
+            payloads_.AddEntriesFrom(ref input, _repeated_payloads_codec);
             break;
           }
         }
