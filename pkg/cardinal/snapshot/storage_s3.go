@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -97,17 +96,10 @@ func NewS3Storage(opts S3StorageOptions) (*S3Storage, error) {
 	}, nil
 }
 
-// Store writes the envelope to the bucket. Per Store's ownership rule the caller's message is
-// consumed here and now: marshalSnapshot copies it into data, and only data reaches the network —
-// including on SDK retries, which re-read the byte slice and never the caller's graph.
-func (s *S3Storage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error {
-	data, err := marshalSnapshot(snapshot)
-	if err != nil {
-		return err
-	}
-
-	// Overwrite the existing snapshot if any.
-	if _, err = s.client.PutObject(ctx, &s3.PutObjectInput{
+// Store writes the snapshot bytes to the bucket, overwriting the previous snapshot. SDK retries
+// re-read the byte slice, which the caller handed off and never mutates.
+func (s *S3Storage) Store(ctx context.Context, _ uint64, data []byte) error {
+	if _, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),
 		Key:         aws.String(s.key),
 		Body:        bytes.NewReader(data),
@@ -119,9 +111,8 @@ func (s *S3Storage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) er
 	return nil
 }
 
-// Load reads the stored object. The returned message is decoded fresh from those bytes on every
-// call and kept nowhere, which is what Load's ownership rule asks for.
-func (s *S3Storage) Load(ctx context.Context) (*cardinalv1.Snapshot, error) {
+// Load reads the stored snapshot bytes.
+func (s *S3Storage) Load(ctx context.Context) ([]byte, error) {
 	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.key),
@@ -147,8 +138,7 @@ func (s *S3Storage) Load(ctx context.Context) (*cardinalv1.Snapshot, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to read from S3 object")
 	}
-
-	return unmarshalSnapshot(data)
+	return data, nil
 }
 
 // -------------------------------------------------------------------------------------------------

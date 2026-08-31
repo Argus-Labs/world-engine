@@ -104,65 +104,51 @@ func TestColumn_ModelFuzz(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Serialization smoke test
+// Wire codec smoke test
 // -------------------------------------------------------------------------------------------------
-// We don't extensively test toProto/fromProto because:
-// 1. The implementation is a thin wrapper around each component's generated MarshalWire/UnmarshalWire.
+// We don't extensively test the row codecs because:
+// 1. They are thin wrappers around each component's generated encoders.
 // 2. The loop logic is trivial with no complex branching.
 // 3. Heavy property-based testing would mostly exercise the component codec, not our code.
 // -------------------------------------------------------------------------------------------------
 
-func TestColumn_SerializationSmoke(t *testing.T) {
+func TestColumn_WireRoundTrip(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
 	const lengthMax = 1000
 
 	col1 := newColumn[testutils.SimpleComponent]()
-	for i := range prng.IntN(lengthMax) {
+	length := 1 + prng.IntN(lengthMax)
+	for i := range length {
 		col1.extend()
 		col1.set(i, testutils.SimpleComponent{Value: i})
 	}
 
-	pb, err := col1.toProto()
-	require.NoError(t, err)
-
+	// Encode every row (rowWireSize stages, appendRowWire emits), decode into a fresh column.
 	col2 := newColumn[testutils.SimpleComponent]()
-	err = col2.fromProto(pb)
-	require.NoError(t, err)
+	for i := range length {
+		size := col1.rowWireSize(i)
+		require.Equal(t, size, col1.stagedRowWireSize(i))
 
-	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, col1, col2) // assert.Equal uses reflect.DeepEqual
+		payload := col1.appendRowWire(nil, i)
+		require.Len(t, payload, size, "appendRowWire must write exactly rowWireSize bytes")
+
+		col2.extend()
+		require.NoError(t, col2.decodeRow(i, payload))
+	}
+
+	// Property: decode(encode(x)) == x, row by row.
+	for i := range length {
+		assert.Equal(t, col1.get(i), col2.get(i), "row %d mismatch", i)
+	}
 }
 
-// -------------------------------------------------------------------------------------------------
-// Deserialization edge cases
-// -------------------------------------------------------------------------------------------------
-// Examples of some edge cases of fromProto we care about.
-// -------------------------------------------------------------------------------------------------
-
-func TestColumn_FromProto(t *testing.T) {
+func TestColumn_DecodeRowRejectsGarbage(t *testing.T) {
 	t.Parallel()
 
-	t.Run("rejects nil", func(t *testing.T) {
-		t.Parallel()
-		col := newColumn[testutils.SimpleComponent]()
-		err := col.fromProto(nil)
-		assert.Error(t, err)
-	})
-
-	t.Run("rejects component name mismatch", func(t *testing.T) {
-		t.Parallel()
-
-		colA := newColumn[testutils.ComponentA]()
-		colA.extend()
-		colA.set(0, testutils.ComponentA{X: 1, Y: 2, Z: 3})
-
-		pb, err := colA.toProto()
-		require.NoError(t, err)
-
-		colB := newColumn[testutils.ComponentB]()
-		err = colB.fromProto(pb)
-		assert.Error(t, err)
-	})
+	col := newColumn[testutils.SimpleComponent]()
+	col.extend()
+	err := col.decodeRow(0, []byte{0xFF, 0xFE, 0xFD})
+	assert.Error(t, err)
 }

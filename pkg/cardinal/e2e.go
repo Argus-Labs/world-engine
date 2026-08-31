@@ -127,8 +127,8 @@ sendLoop:
 
 	// Final validation after the world has fully stopped.
 	ecs.CheckWorld(t, fix.world.world)
-	_, err := fix.world.world.ToProto()
-	require.NoError(t, err)
+	// Ensure the final world state remains serializable (a marshal failure panics).
+	fix.world.world.EncodeState(nil)
 }
 
 // -------------------------------------------------------------------------------------------------

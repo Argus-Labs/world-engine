@@ -13,6 +13,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 )
@@ -51,6 +52,21 @@ func (d *debugModule) publishSnapshot(snapshot *cardinalv1.Snapshot) {
 		return
 	}
 	d.snapshot.Store(snapshot)
+}
+
+// publishState decodes encoded snapshot bytes and publishes them for GetState. No-op when the
+// debug service is disabled. The decode allocates, so callers should skip encoding entirely when
+// d is nil rather than relying on this method's guard.
+func (d *debugModule) publishState(data []byte) {
+	if d == nil {
+		return
+	}
+	snap, err := snapshot.Decode(data)
+	if err != nil {
+		d.world.tel.Logger.Warn().Err(err).Msg("failed to decode snapshot for the debug service")
+		return
+	}
+	d.snapshot.Store(snap)
 }
 
 // -------------------------------------------------------------------------------------------------

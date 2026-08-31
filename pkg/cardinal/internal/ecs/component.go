@@ -39,6 +39,7 @@ type componentManager struct {
 	nextID    ComponentID            // The next available component ID
 	catalog   map[string]ComponentID // Component name -> component ID
 	factories []columnFactory        // Component ID -> column factory
+	names     []string               // Component ID -> name
 }
 
 // newComponentManager creates a new component manager.
@@ -47,6 +48,7 @@ func newComponentManager() componentManager {
 		nextID:    0,
 		catalog:   make(map[string]ComponentID),
 		factories: make([]columnFactory, 0),
+		names:     make([]string, 0),
 	}
 }
 
@@ -89,6 +91,7 @@ func (cm *componentManager) register(name string, factory columnFactory) (Compon
 
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, factory)
+	cm.names = append(cm.names, name)
 	cm.nextID++
 	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 

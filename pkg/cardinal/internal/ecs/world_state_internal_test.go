@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -507,28 +509,56 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 		ws1.removeEntity(eid)
 	}
 
-	pb, err := ws1.toProto()
-	require.NoError(t, err)
+	size := ws1.wireBodySize()
+	data := ws1.appendWireBody(make([]byte, 0, size))
+	require.Len(t, data, size)
+
+	var pb cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(data, &pb))
 
 	ws2 := newTestWorldState(t)
-	err = ws2.fromProto(pb)
-	require.NoError(t, err)
+	require.NoError(t, ws2.fromProto(&pb))
 
-	// Property: deserialize(serialize(x)) == x.
+	// Property: deserialize(serialize(x)) describes the same world as x, and re-serializing the
+	// rebuilt world reproduces the same bytes. Runtime layout (archetype ids, rows, entityArch) is
+	// deliberately not compared: the file no longer records it, and a rebuild is free to produce a
+	// different but equivalent layout.
 	assertWorldStateEqual(t, ws1, ws2)
+
+	size2 := ws2.wireBodySize()
+	data2 := ws2.appendWireBody(make([]byte, 0, size2))
+	assert.Equal(t, data, data2, "snapshot -> restore -> snapshot must be byte-stable")
 }
 
-// assertWorldStateEqual checks if two worldStates are structurally equal. This function is
-// extracted so it can be reused in serialization tests "above" this layer.
+// assertWorldStateEqual checks that two worldStates describe the same world: the same entities,
+// each with the same components and values.
 func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 	t.Helper()
 
 	assert.Equal(t, ws1.nextID, ws2.nextID)
-	assert.Equal(t, ws1.free, ws2.free)
-	assert.Equal(t, ws1.entityArch, ws2.entityArch)
 
-	assert.Len(t, ws2.archetypes, len(ws1.archetypes))
-	for i := range ws1.archetypes {
-		assertArchetypeEqual(t, ws1.archetypes[i], ws2.archetypes[i])
+	// The free list is order-insensitive between a live world (removal order) and a restored one
+	// (ascending): both describe the same set of reusable IDs.
+	free1 := slices.Clone(ws1.free)
+	free2 := slices.Clone(ws2.free)
+	slices.Sort(free1)
+	slices.Sort(free2)
+	assert.Equal(t, free1, free2)
+
+	live := func(ws *worldState) map[EntityID]map[string]Component {
+		out := make(map[EntityID]map[string]Component)
+		for _, arch := range ws.archetypes {
+			for _, eid := range arch.entities {
+				row, ok := arch.rows.get(eid)
+				require.True(t, ok)
+				comps := make(map[string]Component, len(arch.columns))
+				for _, col := range arch.columns {
+					comps[col.name()] = col.getAbstract(row)
+				}
+				out[eid] = comps
+			}
+		}
+		return out
 	}
+	assert.Equal(t, live(ws1), live(ws2))
 }

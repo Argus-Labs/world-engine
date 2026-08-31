@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 )
@@ -29,6 +28,7 @@ type worldState struct {
 	free       []EntityID       // Free entity IDs to reuse
 	entityArch sparseSet
 	archetypes []*archetype // Array of archetypes
+	wire       stateWire    // Reusable wire-encoder scratch (tick goroutine only)
 	mu         sync.Mutex
 }
 
@@ -40,6 +40,8 @@ func newWorldState() *worldState {
 		free:       make([]EntityID, 0),
 		entityArch: newSparseSet(),
 		archetypes: make([]*archetype, 1),
+		// Nothing is staged yet; the zero value would read as a staged body of zero bytes.
+		wire: stateWire{pendingSize: -1},
 	}
 
 	// Insert the void archetype.
@@ -267,55 +269,6 @@ func removeComponent[T Component](ws *worldState, eid EntityID) error {
 
 	// A remove component is basically a move, so just move the entity to the correct archetype.
 	ws.moveEntity(eid, newComponents)
-	return nil
-}
-
-// -------------------------------------------------------------------------------------------------
-// Serialization
-// -------------------------------------------------------------------------------------------------
-
-// toProto converts the worldState to a protobuf message for serialization.
-func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
-	freeIDs := make([]uint32, len(ws.free))
-	for i, entityID := range ws.free {
-		freeIDs[i] = uint32(entityID)
-	}
-
-	pbArchetypes := make([]*cardinalv1.Archetype, len(ws.archetypes))
-	for i, arch := range ws.archetypes {
-		pbArch, err := arch.toProto()
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to serialize archetype %d", i)
-		}
-		pbArchetypes[i] = pbArch
-	}
-
-	return &cardinalv1.WorldState{
-		NextId:     uint32(ws.nextID),
-		FreeIds:    freeIDs,
-		EntityArch: ws.entityArch.toInt64Slice(),
-		Archetypes: pbArchetypes,
-	}, nil
-}
-
-// fromProto populates the worldState from a protobuf message.
-func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
-	ws.nextID = EntityID(pb.GetNextId())
-
-	ws.free = make([]EntityID, len(pb.GetFreeIds()))
-	for i, freeID := range pb.GetFreeIds() {
-		ws.free[i] = EntityID(freeID)
-	}
-
-	ws.entityArch.fromInt64Slice(pb.GetEntityArch())
-
-	ws.archetypes = make([]*archetype, len(pb.GetArchetypes()))
-	for i, pbArch := range pb.GetArchetypes() {
-		ws.archetypes[i] = &archetype{}
-		if err := ws.archetypes[i].fromProto(pbArch, &ws.components); err != nil {
-			return eris.Wrapf(err, "failed to deserialize archetype %d", i)
-		}
-	}
 	return nil
 }
 
