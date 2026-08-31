@@ -126,8 +126,8 @@ sendLoop:
 
 	// Final validation after the world has fully stopped.
 	fix.world.world.CheckWorld(t)
-	// Encoding asserts internally, so reaching the next line at all is the check.
-	_ = fix.world.world.ToProto()
+	// Ensure the final world state remains serializable (a marshal failure panics).
+	fix.world.world.EncodeState(nil)
 }
 
 // -------------------------------------------------------------------------------------------------
