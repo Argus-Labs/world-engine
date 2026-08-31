@@ -571,34 +571,33 @@ var File_pkg_plugin_lobby_component_component_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_lobby_component_component_proto_rawDesc = "" +
 	"\n" +
-	"*pkg/plugin/lobby/component/component.proto\x12'world_engine.pkg.plugin.lobby.component\"\x9e\x02\n" +
-	"\x0fConfigComponent\x12U\n" +
+	"*pkg/plugin/lobby/component/component.proto\x12=github_com.argus_labs.world_engine.pkg.plugin.lobby.component\"\xb4\x02\n" +
+	"\x0fConfigComponent\x12k\n" +
 	"\n" +
-	"LobbyWorld\x18\x01 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\n" +
+	"LobbyWorld\x18\x01 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\n" +
 	"LobbyWorld\x12*\n" +
 	"\x10HeartbeatTimeout\x18\x02 \x01(\x03R\x10HeartbeatTimeout\x120\n" +
 	"\x13AssignmentAuthority\x18\x03 \x01(\tR\x13AssignmentAuthority\x122\n" +
 	"\x14MaxAllocationTimeout\x18\x04 \x01(\x03R\x14MaxAllocationTimeout\x12\"\n" +
-	"\fLobbyPresets\x18\x05 \x01(\fR\fLobbyPresets\"\xe0\x02\n" +
+	"\fLobbyPresets\x18\x05 \x01(\fR\fLobbyPresets\"\xa2\x03\n" +
 	"\x0eLobbyComponent\x12\x0e\n" +
 	"\x02ID\x18\x01 \x01(\tR\x02ID\x12\x1a\n" +
-	"\bLeaderID\x18\x02 \x01(\tR\bLeaderID\x12C\n" +
-	"\x05Teams\x18\x03 \x03(\v2-.world_engine.pkg.plugin.lobby.component.TeamR\x05Teams\x12\x1e\n" +
+	"\bLeaderID\x18\x02 \x01(\tR\bLeaderID\x12Y\n" +
+	"\x05Teams\x18\x03 \x03(\v2C.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.TeamR\x05Teams\x12\x1e\n" +
 	"\n" +
 	"InviteCode\x18\x04 \x01(\tR\n" +
-	"InviteCode\x12S\n" +
-	"\tGameWorld\x18\x05 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\x12J\n" +
-	"\aSession\x18\x06 \x01(\v20.world_engine.pkg.plugin.lobby.component.SessionR\aSession\x12\x1c\n" +
-	"\tCreatedAt\x18\a \x01(\x03R\tCreatedAt\"\xcd\n" +
-	"\n" +
-	"\x13LobbyIndexComponent\x12{\n" +
-	"\x0fLobbyIDToEntity\x18\x01 \x03(\v2Q.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntryR\x0fLobbyIDToEntity\x12\x81\x01\n" +
-	"\x11InviteCodeToLobby\x18\x02 \x03(\v2S.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntryR\x11InviteCodeToLobby\x12u\n" +
-	"\rPlayerToLobby\x18\x03 \x03(\v2O.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntryR\rPlayerToLobby\x12r\n" +
-	"\fPlayerToTeam\x18\x04 \x03(\v2N.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntryR\fPlayerToTeam\x12x\n" +
-	"\x0ePlayerToEntity\x18\x05 \x03(\v2P.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntryR\x0ePlayerToEntity\x12x\n" +
-	"\x0ePlayerDeadline\x18\x06 \x03(\v2P.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntryR\x0ePlayerDeadline\x12~\n" +
-	"\x10LobbyPlayerCount\x18\a \x03(\v2R.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntryR\x10LobbyPlayerCount\x1aB\n" +
+	"InviteCode\x12i\n" +
+	"\tGameWorld\x18\x05 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\x12`\n" +
+	"\aSession\x18\x06 \x01(\v2F.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.SessionR\aSession\x12\x1c\n" +
+	"\tCreatedAt\x18\a \x01(\x03R\tCreatedAt\"\xed\v\n" +
+	"\x13LobbyIndexComponent\x12\x91\x01\n" +
+	"\x0fLobbyIDToEntity\x18\x01 \x03(\v2g.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntryR\x0fLobbyIDToEntity\x12\x97\x01\n" +
+	"\x11InviteCodeToLobby\x18\x02 \x03(\v2i.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntryR\x11InviteCodeToLobby\x12\x8b\x01\n" +
+	"\rPlayerToLobby\x18\x03 \x03(\v2e.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntryR\rPlayerToLobby\x12\x88\x01\n" +
+	"\fPlayerToTeam\x18\x04 \x03(\v2d.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntryR\fPlayerToTeam\x12\x8e\x01\n" +
+	"\x0ePlayerToEntity\x18\x05 \x03(\v2f.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntryR\x0ePlayerToEntity\x12\x8e\x01\n" +
+	"\x0ePlayerDeadline\x18\x06 \x03(\v2f.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntryR\x0ePlayerDeadline\x12\x94\x01\n" +
+	"\x10LobbyPlayerCount\x18\a \x03(\v2h.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntryR\x10LobbyPlayerCount\x1aB\n" +
 	"\x14LobbyIDToEntityEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aD\n" +
@@ -658,33 +657,33 @@ func file_pkg_plugin_lobby_component_component_proto_rawDescGZIP() []byte {
 
 var file_pkg_plugin_lobby_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_pkg_plugin_lobby_component_component_proto_goTypes = []any{
-	(*ConfigComponent)(nil),     // 0: world_engine.pkg.plugin.lobby.component.ConfigComponent
-	(*LobbyComponent)(nil),      // 1: world_engine.pkg.plugin.lobby.component.LobbyComponent
-	(*LobbyIndexComponent)(nil), // 2: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent
-	(*PlayerComponent)(nil),     // 3: world_engine.pkg.plugin.lobby.component.PlayerComponent
-	(*Session)(nil),             // 4: world_engine.pkg.plugin.lobby.component.Session
-	(*ShardAddress)(nil),        // 5: world_engine.pkg.plugin.lobby.component.ShardAddress
-	(*Team)(nil),                // 6: world_engine.pkg.plugin.lobby.component.Team
-	nil,                         // 7: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntry
-	nil,                         // 8: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntry
-	nil,                         // 9: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntry
-	nil,                         // 10: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntry
-	nil,                         // 11: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntry
-	nil,                         // 12: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntry
-	nil,                         // 13: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntry
+	(*ConfigComponent)(nil),     // 0: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ConfigComponent
+	(*LobbyComponent)(nil),      // 1: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent
+	(*LobbyIndexComponent)(nil), // 2: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent
+	(*PlayerComponent)(nil),     // 3: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	(*Session)(nil),             // 4: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Session
+	(*ShardAddress)(nil),        // 5: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	(*Team)(nil),                // 6: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Team
+	nil,                         // 7: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntry
+	nil,                         // 8: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntry
+	nil,                         // 9: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntry
+	nil,                         // 10: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntry
+	nil,                         // 11: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntry
+	nil,                         // 12: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntry
+	nil,                         // 13: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntry
 }
 var file_pkg_plugin_lobby_component_component_proto_depIdxs = []int32{
-	5,  // 0: world_engine.pkg.plugin.lobby.component.ConfigComponent.LobbyWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	6,  // 1: world_engine.pkg.plugin.lobby.component.LobbyComponent.Teams:type_name -> world_engine.pkg.plugin.lobby.component.Team
-	5,  // 2: world_engine.pkg.plugin.lobby.component.LobbyComponent.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	4,  // 3: world_engine.pkg.plugin.lobby.component.LobbyComponent.Session:type_name -> world_engine.pkg.plugin.lobby.component.Session
-	7,  // 4: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntity:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntry
-	8,  // 5: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntry
-	9,  // 6: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntry
-	10, // 7: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeam:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntry
-	11, // 8: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntity:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntry
-	12, // 9: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadline:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntry
-	13, // 10: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCount:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntry
+	5,  // 0: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ConfigComponent.LobbyWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	6,  // 1: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent.Teams:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Team
+	5,  // 2: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent.GameWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	4,  // 3: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent.Session:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Session
+	7,  // 4: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntity:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntry
+	8,  // 5: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobby:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntry
+	9,  // 6: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobby:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntry
+	10, // 7: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeam:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntry
+	11, // 8: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntity:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntry
+	12, // 9: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadline:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntry
+	13, // 10: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCount:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntry
 	11, // [11:11] is the sub-list for method output_type
 	11, // [11:11] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name

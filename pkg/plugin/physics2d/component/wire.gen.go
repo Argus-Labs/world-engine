@@ -6,19 +6,20 @@ package component
 
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
-	component "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c ActiveContacts) ToProto() *component.ActiveContacts {
-	p := &component.ActiveContacts{}
+func (c ActiveContacts) ToProto() *pbcomponent.ActiveContacts {
+	p := &pbcomponent.ActiveContacts{}
 	for i := range c.Pairs {
 		p.Pairs = append(p.Pairs, c.Pairs[i].ToProto())
 	}
 	return p
 }
 
-func (c ActiveContacts) FromProto(p *component.ActiveContacts) ActiveContacts {
+func (c ActiveContacts) FromProto(p *pbcomponent.ActiveContacts) ActiveContacts {
 	if p == nil {
 		return c
 	}
@@ -39,15 +40,19 @@ func (c ActiveContacts) MarshalWire() []byte {
 }
 
 func (c ActiveContacts) UnmarshalWire(data []byte) (any, error) {
-	var p component.ActiveContacts
+	var p pbcomponent.ActiveContacts
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c ColliderShape) ToProto() *component.ColliderShape {
-	p := &component.ColliderShape{}
+func (c ActiveContacts) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ActiveContacts{}).ProtoReflect().Descriptor()
+}
+
+func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
+	p := &pbcomponent.ColliderShape{}
 	p.ShapeType = uint32(c.ShapeType)
 	p.LocalOffset = c.LocalOffset.ToProto()
 	p.LocalRotation = float64(c.LocalRotation)
@@ -74,7 +79,7 @@ func (c ColliderShape) ToProto() *component.ColliderShape {
 	return p
 }
 
-func (c ColliderShape) FromProto(p *component.ColliderShape) ColliderShape {
+func (c ColliderShape) FromProto(p *pbcomponent.ColliderShape) ColliderShape {
 	if p == nil {
 		return c
 	}
@@ -112,8 +117,8 @@ func (c ColliderShape) FromProto(p *component.ColliderShape) ColliderShape {
 	return c
 }
 
-func (c ContactPairEntry) ToProto() *component.ContactPairEntry {
-	p := &component.ContactPairEntry{}
+func (c ContactPairEntry) ToProto() *pbcomponent.ContactPairEntry {
+	p := &pbcomponent.ContactPairEntry{}
 	p.EntityA = uint32(c.EntityA)
 	p.ShapeIndexA = int64(c.ShapeIndexA)
 	p.EntityB = uint32(c.EntityB)
@@ -128,7 +133,7 @@ func (c ContactPairEntry) ToProto() *component.ContactPairEntry {
 	return p
 }
 
-func (c ContactPairEntry) FromProto(p *component.ContactPairEntry) ContactPairEntry {
+func (c ContactPairEntry) FromProto(p *pbcomponent.ContactPairEntry) ContactPairEntry {
 	if p == nil {
 		return c
 	}
@@ -146,8 +151,8 @@ func (c ContactPairEntry) FromProto(p *component.ContactPairEntry) ContactPairEn
 	return c
 }
 
-func (c PhysicsBody2D) ToProto() *component.PhysicsBody2D {
-	p := &component.PhysicsBody2D{}
+func (c PhysicsBody2D) ToProto() *pbcomponent.PhysicsBody2D {
+	p := &pbcomponent.PhysicsBody2D{}
 	p.BodyType = uint32(c.BodyType)
 	p.LinearDamping = float64(c.LinearDamping)
 	p.AngularDamping = float64(c.AngularDamping)
@@ -163,7 +168,7 @@ func (c PhysicsBody2D) ToProto() *component.PhysicsBody2D {
 	return p
 }
 
-func (c PhysicsBody2D) FromProto(p *component.PhysicsBody2D) PhysicsBody2D {
+func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 	if p == nil {
 		return c
 	}
@@ -193,19 +198,23 @@ func (c PhysicsBody2D) MarshalWire() []byte {
 }
 
 func (c PhysicsBody2D) UnmarshalWire(data []byte) (any, error) {
-	var p component.PhysicsBody2D
+	var p pbcomponent.PhysicsBody2D
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c PhysicsSingletonTag) ToProto() *component.PhysicsSingletonTag {
-	p := &component.PhysicsSingletonTag{}
+func (c PhysicsBody2D) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.PhysicsBody2D{}).ProtoReflect().Descriptor()
+}
+
+func (c PhysicsSingletonTag) ToProto() *pbcomponent.PhysicsSingletonTag {
+	p := &pbcomponent.PhysicsSingletonTag{}
 	return p
 }
 
-func (c PhysicsSingletonTag) FromProto(p *component.PhysicsSingletonTag) PhysicsSingletonTag {
+func (c PhysicsSingletonTag) FromProto(p *pbcomponent.PhysicsSingletonTag) PhysicsSingletonTag {
 	if p == nil {
 		return c
 	}
@@ -221,21 +230,25 @@ func (c PhysicsSingletonTag) MarshalWire() []byte {
 }
 
 func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (any, error) {
-	var p component.PhysicsSingletonTag
+	var p pbcomponent.PhysicsSingletonTag
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c Transform2D) ToProto() *component.Transform2D {
-	p := &component.Transform2D{}
+func (c PhysicsSingletonTag) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.PhysicsSingletonTag{}).ProtoReflect().Descriptor()
+}
+
+func (c Transform2D) ToProto() *pbcomponent.Transform2D {
+	p := &pbcomponent.Transform2D{}
 	p.Position = c.Position.ToProto()
 	p.Rotation = float64(c.Rotation)
 	return p
 }
 
-func (c Transform2D) FromProto(p *component.Transform2D) Transform2D {
+func (c Transform2D) FromProto(p *pbcomponent.Transform2D) Transform2D {
 	if p == nil {
 		return c
 	}
@@ -253,21 +266,25 @@ func (c Transform2D) MarshalWire() []byte {
 }
 
 func (c Transform2D) UnmarshalWire(data []byte) (any, error) {
-	var p component.Transform2D
+	var p pbcomponent.Transform2D
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c Vec2) ToProto() *component.Vec2 {
-	p := &component.Vec2{}
+func (c Transform2D) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.Transform2D{}).ProtoReflect().Descriptor()
+}
+
+func (c Vec2) ToProto() *pbcomponent.Vec2 {
+	p := &pbcomponent.Vec2{}
 	p.X = float64(c.X)
 	p.Y = float64(c.Y)
 	return p
 }
 
-func (c Vec2) FromProto(p *component.Vec2) Vec2 {
+func (c Vec2) FromProto(p *pbcomponent.Vec2) Vec2 {
 	if p == nil {
 		return c
 	}
@@ -276,14 +293,14 @@ func (c Vec2) FromProto(p *component.Vec2) Vec2 {
 	return c
 }
 
-func (c Velocity2D) ToProto() *component.Velocity2D {
-	p := &component.Velocity2D{}
+func (c Velocity2D) ToProto() *pbcomponent.Velocity2D {
+	p := &pbcomponent.Velocity2D{}
 	p.Linear = c.Linear.ToProto()
 	p.Angular = float64(c.Angular)
 	return p
 }
 
-func (c Velocity2D) FromProto(p *component.Velocity2D) Velocity2D {
+func (c Velocity2D) FromProto(p *pbcomponent.Velocity2D) Velocity2D {
 	if p == nil {
 		return c
 	}
@@ -301,9 +318,13 @@ func (c Velocity2D) MarshalWire() []byte {
 }
 
 func (c Velocity2D) UnmarshalWire(data []byte) (any, error) {
-	var p component.Velocity2D
+	var p pbcomponent.Velocity2D
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
+}
+
+func (c Velocity2D) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.Velocity2D{}).ProtoReflect().Descriptor()
 }

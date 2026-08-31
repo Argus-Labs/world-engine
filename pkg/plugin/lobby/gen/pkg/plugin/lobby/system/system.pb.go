@@ -2721,23 +2721,23 @@ var File_pkg_plugin_lobby_system_system_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\n" +
-	"$pkg/plugin/lobby/system/system.proto\x12$world_engine.pkg.plugin.lobby.system\x1a*pkg/plugin/lobby/component/component.proto\"\xb9\x01\n" +
+	"$pkg/plugin/lobby/system/system.proto\x12:github_com.argus_labs.world_engine.pkg.plugin.lobby.system\x1a*pkg/plugin/lobby/component/component.proto\"\xcf\x01\n" +
 	"\x12AssignShardCommand\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1c\n" +
-	"\tRequestID\x18\x02 \x01(\tR\tRequestID\x12S\n" +
-	"\tGameWorld\x18\x03 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\x12\x16\n" +
+	"\tRequestID\x18\x02 \x01(\tR\tRequestID\x12i\n" +
+	"\tGameWorld\x18\x03 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\x12\x16\n" +
 	"\x06Reason\x18\x04 \x01(\tR\x06Reason\"\xb8\x01\n" +
 	"\x12CreateLobbyCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x16\n" +
 	"\x06Preset\x18\x02 \x01(\tR\x06Preset\x124\n" +
 	"\x15PlayerPassthroughData\x18\x03 \x01(\fR\x15PlayerPassthroughData\x126\n" +
-	"\x16SessionPassthroughData\x18\x04 \x01(\fR\x16SessionPassthroughData\"\x8a\x02\n" +
+	"\x16SessionPassthroughData\x18\x04 \x01(\fR\x16SessionPassthroughData\"\xb6\x02\n" +
 	"\x11CreateLobbyResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12M\n" +
-	"\x05Lobby\x18\x04 \x01(\v27.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\x12P\n" +
-	"\x06Player\x18\x05 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"9\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12c\n" +
+	"\x05Lobby\x18\x04 \x01(\v2M.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\x12f\n" +
+	"\x06Player\x18\x05 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"9\n" +
 	"\x19GenerateInviteCodeCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\x90\x01\n" +
 	"\x18GenerateInviteCodeResult\x12\x1c\n" +
@@ -2748,27 +2748,27 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"InviteCode\x18\x04 \x01(\tR\n" +
 	"InviteCode\"4\n" +
 	"\x14GetAllPlayersCommand\x12\x1c\n" +
-	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xbf\x01\n" +
+	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xd5\x01\n" +
 	"\x13GetAllPlayersResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12R\n" +
-	"\aPlayers\x18\x04 \x03(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\aPlayers\"/\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12h\n" +
+	"\aPlayers\x18\x04 \x03(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\aPlayers\"/\n" +
 	"\x0fGetLobbyCommand\x12\x1c\n" +
-	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xb5\x01\n" +
+	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xcb\x01\n" +
 	"\x0eGetLobbyResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12M\n" +
-	"\x05Lobby\x18\x04 \x01(\v27.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\"L\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12c\n" +
+	"\x05Lobby\x18\x04 \x01(\v2M.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\"L\n" +
 	"\x10GetPlayerCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1a\n" +
-	"\bPlayerID\x18\x02 \x01(\tR\bPlayerID\"\xb9\x01\n" +
+	"\bPlayerID\x18\x02 \x01(\tR\bPlayerID\"\xcf\x01\n" +
 	"\x0fGetPlayerResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12P\n" +
-	"\x06Player\x18\x04 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"\x12\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12f\n" +
+	"\x06Player\x18\x04 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"\x12\n" +
 	"\x10HeartbeatCommand\"T\n" +
 	"\x18InviteCodeGeneratedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1e\n" +
@@ -2781,21 +2781,21 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"InviteCode\x18\x02 \x01(\tR\n" +
 	"InviteCode\x12\x16\n" +
 	"\x06TeamID\x18\x03 \x01(\tR\x06TeamID\x124\n" +
-	"\x15PlayerPassthroughData\x18\x04 \x01(\fR\x15PlayerPassthroughData\"\x92\x02\n" +
+	"\x15PlayerPassthroughData\x18\x04 \x01(\fR\x15PlayerPassthroughData\"\xbe\x02\n" +
 	"\x0fJoinLobbyResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12M\n" +
-	"\x05Lobby\x18\x04 \x01(\v27.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\x12Z\n" +
-	"\vPlayersList\x18\x05 \x03(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\vPlayersList\"G\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12c\n" +
+	"\x05Lobby\x18\x04 \x01(\v2M.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\x12p\n" +
+	"\vPlayersList\x18\x05 \x03(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\vPlayersList\"G\n" +
 	"\x0fJoinTeamCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x16\n" +
-	"\x06TeamID\x18\x02 \x01(\tR\x06TeamID\"\xb8\x01\n" +
+	"\x06TeamID\x18\x02 \x01(\tR\x06TeamID\"\xce\x01\n" +
 	"\x0eJoinTeamResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12P\n" +
-	"\x06Player\x18\x04 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"Y\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12f\n" +
+	"\x06Player\x18\x04 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"Y\n" +
 	"\x11KickPlayerCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12&\n" +
 	"\x0eTargetPlayerID\x18\x02 \x01(\tR\x0eTargetPlayerID\"h\n" +
@@ -2822,34 +2822,34 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\x11LobbyDeletedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"3\n" +
 	"\x17NotifySessionEndCommand\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"\x8c\x01\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"\xa2\x01\n" +
 	"\x19NotifySessionStartCommand\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12U\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12k\n" +
 	"\n" +
-	"LobbyWorld\x18\x02 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\n" +
-	"LobbyWorld\"\xc0\x01\n" +
+	"LobbyWorld\x18\x02 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\n" +
+	"LobbyWorld\"\xd6\x01\n" +
 	"\x16PlayerChangedTeamEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1c\n" +
 	"\tOldTeamID\x18\x02 \x01(\tR\tOldTeamID\x12\x1c\n" +
-	"\tNewTeamID\x18\x03 \x01(\tR\tNewTeamID\x12P\n" +
-	"\x06Player\x18\x04 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"\x97\x01\n" +
+	"\tNewTeamID\x18\x03 \x01(\tR\tNewTeamID\x12f\n" +
+	"\x06Player\x18\x04 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"\xad\x01\n" +
 	"\x11PlayerJoinedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x16\n" +
-	"\x06TeamID\x18\x02 \x01(\tR\x06TeamID\x12P\n" +
-	"\x06Player\x18\x03 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"e\n" +
+	"\x06TeamID\x18\x02 \x01(\tR\x06TeamID\x12f\n" +
+	"\x06Player\x18\x03 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"e\n" +
 	"\x11PlayerKickedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1a\n" +
 	"\bPlayerID\x18\x02 \x01(\tR\bPlayerID\x12\x1a\n" +
 	"\bKickerID\x18\x03 \x01(\tR\bKickerID\"G\n" +
 	"\x0fPlayerLeftEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1a\n" +
-	"\bPlayerID\x18\x02 \x01(\tR\bPlayerID\"\x8b\x01\n" +
+	"\bPlayerID\x18\x02 \x01(\tR\bPlayerID\"\xa1\x01\n" +
 	"\x1dPlayerPassthroughUpdatedEvent\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12P\n" +
-	"\x06Player\x18\x02 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"~\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12f\n" +
+	"\x06Player\x18\x02 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"\x94\x01\n" +
 	"\x10PlayerReadyEvent\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12P\n" +
-	"\x06Player\x18\x02 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"K\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12f\n" +
+	"\x06Player\x18\x02 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"K\n" +
 	"\x13PlayerTimedOutEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12\x1a\n" +
 	"\bPlayerID\x18\x02 \x01(\tR\bPlayerID\":\n" +
@@ -2859,25 +2859,25 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"d\n" +
 	"\x1eSessionPassthroughUpdatedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"\x84\x01\n" +
+	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"\x9a\x01\n" +
 	"\x13SessionStartedEvent\x12\x18\n" +
-	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12S\n" +
-	"\tGameWorld\x18\x02 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\"I\n" +
+	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12i\n" +
+	"\tGameWorld\x18\x02 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\"I\n" +
 	"\x0fSetReadyCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x18\n" +
-	"\aIsReady\x18\x02 \x01(\bR\aIsReady\"\xb8\x01\n" +
+	"\aIsReady\x18\x02 \x01(\bR\aIsReady\"\xce\x01\n" +
 	"\x0eSetReadyResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12P\n" +
-	"\x06Player\x18\x04 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"3\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12f\n" +
+	"\x06Player\x18\x04 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"3\n" +
 	"\x13StartSessionCommand\x12\x1c\n" +
-	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xbf\x01\n" +
+	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xd5\x01\n" +
 	"\x12StartSessionResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12S\n" +
-	"\tGameWorld\x18\x04 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\"]\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12i\n" +
+	"\tGameWorld\x18\x04 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\"]\n" +
 	"\x15TransferLeaderCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12&\n" +
 	"\x0eTargetPlayerID\x18\x02 \x01(\tR\x0eTargetPlayerID\"l\n" +
@@ -2887,12 +2887,12 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\aMessage\x18\x03 \x01(\tR\aMessage\"h\n" +
 	"\x1eUpdatePlayerPassthroughCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"\xc7\x01\n" +
+	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"\xdd\x01\n" +
 	"\x1dUpdatePlayerPassthroughResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
-	"\aMessage\x18\x03 \x01(\tR\aMessage\x12P\n" +
-	"\x06Player\x18\x04 \x01(\v28.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"i\n" +
+	"\aMessage\x18\x03 \x01(\tR\aMessage\x12f\n" +
+	"\x06Player\x18\x04 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"i\n" +
 	"\x1fUpdateSessionPassthroughCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12(\n" +
 	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"v\n" +
@@ -2915,76 +2915,76 @@ func file_pkg_plugin_lobby_system_system_proto_rawDescGZIP() []byte {
 
 var file_pkg_plugin_lobby_system_system_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_pkg_plugin_lobby_system_system_proto_goTypes = []any{
-	(*AssignShardCommand)(nil),              // 0: world_engine.pkg.plugin.lobby.system.AssignShardCommand
-	(*CreateLobbyCommand)(nil),              // 1: world_engine.pkg.plugin.lobby.system.CreateLobbyCommand
-	(*CreateLobbyResult)(nil),               // 2: world_engine.pkg.plugin.lobby.system.CreateLobbyResult
-	(*GenerateInviteCodeCommand)(nil),       // 3: world_engine.pkg.plugin.lobby.system.GenerateInviteCodeCommand
-	(*GenerateInviteCodeResult)(nil),        // 4: world_engine.pkg.plugin.lobby.system.GenerateInviteCodeResult
-	(*GetAllPlayersCommand)(nil),            // 5: world_engine.pkg.plugin.lobby.system.GetAllPlayersCommand
-	(*GetAllPlayersResult)(nil),             // 6: world_engine.pkg.plugin.lobby.system.GetAllPlayersResult
-	(*GetLobbyCommand)(nil),                 // 7: world_engine.pkg.plugin.lobby.system.GetLobbyCommand
-	(*GetLobbyResult)(nil),                  // 8: world_engine.pkg.plugin.lobby.system.GetLobbyResult
-	(*GetPlayerCommand)(nil),                // 9: world_engine.pkg.plugin.lobby.system.GetPlayerCommand
-	(*GetPlayerResult)(nil),                 // 10: world_engine.pkg.plugin.lobby.system.GetPlayerResult
-	(*HeartbeatCommand)(nil),                // 11: world_engine.pkg.plugin.lobby.system.HeartbeatCommand
-	(*InviteCodeGeneratedEvent)(nil),        // 12: world_engine.pkg.plugin.lobby.system.InviteCodeGeneratedEvent
-	(*JoinLobbyCommand)(nil),                // 13: world_engine.pkg.plugin.lobby.system.JoinLobbyCommand
-	(*JoinLobbyResult)(nil),                 // 14: world_engine.pkg.plugin.lobby.system.JoinLobbyResult
-	(*JoinTeamCommand)(nil),                 // 15: world_engine.pkg.plugin.lobby.system.JoinTeamCommand
-	(*JoinTeamResult)(nil),                  // 16: world_engine.pkg.plugin.lobby.system.JoinTeamResult
-	(*KickPlayerCommand)(nil),               // 17: world_engine.pkg.plugin.lobby.system.KickPlayerCommand
-	(*KickPlayerResult)(nil),                // 18: world_engine.pkg.plugin.lobby.system.KickPlayerResult
-	(*LeaderChangedEvent)(nil),              // 19: world_engine.pkg.plugin.lobby.system.LeaderChangedEvent
-	(*LeaveLobbyCommand)(nil),               // 20: world_engine.pkg.plugin.lobby.system.LeaveLobbyCommand
-	(*LeaveLobbyResult)(nil),                // 21: world_engine.pkg.plugin.lobby.system.LeaveLobbyResult
-	(*LobbyCreatedEvent)(nil),               // 22: world_engine.pkg.plugin.lobby.system.LobbyCreatedEvent
-	(*LobbyDeletedEvent)(nil),               // 23: world_engine.pkg.plugin.lobby.system.LobbyDeletedEvent
-	(*NotifySessionEndCommand)(nil),         // 24: world_engine.pkg.plugin.lobby.system.NotifySessionEndCommand
-	(*NotifySessionStartCommand)(nil),       // 25: world_engine.pkg.plugin.lobby.system.NotifySessionStartCommand
-	(*PlayerChangedTeamEvent)(nil),          // 26: world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent
-	(*PlayerJoinedEvent)(nil),               // 27: world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent
-	(*PlayerKickedEvent)(nil),               // 28: world_engine.pkg.plugin.lobby.system.PlayerKickedEvent
-	(*PlayerLeftEvent)(nil),                 // 29: world_engine.pkg.plugin.lobby.system.PlayerLeftEvent
-	(*PlayerPassthroughUpdatedEvent)(nil),   // 30: world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent
-	(*PlayerReadyEvent)(nil),                // 31: world_engine.pkg.plugin.lobby.system.PlayerReadyEvent
-	(*PlayerTimedOutEvent)(nil),             // 32: world_engine.pkg.plugin.lobby.system.PlayerTimedOutEvent
-	(*SessionAwaitingAllocationEvent)(nil),  // 33: world_engine.pkg.plugin.lobby.system.SessionAwaitingAllocationEvent
-	(*SessionEndedEvent)(nil),               // 34: world_engine.pkg.plugin.lobby.system.SessionEndedEvent
-	(*SessionPassthroughUpdatedEvent)(nil),  // 35: world_engine.pkg.plugin.lobby.system.SessionPassthroughUpdatedEvent
-	(*SessionStartedEvent)(nil),             // 36: world_engine.pkg.plugin.lobby.system.SessionStartedEvent
-	(*SetReadyCommand)(nil),                 // 37: world_engine.pkg.plugin.lobby.system.SetReadyCommand
-	(*SetReadyResult)(nil),                  // 38: world_engine.pkg.plugin.lobby.system.SetReadyResult
-	(*StartSessionCommand)(nil),             // 39: world_engine.pkg.plugin.lobby.system.StartSessionCommand
-	(*StartSessionResult)(nil),              // 40: world_engine.pkg.plugin.lobby.system.StartSessionResult
-	(*TransferLeaderCommand)(nil),           // 41: world_engine.pkg.plugin.lobby.system.TransferLeaderCommand
-	(*TransferLeaderResult)(nil),            // 42: world_engine.pkg.plugin.lobby.system.TransferLeaderResult
-	(*UpdatePlayerPassthroughCommand)(nil),  // 43: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughCommand
-	(*UpdatePlayerPassthroughResult)(nil),   // 44: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult
-	(*UpdateSessionPassthroughCommand)(nil), // 45: world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughCommand
-	(*UpdateSessionPassthroughResult)(nil),  // 46: world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughResult
-	(*component.ShardAddress)(nil),          // 47: world_engine.pkg.plugin.lobby.component.ShardAddress
-	(*component.LobbyComponent)(nil),        // 48: world_engine.pkg.plugin.lobby.component.LobbyComponent
-	(*component.PlayerComponent)(nil),       // 49: world_engine.pkg.plugin.lobby.component.PlayerComponent
+	(*AssignShardCommand)(nil),              // 0: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.AssignShardCommand
+	(*CreateLobbyCommand)(nil),              // 1: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.CreateLobbyCommand
+	(*CreateLobbyResult)(nil),               // 2: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.CreateLobbyResult
+	(*GenerateInviteCodeCommand)(nil),       // 3: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GenerateInviteCodeCommand
+	(*GenerateInviteCodeResult)(nil),        // 4: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GenerateInviteCodeResult
+	(*GetAllPlayersCommand)(nil),            // 5: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetAllPlayersCommand
+	(*GetAllPlayersResult)(nil),             // 6: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetAllPlayersResult
+	(*GetLobbyCommand)(nil),                 // 7: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetLobbyCommand
+	(*GetLobbyResult)(nil),                  // 8: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetLobbyResult
+	(*GetPlayerCommand)(nil),                // 9: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetPlayerCommand
+	(*GetPlayerResult)(nil),                 // 10: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetPlayerResult
+	(*HeartbeatCommand)(nil),                // 11: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.HeartbeatCommand
+	(*InviteCodeGeneratedEvent)(nil),        // 12: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.InviteCodeGeneratedEvent
+	(*JoinLobbyCommand)(nil),                // 13: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinLobbyCommand
+	(*JoinLobbyResult)(nil),                 // 14: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinLobbyResult
+	(*JoinTeamCommand)(nil),                 // 15: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinTeamCommand
+	(*JoinTeamResult)(nil),                  // 16: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinTeamResult
+	(*KickPlayerCommand)(nil),               // 17: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.KickPlayerCommand
+	(*KickPlayerResult)(nil),                // 18: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.KickPlayerResult
+	(*LeaderChangedEvent)(nil),              // 19: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.LeaderChangedEvent
+	(*LeaveLobbyCommand)(nil),               // 20: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.LeaveLobbyCommand
+	(*LeaveLobbyResult)(nil),                // 21: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.LeaveLobbyResult
+	(*LobbyCreatedEvent)(nil),               // 22: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.LobbyCreatedEvent
+	(*LobbyDeletedEvent)(nil),               // 23: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.LobbyDeletedEvent
+	(*NotifySessionEndCommand)(nil),         // 24: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.NotifySessionEndCommand
+	(*NotifySessionStartCommand)(nil),       // 25: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.NotifySessionStartCommand
+	(*PlayerChangedTeamEvent)(nil),          // 26: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent
+	(*PlayerJoinedEvent)(nil),               // 27: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent
+	(*PlayerKickedEvent)(nil),               // 28: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerKickedEvent
+	(*PlayerLeftEvent)(nil),                 // 29: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerLeftEvent
+	(*PlayerPassthroughUpdatedEvent)(nil),   // 30: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent
+	(*PlayerReadyEvent)(nil),                // 31: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerReadyEvent
+	(*PlayerTimedOutEvent)(nil),             // 32: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerTimedOutEvent
+	(*SessionAwaitingAllocationEvent)(nil),  // 33: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SessionAwaitingAllocationEvent
+	(*SessionEndedEvent)(nil),               // 34: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SessionEndedEvent
+	(*SessionPassthroughUpdatedEvent)(nil),  // 35: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SessionPassthroughUpdatedEvent
+	(*SessionStartedEvent)(nil),             // 36: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SessionStartedEvent
+	(*SetReadyCommand)(nil),                 // 37: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SetReadyCommand
+	(*SetReadyResult)(nil),                  // 38: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SetReadyResult
+	(*StartSessionCommand)(nil),             // 39: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.StartSessionCommand
+	(*StartSessionResult)(nil),              // 40: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.StartSessionResult
+	(*TransferLeaderCommand)(nil),           // 41: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.TransferLeaderCommand
+	(*TransferLeaderResult)(nil),            // 42: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.TransferLeaderResult
+	(*UpdatePlayerPassthroughCommand)(nil),  // 43: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughCommand
+	(*UpdatePlayerPassthroughResult)(nil),   // 44: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult
+	(*UpdateSessionPassthroughCommand)(nil), // 45: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughCommand
+	(*UpdateSessionPassthroughResult)(nil),  // 46: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.UpdateSessionPassthroughResult
+	(*component.ShardAddress)(nil),          // 47: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	(*component.LobbyComponent)(nil),        // 48: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent
+	(*component.PlayerComponent)(nil),       // 49: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
 }
 var file_pkg_plugin_lobby_system_system_proto_depIdxs = []int32{
-	47, // 0: world_engine.pkg.plugin.lobby.system.AssignShardCommand.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	48, // 1: world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
-	49, // 2: world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	49, // 3: world_engine.pkg.plugin.lobby.system.GetAllPlayersResult.Players:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 4: world_engine.pkg.plugin.lobby.system.GetLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
-	49, // 5: world_engine.pkg.plugin.lobby.system.GetPlayerResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	48, // 6: world_engine.pkg.plugin.lobby.system.JoinLobbyResult.Lobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyComponent
-	49, // 7: world_engine.pkg.plugin.lobby.system.JoinLobbyResult.PlayersList:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	49, // 8: world_engine.pkg.plugin.lobby.system.JoinTeamResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	47, // 9: world_engine.pkg.plugin.lobby.system.NotifySessionStartCommand.LobbyWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	49, // 10: world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	49, // 11: world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	49, // 12: world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	49, // 13: world_engine.pkg.plugin.lobby.system.PlayerReadyEvent.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	47, // 14: world_engine.pkg.plugin.lobby.system.SessionStartedEvent.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	49, // 15: world_engine.pkg.plugin.lobby.system.SetReadyResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
-	47, // 16: world_engine.pkg.plugin.lobby.system.StartSessionResult.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	49, // 17: world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult.Player:type_name -> world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 0: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.AssignShardCommand.GameWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	48, // 1: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Lobby:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent
+	49, // 2: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.CreateLobbyResult.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 3: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetAllPlayersResult.Players:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	48, // 4: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetLobbyResult.Lobby:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent
+	49, // 5: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.GetPlayerResult.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	48, // 6: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinLobbyResult.Lobby:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent
+	49, // 7: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinLobbyResult.PlayersList:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 8: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.JoinTeamResult.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 9: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.NotifySessionStartCommand.LobbyWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	49, // 10: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerChangedTeamEvent.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 11: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerJoinedEvent.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 12: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerPassthroughUpdatedEvent.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	49, // 13: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.PlayerReadyEvent.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 14: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SessionStartedEvent.GameWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	49, // 15: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.SetReadyResult.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	47, // 16: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.StartSessionResult.GameWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	49, // 17: github_com.argus_labs.world_engine.pkg.plugin.lobby.system.UpdatePlayerPassthroughResult.Player:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
 	18, // [18:18] is the sub-list for method output_type
 	18, // [18:18] is the sub-list for method input_type
 	18, // [18:18] is the sub-list for extension type_name

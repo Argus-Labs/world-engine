@@ -681,22 +681,22 @@ var File_pkg_plugin_physics2d_component_component_proto protoreflect.FileDescrip
 
 const file_pkg_plugin_physics2d_component_component_proto_rawDesc = "" +
 	"\n" +
-	".pkg/plugin/physics2d/component/component.proto\x12+world_engine.pkg.plugin.physics2d.component\"e\n" +
-	"\x0eActiveContacts\x12S\n" +
-	"\x05Pairs\x18\x01 \x03(\v2=.world_engine.pkg.plugin.physics2d.component.ContactPairEntryR\x05Pairs\"\x9a\a\n" +
+	".pkg/plugin/physics2d/component/component.proto\x12Agithub_com.argus_labs.world_engine.pkg.plugin.physics2d.component\"{\n" +
+	"\x0eActiveContacts\x12i\n" +
+	"\x05Pairs\x18\x01 \x03(\v2S.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ContactPairEntryR\x05Pairs\"\xb4\b\n" +
 	"\rColliderShape\x12\x1c\n" +
-	"\tShapeType\x18\x01 \x01(\rR\tShapeType\x12S\n" +
-	"\vLocalOffset\x18\x02 \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\vLocalOffset\x12$\n" +
+	"\tShapeType\x18\x01 \x01(\rR\tShapeType\x12i\n" +
+	"\vLocalOffset\x18\x02 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\vLocalOffset\x12$\n" +
 	"\rLocalRotation\x18\x03 \x01(\x01R\rLocalRotation\x12\x1a\n" +
 	"\bIsSensor\x18\x04 \x01(\bR\bIsSensor\x12\x16\n" +
-	"\x06Radius\x18\x05 \x01(\x01R\x06Radius\x12S\n" +
-	"\vHalfExtents\x18\x06 \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\vHalfExtents\x12M\n" +
-	"\bVertices\x18\a \x03(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\bVertices\x12S\n" +
-	"\vChainPoints\x18\b \x03(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\vChainPoints\x12U\n" +
-	"\fEdgeVertices\x18\t \x03(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\fEdgeVertices\x12Y\n" +
+	"\x06Radius\x18\x05 \x01(\x01R\x06Radius\x12i\n" +
+	"\vHalfExtents\x18\x06 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\vHalfExtents\x12c\n" +
+	"\bVertices\x18\a \x03(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\bVertices\x12i\n" +
+	"\vChainPoints\x18\b \x03(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\vChainPoints\x12k\n" +
+	"\fEdgeVertices\x18\t \x03(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\fEdgeVertices\x12o\n" +
 	"\x0eCapsuleCenter1\x18\n" +
-	" \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x0eCapsuleCenter1\x12Y\n" +
-	"\x0eCapsuleCenter2\x18\v \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x0eCapsuleCenter2\x12\x1a\n" +
+	" \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x0eCapsuleCenter1\x12o\n" +
+	"\x0eCapsuleCenter2\x18\v \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x0eCapsuleCenter2\x12\x1a\n" +
 	"\bFriction\x18\f \x01(\x01R\bFriction\x12 \n" +
 	"\vRestitution\x18\r \x01(\x01R\vRestitution\x12\x18\n" +
 	"\aDensity\x18\x0e \x01(\x01R\aDensity\x12\"\n" +
@@ -717,7 +717,7 @@ const file_pkg_plugin_physics2d_component_component_proto_rawDesc = "" +
 	"\x13FilterBCategoryBits\x18\t \x01(\x04R\x13FilterBCategoryBits\x12(\n" +
 	"\x0fFilterBMaskBits\x18\n" +
 	" \x01(\x04R\x0fFilterBMaskBits\x12,\n" +
-	"\x11FilterBGroupIndex\x18\v \x01(\x05R\x11FilterBGroupIndex\"\x87\x03\n" +
+	"\x11FilterBGroupIndex\x18\v \x01(\x05R\x11FilterBGroupIndex\"\x9d\x03\n" +
 	"\rPhysicsBody2D\x12\x1a\n" +
 	"\bBodyType\x18\x01 \x01(\rR\bBodyType\x12$\n" +
 	"\rLinearDamping\x18\x02 \x01(\x01R\rLinearDamping\x12&\n" +
@@ -727,19 +727,19 @@ const file_pkg_plugin_physics2d_component_component_proto_rawDesc = "" +
 	"\x05Awake\x18\x06 \x01(\bR\x05Awake\x12(\n" +
 	"\x0fSleepingAllowed\x18\a \x01(\bR\x0fSleepingAllowed\x12\x16\n" +
 	"\x06Bullet\x18\b \x01(\bR\x06Bullet\x12$\n" +
-	"\rFixedRotation\x18\t \x01(\bR\rFixedRotation\x12R\n" +
+	"\rFixedRotation\x18\t \x01(\bR\rFixedRotation\x12h\n" +
 	"\x06Shapes\x18\n" +
-	" \x03(\v2:.world_engine.pkg.plugin.physics2d.component.ColliderShapeR\x06Shapes\"\x15\n" +
-	"\x13PhysicsSingletonTag\"x\n" +
-	"\vTransform2D\x12M\n" +
-	"\bPosition\x18\x01 \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\bPosition\x12\x1a\n" +
+	" \x03(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShapeR\x06Shapes\"\x15\n" +
+	"\x13PhysicsSingletonTag\"\x8e\x01\n" +
+	"\vTransform2D\x12c\n" +
+	"\bPosition\x18\x01 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\bPosition\x12\x1a\n" +
 	"\bRotation\x18\x02 \x01(\x01R\bRotation\"\"\n" +
 	"\x04Vec2\x12\f\n" +
 	"\x01X\x18\x01 \x01(\x01R\x01X\x12\f\n" +
-	"\x01Y\x18\x02 \x01(\x01R\x01Y\"q\n" +
+	"\x01Y\x18\x02 \x01(\x01R\x01Y\"\x87\x01\n" +
 	"\n" +
-	"Velocity2D\x12I\n" +
-	"\x06Linear\x18\x01 \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Linear\x12\x18\n" +
+	"Velocity2D\x12_\n" +
+	"\x06Linear\x18\x01 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Linear\x12\x18\n" +
 	"\aAngular\x18\x02 \x01(\x01R\aAngularB\x94\x01Zdgithub.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component;component\xaa\x02+World_engine.Pkg.Plugin.Physics2d.Componentb\x06proto3"
 
 var (
@@ -756,27 +756,27 @@ func file_pkg_plugin_physics2d_component_component_proto_rawDescGZIP() []byte {
 
 var file_pkg_plugin_physics2d_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_pkg_plugin_physics2d_component_component_proto_goTypes = []any{
-	(*ActiveContacts)(nil),      // 0: world_engine.pkg.plugin.physics2d.component.ActiveContacts
-	(*ColliderShape)(nil),       // 1: world_engine.pkg.plugin.physics2d.component.ColliderShape
-	(*ContactPairEntry)(nil),    // 2: world_engine.pkg.plugin.physics2d.component.ContactPairEntry
-	(*PhysicsBody2D)(nil),       // 3: world_engine.pkg.plugin.physics2d.component.PhysicsBody2D
-	(*PhysicsSingletonTag)(nil), // 4: world_engine.pkg.plugin.physics2d.component.PhysicsSingletonTag
-	(*Transform2D)(nil),         // 5: world_engine.pkg.plugin.physics2d.component.Transform2D
-	(*Vec2)(nil),                // 6: world_engine.pkg.plugin.physics2d.component.Vec2
-	(*Velocity2D)(nil),          // 7: world_engine.pkg.plugin.physics2d.component.Velocity2D
+	(*ActiveContacts)(nil),      // 0: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ActiveContacts
+	(*ColliderShape)(nil),       // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape
+	(*ContactPairEntry)(nil),    // 2: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ContactPairEntry
+	(*PhysicsBody2D)(nil),       // 3: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.PhysicsBody2D
+	(*PhysicsSingletonTag)(nil), // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.PhysicsSingletonTag
+	(*Transform2D)(nil),         // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Transform2D
+	(*Vec2)(nil),                // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	(*Velocity2D)(nil),          // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Velocity2D
 }
 var file_pkg_plugin_physics2d_component_component_proto_depIdxs = []int32{
-	2,  // 0: world_engine.pkg.plugin.physics2d.component.ActiveContacts.Pairs:type_name -> world_engine.pkg.plugin.physics2d.component.ContactPairEntry
-	6,  // 1: world_engine.pkg.plugin.physics2d.component.ColliderShape.LocalOffset:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 2: world_engine.pkg.plugin.physics2d.component.ColliderShape.HalfExtents:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 3: world_engine.pkg.plugin.physics2d.component.ColliderShape.Vertices:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 4: world_engine.pkg.plugin.physics2d.component.ColliderShape.ChainPoints:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 5: world_engine.pkg.plugin.physics2d.component.ColliderShape.EdgeVertices:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 6: world_engine.pkg.plugin.physics2d.component.ColliderShape.CapsuleCenter1:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 7: world_engine.pkg.plugin.physics2d.component.ColliderShape.CapsuleCenter2:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	1,  // 8: world_engine.pkg.plugin.physics2d.component.PhysicsBody2D.Shapes:type_name -> world_engine.pkg.plugin.physics2d.component.ColliderShape
-	6,  // 9: world_engine.pkg.plugin.physics2d.component.Transform2D.Position:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6,  // 10: world_engine.pkg.plugin.physics2d.component.Velocity2D.Linear:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
+	2,  // 0: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ActiveContacts.Pairs:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ContactPairEntry
+	6,  // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.LocalOffset:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 2: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.HalfExtents:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 3: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.Vertices:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.ChainPoints:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.EdgeVertices:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.CapsuleCenter1:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape.CapsuleCenter2:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	1,  // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.PhysicsBody2D.Shapes:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ColliderShape
+	6,  // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Transform2D.Position:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6,  // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Velocity2D.Linear:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
 	11, // [11:11] is the sub-list for method output_type
 	11, // [11:11] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name

@@ -117,7 +117,7 @@ var File_pkg_template_basic_shards_game_event_event_proto protoreflect.FileDescr
 
 const file_pkg_template_basic_shards_game_event_event_proto_rawDesc = "" +
 	"\n" +
-	"0pkg/template/basic/shards/game/event/event.proto\x121world_engine.pkg.template.basic.shards.game.event\"'\n" +
+	"0pkg/template/basic/shards/game/event/event.proto\x12Ggithub_com.argus_labs.world_engine.pkg.template.basic.shards.game.event\"'\n" +
 	"\tNewPlayer\x12\x1a\n" +
 	"\bNickname\x18\x01 \x01(\tR\bNickname\")\n" +
 	"\vPlayerDeath\x12\x1a\n" +
@@ -137,8 +137,8 @@ func file_pkg_template_basic_shards_game_event_event_proto_rawDescGZIP() []byte 
 
 var file_pkg_template_basic_shards_game_event_event_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_pkg_template_basic_shards_game_event_event_proto_goTypes = []any{
-	(*NewPlayer)(nil),   // 0: world_engine.pkg.template.basic.shards.game.event.NewPlayer
-	(*PlayerDeath)(nil), // 1: world_engine.pkg.template.basic.shards.game.event.PlayerDeath
+	(*NewPlayer)(nil),   // 0: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.event.NewPlayer
+	(*PlayerDeath)(nil), // 1: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.event.PlayerDeath
 }
 var file_pkg_template_basic_shards_game_event_event_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

@@ -6,12 +6,13 @@ package component
 
 import (
 	"encoding/json"
-	component "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c ConfigComponent) ToProto() *component.ConfigComponent {
-	p := &component.ConfigComponent{}
+func (c ConfigComponent) ToProto() *pbcomponent.ConfigComponent {
+	p := &pbcomponent.ConfigComponent{}
 	p.LobbyWorld = c.LobbyWorld.ToProto()
 	p.HeartbeatTimeout = int64(c.HeartbeatTimeout)
 	p.AssignmentAuthority = string(c.AssignmentAuthority)
@@ -22,7 +23,7 @@ func (c ConfigComponent) ToProto() *component.ConfigComponent {
 	return p
 }
 
-func (c ConfigComponent) FromProto(p *component.ConfigComponent) ConfigComponent {
+func (c ConfigComponent) FromProto(p *pbcomponent.ConfigComponent) ConfigComponent {
 	if p == nil {
 		return c
 	}
@@ -45,15 +46,19 @@ func (c ConfigComponent) MarshalWire() []byte {
 }
 
 func (c ConfigComponent) UnmarshalWire(data []byte) (any, error) {
-	var p component.ConfigComponent
+	var p pbcomponent.ConfigComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c LobbyComponent) ToProto() *component.LobbyComponent {
-	p := &component.LobbyComponent{}
+func (c ConfigComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ConfigComponent{}).ProtoReflect().Descriptor()
+}
+
+func (c LobbyComponent) ToProto() *pbcomponent.LobbyComponent {
+	p := &pbcomponent.LobbyComponent{}
 	p.ID = string(c.ID)
 	p.LeaderID = string(c.LeaderID)
 	for i := range c.Teams {
@@ -66,7 +71,7 @@ func (c LobbyComponent) ToProto() *component.LobbyComponent {
 	return p
 }
 
-func (c LobbyComponent) FromProto(p *component.LobbyComponent) LobbyComponent {
+func (c LobbyComponent) FromProto(p *pbcomponent.LobbyComponent) LobbyComponent {
 	if p == nil {
 		return c
 	}
@@ -93,15 +98,19 @@ func (c LobbyComponent) MarshalWire() []byte {
 }
 
 func (c LobbyComponent) UnmarshalWire(data []byte) (any, error) {
-	var p component.LobbyComponent
+	var p pbcomponent.LobbyComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c LobbyIndexComponent) ToProto() *component.LobbyIndexComponent {
-	p := &component.LobbyIndexComponent{}
+func (c LobbyComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.LobbyComponent{}).ProtoReflect().Descriptor()
+}
+
+func (c LobbyIndexComponent) ToProto() *pbcomponent.LobbyIndexComponent {
+	p := &pbcomponent.LobbyIndexComponent{}
 	if len(c.LobbyIDToEntity) > 0 {
 		p.LobbyIDToEntity = make(map[string]uint32, len(c.LobbyIDToEntity))
 		for k, v := range c.LobbyIDToEntity {
@@ -147,7 +156,7 @@ func (c LobbyIndexComponent) ToProto() *component.LobbyIndexComponent {
 	return p
 }
 
-func (c LobbyIndexComponent) FromProto(p *component.LobbyIndexComponent) LobbyIndexComponent {
+func (c LobbyIndexComponent) FromProto(p *pbcomponent.LobbyIndexComponent) LobbyIndexComponent {
 	if p == nil {
 		return c
 	}
@@ -205,15 +214,19 @@ func (c LobbyIndexComponent) MarshalWire() []byte {
 }
 
 func (c LobbyIndexComponent) UnmarshalWire(data []byte) (any, error) {
-	var p component.LobbyIndexComponent
+	var p pbcomponent.LobbyIndexComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c PlayerComponent) ToProto() *component.PlayerComponent {
-	p := &component.PlayerComponent{}
+func (c LobbyIndexComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.LobbyIndexComponent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerComponent) ToProto() *pbcomponent.PlayerComponent {
+	p := &pbcomponent.PlayerComponent{}
 	p.PlayerID = string(c.PlayerID)
 	p.LobbyID = string(c.LobbyID)
 	p.TeamID = string(c.TeamID)
@@ -225,7 +238,7 @@ func (c PlayerComponent) ToProto() *component.PlayerComponent {
 	return p
 }
 
-func (c PlayerComponent) FromProto(p *component.PlayerComponent) PlayerComponent {
+func (c PlayerComponent) FromProto(p *pbcomponent.PlayerComponent) PlayerComponent {
 	if p == nil {
 		return c
 	}
@@ -249,15 +262,19 @@ func (c PlayerComponent) MarshalWire() []byte {
 }
 
 func (c PlayerComponent) UnmarshalWire(data []byte) (any, error) {
-	var p component.PlayerComponent
+	var p pbcomponent.PlayerComponent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c Session) ToProto() *component.Session {
-	p := &component.Session{}
+func (c PlayerComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.PlayerComponent{}).ProtoReflect().Descriptor()
+}
+
+func (c Session) ToProto() *pbcomponent.Session {
+	p := &pbcomponent.Session{}
 	p.State = string(c.State)
 	if data, err := json.Marshal(c.PassthroughData); err == nil {
 		p.PassthroughData = data
@@ -267,7 +284,7 @@ func (c Session) ToProto() *component.Session {
 	return p
 }
 
-func (c Session) FromProto(p *component.Session) Session {
+func (c Session) FromProto(p *pbcomponent.Session) Session {
 	if p == nil {
 		return c
 	}
@@ -280,8 +297,8 @@ func (c Session) FromProto(p *component.Session) Session {
 	return c
 }
 
-func (c ShardAddress) ToProto() *component.ShardAddress {
-	p := &component.ShardAddress{}
+func (c ShardAddress) ToProto() *pbcomponent.ShardAddress {
+	p := &pbcomponent.ShardAddress{}
 	p.Region = string(c.Region)
 	p.Organization = string(c.Organization)
 	p.Project = string(c.Project)
@@ -289,7 +306,7 @@ func (c ShardAddress) ToProto() *component.ShardAddress {
 	return p
 }
 
-func (c ShardAddress) FromProto(p *component.ShardAddress) ShardAddress {
+func (c ShardAddress) FromProto(p *pbcomponent.ShardAddress) ShardAddress {
 	if p == nil {
 		return c
 	}
@@ -300,17 +317,17 @@ func (c ShardAddress) FromProto(p *component.ShardAddress) ShardAddress {
 	return c
 }
 
-func (c Team) ToProto() *component.Team {
-	p := &component.Team{}
+func (c Team) ToProto() *pbcomponent.Team {
+	p := &pbcomponent.Team{}
 	p.TeamID = string(c.TeamID)
-	for _, x := range c.PlayerIDs {
-		p.PlayerIDs = append(p.PlayerIDs, string(x))
+	for i := range c.PlayerIDs {
+		p.PlayerIDs = append(p.PlayerIDs, string(c.PlayerIDs[i]))
 	}
 	p.MaxPlayers = int64(c.MaxPlayers)
 	return p
 }
 
-func (c Team) FromProto(p *component.Team) Team {
+func (c Team) FromProto(p *pbcomponent.Team) Team {
 	if p == nil {
 		return c
 	}

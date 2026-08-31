@@ -5,19 +5,20 @@
 package command
 
 import (
-	command "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
+	pbcommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c MovePlayer) ToProto() *command.MovePlayer {
-	p := &command.MovePlayer{}
+func (c MovePlayer) ToProto() *pbcommand.MovePlayer {
+	p := &pbcommand.MovePlayer{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.X = uint32(c.X)
 	p.Y = uint32(c.Y)
 	return p
 }
 
-func (c MovePlayer) FromProto(p *command.MovePlayer) MovePlayer {
+func (c MovePlayer) FromProto(p *pbcommand.MovePlayer) MovePlayer {
 	if p == nil {
 		return c
 	}
@@ -36,20 +37,24 @@ func (c MovePlayer) MarshalWire() []byte {
 }
 
 func (c MovePlayer) UnmarshalWire(data []byte) (any, error) {
-	var p command.MovePlayer
+	var p pbcommand.MovePlayer
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c PlayerLeave) ToProto() *command.PlayerLeave {
-	p := &command.PlayerLeave{}
+func (c MovePlayer) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcommand.MovePlayer{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerLeave) ToProto() *pbcommand.PlayerLeave {
+	p := &pbcommand.PlayerLeave{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	return p
 }
 
-func (c PlayerLeave) FromProto(p *command.PlayerLeave) PlayerLeave {
+func (c PlayerLeave) FromProto(p *pbcommand.PlayerLeave) PlayerLeave {
 	if p == nil {
 		return c
 	}
@@ -66,15 +71,19 @@ func (c PlayerLeave) MarshalWire() []byte {
 }
 
 func (c PlayerLeave) UnmarshalWire(data []byte) (any, error) {
-	var p command.PlayerLeave
+	var p pbcommand.PlayerLeave
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c PlayerSpawn) ToProto() *command.PlayerSpawn {
-	p := &command.PlayerSpawn{}
+func (c PlayerLeave) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcommand.PlayerLeave{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerSpawn) ToProto() *pbcommand.PlayerSpawn {
+	p := &pbcommand.PlayerSpawn{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.X = uint32(c.X)
@@ -82,7 +91,7 @@ func (c PlayerSpawn) ToProto() *command.PlayerSpawn {
 	return p
 }
 
-func (c PlayerSpawn) FromProto(p *command.PlayerSpawn) PlayerSpawn {
+func (c PlayerSpawn) FromProto(p *pbcommand.PlayerSpawn) PlayerSpawn {
 	if p == nil {
 		return c
 	}
@@ -102,9 +111,13 @@ func (c PlayerSpawn) MarshalWire() []byte {
 }
 
 func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
-	var p command.PlayerSpawn
+	var p pbcommand.PlayerSpawn
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
+}
+
+func (c PlayerSpawn) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcommand.PlayerSpawn{}).ProtoReflect().Descriptor()
 }

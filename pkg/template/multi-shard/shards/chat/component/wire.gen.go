@@ -5,19 +5,20 @@
 package component
 
 import (
-	component "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/component"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (c Chat) ToProto() *component.Chat {
-	p := &component.Chat{}
+func (c Chat) ToProto() *pbcomponent.Chat {
+	p := &pbcomponent.Chat{}
 	p.Message = string(c.Message)
 	p.Timestamp = timestamppb.New(c.Timestamp)
 	return p
 }
 
-func (c Chat) FromProto(p *component.Chat) Chat {
+func (c Chat) FromProto(p *pbcomponent.Chat) Chat {
 	if p == nil {
 		return c
 	}
@@ -37,21 +38,25 @@ func (c Chat) MarshalWire() []byte {
 }
 
 func (c Chat) UnmarshalWire(data []byte) (any, error) {
-	var p component.Chat
+	var p pbcomponent.Chat
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c UserTag) ToProto() *component.UserTag {
-	p := &component.UserTag{}
+func (c Chat) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.Chat{}).ProtoReflect().Descriptor()
+}
+
+func (c UserTag) ToProto() *pbcomponent.UserTag {
+	p := &pbcomponent.UserTag{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	return p
 }
 
-func (c UserTag) FromProto(p *component.UserTag) UserTag {
+func (c UserTag) FromProto(p *pbcomponent.UserTag) UserTag {
 	if p == nil {
 		return c
 	}
@@ -69,9 +74,13 @@ func (c UserTag) MarshalWire() []byte {
 }
 
 func (c UserTag) UnmarshalWire(data []byte) (any, error) {
-	var p component.UserTag
+	var p pbcomponent.UserTag
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
+}
+
+func (c UserTag) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.UserTag{}).ProtoReflect().Descriptor()
 }

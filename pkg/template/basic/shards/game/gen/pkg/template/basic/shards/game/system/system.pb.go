@@ -170,7 +170,7 @@ var File_pkg_template_basic_shards_game_system_system_proto protoreflect.FileDes
 
 const file_pkg_template_basic_shards_game_system_system_proto_rawDesc = "" +
 	"\n" +
-	"2pkg/template/basic/shards/game/system/system.proto\x122world_engine.pkg.template.basic.shards.game.system\"E\n" +
+	"2pkg/template/basic/shards/game/system/system.proto\x12Hgithub_com.argus_labs.world_engine.pkg.template.basic.shards.game.system\"E\n" +
 	"\x13AttackPlayerCommand\x12\x16\n" +
 	"\x06Target\x18\x01 \x01(\tR\x06Target\x12\x16\n" +
 	"\x06Damage\x18\x02 \x01(\rR\x06Damage\"/\n" +
@@ -193,9 +193,9 @@ func file_pkg_template_basic_shards_game_system_system_proto_rawDescGZIP() []byt
 
 var file_pkg_template_basic_shards_game_system_system_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_pkg_template_basic_shards_game_system_system_proto_goTypes = []any{
-	(*AttackPlayerCommand)(nil), // 0: world_engine.pkg.template.basic.shards.game.system.AttackPlayerCommand
-	(*CallExternalCommand)(nil), // 1: world_engine.pkg.template.basic.shards.game.system.CallExternalCommand
-	(*CreatePlayerCommand)(nil), // 2: world_engine.pkg.template.basic.shards.game.system.CreatePlayerCommand
+	(*AttackPlayerCommand)(nil), // 0: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.system.AttackPlayerCommand
+	(*CallExternalCommand)(nil), // 1: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.system.CallExternalCommand
+	(*CreatePlayerCommand)(nil), // 2: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.system.CreatePlayerCommand
 }
 var file_pkg_template_basic_shards_game_system_system_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

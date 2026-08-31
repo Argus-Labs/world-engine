@@ -5,17 +5,18 @@
 package event
 
 import (
-	event "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/event"
+	pbevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/event"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c NewPlayer) ToProto() *event.NewPlayer {
-	p := &event.NewPlayer{}
+func (c NewPlayer) ToProto() *pbevent.NewPlayer {
+	p := &pbevent.NewPlayer{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c NewPlayer) FromProto(p *event.NewPlayer) NewPlayer {
+func (c NewPlayer) FromProto(p *pbevent.NewPlayer) NewPlayer {
 	if p == nil {
 		return c
 	}
@@ -32,20 +33,24 @@ func (c NewPlayer) MarshalWire() []byte {
 }
 
 func (c NewPlayer) UnmarshalWire(data []byte) (any, error) {
-	var p event.NewPlayer
+	var p pbevent.NewPlayer
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c PlayerDeath) ToProto() *event.PlayerDeath {
-	p := &event.PlayerDeath{}
+func (c NewPlayer) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbevent.NewPlayer{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerDeath) ToProto() *pbevent.PlayerDeath {
+	p := &pbevent.PlayerDeath{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c PlayerDeath) FromProto(p *event.PlayerDeath) PlayerDeath {
+func (c PlayerDeath) FromProto(p *pbevent.PlayerDeath) PlayerDeath {
 	if p == nil {
 		return c
 	}
@@ -62,9 +67,13 @@ func (c PlayerDeath) MarshalWire() []byte {
 }
 
 func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
-	var p event.PlayerDeath
+	var p pbevent.PlayerDeath
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
+}
+
+func (c PlayerDeath) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbevent.PlayerDeath{}).ProtoReflect().Descriptor()
 }

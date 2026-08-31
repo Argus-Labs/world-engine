@@ -162,7 +162,7 @@ var File_pkg_template_basic_shards_game_component_component_proto protoreflect.F
 
 const file_pkg_template_basic_shards_game_component_component_proto_rawDesc = "" +
 	"\n" +
-	"8pkg/template/basic/shards/game/component/component.proto\x125world_engine.pkg.template.basic.shards.game.component\"(\n" +
+	"8pkg/template/basic/shards/game/component/component.proto\x12Kgithub_com.argus_labs.world_engine.pkg.template.basic.shards.game.component\"(\n" +
 	"\n" +
 	"Gravestone\x12\x1a\n" +
 	"\bNickname\x18\x01 \x01(\tR\bNickname\"\x18\n" +
@@ -185,9 +185,9 @@ func file_pkg_template_basic_shards_game_component_component_proto_rawDescGZIP()
 
 var file_pkg_template_basic_shards_game_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_pkg_template_basic_shards_game_component_component_proto_goTypes = []any{
-	(*Gravestone)(nil), // 0: world_engine.pkg.template.basic.shards.game.component.Gravestone
-	(*Health)(nil),     // 1: world_engine.pkg.template.basic.shards.game.component.Health
-	(*PlayerTag)(nil),  // 2: world_engine.pkg.template.basic.shards.game.component.PlayerTag
+	(*Gravestone)(nil), // 0: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.component.Gravestone
+	(*Health)(nil),     // 1: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.component.Health
+	(*PlayerTag)(nil),  // 2: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.component.PlayerTag
 }
 var file_pkg_template_basic_shards_game_component_component_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

@@ -97,7 +97,7 @@ var File_pkg_template_multi_shard_shards_chat_event_event_proto protoreflect.Fil
 
 const file_pkg_template_multi_shard_shards_chat_event_event_proto_rawDesc = "" +
 	"\n" +
-	"6pkg/template/multi-shard/shards/chat/event/event.proto\x127world_engine.pkg.template.multi_shard.shards.chat.event\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x01\n" +
+	"6pkg/template/multi-shard/shards/chat/event/event.proto\x12Mgithub_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.event\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x01\n" +
 	"\bUserChat\x12 \n" +
 	"\vArgusAuthID\x18\x01 \x01(\tR\vArgusAuthID\x12$\n" +
 	"\rArgusAuthName\x18\x02 \x01(\tR\rArgusAuthName\x12\x18\n" +
@@ -118,11 +118,11 @@ func file_pkg_template_multi_shard_shards_chat_event_event_proto_rawDescGZIP() [
 
 var file_pkg_template_multi_shard_shards_chat_event_event_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_pkg_template_multi_shard_shards_chat_event_event_proto_goTypes = []any{
-	(*UserChat)(nil),              // 0: world_engine.pkg.template.multi_shard.shards.chat.event.UserChat
+	(*UserChat)(nil),              // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.event.UserChat
 	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
 }
 var file_pkg_template_multi_shard_shards_chat_event_event_proto_depIdxs = []int32{
-	1, // 0: world_engine.pkg.template.multi_shard.shards.chat.event.UserChat.Timestamp:type_name -> google.protobuf.Timestamp
+	1, // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.event.UserChat.Timestamp:type_name -> google.protobuf.Timestamp
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

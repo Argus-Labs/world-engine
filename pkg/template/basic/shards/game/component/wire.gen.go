@@ -5,17 +5,18 @@
 package component
 
 import (
-	component "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/component"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c Gravestone) ToProto() *component.Gravestone {
-	p := &component.Gravestone{}
+func (c Gravestone) ToProto() *pbcomponent.Gravestone {
+	p := &pbcomponent.Gravestone{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c Gravestone) FromProto(p *component.Gravestone) Gravestone {
+func (c Gravestone) FromProto(p *pbcomponent.Gravestone) Gravestone {
 	if p == nil {
 		return c
 	}
@@ -32,20 +33,24 @@ func (c Gravestone) MarshalWire() []byte {
 }
 
 func (c Gravestone) UnmarshalWire(data []byte) (any, error) {
-	var p component.Gravestone
+	var p pbcomponent.Gravestone
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c Health) ToProto() *component.Health {
-	p := &component.Health{}
+func (c Gravestone) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.Gravestone{}).ProtoReflect().Descriptor()
+}
+
+func (c Health) ToProto() *pbcomponent.Health {
+	p := &pbcomponent.Health{}
 	p.HP = int64(c.HP)
 	return p
 }
 
-func (c Health) FromProto(p *component.Health) Health {
+func (c Health) FromProto(p *pbcomponent.Health) Health {
 	if p == nil {
 		return c
 	}
@@ -62,20 +67,24 @@ func (c Health) MarshalWire() []byte {
 }
 
 func (c Health) UnmarshalWire(data []byte) (any, error) {
-	var p component.Health
+	var p pbcomponent.Health
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
 }
 
-func (c PlayerTag) ToProto() *component.PlayerTag {
-	p := &component.PlayerTag{}
+func (c Health) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.Health{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerTag) ToProto() *pbcomponent.PlayerTag {
+	p := &pbcomponent.PlayerTag{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c PlayerTag) FromProto(p *component.PlayerTag) PlayerTag {
+func (c PlayerTag) FromProto(p *pbcomponent.PlayerTag) PlayerTag {
 	if p == nil {
 		return c
 	}
@@ -92,9 +101,13 @@ func (c PlayerTag) MarshalWire() []byte {
 }
 
 func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
-	var p component.PlayerTag
+	var p pbcomponent.PlayerTag
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
+}
+
+func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.PlayerTag{}).ProtoReflect().Descriptor()
 }

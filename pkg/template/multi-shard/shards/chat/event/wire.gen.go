@@ -5,13 +5,14 @@
 package event
 
 import (
-	event "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/event"
+	pbevent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/event"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (c UserChat) ToProto() *event.UserChat {
-	p := &event.UserChat{}
+func (c UserChat) ToProto() *pbevent.UserChat {
+	p := &pbevent.UserChat{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.Message = string(c.Message)
@@ -19,7 +20,7 @@ func (c UserChat) ToProto() *event.UserChat {
 	return p
 }
 
-func (c UserChat) FromProto(p *event.UserChat) UserChat {
+func (c UserChat) FromProto(p *pbevent.UserChat) UserChat {
 	if p == nil {
 		return c
 	}
@@ -41,9 +42,13 @@ func (c UserChat) MarshalWire() []byte {
 }
 
 func (c UserChat) UnmarshalWire(data []byte) (any, error) {
-	var p event.UserChat
+	var p pbevent.UserChat
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
 	return c.FromProto(&p), nil
+}
+
+func (c UserChat) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbevent.UserChat{}).ProtoReflect().Descriptor()
 }

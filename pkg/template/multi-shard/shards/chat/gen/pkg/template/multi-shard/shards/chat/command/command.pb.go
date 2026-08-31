@@ -88,7 +88,7 @@ var File_pkg_template_multi_shard_shards_chat_command_command_proto protoreflect
 
 const file_pkg_template_multi_shard_shards_chat_command_command_proto_rawDesc = "" +
 	"\n" +
-	":pkg/template/multi-shard/shards/chat/command/command.proto\x129world_engine.pkg.template.multi_shard.shards.chat.command\"l\n" +
+	":pkg/template/multi-shard/shards/chat/command/command.proto\x12Ogithub_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.command\"l\n" +
 	"\bUserChat\x12 \n" +
 	"\vArgusAuthID\x18\x01 \x01(\tR\vArgusAuthID\x12$\n" +
 	"\rArgusAuthName\x18\x02 \x01(\tR\rArgusAuthName\x12\x18\n" +
@@ -108,7 +108,7 @@ func file_pkg_template_multi_shard_shards_chat_command_command_proto_rawDescGZIP
 
 var file_pkg_template_multi_shard_shards_chat_command_command_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_pkg_template_multi_shard_shards_chat_command_command_proto_goTypes = []any{
-	(*UserChat)(nil), // 0: world_engine.pkg.template.multi_shard.shards.chat.command.UserChat
+	(*UserChat)(nil), // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.command.UserChat
 }
 var file_pkg_template_multi_shard_shards_chat_command_command_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
