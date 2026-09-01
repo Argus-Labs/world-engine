@@ -104,8 +104,9 @@ type WorldState struct {
 	// Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
 	// next_id that has no entity entry.
 	NextId uint32 `protobuf:"varint,1,opt,name=next_id,json=nextId,proto3" json:"next_id,omitempty"`
-	// Name table: every registered component type, sorted by name, unique.
-	// Entity.components holds indices into this table.
+	// Name table: every registered component type, in the writer's registration order, unique.
+	// Entity.components holds indices into this table. Readers resolve entries by name, never by
+	// position, so the order carries no meaning across builds.
 	Components []string `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
 	// Every live entity exactly once, strictly ascending by id. An entity with no components still
 	// appears here (empty components/payloads), so nothing vanishes on restore.

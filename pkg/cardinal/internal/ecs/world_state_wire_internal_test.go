@@ -130,7 +130,8 @@ func TestSnapshotWireCanonical(t *testing.T) {
 
 	// Semantic shape.
 	assert.Equal(t, uint32(4), decoded.GetNextId())
-	assert.Equal(t, []string{"simple_component", "wire_pos"}, decoded.GetComponents(), "name table sorted by name")
+	assert.Equal(t, []string{"wire_pos", "simple_component"}, decoded.GetComponents(),
+		"name table in registration order")
 	require.Len(t, decoded.GetEntities(), 3, "e1 destroyed; e0, e2, e3 alive")
 	assert.Equal(t, uint32(0), decoded.GetEntities()[0].GetId())
 	assert.Equal(t, uint32(2), decoded.GetEntities()[1].GetId())
@@ -227,9 +228,9 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 			Components: []string{"nope"},
 			Entities:   []*cardinalv1.Entity{{Components: []uint32{0}, Payloads: [][]byte{{}}}},
 		},
-		"unsorted name table": {
+		"duplicate name in table": {
 			NextId:     1,
-			Components: []string{"wire_pos", "a_simple"},
+			Components: []string{"wire_pos", "wire_pos"},
 		},
 		"entities not ascending": {
 			NextId: 3,
@@ -275,7 +276,7 @@ func TestSnapshotWireAllocations(t *testing.T) {
 		require.NoError(t, setComponent(ws, eid, wirePos{X: float64(i), Y: 1}))
 	}
 
-	// Warm the scratch (sortedCIDs, tableIdx) and learn the buffer size.
+	// Warm the fallback caches and learn the buffer size.
 	size := ws.wireBodySize()
 	buf := make([]byte, 0, size)
 

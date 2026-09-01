@@ -1,9 +1,6 @@
 package ecs
 
 import (
-	"slices"
-	"strings"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
@@ -12,27 +9,28 @@ import (
 )
 
 // Wire encoding writes the WorldState message directly from ECS memory into one buffer —
-// no intermediate proto graph, no maps, no sorting at snapshot time. Two passes over the same
+// no intermediate proto graph, no maps, no sorting, no translation. Two passes over the same
 // ascending entityArch scan: wireBodySize computes the exact encoded size (protobuf writes a
 // length before anything variable-sized, so sizes must be known first), appendWireBody writes
 // the bytes front-to-back and asserts it wrote exactly what the size pass computed.
 //
-// Every ordering rule the format demands is precomputed on a cold path, so the hot loop just reads:
+// The file's order IS the runtime's order, so the hot loop just reads:
 //   - entities ascend because entityArch is an array indexed by entity ID — the scan index is the order
-//   - each entity's components are name-sorted via archetype.wireOrder, computed at archetype creation
-//   - the name table is every registered component, name-sorted via sortedCIDs, computed once
-//     after registration
+//   - the name table is every registered component in registration order — which is component-ID
+//     order, so a component's table index is its ID and no lookup exists
+//   - each entity's components ascend because archetype columns are stored in component-ID order
 //
-// The scratch below is reused across snapshots and grows to a high-water mark, the same memory
-// policy as the rest of the runtime. Fallback components (no generated SizeWire/AppendWire yet)
-// still allocate inside MarshalWire — see column.rowWireSize.
+// The file stays self-describing: restore resolves table entries by NAME (see fromProto), never by
+// this build's numbering, so registration-order files load correctly across code changes. What
+// registration order must be is deterministic per build — it is: registration happens in explicit
+// call order, never map iteration — or identical worlds would stop producing identical bytes.
+//
+// Fallback components (no generated SizeWire/AppendWire yet) still allocate inside MarshalWire —
+// see column.rowWireSize.
 
-// stateWire is the reusable encoder scratch, owned by worldState and touched only by the tick
+// stateWire is the encoder's cross-pass state, owned by worldState and touched only by the tick
 // goroutine.
 type stateWire struct {
-	sortedCIDs []ComponentID // every registered component ID, name-ascending
-	tableIdx   []uint32      // cid -> index in the name table (its position in sortedCIDs)
-
 	// pendingSize is the body size staged by wireBodySize for appendWireBody to enforce,
 	// -1 when no size pass is staged. The two passes must observe identical world state; the
 	// asserts downstream of this are what turn a mutation between them into a crash instead of a
@@ -40,42 +38,20 @@ type stateWire struct {
 	pendingSize int
 }
 
-// prepare builds sortedCIDs and tableIdx on first use, then becomes a no-op: the length check
-// passes on every later call, so the snapshot hot path pays one comparison.
-func (w *stateWire) prepare(cm *componentManager) {
-	if len(w.sortedCIDs) == len(cm.names) {
-		return
-	}
-	w.sortedCIDs = slices.Grow(w.sortedCIDs[:0], len(cm.names))
-	for cid := range cm.names {
-		w.sortedCIDs = append(w.sortedCIDs, ComponentID(cid)) //nolint:gosec // bounded by registry size
-	}
-	slices.SortFunc(w.sortedCIDs, func(a, b ComponentID) int {
-		return strings.Compare(cm.names[a], cm.names[b])
-	})
-	w.tableIdx = slices.Grow(w.tableIdx[:0], len(cm.names))[:len(cm.names)]
-	for slot, cid := range w.sortedCIDs {
-		w.tableIdx[cid] = uint32(slot) //nolint:gosec // bounded by registry size
-	}
-}
-
 // wireBodySize computes the exact encoded size of the WorldState message and stages the
 // snapshot: every fallback component is pre-encoded, and the result is remembered for
 // appendWireBody to verify against. Encoding cannot fail: a component that cannot marshal asserts
 // inside column.rowWireSize rather than reporting an error nobody could act on.
 func (ws *worldState) wireBodySize() int {
-	w := &ws.wire
-	w.prepare(&ws.components)
-
 	n := 0
 	if ws.nextID != 0 {
 		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(ws.nextID))
 	}
 
-	// Name table: every registered component in name order. Entities reference these by index
-	// (tableIdx, filled in prepare) instead of repeating the name.
-	for _, cid := range w.sortedCIDs {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(ws.components.names[cid]))
+	// Name table: every registered component in registration order, so a component's table index
+	// is its ID. Entities reference these by index instead of repeating the name.
+	for _, name := range ws.components.names {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(name))
 	}
 
 	// Entities: one ascending scan of the entity->archetype index. The scan index is the entity
@@ -89,7 +65,7 @@ func (ws *worldState) wireBodySize() int {
 		n += protowire.SizeTag(3) + protowire.SizeBytes(size)
 	}
 
-	w.pendingSize = n
+	ws.wire.pendingSize = n
 	return n
 }
 
@@ -103,20 +79,20 @@ func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) int {
 	if eid != 0 {
 		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(eid))
 	}
-	if len(arch.wireOrder) == 0 {
+	if len(arch.columns) == 0 {
 		return n // void entity: id only
 	}
 
-	// Field 2: component table indices, packed.
+	// Field 2: component table indices, packed. A component's table index is its ID.
 	packed := 0
 	for _, cid := range arch.wireCIDs {
-		packed += protowire.SizeVarint(uint64(ws.wire.tableIdx[cid]))
+		packed += protowire.SizeVarint(uint64(cid))
 	}
 	n += protowire.SizeTag(2) + protowire.SizeBytes(packed)
 
-	// Field 3: one payload per component, in the same name order.
-	for _, colIdx := range arch.wireOrder {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(arch.columns[colIdx].rowWireSize(row))
+	// Field 3: one payload per component, in the same order as the indices.
+	for _, col := range arch.columns {
+		n += protowire.SizeTag(3) + protowire.SizeBytes(col.rowWireSize(row))
 	}
 	return n
 }
@@ -125,8 +101,7 @@ func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) int {
 // before it. The world must not change between the two calls; the final assert is what catches it
 // if it does.
 func (ws *worldState) appendWireBody(buf []byte) []byte {
-	w := &ws.wire
-	assert.That(w.pendingSize >= 0, "appendWireBody called without a staging wireBodySize call")
+	assert.That(ws.wire.pendingSize >= 0, "appendWireBody called without a staging wireBodySize call")
 	start := len(buf)
 
 	if ws.nextID != 0 {
@@ -134,9 +109,9 @@ func (ws *worldState) appendWireBody(buf []byte) []byte {
 		buf = protowire.AppendVarint(buf, uint64(ws.nextID))
 	}
 
-	for _, cid := range w.sortedCIDs {
+	for _, name := range ws.components.names {
 		buf = protowire.AppendTag(buf, 2, protowire.BytesType)
-		buf = protowire.AppendString(buf, ws.components.names[cid])
+		buf = protowire.AppendString(buf, name)
 	}
 
 	for eid := EntityID(0); eid < ws.nextID; eid++ {
@@ -147,9 +122,9 @@ func (ws *worldState) appendWireBody(buf []byte) []byte {
 		buf = ws.appendEntityWire(buf, ws.archetypes[aid], eid)
 	}
 
-	assert.That(len(buf)-start == w.pendingSize,
+	assert.That(len(buf)-start == ws.wire.pendingSize,
 		"snapshot bytes diverged from the size pass: the world changed between the two passes")
-	w.pendingSize = -1
+	ws.wire.pendingSize = -1
 	return buf
 }
 
@@ -165,13 +140,13 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 		inner += protowire.SizeTag(1) + protowire.SizeVarint(uint64(eid))
 	}
 	packed := 0
-	if len(arch.wireOrder) > 0 { // if entity has components
+	if len(arch.columns) > 0 { // if entity has components
 		for _, cid := range arch.wireCIDs {
-			packed += protowire.SizeVarint(uint64(ws.wire.tableIdx[cid]))
+			packed += protowire.SizeVarint(uint64(cid))
 		}
 		inner += protowire.SizeTag(2) + protowire.SizeBytes(packed)
-		for _, colIdx := range arch.wireOrder {
-			inner += protowire.SizeTag(3) + protowire.SizeBytes(arch.columns[colIdx].stagedRowWireSize(row))
+		for _, col := range arch.columns {
+			inner += protowire.SizeTag(3) + protowire.SizeBytes(col.stagedRowWireSize(row))
 		}
 	}
 
@@ -182,18 +157,17 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 		buf = protowire.AppendTag(buf, 1, protowire.VarintType)
 		buf = protowire.AppendVarint(buf, uint64(eid))
 	}
-	if len(arch.wireOrder) == 0 {
+	if len(arch.columns) == 0 {
 		return buf
 	}
 
 	buf = protowire.AppendTag(buf, 2, protowire.BytesType)
 	buf = protowire.AppendVarint(buf, uint64(packed)) //nolint:gosec // sizes are non-negative
 	for _, cid := range arch.wireCIDs {
-		buf = protowire.AppendVarint(buf, uint64(ws.wire.tableIdx[cid]))
+		buf = protowire.AppendVarint(buf, uint64(cid))
 	}
 
-	for _, colIdx := range arch.wireOrder {
-		col := arch.columns[colIdx]
+	for _, col := range arch.columns {
 		buf = protowire.AppendTag(buf, 3, protowire.BytesType)
 		buf = protowire.AppendVarint(buf, uint64(col.stagedRowWireSize(row))) //nolint:gosec // sizes are non-negative
 		buf = col.appendRowWire(buf, row)
@@ -212,18 +186,22 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	nextID := EntityID(pb.GetNextId())
 
-	// Resolve the name table. Strictly ascending is a format rule, and every name must match a
-	// registered component — restoring past an unknown name would lose saved data with no record.
+	// Resolve the name table. Every name must be unique and match a registered component —
+	// restoring past an unknown name would lose saved data with no record. Table order is the
+	// writer's registration order and carries no meaning here: slots resolve by name, which is
+	// what keeps old files loading after components are added or removed.
 	table := pb.GetComponents()
 	tableCIDs := make([]ComponentID, len(table))
+	var seen bitmap.Bitmap
 	for i, name := range table {
-		if i > 0 && table[i-1] >= name {
-			return eris.Errorf("snapshot name table not strictly ascending at index %d", i)
-		}
 		cid, err := ws.components.getID(name)
 		if err != nil {
 			return eris.Wrapf(err, "snapshot component %q does not match any registered component", name)
 		}
+		if seen.Contains(cid) {
+			return eris.Errorf("snapshot name table repeats component %q", name)
+		}
+		seen.Set(cid)
 		tableCIDs[i] = cid
 	}
 

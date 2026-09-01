@@ -28,7 +28,7 @@ type worldState struct {
 	free       []EntityID       // Free entity IDs to reuse
 	entityArch sparseSet
 	archetypes []*archetype // Array of archetypes
-	wire       stateWire    // Reusable wire-encoder scratch (tick goroutine only)
+	wire       stateWire    // Encoder cross-pass state (tick goroutine only)
 	mu         sync.Mutex
 }
 

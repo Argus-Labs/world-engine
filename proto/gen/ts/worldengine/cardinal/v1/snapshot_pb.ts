@@ -70,8 +70,9 @@ export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
   nextId: number;
 
   /**
-   * Name table: every registered component type, sorted by name, unique.
-   * Entity.components holds indices into this table.
+   * Name table: every registered component type, in the writer's registration order, unique.
+   * Entity.components holds indices into this table. Readers resolve entries by name, never by
+   * position, so the order carries no meaning across builds.
    *
    * @generated from field: repeated string components = 2;
    */
