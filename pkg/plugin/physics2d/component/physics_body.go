@@ -22,7 +22,10 @@ import (
 //
 // Awake controls whether the body is currently awake in the simulation. Setting Awake=true
 // wakes a sleeping body; Box2D may put it back to sleep on subsequent ticks if nothing
-// disturbs it and SleepingAllowed is true.
+// disturbs it and SleepingAllowed is true. The plugin mirrors solver sleep state back into
+// this field after each step, and wakes the body when you change another param without
+// touching Awake. A rebuild (snapshot restore, Plugin.Reset) wakes bodies that had active
+// contacts; others keep their Awake value.
 //
 // SleepingAllowed controls whether Box2D is permitted to put the body to sleep when it comes
 // to rest. When false, the body stays awake indefinitely.
@@ -58,8 +61,8 @@ import (
 //
 // # Post-step writeback
 //
-// Writeback applies to dynamic and kinematic bodies. Static and manual bodies are
-// not written back.
+// Writeback applies to dynamic and kinematic bodies: position, rotation, velocity and Awake.
+// Static and manual bodies are not written back.
 type PhysicsBody2D struct {
 	BodyType        BodyType `json:"body_type"`
 	LinearDamping   float64  `json:"linear_damping"`

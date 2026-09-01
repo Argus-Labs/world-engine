@@ -14,10 +14,10 @@ type WritebackEntry struct {
 	PhysicsBody cardinal.Ref[component.PhysicsBody2D]
 }
 
-// WritebackFromStepResults reads post-step positions, rotations, and velocities from the
-// Box2D world and writes them into the corresponding ECS Transform2D and Velocity2D
-// components. It also updates the shadow state so the next ReconcileFromECS tick sees no
-// diff for these values.
+// WritebackFromStepResults reads post-step positions, rotations, velocities, and awake state
+// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D,
+// and PhysicsBody2D components. It also updates the shadow state so the next ReconcileFromECS
+// tick sees no diff for these values.
 //
 // Iteration is driven by entries (ECS iteration order, EntityID-sorted), never by the
 // runtime's Go maps, so the write order is deterministic.
@@ -26,6 +26,10 @@ type WritebackEntry struct {
 // Manual bodies (ECS BodyTypeManual) are skipped because ECS/gameplay code owns their
 // position. Since both BodyTypeKinematic and BodyTypeManual map to Box2D kinematic bodies,
 // the ECS body type is checked rather than the Box2D body type.
+//
+// Awake is mirrored back on change so the component tracks solver sleep state instead of
+// freezing at its creation value. Disabled bodies are skipped: IsBodyAwake reads false for
+// them, which is disablement, not sleep.
 func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	if rt.World == nil {
 		return
@@ -38,8 +42,8 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			continue
 		}
 
-		ecsBodyType := e.PhysicsBody.Get().BodyType
-		if ecsBodyType == component.BodyTypeStatic || ecsBodyType == component.BodyTypeManual {
+		pb := e.PhysicsBody.Get()
+		if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
 			continue
 		}
 
@@ -47,6 +51,7 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		angle := box2d.RotGetAngle(rt.World.BodyRotation(bodyID))
 		lv := rt.World.BodyLinearVelocity(bodyID)
 		av := rt.World.BodyAngularVelocity(bodyID)
+		awake := rt.World.IsBodyAwake(bodyID)
 
 		t := component.Transform2D{
 			Position: component.Vec2{X: pos.X, Y: pos.Y},
@@ -59,11 +64,18 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 
 		e.Transform.Set(t)
 		e.Velocity.Set(v)
+		if pb.Active && pb.Awake != awake {
+			pb.Awake = awake
+			e.PhysicsBody.Set(pb)
+		}
 
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
 		if shadow, exists := rt.Shadow[e.EntityID]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v
+			if pb.Active {
+				shadow.PhysicsBody.Awake = awake
+			}
 			rt.Shadow[e.EntityID] = shadow
 		}
 	}

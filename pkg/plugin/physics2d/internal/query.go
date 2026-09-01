@@ -65,7 +65,7 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 	return fraction // keep searching for closer hits
 }
 
-// overlapCollector gathers the shapes reported by World.OverlapAABB. It is the
+// overlapCollector gathers the shapes reported by World.OverlapShape. It is the
 // struct form of what used to be a capturing closure, so the callback can be a
 // package-level function and the context a pointer into the Runtime
 // (Runtime.overlapScratch) instead of a per-call heap allocation.
@@ -140,10 +140,12 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 		minY, maxY = maxY, minY
 	}
 
-	aabb := box2d.AABB{
-		LowerBound: box2d.Vec2{X: minX, Y: minY},
-		UpperBound: box2d.Vec2{X: maxX, Y: maxY},
+	// OverlapShape narrow-phases every broad-phase candidate against this proxy; plain
+	// OverlapAABB reports fat-AABB hits whose geometry misses the box entirely.
+	corners := []box2d.Vec2{
+		{X: minX, Y: minY}, {X: maxX, Y: minY}, {X: maxX, Y: maxY}, {X: minX, Y: maxY},
 	}
+	proxy := box2d.MakeProxy(corners, len(corners), 0)
 
 	// Non-nil so a miss marshals as [] rather than null, which is the shape the
 	// CGO backend produced and what any persisted or transmitted result expects.
@@ -157,7 +159,7 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 		hits:           make([]query.AABBOverlapHit, 0),
 	}
 
-	rt.World.OverlapAABB(aabb, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
+	rt.World.OverlapShape(&proxy, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
 		overlapCallback, &rt.overlapScratch)
 
 	hits := rt.overlapScratch.hits

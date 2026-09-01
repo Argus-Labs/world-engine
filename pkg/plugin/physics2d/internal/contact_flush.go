@@ -243,8 +243,8 @@ func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[
 			info.Normal = component.Vec2{X: cd.Manifold.Normal.X, Y: cd.Manifold.Normal.Y}
 			info.NormalValid = true
 			info.Point = component.Vec2{
-				X: cd.Manifold.Points[0].AnchorA.X,
-				Y: cd.Manifold.Points[0].AnchorA.Y,
+				X: cd.Manifold.Points[0].ClipPoint.X,
+				Y: cd.Manifold.Points[0].ClipPoint.Y,
 			}
 			info.PointValid = true
 			info.ManifoldPointCount = cd.Manifold.PointCount
