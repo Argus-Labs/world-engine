@@ -460,8 +460,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForString(18);
     private readonly pbc::RepeatedField<string> components_ = new pbc::RepeatedField<string>();
     /// <summary>
-    /// Name table: every registered component type, sorted by name, unique.
-    /// Entity.components holds indices into this table.
+    /// Name table: every registered component type, in the writer's registration order, unique.
+    /// Entity.components holds indices into this table. Readers resolve entries by name, never by
+    /// position, so the order carries no meaning across builds.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

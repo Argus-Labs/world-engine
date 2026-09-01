@@ -1,9 +1,6 @@
 package ecs
 
 import (
-	"slices"
-	"strings"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/kelindar/bitmap"
 )
@@ -24,39 +21,23 @@ type archetype struct {
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
 
-	// wireOrder is the column indices permuted into component-name order, computed once at
-	// creation. The snapshot walks columns in this order so each entity's component list comes out
-	// name-sorted with no per-snapshot sorting; wireCIDs are the matching component IDs, used to
-	// look up each column's index in the snapshot's name table.
-	wireOrder []int
-	wireCIDs  []ComponentID
+	// wireCIDs is columns' component IDs as a flat slice: wireCIDs[i] is the component held by
+	// columns[i]. The bitmap already stores this, but the snapshot encoder reads it per entity and
+	// a slice walk beats a bitmap iteration. Component IDs are also the snapshot's name-table
+	// indices (both follow registration order), so this is everything the encoder needs.
+	wireCIDs []ComponentID
 }
 
 // newArchetype creates an archetype for the given component types.
 func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractColumn) archetype {
 	assert.That(components.Count() == len(columns), "mismatched number of columns and components")
 
-	// Columns are laid out in ascending component-ID order (see worldState.newArchetype); the
-	// snapshot wants them in name order. Both orders are fixed for the archetype's lifetime, so the
-	// permutation is computed here, once, and the snapshot loop just reads it.
-	wireOrder := make([]int, len(columns))
-	for i := range wireOrder {
-		wireOrder[i] = i
-	}
-	slices.SortFunc(wireOrder, func(x, y int) int {
-		return strings.Compare(columns[x].name(), columns[y].name())
-	})
-
-	// cidsAsc[i] is the component ID of columns[i] (both follow ascending-ID order); wireCIDs
-	// permutes it by wireOrder so wireCIDs[k] belongs to columns[wireOrder[k]].
-	cidsAsc := make([]ComponentID, 0, len(columns))
+	// Columns are laid out in ascending component-ID order (see worldState.newArchetype), which
+	// is also the snapshot's order, so the bitmap is just flattened once here.
+	wireCIDs := make([]ComponentID, 0, len(columns))
 	components.Range(func(cid uint32) {
-		cidsAsc = append(cidsAsc, cid)
+		wireCIDs = append(wireCIDs, cid)
 	})
-	wireCIDs := make([]ComponentID, len(columns))
-	for k, colIdx := range wireOrder {
-		wireCIDs[k] = cidsAsc[colIdx]
-	}
 
 	return archetype{
 		id:         aid,
@@ -65,7 +46,6 @@ func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractC
 		entities:   make([]EntityID, 0),
 		columns:    columns,
 		compCount:  len(columns),
-		wireOrder:  wireOrder,
 		wireCIDs:   wireCIDs,
 	}
 }
