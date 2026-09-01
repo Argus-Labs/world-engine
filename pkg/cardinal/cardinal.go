@@ -244,7 +244,9 @@ func (w *World) Tick(timestamp time.Time) {
 }
 
 // persistState serializes the world for snapshots and the debug service.
-// It logs errors and tries again on the next tick.
+//
+// It reports nothing: a component that cannot encode panics rather than returning an error (see
+// schema.Serializable.MarshalWire), so there is nothing to log and nothing to retry next tick.
 func (w *World) persistState(timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {

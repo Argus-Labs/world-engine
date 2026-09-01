@@ -588,14 +588,10 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	// MarshalWire asserts rather than returning an error, and yields nil only if encoding failed —
-	// which means a bug, already loud in dev and DST. A dropped shard-to-shard command must not halt
-	// the tick, so log and move on rather than send an empty payload the receiver would misread.
+	// No encoding-failure branch: MarshalWire panics rather than returning an error (see
+	// schema.Serializable), and on success proto.Marshal returns a non-nil empty slice even for an
+	// empty message — so a nil check here would never fire.
 	payload := isc.Payload.MarshalWire()
-	if payload == nil {
-		s.log.Error().Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: encoding failed")
-		return nil
-	}
 
 	commandPb := &iscv1.Command{
 		Name:    isc.Payload.Name(),

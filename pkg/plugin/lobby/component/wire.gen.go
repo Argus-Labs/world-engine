@@ -17,7 +17,11 @@ func (c ConfigComponent) ToProto() *pbcomponent.ConfigComponent {
 	p.HeartbeatTimeout = int64(c.HeartbeatTimeout)
 	p.AssignmentAuthority = string(c.AssignmentAuthority)
 	p.MaxAllocationTimeout = int64(c.MaxAllocationTimeout)
-	if data, err := json.Marshal(c.LobbyPresets); err == nil {
+	{
+		data, err := json.Marshal(c.LobbyPresets)
+		if err != nil {
+			panic("failed to marshal LobbyPresets: " + err.Error())
+		}
 		p.LobbyPresets = data
 	}
 	return p
@@ -231,7 +235,11 @@ func (c PlayerComponent) ToProto() *pbcomponent.PlayerComponent {
 	p.LobbyID = string(c.LobbyID)
 	p.TeamID = string(c.TeamID)
 	p.IsReady = bool(c.IsReady)
-	if data, err := json.Marshal(c.PassthroughData); err == nil {
+	{
+		data, err := json.Marshal(c.PassthroughData)
+		if err != nil {
+			panic("failed to marshal PassthroughData: " + err.Error())
+		}
 		p.PassthroughData = data
 	}
 	p.JoinedAt = int64(c.JoinedAt)
@@ -276,7 +284,11 @@ func (c PlayerComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c Session) ToProto() *pbcomponent.Session {
 	p := &pbcomponent.Session{}
 	p.State = string(c.State)
-	if data, err := json.Marshal(c.PassthroughData); err == nil {
+	{
+		data, err := json.Marshal(c.PassthroughData)
+		if err != nil {
+			panic("failed to marshal PassthroughData: " + err.Error())
+		}
 		p.PassthroughData = data
 	}
 	p.PendingRequestID = string(c.PendingRequestID)

@@ -42,7 +42,6 @@ func TestQueue_ModelFuzz(t *testing.T) {
 
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
 			payload := cmd.MarshalWire()
-			require.NotNil(t, payload)
 
 			name := cmd.Name()
 			corruptName := prng.IntN(10) == 1 // 10% chance to corrupt the command name.

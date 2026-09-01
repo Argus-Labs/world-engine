@@ -1327,7 +1327,11 @@ func (c SessionEndedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c SessionPassthroughUpdatedEvent) ToProto() *pbsystem.SessionPassthroughUpdatedEvent {
 	p := &pbsystem.SessionPassthroughUpdatedEvent{}
 	p.LobbyID = string(c.LobbyID)
-	if data, err := json.Marshal(c.PassthroughData); err == nil {
+	{
+		data, err := json.Marshal(c.PassthroughData)
+		if err != nil {
+			panic("failed to marshal PassthroughData: " + err.Error())
+		}
 		p.PassthroughData = data
 	}
 	return p

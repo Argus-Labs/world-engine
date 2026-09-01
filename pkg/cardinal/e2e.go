@@ -252,7 +252,6 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
 	payload := p.MarshalWire()
-	require.NotNil(t, payload)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,

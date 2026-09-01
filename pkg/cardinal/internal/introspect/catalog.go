@@ -192,6 +192,12 @@ func buildTypeSchemas(
 //
 // This is metadata for clients decoding types they do not know in advance. A client written against
 // a known schema indexes the flat field directly and never needs it.
+//
+// Only the registered type's OWN fields are walked, so an empty result means "none at the top level",
+// not "none anywhere": a multi-dimensional array nested in another struct, or in a slice of them
+// (PhysicsBody2D.Shapes), reports nothing, and so does a non-struct receiver. Widening this means
+// emitting a path rather than a bare field name, which is a wire change to ArrayField; do that when a
+// client needs it.
 func arrayFields(value schema.Serializable) []*cardinalv1.ArrayField {
 	if value == nil {
 		return nil

@@ -46,7 +46,6 @@ func TestService_SendCommand(t *testing.T) {
 
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
 		payloadBytes := payload.MarshalWire()
-		require.NotNil(t, payloadBytes)
 		userID := testutils.RandString(prng, 8)
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
@@ -76,7 +75,6 @@ func TestService_SendCommand(t *testing.T) {
 
 		payload := testutils.SimpleCommand{Value: 42}
 		payloadBytes := payload.MarshalWire()
-		require.NotNil(t, payloadBytes)
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
 			Address: RandServiceAddress(prng),
