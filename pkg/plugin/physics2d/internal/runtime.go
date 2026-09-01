@@ -7,6 +7,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
 )
 
 // ContactPairKey identifies a unique fixture-pair contact. Always normalized so that
@@ -116,6 +117,16 @@ type Runtime struct {
 	// allocated on every Raycast/CircleSweep/OverlapAABB call. See query.go.
 	castScratch    castHit
 	overlapScratch overlapCollector
+
+	// overlapHitsScratch is the gather buffer for OverlapAABB. Hits accumulate here
+	// across calls so the append growth ladder is paid once, not per query; the
+	// caller-owned result is then allocated exactly once at the final size.
+	overlapHitsScratch []query.AABBOverlapHit
+
+	// overlapProxyScratch is the query-box proxy handed to World.OverlapShape.
+	// OverlapShape parks the pointer in the engine's own query context, so a
+	// stack local would escape and cost an allocation per OverlapAABB call.
+	overlapProxyScratch box2d.ShapeProxy
 
 	// reconcileSortScratch backs the sorted entries clone in ReconcileFromECS, reused
 	// across ticks so the per-tick clone does not allocate. Only valid within one call.
