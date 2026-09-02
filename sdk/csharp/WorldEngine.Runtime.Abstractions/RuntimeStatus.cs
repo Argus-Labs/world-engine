@@ -1,7 +1,7 @@
 namespace WorldEngine.Runtime
 {
     /// <summary>
-    /// Stable status values shared with the Cardinal native runtime ABI.
+    /// Defines stable status values for the Cardinal native runtime ABI.
     /// </summary>
     public enum RuntimeStatus
     {

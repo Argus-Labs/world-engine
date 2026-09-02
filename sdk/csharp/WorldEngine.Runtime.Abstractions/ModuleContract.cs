@@ -3,7 +3,7 @@ using System;
 namespace WorldEngine.Runtime
 {
     /// <summary>
-    /// Identity validated before a module instance is created.
+    /// Identifies a module. Cardinal validates this identity before it creates a module instance.
     /// </summary>
     public readonly struct ModuleContract
     {
