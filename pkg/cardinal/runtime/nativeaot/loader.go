@@ -36,8 +36,8 @@ type Runner struct {
 
 var _ cardinalruntime.Runner = (*Runner)(nil)
 
-// Open loads a trusted module. It checks the module name and version. It then creates one handle.
-// If a check fails, Open does not call create or pass the configuration to the module.
+// Open loads a trusted module. It checks the module ABI, name, and version. Open then calls create
+// to make one handle. If a contract check fails, Open does not call create or pass the configuration.
 func Open(
 	path string,
 	config []byte,
@@ -275,7 +275,8 @@ func (r *Runner) Restore(snapshot []byte) error {
 	return r.statusErrorLocked("restore", status)
 }
 
-// Close destroys the module handle. Call Close only one time. The shared library stays loaded.
+// Close destroys the module handle. Call Close only one time. The process keeps the shared library
+// loaded.
 func (r *Runner) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
