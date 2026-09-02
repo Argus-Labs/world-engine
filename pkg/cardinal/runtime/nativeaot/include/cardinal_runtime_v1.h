@@ -17,10 +17,9 @@ extern "C" {
 #define CARDINAL_RUNTIME_V1_ABI_VERSION UINT32_C(1)
 #define CARDINAL_RUNTIME_V1_NAME_CAPACITY 64
 #define CARDINAL_RUNTIME_V1_VERSION_CAPACITY 32
-#define CARDINAL_RUNTIME_V1_SCHEMA_HASH_SIZE 32
+#define CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY 1024
 
 typedef uint64_t cardinal_runtime_handle_v1;
-typedef uint64_t cardinal_runtime_capabilities_v1;
 
 enum cardinal_runtime_status_v1 {
     CARDINAL_RUNTIME_STATUS_SUCCESS = 0,
@@ -33,35 +32,20 @@ enum cardinal_runtime_status_v1 {
     CARDINAL_RUNTIME_STATUS_ABI_MISMATCH = 7,
 };
 
-enum cardinal_runtime_capability_v1 {
-    CARDINAL_RUNTIME_CAPABILITY_INITIALIZE = UINT64_C(1) << 0,
-    CARDINAL_RUNTIME_CAPABILITY_TICK = UINT64_C(1) << 1,
-    CARDINAL_RUNTIME_CAPABILITY_QUERY = UINT64_C(1) << 2,
-    CARDINAL_RUNTIME_CAPABILITY_SNAPSHOT = UINT64_C(1) << 3,
-    CARDINAL_RUNTIME_CAPABILITY_RESTORE = UINT64_C(1) << 4,
-    CARDINAL_RUNTIME_CAPABILITY_STATELESS = UINT64_C(1) << 5,
-};
-
 /*
- * Frozen v1 contract. Producers must set struct_size to exactly sizeof this struct, zero reserved
- * fields, and NUL-terminate UTF-8 name and version strings. schema_hash is an opaque 32-byte
- * compatibility fingerprint.
+ * Producers must NUL-terminate UTF-8 name and version strings.
  */
 typedef struct cardinal_runtime_contract_v1 {
     uint32_t abi_version;
-    uint32_t struct_size;
-    cardinal_runtime_capabilities_v1 capabilities;
-    uint8_t schema_hash[CARDINAL_RUNTIME_V1_SCHEMA_HASH_SIZE];
     char name[CARDINAL_RUNTIME_V1_NAME_CAPACITY];
     char version[CARDINAL_RUNTIME_V1_VERSION_CAPACITY];
-    uint64_t reserved[4];
 } cardinal_runtime_contract_v1;
 
 /*
  * Every input pointer is borrowed only for the duration of its call. Every output buffer is
- * caller-owned. On SUCCESS, output_len is bytes written. On BUFFER_TOO_SMALL, output_len is the
- * required capacity and the output buffer and module state must remain unmodified because the host
- * may retry the call. A zero capacity permits output=NULL.
+ * caller-owned. For tick, query, and snapshot, output_len is bytes written on SUCCESS. On
+ * BUFFER_TOO_SMALL, output_len is the required capacity and the output buffer and module state must
+ * remain unmodified because the host may retry the call. A zero capacity permits output=NULL.
  *
  * Handle zero is invalid. A module must serialize neither globally nor across handles; the host
  * serializes calls belonging to one handle. Errors raised before a handle exists are local to the
@@ -70,6 +54,11 @@ typedef struct cardinal_runtime_contract_v1 {
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
     cardinal_runtime_contract_v1 *contract
 );
+
+
+/*
+ * TODO: Get rid of buffer too small error and fix these ugly output_capacity params.
+ */
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
     const uint8_t *config,
@@ -117,6 +106,11 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
     size_t snapshot_len
 );
 
+/*
+ * Copies at most output_capacity bytes of UTF-8 diagnostic text, truncating at a valid UTF-8
+ * boundary when necessary. On SUCCESS, output_len is bytes written. This function must not return
+ * BUFFER_TOO_SMALL. Hosts call it with CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY bytes.
+ */
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,

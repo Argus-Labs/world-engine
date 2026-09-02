@@ -2,7 +2,15 @@
 
 package nativeaot
 
-import cardinalruntime "github.com/argus-labs/world-engine/pkg/cardinal/runtime"
+import (
+	"errors"
+
+	cardinalruntime "github.com/argus-labs/world-engine/pkg/cardinal/runtime"
+)
+
+// ErrUnavailable reports that the NativeAOT loader is unavailable in this build. It requires cgo
+// and a platform with dlopen.
+var ErrUnavailable = errors.New("nativeaot runtime loader unavailable")
 
 // Runner is unavailable when cgo or dlopen support is absent.
 type Runner struct{}
@@ -13,7 +21,8 @@ var _ cardinalruntime.Runner = (*Runner)(nil)
 func Open(
 	string,
 	[]byte,
-	cardinalruntime.ContractRequirement,
+	string,
+	string,
 ) (*Runner, error) {
 	return nil, ErrUnavailable
 }
