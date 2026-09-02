@@ -1,4 +1,4 @@
-// Package runtime defines the transport-neutral boundary for running a Cardinal simulation module.
+// Package runtime defines a transport-independent interface for a Cardinal simulation module.
 package runtime
 
 import (
@@ -16,21 +16,20 @@ type Contract struct {
 	Version    string
 }
 
-// InitRequest supplies an optional snapshot to initialize a newly created runner. The snapshot is
-// borrowed for the duration of Initialize.
+// InitRequest contains an optional snapshot. Initialize borrows Snapshot only for the call.
 type InitRequest struct {
 	Snapshot []byte
 }
 
-// TickRequest supplies one deterministic simulation step. Input is borrowed for the duration of
-// Tick.
+// TickRequest contains the data for one deterministic simulation step. Tick borrows Input only for
+// the call.
 type TickRequest struct {
 	Tick         uint64
 	FixedDeltaNS uint64
 	Input        []byte
 }
 
-// QueryRequest supplies an application-defined query. Input is borrowed for the duration of Query.
+// QueryRequest contains an application-defined query. Query borrows Input only for the call.
 type QueryRequest struct {
 	Kind  uint32
 	Input []byte
@@ -38,11 +37,13 @@ type QueryRequest struct {
 
 // Runner owns one isolated module instance.
 //
-// Tick, Query, and Snapshot write into caller-owned output buffers and return the number of bytes
-// written. Implementations return BufferSizeError when the buffer is too small. Implementations
-// must not retain request or output buffers after a call returns. Callers that probe and retry
-// after BufferSizeError must prevent another operation from using the same Runner between those
-// calls.
+// Tick, Query, and Snapshot write to output buffers that the caller owns. Each method returns the
+// number of bytes that it writes. These methods return BufferSizeError if an output buffer is too
+// small. A call that returns BufferSizeError does not change the module state or the output buffer.
+//
+// An implementation borrows all request and output buffers. It must not keep a buffer after the
+// method returns. The caller can retry a call after BufferSizeError. The caller must not use the
+// same Runner between the first call and the retry.
 type Runner interface {
 	Contract() Contract
 	Initialize(InitRequest) error
@@ -99,7 +100,7 @@ func formatContractValue(value any) string {
 	}
 }
 
-// BufferSizeError reports the caller-owned output capacity required by a call.
+// BufferSizeError reports the output capacity that an operation requires.
 type BufferSizeError struct {
 	Operation string
 	Required  int

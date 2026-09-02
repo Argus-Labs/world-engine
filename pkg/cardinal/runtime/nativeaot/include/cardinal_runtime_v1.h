@@ -33,7 +33,7 @@ enum cardinal_runtime_status_v1 {
 };
 
 /*
- * Producers must NUL-terminate UTF-8 name and version strings.
+ * A producer must NUL-terminate each UTF-8 name and version string.
  */
 typedef struct cardinal_runtime_contract_v1 {
     uint32_t abi_version;
@@ -42,14 +42,19 @@ typedef struct cardinal_runtime_contract_v1 {
 } cardinal_runtime_contract_v1;
 
 /*
- * Every input pointer is borrowed only for the duration of its call. Every output buffer is
- * caller-owned. For tick, query, and snapshot, output_len is bytes written on SUCCESS. On
- * BUFFER_TOO_SMALL, output_len is the required capacity and the output buffer and module state must
- * remain unmodified because the host may retry the call. A zero capacity permits output=NULL.
+ * A module borrows each input pointer for one call. The caller owns each output buffer.
  *
- * Handle zero is invalid. A module must serialize neither globally nor across handles; the host
- * serializes calls belonging to one handle. Errors raised before a handle exists are local to the
- * calling native thread; retrieve them immediately with last_error(0) on that same thread.
+ * For tick, query, and snapshot, the module sets output_len to the number of bytes that it writes.
+ * If the output buffer is too small, the module sets output_len to the required capacity. It then
+ * returns BUFFER_TOO_SMALL. A call that returns BUFFER_TOO_SMALL must not change the module state or
+ * the output buffer. The host can retry the call. Output can be NULL only when the output capacity
+ * is zero.
+ *
+ * Zero is not a valid handle. The host serializes calls for one handle. A module must permit
+ * concurrent calls for different handles.
+ *
+ * Before a handle exists, the module stores each error for the current native thread. The host must
+ * immediately call last_error(0) on the same native thread.
  */
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
     cardinal_runtime_contract_v1 *contract
@@ -57,7 +62,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 
 
 /*
- * TODO: Get rid of buffer too small error and fix these ugly output_capacity params.
+ * TODO: Let each module declare its output sizes. Make the host allocate each output buffer. Keep
+ * output_capacity in the ABI so that each module can validate memory access.
  */
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
@@ -107,9 +113,10 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
 );
 
 /*
- * Copies at most output_capacity bytes of UTF-8 diagnostic text, truncating at a valid UTF-8
- * boundary when necessary. On SUCCESS, output_len is bytes written. This function must not return
- * BUFFER_TOO_SMALL. Hosts call it with CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY bytes.
+ * This function copies a maximum of output_capacity bytes of UTF-8 diagnostic text. If the full
+ * text does not fit, it copies the longest valid UTF-8 prefix that fits. On SUCCESS, output_len is
+ * the number of bytes that the function writes. This function must not return BUFFER_TOO_SMALL.
+ * The host sets output_capacity to CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY.
  */
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
     cardinal_runtime_handle_v1 handle,
@@ -119,8 +126,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
 );
 
 /*
- * Destroy consumes the handle regardless of the returned status. Callers must not retry or use the
- * handle after this call.
+ * Destroy consumes the handle even when Destroy returns an error. The caller must not retry this
+ * call. The caller must not use the handle again.
  */
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_destroy(
     cardinal_runtime_handle_v1 handle
