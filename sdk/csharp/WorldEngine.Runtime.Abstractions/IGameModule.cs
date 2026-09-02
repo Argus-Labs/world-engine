@@ -3,14 +3,14 @@ using System;
 namespace WorldEngine.Runtime
 {
     /// <summary>
-    /// Deterministic game logic hosted in-process by Cardinal.
+    /// Defines deterministic game logic. Cardinal runs this logic in the Cardinal process.
     /// </summary>
     /// <remarks>
-    /// Inputs are borrowed for the duration of a call. Outputs are written into caller-owned
-    /// memory. Implementations must set <c>outputLength</c> to the required size when returning
-    /// <see cref="RuntimeStatus.BufferTooSmall"/>. A buffer-too-small call must not mutate module
-    /// state or output because the host can retry it with a larger buffer. Calls for one module
-    /// instance are serialized by the host.
+    /// The caller owns each output buffer. The module borrows each input and output buffer for one
+    /// call. If an output buffer is too small, the module must set <c>outputLength</c> to the required
+    /// size. It must then return <see cref="RuntimeStatus.BufferTooSmall"/>. A call that returns this
+    /// status must not change the module state or the output buffer. The host serializes calls for
+    /// one module instance.
     /// </remarks>
     public interface IGameModule : IDisposable
     {
