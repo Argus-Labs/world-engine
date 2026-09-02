@@ -62,8 +62,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 
 
 /*
- * TODO: Let each module declare its output sizes. Make the host allocate each output buffer. Keep
- * output_capacity in the ABI so that each module can validate memory access.
+ * TODO: Get rid of buffer too small error and fix these ugly output_capacity params.
  */
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
@@ -113,10 +112,10 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
 );
 
 /*
- * This function copies a maximum of output_capacity bytes of UTF-8 diagnostic text. If the full
- * text does not fit, it copies the longest valid UTF-8 prefix that fits. On SUCCESS, output_len is
- * the number of bytes that the function writes. This function must not return BUFFER_TOO_SMALL.
- * The host sets output_capacity to CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY.
+ * last_error copies at most output_capacity bytes of UTF-8 diagnostic text. If the full text does
+ * not fit, last_error copies the longest valid UTF-8 prefix that fits. On SUCCESS, output_len is the
+ * number of bytes that last_error writes. last_error must not return BUFFER_TOO_SMALL. The host sets
+ * output_capacity to CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY.
  */
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
     cardinal_runtime_handle_v1 handle,

@@ -16,8 +16,11 @@ on:
       - 'go.sum'
       - '.github/workflows/common-csharp-runtime-ci.yaml'
 
+permissions:
+  contents: read
+
 env:
-  GO_VERSION: 1.25.5
+  GO_VERSION: 1.26.5
 
 jobs:
   nativeaot:

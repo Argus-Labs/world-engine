@@ -3,7 +3,7 @@ using System;
 namespace WorldEngine.Runtime
 {
     /// <summary>
-    /// Defines deterministic game logic. Cardinal runs this logic in the Cardinal process.
+    /// Defines deterministic game logic. Cardinal runs this logic in the host process.
     /// </summary>
     /// <remarks>
     /// The caller owns each output buffer. The module borrows each input and output buffer for one
