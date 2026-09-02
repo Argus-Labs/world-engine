@@ -22,8 +22,8 @@ cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
 );
 
 /*
- * Frees only the loader dispatch table. The dlopen handle deliberately stays loaded for process
- * lifetime because NativeAOT libraries cannot be unloaded.
+ * This function frees only the loader dispatch table. It does not unload the NativeAOT library.
+ * The process keeps the library loaded until the process exits.
  */
 void cardinal_nativeaot_library_forget(cardinal_nativeaot_library_v1 *library);
 

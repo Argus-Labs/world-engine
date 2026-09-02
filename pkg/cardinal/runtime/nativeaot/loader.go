@@ -1,7 +1,7 @@
 //go:build cgo && (linux || darwin)
 
-// Package nativeaot loads Cardinal NativeAOT modules through their stable C ABI. Loaded shared
-// libraries remain resident for process lifetime.
+// Package nativeaot loads Cardinal NativeAOT modules through a stable C ABI. The process keeps
+// each shared library loaded until the process exits.
 package nativeaot
 
 /*
@@ -25,7 +25,7 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// Runner owns one NativeAOT module handle. Calls for a handle are serialized.
+// Runner owns one NativeAOT module handle. Runner serializes all calls that use this handle.
 type Runner struct {
 	mu       sync.Mutex
 	library  *C.cardinal_nativeaot_library_v1
@@ -36,15 +36,15 @@ type Runner struct {
 
 var _ cardinalruntime.Runner = (*Runner)(nil)
 
-// Open loads a trusted module, validates its immutable name and version, then creates one handle.
-// No module config or create callback is invoked when validation fails.
+// Open loads a trusted module. It checks the module name and version. It then creates one handle.
+// If a check fails, Open does not call create or pass the configuration to the module.
 func Open(
 	path string,
 	config []byte,
 	expectedName string,
 	expectedVersion string,
 ) (*Runner, error) {
-	// Reject NUL bytes because C.CString truncates the path before dlopen reads it.
+	// C.CString stops at the first NUL byte. Reject a path that contains a NUL byte.
 	if path == "" || strings.IndexByte(path, 0) >= 0 {
 		return nil, eris.Wrap(cardinalruntime.ErrInvalidArgument, "open NativeAOT runtime")
 	}
@@ -57,7 +57,7 @@ func Open(
 		return nil, eris.Wrapf(err, "resolve NativeAOT library %q", absolutePath)
 	}
 
-	// Errors before a module handle exists are thread-local in the ABI.
+	// Keep this goroutine on one native thread while it reads a pre-handle error.
 	goruntime.LockOSThread()
 	defer goruntime.UnlockOSThread()
 
@@ -171,12 +171,12 @@ func (r *Runner) loadContract() (cardinalruntime.Contract, error) {
 	return contract, nil
 }
 
-// Contract returns the immutable contract copied from the shared library.
+// Contract returns the module contract that Open copied from the shared library.
 func (r *Runner) Contract() cardinalruntime.Contract {
 	return r.contract
 }
 
-// Initialize initializes this handle from an optional borrowed snapshot.
+// Initialize initializes the handle with an optional snapshot.
 func (r *Runner) Initialize(request cardinalruntime.InitRequest) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -194,7 +194,7 @@ func (r *Runner) Initialize(request cardinalruntime.InitRequest) error {
 	return r.statusErrorLocked("initialize", status)
 }
 
-// Tick executes one simulation step into caller-owned output.
+// Tick runs one simulation step. It writes the result to output. The caller owns output.
 func (r *Runner) Tick(request cardinalruntime.TickRequest, output []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -217,7 +217,7 @@ func (r *Runner) Tick(request cardinalruntime.TickRequest, output []byte) (int, 
 	return r.outputResultLocked("tick", result, len(output))
 }
 
-// Query executes an application-defined query into caller-owned output.
+// Query runs an application-defined query. It writes the result to output. The caller owns output.
 func (r *Runner) Query(request cardinalruntime.QueryRequest, output []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -239,7 +239,7 @@ func (r *Runner) Query(request cardinalruntime.QueryRequest, output []byte) (int
 	return r.outputResultLocked("query", result, len(output))
 }
 
-// Snapshot writes this handle's state into caller-owned output.
+// Snapshot writes the handle state to output. The caller owns output.
 func (r *Runner) Snapshot(output []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -257,7 +257,7 @@ func (r *Runner) Snapshot(output []byte) (int, error) {
 	return r.outputResultLocked("snapshot", result, len(output))
 }
 
-// Restore replaces this handle's state from a borrowed snapshot.
+// Restore replaces the handle state with snapshot. Restore borrows snapshot for this call.
 func (r *Runner) Restore(snapshot []byte) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -275,14 +275,15 @@ func (r *Runner) Restore(snapshot []byte) error {
 	return r.statusErrorLocked("restore", status)
 }
 
-// Close destroys the module handle once. The shared library stays loaded.
+// Close destroys the module handle. Call Close only one time. The shared library stays loaded.
 func (r *Runner) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	assert.That(!r.closed, "runtime runner is closed")
 
-	// A failing destroy no longer has a valid handle-bound error slot.
+	// Destroy consumes the handle, even when it fails. Stay on one native thread while reading the
+	// destroy error.
 	goruntime.LockOSThread()
 	defer goruntime.UnlockOSThread()
 
