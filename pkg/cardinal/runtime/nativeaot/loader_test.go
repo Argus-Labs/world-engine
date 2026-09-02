@@ -20,11 +20,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	fixtureName    = "nativeaot-fixture"
+	fixtureVersion = "1.2.3"
+)
+
 var (
-	fixtureLibrary              string
-	badABIFixtureLibrary        string
-	badSizeFixtureLibrary       string
-	badReservedFixtureLibraries [4]string
+	fixtureLibrary       string
+	badABIFixtureLibrary string
 )
 
 func TestMain(m *testing.M) {
@@ -40,23 +43,6 @@ func TestMain(m *testing.M) {
 			tempDirectory,
 			"fixture-bad-abi",
 			[]string{"-DFIXTURE_BAD_ABI=1"},
-		)
-	}
-	if err == nil {
-		badSizeFixtureLibrary, err = compileFixture(
-			tempDirectory,
-			"fixture-bad-size",
-			[]string{"-DFIXTURE_BAD_SIZE=1"},
-		)
-	}
-	for index := range badReservedFixtureLibraries {
-		if err != nil {
-			break
-		}
-		badReservedFixtureLibraries[index], err = compileFixture(
-			tempDirectory,
-			fmt.Sprintf("fixture-bad-reserved-%d", index),
-			[]string{fmt.Sprintf("-DFIXTURE_BAD_RESERVED_INDEX=%d", index)},
 		)
 	}
 	if err != nil {
@@ -111,11 +97,6 @@ func TestRunnerLifecycle(t *testing.T) {
 	written, err = restored.Snapshot(restoredSnapshot)
 	require.NoError(t, err)
 	assert.Equal(t, snapshot, restoredSnapshot[:written])
-
-	require.NoError(t, runner.Close())
-	require.NoError(t, runner.Close())
-	_, err = runner.Tick(cardinalruntime.TickRequest{}, output)
-	require.ErrorIs(t, err, cardinalruntime.ErrClosed)
 }
 
 func TestRunnerContract(t *testing.T) {
@@ -123,97 +104,95 @@ func TestRunnerContract(t *testing.T) {
 	contract := runner.Contract()
 
 	assert.Equal(t, cardinalruntime.ABIVersion, contract.ABIVersion)
-	assert.Equal(t, "nativeaot-fixture", contract.Name)
-	assert.Equal(t, "1.2.3", contract.Version)
-	assert.True(t, contract.Supports(
-		cardinalruntime.CapabilityInitialize|
-			cardinalruntime.CapabilityTick|
-			cardinalruntime.CapabilityQuery|
-			cardinalruntime.CapabilitySnapshot|
-			cardinalruntime.CapabilityRestore,
-	))
-	for index, value := range contract.SchemaHash {
-		assert.Equal(t, byte(index), value)
-	}
+	assert.Equal(t, fixtureName, contract.Name)
+	assert.Equal(t, fixtureVersion, contract.Version)
+}
+
+func TestRunnerRejectsUseAfterClose(t *testing.T) {
+	runner, err := nativeaot.Open(fixtureLibrary, nil, fixtureName, fixtureVersion)
+	require.NoError(t, err)
+	require.NoError(t, runner.Close())
+
+	require.PanicsWithValue(t, "runtime runner is closed", func() {
+		_ = runner.Close()
+	})
+	require.PanicsWithValue(t, "runtime runner is closed", func() {
+		_, _ = runner.Tick(cardinalruntime.TickRequest{}, nil)
+	})
 }
 
 func TestOpenRejectsABIMismatch(t *testing.T) {
-	runner, err := nativeaot.Open(badABIFixtureLibrary, nil, fixtureContractRequirement())
+	runner, err := nativeaot.Open(badABIFixtureLibrary, nil, fixtureName, fixtureVersion)
 
 	assert.Nil(t, runner)
 	require.ErrorIs(t, err, cardinalruntime.ErrABIMismatch)
+	require.ErrorContains(t, err, "load NativeAOT contract")
 	require.ErrorContains(t, err, "module=2 host=1")
 }
 
-func TestOpenRejectsExtendedV1Contract(t *testing.T) {
-	runner, err := nativeaot.Open(badSizeFixtureLibrary, nil, fixtureContractRequirement())
-
-	assert.Nil(t, runner)
-	require.ErrorIs(t, err, cardinalruntime.ErrABIMismatch)
-	require.ErrorContains(t, err, "contract size=184 expected=176")
-}
-
-func TestOpenRejectsNonzeroReservedContractWordsBeforeCreate(t *testing.T) {
-	for index, library := range badReservedFixtureLibraries {
-		t.Run(fmt.Sprintf("word_%d", index), func(t *testing.T) {
+func TestOpenRejectsContractBeforeCreate(t *testing.T) {
+	tests := []struct {
+		name            string
+		expectedName    string
+		expectedVersion string
+		message         string
+	}{
+		{
+			name:            "name",
+			expectedName:    "other",
+			expectedVersion: fixtureVersion,
+			message:         `module name "nativeaot-fixture", want "other"`,
+		},
+		{
+			name:            "version",
+			expectedName:    fixtureName,
+			expectedVersion: "9.9.9",
+			message:         `module version "1.2.3", want "9.9.9"`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			runner, err := nativeaot.Open(
-				library,
+				fixtureLibrary,
 				[]byte("fail-create"),
-				fixtureContractRequirement(),
+				test.expectedName,
+				test.expectedVersion,
 			)
 
 			assert.Nil(t, runner)
-			require.ErrorIs(t, err, cardinalruntime.ErrABIMismatch)
-			require.EqualError(
-				t,
-				err,
-				fmt.Sprintf(
-					"get contract: reserved[%d]=1 expected=0: runtime ABI mismatch",
-					index,
-				),
-			)
+			require.ErrorIs(t, err, cardinalruntime.ErrContractMismatch)
+			require.ErrorContains(t, err, "validate NativeAOT contract")
+			require.ErrorContains(t, err, test.message)
+			assert.NotContains(t, err.Error(), "fixture create failure")
 		})
 	}
-}
-
-func TestOpenRejectsContractBeforeCreate(t *testing.T) {
-	requirement := fixtureContractRequirement()
-	requirement.Version = "9.9.9"
-
-	runner, err := nativeaot.Open(
-		fixtureLibrary,
-		[]byte("fail-create"),
-		requirement,
-	)
-
-	assert.Nil(t, runner)
-	require.ErrorIs(t, err, cardinalruntime.ErrContractMismatch)
-	require.ErrorContains(t, err, `module version "1.2.3", want "9.9.9"`)
-	assert.NotContains(t, err.Error(), "fixture create failure")
 }
 
 func TestOpenAcceptsMatchingContract(t *testing.T) {
 	runner, err := nativeaot.Open(
 		fixtureLibrary,
 		nil,
-		fixtureContractRequirement(),
+		fixtureName,
+		fixtureVersion,
 	)
 
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, runner.Close())
 	})
-	assert.Equal(t, "nativeaot-fixture", runner.Contract().Name)
+	assert.Equal(t, fixtureName, runner.Contract().Name)
 }
 
 func TestRunnerTranslatesModuleErrors(t *testing.T) {
 	runner, err := nativeaot.Open(
 		fixtureLibrary,
 		[]byte("fail-create"),
-		fixtureContractRequirement(),
+		fixtureName,
+		fixtureVersion,
 	)
 	assert.Nil(t, runner)
 	require.ErrorIs(t, err, cardinalruntime.ErrExecutionFailed)
+	require.ErrorContains(t, err, "create NativeAOT runtime")
 	require.ErrorContains(t, err, "fixture create failure")
 
 	runner = openFixture(t, nil)
@@ -291,7 +270,7 @@ func TestRunnerSerializesCalls(t *testing.T) {
 }
 
 func BenchmarkRunnerTick(b *testing.B) {
-	runner, err := nativeaot.Open(fixtureLibrary, nil, fixtureContractRequirement())
+	runner, err := nativeaot.Open(fixtureLibrary, nil, fixtureName, fixtureVersion)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -328,29 +307,12 @@ func BenchmarkRunnerTick(b *testing.B) {
 func openFixture(t testing.TB, config []byte) *nativeaot.Runner {
 	t.Helper()
 
-	runner, err := nativeaot.Open(fixtureLibrary, config, fixtureContractRequirement())
+	runner, err := nativeaot.Open(fixtureLibrary, config, fixtureName, fixtureVersion)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, runner.Close())
 	})
 	return runner
-}
-
-func fixtureContractRequirement() cardinalruntime.ContractRequirement {
-	var schemaHash [32]byte
-	for index := range schemaHash {
-		schemaHash[index] = byte(index)
-	}
-	return cardinalruntime.ContractRequirement{
-		Name:       "nativeaot-fixture",
-		Version:    "1.2.3",
-		SchemaHash: schemaHash,
-		Capabilities: cardinalruntime.CapabilityInitialize |
-			cardinalruntime.CapabilityTick |
-			cardinalruntime.CapabilityQuery |
-			cardinalruntime.CapabilitySnapshot |
-			cardinalruntime.CapabilityRestore,
-	}
 }
 
 func compileFixture(

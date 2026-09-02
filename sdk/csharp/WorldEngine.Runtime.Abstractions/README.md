@@ -16,9 +16,7 @@ dotnet add shared/Rampage.Gameplay/Rampage.Gameplay.csproj \
   --version 1.0.0
 ```
 
-Start with a stateless module in
-`shared/Rampage.Gameplay/GameModule.cs`. Replace the zero schema hash with the
-SHA-256 of the real binary input/output schema before production:
+Start with a module in `shared/Rampage.Gameplay/GameModule.cs`:
 
 ```csharp
 using System;
@@ -30,19 +28,18 @@ namespace Rampage.Gameplay
     {
         public static ModuleContract Contract { get; } = new ModuleContract(
             "rampage-gameplay",
-            "1.0.0",
-            RuntimeCapabilities.Initialize |
-            RuntimeCapabilities.Tick |
-            RuntimeCapabilities.Stateless,
-            new byte[ModuleContract.SchemaHashLength]);
+            "1.0.0");
 
         public GameModule(ReadOnlySpan<byte> config)
         {
             _ = config;
         }
 
-        public RuntimeStatus Initialize(ReadOnlySpan<byte> snapshot) =>
-            snapshot.IsEmpty ? RuntimeStatus.Success : RuntimeStatus.Unsupported;
+        public RuntimeStatus Initialize(ReadOnlySpan<byte> snapshot)
+        {
+            _ = snapshot;
+            return RuntimeStatus.Success;
+        }
 
         public RuntimeStatus Tick(
             in TickContext context,
@@ -67,18 +64,21 @@ namespace Rampage.Gameplay
             _ = input;
             _ = output;
             outputLength = 0;
-            return RuntimeStatus.Unsupported;
+            return RuntimeStatus.Success;
         }
 
         public RuntimeStatus Snapshot(Span<byte> output, out int outputLength)
         {
             _ = output;
             outputLength = 0;
-            return RuntimeStatus.Unsupported;
+            return RuntimeStatus.Success;
         }
 
-        public RuntimeStatus Restore(ReadOnlySpan<byte> snapshot) =>
-            snapshot.IsEmpty ? RuntimeStatus.Success : RuntimeStatus.Unsupported;
+        public RuntimeStatus Restore(ReadOnlySpan<byte> snapshot)
+        {
+            _ = snapshot;
+            return RuntimeStatus.Success;
+        }
 
         public void Dispose()
         {
@@ -118,5 +118,6 @@ Git URL above.
 - Input memory is borrowed only for the call.
 - Output memory belongs to the caller and should be reused.
 - `BufferTooSmall` leaves module state and output unchanged; the host may retry.
-- Stateful modules advertise `Snapshot` and make all authoritative state restorable.
-- A `Stateless` module keeps authoritative state in Cardinal ECS.
+- Every module implements `Initialize`, `Tick`, `Query`, `Snapshot`, `Restore`, and `Dispose`;
+  operations the module does not need return `Success` without doing work.
+- Mutable module state is process-local and is not persisted by Cardinal snapshots.

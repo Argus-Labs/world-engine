@@ -33,12 +33,8 @@ namespace WorldEngine.Runtime.NativeAot
     internal unsafe struct NativeContract
     {
         internal uint AbiVersion;
-        internal uint StructSize;
-        internal ulong Capabilities;
-        internal fixed byte SchemaHash[ModuleContract.SchemaHashLength];
         internal fixed byte Name[64];
         internal fixed byte Version[32];
-        internal fixed ulong Reserved[4];
     }
 
     internal static unsafe class NativeExports
@@ -65,19 +61,9 @@ namespace WorldEngine.Runtime.NativeAot
             try
             {
                 ModuleContract contract = GameModuleFactory.GetContract();
-                if (contract.SchemaHash.Length != ModuleContract.SchemaHashLength)
-                {
-                    throw new InvalidOperationException(
-                        $"Schema hash must contain {ModuleContract.SchemaHashLength} bytes.");
-                }
-
                 *output = default;
                 output->AbiVersion = AbiVersion;
-                output->StructSize = (uint)sizeof(NativeContract);
-                output->Capabilities = (ulong)contract.Capabilities;
 
-                contract.SchemaHash.Span.CopyTo(
-                    new Span<byte>(output->SchemaHash, ModuleContract.SchemaHashLength));
                 WriteNullTerminatedUtf8(
                     contract.Name,
                     new Span<byte>(output->Name, NameCapacity),
@@ -361,14 +347,14 @@ namespace WorldEngine.Runtime.NativeAot
             try
             {
                 string error = GetError(handle) ?? string.Empty;
-                int requiredLength = Encoding.UTF8.GetByteCount(error);
-                *outputLength = (nuint)requiredLength;
-                if (outputSpan.Length < requiredLength)
-                {
-                    return (int)RuntimeStatus.BufferTooSmall;
-                }
-
-                Encoding.UTF8.GetBytes(error.AsSpan(), outputSpan);
+                Encoding.UTF8.GetEncoder().Convert(
+                    error.AsSpan(),
+                    outputSpan,
+                    true,
+                    out _,
+                    out int bytesWritten,
+                    out _);
+                *outputLength = (nuint)bytesWritten;
                 return (int)RuntimeStatus.Success;
             }
             catch (Exception exception)
