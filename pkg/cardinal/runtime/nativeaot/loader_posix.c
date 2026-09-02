@@ -110,7 +110,7 @@ cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
     char *error,
     size_t error_capacity
 ) {
-    // Callers must validate the path before this call.
+    // The caller must validate the path before this call.
     assert(path != NULL);
     assert(path[0] != '\0');
 
@@ -127,7 +127,7 @@ cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
         calloc(1, sizeof(cardinal_nativeaot_library_v1));
     if (library == NULL) {
         /*
-         * Do not call dlclose. NativeAOT does not support safe unloading. The process unloads the
+         * Do not call dlclose. NativeAOT cannot safely unload the module. The process unloads the
          * module when the process exits.
          */
         copy_error(error, error_capacity, "allocating loader dispatch table failed");
@@ -214,8 +214,7 @@ void cardinal_nativeaot_library_forget(cardinal_nativeaot_library_v1 *library) {
     assert(library != NULL);
 
     /*
-     * Deliberately no dlclose. NativeAOT does not support unloading. Only the dispatch table
-     * allocated by this loader is released.
+     * Do not call dlclose. NativeAOT cannot safely unload the module. Free only the dispatch table.
      */
     free(library);
 }
