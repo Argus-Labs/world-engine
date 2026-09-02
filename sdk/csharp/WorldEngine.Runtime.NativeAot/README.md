@@ -114,7 +114,7 @@ identifiers wherever the installed .NET SDK and native toolchain support them.
 
 | Symptom | Check |
 | --- | --- |
-| Contract mismatch | Read `ContractMismatchError.Field`, `Expected`, and `Actual`; align the host requirement with `GameModule.Contract`, then rebuild. Capability values are bit masks; schema hashes are full 64-digit hex. |
+| Contract mismatch | Read `ContractMismatchError.Field`, `Expected`, and `Actual`; align the expected module name and version with `GameModule.Contract`, then rebuild. |
 | Missing `.so` | Ensure `library = "rampage_gameplay_native"` matches `<AssemblyName>`. Direct publish writes `.world/native/gameplay/rampage_gameplay_native.so`; `world build` instead copies `librampage_gameplay_native.so` into the image. |
 | Missing ABI symbols | Keep the factory in namespace `WorldEngine.Runtime.NativeAot` and reference the NativeAOT package from the published host. Inspect with `nm --dynamic --defined-only .world/native/gameplay/rampage_gameplay_native.so \| grep cardinal_runtime_v1_`. |
 | Wrong platform | World CLI shard images are Linux/amd64; publish with `--runtime linux-x64`. Other NativeAOT RIDs are package/toolchain capabilities, not World CLI container targets. |

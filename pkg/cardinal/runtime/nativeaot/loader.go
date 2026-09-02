@@ -25,8 +25,6 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-const maxLastErrorSize = 64 * 1024
-
 // Runner owns one NativeAOT module handle. Calls for a handle are serialized.
 type Runner struct {
 	mu       sync.Mutex
@@ -38,12 +36,13 @@ type Runner struct {
 
 var _ cardinalruntime.Runner = (*Runner)(nil)
 
-// Open loads a trusted module, validates its immutable contract, then creates one handle. No module
-// config or create callback is invoked when validation fails.
+// Open loads a trusted module, validates its immutable name and version, then creates one handle.
+// No module config or create callback is invoked when validation fails.
 func Open(
 	path string,
 	config []byte,
-	requirement cardinalruntime.ContractRequirement,
+	expectedName string,
+	expectedVersion string,
 ) (*Runner, error) {
 	// Reject NUL bytes because C.CString truncates the path before dlopen reads it.
 	if path == "" || strings.IndexByte(path, 0) >= 0 {
@@ -82,11 +81,29 @@ func Open(
 	contract, err := runner.loadContract()
 	if err != nil {
 		C.cardinal_nativeaot_library_forget(library)
-		return nil, err
+		return nil, eris.Wrap(err, "load NativeAOT contract")
 	}
-	if err = requirement.Validate(contract); err != nil {
+	if contract.Name != expectedName {
 		C.cardinal_nativeaot_library_forget(library)
-		return nil, eris.Wrap(err, "validate NativeAOT contract")
+		return nil, eris.Wrap(
+			&cardinalruntime.ContractMismatchError{
+				Field:    "name",
+				Expected: expectedName,
+				Actual:   contract.Name,
+			},
+			"validate NativeAOT contract",
+		)
+	}
+	if contract.Version != expectedVersion {
+		C.cardinal_nativeaot_library_forget(library)
+		return nil, eris.Wrap(
+			&cardinalruntime.ContractMismatchError{
+				Field:    "version",
+				Expected: expectedVersion,
+				Actual:   contract.Version,
+			},
+			"validate NativeAOT contract",
+		)
 	}
 	runner.contract = contract
 
@@ -99,152 +116,17 @@ func Open(
 	if createResult.status != C.CARDINAL_RUNTIME_STATUS_SUCCESS {
 		err = runner.statusErrorLocked("create", createResult.status)
 		C.cardinal_nativeaot_library_forget(library)
-		return nil, err
+		return nil, eris.Wrap(err, "create NativeAOT runtime")
 	}
-	if createResult.handle == 0 {
-		C.cardinal_nativeaot_library_forget(library)
-		return nil, eris.Wrap(
-			cardinalruntime.ErrABIMismatch,
-			"create: module returned the reserved zero handle",
-		)
-	}
+	assert.That(createResult.handle != 0, "created runtime handle must not be zero")
 
 	runner.handle = createResult.handle
 	return runner, nil
 }
 
-// Contract returns the immutable contract copied from the shared library.
-func (r *Runner) Contract() cardinalruntime.Contract {
-	return r.contract
-}
-
-// Initialize initializes this handle from an optional borrowed snapshot.
-func (r *Runner) Initialize(request cardinalruntime.InitRequest) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if err := r.checkCallLocked("initialize", cardinalruntime.CapabilityInitialize); err != nil {
-		return err
-	}
-	status := C.cardinal_nativeaot_initialize(
-		r.library,
-		r.handle,
-		bytePointer(request.Snapshot),
-		C.size_t(len(request.Snapshot)),
-	)
-	goruntime.KeepAlive(request.Snapshot)
-	return r.statusErrorLocked("initialize", status)
-}
-
-// Tick executes one simulation step into caller-owned output.
-func (r *Runner) Tick(request cardinalruntime.TickRequest, output []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if err := r.checkCallLocked("tick", cardinalruntime.CapabilityTick); err != nil {
-		return 0, err
-	}
-	result := C.cardinal_nativeaot_tick(
-		r.library,
-		r.handle,
-		C.uint64_t(request.Tick),
-		C.uint64_t(request.FixedDeltaNS),
-		bytePointer(request.Input),
-		C.size_t(len(request.Input)),
-		bytePointer(output),
-		C.size_t(len(output)),
-	)
-	goruntime.KeepAlive(request.Input)
-	goruntime.KeepAlive(output)
-	return r.outputResultLocked("tick", result, len(output))
-}
-
-// Query executes an application-defined query into caller-owned output.
-func (r *Runner) Query(request cardinalruntime.QueryRequest, output []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if err := r.checkCallLocked("query", cardinalruntime.CapabilityQuery); err != nil {
-		return 0, err
-	}
-	result := C.cardinal_nativeaot_query(
-		r.library,
-		r.handle,
-		C.uint32_t(request.Kind),
-		bytePointer(request.Input),
-		C.size_t(len(request.Input)),
-		bytePointer(output),
-		C.size_t(len(output)),
-	)
-	goruntime.KeepAlive(request.Input)
-	goruntime.KeepAlive(output)
-	return r.outputResultLocked("query", result, len(output))
-}
-
-// Snapshot writes this handle's state into caller-owned output.
-func (r *Runner) Snapshot(output []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if err := r.checkCallLocked("snapshot", cardinalruntime.CapabilitySnapshot); err != nil {
-		return 0, err
-	}
-	result := C.cardinal_nativeaot_snapshot(
-		r.library,
-		r.handle,
-		bytePointer(output),
-		C.size_t(len(output)),
-	)
-	goruntime.KeepAlive(output)
-	return r.outputResultLocked("snapshot", result, len(output))
-}
-
-// Restore replaces this handle's state from a borrowed snapshot.
-func (r *Runner) Restore(snapshot []byte) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if err := r.checkCallLocked("restore", cardinalruntime.CapabilityRestore); err != nil {
-		return err
-	}
-	status := C.cardinal_nativeaot_restore(
-		r.library,
-		r.handle,
-		bytePointer(snapshot),
-		C.size_t(len(snapshot)),
-	)
-	goruntime.KeepAlive(snapshot)
-	return r.statusErrorLocked("restore", status)
-}
-
-// Close destroys the module handle once. The shared library stays loaded.
-func (r *Runner) Close() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.closed {
-		return nil
-	}
-
-	// A failing destroy no longer has a valid handle-bound error slot.
-	goruntime.LockOSThread()
-	defer goruntime.UnlockOSThread()
-
-	status := C.cardinal_nativeaot_destroy(r.library, r.handle)
-	var err error
-	if status != C.CARDINAL_RUNTIME_STATUS_SUCCESS {
-		err = r.statusErrorLocked("destroy", status)
-	}
-
-	library := r.library
-	r.closed = true
-	r.handle = 0
-	r.library = nil
-	C.cardinal_nativeaot_library_forget(library)
-	return err
-}
-
 func (r *Runner) loadContract() (cardinalruntime.Contract, error) {
+	assert.That(r.library != nil, "runtime library must not be nil")
+
 	var raw C.cardinal_runtime_contract_v1
 	status := C.cardinal_nativeaot_get_contract(r.library, &raw)
 	if status != C.CARDINAL_RUNTIME_STATUS_SUCCESS {
@@ -258,25 +140,6 @@ func (r *Runner) loadContract() (cardinalruntime.Contract, error) {
 			uint32(raw.abi_version),
 			cardinalruntime.ABIVersion,
 		)
-	}
-	expectedSize := uint32(C.sizeof_cardinal_runtime_contract_v1)
-	if uint32(raw.struct_size) != expectedSize {
-		return cardinalruntime.Contract{}, eris.Wrapf(
-			cardinalruntime.ErrABIMismatch,
-			"get contract: contract size=%d expected=%d",
-			uint32(raw.struct_size),
-			expectedSize,
-		)
-	}
-	for index, value := range raw.reserved {
-		if value != 0 {
-			return cardinalruntime.Contract{}, eris.Wrapf(
-				cardinalruntime.ErrABIMismatch,
-				"get contract: reserved[%d]=%d expected=0",
-				index,
-				uint64(value),
-			)
-		}
 	}
 
 	name, _, terminated := bytes.Cut(
@@ -301,29 +164,141 @@ func (r *Runner) loadContract() (cardinalruntime.Contract, error) {
 	}
 
 	contract := cardinalruntime.Contract{
-		ABIVersion:   uint32(raw.abi_version),
-		Capabilities: cardinalruntime.Capabilities(raw.capabilities),
-		Name:         string(name),
-		Version:      string(version),
+		ABIVersion: uint32(raw.abi_version),
+		Name:       string(name),
+		Version:    string(version),
 	}
-	copy(
-		contract.SchemaHash[:],
-		unsafe.Slice((*byte)(unsafe.Pointer(&raw.schema_hash[0])), len(contract.SchemaHash)),
-	)
 	return contract, nil
 }
 
-func (r *Runner) checkCallLocked(
-	operation string,
-	capability cardinalruntime.Capabilities,
-) error {
-	if r.closed {
-		return eris.Wrap(cardinalruntime.ErrClosed, operation)
+// Contract returns the immutable contract copied from the shared library.
+func (r *Runner) Contract() cardinalruntime.Contract {
+	return r.contract
+}
+
+// Initialize initializes this handle from an optional borrowed snapshot.
+func (r *Runner) Initialize(request cardinalruntime.InitRequest) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assert.That(!r.closed, "runtime runner is closed")
+
+	status := C.cardinal_nativeaot_initialize(
+		r.library,
+		r.handle,
+		bytePointer(request.Snapshot),
+		C.size_t(len(request.Snapshot)),
+	)
+	goruntime.KeepAlive(request.Snapshot)
+
+	return r.statusErrorLocked("initialize", status)
+}
+
+// Tick executes one simulation step into caller-owned output.
+func (r *Runner) Tick(request cardinalruntime.TickRequest, output []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assert.That(!r.closed, "runtime runner is closed")
+
+	result := C.cardinal_nativeaot_tick(
+		r.library,
+		r.handle,
+		C.uint64_t(request.Tick),
+		C.uint64_t(request.FixedDeltaNS),
+		bytePointer(request.Input),
+		C.size_t(len(request.Input)),
+		bytePointer(output),
+		C.size_t(len(output)),
+	)
+	goruntime.KeepAlive(request.Input)
+	goruntime.KeepAlive(output)
+
+	return r.outputResultLocked("tick", result, len(output))
+}
+
+// Query executes an application-defined query into caller-owned output.
+func (r *Runner) Query(request cardinalruntime.QueryRequest, output []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assert.That(!r.closed, "runtime runner is closed")
+
+	result := C.cardinal_nativeaot_query(
+		r.library,
+		r.handle,
+		C.uint32_t(request.Kind),
+		bytePointer(request.Input),
+		C.size_t(len(request.Input)),
+		bytePointer(output),
+		C.size_t(len(output)),
+	)
+	goruntime.KeepAlive(request.Input)
+	goruntime.KeepAlive(output)
+
+	return r.outputResultLocked("query", result, len(output))
+}
+
+// Snapshot writes this handle's state into caller-owned output.
+func (r *Runner) Snapshot(output []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assert.That(!r.closed, "runtime runner is closed")
+
+	result := C.cardinal_nativeaot_snapshot(
+		r.library,
+		r.handle,
+		bytePointer(output),
+		C.size_t(len(output)),
+	)
+	goruntime.KeepAlive(output)
+
+	return r.outputResultLocked("snapshot", result, len(output))
+}
+
+// Restore replaces this handle's state from a borrowed snapshot.
+func (r *Runner) Restore(snapshot []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assert.That(!r.closed, "runtime runner is closed")
+
+	status := C.cardinal_nativeaot_restore(
+		r.library,
+		r.handle,
+		bytePointer(snapshot),
+		C.size_t(len(snapshot)),
+	)
+	goruntime.KeepAlive(snapshot)
+
+	return r.statusErrorLocked("restore", status)
+}
+
+// Close destroys the module handle once. The shared library stays loaded.
+func (r *Runner) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	assert.That(!r.closed, "runtime runner is closed")
+
+	// A failing destroy no longer has a valid handle-bound error slot.
+	goruntime.LockOSThread()
+	defer goruntime.UnlockOSThread()
+
+	status := C.cardinal_nativeaot_destroy(r.library, r.handle)
+	var err error
+	if status != C.CARDINAL_RUNTIME_STATUS_SUCCESS {
+		err = r.statusErrorLocked("destroy", status)
 	}
-	if !r.contract.Supports(capability) {
-		return eris.Wrap(cardinalruntime.ErrUnsupported, operation)
-	}
-	return nil
+
+	library := r.library
+	r.closed = true
+	r.handle = 0
+	r.library = nil
+	C.cardinal_nativeaot_library_forget(library)
+
+	return err
 }
 
 func (r *Runner) outputResultLocked(
@@ -362,11 +337,14 @@ func (r *Runner) outputResultLocked(
 				provided,
 			)
 		}
-		return 0, &cardinalruntime.BufferSizeError{
-			Operation: operation,
-			Required:  outputLen,
-			Provided:  provided,
-		}
+		return 0, eris.Wrap(
+			&cardinalruntime.BufferSizeError{
+				Operation: operation,
+				Required:  outputLen,
+				Provided:  provided,
+			},
+			"execute NativeAOT runtime operation",
+		)
 	default:
 		return 0, r.statusErrorLocked(operation, result.status)
 	}
@@ -397,53 +375,26 @@ func (r *Runner) statusErrorLocked(operation string, status C.int32_t) error {
 		base = cardinalruntime.ErrExecutionFailed
 	}
 
-	message := r.lastErrorLocked()
-	if message == "" {
-		return eris.Wrapf(base, "%s: status %d", operation, int32(status))
-	}
-	return eris.Wrapf(base, "%s: %s", operation, message)
-}
-
-func (r *Runner) lastErrorLocked() string {
-	var local [512]byte
+	var local [C.CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY]byte
 	result := C.cardinal_nativeaot_last_error(
 		r.library,
 		r.handle,
 		bytePointer(local[:]),
-		C.size_t(len(local)),
 	)
 	goruntime.KeepAlive(local)
 
-	switch result.status {
-	case C.CARDINAL_RUNTIME_STATUS_SUCCESS:
+	var message string
+	if result.status == C.CARDINAL_RUNTIME_STATUS_SUCCESS {
 		length, valid := sizeToInt(result.output_len)
-		if !valid || length > len(local) {
-			return ""
+		if valid && length <= len(local) {
+			message = string(local[:length])
 		}
-		return string(local[:length])
-	case C.CARDINAL_RUNTIME_STATUS_BUFFER_TOO_SMALL:
-		required, valid := sizeToInt(result.output_len)
-		if !valid || required <= len(local) || required > maxLastErrorSize {
-			return ""
-		}
-		buffer := make([]byte, required)
-		result = C.cardinal_nativeaot_last_error(
-			r.library,
-			r.handle,
-			bytePointer(buffer),
-			C.size_t(len(buffer)),
-		)
-		goruntime.KeepAlive(buffer)
-		length, valid := sizeToInt(result.output_len)
-		if result.status != C.CARDINAL_RUNTIME_STATUS_SUCCESS ||
-			!valid ||
-			length > len(buffer) {
-			return ""
-		}
-		return string(buffer[:length])
-	default:
-		return ""
 	}
+
+	if message == "" {
+		return eris.Wrapf(base, "%s: status %d", operation, int32(status))
+	}
+	return eris.Wrapf(base, "%s: %s", operation, message)
 }
 
 func bytePointer(data []byte) *C.uint8_t {

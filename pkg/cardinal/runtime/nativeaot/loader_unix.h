@@ -83,8 +83,7 @@ int32_t cardinal_nativeaot_restore(
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_last_error(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
-    uint8_t *output,
-    size_t output_capacity
+    uint8_t *output
 );
 
 int32_t cardinal_nativeaot_destroy(
