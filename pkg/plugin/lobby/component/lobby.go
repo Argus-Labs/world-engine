@@ -14,6 +14,23 @@ type ShardAddress struct {
 	ShardID      string
 }
 
+// Structural ceilings for the lobby roster. These are storage bounds, not game rules: the game rule is
+// Team.MaxPlayers, which comes from the preset and stays configurable per deployment. A lobby cannot
+// exceed these no matter what a preset asks for, because component data has to be fixed-size — a slice
+// field would make a component copy alias the live world.
+//
+// Raising either is safe for existing snapshots: the generated decoder writes what arrives and zeroes
+// the rest. Lowering one is survivable but lossy — the decoder caps the array writes yet copies
+// PlayerCount and TeamCount verbatim, so a snapshot from a larger build restores a count the array
+// cannot satisfy. Reads go through livePlayers/liveTeams, which clamp, and the first mutation writes
+// the clamped value back. Treat these as a floor that only moves up.
+const (
+	// MaxLobbyPlayers bounds the whole-lobby roster, across all teams.
+	MaxLobbyPlayers = 16
+	// MaxLobbyTeams bounds how many teams a preset may declare for one lobby.
+	MaxLobbyTeams = 4
+)
+
 // SessionState represents the current state of a lobby session.
 type SessionState string
 
@@ -26,25 +43,38 @@ const (
 // PlayerComponent represents a player entity in a lobby.
 // Players are created when joining a lobby and deleted when leaving.
 type PlayerComponent struct {
-	PlayerID        string         `json:"player_id"`
-	LobbyID         string         `json:"lobby_id"`
-	TeamID          string         `json:"team_id"`
-	IsReady         bool           `json:"is_ready"`
-	PassthroughData map[string]any `json:"passthrough_data,omitempty"`
-	JoinedAt        int64          `json:"joined_at"` // Unix timestamp when player joined
+	PlayerID string `json:"player_id"`
+	LobbyID  string `json:"lobby_id"`
+	// TeamID is the authoritative record of which team this player is on. The lobby's roster tracks
+	// membership of the lobby; which team a player belongs to lives here and nowhere else.
+	TeamID  string `json:"team_id"`
+	IsReady bool   `json:"is_ready"`
+	// PassthroughData is client-authored JSON the plugin never reads. It relays the blob between
+	// clients unchanged, so it is carried as text rather than decoded — see Session.PassthroughData.
+	PassthroughData string `json:"passthrough_data,omitempty"`
+	JoinedAt        int64  `json:"joined_at"` // Unix timestamp when player joined
 }
 
 // Name returns the component name for ECS registration.
 func (PlayerComponent) Name() string { return "player" }
 
-// Team represents a team within a lobby.
+// Team is a team within a lobby: its identity, its capacity rule, and how many players are currently
+// charged to it. It holds no roster — the lobby owns one roster for all teams, and a player's team is
+// PlayerComponent.TeamID. PlayerCount exists so the capacity check stays O(1) without walking either.
 type Team struct {
 	// TeamID is the stable identifier used to reference this team in all
 	// commands and events. Server-assigned at lobby creation from the
 	// preset registry and immutable afterward.
-	TeamID     string   `json:"team_id"`
-	PlayerIDs  []string `json:"player_ids"` // References to player IDs (source of truth)
-	MaxPlayers int      `json:"max_players"`
+	TeamID string `json:"team_id"`
+	// MaxPlayers is the game rule from the preset. MaxPlayers <= 0 means unlimited, which still
+	// cannot exceed MaxLobbyPlayers.
+	MaxPlayers  int `json:"max_players"`
+	PlayerCount int `json:"player_count"`
+}
+
+// IsFull reports whether the team is at its configured capacity.
+func (t Team) IsFull() bool {
+	return t.MaxPlayers > 0 && t.PlayerCount >= t.MaxPlayers
 }
 
 // TeamConfig is a creation-time team specification used inside a lobby preset.
@@ -57,8 +87,13 @@ type TeamConfig struct {
 
 // Session represents the current session state of a lobby.
 type Session struct {
-	State           SessionState   `json:"state"`
-	PassthroughData map[string]any `json:"passthrough_data,omitempty"`
+	State SessionState `json:"state"`
+	// PassthroughData is client-authored JSON that the lobby relays between clients without ever
+	// reading a key from it. Carried as text, not a decoded map: decoding would buy nothing (no code
+	// here indexes it) and a map in a component makes a copy alias the stored value. Validity is the
+	// client's business — proto rejects non-UTF-8 at the boundary, which is the only guarantee the
+	// shard needs.
+	PassthroughData string `json:"passthrough_data,omitempty"`
 	// PendingRequestID holds the StartSessionCommand RequestID while the
 	// lobby waits in SessionStateAwaitingAllocation for an external shard
 	// assignment. Empty in other states.
@@ -81,8 +116,16 @@ type LobbyComponent struct {
 	// LeaderID is the player who controls the lobby.
 	LeaderID string `json:"leader_id"`
 
-	// Teams is the list of teams in the lobby.
-	Teams []Team `json:"teams"`
+	// PlayerIDs is the lobby-wide roster. Only the first PlayerCount entries are live; the rest are
+	// zero. Reads go through Players() rather than ranging the array. Order is meaningful: leader
+	// succession takes the first entry, so removals shift the tail down rather than swapping.
+	PlayerIDs   [MaxLobbyPlayers]string `json:"player_ids"`
+	PlayerCount int                     `json:"player_count"`
+
+	// Teams holds the lobby's team configuration and live per-team counts. Only the first TeamCount
+	// entries are live.
+	Teams     [MaxLobbyTeams]Team `json:"teams"`
+	TeamCount int                 `json:"team_count"`
 
 	// InviteCode is the code for others to join.
 	InviteCode string `json:"invite_code"`
@@ -100,18 +143,19 @@ type LobbyComponent struct {
 // Name returns the component name for ECS registration.
 func (LobbyComponent) Name() string { return "lobby" }
 
-// PlayerCount returns the total number of players across all teams.
-func (l *LobbyComponent) PlayerCount() int {
-	count := 0
-	for _, team := range l.Teams {
-		count += len(team.PlayerIDs)
-	}
-	return count
-}
+// Players returns the live roster. Callers must not retain it across a mutation of the lobby.
+// livePlayers and liveTeams clamp the stored counts to what the arrays can actually hold. The
+// generated decoder caps its array writes but copies the counts verbatim, so a snapshot written when
+// the caps were larger arrives with a count no read can satisfy. Every read of the roster or the team
+// list goes through these.
+func (l *LobbyComponent) livePlayers() int { return min(l.PlayerCount, MaxLobbyPlayers) }
+func (l *LobbyComponent) liveTeams() int   { return min(l.TeamCount, MaxLobbyTeams) }
 
-// GetTeam returns a team by ID.
+func (l *LobbyComponent) Players() []string { return l.PlayerIDs[:l.livePlayers()] }
+
+// GetTeam returns a team by ID, or nil.
 func (l *LobbyComponent) GetTeam(teamID string) *Team {
-	for i := range l.Teams {
+	for i := range l.liveTeams() {
 		if l.Teams[i].TeamID == teamID {
 			return &l.Teams[i]
 		}
@@ -119,28 +163,24 @@ func (l *LobbyComponent) GetTeam(teamID string) *Team {
 	return nil
 }
 
-// HasPlayer returns true if the player is in any team.
+// AddTeam appends a team. Returns false if the lobby already holds MaxLobbyTeams.
+func (l *LobbyComponent) AddTeam(team Team) bool {
+	if l.TeamCount >= MaxLobbyTeams {
+		return false
+	}
+	l.Teams[l.TeamCount] = team
+	l.TeamCount++
+	return true
+}
+
+// HasPlayer returns true if the player is in this lobby.
 func (l *LobbyComponent) HasPlayer(playerID string) bool {
-	for _, team := range l.Teams {
-		for _, pid := range team.PlayerIDs {
-			if pid == playerID {
-				return true
-			}
+	for _, pid := range l.Players() {
+		if pid == playerID {
+			return true
 		}
 	}
 	return false
-}
-
-// GetPlayerTeam returns the team that contains the player.
-func (l *LobbyComponent) GetPlayerTeam(playerID string) *Team {
-	for i := range l.Teams {
-		for _, pid := range l.Teams[i].PlayerIDs {
-			if pid == playerID {
-				return &l.Teams[i]
-			}
-		}
-	}
-	return nil
 }
 
 // IsLeader returns true if the player is the lobby leader.
@@ -148,312 +188,75 @@ func (l *LobbyComponent) IsLeader(playerID string) bool {
 	return l.LeaderID == playerID
 }
 
-// AddPlayerToTeam adds a player ID to a specific team.
-// Returns false if player already in lobby, team doesn't exist, or team is full.
-// Note: This only updates the lobby's team membership. PlayerComponent entity must be created separately.
+// GetAllPlayerIDs returns all player IDs in the lobby.
+func (l *LobbyComponent) GetAllPlayerIDs() []string {
+	return l.Players()
+}
+
+// AddPlayerToTeam records a player in the roster and charges them to a team.
+// Returns false if the player is already here, the roster is at MaxLobbyPlayers, the team does not
+// exist, or the team is at its configured capacity.
+// Note: This only updates lobby membership. PlayerComponent must be created separately.
 func (l *LobbyComponent) AddPlayerToTeam(playerID, teamID string) bool {
-	if l.HasPlayer(playerID) {
+	if l.HasPlayer(playerID) || l.PlayerCount >= MaxLobbyPlayers {
 		return false
 	}
 	team := l.GetTeam(teamID)
-	if team == nil {
+	if team == nil || team.IsFull() {
 		return false
 	}
-	if team.MaxPlayers > 0 && len(team.PlayerIDs) >= team.MaxPlayers {
-		return false
-	}
-	team.PlayerIDs = append(team.PlayerIDs, playerID)
+	l.PlayerIDs[l.PlayerCount] = playerID
+	l.PlayerCount++
+	team.PlayerCount++
 	return true
 }
 
-// RemovePlayer removes a player ID from their team.
-// Note: This only updates the lobby's team membership. PlayerComponent entity must be deleted separately.
-func (l *LobbyComponent) RemovePlayer(playerID string) {
-	for i := range l.Teams {
-		for j, pid := range l.Teams[i].PlayerIDs {
-			if pid == playerID {
-				l.Teams[i].PlayerIDs = append(l.Teams[i].PlayerIDs[:j], l.Teams[i].PlayerIDs[j+1:]...)
-				return
-			}
-		}
-	}
-}
-
-// RemovePlayerFromTeam removes a player ID from a specific team. O(players in team).
-// Note: This only updates the lobby's team membership. PlayerComponent entity must be deleted separately.
+// RemovePlayerFromTeam drops a player from the roster and uncharges their team.
+// Note: This only updates lobby membership. PlayerComponent must be deleted separately.
 func (l *LobbyComponent) RemovePlayerFromTeam(playerID, teamID string) bool {
-	team := l.GetTeam(teamID)
-	if team == nil {
+	if !l.removeFromRoster(playerID) {
 		return false
 	}
-	for j, pid := range team.PlayerIDs {
-		if pid == playerID {
-			team.PlayerIDs = append(team.PlayerIDs[:j], team.PlayerIDs[j+1:]...)
-			return true
-		}
+	if team := l.GetTeam(teamID); team != nil && team.PlayerCount > 0 {
+		team.PlayerCount--
 	}
-	return false
+	return true
 }
 
-// MovePlayerToTeam moves a player from their current team to a new team.
-// Returns false if player not in lobby, new team doesn't exist, or new team is full.
-// Note: PlayerComponent.TeamID must be updated separately.
-func (l *LobbyComponent) MovePlayerToTeam(playerID, newTeamID string) bool {
-	// Check player exists
+// MovePlayerToTeam moves a player between teams. The roster is unchanged — only the per-team counts
+// and the caller's PlayerComponent.TeamID move. Returns false if the player is not in this lobby, the
+// target team does not exist, or the target is full.
+func (l *LobbyComponent) MovePlayerToTeam(playerID, oldTeamID, newTeamID string) bool {
 	if !l.HasPlayer(playerID) {
 		return false
 	}
-
-	// Check new team exists
+	if oldTeamID == newTeamID {
+		return true
+	}
 	newTeam := l.GetTeam(newTeamID)
-	if newTeam == nil {
+	if newTeam == nil || newTeam.IsFull() {
 		return false
 	}
-
-	// Already in target team - no-op
-	for _, pid := range newTeam.PlayerIDs {
-		if pid == playerID {
-			return true
-		}
+	if oldTeam := l.GetTeam(oldTeamID); oldTeam != nil && oldTeam.PlayerCount > 0 {
+		oldTeam.PlayerCount--
 	}
-
-	// Check capacity
-	if newTeam.MaxPlayers > 0 && len(newTeam.PlayerIDs) >= newTeam.MaxPlayers {
-		return false
-	}
-
-	// Remove from current team
-	l.RemovePlayer(playerID)
-
-	// Add to new team
-	newTeam.PlayerIDs = append(newTeam.PlayerIDs, playerID)
+	newTeam.PlayerCount++
 	return true
 }
 
-// AddTeam adds a new team to the lobby.
-func (l *LobbyComponent) AddTeam(team Team) {
-	l.Teams = append(l.Teams, team)
-}
-
-// GetAllPlayerIDs returns all player IDs across all teams.
-func (l *LobbyComponent) GetAllPlayerIDs() []string {
-	var playerIDs []string
-	for _, team := range l.Teams {
-		playerIDs = append(playerIDs, team.PlayerIDs...)
-	}
-	return playerIDs
-}
-
-// IsTeamFull returns true if the team is at max capacity.
-func (t Team) IsFull() bool {
-	return t.MaxPlayers > 0 && len(t.PlayerIDs) >= t.MaxPlayers
-}
-
-// LobbyIndexComponent provides O(1) lookups for lobbies and players.
-// This is a singleton component - only one entity should have it.
-// Following rampage-backend pattern: Name() uses value receiver for ecs.Component interface,
-// helper methods use pointer receivers. This may change based on best practices.
-//
-//nolint:recvcheck // Name must be value receiver for ecs.Component; helpers use pointer receivers.
-type LobbyIndexComponent struct {
-	// LobbyIDToEntity maps LobbyID -> EntityID for O(1) lookup
-	LobbyIDToEntity map[string]uint32 `json:"lobby_id_to_entity"`
-
-	// InviteCodeToLobby maps InviteCode -> LobbyID for join lookups
-	InviteCodeToLobby map[string]string `json:"invite_code_to_lobby"`
-
-	// PlayerToLobby maps PlayerID -> LobbyID for "my lobby" lookups
-	PlayerToLobby map[string]string `json:"player_to_lobby"`
-
-	// PlayerToTeam maps PlayerID -> TeamID for O(1) team lookup
-	PlayerToTeam map[string]string `json:"player_to_team"`
-
-	// PlayerToEntity maps PlayerID -> EntityID for O(1) player entity lookup
-	PlayerToEntity map[string]uint32 `json:"player_to_entity"`
-
-	// PlayerDeadline maps PlayerID -> Unix timestamp when player will be kicked if no heartbeat
-	// This enables O(1) heartbeat updates instead of O(teams × players) lookups
-	PlayerDeadline map[string]int64 `json:"player_deadline"`
-
-	// LobbyPlayerCount maps LobbyID -> player count for O(1) count lookup
-	LobbyPlayerCount map[string]int `json:"lobby_player_count"`
-}
-
-// Name returns the component name for ECS registration.
-func (LobbyIndexComponent) Name() string { return "lobby_index" }
-
-// Init initializes the maps if nil.
-func (idx *LobbyIndexComponent) Init() {
-	if idx.LobbyIDToEntity == nil {
-		idx.LobbyIDToEntity = make(map[string]uint32)
-	}
-	if idx.InviteCodeToLobby == nil {
-		idx.InviteCodeToLobby = make(map[string]string)
-	}
-	if idx.PlayerToLobby == nil {
-		idx.PlayerToLobby = make(map[string]string)
-	}
-	if idx.PlayerToTeam == nil {
-		idx.PlayerToTeam = make(map[string]string)
-	}
-	if idx.PlayerToEntity == nil {
-		idx.PlayerToEntity = make(map[string]uint32)
-	}
-	if idx.PlayerDeadline == nil {
-		idx.PlayerDeadline = make(map[string]int64)
-	}
-	if idx.LobbyPlayerCount == nil {
-		idx.LobbyPlayerCount = make(map[string]int)
-	}
-}
-
-// GetEntityID returns the entity ID for a lobby.
-func (idx *LobbyIndexComponent) GetEntityID(lobbyID string) (uint32, bool) {
-	eid, exists := idx.LobbyIDToEntity[lobbyID]
-	return eid, exists
-}
-
-// GetLobbyByInviteCode returns the lobby ID for an invite code.
-func (idx *LobbyIndexComponent) GetLobbyByInviteCode(inviteCode string) (string, bool) {
-	lobbyID, exists := idx.InviteCodeToLobby[inviteCode]
-	return lobbyID, exists
-}
-
-// InviteCodeCount returns how many invite codes the index currently knows.
-// Logged on a rejected join to separate "this one code is missing" from "the index is
-// empty", which look identical to the player.
-func (idx *LobbyIndexComponent) InviteCodeCount() int {
-	return len(idx.InviteCodeToLobby)
-}
-
-// GetPlayerLobby returns the lobby ID for a player.
-func (idx *LobbyIndexComponent) GetPlayerLobby(playerID string) (string, bool) {
-	lobbyID, exists := idx.PlayerToLobby[playerID]
-	return lobbyID, exists
-}
-
-// AddLobby adds a lobby to the index.
-func (idx *LobbyIndexComponent) AddLobby(lobbyID string, entityID uint32, inviteCode string) {
-	idx.Init()
-	idx.LobbyIDToEntity[lobbyID] = entityID
-	if inviteCode != "" {
-		idx.InviteCodeToLobby[inviteCode] = lobbyID
-	}
-}
-
-// RemoveLobby removes a lobby from the index.
-func (idx *LobbyIndexComponent) RemoveLobby(lobbyID string, inviteCode string) {
-	delete(idx.LobbyIDToEntity, lobbyID)
-	if inviteCode != "" {
-		delete(idx.InviteCodeToLobby, inviteCode)
-	}
-}
-
-// AddPlayerToLobby maps a player to a lobby, team, entity ID, and sets their deadline.
-func (idx *LobbyIndexComponent) AddPlayerToLobby(playerID, lobbyID, teamID string, entityID uint32, deadline int64) {
-	idx.Init()
-	idx.PlayerToLobby[playerID] = lobbyID
-	idx.PlayerToTeam[playerID] = teamID
-	idx.PlayerToEntity[playerID] = entityID
-	idx.PlayerDeadline[playerID] = deadline
-	idx.LobbyPlayerCount[lobbyID]++
-}
-
-// RemovePlayerFromLobby removes a player's lobby mapping, team mapping, entity mapping, and deadline.
-func (idx *LobbyIndexComponent) RemovePlayerFromLobby(playerID string) {
-	if lobbyID, exists := idx.PlayerToLobby[playerID]; exists {
-		idx.LobbyPlayerCount[lobbyID]--
-		if idx.LobbyPlayerCount[lobbyID] <= 0 {
-			delete(idx.LobbyPlayerCount, lobbyID)
+// removeFromRoster deletes playerID, keeping live entries contiguous by shifting the tail down.
+// Shifted rather than swapped with the last entry because order is load-bearing: leader succession
+// takes the first remaining player, and a swap would make that an arbitrary one.
+func (l *LobbyComponent) removeFromRoster(playerID string) bool {
+	n := l.livePlayers()
+	for i, pid := range l.PlayerIDs[:n] {
+		if pid != playerID {
+			continue
 		}
+		copy(l.PlayerIDs[i:n-1], l.PlayerIDs[i+1:n])
+		l.PlayerIDs[n-1] = ""
+		l.PlayerCount = n - 1
+		return true
 	}
-	delete(idx.PlayerToLobby, playerID)
-	delete(idx.PlayerToTeam, playerID)
-	delete(idx.PlayerToEntity, playerID)
-	delete(idx.PlayerDeadline, playerID)
+	return false
 }
-
-// GetPlayerEntityID returns the entity ID for a player.
-func (idx *LobbyIndexComponent) GetPlayerEntityID(playerID string) (uint32, bool) {
-	eid, exists := idx.PlayerToEntity[playerID]
-	return eid, exists
-}
-
-// UpdatePlayerDeadline updates the deadline for a player.
-func (idx *LobbyIndexComponent) UpdatePlayerDeadline(playerID string, deadline int64) {
-	idx.PlayerDeadline[playerID] = deadline
-}
-
-// GetPlayerDeadline returns the deadline for a player.
-func (idx *LobbyIndexComponent) GetPlayerDeadline(playerID string) (int64, bool) {
-	deadline, exists := idx.PlayerDeadline[playerID]
-	return deadline, exists
-}
-
-// GetPlayerTeam returns the team ID for a player.
-func (idx *LobbyIndexComponent) GetPlayerTeam(playerID string) (string, bool) {
-	teamID, exists := idx.PlayerToTeam[playerID]
-	return teamID, exists
-}
-
-// UpdatePlayerTeam updates the team ID for a player.
-func (idx *LobbyIndexComponent) UpdatePlayerTeam(playerID, teamID string) {
-	idx.PlayerToTeam[playerID] = teamID
-}
-
-// GetLobbyPlayerCount returns the player count for a lobby.
-func (idx *LobbyIndexComponent) GetLobbyPlayerCount(lobbyID string) int {
-	return idx.LobbyPlayerCount[lobbyID]
-}
-
-// HasPlayer returns true if player exists in the index (O(1)).
-func (idx *LobbyIndexComponent) HasPlayer(playerID string) bool {
-	_, exists := idx.PlayerToLobby[playerID]
-	return exists
-}
-
-// UpdateInviteCode updates the invite code for a lobby.
-func (idx *LobbyIndexComponent) UpdateInviteCode(lobbyID, oldCode, newCode string) {
-	if oldCode != "" {
-		delete(idx.InviteCodeToLobby, oldCode)
-	}
-	if newCode != "" {
-		idx.InviteCodeToLobby[newCode] = lobbyID
-	}
-}
-
-// ConfigComponent stores lobby configuration.
-type ConfigComponent struct {
-	// LobbyWorld is this lobby shard's address (for game shard to send NotifySessionEndCommand back).
-	LobbyWorld ShardAddress `json:"lobby_world"`
-
-	// HeartbeatTimeout is how long (in seconds) before a player is removed for not sending heartbeats.
-	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).
-	// Default: 30 seconds.
-	HeartbeatTimeout int64 `json:"heartbeat_timeout"`
-
-	// AssignmentAuthority is an accident-prevention filter, NOT an
-	// authentication boundary. The plugin compares it against cmd.Persona
-	// and drops mismatches. This prevents an unrelated system that
-	// happens to send AssignShardCommand from accidentally completing the
-	// wrong lobby's session start. It does NOT defend against a client
-	// that forges Persona, because cmd.Persona is not signature-verified
-	// at this layer. Real authentication must live above the plugin
-	// (NATS ACLs, gateway auth, signed commands). Empty = no filter.
-	AssignmentAuthority string `json:"assignment_authority,omitempty"`
-
-	// MaxAllocationTimeout bounds how long (in seconds) a lobby may remain
-	// in SessionStateAwaitingAllocation before the lobby shard fails the
-	// start itself and returns to Idle. Values <= 0 disable timeout
-	// enforcement entirely.
-	MaxAllocationTimeout int64 `json:"max_allocation_timeout,omitempty"`
-
-	// LobbyPresets is the server-owned registry of team configurations
-	// that clients can reference by label in CreateLobbyCommand.Preset.
-	// Server is the source of truth for team caps; clients cannot supply
-	// arbitrary TeamConfig values.
-	LobbyPresets map[string][]TeamConfig `json:"lobby_presets,omitempty"`
-}
-
-// Name returns the component name for ECS registration.
-func (ConfigComponent) Name() string { return "lobby_config" }

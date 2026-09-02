@@ -5,69 +5,23 @@
 package component
 
 import (
-	"encoding/json"
 	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c ConfigComponent) ToProto() *pbcomponent.ConfigComponent {
-	p := &pbcomponent.ConfigComponent{}
-	p.LobbyWorld = c.LobbyWorld.ToProto()
-	p.HeartbeatTimeout = int64(c.HeartbeatTimeout)
-	p.AssignmentAuthority = string(c.AssignmentAuthority)
-	p.MaxAllocationTimeout = int64(c.MaxAllocationTimeout)
-	{
-		data, err := json.Marshal(c.LobbyPresets)
-		if err != nil {
-			panic("failed to marshal LobbyPresets: " + err.Error())
-		}
-		p.LobbyPresets = data
-	}
-	return p
-}
-
-func (c ConfigComponent) FromProto(p *pbcomponent.ConfigComponent) ConfigComponent {
-	if p == nil {
-		return c
-	}
-	c.LobbyWorld = c.LobbyWorld.FromProto(p.LobbyWorld)
-	c.HeartbeatTimeout = int64(p.HeartbeatTimeout)
-	c.AssignmentAuthority = string(p.AssignmentAuthority)
-	c.MaxAllocationTimeout = int64(p.MaxAllocationTimeout)
-	if len(p.LobbyPresets) > 0 {
-		_ = json.Unmarshal(p.LobbyPresets, &c.LobbyPresets)
-	}
-	return c
-}
-
-func (c ConfigComponent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ConfigComponent: " + err.Error())
-	}
-	return data
-}
-
-func (c ConfigComponent) UnmarshalWire(data []byte) (any, error) {
-	var p pbcomponent.ConfigComponent
-	if err := proto.Unmarshal(data, &p); err != nil {
-		return nil, err
-	}
-	return c.FromProto(&p), nil
-}
-
-func (c ConfigComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&pbcomponent.ConfigComponent{}).ProtoReflect().Descriptor()
-}
-
 func (c LobbyComponent) ToProto() *pbcomponent.LobbyComponent {
 	p := &pbcomponent.LobbyComponent{}
 	p.ID = string(c.ID)
 	p.LeaderID = string(c.LeaderID)
-	for i := range c.Teams {
-		p.Teams = append(p.Teams, c.Teams[i].ToProto())
+	for i0 := range c.PlayerIDs {
+		p.PlayerIDs = append(p.PlayerIDs, string(c.PlayerIDs[i0]))
 	}
+	p.PlayerCount = int64(c.PlayerCount)
+	for i0 := range c.Teams {
+		p.Teams = append(p.Teams, c.Teams[i0].ToProto())
+	}
+	p.TeamCount = int64(c.TeamCount)
 	p.InviteCode = string(c.InviteCode)
 	p.GameWorld = c.GameWorld.ToProto()
 	p.Session = c.Session.ToProto()
@@ -81,11 +35,21 @@ func (c LobbyComponent) FromProto(p *pbcomponent.LobbyComponent) LobbyComponent 
 	}
 	c.ID = string(p.ID)
 	c.LeaderID = string(p.LeaderID)
-	for _, e := range p.Teams {
-		var v Team
-		v = v.FromProto(e)
-		c.Teams = append(c.Teams, v)
+	for i, e := range p.PlayerIDs {
+		if i >= 16 {
+			break
+		}
+		c.PlayerIDs[i] = string(e)
 	}
+	c.PlayerCount = int(p.PlayerCount)
+	for i, e := range p.Teams {
+		if i >= 4 {
+			break
+		}
+		var v Team
+		c.Teams[i] = v.FromProto(e)
+	}
+	c.TeamCount = int(p.TeamCount)
 	c.InviteCode = string(p.InviteCode)
 	c.GameWorld = c.GameWorld.FromProto(p.GameWorld)
 	c.Session = c.Session.FromProto(p.Session)
@@ -113,135 +77,13 @@ func (c LobbyComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.LobbyComponent{}).ProtoReflect().Descriptor()
 }
 
-func (c LobbyIndexComponent) ToProto() *pbcomponent.LobbyIndexComponent {
-	p := &pbcomponent.LobbyIndexComponent{}
-	if len(c.LobbyIDToEntity) > 0 {
-		p.LobbyIDToEntity = make(map[string]uint32, len(c.LobbyIDToEntity))
-		for k, v := range c.LobbyIDToEntity {
-			p.LobbyIDToEntity[string(k)] = uint32(v)
-		}
-	}
-	if len(c.InviteCodeToLobby) > 0 {
-		p.InviteCodeToLobby = make(map[string]string, len(c.InviteCodeToLobby))
-		for k, v := range c.InviteCodeToLobby {
-			p.InviteCodeToLobby[string(k)] = string(v)
-		}
-	}
-	if len(c.PlayerToLobby) > 0 {
-		p.PlayerToLobby = make(map[string]string, len(c.PlayerToLobby))
-		for k, v := range c.PlayerToLobby {
-			p.PlayerToLobby[string(k)] = string(v)
-		}
-	}
-	if len(c.PlayerToTeam) > 0 {
-		p.PlayerToTeam = make(map[string]string, len(c.PlayerToTeam))
-		for k, v := range c.PlayerToTeam {
-			p.PlayerToTeam[string(k)] = string(v)
-		}
-	}
-	if len(c.PlayerToEntity) > 0 {
-		p.PlayerToEntity = make(map[string]uint32, len(c.PlayerToEntity))
-		for k, v := range c.PlayerToEntity {
-			p.PlayerToEntity[string(k)] = uint32(v)
-		}
-	}
-	if len(c.PlayerDeadline) > 0 {
-		p.PlayerDeadline = make(map[string]int64, len(c.PlayerDeadline))
-		for k, v := range c.PlayerDeadline {
-			p.PlayerDeadline[string(k)] = int64(v)
-		}
-	}
-	if len(c.LobbyPlayerCount) > 0 {
-		p.LobbyPlayerCount = make(map[string]int64, len(c.LobbyPlayerCount))
-		for k, v := range c.LobbyPlayerCount {
-			p.LobbyPlayerCount[string(k)] = int64(v)
-		}
-	}
-	return p
-}
-
-func (c LobbyIndexComponent) FromProto(p *pbcomponent.LobbyIndexComponent) LobbyIndexComponent {
-	if p == nil {
-		return c
-	}
-	if len(p.LobbyIDToEntity) > 0 {
-		c.LobbyIDToEntity = make(map[string]uint32, len(p.LobbyIDToEntity))
-		for k, v := range p.LobbyIDToEntity {
-			c.LobbyIDToEntity[string(k)] = uint32(v)
-		}
-	}
-	if len(p.InviteCodeToLobby) > 0 {
-		c.InviteCodeToLobby = make(map[string]string, len(p.InviteCodeToLobby))
-		for k, v := range p.InviteCodeToLobby {
-			c.InviteCodeToLobby[string(k)] = string(v)
-		}
-	}
-	if len(p.PlayerToLobby) > 0 {
-		c.PlayerToLobby = make(map[string]string, len(p.PlayerToLobby))
-		for k, v := range p.PlayerToLobby {
-			c.PlayerToLobby[string(k)] = string(v)
-		}
-	}
-	if len(p.PlayerToTeam) > 0 {
-		c.PlayerToTeam = make(map[string]string, len(p.PlayerToTeam))
-		for k, v := range p.PlayerToTeam {
-			c.PlayerToTeam[string(k)] = string(v)
-		}
-	}
-	if len(p.PlayerToEntity) > 0 {
-		c.PlayerToEntity = make(map[string]uint32, len(p.PlayerToEntity))
-		for k, v := range p.PlayerToEntity {
-			c.PlayerToEntity[string(k)] = uint32(v)
-		}
-	}
-	if len(p.PlayerDeadline) > 0 {
-		c.PlayerDeadline = make(map[string]int64, len(p.PlayerDeadline))
-		for k, v := range p.PlayerDeadline {
-			c.PlayerDeadline[string(k)] = int64(v)
-		}
-	}
-	if len(p.LobbyPlayerCount) > 0 {
-		c.LobbyPlayerCount = make(map[string]int, len(p.LobbyPlayerCount))
-		for k, v := range p.LobbyPlayerCount {
-			c.LobbyPlayerCount[string(k)] = int(v)
-		}
-	}
-	return c
-}
-
-func (c LobbyIndexComponent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LobbyIndexComponent: " + err.Error())
-	}
-	return data
-}
-
-func (c LobbyIndexComponent) UnmarshalWire(data []byte) (any, error) {
-	var p pbcomponent.LobbyIndexComponent
-	if err := proto.Unmarshal(data, &p); err != nil {
-		return nil, err
-	}
-	return c.FromProto(&p), nil
-}
-
-func (c LobbyIndexComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&pbcomponent.LobbyIndexComponent{}).ProtoReflect().Descriptor()
-}
-
 func (c PlayerComponent) ToProto() *pbcomponent.PlayerComponent {
 	p := &pbcomponent.PlayerComponent{}
 	p.PlayerID = string(c.PlayerID)
 	p.LobbyID = string(c.LobbyID)
 	p.TeamID = string(c.TeamID)
 	p.IsReady = bool(c.IsReady)
-	{
-		data, err := json.Marshal(c.PassthroughData)
-		if err != nil {
-			panic("failed to marshal PassthroughData: " + err.Error())
-		}
-		p.PassthroughData = data
-	}
+	p.PassthroughData = string(c.PassthroughData)
 	p.JoinedAt = int64(c.JoinedAt)
 	return p
 }
@@ -254,9 +96,7 @@ func (c PlayerComponent) FromProto(p *pbcomponent.PlayerComponent) PlayerCompone
 	c.LobbyID = string(p.LobbyID)
 	c.TeamID = string(p.TeamID)
 	c.IsReady = bool(p.IsReady)
-	if len(p.PassthroughData) > 0 {
-		_ = json.Unmarshal(p.PassthroughData, &c.PassthroughData)
-	}
+	c.PassthroughData = string(p.PassthroughData)
 	c.JoinedAt = int64(p.JoinedAt)
 	return c
 }
@@ -284,13 +124,7 @@ func (c PlayerComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c Session) ToProto() *pbcomponent.Session {
 	p := &pbcomponent.Session{}
 	p.State = string(c.State)
-	{
-		data, err := json.Marshal(c.PassthroughData)
-		if err != nil {
-			panic("failed to marshal PassthroughData: " + err.Error())
-		}
-		p.PassthroughData = data
-	}
+	p.PassthroughData = string(c.PassthroughData)
 	p.PendingRequestID = string(c.PendingRequestID)
 	p.PendingStartedAt = int64(c.PendingStartedAt)
 	return p
@@ -301,9 +135,7 @@ func (c Session) FromProto(p *pbcomponent.Session) Session {
 		return c
 	}
 	c.State = SessionState(p.State)
-	if len(p.PassthroughData) > 0 {
-		_ = json.Unmarshal(p.PassthroughData, &c.PassthroughData)
-	}
+	c.PassthroughData = string(p.PassthroughData)
 	c.PendingRequestID = string(p.PendingRequestID)
 	c.PendingStartedAt = int64(p.PendingStartedAt)
 	return c
@@ -332,10 +164,8 @@ func (c ShardAddress) FromProto(p *pbcomponent.ShardAddress) ShardAddress {
 func (c Team) ToProto() *pbcomponent.Team {
 	p := &pbcomponent.Team{}
 	p.TeamID = string(c.TeamID)
-	for i := range c.PlayerIDs {
-		p.PlayerIDs = append(p.PlayerIDs, string(c.PlayerIDs[i]))
-	}
 	p.MaxPlayers = int64(c.MaxPlayers)
+	p.PlayerCount = int64(c.PlayerCount)
 	return p
 }
 
@@ -344,9 +174,7 @@ func (c Team) FromProto(p *pbcomponent.Team) Team {
 		return c
 	}
 	c.TeamID = string(p.TeamID)
-	for _, x := range p.PlayerIDs {
-		c.PlayerIDs = append(c.PlayerIDs, string(x))
-	}
 	c.MaxPlayers = int(p.MaxPlayers)
+	c.PlayerCount = int(p.PlayerCount)
 	return c
 }

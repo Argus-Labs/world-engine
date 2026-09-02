@@ -1,33 +1,47 @@
 package component
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// newLobby builds a lobby through the same helpers production uses, so the roster and the per-team
+// counts are consistent with each other. Constructing the struct literally would let a test assert
+// against a state the real code can never produce.
+func newLobby(t *testing.T, teams []Team, membership map[string][]string) *LobbyComponent {
+	t.Helper()
+	lobby := &LobbyComponent{}
+	for _, team := range teams {
+		require.True(t, lobby.AddTeam(team))
+	}
+	for _, team := range teams {
+		for _, pid := range membership[team.TeamID] {
+			require.True(t, lobby.AddPlayerToTeam(pid, team.TeamID))
+		}
+	}
+	return lobby
+}
+
 func TestLobbyComponent_PlayerCount(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1", "p2"}},
-			{TeamID: "team2", PlayerIDs: []string{"p3"}},
-		},
-	}
+	lobby := newLobby(t,
+		[]Team{{TeamID: "team1"}, {TeamID: "team2"}},
+		map[string][]string{"team1": {"p1", "p2"}, "team2": {"p3"}},
+	)
 
-	assert.Equal(t, 3, lobby.PlayerCount())
+	assert.Equal(t, 3, lobby.PlayerCount)
+	assert.Equal(t, 2, lobby.GetTeam("team1").PlayerCount)
+	assert.Equal(t, 1, lobby.GetTeam("team2").PlayerCount)
 }
 
 func TestLobbyComponent_HasPlayer(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1", "p2"}},
-		},
-	}
+	lobby := newLobby(t, []Team{{TeamID: "team1"}}, map[string][]string{"team1": {"p1", "p2"}})
 
 	assert.True(t, lobby.HasPlayer("p1"))
 	assert.True(t, lobby.HasPlayer("p2"))
@@ -37,12 +51,7 @@ func TestLobbyComponent_HasPlayer(t *testing.T) {
 func TestLobbyComponent_GetTeam(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1"},
-			{TeamID: "team2"},
-		},
-	}
+	lobby := newLobby(t, []Team{{TeamID: "team1"}, {TeamID: "team2"}}, nil)
 
 	team := lobby.GetTeam("team1")
 	require.NotNil(t, team)
@@ -51,25 +60,15 @@ func TestLobbyComponent_GetTeam(t *testing.T) {
 	assert.Nil(t, lobby.GetTeam("unknown"))
 }
 
-func TestLobbyComponent_GetPlayerTeam(t *testing.T) {
+func TestLobbyComponent_AddTeamRejectsPastCap(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1"}},
-			{TeamID: "team2", PlayerIDs: []string{"p2"}},
-		},
+	lobby := &LobbyComponent{}
+	for i := range MaxLobbyTeams {
+		require.True(t, lobby.AddTeam(Team{TeamID: "team" + strconv.Itoa(i)}))
 	}
-
-	team := lobby.GetPlayerTeam("p1")
-	require.NotNil(t, team)
-	assert.Equal(t, "team1", team.TeamID)
-
-	team = lobby.GetPlayerTeam("p2")
-	require.NotNil(t, team)
-	assert.Equal(t, "team2", team.TeamID)
-
-	assert.Nil(t, lobby.GetPlayerTeam("unknown"))
+	assert.False(t, lobby.AddTeam(Team{TeamID: "one-too-many"}))
+	assert.Equal(t, MaxLobbyTeams, lobby.TeamCount)
 }
 
 func TestLobbyComponent_IsLeader(t *testing.T) {
@@ -84,16 +83,15 @@ func TestLobbyComponent_IsLeader(t *testing.T) {
 func TestLobbyComponent_AddPlayerToTeam(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", MaxPlayers: 2, PlayerIDs: []string{"p1"}},
-		},
-	}
+	lobby := newLobby(t,
+		[]Team{{TeamID: "team1", MaxPlayers: 2}},
+		map[string][]string{"team1": {"p1"}},
+	)
 
 	// Add player to existing team
 	assert.True(t, lobby.AddPlayerToTeam("p2", "team1"))
 	assert.True(t, lobby.HasPlayer("p2"))
-	assert.Equal(t, 2, lobby.PlayerCount())
+	assert.Equal(t, 2, lobby.PlayerCount)
 
 	// Try to add same player again
 	assert.False(t, lobby.AddPlayerToTeam("p2", "team1"))
@@ -105,97 +103,98 @@ func TestLobbyComponent_AddPlayerToTeam(t *testing.T) {
 	assert.False(t, lobby.AddPlayerToTeam("p3", "team1"))
 }
 
-func TestLobbyComponent_RemovePlayer(t *testing.T) {
+func TestLobbyComponent_AddPlayerRejectsPastRosterCap(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1", "p2"}},
-		},
+	// An unlimited team (MaxPlayers 0) still cannot exceed the structural roster bound.
+	lobby := newLobby(t, []Team{{TeamID: "team1", MaxPlayers: 0}}, nil)
+	for i := range MaxLobbyPlayers {
+		require.True(t, lobby.AddPlayerToTeam("p"+strconv.Itoa(i), "team1"))
 	}
 
-	lobby.RemovePlayer("p1")
-	assert.False(t, lobby.HasPlayer("p1"))
-	assert.True(t, lobby.HasPlayer("p2"))
-	assert.Equal(t, 1, lobby.PlayerCount())
-
-	// Remove non-existent player (should not panic)
-	lobby.RemovePlayer("unknown")
-	assert.Equal(t, 1, lobby.PlayerCount())
+	assert.False(t, lobby.AddPlayerToTeam("one-too-many", "team1"))
+	assert.Equal(t, MaxLobbyPlayers, lobby.PlayerCount)
+	assert.Equal(t, MaxLobbyPlayers, lobby.GetTeam("team1").PlayerCount)
 }
 
 func TestLobbyComponent_RemovePlayerFromTeam(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1", "p2"}},
-			{TeamID: "team2", PlayerIDs: []string{"p3"}},
-		},
-	}
+	lobby := newLobby(t,
+		[]Team{{TeamID: "team1"}, {TeamID: "team2"}},
+		map[string][]string{"team1": {"p1", "p2"}, "team2": {"p3"}},
+	)
 
-	// Remove player from correct team
+	// Remove player from their team
 	assert.True(t, lobby.RemovePlayerFromTeam("p1", "team1"))
 	assert.False(t, lobby.HasPlayer("p1"))
 	assert.True(t, lobby.HasPlayer("p2"))
-	assert.Equal(t, 2, lobby.PlayerCount())
+	assert.Equal(t, 2, lobby.PlayerCount)
+	assert.Equal(t, 1, lobby.GetTeam("team1").PlayerCount)
 
-	// Try to remove player from wrong team
-	assert.False(t, lobby.RemovePlayerFromTeam("p2", "team2"))
-	assert.True(t, lobby.HasPlayer("p2")) // Still exists
-
-	// Try to remove from non-existent team
-	assert.False(t, lobby.RemovePlayerFromTeam("p2", "unknown"))
-	assert.True(t, lobby.HasPlayer("p2"))
-
-	// Try to remove non-existent player from valid team
+	// Removing an unknown player changes nothing
 	assert.False(t, lobby.RemovePlayerFromTeam("unknown", "team1"))
+	assert.Equal(t, 2, lobby.PlayerCount)
+}
+
+// The roster keeps join order across removals because leader succession takes the first remaining
+// entry. A swap-with-last removal would make the new leader arbitrary.
+func TestLobbyComponent_RemovePreservesRosterOrder(t *testing.T) {
+	t.Parallel()
+
+	lobby := newLobby(t,
+		[]Team{{TeamID: "team1"}},
+		map[string][]string{"team1": {"p1", "p2", "p3", "p4"}},
+	)
+
+	require.True(t, lobby.RemovePlayerFromTeam("p2", "team1"))
+
+	assert.Equal(t, []string{"p1", "p3", "p4"}, lobby.Players())
+	// Vacated slots are cleared, not left holding a stale ID.
+	assert.Empty(t, lobby.PlayerIDs[lobby.PlayerCount])
 }
 
 func TestLobbyComponent_MovePlayerToTeam(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1"}},
-			{TeamID: "team2", MaxPlayers: 2, PlayerIDs: []string{}},
-		},
-	}
+	lobby := newLobby(t,
+		[]Team{{TeamID: "team1"}, {TeamID: "team2", MaxPlayers: 2}},
+		map[string][]string{"team1": {"p1"}},
+	)
 
 	// Move player to another team
-	assert.True(t, lobby.MovePlayerToTeam("p1", "team2"))
-	assert.Empty(t, lobby.GetTeam("team1").PlayerIDs)
-	assert.Len(t, lobby.GetTeam("team2").PlayerIDs, 1)
+	assert.True(t, lobby.MovePlayerToTeam("p1", "team1", "team2"))
+	assert.Equal(t, 0, lobby.GetTeam("team1").PlayerCount)
+	assert.Equal(t, 1, lobby.GetTeam("team2").PlayerCount)
+	// The lobby roster is unaffected by a team change.
+	assert.Equal(t, 1, lobby.PlayerCount)
 
 	// Move non-existent player
-	assert.False(t, lobby.MovePlayerToTeam("unknown", "team1"))
+	assert.False(t, lobby.MovePlayerToTeam("unknown", "team1", "team1"))
 
 	// Move to non-existent team
-	assert.False(t, lobby.MovePlayerToTeam("p1", "unknown"))
+	assert.False(t, lobby.MovePlayerToTeam("p1", "team2", "unknown"))
 
 	// Move to same team (no-op, should succeed)
-	assert.True(t, lobby.MovePlayerToTeam("p1", "team2"))
-	assert.Len(t, lobby.GetTeam("team2").PlayerIDs, 1)
+	assert.True(t, lobby.MovePlayerToTeam("p1", "team2", "team2"))
+	assert.Equal(t, 1, lobby.GetTeam("team2").PlayerCount)
 
 	// Move to same team when at capacity (should succeed - player already there)
-	lobby2 := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", MaxPlayers: 2, PlayerIDs: []string{"p1", "p2"}},
-		},
-	}
-	assert.True(t, lobby2.MovePlayerToTeam("p1", "team1"))
-	assert.Equal(t, []string{"p1", "p2"}, lobby2.GetTeam("team1").PlayerIDs)
+	lobby2 := newLobby(t,
+		[]Team{{TeamID: "team1", MaxPlayers: 2}},
+		map[string][]string{"team1": {"p1", "p2"}},
+	)
+	assert.True(t, lobby2.MovePlayerToTeam("p1", "team1", "team1"))
+	assert.Equal(t, 2, lobby2.GetTeam("team1").PlayerCount)
 }
 
 func TestLobbyComponent_GetAllPlayerIDs(t *testing.T) {
 	t.Parallel()
 
-	lobby := &LobbyComponent{
-		Teams: []Team{
-			{TeamID: "team1", PlayerIDs: []string{"p1", "p2"}},
-			{TeamID: "team2", PlayerIDs: []string{"p3"}},
-		},
-	}
+	lobby := newLobby(t,
+		[]Team{{TeamID: "team1"}, {TeamID: "team2"}},
+		map[string][]string{"team1": {"p1", "p2"}, "team2": {"p3"}},
+	)
 
 	playerIDs := lobby.GetAllPlayerIDs()
 	assert.Len(t, playerIDs, 3)
@@ -214,17 +213,17 @@ func TestTeam_IsFull(t *testing.T) {
 	}{
 		{
 			name:     "unlimited team",
-			team:     &Team{MaxPlayers: 0, PlayerIDs: []string{"p1", "p2", "p3"}},
+			team:     &Team{MaxPlayers: 0, PlayerCount: 3},
 			expected: false,
 		},
 		{
 			name:     "not full",
-			team:     &Team{MaxPlayers: 3, PlayerIDs: []string{"p1", "p2"}},
+			team:     &Team{MaxPlayers: 3, PlayerCount: 2},
 			expected: false,
 		},
 		{
 			name:     "full",
-			team:     &Team{MaxPlayers: 2, PlayerIDs: []string{"p1", "p2"}},
+			team:     &Team{MaxPlayers: 2, PlayerCount: 2},
 			expected: true,
 		},
 	}
@@ -242,160 +241,6 @@ func TestPlayerComponent_Name(t *testing.T) {
 
 	player := PlayerComponent{}
 	assert.Equal(t, "player", player.Name())
-}
-
-func TestLobbyIndexComponent_AddRemoveLobby(t *testing.T) {
-	t.Parallel()
-
-	idx := &LobbyIndexComponent{}
-	idx.Init()
-
-	// Add lobby
-	idx.AddLobby("lobby1", 100, "ABC123")
-
-	entityID, exists := idx.GetEntityID("lobby1")
-	assert.True(t, exists)
-	assert.Equal(t, uint32(100), entityID)
-
-	lobbyID, exists := idx.GetLobbyByInviteCode("ABC123")
-	assert.True(t, exists)
-	assert.Equal(t, "lobby1", lobbyID)
-
-	// Remove lobby
-	idx.RemoveLobby("lobby1", "ABC123")
-
-	_, exists = idx.GetEntityID("lobby1")
-	assert.False(t, exists)
-
-	_, exists = idx.GetLobbyByInviteCode("ABC123")
-	assert.False(t, exists)
-}
-
-func TestLobbyIndexComponent_PlayerToLobby(t *testing.T) {
-	t.Parallel()
-
-	idx := &LobbyIndexComponent{}
-	idx.Init()
-
-	deadline := int64(1000)
-	playerEntityID := uint32(200)
-
-	// Add player to lobby with team
-	idx.AddPlayerToLobby("player1", "lobby1", "team1", playerEntityID, deadline)
-
-	lobbyID, exists := idx.GetPlayerLobby("player1")
-	assert.True(t, exists)
-	assert.Equal(t, "lobby1", lobbyID)
-
-	// Verify player team ID
-	teamID, exists := idx.GetPlayerTeam("player1")
-	assert.True(t, exists)
-	assert.Equal(t, "team1", teamID)
-
-	// Verify player entity ID
-	entityID, exists := idx.GetPlayerEntityID("player1")
-	assert.True(t, exists)
-	assert.Equal(t, playerEntityID, entityID)
-
-	// Verify deadline was initialized
-	playerDeadline, exists := idx.GetPlayerDeadline("player1")
-	assert.True(t, exists)
-	assert.Equal(t, deadline, playerDeadline)
-
-	// Verify lobby player count
-	assert.Equal(t, 1, idx.GetLobbyPlayerCount("lobby1"))
-
-	// Update deadline
-	newDeadline := int64(2000)
-	idx.UpdatePlayerDeadline("player1", newDeadline)
-	playerDeadline, _ = idx.GetPlayerDeadline("player1")
-	assert.Equal(t, newDeadline, playerDeadline)
-
-	// Update team
-	idx.UpdatePlayerTeam("player1", "team2")
-	teamID, _ = idx.GetPlayerTeam("player1")
-	assert.Equal(t, "team2", teamID)
-
-	// Remove player
-	idx.RemovePlayerFromLobby("player1")
-
-	_, exists = idx.GetPlayerLobby("player1")
-	assert.False(t, exists)
-
-	// Verify player team was also removed
-	_, exists = idx.GetPlayerTeam("player1")
-	assert.False(t, exists)
-
-	// Verify player entity ID was also removed
-	_, exists = idx.GetPlayerEntityID("player1")
-	assert.False(t, exists)
-
-	// Verify deadline was also removed
-	_, exists = idx.GetPlayerDeadline("player1")
-	assert.False(t, exists)
-
-	// Verify lobby player count is 0
-	assert.Equal(t, 0, idx.GetLobbyPlayerCount("lobby1"))
-}
-
-func TestLobbyIndexComponent_HasPlayer(t *testing.T) {
-	t.Parallel()
-
-	idx := &LobbyIndexComponent{}
-	idx.Init()
-
-	assert.False(t, idx.HasPlayer("player1"))
-
-	idx.AddPlayerToLobby("player1", "lobby1", "team1", 100, 1000)
-	assert.True(t, idx.HasPlayer("player1"))
-
-	idx.RemovePlayerFromLobby("player1")
-	assert.False(t, idx.HasPlayer("player1"))
-}
-
-func TestLobbyIndexComponent_LobbyPlayerCount(t *testing.T) {
-	t.Parallel()
-
-	idx := &LobbyIndexComponent{}
-	idx.Init()
-
-	// Add players to lobby
-	idx.AddPlayerToLobby("p1", "lobby1", "team1", 100, 1000)
-	idx.AddPlayerToLobby("p2", "lobby1", "team1", 101, 1000)
-	idx.AddPlayerToLobby("p3", "lobby1", "team2", 102, 1000)
-
-	assert.Equal(t, 3, idx.GetLobbyPlayerCount("lobby1"))
-
-	// Remove one player
-	idx.RemovePlayerFromLobby("p2")
-	assert.Equal(t, 2, idx.GetLobbyPlayerCount("lobby1"))
-
-	// Remove remaining players
-	idx.RemovePlayerFromLobby("p1")
-	idx.RemovePlayerFromLobby("p3")
-	assert.Equal(t, 0, idx.GetLobbyPlayerCount("lobby1"))
-}
-
-func TestLobbyIndexComponent_UpdateInviteCode(t *testing.T) {
-	t.Parallel()
-
-	idx := &LobbyIndexComponent{}
-	idx.Init()
-
-	// Add lobby with invite code
-	idx.AddLobby("lobby1", 100, "OLD123")
-
-	// Update invite code
-	idx.UpdateInviteCode("lobby1", "OLD123", "NEW456")
-
-	// Old code should not work
-	_, exists := idx.GetLobbyByInviteCode("OLD123")
-	assert.False(t, exists)
-
-	// New code should work
-	lobbyID, exists := idx.GetLobbyByInviteCode("NEW456")
-	assert.True(t, exists)
-	assert.Equal(t, "lobby1", lobbyID)
 }
 
 func TestSessionStateConstants(t *testing.T) {
@@ -425,23 +270,35 @@ func TestSessionPendingFields(t *testing.T) {
 	assert.Equal(t, int64(100), s.PendingStartedAt)
 }
 
-func TestConfigComponent_AssignmentFields(t *testing.T) {
+// A snapshot written when the caps were larger restores counts the arrays cannot satisfy: the
+// generated decoder caps its array writes but copies PlayerCount and TeamCount verbatim. Reads must
+// truncate rather than panic on a slice bound.
+func TestLobbyComponent_ReadsSurviveOversizedRestoredCounts(t *testing.T) {
 	t.Parallel()
 
-	// Assignment-related config fields. AssignmentAuthority is an
-	// accident-prevention filter (not authentication — cmd.Persona is
-	// not verified at this layer). MaxAllocationTimeout bounds the
-	// pending-allocation lifetime.
-	cfg := ConfigComponent{
-		AssignmentAuthority:  "region.world.org.project.lobby",
-		MaxAllocationTimeout: 300,
-	}
-	assert.Equal(t, "region.world.org.project.lobby", cfg.AssignmentAuthority)
-	assert.Equal(t, int64(300), cfg.MaxAllocationTimeout)
+	lobby := newLobby(t, []Team{{TeamID: "team1"}}, map[string][]string{"team1": {"p1", "p2"}})
+	// Simulate the restore: counts beyond what the fixed arrays hold.
+	lobby.PlayerCount = MaxLobbyPlayers + 4
+	lobby.TeamCount = MaxLobbyTeams + 2
 
-	// MaxAllocationTimeout <= 0 is the documented "disabled" sentinel.
-	disabled := ConfigComponent{MaxAllocationTimeout: 0}
-	assert.LessOrEqual(t, disabled.MaxAllocationTimeout, int64(0))
-	negDisabled := ConfigComponent{MaxAllocationTimeout: -1}
-	assert.LessOrEqual(t, negDisabled.MaxAllocationTimeout, int64(0))
+	assert.NotPanics(t, func() {
+		assert.Len(t, lobby.Players(), MaxLobbyPlayers)
+		assert.Len(t, lobby.GetAllPlayerIDs(), MaxLobbyPlayers)
+		assert.True(t, lobby.HasPlayer("p1"))
+		assert.NotNil(t, lobby.GetTeam("team1"))
+		assert.Nil(t, lobby.GetTeam("nope"))
+	})
+}
+
+// The first removal writes the clamped count back, so an oversized count repairs itself rather than
+// persisting through every later read.
+func TestLobbyComponent_RemoveRepairsOversizedCount(t *testing.T) {
+	t.Parallel()
+
+	lobby := newLobby(t, []Team{{TeamID: "team1"}}, map[string][]string{"team1": {"p1", "p2"}})
+	lobby.PlayerCount = MaxLobbyPlayers + 4
+
+	require.True(t, lobby.RemovePlayerFromTeam("p1", "team1"))
+	assert.Equal(t, MaxLobbyPlayers-1, lobby.PlayerCount)
+	assert.False(t, lobby.HasPlayer("p1"))
 }

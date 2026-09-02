@@ -12,7 +12,7 @@
 //	world.StartGame()
 //
 // The package registers the following systems:
-//   - InitSystem (Init hook): Creates singleton index and config entities
+//   - InitSystem (Init hook): Invalidates the lookup index so the next tick rebuilds it
 //   - LobbySystem (Update hook): Processes lobby commands
 //
 // Commands:
@@ -43,8 +43,6 @@ type (
 	Session         = component.Session
 	SessionState    = component.SessionState
 	GameWorld       = cardinal.OtherWorld
-	IndexComponent  = component.LobbyIndexComponent
-	ConfigComponent = component.ConfigComponent
 	ShardAddress    = component.ShardAddress
 
 	// Commands.
@@ -166,13 +164,12 @@ func NewPlugin(config Config) *Plugin {
 
 // Register implements cardinal.Plugin.
 func (p *Plugin) Register(world *cardinal.World) {
-	system.SetConfig(component.ConfigComponent{
+	system.SetConfig(system.Config{
 		LobbyWorld:           component.ShardAddress(p.config.LobbyWorld),
 		HeartbeatTimeout:     p.config.HeartbeatTimeout,
 		AssignmentAuthority:  p.config.AssignmentAuthority,
 		MaxAllocationTimeout: p.config.MaxAllocationTimeout,
-		LobbyPresets:         p.config.LobbyPresets,
-	})
+	}, p.config.LobbyPresets)
 
 	// Store provider
 	system.SetProvider(p.config.Provider)

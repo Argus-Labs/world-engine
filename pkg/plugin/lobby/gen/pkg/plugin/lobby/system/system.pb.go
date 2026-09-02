@@ -98,8 +98,8 @@ type CreateLobbyCommand struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	RequestID              string                 `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
 	Preset                 string                 `protobuf:"bytes,2,opt,name=Preset,proto3" json:"Preset,omitempty"`
-	PlayerPassthroughData  []byte                 `protobuf:"bytes,3,opt,name=PlayerPassthroughData,proto3" json:"PlayerPassthroughData,omitempty"`
-	SessionPassthroughData []byte                 `protobuf:"bytes,4,opt,name=SessionPassthroughData,proto3" json:"SessionPassthroughData,omitempty"`
+	PlayerPassthroughData  string                 `protobuf:"bytes,3,opt,name=PlayerPassthroughData,proto3" json:"PlayerPassthroughData,omitempty"`
+	SessionPassthroughData string                 `protobuf:"bytes,4,opt,name=SessionPassthroughData,proto3" json:"SessionPassthroughData,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -148,18 +148,18 @@ func (x *CreateLobbyCommand) GetPreset() string {
 	return ""
 }
 
-func (x *CreateLobbyCommand) GetPlayerPassthroughData() []byte {
+func (x *CreateLobbyCommand) GetPlayerPassthroughData() string {
 	if x != nil {
 		return x.PlayerPassthroughData
 	}
-	return nil
+	return ""
 }
 
-func (x *CreateLobbyCommand) GetSessionPassthroughData() []byte {
+func (x *CreateLobbyCommand) GetSessionPassthroughData() string {
 	if x != nil {
 		return x.SessionPassthroughData
 	}
-	return nil
+	return ""
 }
 
 type CreateLobbyResult struct {
@@ -397,11 +397,13 @@ func (x *GetAllPlayersCommand) GetRequestID() string {
 }
 
 type GetAllPlayersResult struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
-	RequestID     string                       `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
-	IsSuccess     bool                         `protobuf:"varint,2,opt,name=IsSuccess,proto3" json:"IsSuccess,omitempty"`
-	Message       string                       `protobuf:"bytes,3,opt,name=Message,proto3" json:"Message,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RequestID string                 `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
+	IsSuccess bool                   `protobuf:"varint,2,opt,name=IsSuccess,proto3" json:"IsSuccess,omitempty"`
+	Message   string                 `protobuf:"bytes,3,opt,name=Message,proto3" json:"Message,omitempty"`
+	// Go: [16]PlayerComponent, 16 elements
 	Players       []*component.PlayerComponent `protobuf:"bytes,4,rep,name=Players,proto3" json:"Players,omitempty"`
+	PlayersCount  int64                        `protobuf:"varint,5,opt,name=PlayersCount,proto3" json:"PlayersCount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -462,6 +464,13 @@ func (x *GetAllPlayersResult) GetPlayers() []*component.PlayerComponent {
 		return x.Players
 	}
 	return nil
+}
+
+func (x *GetAllPlayersResult) GetPlayersCount() int64 {
+	if x != nil {
+		return x.PlayersCount
+	}
+	return 0
 }
 
 // wire name: "lobby_get_lobby"
@@ -794,7 +803,7 @@ type JoinLobbyCommand struct {
 	RequestID             string                 `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
 	InviteCode            string                 `protobuf:"bytes,2,opt,name=InviteCode,proto3" json:"InviteCode,omitempty"`
 	TeamID                string                 `protobuf:"bytes,3,opt,name=TeamID,proto3" json:"TeamID,omitempty"`
-	PlayerPassthroughData []byte                 `protobuf:"bytes,4,opt,name=PlayerPassthroughData,proto3" json:"PlayerPassthroughData,omitempty"`
+	PlayerPassthroughData string                 `protobuf:"bytes,4,opt,name=PlayerPassthroughData,proto3" json:"PlayerPassthroughData,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -850,22 +859,24 @@ func (x *JoinLobbyCommand) GetTeamID() string {
 	return ""
 }
 
-func (x *JoinLobbyCommand) GetPlayerPassthroughData() []byte {
+func (x *JoinLobbyCommand) GetPlayerPassthroughData() string {
 	if x != nil {
 		return x.PlayerPassthroughData
 	}
-	return nil
+	return ""
 }
 
 type JoinLobbyResult struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
-	RequestID     string                       `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
-	IsSuccess     bool                         `protobuf:"varint,2,opt,name=IsSuccess,proto3" json:"IsSuccess,omitempty"`
-	Message       string                       `protobuf:"bytes,3,opt,name=Message,proto3" json:"Message,omitempty"`
-	Lobby         *component.LobbyComponent    `protobuf:"bytes,4,opt,name=Lobby,proto3" json:"Lobby,omitempty"`
-	PlayersList   []*component.PlayerComponent `protobuf:"bytes,5,rep,name=PlayersList,proto3" json:"PlayersList,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState    `protogen:"open.v1"`
+	RequestID string                    `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
+	IsSuccess bool                      `protobuf:"varint,2,opt,name=IsSuccess,proto3" json:"IsSuccess,omitempty"`
+	Message   string                    `protobuf:"bytes,3,opt,name=Message,proto3" json:"Message,omitempty"`
+	Lobby     *component.LobbyComponent `protobuf:"bytes,4,opt,name=Lobby,proto3" json:"Lobby,omitempty"`
+	// Go: [16]PlayerComponent, 16 elements
+	PlayersList      []*component.PlayerComponent `protobuf:"bytes,5,rep,name=PlayersList,proto3" json:"PlayersList,omitempty"`
+	PlayersListCount int64                        `protobuf:"varint,6,opt,name=PlayersListCount,proto3" json:"PlayersListCount,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *JoinLobbyResult) Reset() {
@@ -931,6 +942,13 @@ func (x *JoinLobbyResult) GetPlayersList() []*component.PlayerComponent {
 		return x.PlayersList
 	}
 	return nil
+}
+
+func (x *JoinLobbyResult) GetPlayersListCount() int64 {
+	if x != nil {
+		return x.PlayersListCount
+	}
+	return 0
 }
 
 // wire name: "lobby_join_team"
@@ -2034,7 +2052,7 @@ func (x *SessionEndedEvent) GetLobbyID() string {
 type SessionPassthroughUpdatedEvent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	LobbyID         string                 `protobuf:"bytes,1,opt,name=LobbyID,proto3" json:"LobbyID,omitempty"`
-	PassthroughData []byte                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
+	PassthroughData string                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2076,11 +2094,11 @@ func (x *SessionPassthroughUpdatedEvent) GetLobbyID() string {
 	return ""
 }
 
-func (x *SessionPassthroughUpdatedEvent) GetPassthroughData() []byte {
+func (x *SessionPassthroughUpdatedEvent) GetPassthroughData() string {
 	if x != nil {
 		return x.PassthroughData
 	}
-	return nil
+	return ""
 }
 
 // wire name: "lobby_session_started"
@@ -2487,7 +2505,7 @@ func (x *TransferLeaderResult) GetMessage() string {
 type UpdatePlayerPassthroughCommand struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RequestID       string                 `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
-	PassthroughData []byte                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
+	PassthroughData string                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2529,11 +2547,11 @@ func (x *UpdatePlayerPassthroughCommand) GetRequestID() string {
 	return ""
 }
 
-func (x *UpdatePlayerPassthroughCommand) GetPassthroughData() []byte {
+func (x *UpdatePlayerPassthroughCommand) GetPassthroughData() string {
 	if x != nil {
 		return x.PassthroughData
 	}
-	return nil
+	return ""
 }
 
 type UpdatePlayerPassthroughResult struct {
@@ -2608,7 +2626,7 @@ func (x *UpdatePlayerPassthroughResult) GetPlayer() *component.PlayerComponent {
 type UpdateSessionPassthroughCommand struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RequestID       string                 `protobuf:"bytes,1,opt,name=RequestID,proto3" json:"RequestID,omitempty"`
-	PassthroughData []byte                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
+	PassthroughData string                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2650,11 +2668,11 @@ func (x *UpdateSessionPassthroughCommand) GetRequestID() string {
 	return ""
 }
 
-func (x *UpdateSessionPassthroughCommand) GetPassthroughData() []byte {
+func (x *UpdateSessionPassthroughCommand) GetPassthroughData() string {
 	if x != nil {
 		return x.PassthroughData
 	}
-	return nil
+	return ""
 }
 
 type UpdateSessionPassthroughResult struct {
@@ -2730,8 +2748,8 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\x12CreateLobbyCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x16\n" +
 	"\x06Preset\x18\x02 \x01(\tR\x06Preset\x124\n" +
-	"\x15PlayerPassthroughData\x18\x03 \x01(\fR\x15PlayerPassthroughData\x126\n" +
-	"\x16SessionPassthroughData\x18\x04 \x01(\fR\x16SessionPassthroughData\"\xb6\x02\n" +
+	"\x15PlayerPassthroughData\x18\x03 \x01(\tR\x15PlayerPassthroughData\x126\n" +
+	"\x16SessionPassthroughData\x18\x04 \x01(\tR\x16SessionPassthroughData\"\xb6\x02\n" +
 	"\x11CreateLobbyResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
@@ -2748,12 +2766,13 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"InviteCode\x18\x04 \x01(\tR\n" +
 	"InviteCode\"4\n" +
 	"\x14GetAllPlayersCommand\x12\x1c\n" +
-	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xd5\x01\n" +
+	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xf9\x01\n" +
 	"\x13GetAllPlayersResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
 	"\aMessage\x18\x03 \x01(\tR\aMessage\x12h\n" +
-	"\aPlayers\x18\x04 \x03(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\aPlayers\"/\n" +
+	"\aPlayers\x18\x04 \x03(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\aPlayers\x12\"\n" +
+	"\fPlayersCount\x18\x05 \x01(\x03R\fPlayersCount\"/\n" +
 	"\x0fGetLobbyCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\"\xcb\x01\n" +
 	"\x0eGetLobbyResult\x12\x1c\n" +
@@ -2781,13 +2800,14 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"InviteCode\x18\x02 \x01(\tR\n" +
 	"InviteCode\x12\x16\n" +
 	"\x06TeamID\x18\x03 \x01(\tR\x06TeamID\x124\n" +
-	"\x15PlayerPassthroughData\x18\x04 \x01(\fR\x15PlayerPassthroughData\"\xbe\x02\n" +
+	"\x15PlayerPassthroughData\x18\x04 \x01(\tR\x15PlayerPassthroughData\"\xea\x02\n" +
 	"\x0fJoinLobbyResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
 	"\aMessage\x18\x03 \x01(\tR\aMessage\x12c\n" +
 	"\x05Lobby\x18\x04 \x01(\v2M.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponentR\x05Lobby\x12p\n" +
-	"\vPlayersList\x18\x05 \x03(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\vPlayersList\"G\n" +
+	"\vPlayersList\x18\x05 \x03(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\vPlayersList\x12*\n" +
+	"\x10PlayersListCount\x18\x06 \x01(\x03R\x10PlayersListCount\"G\n" +
 	"\x0fJoinTeamCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x16\n" +
 	"\x06TeamID\x18\x02 \x01(\tR\x06TeamID\"\xce\x01\n" +
@@ -2859,7 +2879,7 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\"d\n" +
 	"\x1eSessionPassthroughUpdatedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"\x9a\x01\n" +
+	"\x0fPassthroughData\x18\x02 \x01(\tR\x0fPassthroughData\"\x9a\x01\n" +
 	"\x13SessionStartedEvent\x12\x18\n" +
 	"\aLobbyID\x18\x01 \x01(\tR\aLobbyID\x12i\n" +
 	"\tGameWorld\x18\x02 \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\"I\n" +
@@ -2887,7 +2907,7 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\aMessage\x18\x03 \x01(\tR\aMessage\"h\n" +
 	"\x1eUpdatePlayerPassthroughCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"\xdd\x01\n" +
+	"\x0fPassthroughData\x18\x02 \x01(\tR\x0fPassthroughData\"\xdd\x01\n" +
 	"\x1dUpdatePlayerPassthroughResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +
@@ -2895,7 +2915,7 @@ const file_pkg_plugin_lobby_system_system_proto_rawDesc = "" +
 	"\x06Player\x18\x04 \x01(\v2N.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponentR\x06Player\"i\n" +
 	"\x1fUpdateSessionPassthroughCommand\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\"v\n" +
+	"\x0fPassthroughData\x18\x02 \x01(\tR\x0fPassthroughData\"v\n" +
 	"\x1eUpdateSessionPassthroughResult\x12\x1c\n" +
 	"\tRequestID\x18\x01 \x01(\tR\tRequestID\x12\x1c\n" +
 	"\tIsSuccess\x18\x02 \x01(\bR\tIsSuccess\x12\x18\n" +

@@ -5,7 +5,6 @@
 package system
 
 import (
-	"encoding/json"
 	lobby_component "github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	pbsystem "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/system"
 	"google.golang.org/protobuf/proto"
@@ -56,8 +55,8 @@ func (c CreateLobbyCommand) ToProto() *pbsystem.CreateLobbyCommand {
 	p := &pbsystem.CreateLobbyCommand{}
 	p.RequestID = string(c.RequestID)
 	p.Preset = string(c.Preset)
-	p.PlayerPassthroughData = []byte(c.PlayerPassthroughData)
-	p.SessionPassthroughData = []byte(c.SessionPassthroughData)
+	p.PlayerPassthroughData = string(c.PlayerPassthroughData)
+	p.SessionPassthroughData = string(c.SessionPassthroughData)
 	return p
 }
 
@@ -67,8 +66,8 @@ func (c CreateLobbyCommand) FromProto(p *pbsystem.CreateLobbyCommand) CreateLobb
 	}
 	c.RequestID = string(p.RequestID)
 	c.Preset = string(p.Preset)
-	c.PlayerPassthroughData = []byte(p.PlayerPassthroughData)
-	c.SessionPassthroughData = []byte(p.SessionPassthroughData)
+	c.PlayerPassthroughData = string(p.PlayerPassthroughData)
+	c.SessionPassthroughData = string(p.SessionPassthroughData)
 	return c
 }
 
@@ -247,9 +246,10 @@ func (c GetAllPlayersResult) ToProto() *pbsystem.GetAllPlayersResult {
 	p.RequestID = string(c.RequestID)
 	p.IsSuccess = bool(c.IsSuccess)
 	p.Message = string(c.Message)
-	for i := range c.Players {
-		p.Players = append(p.Players, c.Players[i].ToProto())
+	for i0 := range c.Players {
+		p.Players = append(p.Players, c.Players[i0].ToProto())
 	}
+	p.PlayersCount = int64(c.PlayersCount)
 	return p
 }
 
@@ -260,11 +260,14 @@ func (c GetAllPlayersResult) FromProto(p *pbsystem.GetAllPlayersResult) GetAllPl
 	c.RequestID = string(p.RequestID)
 	c.IsSuccess = bool(p.IsSuccess)
 	c.Message = string(p.Message)
-	for _, e := range p.Players {
+	for i, e := range p.Players {
+		if i >= 16 {
+			break
+		}
 		var v lobby_component.PlayerComponent
-		v = v.FromProto(e)
-		c.Players = append(c.Players, v)
+		c.Players[i] = v.FromProto(e)
 	}
+	c.PlayersCount = int(p.PlayersCount)
 	return c
 }
 
@@ -511,7 +514,7 @@ func (c JoinLobbyCommand) ToProto() *pbsystem.JoinLobbyCommand {
 	p.RequestID = string(c.RequestID)
 	p.InviteCode = string(c.InviteCode)
 	p.TeamID = string(c.TeamID)
-	p.PlayerPassthroughData = []byte(c.PlayerPassthroughData)
+	p.PlayerPassthroughData = string(c.PlayerPassthroughData)
 	return p
 }
 
@@ -522,7 +525,7 @@ func (c JoinLobbyCommand) FromProto(p *pbsystem.JoinLobbyCommand) JoinLobbyComma
 	c.RequestID = string(p.RequestID)
 	c.InviteCode = string(p.InviteCode)
 	c.TeamID = string(p.TeamID)
-	c.PlayerPassthroughData = []byte(p.PlayerPassthroughData)
+	c.PlayerPassthroughData = string(p.PlayerPassthroughData)
 	return c
 }
 
@@ -552,9 +555,10 @@ func (c JoinLobbyResult) ToProto() *pbsystem.JoinLobbyResult {
 	p.IsSuccess = bool(c.IsSuccess)
 	p.Message = string(c.Message)
 	p.Lobby = c.Lobby.ToProto()
-	for i := range c.PlayersList {
-		p.PlayersList = append(p.PlayersList, c.PlayersList[i].ToProto())
+	for i0 := range c.PlayersList {
+		p.PlayersList = append(p.PlayersList, c.PlayersList[i0].ToProto())
 	}
+	p.PlayersListCount = int64(c.PlayersListCount)
 	return p
 }
 
@@ -566,11 +570,14 @@ func (c JoinLobbyResult) FromProto(p *pbsystem.JoinLobbyResult) JoinLobbyResult 
 	c.IsSuccess = bool(p.IsSuccess)
 	c.Message = string(p.Message)
 	c.Lobby = c.Lobby.FromProto(p.Lobby)
-	for _, e := range p.PlayersList {
+	for i, e := range p.PlayersList {
+		if i >= 16 {
+			break
+		}
 		var v lobby_component.PlayerComponent
-		v = v.FromProto(e)
-		c.PlayersList = append(c.PlayersList, v)
+		c.PlayersList[i] = v.FromProto(e)
 	}
+	c.PlayersListCount = int(p.PlayersListCount)
 	return c
 }
 
@@ -1327,13 +1334,7 @@ func (c SessionEndedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c SessionPassthroughUpdatedEvent) ToProto() *pbsystem.SessionPassthroughUpdatedEvent {
 	p := &pbsystem.SessionPassthroughUpdatedEvent{}
 	p.LobbyID = string(c.LobbyID)
-	{
-		data, err := json.Marshal(c.PassthroughData)
-		if err != nil {
-			panic("failed to marshal PassthroughData: " + err.Error())
-		}
-		p.PassthroughData = data
-	}
+	p.PassthroughData = string(c.PassthroughData)
 	return p
 }
 
@@ -1342,9 +1343,7 @@ func (c SessionPassthroughUpdatedEvent) FromProto(p *pbsystem.SessionPassthrough
 		return c
 	}
 	c.LobbyID = string(p.LobbyID)
-	if len(p.PassthroughData) > 0 {
-		_ = json.Unmarshal(p.PassthroughData, &c.PassthroughData)
-	}
+	c.PassthroughData = string(p.PassthroughData)
 	return c
 }
 
@@ -1631,7 +1630,7 @@ func (c TransferLeaderResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c UpdatePlayerPassthroughCommand) ToProto() *pbsystem.UpdatePlayerPassthroughCommand {
 	p := &pbsystem.UpdatePlayerPassthroughCommand{}
 	p.RequestID = string(c.RequestID)
-	p.PassthroughData = []byte(c.PassthroughData)
+	p.PassthroughData = string(c.PassthroughData)
 	return p
 }
 
@@ -1640,7 +1639,7 @@ func (c UpdatePlayerPassthroughCommand) FromProto(p *pbsystem.UpdatePlayerPassth
 		return c
 	}
 	c.RequestID = string(p.RequestID)
-	c.PassthroughData = []byte(p.PassthroughData)
+	c.PassthroughData = string(p.PassthroughData)
 	return c
 }
 
@@ -1707,7 +1706,7 @@ func (c UpdatePlayerPassthroughResult) ProtoDescriptor() protoreflect.MessageDes
 func (c UpdateSessionPassthroughCommand) ToProto() *pbsystem.UpdateSessionPassthroughCommand {
 	p := &pbsystem.UpdateSessionPassthroughCommand{}
 	p.RequestID = string(c.RequestID)
-	p.PassthroughData = []byte(c.PassthroughData)
+	p.PassthroughData = string(c.PassthroughData)
 	return p
 }
 
@@ -1716,7 +1715,7 @@ func (c UpdateSessionPassthroughCommand) FromProto(p *pbsystem.UpdateSessionPass
 		return c
 	}
 	c.RequestID = string(p.RequestID)
-	c.PassthroughData = []byte(p.PassthroughData)
+	c.PassthroughData = string(p.PassthroughData)
 	return c
 }
 
