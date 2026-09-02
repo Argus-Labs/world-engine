@@ -26,19 +26,7 @@ namespace WorldEngine.Runtime.CounterFixture
 
         internal static ModuleContract Contract { get; } = new ModuleContract(
             "counter-fixture",
-            "1.0.0",
-            RuntimeCapabilities.Initialize |
-            RuntimeCapabilities.Tick |
-            RuntimeCapabilities.Query |
-            RuntimeCapabilities.Snapshot |
-            RuntimeCapabilities.Restore,
-            new byte[ModuleContract.SchemaHashLength]
-            {
-                0x9a, 0xaf, 0x3f, 0x8c, 0xd5, 0xc1, 0x6c, 0xa9,
-                0x36, 0x91, 0x14, 0xaa, 0x09, 0x66, 0x99, 0xa2,
-                0x0e, 0xbf, 0xc7, 0x4a, 0x7f, 0xf3, 0xee, 0x99,
-                0x04, 0x83, 0x3d, 0x3f, 0xb9, 0xd5, 0xda, 0x30,
-            });
+            "1.0.0");
 
         public RuntimeStatus Initialize(ReadOnlySpan<byte> snapshot) => Restore(snapshot);
 
