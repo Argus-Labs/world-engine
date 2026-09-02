@@ -1,4 +1,5 @@
-// Package runtime defines a transport-independent interface for a Cardinal simulation module.
+// Package runtime defines the interface for a Cardinal simulation module. The interface does not
+// depend on a transport.
 package runtime
 
 import (
@@ -38,12 +39,13 @@ type QueryRequest struct {
 // Runner owns one isolated module instance.
 //
 // Tick, Query, and Snapshot write to output buffers that the caller owns. Each method returns the
-// number of bytes that it writes. These methods return BufferSizeError if an output buffer is too
-// small. A call that returns BufferSizeError does not change the module state or the output buffer.
+// number of bytes that it writes. Tick, Query, and Snapshot return BufferSizeError if an output
+// buffer is too small. A call that returns BufferSizeError does not change the module state or the
+// output buffer.
 //
 // An implementation borrows all request and output buffers. It must not keep a buffer after the
-// method returns. The caller can retry a call after BufferSizeError. The caller must not use the
-// same Runner between the first call and the retry.
+// method returns. After a method returns BufferSizeError, the caller can retry the method. The
+// caller must not use the same Runner between the first call and the retry.
 type Runner interface {
 	Contract() Contract
 	Initialize(InitRequest) error
