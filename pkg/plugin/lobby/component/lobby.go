@@ -153,8 +153,19 @@ func (l *LobbyComponent) liveTeams() int   { return min(l.TeamCount, MaxLobbyTea
 
 func (l *LobbyComponent) Players() []string { return l.PlayerIDs[:l.livePlayers()] }
 
+// TeamList returns the lobby's live teams.
+//
+// Exported because the clamp has to be reachable from outside this package: iterating TeamCount
+// directly indexes past Teams when a snapshot restores a count from a build with a larger
+// MaxLobbyTeams, and the entries between the live count and the raw one are zero Teams whose
+// MaxPlayers of 0 reads as unlimited — a phantom team with an empty ID that accepts players.
+func (l *LobbyComponent) TeamList() []Team { return l.Teams[:l.liveTeams()] }
+
 // GetTeam returns a team by ID, or nil.
 func (l *LobbyComponent) GetTeam(teamID string) *Team {
+	if teamID == "" {
+		return nil // a zero entry has an empty ID; matching it would hand back a team nobody added
+	}
 	for i := range l.liveTeams() {
 		if l.Teams[i].TeamID == teamID {
 			return &l.Teams[i]

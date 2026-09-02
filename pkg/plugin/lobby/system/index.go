@@ -48,6 +48,16 @@ var index lookupIndex
 //nolint:gochecknoglobals // see index
 var indexBuilt bool
 
+// resetIndex discards the index so the next tick rebuilds it from the world's own entities.
+//
+// Called at registration, which is the only point that reliably marks a new world in this process.
+// InitSystem clears indexBuilt for World.reset(); this covers the other case, a second world built
+// in the same process, where the latched flag would hand world two the entity IDs of world one.
+func resetIndex() {
+	index = lookupIndex{}
+	indexBuilt = false
+}
+
 // lobbyRow and playerRow carry an entity and its component to the rebuild, so the rebuild does not
 // have to be written once per system state type.
 type lobbyRow struct {

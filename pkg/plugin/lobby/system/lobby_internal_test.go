@@ -748,7 +748,7 @@ func TestResolvePresetRejectsMisconfigured(t *testing.T) {
 // a bad preset has to stop the boot, or it silently rejects every CreateLobbyCommand instead.
 func TestSetConfigPanicsOnUnusablePreset(t *testing.T) {
 	assert.PanicsWithValue(t,
-		`lobby preset "broken" is unusable: teams allow 32 players in total, more than the 16 a lobby can hold`,
+		"unusable lobby presets:\n  \"broken\": teams allow 32 players in total, more than the 16 a lobby can hold",
 		func() {
 			SetConfig(Config{}, map[string][]component.TeamConfig{
 				"broken": {{TeamID: "red", MaxPlayers: 16}, {TeamID: "blue", MaxPlayers: 16}},
@@ -775,4 +775,76 @@ func TestConfig_AssignmentFields(t *testing.T) {
 	assert.LessOrEqual(t, disabled.MaxAllocationTimeout, int64(0))
 	negDisabled := Config{MaxAllocationTimeout: -1}
 	assert.LessOrEqual(t, negDisabled.MaxAllocationTimeout, int64(0))
+}
+
+// Every bad preset is reported at once and in a stable order: map iteration is random, so reporting
+// only the first would make an operator with two mistakes fix one and hit the other on redeploy.
+func TestSetConfigReportsEveryUnusablePreset(t *testing.T) {
+	defer func() {
+		r := recover()
+		require.NotNil(t, r)
+		assert.Equal(t, "unusable lobby presets:\n"+
+			`  "a_bad": no teams`+"\n"+
+			`  "z_bad": duplicate team id red`,
+			r)
+	}()
+	SetConfig(Config{}, map[string][]component.TeamConfig{
+		"z_bad": {{TeamID: "red", MaxPlayers: 2}, {TeamID: "red", MaxPlayers: 2}},
+		"a_bad": {},
+		"fine":  {{TeamID: "default", MaxPlayers: 4}},
+	})
+}
+
+// A snapshot from a build with a larger MaxLobbyTeams restores TeamCount past what Teams can hold.
+func TestFindTargetTeamSurvivesOversizedTeamCount(t *testing.T) {
+	t.Parallel()
+
+	lobby := &component.LobbyComponent{}
+	for i := range component.MaxLobbyTeams {
+		require.True(t, lobby.AddTeam(component.Team{TeamID: "t" + strconv.Itoa(i), MaxPlayers: 1}))
+		require.True(t, lobby.AddPlayerToTeam("p"+strconv.Itoa(i), "t"+strconv.Itoa(i)))
+	}
+	lobby.TeamCount = component.MaxLobbyTeams + 2
+
+	assert.NotPanics(t, func() {
+		team, errMsg := findTargetTeam(lobby, "")
+		assert.Nil(t, team)
+		assert.Equal(t, "all teams are full", errMsg)
+	})
+}
+
+// A count that outran the teams actually stored leaves zero entries inside the clamp. Their
+// MaxPlayers of 0 reads as unlimited, so they must not be handed out as the first team with space.
+func TestFindTargetTeamRejectsPhantomTeam(t *testing.T) {
+	t.Parallel()
+
+	lobby := &component.LobbyComponent{}
+	require.True(t, lobby.AddTeam(component.Team{TeamID: "red", MaxPlayers: 1}))
+	require.True(t, lobby.AddPlayerToTeam("p1", "red"))
+	// Two teams claimed, one actually stored.
+	lobby.TeamCount = 2
+
+	team, errMsg := findTargetTeam(lobby, "")
+	assert.Nil(t, team)
+	assert.Equal(t, "all teams are full", errMsg)
+
+	// And the zero entry is not reachable by name either.
+	assert.Nil(t, lobby.GetTeam(""))
+	assert.False(t, lobby.AddPlayerToTeam("p2", ""))
+}
+
+// A second Register means a second world in this process; it must not inherit the first world's
+// entity IDs through the latched rebuild flag.
+func TestSetConfigResetsIndexForANewWorld(t *testing.T) {
+	rebuildIndex(
+		[]lobbyRow{{entityID: 7, lobby: component.LobbyComponent{ID: "old", InviteCode: "OLD123"}}},
+		nil, 0, 30,
+	)
+	require.True(t, indexBuilt)
+
+	SetConfig(Config{}, map[string][]component.TeamConfig{"ok": {{TeamID: "default", MaxPlayers: 4}}})
+
+	assert.False(t, indexBuilt)
+	_, found := index.GetEntityID("old")
+	assert.False(t, found)
 }

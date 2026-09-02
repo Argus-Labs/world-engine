@@ -3,6 +3,8 @@ package system
 import (
 	"crypto/sha256"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
@@ -664,11 +666,24 @@ var storedPresets map[string][]component.TeamConfig
 // where returning an error here would surface as every CreateLobbyCommand being rejected by a shard
 // that otherwise looks healthy.
 func SetConfig(config Config, presets map[string][]component.TeamConfig) {
+	// Every bad preset at once, sorted: map order is random, so reporting the first one found would
+	// make an operator with two mistakes fix one, redeploy, and hit the other.
+	var unusable []string
 	for name, teams := range presets {
 		if reason := validatePreset(teams); reason != "" {
-			panic(fmt.Sprintf("lobby preset %q is unusable: %s", name, reason))
+			unusable = append(unusable, fmt.Sprintf("%q: %s", name, reason))
 		}
 	}
+	if len(unusable) > 0 {
+		sort.Strings(unusable)
+		panic("unusable lobby presets:\n  " + strings.Join(unusable, "\n  "))
+	}
+
+	// A second Register means a second world in this process. Discard the previous world's index
+	// rather than let indexBuilt latch: the next tick would otherwise resolve this world's lobby IDs
+	// to the previous world's entity IDs, and destroy entities by them.
+	resetIndex()
+
 	storedConfig = config
 	storedPresets = presets
 }
@@ -1250,10 +1265,18 @@ func findTargetTeam(lobby *component.LobbyComponent, teamID string) (*component.
 		return team, ""
 	}
 
-	// Find first available team with space
-	for i := range lobby.TeamCount {
-		if !lobby.Teams[i].IsFull() {
-			return &lobby.Teams[i], ""
+	// Find first available team with space. TeamList clamps: ranging TeamCount would index past
+	// Teams on a snapshot written by a build with a larger MaxLobbyTeams.
+	teams := lobby.TeamList()
+	for i := range teams {
+		// A restored TeamCount can outrun the teams actually stored, leaving zero entries inside the
+		// clamp. Their MaxPlayers of 0 reads as unlimited, so without this they look like the first
+		// team with space and admit players to a team with no ID.
+		if teams[i].TeamID == "" {
+			continue
+		}
+		if !teams[i].IsFull() {
+			return &teams[i], ""
 		}
 	}
 	return nil, "all teams are full"

@@ -75,10 +75,7 @@ func mustWrite(err error) {
 
 func gobMarshal(v any) []byte {
 	var buf bytes.Buffer
-	// A test double that cannot encode itself is a broken fixture, not a runtime condition.
-	if err := gob.NewEncoder(&buf).Encode(v); err != nil {
-		panic(err)
-	}
+	mustWrite(gob.NewEncoder(&buf).Encode(v))
 	return buf.Bytes()
 }
 

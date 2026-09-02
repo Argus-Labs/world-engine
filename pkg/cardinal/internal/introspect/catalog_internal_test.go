@@ -160,3 +160,12 @@ func TestArrayFields_IgnoresNonStructs(t *testing.T) {
 
 	assert.Nil(t, arrayFields(nil))
 }
+
+// arrayFields walks the registered type's own fields, so a pointer receiver reports nothing. Nothing
+// registers a pointer today; this pins the documented behaviour so a change to it is deliberate.
+func TestArrayFieldsIgnoresPointerReceiver(t *testing.T) {
+	t.Parallel()
+
+	assert.NotEmpty(t, arrayFields(arrayShapes{}), "value receiver reports its arrays")
+	assert.Nil(t, arrayFields(&arrayShapes{}), "pointer receiver reports none")
+}
