@@ -8,54 +8,54 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef int32_t (*get_contract_fn)(cardinal_runtime_contract_v1 *);
+typedef int32_t (*get_contract_fn)(cardinal_runtime_contract_v1 *contract);
 typedef int32_t (*create_fn)(
-    const uint8_t *,
-    size_t,
-    cardinal_runtime_handle_v1 *
+    const uint8_t *config,
+    size_t config_len,
+    cardinal_runtime_handle_v1 *handle
 );
 typedef int32_t (*initialize_fn)(
-    cardinal_runtime_handle_v1,
-    const uint8_t *,
-    size_t
+    cardinal_runtime_handle_v1 handle,
+    const uint8_t *snapshot,
+    size_t snapshot_len
 );
 typedef int32_t (*tick_fn)(
-    cardinal_runtime_handle_v1,
-    uint64_t,
-    uint64_t,
-    const uint8_t *,
-    size_t,
-    uint8_t *,
-    size_t,
-    size_t *
+    cardinal_runtime_handle_v1 handle,
+    uint64_t tick,
+    uint64_t fixed_delta_ns,
+    const uint8_t *input,
+    size_t input_len,
+    uint8_t *output,
+    size_t output_capacity,
+    size_t *output_len
 );
 typedef int32_t (*query_fn)(
-    cardinal_runtime_handle_v1,
-    uint32_t,
-    const uint8_t *,
-    size_t,
-    uint8_t *,
-    size_t,
-    size_t *
+    cardinal_runtime_handle_v1 handle,
+    uint32_t kind,
+    const uint8_t *input,
+    size_t input_len,
+    uint8_t *output,
+    size_t output_capacity,
+    size_t *output_len
 );
 typedef int32_t (*snapshot_fn)(
-    cardinal_runtime_handle_v1,
-    uint8_t *,
-    size_t,
-    size_t *
+    cardinal_runtime_handle_v1 handle,
+    uint8_t *output,
+    size_t output_capacity,
+    size_t *output_len
 );
 typedef int32_t (*restore_fn)(
-    cardinal_runtime_handle_v1,
-    const uint8_t *,
-    size_t
+    cardinal_runtime_handle_v1 handle,
+    const uint8_t *snapshot,
+    size_t snapshot_len
 );
 typedef int32_t (*last_error_fn)(
-    cardinal_runtime_handle_v1,
-    uint8_t *,
-    size_t,
-    size_t *
+    cardinal_runtime_handle_v1 handle,
+    uint8_t *output,
+    size_t output_capacity,
+    size_t *output_len
 );
-typedef int32_t (*destroy_fn)(cardinal_runtime_handle_v1);
+typedef int32_t (*destroy_fn)(cardinal_runtime_handle_v1 handle);
 
 struct cardinal_nativeaot_library_v1 {
     get_contract_fn get_contract;
@@ -211,6 +211,8 @@ cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
 }
 
 void cardinal_nativeaot_library_forget(cardinal_nativeaot_library_v1 *library) {
+    assert(library != NULL);
+
     /*
      * Deliberately no dlclose. NativeAOT does not support unloading. Only the dispatch table
      * allocated by this loader is released.
@@ -222,9 +224,9 @@ int32_t cardinal_nativeaot_get_contract(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_contract_v1 *contract
 ) {
-    if (library == NULL || contract == NULL) {
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
-    }
+    assert(library != NULL);
+    assert(contract != NULL);
+
     return library->get_contract(contract);
 }
 
@@ -233,14 +235,15 @@ cardinal_nativeaot_create_result_v1 cardinal_nativeaot_create(
     const uint8_t *config,
     size_t config_len
 ) {
+    assert(library != NULL);
+
     cardinal_nativeaot_create_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
         .handle = 0,
     };
-    if (library == NULL) {
-        return result;
-    }
     result.status = library->create(config, config_len, &result.handle);
+    if (result.status == CARDINAL_RUNTIME_STATUS_SUCCESS) assert(result.handle != 0);
+
     return result;
 }
 
@@ -250,9 +253,9 @@ int32_t cardinal_nativeaot_initialize(
     const uint8_t *snapshot,
     size_t snapshot_len
 ) {
-    if (library == NULL) {
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
-    }
+    assert(handle != 0);
+    assert(library != NULL);
+
     return library->initialize(handle, snapshot, snapshot_len);
 }
 
@@ -266,13 +269,13 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
     uint8_t *output,
     size_t output_capacity
 ) {
+    assert(handle != 0);
+    assert(library != NULL);
+
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
         .output_len = 0,
     };
-    if (library == NULL) {
-        return result;
-    }
     result.status = library->tick(
         handle,
         tick,
@@ -283,6 +286,7 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
         output_capacity,
         &result.output_len
     );
+
     return result;
 }
 
@@ -295,13 +299,13 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_query(
     uint8_t *output,
     size_t output_capacity
 ) {
+    assert(handle != 0);
+    assert(library != NULL);
+
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
         .output_len = 0,
     };
-    if (library == NULL) {
-        return result;
-    }
     result.status = library->query(
         handle,
         kind,
@@ -320,19 +324,20 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_snapshot(
     uint8_t *output,
     size_t output_capacity
 ) {
+    assert(handle != 0);
+    assert(library != NULL);
+
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
         .output_len = 0,
     };
-    if (library == NULL) {
-        return result;
-    }
     result.status = library->snapshot(
         handle,
         output,
         output_capacity,
         &result.output_len
     );
+
     return result;
 }
 
@@ -342,31 +347,31 @@ int32_t cardinal_nativeaot_restore(
     const uint8_t *snapshot,
     size_t snapshot_len
 ) {
-    if (library == NULL) {
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
-    }
+    assert(handle != 0);
+    assert(library != NULL);
+
     return library->restore(handle, snapshot, snapshot_len);
 }
 
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_last_error(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
-    uint8_t *output,
-    size_t output_capacity
+    uint8_t *output
 ) {
+    assert(library != NULL);
+    assert(output != NULL);
+
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
         .output_len = 0,
     };
-    if (library == NULL) {
-        return result;
-    }
     result.status = library->last_error(
         handle,
         output,
-        output_capacity,
+        CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY,
         &result.output_len
     );
+
     return result;
 }
 
@@ -374,8 +379,8 @@ int32_t cardinal_nativeaot_destroy(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle
 ) {
-    if (library == NULL) {
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
-    }
+    assert(handle != 0);
+    assert(library != NULL);
+
     return library->destroy(handle);
 }

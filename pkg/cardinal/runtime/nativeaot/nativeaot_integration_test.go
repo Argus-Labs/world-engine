@@ -17,25 +17,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const integrationContractVersion = "1.0.0"
+
 func TestNativeAOTModule(t *testing.T) {
 	libraryPath := os.Getenv("CARDINAL_NATIVEAOT_TEST_LIBRARY")
 	if libraryPath == "" {
 		t.Skip("CARDINAL_NATIVEAOT_TEST_LIBRARY is not set")
 	}
-	requirement := integrationContractRequirement()
+	moduleName := integrationContractName()
 
-	runner, err := nativeaot.Open(libraryPath, nil, requirement)
+	runner, err := nativeaot.Open(libraryPath, nil, moduleName, integrationContractVersion)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, runner.Close())
 	})
 
 	contract := runner.Contract()
-	assert.Equal(t, requirement.Name, contract.Name)
-	assert.Equal(t, requirement.Version, contract.Version)
+	assert.Equal(t, moduleName, contract.Name)
+	assert.Equal(t, integrationContractVersion, contract.Version)
 	assert.Equal(t, cardinalruntime.ABIVersion, contract.ABIVersion)
-	assert.True(t, contract.Supports(requirement.Capabilities))
-	assert.Equal(t, requirement.SchemaHash, contract.SchemaHash)
 
 	require.NoError(t, runner.Initialize(cardinalruntime.InitRequest{}))
 
@@ -64,7 +64,7 @@ func TestNativeAOTModule(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(snapshot), written)
 
-	restored, err := nativeaot.Open(libraryPath, nil, requirement)
+	restored, err := nativeaot.Open(libraryPath, nil, moduleName, integrationContractVersion)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, restored.Close())
@@ -90,7 +90,7 @@ func TestNativeAOTConcurrentOpenErrors(t *testing.T) {
 	}
 
 	const callCount = 28
-	requirement := integrationContractRequirement()
+	moduleName := integrationContractName()
 	start := make(chan struct{})
 	errorsChannel := make(chan error, callCount)
 	var waitGroup sync.WaitGroup
@@ -102,7 +102,12 @@ func TestNativeAOTConcurrentOpenErrors(t *testing.T) {
 			defer waitGroup.Done()
 			<-start
 
-			_, err := nativeaot.Open(libraryPath, make([]byte, configLength), requirement)
+			_, err := nativeaot.Open(
+				libraryPath,
+				make([]byte, configLength),
+				moduleName,
+				integrationContractVersion,
+			)
 			if err == nil {
 				errorsChannel <- eris.Errorf("config length %d unexpectedly succeeded", configLength)
 				return
@@ -132,7 +137,12 @@ func BenchmarkNativeAOTTick(b *testing.B) {
 		b.Skip("CARDINAL_NATIVEAOT_TEST_LIBRARY is not set")
 	}
 
-	runner, err := nativeaot.Open(libraryPath, nil, integrationContractRequirement())
+	runner, err := nativeaot.Open(
+		libraryPath,
+		nil,
+		integrationContractName(),
+		integrationContractVersion,
+	)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -168,24 +178,10 @@ func BenchmarkNativeAOTTick(b *testing.B) {
 	}
 }
 
-func integrationContractRequirement() cardinalruntime.ContractRequirement {
+func integrationContractName() string {
 	name := os.Getenv("CARDINAL_NATIVEAOT_TEST_NAME")
 	if name == "" {
-		name = "counter-fixture"
+		return "counter-fixture"
 	}
-	return cardinalruntime.ContractRequirement{
-		Name:    name,
-		Version: "1.0.0",
-		SchemaHash: [32]byte{
-			0x9a, 0xaf, 0x3f, 0x8c, 0xd5, 0xc1, 0x6c, 0xa9,
-			0x36, 0x91, 0x14, 0xaa, 0x09, 0x66, 0x99, 0xa2,
-			0x0e, 0xbf, 0xc7, 0x4a, 0x7f, 0xf3, 0xee, 0x99,
-			0x04, 0x83, 0x3d, 0x3f, 0xb9, 0xd5, 0xda, 0x30,
-		},
-		Capabilities: cardinalruntime.CapabilityInitialize |
-			cardinalruntime.CapabilityTick |
-			cardinalruntime.CapabilityQuery |
-			cardinalruntime.CapabilitySnapshot |
-			cardinalruntime.CapabilityRestore,
-	}
+	return name
 }

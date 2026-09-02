@@ -10,7 +10,7 @@
 #include <time.h>
 
 #define FIXTURE_MAX_HANDLES 32
-#define FIXTURE_ERROR_CAPACITY 256
+#define FIXTURE_ERROR_CAPACITY (CARDINAL_RUNTIME_V1_LAST_ERROR_CAPACITY + 2)
 
 typedef struct fixture_state {
     bool used;
@@ -103,25 +103,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 #else
     contract->abi_version = CARDINAL_RUNTIME_V1_ABI_VERSION;
 #endif
-#ifdef FIXTURE_BAD_SIZE
-    contract->struct_size = sizeof(*contract) + sizeof(uint64_t);
-#else
-    contract->struct_size = sizeof(*contract);
-#endif
-    contract->capabilities =
-        CARDINAL_RUNTIME_CAPABILITY_INITIALIZE |
-        CARDINAL_RUNTIME_CAPABILITY_TICK |
-        CARDINAL_RUNTIME_CAPABILITY_QUERY |
-        CARDINAL_RUNTIME_CAPABILITY_SNAPSHOT |
-        CARDINAL_RUNTIME_CAPABILITY_RESTORE;
-    for (size_t index = 0; index < CARDINAL_RUNTIME_V1_SCHEMA_HASH_SIZE; index++) {
-        contract->schema_hash[index] = (uint8_t)index;
-    }
     (void)snprintf(contract->name, sizeof(contract->name), "%s", "nativeaot-fixture");
     (void)snprintf(contract->version, sizeof(contract->version), "%s", "1.2.3");
-#ifdef FIXTURE_BAD_RESERVED_INDEX
-    contract->reserved[FIXTURE_BAD_RESERVED_INDEX] = UINT64_C(1);
-#endif
     global_error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
 }
@@ -138,6 +121,12 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
     if (config_len == strlen("fail-create") &&
         memcmp(config, "fail-create", config_len) == 0) {
         set_error(global_error, "fixture create failure");
+        return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
+    }
+    if (config_len == strlen("fail-create-long") &&
+        memcmp(config, "fail-create-long", config_len) == 0) {
+        memset(global_error, 'x', sizeof(global_error) - 1);
+        global_error[sizeof(global_error) - 1] = '\0';
         return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
     }
 
@@ -347,14 +336,17 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
 ) {
     fixture_state *state = find_state(handle);
     const char *message = state == NULL ? global_error : state->error;
-    size_t required = strlen(message);
-    int32_t status =
-        prepare_output(output, output_capacity, required, output_len);
-    if (status != CARDINAL_RUNTIME_STATUS_SUCCESS) {
-        return status;
+    if (output_len == NULL || (output_capacity > 0 && output == NULL)) {
+        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
-    if (required > 0) {
-        memcpy(output, message, required);
+
+    size_t written = strlen(message);
+    if (written > output_capacity) {
+        written = output_capacity;
+    }
+    *output_len = written;
+    if (written > 0) {
+        memcpy(output, message, written);
     }
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
 }
