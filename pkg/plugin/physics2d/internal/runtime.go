@@ -54,6 +54,14 @@ type Runtime struct {
 	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
 	Chains map[cardinal.EntityID][]box2d.ChainID
 
+	// Geometries mirrors the ChainGeometry2D components: geometry entity id -> deep-copied
+	// points, so attachShape resolves ColliderShape.ChainGeometry without touching ECS and
+	// nothing here aliases component memory. The pipeline syncs it every tick (SyncGeometries)
+	// before bodies reconcile, and a full sync after Reset rebuilds it from the restored
+	// entities. Points of a known id are never re-read: geometry is immutable by contract
+	// (see component.ChainGeometry2D), so id membership is the only thing that can change.
+	Geometries map[cardinal.EntityID][]component.Vec2
+
 	// Gravity is the world gravity vector applied on world creation and on rebuild.
 	Gravity component.Vec2
 
@@ -143,6 +151,11 @@ type Runtime struct {
 	rebuildEntriesScratch []PhysicsRebuildEntry
 	writebackScratch      []WritebackEntry
 
+	// geometryEntriesScratch backs the pipeline system's per-tick chain-geometry gather
+	// (see GeometryEntriesScratch). Entries alias ECS point slices for the duration of the
+	// gather, so the tail is cleared like the other gathers.
+	geometryEntriesScratch []GeometryEntry
+
 	// liveContactsScratch and contactDataScratch are reused by
 	// gatherLiveContactsInto, which runs up to twice per tick.
 	liveContactsScratch map[ContactPairKey]ContactPairInfo
@@ -205,6 +218,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Bodies:               make(map[cardinal.EntityID]box2d.BodyID),
 		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
+		Geometries:           make(map[cardinal.EntityID][]component.Vec2),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -224,6 +238,7 @@ func (rt *Runtime) Reset() {
 	rt.Bodies = make(map[cardinal.EntityID]box2d.BodyID)
 	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
+	rt.Geometries = make(map[cardinal.EntityID][]component.Vec2)
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
@@ -236,6 +251,7 @@ func (rt *Runtime) Reset() {
 	rt.reconcileSortScratch = nil
 	rt.rebuildEntriesScratch = nil
 	rt.writebackScratch = nil
+	rt.geometryEntriesScratch = nil
 	rt.liveContactsScratch = nil
 	rt.contactDataScratch = nil
 	rt.seenContactsScratch = nil
@@ -272,6 +288,57 @@ func (rt *Runtime) WritebackScratch() []WritebackEntry {
 func (rt *Runtime) KeepWritebackScratch(entries []WritebackEntry) []WritebackEntry {
 	rt.writebackScratch = clearScratchTail(entries)
 	return entries
+}
+
+// GeometryEntry is one chain-geometry entity's points as read from ECS. Points aliases the
+// live component's slice; SyncGeometries deep-copies before retaining anything.
+type GeometryEntry struct {
+	EntityID cardinal.EntityID
+	Points   []component.Vec2
+}
+
+// GeometryEntriesScratch returns the runtime-owned buffer for the pipeline system's
+// chain-geometry gather, emptied and ready to append into. Pair with
+// KeepGeometryEntriesScratch.
+func (rt *Runtime) GeometryEntriesScratch() []GeometryEntry {
+	return rt.geometryEntriesScratch[:0]
+}
+
+// KeepGeometryEntriesScratch stores the gathered slice back on the runtime and clears
+// everything past its length (entries alias ECS point slices). Returns it for chaining.
+func (rt *Runtime) KeepGeometryEntriesScratch(entries []GeometryEntry) []GeometryEntry {
+	rt.geometryEntriesScratch = clearScratchTail(entries)
+	return entries
+}
+
+// SyncGeometries reconciles the Geometries mirror with the chain-geometry rows gathered this
+// tick: ids new to the mirror are deep-copied in, ids no longer present are dropped. Points of
+// an already-known id are deliberately not re-read — ChainGeometry2D is immutable by contract,
+// so the only observable changes are entities appearing (spawn, restore) and disappearing
+// (despawn). In the steady state (same id set) it allocates nothing.
+func (rt *Runtime) SyncGeometries(entries []GeometryEntry) {
+	if len(entries) == len(rt.Geometries) {
+		known := true
+		for i := range entries {
+			if _, ok := rt.Geometries[entries[i].EntityID]; !ok {
+				known = false
+				break
+			}
+		}
+		if known {
+			return
+		}
+	}
+	next := make(map[cardinal.EntityID][]component.Vec2, len(entries))
+	for i := range entries {
+		id := entries[i].EntityID
+		if pts, ok := rt.Geometries[id]; ok {
+			next[id] = pts // keep the existing deep copy
+			continue
+		}
+		next[id] = cloneVec2Slice(entries[i].Points)
+	}
+	rt.Geometries = next
 }
 
 // WorldExists reports whether this runtime's Box2D world has been created and is alive.

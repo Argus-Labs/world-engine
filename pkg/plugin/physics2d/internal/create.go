@@ -211,9 +211,17 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
 	case component.ShapeTypeStaticChain, component.ShapeTypeStaticChainLoop:
-		pts := make([]box2d.Vec2, len(sh.ChainPoints))
-		for i := range sh.ChainPoints {
-			v := shapePointToBodySpace(sh.ChainPoints[i], sh.LocalOffset, sh.LocalRotation)
+		// Chain polylines live on their own entity (ChainGeometry2D) and are resolved through
+		// the runtime's mirror, which the pipeline syncs from ECS before any body reconciles.
+		src, ok := rt.Geometries[sh.ChainGeometry]
+		if !ok {
+			return fmt.Errorf(
+				"chain geometry entity %d not found (the entity must exist and carry a ChainGeometry2D component)",
+				sh.ChainGeometry)
+		}
+		pts := make([]box2d.Vec2, len(src))
+		for i := range src {
+			v := shapePointToBodySpace(src[i], sh.LocalOffset, sh.LocalRotation)
 			pts[i] = box2d.Vec2{X: v.X, Y: v.Y}
 		}
 		def := box2d.DefaultChainDef()
