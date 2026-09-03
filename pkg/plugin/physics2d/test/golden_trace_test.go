@@ -334,22 +334,40 @@ type goldenEntity struct {
 	rotation float64
 	vel      physics.Velocity2D
 	body     physics.PhysicsBody2D
+	// chainPoints, when set, spawns a ChainGeometry2D entity and points body.Shapes[0] at it.
+	// Geometry entities are created after every body so the body entity ids — which the
+	// committed CGO-era fixtures pin exactly — are unchanged by the geometry refactor.
+	chainPoints []physics.Vec2
 }
 
 func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
+		Geo   chainGeoSpawn
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
+		type chainPatch struct {
+			pb     cardinal.Ref[physics.PhysicsBody2D]
+			body   physics.PhysicsBody2D
+			points []physics.Vec2
+		}
+		var patches []chainPatch
 		for _, e := range entities() {
 			_, row := state.Spawn.Create()
 			row.Tag.Set(harnessTag{Role: e.role})
 			row.T.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
 			row.V.Set(e.vel)
 			row.PB.Set(e.body)
+			if len(e.chainPoints) > 0 {
+				patches = append(patches, chainPatch{pb: row.PB, body: e.body, points: e.chainPoints})
+			}
+		}
+		for _, p := range patches {
+			p.body.Shapes[0].ChainGeometry = spawnChainGeometry(&state.Geo, p.points)
+			p.pb.Set(p.body)
 		}
 	}, cardinal.WithHook(cardinal.Init))
 }
@@ -465,17 +483,17 @@ func goldenCapsuleChainGround() goldenScenario {
 					role: "terrain",
 					pos:  physics.Vec2{X: 0, Y: 0},
 					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType: physics.ShapeTypeStaticChain,
-						// Box2D v3 chains are one-sided: right-to-left (decreasing X) winding
-						// gives upward-facing normals so bodies land on top.
-						ChainPoints: []physics.Vec2{
-							{X: 14, Y: 1}, {X: 7, Y: -1}, {X: 0, Y: -2},
-							{X: -7, Y: -1}, {X: -14, Y: 1},
-						},
+						ShapeType:    physics.ShapeTypeStaticChain,
 						Friction:     0.5,
 						CategoryBits: 0xFFFF,
 						MaskBits:     0xFFFF,
 					}),
+					// Box2D v3 chains are one-sided: right-to-left (decreasing X) winding
+					// gives upward-facing normals so bodies land on top.
+					chainPoints: []physics.Vec2{
+						{X: 14, Y: 1}, {X: 7, Y: -1}, {X: 0, Y: -2},
+						{X: -7, Y: -1}, {X: -14, Y: 1},
+					},
 				}}
 				for i := range 4 {
 					f := float64(i)

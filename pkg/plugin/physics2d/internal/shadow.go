@@ -14,7 +14,7 @@ type ShadowState struct {
 }
 
 // NewShadowState returns a shadow snapshot with deep-copied shapes (Shapes and per-shape
-// Vertices / ChainPoints are cloned).
+// Vertices are cloned; chain geometry is referenced by entity id, so the id is the copy).
 func NewShadowState(
 	t component.Transform2D,
 	v component.Velocity2D,
@@ -49,7 +49,7 @@ func deepCopyColliderShape(s component.ColliderShape) component.ColliderShape {
 		CapsuleCenter1: s.CapsuleCenter1,
 		CapsuleCenter2: s.CapsuleCenter2,
 		Vertices:       cloneVec2Slice(s.Vertices),
-		ChainPoints:    cloneVec2Slice(s.ChainPoints),
+		ChainGeometry:  s.ChainGeometry,
 		EdgeVertices:   s.EdgeVertices,
 		Friction:       s.Friction,
 		Restitution:    s.Restitution,
@@ -135,6 +135,7 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		!vec2Equal(a.HalfExtents, b.HalfExtents) ||
 		!vec2Equal(a.CapsuleCenter1, b.CapsuleCenter1) ||
 		!vec2Equal(a.CapsuleCenter2, b.CapsuleCenter2) ||
+		a.ChainGeometry != b.ChainGeometry ||
 		a.Friction != b.Friction ||
 		a.Restitution != b.Restitution ||
 		a.Density != b.Density ||
@@ -144,7 +145,6 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		return false
 	}
 	return vec2SliceEqual(a.Vertices, b.Vertices) &&
-		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
 		a.EdgeVertices == b.EdgeVertices
 }
 
@@ -174,7 +174,7 @@ func colliderShapeStructuralEqual(a, b component.ColliderShape) bool {
 		vec2Equal(a.CapsuleCenter1, b.CapsuleCenter1) &&
 		vec2Equal(a.CapsuleCenter2, b.CapsuleCenter2) &&
 		vec2SliceEqual(a.Vertices, b.Vertices) &&
-		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
+		a.ChainGeometry == b.ChainGeometry &&
 		a.EdgeVertices == b.EdgeVertices
 }
 

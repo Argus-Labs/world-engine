@@ -13,6 +13,7 @@ import (
 type PhysicsPipelineSystemState struct {
 	cardinal.BaseSystemState
 	Bodies       cardinal.Contains[physicsBodyRow]
+	Geometries   cardinal.Contains[chainGeometryRow]
 	Singleton    physicsSingletonSearch
 	ContactBegin cardinal.WithSystemEventEmitter[physicevent.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventEmitter[physicevent.ContactEndEvent]
@@ -79,6 +80,9 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
 		ensurePhysicsSingleton(&state.Singleton)
+		// Geometry first: bodies created or rebuilt below resolve chain points through the
+		// runtime mirror, so it must reflect this tick's ChainGeometry2D entities.
+		syncGeometries(rt, state.Geometries.Iter())
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 
