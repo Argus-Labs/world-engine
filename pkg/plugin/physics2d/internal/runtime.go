@@ -118,6 +118,10 @@ type Runtime struct {
 	castScratch    castHit
 	overlapScratch overlapCollector
 
+	// wakeOrderScratch sorts the post-rebuild wake set.
+	// Reused because a rebuild can recur on every restore.
+	wakeOrderScratch []cardinal.EntityID
+
 	// overlapHitsScratch is the gather buffer for OverlapAABB. Hits accumulate here
 	// across calls so the append growth ladder is paid once, not per query; the
 	// caller-owned result is then allocated exactly once at the final size.
@@ -235,6 +239,8 @@ func (rt *Runtime) Reset() {
 	rt.liveContactsScratch = nil
 	rt.contactDataScratch = nil
 	rt.seenContactsScratch = nil
+	rt.wakeOrderScratch = nil
+	rt.overlapHitsScratch = nil
 	rt.gatherEpoch = 0
 }
 
