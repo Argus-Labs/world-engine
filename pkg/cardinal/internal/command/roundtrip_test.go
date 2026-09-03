@@ -22,8 +22,7 @@ import (
 func assertCodecRoundTripType[T command.Payload](t *testing.T, value T) {
 	t.Helper()
 
-	payload, err := value.MarshalWire()
-	require.NoError(t, err)
+	payload := value.MarshalWire()
 
 	q := command.NewQueue[T]()
 	require.NoError(t, q.Enqueue(&iscv1.Command{

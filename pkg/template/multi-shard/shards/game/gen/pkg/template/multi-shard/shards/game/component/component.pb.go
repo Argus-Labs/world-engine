@@ -187,7 +187,7 @@ var File_pkg_template_multi_shard_shards_game_component_component_proto protoref
 
 const file_pkg_template_multi_shard_shards_game_component_component_proto_rawDesc = "" +
 	"\n" +
-	">pkg/template/multi-shard/shards/game/component/component.proto\x12;world_engine.pkg.template.multi_shard.shards.game.component\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n" +
+	">pkg/template/multi-shard/shards/game/component/component.proto\x12Qgithub_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.component\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n" +
 	"\fOnlineStatus\x12\x16\n" +
 	"\x06Online\x18\x01 \x01(\bR\x06Online\x12:\n" +
 	"\n" +
@@ -214,13 +214,13 @@ func file_pkg_template_multi_shard_shards_game_component_component_proto_rawDesc
 
 var file_pkg_template_multi_shard_shards_game_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_pkg_template_multi_shard_shards_game_component_component_proto_goTypes = []any{
-	(*OnlineStatus)(nil),          // 0: world_engine.pkg.template.multi_shard.shards.game.component.OnlineStatus
-	(*PlayerTag)(nil),             // 1: world_engine.pkg.template.multi_shard.shards.game.component.PlayerTag
-	(*Position)(nil),              // 2: world_engine.pkg.template.multi_shard.shards.game.component.Position
+	(*OnlineStatus)(nil),          // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.component.OnlineStatus
+	(*PlayerTag)(nil),             // 1: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.component.PlayerTag
+	(*Position)(nil),              // 2: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.component.Position
 	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_pkg_template_multi_shard_shards_game_component_component_proto_depIdxs = []int32{
-	3, // 0: world_engine.pkg.template.multi_shard.shards.game.component.OnlineStatus.LastActive:type_name -> google.protobuf.Timestamp
+	3, // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.component.OnlineStatus.LastActive:type_name -> google.protobuf.Timestamp
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

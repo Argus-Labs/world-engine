@@ -507,11 +507,10 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 		ws1.removeEntity(eid)
 	}
 
-	pb, err := ws1.toProto()
-	require.NoError(t, err)
+	pb := ws1.toProto()
 
 	ws2 := newTestWorldState(t)
-	err = ws2.fromProto(pb)
+	err := ws2.fromProto(pb)
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.

@@ -70,7 +70,8 @@ func (w *World) Schedules() []ScheduleInfo {
 				Name: sys.name,
 			}
 		}
-		schedules[hook] = ScheduleInfo{Hook: SystemHook(hook), Systems: systems} //nolint: gosec // it's ok
+		//nolint:gosec // hook indexes w.systems, a fixed [4] array, so it is always 0..3
+		schedules[hook] = ScheduleInfo{Hook: SystemHook(hook), Systems: systems}
 	}
 	return schedules
 }
@@ -86,7 +87,7 @@ func (w *World) LiveEntityIDs() []EntityID {
 		if aid == sparseTombstone {
 			continue
 		}
-		ids = append(ids, EntityID(i)) //nolint:gosec // entityArch indices are entity IDs
+		ids = append(ids, EntityID(i)) //nolint:gosec // entityArch is indexed by entity ID, so i is one
 	}
 	return ids
 }
@@ -101,7 +102,7 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 
 // ToProto converts the World's state to a proto message.
 // Only serializes the WorldState as components, systems, and managers are recreated on startup.
-func (w *World) ToProto() (*cardinalv1.WorldState, error) {
+func (w *World) ToProto() *cardinalv1.WorldState {
 	return w.state.toProto()
 }
 
@@ -195,7 +196,7 @@ func CheckWorld(t *testing.T, w *World) {
 		if val == sparseTombstone {
 			continue
 		}
-		eid := EntityID(i) //nolint:gosec // sparset max length is entity id max
+		eid := EntityID(i) //nolint:gosec // entityArch is indexed by entity ID, so i is one
 		_, exists := liveEntities[eid]
 		require.True(t, exists,
 			"entityArch has entity %d -> archetype %d but entity not in any archetype", eid, val)

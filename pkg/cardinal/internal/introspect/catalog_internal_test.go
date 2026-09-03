@@ -19,7 +19,7 @@ type descriptorSample struct {
 }
 
 func (sample descriptorSample) Name() string               { return sample.name }
-func (descriptorSample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (descriptorSample) MarshalWire() []byte               { return nil }
 func (descriptorSample) UnmarshalWire([]byte) (any, error) { return descriptorSample{}, nil }
 func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return sample.descriptor
@@ -28,7 +28,7 @@ func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor 
 type wireOnlySample struct{ name string }
 
 func (sample wireOnlySample) Name() string               { return sample.name }
-func (wireOnlySample) MarshalWire() ([]byte, error)      { return nil, nil }
+func (wireOnlySample) MarshalWire() []byte               { return nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
 
 func TestFinalizeRequiresGeneratedProtobufDescriptor(t *testing.T) {
@@ -124,4 +124,48 @@ func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
 		}
 	}
 	return false
+}
+
+// -------------------------------------------------------------------------------------------------
+// Fixed-array shape metadata
+// -------------------------------------------------------------------------------------------------
+
+type arrayShapes struct {
+	Flat   [8]int32    // one dimension: the flat field is already unambiguous
+	Grid   [4][8]int32 // two: 32 elements could be 4x8 or 8x4
+	Cube   [2][3][4]int32
+	Scalar int32
+	Slice  []int32
+	hidden [2][2]int32 //nolint:unused // unexported fields are never serialized
+}
+
+func (arrayShapes) Name() string                      { return "array_shapes" }
+func (arrayShapes) MarshalWire() []byte               { return nil }
+func (arrayShapes) UnmarshalWire([]byte) (any, error) { return arrayShapes{}, nil }
+
+func TestArrayFields_OnlyMultiDimensional(t *testing.T) {
+	t.Parallel()
+
+	got := arrayFields(arrayShapes{})
+	require.Len(t, got, 2, "only the multi-dimensional exported arrays carry a shape")
+
+	assert.Equal(t, "Grid", got[0].GetField())
+	assert.Equal(t, []uint32{4, 8}, got[0].GetDims())
+	assert.Equal(t, "Cube", got[1].GetField())
+	assert.Equal(t, []uint32{2, 3, 4}, got[1].GetDims())
+}
+
+func TestArrayFields_IgnoresNonStructs(t *testing.T) {
+	t.Parallel()
+
+	assert.Nil(t, arrayFields(nil))
+}
+
+// arrayFields walks the registered type's own fields, so a pointer receiver reports nothing. Nothing
+// registers a pointer today; this pins the documented behaviour so a change to it is deliberate.
+func TestArrayFieldsIgnoresPointerReceiver(t *testing.T) {
+	t.Parallel()
+
+	assert.NotEmpty(t, arrayFields(arrayShapes{}), "value receiver reports its arrays")
+	assert.Nil(t, arrayFields(&arrayShapes{}), "pointer receiver reports none")
 }

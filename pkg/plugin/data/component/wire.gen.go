@@ -5,13 +5,13 @@
 package component
 
 import (
-	component "github.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c ConfigManifest) ToProto() *component.ConfigManifest {
-	p := &component.ConfigManifest{}
+func (c ConfigManifest) ToProto() *pbcomponent.ConfigManifest {
+	p := &pbcomponent.ConfigManifest{}
 	if len(c.Files) > 0 {
 		p.Files = make(map[string]string, len(c.Files))
 		for k, v := range c.Files {
@@ -21,7 +21,7 @@ func (c ConfigManifest) ToProto() *component.ConfigManifest {
 	return p
 }
 
-func (c ConfigManifest) FromProto(p *component.ConfigManifest) ConfigManifest {
+func (c ConfigManifest) FromProto(p *pbcomponent.ConfigManifest) ConfigManifest {
 	if p == nil {
 		return c
 	}
@@ -34,12 +34,16 @@ func (c ConfigManifest) FromProto(p *component.ConfigManifest) ConfigManifest {
 	return c
 }
 
-func (c ConfigManifest) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c ConfigManifest) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ConfigManifest: " + err.Error())
+	}
+	return data
 }
 
 func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
-	var p component.ConfigManifest
+	var p pbcomponent.ConfigManifest
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -47,5 +51,5 @@ func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c ConfigManifest) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.ConfigManifest{}).ProtoReflect().Descriptor()
+	return (&pbcomponent.ConfigManifest{}).ProtoReflect().Descriptor()
 }

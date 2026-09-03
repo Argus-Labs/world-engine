@@ -5,20 +5,20 @@
 package component
 
 import (
-	component "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/component"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (c OnlineStatus) ToProto() *component.OnlineStatus {
-	p := &component.OnlineStatus{}
+func (c OnlineStatus) ToProto() *pbcomponent.OnlineStatus {
+	p := &pbcomponent.OnlineStatus{}
 	p.Online = bool(c.Online)
 	p.LastActive = timestamppb.New(c.LastActive)
 	return p
 }
 
-func (c OnlineStatus) FromProto(p *component.OnlineStatus) OnlineStatus {
+func (c OnlineStatus) FromProto(p *pbcomponent.OnlineStatus) OnlineStatus {
 	if p == nil {
 		return c
 	}
@@ -29,12 +29,16 @@ func (c OnlineStatus) FromProto(p *component.OnlineStatus) OnlineStatus {
 	return c
 }
 
-func (c OnlineStatus) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c OnlineStatus) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal OnlineStatus: " + err.Error())
+	}
+	return data
 }
 
 func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
-	var p component.OnlineStatus
+	var p pbcomponent.OnlineStatus
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -42,17 +46,17 @@ func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c OnlineStatus) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.OnlineStatus{}).ProtoReflect().Descriptor()
+	return (&pbcomponent.OnlineStatus{}).ProtoReflect().Descriptor()
 }
 
-func (c PlayerTag) ToProto() *component.PlayerTag {
-	p := &component.PlayerTag{}
+func (c PlayerTag) ToProto() *pbcomponent.PlayerTag {
+	p := &pbcomponent.PlayerTag{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	return p
 }
 
-func (c PlayerTag) FromProto(p *component.PlayerTag) PlayerTag {
+func (c PlayerTag) FromProto(p *pbcomponent.PlayerTag) PlayerTag {
 	if p == nil {
 		return c
 	}
@@ -61,12 +65,16 @@ func (c PlayerTag) FromProto(p *component.PlayerTag) PlayerTag {
 	return c
 }
 
-func (c PlayerTag) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerTag) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerTag: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
-	var p component.PlayerTag
+	var p pbcomponent.PlayerTag
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -74,17 +82,17 @@ func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.PlayerTag{}).ProtoReflect().Descriptor()
+	return (&pbcomponent.PlayerTag{}).ProtoReflect().Descriptor()
 }
 
-func (c Position) ToProto() *component.Position {
-	p := &component.Position{}
+func (c Position) ToProto() *pbcomponent.Position {
+	p := &pbcomponent.Position{}
 	p.X = int64(c.X)
 	p.Y = int64(c.Y)
 	return p
 }
 
-func (c Position) FromProto(p *component.Position) Position {
+func (c Position) FromProto(p *pbcomponent.Position) Position {
 	if p == nil {
 		return c
 	}
@@ -93,12 +101,16 @@ func (c Position) FromProto(p *component.Position) Position {
 	return c
 }
 
-func (c Position) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c Position) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal Position: " + err.Error())
+	}
+	return data
 }
 
 func (c Position) UnmarshalWire(data []byte) (any, error) {
-	var p component.Position
+	var p pbcomponent.Position
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -106,5 +118,5 @@ func (c Position) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c Position) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&component.Position{}).ProtoReflect().Descriptor()
+	return (&pbcomponent.Position{}).ProtoReflect().Descriptor()
 }

@@ -5,20 +5,20 @@
 package command
 
 import (
-	command "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command"
+	pbcommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c UserChat) ToProto() *command.UserChat {
-	p := &command.UserChat{}
+func (c UserChat) ToProto() *pbcommand.UserChat {
+	p := &pbcommand.UserChat{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.Message = string(c.Message)
 	return p
 }
 
-func (c UserChat) FromProto(p *command.UserChat) UserChat {
+func (c UserChat) FromProto(p *pbcommand.UserChat) UserChat {
 	if p == nil {
 		return c
 	}
@@ -28,12 +28,16 @@ func (c UserChat) FromProto(p *command.UserChat) UserChat {
 	return c
 }
 
-func (c UserChat) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c UserChat) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal UserChat: " + err.Error())
+	}
+	return data
 }
 
 func (c UserChat) UnmarshalWire(data []byte) (any, error) {
-	var p command.UserChat
+	var p pbcommand.UserChat
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -41,5 +45,5 @@ func (c UserChat) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c UserChat) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&command.UserChat{}).ProtoReflect().Descriptor()
+	return (&pbcommand.UserChat{}).ProtoReflect().Descriptor()
 }

@@ -324,8 +324,14 @@ type TypeSchema struct {
 	// Name of this command, component, or event in proto_descriptor_set.
 	// Clients use it to find the correct protobuf type definition.
 	ProtoMessageName string `protobuf:"bytes,2,opt,name=proto_message_name,json=protoMessageName,proto3" json:"proto_message_name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Shape of any multi-dimensional fixed-size array fields this type has.
+	// A fixed array is carried as one flat repeated field, which is unambiguous in one dimension but
+	// not beyond it: 32 elements could be 4x8 or 8x4. Clients that decode types they do not know ahead
+	// of time (the debug tooling) use this to rebuild the indices; clients written against a known
+	// schema can ignore it and index the flat field directly.
+	ArrayFields   []*ArrayField `protobuf:"bytes,3,rep,name=array_fields,json=arrayFields,proto3" json:"array_fields,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TypeSchema) Reset() {
@@ -372,6 +378,69 @@ func (x *TypeSchema) GetProtoMessageName() string {
 	return ""
 }
 
+func (x *TypeSchema) GetArrayFields() []*ArrayField {
+	if x != nil {
+		return x.ArrayFields
+	}
+	return nil
+}
+
+// ArrayField gives the dimensions of one fixed-size array field, outermost first.
+type ArrayField struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the field within its message.
+	Field string `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	// Dimensions outermost first: [4][8]int32 is {4, 8}. Elements are laid out row-major, so the
+	// element at [a][b] is at flat index a*8 + b.
+	Dims          []uint32 `protobuf:"varint,2,rep,packed,name=dims,proto3" json:"dims,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArrayField) Reset() {
+	*x = ArrayField{}
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArrayField) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArrayField) ProtoMessage() {}
+
+func (x *ArrayField) ProtoReflect() protoreflect.Message {
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArrayField.ProtoReflect.Descriptor instead.
+func (*ArrayField) Descriptor() ([]byte, []int) {
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ArrayField) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *ArrayField) GetDims() []uint32 {
+	if x != nil {
+		return x.Dims
+	}
+	return nil
+}
+
 // PauseRequest is the request message for the Pause RPC.
 type PauseRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -381,7 +450,7 @@ type PauseRequest struct {
 
 func (x *PauseRequest) Reset() {
 	*x = PauseRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[5]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -393,7 +462,7 @@ func (x *PauseRequest) String() string {
 func (*PauseRequest) ProtoMessage() {}
 
 func (x *PauseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[5]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -406,7 +475,7 @@ func (x *PauseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseRequest.ProtoReflect.Descriptor instead.
 func (*PauseRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{5}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{6}
 }
 
 // PauseResponse is the response message for the Pause RPC.
@@ -420,7 +489,7 @@ type PauseResponse struct {
 
 func (x *PauseResponse) Reset() {
 	*x = PauseResponse{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[6]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +501,7 @@ func (x *PauseResponse) String() string {
 func (*PauseResponse) ProtoMessage() {}
 
 func (x *PauseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[6]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +514,7 @@ func (x *PauseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseResponse.ProtoReflect.Descriptor instead.
 func (*PauseResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{6}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PauseResponse) GetTickHeight() uint64 {
@@ -464,7 +533,7 @@ type ResumeRequest struct {
 
 func (x *ResumeRequest) Reset() {
 	*x = ResumeRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[7]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +545,7 @@ func (x *ResumeRequest) String() string {
 func (*ResumeRequest) ProtoMessage() {}
 
 func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[7]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +558,7 @@ func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRequest.ProtoReflect.Descriptor instead.
 func (*ResumeRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{7}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{8}
 }
 
 // ResumeResponse is the response message for the Resume RPC.
@@ -501,7 +570,7 @@ type ResumeResponse struct {
 
 func (x *ResumeResponse) Reset() {
 	*x = ResumeResponse{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[8]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +582,7 @@ func (x *ResumeResponse) String() string {
 func (*ResumeResponse) ProtoMessage() {}
 
 func (x *ResumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[8]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +595,7 @@ func (x *ResumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeResponse.ProtoReflect.Descriptor instead.
 func (*ResumeResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{8}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{9}
 }
 
 // StepRequest is the request message for the Step RPC.
@@ -538,7 +607,7 @@ type StepRequest struct {
 
 func (x *StepRequest) Reset() {
 	*x = StepRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[9]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -550,7 +619,7 @@ func (x *StepRequest) String() string {
 func (*StepRequest) ProtoMessage() {}
 
 func (x *StepRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[9]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -563,7 +632,7 @@ func (x *StepRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepRequest.ProtoReflect.Descriptor instead.
 func (*StepRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{9}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{10}
 }
 
 // StepResponse is the response message for the Step RPC.
@@ -577,7 +646,7 @@ type StepResponse struct {
 
 func (x *StepResponse) Reset() {
 	*x = StepResponse{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[10]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +658,7 @@ func (x *StepResponse) String() string {
 func (*StepResponse) ProtoMessage() {}
 
 func (x *StepResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[10]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +671,7 @@ func (x *StepResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepResponse.ProtoReflect.Descriptor instead.
 func (*StepResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{10}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StepResponse) GetTickHeight() uint64 {
@@ -621,7 +690,7 @@ type ResetRequest struct {
 
 func (x *ResetRequest) Reset() {
 	*x = ResetRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[11]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -633,7 +702,7 @@ func (x *ResetRequest) String() string {
 func (*ResetRequest) ProtoMessage() {}
 
 func (x *ResetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[11]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -646,7 +715,7 @@ func (x *ResetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetRequest.ProtoReflect.Descriptor instead.
 func (*ResetRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{11}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{12}
 }
 
 // ResetResponse is the response message for the Reset RPC.
@@ -658,7 +727,7 @@ type ResetResponse struct {
 
 func (x *ResetResponse) Reset() {
 	*x = ResetResponse{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[12]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -670,7 +739,7 @@ func (x *ResetResponse) String() string {
 func (*ResetResponse) ProtoMessage() {}
 
 func (x *ResetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[12]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -683,7 +752,7 @@ func (x *ResetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetResponse.ProtoReflect.Descriptor instead.
 func (*ResetResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{12}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{13}
 }
 
 // GetStateRequest is the request message for the GetState RPC.
@@ -695,7 +764,7 @@ type GetStateRequest struct {
 
 func (x *GetStateRequest) Reset() {
 	*x = GetStateRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[13]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -707,7 +776,7 @@ func (x *GetStateRequest) String() string {
 func (*GetStateRequest) ProtoMessage() {}
 
 func (x *GetStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[13]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -720,7 +789,7 @@ func (x *GetStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStateRequest.ProtoReflect.Descriptor instead.
 func (*GetStateRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{13}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{14}
 }
 
 // GetStateResponse is the response message for the GetState RPC.
@@ -736,7 +805,7 @@ type GetStateResponse struct {
 
 func (x *GetStateResponse) Reset() {
 	*x = GetStateResponse{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[14]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -748,7 +817,7 @@ func (x *GetStateResponse) String() string {
 func (*GetStateResponse) ProtoMessage() {}
 
 func (x *GetStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[14]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -761,7 +830,7 @@ func (x *GetStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStateResponse.ProtoReflect.Descriptor instead.
 func (*GetStateResponse) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{14}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetStateResponse) GetIsPaused() bool {
@@ -787,7 +856,7 @@ type StreamPerfRequest struct {
 
 func (x *StreamPerfRequest) Reset() {
 	*x = StreamPerfRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[15]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -799,7 +868,7 @@ func (x *StreamPerfRequest) String() string {
 func (*StreamPerfRequest) ProtoMessage() {}
 
 func (x *StreamPerfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[15]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -812,7 +881,7 @@ func (x *StreamPerfRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamPerfRequest.ProtoReflect.Descriptor instead.
 func (*StreamPerfRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{15}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{16}
 }
 
 // PerfBatch is a batch of completed tick timelines pushed to the client.
@@ -825,7 +894,7 @@ type PerfBatch struct {
 
 func (x *PerfBatch) Reset() {
 	*x = PerfBatch{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -837,7 +906,7 @@ func (x *PerfBatch) String() string {
 func (*PerfBatch) ProtoMessage() {}
 
 func (x *PerfBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -850,7 +919,7 @@ func (x *PerfBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PerfBatch.ProtoReflect.Descriptor instead.
 func (*PerfBatch) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{16}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PerfBatch) GetTicks() []*TickTimeline {
@@ -871,7 +940,7 @@ type TickTimeline struct {
 
 func (x *TickTimeline) Reset() {
 	*x = TickTimeline{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -883,7 +952,7 @@ func (x *TickTimeline) String() string {
 func (*TickTimeline) ProtoMessage() {}
 
 func (x *TickTimeline) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -896,7 +965,7 @@ func (x *TickTimeline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TickTimeline.ProtoReflect.Descriptor instead.
 func (*TickTimeline) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{17}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TickTimeline) GetTickHeight() uint64 {
@@ -934,7 +1003,7 @@ type SystemSpan struct {
 
 func (x *SystemSpan) Reset() {
 	*x = SystemSpan{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -946,7 +1015,7 @@ func (x *SystemSpan) String() string {
 func (*SystemSpan) ProtoMessage() {}
 
 func (x *SystemSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
+	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -959,7 +1028,7 @@ func (x *SystemSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemSpan.ProtoReflect.Descriptor instead.
 func (*SystemSpan) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{18}
+	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SystemSpan) GetSystemHook() SystemHook {
@@ -1012,11 +1081,16 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
 	"SystemNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"V\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x9e\x01\n" +
 	"\n" +
 	"TypeSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12,\n" +
-	"\x12proto_message_name\x18\x02 \x01(\tR\x10protoMessageNameR\x06schema\"\x0e\n" +
+	"\x12proto_message_name\x18\x02 \x01(\tR\x10protoMessageName\x12F\n" +
+	"\farray_fields\x18\x03 \x03(\v2#.worldengine.cardinal.v1.ArrayFieldR\varrayFieldsR\x06schema\"6\n" +
+	"\n" +
+	"ArrayField\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
+	"\x04dims\x18\x02 \x03(\rR\x04dims\"\x0e\n" +
 	"\fPauseRequest\"0\n" +
 	"\rPauseResponse\x12\x1f\n" +
 	"\vtick_height\x18\x01 \x01(\x04R\n" +
@@ -1081,7 +1155,7 @@ func file_worldengine_cardinal_v1_debug_proto_rawDescGZIP() []byte {
 }
 
 var file_worldengine_cardinal_v1_debug_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
 	(SystemHook)(0),               // 0: worldengine.cardinal.v1.SystemHook
 	(*IntrospectRequest)(nil),     // 1: worldengine.cardinal.v1.IntrospectRequest
@@ -1089,22 +1163,23 @@ var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
 	(*SystemSchedule)(nil),        // 3: worldengine.cardinal.v1.SystemSchedule
 	(*SystemNode)(nil),            // 4: worldengine.cardinal.v1.SystemNode
 	(*TypeSchema)(nil),            // 5: worldengine.cardinal.v1.TypeSchema
-	(*PauseRequest)(nil),          // 6: worldengine.cardinal.v1.PauseRequest
-	(*PauseResponse)(nil),         // 7: worldengine.cardinal.v1.PauseResponse
-	(*ResumeRequest)(nil),         // 8: worldengine.cardinal.v1.ResumeRequest
-	(*ResumeResponse)(nil),        // 9: worldengine.cardinal.v1.ResumeResponse
-	(*StepRequest)(nil),           // 10: worldengine.cardinal.v1.StepRequest
-	(*StepResponse)(nil),          // 11: worldengine.cardinal.v1.StepResponse
-	(*ResetRequest)(nil),          // 12: worldengine.cardinal.v1.ResetRequest
-	(*ResetResponse)(nil),         // 13: worldengine.cardinal.v1.ResetResponse
-	(*GetStateRequest)(nil),       // 14: worldengine.cardinal.v1.GetStateRequest
-	(*GetStateResponse)(nil),      // 15: worldengine.cardinal.v1.GetStateResponse
-	(*StreamPerfRequest)(nil),     // 16: worldengine.cardinal.v1.StreamPerfRequest
-	(*PerfBatch)(nil),             // 17: worldengine.cardinal.v1.PerfBatch
-	(*TickTimeline)(nil),          // 18: worldengine.cardinal.v1.TickTimeline
-	(*SystemSpan)(nil),            // 19: worldengine.cardinal.v1.SystemSpan
-	(*Snapshot)(nil),              // 20: worldengine.cardinal.v1.Snapshot
-	(*timestamppb.Timestamp)(nil), // 21: google.protobuf.Timestamp
+	(*ArrayField)(nil),            // 6: worldengine.cardinal.v1.ArrayField
+	(*PauseRequest)(nil),          // 7: worldengine.cardinal.v1.PauseRequest
+	(*PauseResponse)(nil),         // 8: worldengine.cardinal.v1.PauseResponse
+	(*ResumeRequest)(nil),         // 9: worldengine.cardinal.v1.ResumeRequest
+	(*ResumeResponse)(nil),        // 10: worldengine.cardinal.v1.ResumeResponse
+	(*StepRequest)(nil),           // 11: worldengine.cardinal.v1.StepRequest
+	(*StepResponse)(nil),          // 12: worldengine.cardinal.v1.StepResponse
+	(*ResetRequest)(nil),          // 13: worldengine.cardinal.v1.ResetRequest
+	(*ResetResponse)(nil),         // 14: worldengine.cardinal.v1.ResetResponse
+	(*GetStateRequest)(nil),       // 15: worldengine.cardinal.v1.GetStateRequest
+	(*GetStateResponse)(nil),      // 16: worldengine.cardinal.v1.GetStateResponse
+	(*StreamPerfRequest)(nil),     // 17: worldengine.cardinal.v1.StreamPerfRequest
+	(*PerfBatch)(nil),             // 18: worldengine.cardinal.v1.PerfBatch
+	(*TickTimeline)(nil),          // 19: worldengine.cardinal.v1.TickTimeline
+	(*SystemSpan)(nil),            // 20: worldengine.cardinal.v1.SystemSpan
+	(*Snapshot)(nil),              // 21: worldengine.cardinal.v1.Snapshot
+	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	5,  // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
@@ -1113,30 +1188,31 @@ var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	3,  // 3: worldengine.cardinal.v1.IntrospectResponse.schedules:type_name -> worldengine.cardinal.v1.SystemSchedule
 	0,  // 4: worldengine.cardinal.v1.SystemSchedule.hook:type_name -> worldengine.cardinal.v1.SystemHook
 	4,  // 5: worldengine.cardinal.v1.SystemSchedule.systems:type_name -> worldengine.cardinal.v1.SystemNode
-	20, // 6: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
-	18, // 7: worldengine.cardinal.v1.PerfBatch.ticks:type_name -> worldengine.cardinal.v1.TickTimeline
-	21, // 8: worldengine.cardinal.v1.TickTimeline.tick_start:type_name -> google.protobuf.Timestamp
-	19, // 9: worldengine.cardinal.v1.TickTimeline.spans:type_name -> worldengine.cardinal.v1.SystemSpan
-	0,  // 10: worldengine.cardinal.v1.SystemSpan.system_hook:type_name -> worldengine.cardinal.v1.SystemHook
-	1,  // 11: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
-	6,  // 12: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
-	8,  // 13: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
-	10, // 14: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
-	12, // 15: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
-	14, // 16: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
-	16, // 17: worldengine.cardinal.v1.DebugService.StreamPerf:input_type -> worldengine.cardinal.v1.StreamPerfRequest
-	2,  // 18: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
-	7,  // 19: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
-	9,  // 20: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
-	11, // 21: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
-	13, // 22: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
-	15, // 23: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
-	17, // 24: worldengine.cardinal.v1.DebugService.StreamPerf:output_type -> worldengine.cardinal.v1.PerfBatch
-	18, // [18:25] is the sub-list for method output_type
-	11, // [11:18] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	6,  // 6: worldengine.cardinal.v1.TypeSchema.array_fields:type_name -> worldengine.cardinal.v1.ArrayField
+	21, // 7: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
+	19, // 8: worldengine.cardinal.v1.PerfBatch.ticks:type_name -> worldengine.cardinal.v1.TickTimeline
+	22, // 9: worldengine.cardinal.v1.TickTimeline.tick_start:type_name -> google.protobuf.Timestamp
+	20, // 10: worldengine.cardinal.v1.TickTimeline.spans:type_name -> worldengine.cardinal.v1.SystemSpan
+	0,  // 11: worldengine.cardinal.v1.SystemSpan.system_hook:type_name -> worldengine.cardinal.v1.SystemHook
+	1,  // 12: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
+	7,  // 13: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
+	9,  // 14: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
+	11, // 15: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
+	13, // 16: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
+	15, // 17: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
+	17, // 18: worldengine.cardinal.v1.DebugService.StreamPerf:input_type -> worldengine.cardinal.v1.StreamPerfRequest
+	2,  // 19: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
+	8,  // 20: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
+	10, // 21: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
+	12, // 22: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
+	14, // 23: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
+	16, // 24: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
+	18, // 25: worldengine.cardinal.v1.DebugService.StreamPerf:output_type -> worldengine.cardinal.v1.PerfBatch
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_debug_proto_init() }
@@ -1151,7 +1227,7 @@ func file_worldengine_cardinal_v1_debug_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_cardinal_v1_debug_proto_rawDesc), len(file_worldengine_cardinal_v1_debug_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

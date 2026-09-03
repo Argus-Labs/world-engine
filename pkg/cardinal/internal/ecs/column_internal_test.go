@@ -124,11 +124,10 @@ func TestColumn_SerializationSmoke(t *testing.T) {
 		col1.set(i, testutils.SimpleComponent{Value: i})
 	}
 
-	pb, err := col1.toProto()
-	require.NoError(t, err)
+	pb := col1.toProto()
 
 	col2 := newColumn[testutils.SimpleComponent]()
-	err = col2.fromProto(pb)
+	err := col2.fromProto(pb)
 	require.NoError(t, err)
 
 	// Property: deserialize(serialize(x)) == x.
@@ -158,11 +157,10 @@ func TestColumn_FromProto(t *testing.T) {
 		colA.extend()
 		colA.set(0, testutils.ComponentA{X: 1, Y: 2, Z: 3})
 
-		pb, err := colA.toProto()
-		require.NoError(t, err)
+		pb := colA.toProto()
 
 		colB := newColumn[testutils.ComponentB]()
-		err = colB.fromProto(pb)
+		err := colB.fromProto(pb)
 		assert.Error(t, err)
 	})
 }

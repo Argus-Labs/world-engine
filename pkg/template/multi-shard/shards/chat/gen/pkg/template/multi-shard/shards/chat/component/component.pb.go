@@ -134,7 +134,7 @@ var File_pkg_template_multi_shard_shards_chat_component_component_proto protoref
 
 const file_pkg_template_multi_shard_shards_chat_component_component_proto_rawDesc = "" +
 	"\n" +
-	">pkg/template/multi-shard/shards/chat/component/component.proto\x12;world_engine.pkg.template.multi_shard.shards.chat.component\x1a\x1fgoogle/protobuf/timestamp.proto\"Z\n" +
+	">pkg/template/multi-shard/shards/chat/component/component.proto\x12Qgithub_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.component\x1a\x1fgoogle/protobuf/timestamp.proto\"Z\n" +
 	"\x04Chat\x12\x18\n" +
 	"\aMessage\x18\x01 \x01(\tR\aMessage\x128\n" +
 	"\tTimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tTimestamp\"Q\n" +
@@ -156,12 +156,12 @@ func file_pkg_template_multi_shard_shards_chat_component_component_proto_rawDesc
 
 var file_pkg_template_multi_shard_shards_chat_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_pkg_template_multi_shard_shards_chat_component_component_proto_goTypes = []any{
-	(*Chat)(nil),                  // 0: world_engine.pkg.template.multi_shard.shards.chat.component.Chat
-	(*UserTag)(nil),               // 1: world_engine.pkg.template.multi_shard.shards.chat.component.UserTag
+	(*Chat)(nil),                  // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.component.Chat
+	(*UserTag)(nil),               // 1: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.component.UserTag
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
 var file_pkg_template_multi_shard_shards_chat_component_component_proto_depIdxs = []int32{
-	2, // 0: world_engine.pkg.template.multi_shard.shards.chat.component.Chat.Timestamp:type_name -> google.protobuf.Timestamp
+	2, // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.chat.component.Chat.Timestamp:type_name -> google.protobuf.Timestamp
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

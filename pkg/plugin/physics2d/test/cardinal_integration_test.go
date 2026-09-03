@@ -22,7 +22,14 @@ type harnessTag struct {
 
 func (harnessTag) Name() string { return "physics2d_e2e_harness_tag" }
 
-func (c harnessTag) MarshalWire() ([]byte, error) { return json.Marshal(c) }
+func (c harnessTag) MarshalWire() []byte {
+	// A test double that cannot encode itself is a broken fixture, not a runtime condition.
+	b, err := json.Marshal(c)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
 func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	var v harnessTag
 	err := json.Unmarshal(b, &v)

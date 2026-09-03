@@ -45,8 +45,7 @@ func TestService_SendCommand(t *testing.T) {
 		fixture := newServiceFixture(t, prng, false)
 
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-		payloadBytes, err := payload.MarshalWire()
-		require.NoError(t, err)
+		payloadBytes := payload.MarshalWire()
 		userID := testutils.RandString(prng, 8)
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
@@ -55,7 +54,7 @@ func TestService_SendCommand(t *testing.T) {
 			Payload: payloadBytes,
 		}
 
-		_, err = fixture.svc.SendCommand(
+		_, err := fixture.svc.SendCommand(
 			serviceTestContext(userID),
 			connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmdPb}),
 		)
@@ -75,8 +74,7 @@ func TestService_SendCommand(t *testing.T) {
 		fixture := newServiceFixture(t, prng, false)
 
 		payload := testutils.SimpleCommand{Value: 42}
-		payloadBytes, err := payload.MarshalWire()
-		require.NoError(t, err)
+		payloadBytes := payload.MarshalWire()
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
 			Address: RandServiceAddress(prng),
@@ -84,7 +82,7 @@ func TestService_SendCommand(t *testing.T) {
 			Payload: payloadBytes,
 		}
 
-		_, err = fixture.svc.SendCommand(
+		_, err := fixture.svc.SendCommand(
 			serviceTestContext(testutils.RandString(prng, 8)),
 			connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmdPb}),
 		)

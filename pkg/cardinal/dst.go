@@ -108,8 +108,8 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	ecs.CheckWorld(t, fix.world.world)
 
 	// Ensure final world state remains serializable.
-	_, err := fix.world.world.ToProto()
-	require.NoError(t, err)
+	// Encoding asserts internally, so reaching the next line at all is the check.
+	_ = fix.world.world.ToProto()
 
 	// fix.logWorldState(t, "after")
 }
@@ -248,11 +248,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 
 func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unused // Used
 	t.Helper()
-	ws, err := f.world.world.ToProto()
-	if err != nil {
-		t.Logf("world state (%s): failed to serialize: %v", label, err)
-		return
-	}
+	ws := f.world.world.ToProto()
 	t.Logf("world state (%s):", label)
 	t.Logf("  next_entity_id: %d", ws.GetNextId())
 	t.Logf("  free_ids:       %v", ws.GetFreeIds())
@@ -273,8 +269,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload, err := p.MarshalWire()
-	require.NoError(t, err)
+	payload := p.MarshalWire()
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
@@ -284,10 +279,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 }
 
 func (f *dstFixture) enqueueCommand(cmd Command) error {
-	payload, err := cmd.MarshalWire()
-	if err != nil {
-		return err
-	}
+	payload := cmd.MarshalWire()
 	return f.world.commands.Enqueue(&iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,

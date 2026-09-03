@@ -5,18 +5,18 @@
 package systemevent
 
 import (
-	systemevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system_event"
+	pbsystemevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system_event"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c PlayerDeath) ToProto() *systemevent.PlayerDeath {
-	p := &systemevent.PlayerDeath{}
+func (c PlayerDeath) ToProto() *pbsystemevent.PlayerDeath {
+	p := &pbsystemevent.PlayerDeath{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c PlayerDeath) FromProto(p *systemevent.PlayerDeath) PlayerDeath {
+func (c PlayerDeath) FromProto(p *pbsystemevent.PlayerDeath) PlayerDeath {
 	if p == nil {
 		return c
 	}
@@ -24,12 +24,16 @@ func (c PlayerDeath) FromProto(p *systemevent.PlayerDeath) PlayerDeath {
 	return c
 }
 
-func (c PlayerDeath) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerDeath) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerDeath: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
-	var p systemevent.PlayerDeath
+	var p pbsystemevent.PlayerDeath
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -37,5 +41,5 @@ func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c PlayerDeath) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&systemevent.PlayerDeath{}).ProtoReflect().Descriptor()
+	return (&pbsystemevent.PlayerDeath{}).ProtoReflect().Descriptor()
 }

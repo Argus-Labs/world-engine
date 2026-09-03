@@ -2,6 +2,7 @@ package introspect
 
 import (
 	"cmp"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -119,7 +120,7 @@ func (c *Catalog) Finalize() error {
 			inspected[name] = descriptor
 			descriptors = append(descriptors, descriptor)
 		}
-		types[kind] = buildTypeSchemas(inspected)
+		types[kind] = buildTypeSchemas(inspected, registered)
 	}
 	if len(issues) > 0 {
 		slices.Sort(issues)
@@ -161,9 +162,12 @@ func (c *Catalog) DescriptorSet() []byte {
 }
 
 // buildTypeSchemas creates the sorted command, component, or event list returned by Introspect.
-func buildTypeSchemas(registered map[string]protoreflect.MessageDescriptor) []*cardinalv1.TypeSchema {
-	names := make([]string, 0, len(registered))
-	for name := range registered {
+func buildTypeSchemas(
+	inspected map[string]protoreflect.MessageDescriptor,
+	values map[string]schema.Serializable,
+) []*cardinalv1.TypeSchema {
+	names := make([]string, 0, len(inspected))
+	for name := range inspected {
 		names = append(names, name)
 	}
 	slices.Sort(names)
@@ -172,10 +176,53 @@ func buildTypeSchemas(registered map[string]protoreflect.MessageDescriptor) []*c
 	for _, name := range names {
 		types = append(types, &cardinalv1.TypeSchema{
 			Name:             name,
-			ProtoMessageName: string(registered[name].FullName()),
+			ProtoMessageName: string(inspected[name].FullName()),
+			ArrayFields:      arrayFields(values[name]),
 		})
 	}
 	return types
+}
+
+// arrayFields reports the shape of a type's multi-dimensional fixed-size array fields.
+//
+// A fixed array travels as one flat repeated field, which says everything in one dimension and not
+// enough beyond it: 32 elements could be 4x8 or 8x4. One-dimensional arrays are therefore skipped —
+// there is nothing to rebuild — and so is everything else, since only a fixed array has a shape that
+// is known ahead of time rather than carried with the data.
+//
+// This is metadata for clients decoding types they do not know in advance. A client written against
+// a known schema indexes the flat field directly and never needs it.
+//
+// Only the registered type's OWN fields are walked, so an empty result means "none at the top level",
+// not "none anywhere": a multi-dimensional array nested in another struct, or in a slice of them
+// (PhysicsBody2D.Shapes), reports nothing, and so does a non-struct receiver. Widening this means
+// emitting a path rather than a bare field name, which is a wire change to ArrayField; do that when a
+// client needs it.
+func arrayFields(value schema.Serializable) []*cardinalv1.ArrayField {
+	if value == nil {
+		return nil
+	}
+	t := reflect.TypeOf(value)
+	if t == nil || t.Kind() != reflect.Struct {
+		return nil
+	}
+
+	var out []*cardinalv1.ArrayField
+	for i := range t.NumField() {
+		field := t.Field(i)
+		if !field.IsExported() {
+			continue // never serialized, so never reconstructed
+		}
+		var dims []uint32
+		for ft := field.Type; ft.Kind() == reflect.Array; ft = ft.Elem() {
+			dims = append(dims, uint32(ft.Len())) //nolint:gosec // an array length is never negative
+		}
+		if len(dims) < 2 {
+			continue // a flat repeated field is already unambiguous
+		}
+		out = append(out, &cardinalv1.ArrayField{Field: field.Name, Dims: dims})
+	}
+	return out
 }
 
 // buildDescriptorSet packages every referenced protobuf file and its imports into one validated bundle.

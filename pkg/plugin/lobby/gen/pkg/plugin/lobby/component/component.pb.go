@@ -23,100 +23,28 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// wire name: "lobby_config"
-type ConfigComponent struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	LobbyWorld           *ShardAddress          `protobuf:"bytes,1,opt,name=LobbyWorld,proto3" json:"LobbyWorld,omitempty"`
-	HeartbeatTimeout     int64                  `protobuf:"varint,2,opt,name=HeartbeatTimeout,proto3" json:"HeartbeatTimeout,omitempty"`
-	AssignmentAuthority  string                 `protobuf:"bytes,3,opt,name=AssignmentAuthority,proto3" json:"AssignmentAuthority,omitempty"`
-	MaxAllocationTimeout int64                  `protobuf:"varint,4,opt,name=MaxAllocationTimeout,proto3" json:"MaxAllocationTimeout,omitempty"`
-	LobbyPresets         []byte                 `protobuf:"bytes,5,opt,name=LobbyPresets,proto3" json:"LobbyPresets,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
-}
-
-func (x *ConfigComponent) Reset() {
-	*x = ConfigComponent{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConfigComponent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConfigComponent) ProtoMessage() {}
-
-func (x *ConfigComponent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConfigComponent.ProtoReflect.Descriptor instead.
-func (*ConfigComponent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ConfigComponent) GetLobbyWorld() *ShardAddress {
-	if x != nil {
-		return x.LobbyWorld
-	}
-	return nil
-}
-
-func (x *ConfigComponent) GetHeartbeatTimeout() int64 {
-	if x != nil {
-		return x.HeartbeatTimeout
-	}
-	return 0
-}
-
-func (x *ConfigComponent) GetAssignmentAuthority() string {
-	if x != nil {
-		return x.AssignmentAuthority
-	}
-	return ""
-}
-
-func (x *ConfigComponent) GetMaxAllocationTimeout() int64 {
-	if x != nil {
-		return x.MaxAllocationTimeout
-	}
-	return 0
-}
-
-func (x *ConfigComponent) GetLobbyPresets() []byte {
-	if x != nil {
-		return x.LobbyPresets
-	}
-	return nil
-}
-
 // wire name: "lobby"
 type LobbyComponent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ID            string                 `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	LeaderID      string                 `protobuf:"bytes,2,opt,name=LeaderID,proto3" json:"LeaderID,omitempty"`
-	Teams         []*Team                `protobuf:"bytes,3,rep,name=Teams,proto3" json:"Teams,omitempty"`
-	InviteCode    string                 `protobuf:"bytes,4,opt,name=InviteCode,proto3" json:"InviteCode,omitempty"`
-	GameWorld     *ShardAddress          `protobuf:"bytes,5,opt,name=GameWorld,proto3" json:"GameWorld,omitempty"`
-	Session       *Session               `protobuf:"bytes,6,opt,name=Session,proto3" json:"Session,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,7,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ID       string                 `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	LeaderID string                 `protobuf:"bytes,2,opt,name=LeaderID,proto3" json:"LeaderID,omitempty"`
+	// Go: [16]string, 16 elements
+	PlayerIDs   []string `protobuf:"bytes,3,rep,name=PlayerIDs,proto3" json:"PlayerIDs,omitempty"`
+	PlayerCount int64    `protobuf:"varint,4,opt,name=PlayerCount,proto3" json:"PlayerCount,omitempty"`
+	// Go: [4]Team, 4 elements
+	Teams         []*Team       `protobuf:"bytes,5,rep,name=Teams,proto3" json:"Teams,omitempty"`
+	TeamCount     int64         `protobuf:"varint,6,opt,name=TeamCount,proto3" json:"TeamCount,omitempty"`
+	InviteCode    string        `protobuf:"bytes,7,opt,name=InviteCode,proto3" json:"InviteCode,omitempty"`
+	GameWorld     *ShardAddress `protobuf:"bytes,8,opt,name=GameWorld,proto3" json:"GameWorld,omitempty"`
+	Session       *Session      `protobuf:"bytes,9,opt,name=Session,proto3" json:"Session,omitempty"`
+	CreatedAt     int64         `protobuf:"varint,10,opt,name=CreatedAt,proto3" json:"CreatedAt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LobbyComponent) Reset() {
 	*x = LobbyComponent{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[1]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -128,7 +56,7 @@ func (x *LobbyComponent) String() string {
 func (*LobbyComponent) ProtoMessage() {}
 
 func (x *LobbyComponent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[1]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -141,7 +69,7 @@ func (x *LobbyComponent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LobbyComponent.ProtoReflect.Descriptor instead.
 func (*LobbyComponent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{1}
+	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *LobbyComponent) GetID() string {
@@ -158,11 +86,32 @@ func (x *LobbyComponent) GetLeaderID() string {
 	return ""
 }
 
+func (x *LobbyComponent) GetPlayerIDs() []string {
+	if x != nil {
+		return x.PlayerIDs
+	}
+	return nil
+}
+
+func (x *LobbyComponent) GetPlayerCount() int64 {
+	if x != nil {
+		return x.PlayerCount
+	}
+	return 0
+}
+
 func (x *LobbyComponent) GetTeams() []*Team {
 	if x != nil {
 		return x.Teams
 	}
 	return nil
+}
+
+func (x *LobbyComponent) GetTeamCount() int64 {
+	if x != nil {
+		return x.TeamCount
+	}
+	return 0
 }
 
 func (x *LobbyComponent) GetInviteCode() string {
@@ -193,99 +142,6 @@ func (x *LobbyComponent) GetCreatedAt() int64 {
 	return 0
 }
 
-// wire name: "lobby_index"
-type LobbyIndexComponent struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	LobbyIDToEntity   map[string]uint32      `protobuf:"bytes,1,rep,name=LobbyIDToEntity,proto3" json:"LobbyIDToEntity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	InviteCodeToLobby map[string]string      `protobuf:"bytes,2,rep,name=InviteCodeToLobby,proto3" json:"InviteCodeToLobby,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	PlayerToLobby     map[string]string      `protobuf:"bytes,3,rep,name=PlayerToLobby,proto3" json:"PlayerToLobby,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	PlayerToTeam      map[string]string      `protobuf:"bytes,4,rep,name=PlayerToTeam,proto3" json:"PlayerToTeam,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	PlayerToEntity    map[string]uint32      `protobuf:"bytes,5,rep,name=PlayerToEntity,proto3" json:"PlayerToEntity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	PlayerDeadline    map[string]int64       `protobuf:"bytes,6,rep,name=PlayerDeadline,proto3" json:"PlayerDeadline,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	LobbyPlayerCount  map[string]int64       `protobuf:"bytes,7,rep,name=LobbyPlayerCount,proto3" json:"LobbyPlayerCount,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *LobbyIndexComponent) Reset() {
-	*x = LobbyIndexComponent{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LobbyIndexComponent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LobbyIndexComponent) ProtoMessage() {}
-
-func (x *LobbyIndexComponent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LobbyIndexComponent.ProtoReflect.Descriptor instead.
-func (*LobbyIndexComponent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *LobbyIndexComponent) GetLobbyIDToEntity() map[string]uint32 {
-	if x != nil {
-		return x.LobbyIDToEntity
-	}
-	return nil
-}
-
-func (x *LobbyIndexComponent) GetInviteCodeToLobby() map[string]string {
-	if x != nil {
-		return x.InviteCodeToLobby
-	}
-	return nil
-}
-
-func (x *LobbyIndexComponent) GetPlayerToLobby() map[string]string {
-	if x != nil {
-		return x.PlayerToLobby
-	}
-	return nil
-}
-
-func (x *LobbyIndexComponent) GetPlayerToTeam() map[string]string {
-	if x != nil {
-		return x.PlayerToTeam
-	}
-	return nil
-}
-
-func (x *LobbyIndexComponent) GetPlayerToEntity() map[string]uint32 {
-	if x != nil {
-		return x.PlayerToEntity
-	}
-	return nil
-}
-
-func (x *LobbyIndexComponent) GetPlayerDeadline() map[string]int64 {
-	if x != nil {
-		return x.PlayerDeadline
-	}
-	return nil
-}
-
-func (x *LobbyIndexComponent) GetLobbyPlayerCount() map[string]int64 {
-	if x != nil {
-		return x.LobbyPlayerCount
-	}
-	return nil
-}
-
 // wire name: "player"
 type PlayerComponent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -293,7 +149,7 @@ type PlayerComponent struct {
 	LobbyID         string                 `protobuf:"bytes,2,opt,name=LobbyID,proto3" json:"LobbyID,omitempty"`
 	TeamID          string                 `protobuf:"bytes,3,opt,name=TeamID,proto3" json:"TeamID,omitempty"`
 	IsReady         bool                   `protobuf:"varint,4,opt,name=IsReady,proto3" json:"IsReady,omitempty"`
-	PassthroughData []byte                 `protobuf:"bytes,5,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
+	PassthroughData string                 `protobuf:"bytes,5,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
 	JoinedAt        int64                  `protobuf:"varint,6,opt,name=JoinedAt,proto3" json:"JoinedAt,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -301,7 +157,7 @@ type PlayerComponent struct {
 
 func (x *PlayerComponent) Reset() {
 	*x = PlayerComponent{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[3]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -313,7 +169,7 @@ func (x *PlayerComponent) String() string {
 func (*PlayerComponent) ProtoMessage() {}
 
 func (x *PlayerComponent) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[3]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -326,7 +182,7 @@ func (x *PlayerComponent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerComponent.ProtoReflect.Descriptor instead.
 func (*PlayerComponent) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{3}
+	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PlayerComponent) GetPlayerID() string {
@@ -357,11 +213,11 @@ func (x *PlayerComponent) GetIsReady() bool {
 	return false
 }
 
-func (x *PlayerComponent) GetPassthroughData() []byte {
+func (x *PlayerComponent) GetPassthroughData() string {
 	if x != nil {
 		return x.PassthroughData
 	}
-	return nil
+	return ""
 }
 
 func (x *PlayerComponent) GetJoinedAt() int64 {
@@ -374,7 +230,7 @@ func (x *PlayerComponent) GetJoinedAt() int64 {
 type Session struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	State            string                 `protobuf:"bytes,1,opt,name=State,proto3" json:"State,omitempty"`
-	PassthroughData  []byte                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
+	PassthroughData  string                 `protobuf:"bytes,2,opt,name=PassthroughData,proto3" json:"PassthroughData,omitempty"`
 	PendingRequestID string                 `protobuf:"bytes,3,opt,name=PendingRequestID,proto3" json:"PendingRequestID,omitempty"`
 	PendingStartedAt int64                  `protobuf:"varint,4,opt,name=PendingStartedAt,proto3" json:"PendingStartedAt,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -383,7 +239,7 @@ type Session struct {
 
 func (x *Session) Reset() {
 	*x = Session{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[4]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +251,7 @@ func (x *Session) String() string {
 func (*Session) ProtoMessage() {}
 
 func (x *Session) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[4]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,7 +264,7 @@ func (x *Session) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Session.ProtoReflect.Descriptor instead.
 func (*Session) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{4}
+	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Session) GetState() string {
@@ -418,11 +274,11 @@ func (x *Session) GetState() string {
 	return ""
 }
 
-func (x *Session) GetPassthroughData() []byte {
+func (x *Session) GetPassthroughData() string {
 	if x != nil {
 		return x.PassthroughData
 	}
-	return nil
+	return ""
 }
 
 func (x *Session) GetPendingRequestID() string {
@@ -451,7 +307,7 @@ type ShardAddress struct {
 
 func (x *ShardAddress) Reset() {
 	*x = ShardAddress{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[5]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +319,7 @@ func (x *ShardAddress) String() string {
 func (*ShardAddress) ProtoMessage() {}
 
 func (x *ShardAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[5]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +332,7 @@ func (x *ShardAddress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardAddress.ProtoReflect.Descriptor instead.
 func (*ShardAddress) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{5}
+	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ShardAddress) GetRegion() string {
@@ -510,15 +366,15 @@ func (x *ShardAddress) GetShardID() string {
 type Team struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TeamID        string                 `protobuf:"bytes,1,opt,name=TeamID,proto3" json:"TeamID,omitempty"`
-	PlayerIDs     []string               `protobuf:"bytes,2,rep,name=PlayerIDs,proto3" json:"PlayerIDs,omitempty"`
-	MaxPlayers    int64                  `protobuf:"varint,3,opt,name=MaxPlayers,proto3" json:"MaxPlayers,omitempty"`
+	MaxPlayers    int64                  `protobuf:"varint,2,opt,name=MaxPlayers,proto3" json:"MaxPlayers,omitempty"`
+	PlayerCount   int64                  `protobuf:"varint,3,opt,name=PlayerCount,proto3" json:"PlayerCount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Team) Reset() {
 	*x = Team{}
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[6]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -530,7 +386,7 @@ func (x *Team) String() string {
 func (*Team) ProtoMessage() {}
 
 func (x *Team) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[6]
+	mi := &file_pkg_plugin_lobby_component_component_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +399,7 @@ func (x *Team) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Team.ProtoReflect.Descriptor instead.
 func (*Team) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{6}
+	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Team) GetTeamID() string {
@@ -553,16 +409,16 @@ func (x *Team) GetTeamID() string {
 	return ""
 }
 
-func (x *Team) GetPlayerIDs() []string {
-	if x != nil {
-		return x.PlayerIDs
-	}
-	return nil
-}
-
 func (x *Team) GetMaxPlayers() int64 {
 	if x != nil {
 		return x.MaxPlayers
+	}
+	return 0
+}
+
+func (x *Team) GetPlayerCount() int64 {
+	if x != nil {
+		return x.PlayerCount
 	}
 	return 0
 }
@@ -571,78 +427,44 @@ var File_pkg_plugin_lobby_component_component_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_lobby_component_component_proto_rawDesc = "" +
 	"\n" +
-	"*pkg/plugin/lobby/component/component.proto\x12'world_engine.pkg.plugin.lobby.component\"\x9e\x02\n" +
-	"\x0fConfigComponent\x12U\n" +
-	"\n" +
-	"LobbyWorld\x18\x01 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\n" +
-	"LobbyWorld\x12*\n" +
-	"\x10HeartbeatTimeout\x18\x02 \x01(\x03R\x10HeartbeatTimeout\x120\n" +
-	"\x13AssignmentAuthority\x18\x03 \x01(\tR\x13AssignmentAuthority\x122\n" +
-	"\x14MaxAllocationTimeout\x18\x04 \x01(\x03R\x14MaxAllocationTimeout\x12\"\n" +
-	"\fLobbyPresets\x18\x05 \x01(\fR\fLobbyPresets\"\xe0\x02\n" +
+	"*pkg/plugin/lobby/component/component.proto\x12=github_com.argus_labs.world_engine.pkg.plugin.lobby.component\"\x80\x04\n" +
 	"\x0eLobbyComponent\x12\x0e\n" +
 	"\x02ID\x18\x01 \x01(\tR\x02ID\x12\x1a\n" +
-	"\bLeaderID\x18\x02 \x01(\tR\bLeaderID\x12C\n" +
-	"\x05Teams\x18\x03 \x03(\v2-.world_engine.pkg.plugin.lobby.component.TeamR\x05Teams\x12\x1e\n" +
+	"\bLeaderID\x18\x02 \x01(\tR\bLeaderID\x12\x1c\n" +
+	"\tPlayerIDs\x18\x03 \x03(\tR\tPlayerIDs\x12 \n" +
+	"\vPlayerCount\x18\x04 \x01(\x03R\vPlayerCount\x12Y\n" +
+	"\x05Teams\x18\x05 \x03(\v2C.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.TeamR\x05Teams\x12\x1c\n" +
+	"\tTeamCount\x18\x06 \x01(\x03R\tTeamCount\x12\x1e\n" +
 	"\n" +
-	"InviteCode\x18\x04 \x01(\tR\n" +
-	"InviteCode\x12S\n" +
-	"\tGameWorld\x18\x05 \x01(\v25.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\x12J\n" +
-	"\aSession\x18\x06 \x01(\v20.world_engine.pkg.plugin.lobby.component.SessionR\aSession\x12\x1c\n" +
-	"\tCreatedAt\x18\a \x01(\x03R\tCreatedAt\"\xcd\n" +
-	"\n" +
-	"\x13LobbyIndexComponent\x12{\n" +
-	"\x0fLobbyIDToEntity\x18\x01 \x03(\v2Q.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntryR\x0fLobbyIDToEntity\x12\x81\x01\n" +
-	"\x11InviteCodeToLobby\x18\x02 \x03(\v2S.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntryR\x11InviteCodeToLobby\x12u\n" +
-	"\rPlayerToLobby\x18\x03 \x03(\v2O.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntryR\rPlayerToLobby\x12r\n" +
-	"\fPlayerToTeam\x18\x04 \x03(\v2N.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntryR\fPlayerToTeam\x12x\n" +
-	"\x0ePlayerToEntity\x18\x05 \x03(\v2P.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntryR\x0ePlayerToEntity\x12x\n" +
-	"\x0ePlayerDeadline\x18\x06 \x03(\v2P.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntryR\x0ePlayerDeadline\x12~\n" +
-	"\x10LobbyPlayerCount\x18\a \x03(\v2R.world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntryR\x10LobbyPlayerCount\x1aB\n" +
-	"\x14LobbyIDToEntityEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aD\n" +
-	"\x16InviteCodeToLobbyEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
-	"\x12PlayerToLobbyEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a?\n" +
-	"\x11PlayerToTeamEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
-	"\x13PlayerToEntityEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\x1aA\n" +
-	"\x13PlayerDeadlineEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\x1aC\n" +
-	"\x15LobbyPlayerCountEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"\xbf\x01\n" +
+	"InviteCode\x18\a \x01(\tR\n" +
+	"InviteCode\x12i\n" +
+	"\tGameWorld\x18\b \x01(\v2K.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddressR\tGameWorld\x12`\n" +
+	"\aSession\x18\t \x01(\v2F.github_com.argus_labs.world_engine.pkg.plugin.lobby.component.SessionR\aSession\x12\x1c\n" +
+	"\tCreatedAt\x18\n" +
+	" \x01(\x03R\tCreatedAt\"\xbf\x01\n" +
 	"\x0fPlayerComponent\x12\x1a\n" +
 	"\bPlayerID\x18\x01 \x01(\tR\bPlayerID\x12\x18\n" +
 	"\aLobbyID\x18\x02 \x01(\tR\aLobbyID\x12\x16\n" +
 	"\x06TeamID\x18\x03 \x01(\tR\x06TeamID\x12\x18\n" +
 	"\aIsReady\x18\x04 \x01(\bR\aIsReady\x12(\n" +
-	"\x0fPassthroughData\x18\x05 \x01(\fR\x0fPassthroughData\x12\x1a\n" +
+	"\x0fPassthroughData\x18\x05 \x01(\tR\x0fPassthroughData\x12\x1a\n" +
 	"\bJoinedAt\x18\x06 \x01(\x03R\bJoinedAt\"\xa1\x01\n" +
 	"\aSession\x12\x14\n" +
 	"\x05State\x18\x01 \x01(\tR\x05State\x12(\n" +
-	"\x0fPassthroughData\x18\x02 \x01(\fR\x0fPassthroughData\x12*\n" +
+	"\x0fPassthroughData\x18\x02 \x01(\tR\x0fPassthroughData\x12*\n" +
 	"\x10PendingRequestID\x18\x03 \x01(\tR\x10PendingRequestID\x12*\n" +
 	"\x10PendingStartedAt\x18\x04 \x01(\x03R\x10PendingStartedAt\"~\n" +
 	"\fShardAddress\x12\x16\n" +
 	"\x06Region\x18\x01 \x01(\tR\x06Region\x12\"\n" +
 	"\fOrganization\x18\x02 \x01(\tR\fOrganization\x12\x18\n" +
 	"\aProject\x18\x03 \x01(\tR\aProject\x12\x18\n" +
-	"\aShardID\x18\x04 \x01(\tR\aShardID\"\\\n" +
+	"\aShardID\x18\x04 \x01(\tR\aShardID\"`\n" +
 	"\x04Team\x12\x16\n" +
-	"\x06TeamID\x18\x01 \x01(\tR\x06TeamID\x12\x1c\n" +
-	"\tPlayerIDs\x18\x02 \x03(\tR\tPlayerIDs\x12\x1e\n" +
+	"\x06TeamID\x18\x01 \x01(\tR\x06TeamID\x12\x1e\n" +
 	"\n" +
-	"MaxPlayers\x18\x03 \x01(\x03R\n" +
-	"MaxPlayersB\x88\x01Z\\github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component;component\xaa\x02'World_engine.Pkg.Plugin.Lobby.Componentb\x06proto3"
+	"MaxPlayers\x18\x02 \x01(\x03R\n" +
+	"MaxPlayers\x12 \n" +
+	"\vPlayerCount\x18\x03 \x01(\x03R\vPlayerCountB\x88\x01Z\\github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component;component\xaa\x02'World_engine.Pkg.Plugin.Lobby.Componentb\x06proto3"
 
 var (
 	file_pkg_plugin_lobby_component_component_proto_rawDescOnce sync.Once
@@ -656,40 +478,23 @@ func file_pkg_plugin_lobby_component_component_proto_rawDescGZIP() []byte {
 	return file_pkg_plugin_lobby_component_component_proto_rawDescData
 }
 
-var file_pkg_plugin_lobby_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_pkg_plugin_lobby_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_pkg_plugin_lobby_component_component_proto_goTypes = []any{
-	(*ConfigComponent)(nil),     // 0: world_engine.pkg.plugin.lobby.component.ConfigComponent
-	(*LobbyComponent)(nil),      // 1: world_engine.pkg.plugin.lobby.component.LobbyComponent
-	(*LobbyIndexComponent)(nil), // 2: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent
-	(*PlayerComponent)(nil),     // 3: world_engine.pkg.plugin.lobby.component.PlayerComponent
-	(*Session)(nil),             // 4: world_engine.pkg.plugin.lobby.component.Session
-	(*ShardAddress)(nil),        // 5: world_engine.pkg.plugin.lobby.component.ShardAddress
-	(*Team)(nil),                // 6: world_engine.pkg.plugin.lobby.component.Team
-	nil,                         // 7: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntry
-	nil,                         // 8: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntry
-	nil,                         // 9: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntry
-	nil,                         // 10: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntry
-	nil,                         // 11: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntry
-	nil,                         // 12: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntry
-	nil,                         // 13: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntry
+	(*LobbyComponent)(nil),  // 0: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent
+	(*PlayerComponent)(nil), // 1: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.PlayerComponent
+	(*Session)(nil),         // 2: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Session
+	(*ShardAddress)(nil),    // 3: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	(*Team)(nil),            // 4: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Team
 }
 var file_pkg_plugin_lobby_component_component_proto_depIdxs = []int32{
-	5,  // 0: world_engine.pkg.plugin.lobby.component.ConfigComponent.LobbyWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	6,  // 1: world_engine.pkg.plugin.lobby.component.LobbyComponent.Teams:type_name -> world_engine.pkg.plugin.lobby.component.Team
-	5,  // 2: world_engine.pkg.plugin.lobby.component.LobbyComponent.GameWorld:type_name -> world_engine.pkg.plugin.lobby.component.ShardAddress
-	4,  // 3: world_engine.pkg.plugin.lobby.component.LobbyComponent.Session:type_name -> world_engine.pkg.plugin.lobby.component.Session
-	7,  // 4: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntity:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyIDToEntityEntry
-	8,  // 5: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.InviteCodeToLobbyEntry
-	9,  // 6: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobby:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToLobbyEntry
-	10, // 7: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeam:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToTeamEntry
-	11, // 8: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntity:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerToEntityEntry
-	12, // 9: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadline:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.PlayerDeadlineEntry
-	13, // 10: world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCount:type_name -> world_engine.pkg.plugin.lobby.component.LobbyIndexComponent.LobbyPlayerCountEntry
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	4, // 0: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent.Teams:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Team
+	3, // 1: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent.GameWorld:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.ShardAddress
+	2, // 2: github_com.argus_labs.world_engine.pkg.plugin.lobby.component.LobbyComponent.Session:type_name -> github_com.argus_labs.world_engine.pkg.plugin.lobby.component.Session
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_pkg_plugin_lobby_component_component_proto_init() }
@@ -703,7 +508,7 @@ func file_pkg_plugin_lobby_component_component_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_plugin_lobby_component_component_proto_rawDesc), len(file_pkg_plugin_lobby_component_component_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

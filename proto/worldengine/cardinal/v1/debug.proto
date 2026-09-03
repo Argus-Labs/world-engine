@@ -90,6 +90,23 @@ message TypeSchema {
   // Name of this command, component, or event in proto_descriptor_set.
   // Clients use it to find the correct protobuf type definition.
   string proto_message_name = 2;
+
+  // Shape of any multi-dimensional fixed-size array fields this type has.
+  // A fixed array is carried as one flat repeated field, which is unambiguous in one dimension but
+  // not beyond it: 32 elements could be 4x8 or 8x4. Clients that decode types they do not know ahead
+  // of time (the debug tooling) use this to rebuild the indices; clients written against a known
+  // schema can ignore it and index the flat field directly.
+  repeated ArrayField array_fields = 3;
+}
+
+// ArrayField gives the dimensions of one fixed-size array field, outermost first.
+message ArrayField {
+  // Name of the field within its message.
+  string field = 1;
+
+  // Dimensions outermost first: [4][8]int32 is {4, 8}. Elements are laid out row-major, so the
+  // element at [a][b] is at flat index a*8 + b.
+  repeated uint32 dims = 2;
 }
 
 // PauseRequest is the request message for the Pause RPC.

@@ -14,7 +14,15 @@ import "google.golang.org/protobuf/reflect/protoreflect"
 // back to it (e.g. decoded.(MoveCommand)).
 type Serializable interface {
 	Name() string
-	MarshalWire() ([]byte, error)
+	// MarshalWire encodes the value. It returns no error, so the generated implementation PANICS on a
+	// marshal failure rather than propagating one (see the generator's wireCodec) — it never signals
+	// failure by returning nil, and callers must not test for that.
+	//
+	// Encoding is not infallible: proto.Marshal rejects a proto3 string holding bytes that are not
+	// valid UTF-8, which a backend can produce by slicing a string mid-rune or by reading bytes from
+	// outside the process. Such a value cannot arrive over the wire (decode rejects it too), so it is
+	// always locally made. The panic is unrecovered on the tick's snapshot path.
+	MarshalWire() []byte
 	UnmarshalWire([]byte) (any, error)
 }
 

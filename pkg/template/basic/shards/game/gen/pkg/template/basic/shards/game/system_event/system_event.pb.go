@@ -72,7 +72,7 @@ var File_pkg_template_basic_shards_game_system_event_system_event_proto protoref
 
 const file_pkg_template_basic_shards_game_system_event_system_event_proto_rawDesc = "" +
 	"\n" +
-	">pkg/template/basic/shards/game/system_event/system_event.proto\x128world_engine.pkg.template.basic.shards.game.system_event\")\n" +
+	">pkg/template/basic/shards/game/system_event/system_event.proto\x12Ngithub_com.argus_labs.world_engine.pkg.template.basic.shards.game.system_event\")\n" +
 	"\vPlayerDeath\x12\x1a\n" +
 	"\bNickname\x18\x01 \x01(\tR\bNicknameB\xba\x01Z}github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system_event;systemevent\xaa\x028World_engine.Pkg.Template.Basic.Shards.Game.System_eventb\x06proto3"
 
@@ -90,7 +90,7 @@ func file_pkg_template_basic_shards_game_system_event_system_event_proto_rawDesc
 
 var file_pkg_template_basic_shards_game_system_event_system_event_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_pkg_template_basic_shards_game_system_event_system_event_proto_goTypes = []any{
-	(*PlayerDeath)(nil), // 0: world_engine.pkg.template.basic.shards.game.system_event.PlayerDeath
+	(*PlayerDeath)(nil), // 0: github_com.argus_labs.world_engine.pkg.template.basic.shards.game.system_event.PlayerDeath
 }
 var file_pkg_template_basic_shards_game_system_event_system_event_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

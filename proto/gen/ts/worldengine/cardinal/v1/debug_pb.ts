@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/debug.proto.
  */
 export const file_worldengine_cardinal_v1_debug: GenFile = /*@__PURE__*/
-  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJIj4KClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRIaChJwcm90b19tZXNzYWdlX25hbWUYAiABKAlSBnNjaGVtYSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCITChFTdHJlYW1QZXJmUmVxdWVzdCJBCglQZXJmQmF0Y2gSNAoFdGlja3MYASADKAsyJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UaWNrVGltZWxpbmUihwEKDFRpY2tUaW1lbGluZRITCgt0aWNrX2hlaWdodBgBIAEoBBIuCgp0aWNrX3N0YXJ0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCgVzcGFucxgDIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNwYW4ihAEKClN5c3RlbVNwYW4SOAoLc3lzdGVtX2hvb2sYASABKA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1Ib29rEg4KBnN5c3RlbRgCIAEoCRIXCg9zdGFydF9vZmZzZXRfbnMYAyABKAQSEwoLZHVyYXRpb25fbnMYBCABKAQqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tfVU5TUEVDSUZJRUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoSU1lTVEVNX0hPT0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERBVEUQAxIUChBTWVNURU1fSE9PS19JTklUEAQylgUKDERlYnVnU2VydmljZRJlCgpJbnRyb3NwZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVlc3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9uc2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlc3BvbnNlElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlcXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXNwb25zZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlcXVlc3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVzcG9uc2USVgoFUmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3BvbnNlEl8KCEdldFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXF1ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXNwb25zZRJeCgpTdHJlYW1QZXJmEioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RyZWFtUGVyZlJlcXVlc3QaIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QZXJmQmF0Y2gwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_worldengine_cardinal_v1_snapshot]);
+  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJInkKClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRIaChJwcm90b19tZXNzYWdlX25hbWUYAiABKAkSOQoMYXJyYXlfZmllbGRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJyYXlGaWVsZFIGc2NoZW1hIikKCkFycmF5RmllbGQSDQoFZmllbGQYASABKAkSDAoEZGltcxgCIAMoDSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCITChFTdHJlYW1QZXJmUmVxdWVzdCJBCglQZXJmQmF0Y2gSNAoFdGlja3MYASADKAsyJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UaWNrVGltZWxpbmUihwEKDFRpY2tUaW1lbGluZRITCgt0aWNrX2hlaWdodBgBIAEoBBIuCgp0aWNrX3N0YXJ0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCgVzcGFucxgDIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNwYW4ihAEKClN5c3RlbVNwYW4SOAoLc3lzdGVtX2hvb2sYASABKA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1Ib29rEg4KBnN5c3RlbRgCIAEoCRIXCg9zdGFydF9vZmZzZXRfbnMYAyABKAQSEwoLZHVyYXRpb25fbnMYBCABKAQqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tfVU5TUEVDSUZJRUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoSU1lTVEVNX0hPT0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERBVEUQAxIUChBTWVNURU1fSE9PS19JTklUEAQylgUKDERlYnVnU2VydmljZRJlCgpJbnRyb3NwZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVlc3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9uc2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlc3BvbnNlElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlcXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXNwb25zZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlcXVlc3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVzcG9uc2USVgoFUmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3BvbnNlEl8KCEdldFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXF1ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXNwb25zZRJeCgpTdHJlYW1QZXJmEioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RyZWFtUGVyZlJlcXVlc3QaIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QZXJmQmF0Y2gwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_worldengine_cardinal_v1_snapshot]);
 
 /**
  * IntrospectRequest is the request message for the Introspect RPC.
@@ -161,6 +161,17 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
    * @generated from field: string proto_message_name = 2;
    */
   protoMessageName: string;
+
+  /**
+   * Shape of any multi-dimensional fixed-size array fields this type has.
+   * A fixed array is carried as one flat repeated field, which is unambiguous in one dimension but
+   * not beyond it: 32 elements could be 4x8 or 8x4. Clients that decode types they do not know ahead
+   * of time (the debug tooling) use this to rebuild the indices; clients written against a known
+   * schema can ignore it and index the flat field directly.
+   *
+   * @generated from field: repeated worldengine.cardinal.v1.ArrayField array_fields = 3;
+   */
+  arrayFields: ArrayField[];
 };
 
 /**
@@ -169,6 +180,35 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
  */
 export const TypeSchemaSchema: GenMessage<TypeSchema> = /*@__PURE__*/
   messageDesc(file_worldengine_cardinal_v1_debug, 4);
+
+/**
+ * ArrayField gives the dimensions of one fixed-size array field, outermost first.
+ *
+ * @generated from message worldengine.cardinal.v1.ArrayField
+ */
+export type ArrayField = Message<"worldengine.cardinal.v1.ArrayField"> & {
+  /**
+   * Name of the field within its message.
+   *
+   * @generated from field: string field = 1;
+   */
+  field: string;
+
+  /**
+   * Dimensions outermost first: [4][8]int32 is {4, 8}. Elements are laid out row-major, so the
+   * element at [a][b] is at flat index a*8 + b.
+   *
+   * @generated from field: repeated uint32 dims = 2;
+   */
+  dims: number[];
+};
+
+/**
+ * Describes the message worldengine.cardinal.v1.ArrayField.
+ * Use `create(ArrayFieldSchema)` to create a new message.
+ */
+export const ArrayFieldSchema: GenMessage<ArrayField> = /*@__PURE__*/
+  messageDesc(file_worldengine_cardinal_v1_debug, 5);
 
 /**
  * PauseRequest is the request message for the Pause RPC.
@@ -183,7 +223,7 @@ export type PauseRequest = Message<"worldengine.cardinal.v1.PauseRequest"> & {
  * Use `create(PauseRequestSchema)` to create a new message.
  */
 export const PauseRequestSchema: GenMessage<PauseRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 5);
+  messageDesc(file_worldengine_cardinal_v1_debug, 6);
 
 /**
  * PauseResponse is the response message for the Pause RPC.
@@ -204,7 +244,7 @@ export type PauseResponse = Message<"worldengine.cardinal.v1.PauseResponse"> & {
  * Use `create(PauseResponseSchema)` to create a new message.
  */
 export const PauseResponseSchema: GenMessage<PauseResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 6);
+  messageDesc(file_worldengine_cardinal_v1_debug, 7);
 
 /**
  * ResumeRequest is the request message for the Resume RPC.
@@ -219,7 +259,7 @@ export type ResumeRequest = Message<"worldengine.cardinal.v1.ResumeRequest"> & {
  * Use `create(ResumeRequestSchema)` to create a new message.
  */
 export const ResumeRequestSchema: GenMessage<ResumeRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 7);
+  messageDesc(file_worldengine_cardinal_v1_debug, 8);
 
 /**
  * ResumeResponse is the response message for the Resume RPC.
@@ -234,7 +274,7 @@ export type ResumeResponse = Message<"worldengine.cardinal.v1.ResumeResponse"> &
  * Use `create(ResumeResponseSchema)` to create a new message.
  */
 export const ResumeResponseSchema: GenMessage<ResumeResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 8);
+  messageDesc(file_worldengine_cardinal_v1_debug, 9);
 
 /**
  * StepRequest is the request message for the Step RPC.
@@ -249,7 +289,7 @@ export type StepRequest = Message<"worldengine.cardinal.v1.StepRequest"> & {
  * Use `create(StepRequestSchema)` to create a new message.
  */
 export const StepRequestSchema: GenMessage<StepRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 9);
+  messageDesc(file_worldengine_cardinal_v1_debug, 10);
 
 /**
  * StepResponse is the response message for the Step RPC.
@@ -270,7 +310,7 @@ export type StepResponse = Message<"worldengine.cardinal.v1.StepResponse"> & {
  * Use `create(StepResponseSchema)` to create a new message.
  */
 export const StepResponseSchema: GenMessage<StepResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 10);
+  messageDesc(file_worldengine_cardinal_v1_debug, 11);
 
 /**
  * ResetRequest is the request message for the Reset RPC.
@@ -285,7 +325,7 @@ export type ResetRequest = Message<"worldengine.cardinal.v1.ResetRequest"> & {
  * Use `create(ResetRequestSchema)` to create a new message.
  */
 export const ResetRequestSchema: GenMessage<ResetRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 11);
+  messageDesc(file_worldengine_cardinal_v1_debug, 12);
 
 /**
  * ResetResponse is the response message for the Reset RPC.
@@ -300,7 +340,7 @@ export type ResetResponse = Message<"worldengine.cardinal.v1.ResetResponse"> & {
  * Use `create(ResetResponseSchema)` to create a new message.
  */
 export const ResetResponseSchema: GenMessage<ResetResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 12);
+  messageDesc(file_worldengine_cardinal_v1_debug, 13);
 
 /**
  * GetStateRequest is the request message for the GetState RPC.
@@ -315,7 +355,7 @@ export type GetStateRequest = Message<"worldengine.cardinal.v1.GetStateRequest">
  * Use `create(GetStateRequestSchema)` to create a new message.
  */
 export const GetStateRequestSchema: GenMessage<GetStateRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 13);
+  messageDesc(file_worldengine_cardinal_v1_debug, 14);
 
 /**
  * GetStateResponse is the response message for the GetState RPC.
@@ -343,7 +383,7 @@ export type GetStateResponse = Message<"worldengine.cardinal.v1.GetStateResponse
  * Use `create(GetStateResponseSchema)` to create a new message.
  */
 export const GetStateResponseSchema: GenMessage<GetStateResponse> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 14);
+  messageDesc(file_worldengine_cardinal_v1_debug, 15);
 
 /**
  * StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
@@ -358,7 +398,7 @@ export type StreamPerfRequest = Message<"worldengine.cardinal.v1.StreamPerfReque
  * Use `create(StreamPerfRequestSchema)` to create a new message.
  */
 export const StreamPerfRequestSchema: GenMessage<StreamPerfRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 15);
+  messageDesc(file_worldengine_cardinal_v1_debug, 16);
 
 /**
  * PerfBatch is a batch of completed tick timelines pushed to the client.
@@ -377,7 +417,7 @@ export type PerfBatch = Message<"worldengine.cardinal.v1.PerfBatch"> & {
  * Use `create(PerfBatchSchema)` to create a new message.
  */
 export const PerfBatchSchema: GenMessage<PerfBatch> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 16);
+  messageDesc(file_worldengine_cardinal_v1_debug, 17);
 
 /**
  * @generated from message worldengine.cardinal.v1.TickTimeline
@@ -404,7 +444,7 @@ export type TickTimeline = Message<"worldengine.cardinal.v1.TickTimeline"> & {
  * Use `create(TickTimelineSchema)` to create a new message.
  */
 export const TickTimelineSchema: GenMessage<TickTimeline> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 17);
+  messageDesc(file_worldengine_cardinal_v1_debug, 18);
 
 /**
  * @generated from message worldengine.cardinal.v1.SystemSpan
@@ -440,7 +480,7 @@ export type SystemSpan = Message<"worldengine.cardinal.v1.SystemSpan"> & {
  * Use `create(SystemSpanSchema)` to create a new message.
  */
 export const SystemSpanSchema: GenMessage<SystemSpan> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 18);
+  messageDesc(file_worldengine_cardinal_v1_debug, 19);
 
 /**
  * SystemHook defines when a system executes in the tick lifecycle.
@@ -562,3 +602,4 @@ export const DebugService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);
+

@@ -72,9 +72,9 @@ var File_pkg_plugin_data_component_component_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_data_component_component_proto_rawDesc = "" +
 	"\n" +
-	")pkg/plugin/data/component/component.proto\x12&world_engine.pkg.plugin.data.component\"\xa3\x01\n" +
-	"\x0eConfigManifest\x12W\n" +
-	"\x05Files\x18\x01 \x03(\v2A.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntryR\x05Files\x1a8\n" +
+	")pkg/plugin/data/component/component.proto\x12<github_com.argus_labs.world_engine.pkg.plugin.data.component\"\xb9\x01\n" +
+	"\x0eConfigManifest\x12m\n" +
+	"\x05Files\x18\x01 \x03(\v2W.github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntryR\x05Files\x1a8\n" +
 	"\n" +
 	"FilesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -94,11 +94,11 @@ func file_pkg_plugin_data_component_component_proto_rawDescGZIP() []byte {
 
 var file_pkg_plugin_data_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_pkg_plugin_data_component_component_proto_goTypes = []any{
-	(*ConfigManifest)(nil), // 0: world_engine.pkg.plugin.data.component.ConfigManifest
-	nil,                    // 1: world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntry
+	(*ConfigManifest)(nil), // 0: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest
+	nil,                    // 1: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntry
 }
 var file_pkg_plugin_data_component_component_proto_depIdxs = []int32{
-	1, // 0: world_engine.pkg.plugin.data.component.ConfigManifest.Files:type_name -> world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntry
+	1, // 0: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.Files:type_name -> github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntry
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

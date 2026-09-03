@@ -176,15 +176,10 @@ func (w *World) run(ctx context.Context) error {
 	}
 	// Final snapshot.
 	defer func() {
-		worldState, err := w.world.ToProto()
-		if err != nil {
-			w.tel.Logger.Warn().Err(err).Msg("failed to serialize world for final snapshot")
-			return
-		}
 		w.snapshotWriter.Write(&cardinalv1.Snapshot{
 			TickHeight: w.currentTick.height,
 			Timestamp:  timestamppb.Now(),
-			WorldState: worldState,
+			WorldState: w.world.ToProto(),
 			Version:    snapshot.CurrentVersion,
 		})
 	}()
@@ -249,18 +244,16 @@ func (w *World) Tick(timestamp time.Time) {
 }
 
 // persistState serializes the world for snapshots and the debug service.
-// It logs errors and tries again on the next tick.
+//
+// It reports nothing: a component that cannot encode panics rather than returning an error (see
+// schema.Serializable.MarshalWire), so there is nothing to log and nothing to retry next tick.
 func (w *World) persistState(timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {
 		return
 	}
 
-	worldState, err := w.world.ToProto()
-	if err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
-		return
-	}
+	worldState := w.world.ToProto()
 	// Publish state only when the debug service is enabled.
 	if w.debug != nil {
 		w.debug.publishSnapshot(&cardinalv1.Snapshot{
@@ -367,15 +360,11 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		if worldState, err := w.world.ToProto(); err != nil {
-			w.tel.Logger.Warn().Err(err).Msg("failed to serialize the world's state")
-		} else {
-			w.debug.publishSnapshot(&cardinalv1.Snapshot{
-				TickHeight: w.currentTick.height,
-				Timestamp:  timestamppb.New(w.currentTick.timestamp),
-				WorldState: worldState,
-			})
-		}
+		w.debug.publishSnapshot(&cardinalv1.Snapshot{
+			TickHeight: w.currentTick.height,
+			Timestamp:  timestamppb.New(w.currentTick.timestamp),
+			WorldState: w.world.ToProto(),
+		})
 	}
 	w.debug.resetPerf()
 }

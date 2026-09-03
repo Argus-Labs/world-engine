@@ -1,11 +1,13 @@
 package system
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestDefaultProvider_GenerateInviteCode checks the generator against its spec:
@@ -387,7 +389,7 @@ func TestGetPlayerResult(t *testing.T) {
 			LobbyID:         "lobby-789",
 			TeamID:          "team-1",
 			IsReady:         true,
-			PassthroughData: map[string]any{"level": 10},
+			PassthroughData: `{"level":10}`,
 			JoinedAt:        1234567890,
 		},
 	}
@@ -399,7 +401,7 @@ func TestGetPlayerResult(t *testing.T) {
 	assert.Equal(t, "lobby-789", result.Player.LobbyID)
 	assert.Equal(t, "team-1", result.Player.TeamID)
 	assert.True(t, result.Player.IsReady)
-	assert.Equal(t, 10, result.Player.PassthroughData["level"])
+	assert.JSONEq(t, `{"level":10}`, result.Player.PassthroughData)
 
 	// Test failure case
 	failResult := GetPlayerResult{
@@ -417,7 +419,7 @@ func TestGetAllPlayersResult(t *testing.T) {
 		RequestID: "req-123",
 		IsSuccess: true,
 		Message:   "players found",
-		Players: []component.PlayerComponent{
+		Players: [component.MaxLobbyPlayers]component.PlayerComponent{
 			{
 				PlayerID: "player-1",
 				LobbyID:  "lobby-1",
@@ -431,12 +433,13 @@ func TestGetAllPlayersResult(t *testing.T) {
 				IsReady:  false,
 			},
 		},
+		PlayersCount: 2,
 	}
 
 	assert.Equal(t, "req-123", result.RequestID)
 	assert.True(t, result.IsSuccess)
 	assert.Equal(t, "players found", result.Message)
-	assert.Len(t, result.Players, 2)
+	assert.Equal(t, 2, result.PlayersCount)
 	assert.Equal(t, "player-1", result.Players[0].PlayerID)
 	assert.Equal(t, "player-2", result.Players[1].PlayerID)
 
@@ -445,7 +448,7 @@ func TestGetAllPlayersResult(t *testing.T) {
 		IsSuccess: false,
 	}
 	assert.False(t, failResult.IsSuccess)
-	assert.Nil(t, failResult.Players)
+	assert.Zero(t, failResult.PlayersCount)
 }
 
 func TestResultsWithPlayerComponent(t *testing.T) {
@@ -456,7 +459,7 @@ func TestResultsWithPlayerComponent(t *testing.T) {
 		LobbyID:         "lobby-456",
 		TeamID:          "team-1",
 		IsReady:         true,
-		PassthroughData: map[string]any{"skin": "blue"},
+		PassthroughData: `{"skin":"blue"}`,
 		JoinedAt:        1234567890,
 	}
 
@@ -469,12 +472,13 @@ func TestResultsWithPlayerComponent(t *testing.T) {
 
 	// Test JoinLobbyResult includes PlayersList
 	joinResult := JoinLobbyResult{
-		PlayersList: []component.PlayerComponent{
+		PlayersList: [component.MaxLobbyPlayers]component.PlayerComponent{
 			player,
 			{PlayerID: "player-other"},
 		},
+		PlayersListCount: 2,
 	}
-	assert.Len(t, joinResult.PlayersList, 2)
+	assert.Equal(t, 2, joinResult.PlayersListCount)
 	assert.Equal(t, "player-123", joinResult.PlayersList[0].PlayerID)
 	assert.Equal(t, "player-other", joinResult.PlayersList[1].PlayerID)
 
@@ -497,7 +501,7 @@ func TestResultsWithPlayerComponent(t *testing.T) {
 		Player: player,
 	}
 	assert.Equal(t, "player-123", updateResult.Player.PlayerID)
-	assert.Equal(t, "blue", updateResult.Player.PassthroughData["skin"])
+	assert.JSONEq(t, `{"skin":"blue"}`, updateResult.Player.PassthroughData)
 }
 
 func TestEventsWithPlayerComponent(t *testing.T) {
@@ -508,7 +512,7 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 		LobbyID:         "lobby-456",
 		TeamID:          "team-1",
 		IsReady:         true,
-		PassthroughData: map[string]any{"level": 5},
+		PassthroughData: `{"level":5}`,
 		JoinedAt:        1234567890,
 	}
 
@@ -542,19 +546,20 @@ func TestEventsWithPlayerComponent(t *testing.T) {
 		Player: player,
 	}
 	assert.Equal(t, "player-123", passthroughEvent.Player.PlayerID)
-	assert.Equal(t, 5, passthroughEvent.Player.PassthroughData["level"])
+	assert.JSONEq(t, `{"level":5}`, passthroughEvent.Player.PassthroughData)
 }
 
 func TestFindTargetTeam(t *testing.T) {
 	t.Parallel()
 
-	lobby := &component.LobbyComponent{
-		Teams: []component.Team{
-			{TeamID: "alpha", MaxPlayers: 2, PlayerIDs: []string{"p1", "p2"}}, // full
-			{TeamID: "beta", MaxPlayers: 2, PlayerIDs: []string{"p3"}},        // has space
-			{TeamID: "gamma", MaxPlayers: 0, PlayerIDs: []string{}},           // unlimited
+	lobby := lobbyWithTeams(t,
+		[]component.Team{
+			{TeamID: "alpha", MaxPlayers: 2}, // filled below
+			{TeamID: "beta", MaxPlayers: 2},  // has space
+			{TeamID: "gamma", MaxPlayers: 0}, // unlimited
 		},
-	}
+		map[string][]string{"alpha": {"p1", "p2"}, "beta": {"p3"}},
+	)
 
 	tests := []struct {
 		name       string
@@ -607,14 +612,239 @@ func TestFindTargetTeam(t *testing.T) {
 func TestFindTargetTeam_AllTeamsFull(t *testing.T) {
 	t.Parallel()
 
-	lobby := &component.LobbyComponent{
-		Teams: []component.Team{
-			{TeamID: "alpha", MaxPlayers: 1, PlayerIDs: []string{"p1"}},
-			{TeamID: "beta", MaxPlayers: 1, PlayerIDs: []string{"p2"}},
+	lobby := lobbyWithTeams(t,
+		[]component.Team{
+			{TeamID: "alpha", MaxPlayers: 1},
+			{TeamID: "beta", MaxPlayers: 1},
 		},
-	}
+		map[string][]string{"alpha": {"p1"}, "beta": {"p2"}},
+	)
 
 	team, errMsg := findTargetTeam(lobby, "")
 	assert.Nil(t, team)
 	assert.Equal(t, "all teams are full", errMsg)
+}
+
+func lobbyWithTeams(
+	t *testing.T,
+	teams []component.Team,
+	membership map[string][]string,
+) *component.LobbyComponent {
+	t.Helper()
+	lobby := &component.LobbyComponent{}
+	for _, team := range teams {
+		require.True(t, lobby.AddTeam(team))
+	}
+	for _, team := range teams {
+		for _, pid := range membership[team.TeamID] {
+			require.True(t, lobby.AddPlayerToTeam(pid, team.TeamID))
+		}
+	}
+	return lobby
+}
+
+// A preset is server-owned config, so validatePreset guards against a deployment promising seats the
+// component's fixed roster cannot physically hold.
+func TestValidatePreset(t *testing.T) {
+	t.Parallel()
+
+	tooManyTeams := make([]component.TeamConfig, component.MaxLobbyTeams+1)
+	for i := range tooManyTeams {
+		tooManyTeams[i] = component.TeamConfig{TeamID: "team" + strconv.Itoa(i), MaxPlayers: 1}
+	}
+
+	tests := []struct {
+		name  string
+		teams []component.TeamConfig
+		want  string
+	}{
+		{
+			name:  "no teams",
+			teams: nil,
+			want:  "no teams",
+		},
+		{
+			name:  "more teams than a lobby holds",
+			teams: tooManyTeams,
+			want:  "declares 5 teams, more than the 4 a lobby can hold",
+		},
+		{
+			name: "duplicate team id",
+			teams: []component.TeamConfig{
+				{TeamID: "red", MaxPlayers: 2},
+				{TeamID: "red", MaxPlayers: 2},
+			},
+			want: "duplicate team id red",
+		},
+		{
+			name:  "single team over the roster cap",
+			teams: []component.TeamConfig{{TeamID: "red", MaxPlayers: component.MaxLobbyPlayers + 1}},
+			want:  `team "red" allows 17 players, more than the 16 a lobby can hold`,
+		},
+		{
+			name: "teams fit individually but not together",
+			teams: []component.TeamConfig{
+				{TeamID: "red", MaxPlayers: 10},
+				{TeamID: "blue", MaxPlayers: 10},
+			},
+			want: "teams allow 20 players in total, more than the 16 a lobby can hold",
+		},
+		{
+			name: "exactly at the roster cap",
+			teams: []component.TeamConfig{
+				{TeamID: "red", MaxPlayers: 8},
+				{TeamID: "blue", MaxPlayers: 8},
+			},
+			want: "",
+		},
+		// An unlimited team makes the total meaningless — the roster cap is what bounds it, and
+		// AddPlayerToTeam enforces that at runtime.
+		{
+			name: "unlimited team alongside a bounded one",
+			teams: []component.TeamConfig{
+				{TeamID: "red", MaxPlayers: 0},
+				{TeamID: "blue", MaxPlayers: 12},
+			},
+			want: "",
+		},
+		{
+			name:  "rampage coop_4p",
+			teams: []component.TeamConfig{{TeamID: "default", MaxPlayers: 4}},
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, validatePreset(tt.teams))
+		})
+	}
+}
+
+func TestResolvePresetRejectsMisconfigured(t *testing.T) {
+	t.Parallel()
+
+	presets := map[string][]component.TeamConfig{
+		"good": {{TeamID: "default", MaxPlayers: 4}},
+		"bad":  {{TeamID: "red", MaxPlayers: 99}},
+	}
+
+	teams, errMsg := resolvePreset("good", presets)
+	require.Empty(t, errMsg)
+	assert.Len(t, teams, 1)
+
+	_, errMsg = resolvePreset("bad", presets)
+	assert.Equal(t, `preset misconfigured: team "red" allows 99 players, more than the 16 a lobby can hold`, errMsg)
+
+	_, errMsg = resolvePreset("", presets)
+	assert.Equal(t, "preset is required", errMsg)
+
+	_, errMsg = resolvePreset("missing", presets)
+	assert.Equal(t, "unknown preset: missing", errMsg)
+}
+
+// SetConfig panics rather than returning an error because cardinal.RegisterPlugin has no error path:
+// a bad preset has to stop the boot, or it silently rejects every CreateLobbyCommand instead.
+func TestSetConfigPanicsOnUnusablePreset(t *testing.T) {
+	assert.PanicsWithValue(t,
+		"unusable lobby presets:\n  \"broken\": teams allow 32 players in total, more than the 16 a lobby can hold",
+		func() {
+			SetConfig(Config{}, map[string][]component.TeamConfig{
+				"broken": {{TeamID: "red", MaxPlayers: 16}, {TeamID: "blue", MaxPlayers: 16}},
+			})
+		})
+}
+
+func TestConfig_AssignmentFields(t *testing.T) {
+	t.Parallel()
+
+	// Assignment-related config fields. AssignmentAuthority is an
+	// accident-prevention filter (not authentication — cmd.Persona is
+	// not verified at this layer). MaxAllocationTimeout bounds the
+	// pending-allocation lifetime.
+	cfg := Config{
+		AssignmentAuthority:  "region.world.org.project.lobby",
+		MaxAllocationTimeout: 300,
+	}
+	assert.Equal(t, "region.world.org.project.lobby", cfg.AssignmentAuthority)
+	assert.Equal(t, int64(300), cfg.MaxAllocationTimeout)
+
+	// MaxAllocationTimeout <= 0 is the documented "disabled" sentinel.
+	disabled := Config{MaxAllocationTimeout: 0}
+	assert.LessOrEqual(t, disabled.MaxAllocationTimeout, int64(0))
+	negDisabled := Config{MaxAllocationTimeout: -1}
+	assert.LessOrEqual(t, negDisabled.MaxAllocationTimeout, int64(0))
+}
+
+// Every bad preset is reported at once and in a stable order: map iteration is random, so reporting
+// only the first would make an operator with two mistakes fix one and hit the other on redeploy.
+func TestSetConfigReportsEveryUnusablePreset(t *testing.T) {
+	defer func() {
+		r := recover()
+		require.NotNil(t, r)
+		assert.Equal(t, "unusable lobby presets:\n"+
+			`  "a_bad": no teams`+"\n"+
+			`  "z_bad": duplicate team id red`,
+			r)
+	}()
+	SetConfig(Config{}, map[string][]component.TeamConfig{
+		"z_bad": {{TeamID: "red", MaxPlayers: 2}, {TeamID: "red", MaxPlayers: 2}},
+		"a_bad": {},
+		"fine":  {{TeamID: "default", MaxPlayers: 4}},
+	})
+}
+
+// A snapshot from a build with a larger MaxLobbyTeams restores TeamCount past what Teams can hold.
+func TestFindTargetTeamSurvivesOversizedTeamCount(t *testing.T) {
+	t.Parallel()
+
+	lobby := &component.LobbyComponent{}
+	for i := range component.MaxLobbyTeams {
+		require.True(t, lobby.AddTeam(component.Team{TeamID: "t" + strconv.Itoa(i), MaxPlayers: 1}))
+		require.True(t, lobby.AddPlayerToTeam("p"+strconv.Itoa(i), "t"+strconv.Itoa(i)))
+	}
+	lobby.TeamCount = component.MaxLobbyTeams + 2
+
+	assert.NotPanics(t, func() {
+		team, errMsg := findTargetTeam(lobby, "")
+		assert.Nil(t, team)
+		assert.Equal(t, "all teams are full", errMsg)
+	})
+}
+
+// A count that outran the teams actually stored leaves zero entries inside the clamp. Their
+// MaxPlayers of 0 reads as unlimited, so they must not be handed out as the first team with space.
+func TestFindTargetTeamRejectsPhantomTeam(t *testing.T) {
+	t.Parallel()
+
+	lobby := &component.LobbyComponent{}
+	require.True(t, lobby.AddTeam(component.Team{TeamID: "red", MaxPlayers: 1}))
+	require.True(t, lobby.AddPlayerToTeam("p1", "red"))
+	// Two teams claimed, one actually stored.
+	lobby.TeamCount = 2
+
+	team, errMsg := findTargetTeam(lobby, "")
+	assert.Nil(t, team)
+	assert.Equal(t, "all teams are full", errMsg)
+
+	// And the zero entry is not reachable by name either.
+	assert.Nil(t, lobby.GetTeam(""))
+	assert.False(t, lobby.AddPlayerToTeam("p2", ""))
+}
+
+// A second Register means a second world in this process; it must not inherit the first world's
+// entity IDs through the latched rebuild flag.
+func TestSetConfigResetsIndexForANewWorld(t *testing.T) {
+	rebuildIndex(
+		[]lobbyRow{{entityID: 7, lobby: component.LobbyComponent{ID: "old", InviteCode: "OLD123"}}},
+		nil, 0, 30,
+	)
+	require.True(t, indexBuilt)
+
+	SetConfig(Config{}, map[string][]component.TeamConfig{"ok": {{TeamID: "default", MaxPlayers: 4}}})
+
+	assert.False(t, indexBuilt)
+	_, found := index.GetEntityID("old")
+	assert.False(t, found)
 }

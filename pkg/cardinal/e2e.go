@@ -127,8 +127,8 @@ sendLoop:
 
 	// Final validation after the world has fully stopped.
 	ecs.CheckWorld(t, fix.world.world)
-	_, err := fix.world.world.ToProto()
-	require.NoError(t, err)
+	// Encoding asserts internally, so reaching the next line at all is the check.
+	_ = fix.world.world.ToProto()
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -251,8 +251,7 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload, err := p.MarshalWire()
-	require.NoError(t, err)
+	payload := p.MarshalWire()
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,

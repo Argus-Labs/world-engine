@@ -5,19 +5,19 @@
 package system
 
 import (
-	system "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system"
+	pbsystem "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c AttackPlayerCommand) ToProto() *system.AttackPlayerCommand {
-	p := &system.AttackPlayerCommand{}
+func (c AttackPlayerCommand) ToProto() *pbsystem.AttackPlayerCommand {
+	p := &pbsystem.AttackPlayerCommand{}
 	p.Target = string(c.Target)
 	p.Damage = uint32(c.Damage)
 	return p
 }
 
-func (c AttackPlayerCommand) FromProto(p *system.AttackPlayerCommand) AttackPlayerCommand {
+func (c AttackPlayerCommand) FromProto(p *pbsystem.AttackPlayerCommand) AttackPlayerCommand {
 	if p == nil {
 		return c
 	}
@@ -26,12 +26,16 @@ func (c AttackPlayerCommand) FromProto(p *system.AttackPlayerCommand) AttackPlay
 	return c
 }
 
-func (c AttackPlayerCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c AttackPlayerCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal AttackPlayerCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c AttackPlayerCommand) UnmarshalWire(data []byte) (any, error) {
-	var p system.AttackPlayerCommand
+	var p pbsystem.AttackPlayerCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -39,16 +43,16 @@ func (c AttackPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c AttackPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.AttackPlayerCommand{}).ProtoReflect().Descriptor()
+	return (&pbsystem.AttackPlayerCommand{}).ProtoReflect().Descriptor()
 }
 
-func (c CallExternalCommand) ToProto() *system.CallExternalCommand {
-	p := &system.CallExternalCommand{}
+func (c CallExternalCommand) ToProto() *pbsystem.CallExternalCommand {
+	p := &pbsystem.CallExternalCommand{}
 	p.Message = string(c.Message)
 	return p
 }
 
-func (c CallExternalCommand) FromProto(p *system.CallExternalCommand) CallExternalCommand {
+func (c CallExternalCommand) FromProto(p *pbsystem.CallExternalCommand) CallExternalCommand {
 	if p == nil {
 		return c
 	}
@@ -56,12 +60,16 @@ func (c CallExternalCommand) FromProto(p *system.CallExternalCommand) CallExtern
 	return c
 }
 
-func (c CallExternalCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c CallExternalCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal CallExternalCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c CallExternalCommand) UnmarshalWire(data []byte) (any, error) {
-	var p system.CallExternalCommand
+	var p pbsystem.CallExternalCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -69,16 +77,16 @@ func (c CallExternalCommand) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c CallExternalCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.CallExternalCommand{}).ProtoReflect().Descriptor()
+	return (&pbsystem.CallExternalCommand{}).ProtoReflect().Descriptor()
 }
 
-func (c CreatePlayerCommand) ToProto() *system.CreatePlayerCommand {
-	p := &system.CreatePlayerCommand{}
+func (c CreatePlayerCommand) ToProto() *pbsystem.CreatePlayerCommand {
+	p := &pbsystem.CreatePlayerCommand{}
 	p.Nickname = string(c.Nickname)
 	return p
 }
 
-func (c CreatePlayerCommand) FromProto(p *system.CreatePlayerCommand) CreatePlayerCommand {
+func (c CreatePlayerCommand) FromProto(p *pbsystem.CreatePlayerCommand) CreatePlayerCommand {
 	if p == nil {
 		return c
 	}
@@ -86,12 +94,16 @@ func (c CreatePlayerCommand) FromProto(p *system.CreatePlayerCommand) CreatePlay
 	return c
 }
 
-func (c CreatePlayerCommand) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c CreatePlayerCommand) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal CreatePlayerCommand: " + err.Error())
+	}
+	return data
 }
 
 func (c CreatePlayerCommand) UnmarshalWire(data []byte) (any, error) {
-	var p system.CreatePlayerCommand
+	var p pbsystem.CreatePlayerCommand
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -99,5 +111,5 @@ func (c CreatePlayerCommand) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c CreatePlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&system.CreatePlayerCommand{}).ProtoReflect().Descriptor()
+	return (&pbsystem.CreatePlayerCommand{}).ProtoReflect().Descriptor()
 }

@@ -210,7 +210,7 @@ var File_pkg_template_multi_shard_shards_game_event_event_proto protoreflect.Fil
 
 const file_pkg_template_multi_shard_shards_game_event_event_proto_rawDesc = "" +
 	"\n" +
-	"6pkg/template/multi-shard/shards/game/event/event.proto\x127world_engine.pkg.template.multi_shard.shards.game.event\"3\n" +
+	"6pkg/template/multi-shard/shards/game/event/event.proto\x12Mgithub_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.event\"3\n" +
 	"\x0fPlayerDeparture\x12 \n" +
 	"\vArgusAuthID\x18\x01 \x01(\tR\vArgusAuthID\"t\n" +
 	"\x0ePlayerMovement\x12 \n" +
@@ -238,9 +238,9 @@ func file_pkg_template_multi_shard_shards_game_event_event_proto_rawDescGZIP() [
 
 var file_pkg_template_multi_shard_shards_game_event_event_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_pkg_template_multi_shard_shards_game_event_event_proto_goTypes = []any{
-	(*PlayerDeparture)(nil), // 0: world_engine.pkg.template.multi_shard.shards.game.event.PlayerDeparture
-	(*PlayerMovement)(nil),  // 1: world_engine.pkg.template.multi_shard.shards.game.event.PlayerMovement
-	(*PlayerSpawn)(nil),     // 2: world_engine.pkg.template.multi_shard.shards.game.event.PlayerSpawn
+	(*PlayerDeparture)(nil), // 0: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.event.PlayerDeparture
+	(*PlayerMovement)(nil),  // 1: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.event.PlayerMovement
+	(*PlayerSpawn)(nil),     // 2: github_com.argus_labs.world_engine.pkg.template.multi_shard.shards.game.event.PlayerSpawn
 }
 var file_pkg_template_multi_shard_shards_game_event_event_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

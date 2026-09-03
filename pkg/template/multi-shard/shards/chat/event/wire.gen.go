@@ -5,14 +5,14 @@
 package event
 
 import (
-	event "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/event"
+	pbevent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/event"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (c UserChat) ToProto() *event.UserChat {
-	p := &event.UserChat{}
+func (c UserChat) ToProto() *pbevent.UserChat {
+	p := &pbevent.UserChat{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.Message = string(c.Message)
@@ -20,7 +20,7 @@ func (c UserChat) ToProto() *event.UserChat {
 	return p
 }
 
-func (c UserChat) FromProto(p *event.UserChat) UserChat {
+func (c UserChat) FromProto(p *pbevent.UserChat) UserChat {
 	if p == nil {
 		return c
 	}
@@ -33,12 +33,16 @@ func (c UserChat) FromProto(p *event.UserChat) UserChat {
 	return c
 }
 
-func (c UserChat) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c UserChat) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal UserChat: " + err.Error())
+	}
+	return data
 }
 
 func (c UserChat) UnmarshalWire(data []byte) (any, error) {
-	var p event.UserChat
+	var p pbevent.UserChat
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -46,5 +50,5 @@ func (c UserChat) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c UserChat) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.UserChat{}).ProtoReflect().Descriptor()
+	return (&pbevent.UserChat{}).ProtoReflect().Descriptor()
 }

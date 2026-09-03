@@ -137,9 +137,12 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 	if !m.IsValid() {
 		b.Fatal("ecs.World: missing ToProto method")
 	}
+	// Arity is checked rather than assumed: reflection defeats the compiler, so a change to ToProto's
+	// signature reaches this line as an index panic during a benchmark run — which `go test ./...`
+	// never triggers. ToProto returns one value; it panics rather than returning an error.
 	out := m.Call(nil)
-	if !out[1].IsNil() {
-		b.Fatalf("ToProto: %v", out[1].Interface())
+	if len(out) != 1 {
+		b.Fatalf("ToProto returned %d values, want 1", len(out))
 	}
 	ws, ok := out[0].Interface().(*cardinalv1.WorldState)
 	if !ok {

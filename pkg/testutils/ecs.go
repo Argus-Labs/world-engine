@@ -51,26 +51,32 @@ func (ComponentC) Name() string {
 	return "component_c"
 }
 
-func (c SimpleComponent) MarshalWire() ([]byte, error) { return gobMarshal(c) }
+func (c SimpleComponent) MarshalWire() []byte { return gobMarshal(c) }
 func (SimpleComponent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleComponent](b)
 }
 
-func (c ComponentA) MarshalWire() ([]byte, error)      { return gobMarshal(c) }
+func (c ComponentA) MarshalWire() []byte               { return gobMarshal(c) }
 func (ComponentA) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentA](b) }
 
-func (c ComponentB) MarshalWire() ([]byte, error)      { return gobMarshal(c) }
+func (c ComponentB) MarshalWire() []byte               { return gobMarshal(c) }
 func (ComponentB) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentB](b) }
 
-func (c ComponentC) MarshalWire() ([]byte, error)      { return gobMarshal(c) }
+func (c ComponentC) MarshalWire() []byte               { return gobMarshal(c) }
 func (ComponentC) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentC](b) }
 
-func gobMarshal(v any) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(v); err != nil {
-		return nil, err
+// mustWrite panics on an encoding failure. These are test doubles: a fixture that cannot encode
+// itself is a broken fixture, not a condition callers should handle.
+func mustWrite(err error) {
+	if err != nil {
+		panic(err)
 	}
-	return buf.Bytes(), nil
+}
+
+func gobMarshal(v any) []byte {
+	var buf bytes.Buffer
+	mustWrite(gob.NewEncoder(&buf).Encode(v))
+	return buf.Bytes()
 }
 
 func gobUnmarshal[T any](b []byte) (T, error) {
@@ -91,7 +97,7 @@ func (SimpleSystemEvent) Name() string {
 	return "simple_system_event"
 }
 
-func (c SimpleSystemEvent) MarshalWire() ([]byte, error) { return gobMarshal(c) }
+func (c SimpleSystemEvent) MarshalWire() []byte { return gobMarshal(c) }
 func (SimpleSystemEvent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleSystemEvent](b)
 }
@@ -170,10 +176,10 @@ func (CommandC) Name() string {
 // UnmarshalWire). UnmarshalWire returns any — a decode factory that ignores its receiver — so testutils
 // needs no import of the engine (which already imports testutils).
 
-func (c SimpleCommand) MarshalWire() ([]byte, error) {
+func (c SimpleCommand) MarshalWire() []byte {
 	var b bytes.Buffer
-	err := binary.Write(&b, binary.LittleEndian, int64(c.Value))
-	return b.Bytes(), err
+	mustWrite(binary.Write(&b, binary.LittleEndian, int64(c.Value)))
+	return b.Bytes()
 }
 
 func (SimpleCommand) UnmarshalWire(data []byte) (any, error) {
@@ -184,10 +190,10 @@ func (SimpleCommand) UnmarshalWire(data []byte) (any, error) {
 	return SimpleCommand{Value: int(v)}, nil
 }
 
-func (c CommandA) MarshalWire() ([]byte, error) {
+func (c CommandA) MarshalWire() []byte {
 	var b bytes.Buffer
-	err := binary.Write(&b, binary.LittleEndian, c)
-	return b.Bytes(), err
+	mustWrite(binary.Write(&b, binary.LittleEndian, c))
+	return b.Bytes()
 }
 
 func (CommandA) UnmarshalWire(data []byte) (any, error) {
@@ -198,19 +204,13 @@ func (CommandA) UnmarshalWire(data []byte) (any, error) {
 	return c, nil
 }
 
-func (c CommandB) MarshalWire() ([]byte, error) {
+func (c CommandB) MarshalWire() []byte {
 	var b bytes.Buffer
-	if err := binary.Write(&b, binary.LittleEndian, c.ID); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(&b, binary.LittleEndian, c.Enabled); err != nil {
-		return nil, err
-	}
+	mustWrite(binary.Write(&b, binary.LittleEndian, c.ID))
+	mustWrite(binary.Write(&b, binary.LittleEndian, c.Enabled))
 	// Label is variable-length, so it goes last and consumes the rest on decode.
-	if err := binary.Write(&b, binary.LittleEndian, []byte(c.Label)); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
+	mustWrite(binary.Write(&b, binary.LittleEndian, []byte(c.Label)))
+	return b.Bytes()
 }
 
 func (CommandB) UnmarshalWire(data []byte) (any, error) {
@@ -230,10 +230,10 @@ func (CommandB) UnmarshalWire(data []byte) (any, error) {
 	return c, nil
 }
 
-func (c CommandC) MarshalWire() ([]byte, error) {
+func (c CommandC) MarshalWire() []byte {
 	var b bytes.Buffer
-	err := binary.Write(&b, binary.LittleEndian, c)
-	return b.Bytes(), err
+	mustWrite(binary.Write(&b, binary.LittleEndian, c))
+	return b.Bytes()
 }
 
 func (CommandC) UnmarshalWire(data []byte) (any, error) {
@@ -259,8 +259,8 @@ func (SimpleEvent) Name() string {
 // MarshalWire / UnmarshalWire are a test double for generated event wire code — the engine requires the
 // wire codec. Deliberately an explicit encoding, not a serialization library, so
 // testutils stays free of any wire-format dependency.
-func (s SimpleEvent) MarshalWire() ([]byte, error) {
-	return binary.AppendVarint(nil, int64(s.Value)), nil
+func (s SimpleEvent) MarshalWire() []byte {
+	return binary.AppendVarint(nil, int64(s.Value))
 }
 
 func (SimpleEvent) UnmarshalWire(b []byte) (any, error) {
@@ -280,8 +280,8 @@ func (AnotherEvent) Name() string {
 }
 
 // MarshalWire is a test double for generated event wire code (explicit encoding, no serialization lib).
-func (e AnotherEvent) MarshalWire() ([]byte, error) {
-	return []byte(e.Data), nil
+func (e AnotherEvent) MarshalWire() []byte {
+	return []byte(e.Data)
 }
 
 func (AnotherEvent) UnmarshalWire(b []byte) (any, error) {

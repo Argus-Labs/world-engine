@@ -5,18 +5,18 @@
 package event
 
 import (
-	event "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/event"
+	pbevent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/event"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c PlayerDeparture) ToProto() *event.PlayerDeparture {
-	p := &event.PlayerDeparture{}
+func (c PlayerDeparture) ToProto() *pbevent.PlayerDeparture {
+	p := &pbevent.PlayerDeparture{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	return p
 }
 
-func (c PlayerDeparture) FromProto(p *event.PlayerDeparture) PlayerDeparture {
+func (c PlayerDeparture) FromProto(p *pbevent.PlayerDeparture) PlayerDeparture {
 	if p == nil {
 		return c
 	}
@@ -24,12 +24,16 @@ func (c PlayerDeparture) FromProto(p *event.PlayerDeparture) PlayerDeparture {
 	return c
 }
 
-func (c PlayerDeparture) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerDeparture) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerDeparture: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
-	var p event.PlayerDeparture
+	var p pbevent.PlayerDeparture
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -37,11 +41,11 @@ func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c PlayerDeparture) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerDeparture{}).ProtoReflect().Descriptor()
+	return (&pbevent.PlayerDeparture{}).ProtoReflect().Descriptor()
 }
 
-func (c PlayerMovement) ToProto() *event.PlayerMovement {
-	p := &event.PlayerMovement{}
+func (c PlayerMovement) ToProto() *pbevent.PlayerMovement {
+	p := &pbevent.PlayerMovement{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.X = uint32(c.X)
@@ -49,7 +53,7 @@ func (c PlayerMovement) ToProto() *event.PlayerMovement {
 	return p
 }
 
-func (c PlayerMovement) FromProto(p *event.PlayerMovement) PlayerMovement {
+func (c PlayerMovement) FromProto(p *pbevent.PlayerMovement) PlayerMovement {
 	if p == nil {
 		return c
 	}
@@ -60,12 +64,16 @@ func (c PlayerMovement) FromProto(p *event.PlayerMovement) PlayerMovement {
 	return c
 }
 
-func (c PlayerMovement) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerMovement) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerMovement: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
-	var p event.PlayerMovement
+	var p pbevent.PlayerMovement
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -73,11 +81,11 @@ func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c PlayerMovement) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerMovement{}).ProtoReflect().Descriptor()
+	return (&pbevent.PlayerMovement{}).ProtoReflect().Descriptor()
 }
 
-func (c PlayerSpawn) ToProto() *event.PlayerSpawn {
-	p := &event.PlayerSpawn{}
+func (c PlayerSpawn) ToProto() *pbevent.PlayerSpawn {
+	p := &pbevent.PlayerSpawn{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
 	p.ArgusAuthName = string(c.ArgusAuthName)
 	p.X = uint32(c.X)
@@ -85,7 +93,7 @@ func (c PlayerSpawn) ToProto() *event.PlayerSpawn {
 	return p
 }
 
-func (c PlayerSpawn) FromProto(p *event.PlayerSpawn) PlayerSpawn {
+func (c PlayerSpawn) FromProto(p *pbevent.PlayerSpawn) PlayerSpawn {
 	if p == nil {
 		return c
 	}
@@ -96,12 +104,16 @@ func (c PlayerSpawn) FromProto(p *event.PlayerSpawn) PlayerSpawn {
 	return c
 }
 
-func (c PlayerSpawn) MarshalWire() ([]byte, error) {
-	return proto.Marshal(c.ToProto())
+func (c PlayerSpawn) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PlayerSpawn: " + err.Error())
+	}
+	return data
 }
 
 func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
-	var p event.PlayerSpawn
+	var p pbevent.PlayerSpawn
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -109,5 +121,5 @@ func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c PlayerSpawn) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&event.PlayerSpawn{}).ProtoReflect().Descriptor()
+	return (&pbevent.PlayerSpawn{}).ProtoReflect().Descriptor()
 }

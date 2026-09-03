@@ -123,10 +123,13 @@ func (s modelFuzzSystemEvent) Name() string {
 	return s.EventName
 }
 
-func (s modelFuzzSystemEvent) MarshalWire() ([]byte, error) {
+func (s modelFuzzSystemEvent) MarshalWire() []byte {
 	var b bytes.Buffer
-	err := gob.NewEncoder(&b).Encode(s)
-	return b.Bytes(), err
+	// A test double that cannot encode itself is a broken fixture, not a runtime condition.
+	if err := gob.NewEncoder(&b).Encode(s); err != nil {
+		panic(err)
+	}
+	return b.Bytes()
 }
 
 func (modelFuzzSystemEvent) UnmarshalWire(b []byte) (any, error) {
