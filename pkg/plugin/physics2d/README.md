@@ -50,6 +50,16 @@ body is created in the engine.
 | [`Velocity2D`](component/spatial.go) | Linear + angular velocity |
 | [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the compound collider (`Shapes`) |
 
+Chain shapes (`ShapeTypeStaticChain`, `ShapeTypeStaticChainLoop`) do not
+carry their polyline inline. The points live on a separate entity holding a
+[`ChainGeometry2D`](component/chain_geometry.go) component, and the shape
+references it by entity id (`ColliderShape.ChainGeometry`), so one polyline
+is stored once no matter how many colliders use it. Create the geometry
+entity, then point shapes at it; treat its points as immutable — to change
+terrain, spawn a new geometry entity and swap the id (that id change is
+what triggers the fixture rebuild). Geometry entities are ordinary ECS
+state: they snapshot and restore with everything else.
+
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
 which produces an inactive, sleeping, gravity-less body.

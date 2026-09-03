@@ -138,10 +138,10 @@ func TestValidate_ColliderShape_ValidPolygon(t *testing.T) {
 func TestValidate_ColliderShape_ValidChain(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeStaticChain,
-		ChainPoints:  []phycomp.Vec2{{X: 0, Y: 0}, {X: 5, Y: 1}},
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
+		ShapeType:     phycomp.ShapeTypeStaticChain,
+		ChainGeometry: 7, // resolvability is checked at fixture attach, not here
+		CategoryBits:  0xFFFF,
+		MaskBits:      0xFFFF,
 	}.Validate()
 	require.NoError(t, err)
 }
@@ -149,10 +149,10 @@ func TestValidate_ColliderShape_ValidChain(t *testing.T) {
 func TestValidate_ColliderShape_ValidChainLoop(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeStaticChainLoop,
-		ChainPoints:  []phycomp.Vec2{{X: 0, Y: 0}, {X: 5, Y: 0}, {X: 5, Y: 5}, {X: 0, Y: 5}},
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
+		ShapeType:     phycomp.ShapeTypeStaticChainLoop,
+		ChainGeometry: 7,
+		CategoryBits:  0xFFFF,
+		MaskBits:      0xFFFF,
 	}.Validate()
 	require.NoError(t, err)
 }
@@ -247,14 +247,13 @@ func TestValidate_ColliderShape_NaNVertex(t *testing.T) {
 	require.Contains(t, err.Error(), "vertices[1]")
 }
 
-func TestValidate_ColliderShape_NaNChainPoint(t *testing.T) {
+func TestValidate_ChainGeometry_NaNPoint(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:   phycomp.ShapeTypeStaticChain,
-		ChainPoints: []phycomp.Vec2{{X: 0, Y: 0}, {X: 0, Y: math.Inf(1)}},
+	err := phycomp.ChainGeometry2D{
+		Points: []phycomp.Vec2{{X: 0, Y: 0}, {X: 0, Y: math.Inf(1)}},
 	}.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "chain_points[1]")
+	require.Contains(t, err.Error(), "points[1]")
 }
 
 func TestValidate_ColliderShape_NaNEdgeVertex(t *testing.T) {

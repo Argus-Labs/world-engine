@@ -43,15 +43,18 @@ type physicsSingletonSearch = cardinal.Exact[struct {
 // InitPhysicsSystemState runs once at world init: FullRebuildFromECS from current ECS entities.
 type InitPhysicsSystemState struct {
 	cardinal.BaseSystemState
-	Bodies    cardinal.Contains[physicsBodyRow]
-	Singleton physicsSingletonSearch
+	Bodies     cardinal.Contains[physicsBodyRow]
+	Geometries cardinal.Contains[chainGeometryRow]
+	Singleton  physicsSingletonSearch
 }
 
 // NewInitPhysicsSystem returns the Init-hook system bound to rt. The system creates the
-// singleton entity (if absent), then builds the Box2D world and bodies from ECS.
+// singleton entity (if absent), syncs chain geometry, then builds the Box2D world and bodies
+// from ECS.
 func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
 		ensurePhysicsSingleton(&state.Singleton)
+		syncGeometries(rt, state.Geometries.Iter())
 
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
@@ -59,4 +62,23 @@ func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}
 	}
+}
+
+// chainGeometryRow matches geometry entities referenced by chain-type collider shapes.
+type chainGeometryRow struct {
+	Geometry cardinal.Ref[physicscomp.ChainGeometry2D]
+}
+
+// syncGeometries gathers every ChainGeometry2D row and reconciles the runtime's geometry
+// mirror with it. It must run before bodies rebuild or reconcile in the same tick, so a body
+// created alongside its geometry entity (or restored with it) resolves its chain points.
+func syncGeometries(rt *internal.Runtime, iter cardinal.SearchResult[cardinal.EntityID, chainGeometryRow]) {
+	entries := rt.GeometryEntriesScratch()
+	for eid, row := range iter {
+		entries = append(entries, internal.GeometryEntry{
+			EntityID: eid,
+			Points:   row.Geometry.Get().Points,
+		})
+	}
+	rt.SyncGeometries(rt.KeepGeometryEntriesScratch(entries))
 }

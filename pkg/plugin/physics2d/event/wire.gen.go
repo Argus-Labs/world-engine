@@ -6,18 +6,18 @@ package event
 
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
-	pbevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event"
+	event "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (c ContactBeginEvent) ToProto() *pbevent.ContactBeginEvent {
-	p := &pbevent.ContactBeginEvent{}
+func (c ContactBeginEvent) ToProto() *event.ContactBeginEvent {
+	p := &event.ContactBeginEvent{}
 	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
-func (c ContactBeginEvent) FromProto(p *pbevent.ContactBeginEvent) ContactBeginEvent {
+func (c ContactBeginEvent) FromProto(p *event.ContactBeginEvent) ContactBeginEvent {
 	if p == nil {
 		return c
 	}
@@ -25,16 +25,12 @@ func (c ContactBeginEvent) FromProto(p *pbevent.ContactBeginEvent) ContactBeginE
 	return c
 }
 
-func (c ContactBeginEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ContactBeginEvent: " + err.Error())
-	}
-	return data
+func (c ContactBeginEvent) MarshalWire() ([]byte, error) {
+	return proto.Marshal(c.ToProto())
 }
 
 func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
-	var p pbevent.ContactBeginEvent
+	var p event.ContactBeginEvent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -42,16 +38,16 @@ func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c ContactBeginEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&pbevent.ContactBeginEvent{}).ProtoReflect().Descriptor()
+	return (&event.ContactBeginEvent{}).ProtoReflect().Descriptor()
 }
 
-func (c ContactEndEvent) ToProto() *pbevent.ContactEndEvent {
-	p := &pbevent.ContactEndEvent{}
+func (c ContactEndEvent) ToProto() *event.ContactEndEvent {
+	p := &event.ContactEndEvent{}
 	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
-func (c ContactEndEvent) FromProto(p *pbevent.ContactEndEvent) ContactEndEvent {
+func (c ContactEndEvent) FromProto(p *event.ContactEndEvent) ContactEndEvent {
 	if p == nil {
 		return c
 	}
@@ -59,16 +55,12 @@ func (c ContactEndEvent) FromProto(p *pbevent.ContactEndEvent) ContactEndEvent {
 	return c
 }
 
-func (c ContactEndEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ContactEndEvent: " + err.Error())
-	}
-	return data
+func (c ContactEndEvent) MarshalWire() ([]byte, error) {
+	return proto.Marshal(c.ToProto())
 }
 
 func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
-	var p pbevent.ContactEndEvent
+	var p event.ContactEndEvent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -76,11 +68,11 @@ func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c ContactEndEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&pbevent.ContactEndEvent{}).ProtoReflect().Descriptor()
+	return (&event.ContactEndEvent{}).ProtoReflect().Descriptor()
 }
 
-func (c ContactEventPayload) ToProto() *pbevent.ContactEventPayload {
-	p := &pbevent.ContactEventPayload{}
+func (c ContactEventPayload) ToProto() *event.ContactEventPayload {
+	p := &event.ContactEventPayload{}
 	p.FilterA = c.FilterA.ToProto()
 	p.FilterB = c.FilterB.ToProto()
 	p.EntityA = uint32(c.EntityA)
@@ -94,7 +86,7 @@ func (c ContactEventPayload) ToProto() *pbevent.ContactEventPayload {
 	return p
 }
 
-func (c ContactEventPayload) FromProto(p *pbevent.ContactEventPayload) ContactEventPayload {
+func (c ContactEventPayload) FromProto(p *event.ContactEventPayload) ContactEventPayload {
 	if p == nil {
 		return c
 	}
@@ -111,15 +103,15 @@ func (c ContactEventPayload) FromProto(p *pbevent.ContactEventPayload) ContactEv
 	return c
 }
 
-func (c FixtureFilterBits) ToProto() *pbevent.FixtureFilterBits {
-	p := &pbevent.FixtureFilterBits{}
+func (c FixtureFilterBits) ToProto() *event.FixtureFilterBits {
+	p := &event.FixtureFilterBits{}
 	p.CategoryBits = uint64(c.CategoryBits)
 	p.MaskBits = uint64(c.MaskBits)
 	p.GroupIndex = int32(c.GroupIndex)
 	return p
 }
 
-func (c FixtureFilterBits) FromProto(p *pbevent.FixtureFilterBits) FixtureFilterBits {
+func (c FixtureFilterBits) FromProto(p *event.FixtureFilterBits) FixtureFilterBits {
 	if p == nil {
 		return c
 	}
@@ -129,13 +121,13 @@ func (c FixtureFilterBits) FromProto(p *pbevent.FixtureFilterBits) FixtureFilter
 	return c
 }
 
-func (c TriggerBeginEvent) ToProto() *pbevent.TriggerBeginEvent {
-	p := &pbevent.TriggerBeginEvent{}
+func (c TriggerBeginEvent) ToProto() *event.TriggerBeginEvent {
+	p := &event.TriggerBeginEvent{}
 	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
-func (c TriggerBeginEvent) FromProto(p *pbevent.TriggerBeginEvent) TriggerBeginEvent {
+func (c TriggerBeginEvent) FromProto(p *event.TriggerBeginEvent) TriggerBeginEvent {
 	if p == nil {
 		return c
 	}
@@ -143,16 +135,12 @@ func (c TriggerBeginEvent) FromProto(p *pbevent.TriggerBeginEvent) TriggerBeginE
 	return c
 }
 
-func (c TriggerBeginEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TriggerBeginEvent: " + err.Error())
-	}
-	return data
+func (c TriggerBeginEvent) MarshalWire() ([]byte, error) {
+	return proto.Marshal(c.ToProto())
 }
 
 func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
-	var p pbevent.TriggerBeginEvent
+	var p event.TriggerBeginEvent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -160,16 +148,16 @@ func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c TriggerBeginEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&pbevent.TriggerBeginEvent{}).ProtoReflect().Descriptor()
+	return (&event.TriggerBeginEvent{}).ProtoReflect().Descriptor()
 }
 
-func (c TriggerEndEvent) ToProto() *pbevent.TriggerEndEvent {
-	p := &pbevent.TriggerEndEvent{}
+func (c TriggerEndEvent) ToProto() *event.TriggerEndEvent {
+	p := &event.TriggerEndEvent{}
 	p.ContactEventPayload = c.ContactEventPayload.ToProto()
 	return p
 }
 
-func (c TriggerEndEvent) FromProto(p *pbevent.TriggerEndEvent) TriggerEndEvent {
+func (c TriggerEndEvent) FromProto(p *event.TriggerEndEvent) TriggerEndEvent {
 	if p == nil {
 		return c
 	}
@@ -177,16 +165,12 @@ func (c TriggerEndEvent) FromProto(p *pbevent.TriggerEndEvent) TriggerEndEvent {
 	return c
 }
 
-func (c TriggerEndEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TriggerEndEvent: " + err.Error())
-	}
-	return data
+func (c TriggerEndEvent) MarshalWire() ([]byte, error) {
+	return proto.Marshal(c.ToProto())
 }
 
 func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {
-	var p pbevent.TriggerEndEvent
+	var p event.TriggerEndEvent
 	if err := proto.Unmarshal(data, &p); err != nil {
 		return nil, err
 	}
@@ -194,5 +178,5 @@ func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {
 }
 
 func (c TriggerEndEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&pbevent.TriggerEndEvent{}).ProtoReflect().Descriptor()
+	return (&event.TriggerEndEvent{}).ProtoReflect().Descriptor()
 }

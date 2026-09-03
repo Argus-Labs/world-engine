@@ -3,6 +3,8 @@ package component
 import (
 	"errors"
 	"fmt"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
 // ShapeType selects which geometry fields in ColliderShape are valid.
@@ -20,12 +22,12 @@ const (
 	ShapeTypeBox
 	// ShapeTypeConvexPolygon uses Vertices as a convex polygon in the shape's local frame.
 	ShapeTypeConvexPolygon
-	// ShapeTypeStaticChain uses ChainPoints for open chain segments (static or kinematic
-	// bodies only; not for dynamic bodies which require mass).
+	// ShapeTypeStaticChain uses the ChainGeometry entity's points for open chain segments
+	// (static or kinematic bodies only; not for dynamic bodies which require mass).
 	ShapeTypeStaticChain
-	// ShapeTypeStaticChainLoop uses ChainPoints for closed chain loops (static or kinematic
-	// bodies only; not for dynamic bodies). Unlike ShapeTypeStaticChain, the last vertex
-	// automatically connects back to the first, creating a sealed boundary.
+	// ShapeTypeStaticChainLoop uses the ChainGeometry entity's points for closed chain loops
+	// (static or kinematic bodies only; not for dynamic bodies). Unlike ShapeTypeStaticChain,
+	// the last vertex automatically connects back to the first, creating a sealed boundary.
 	ShapeTypeStaticChainLoop
 	// ShapeTypeEdge uses EdgeVertices (exactly 2 points) for a single line segment
 	// (static or kinematic bodies only). Lighter than a 2-point chain for isolated barriers
@@ -43,10 +45,15 @@ const (
 //   - ShapeTypeCircle → Radius
 //   - ShapeTypeBox → HalfExtents (half-width on X, half-height on Y, axis-aligned before LocalOffset/LocalRotation)
 //   - ShapeTypeConvexPolygon → Vertices (convex polygon, respect backend limits)
-//   - ShapeTypeStaticChain → ChainPoints (open polyline in local space)
-//   - ShapeTypeStaticChainLoop → ChainPoints (closed loop in local space)
+//   - ShapeTypeStaticChain → ChainGeometry (entity holding the open polyline, in local space)
+//   - ShapeTypeStaticChainLoop → ChainGeometry (entity holding the closed loop, in local space)
 //   - ShapeTypeEdge → EdgeVertices (exactly 2 points in local space)
 //   - ShapeTypeCapsule → CapsuleCenter1, CapsuleCenter2, Radius (two semicircles connected by a rectangle)
+//
+// Chain polylines are not stored inline: ChainGeometry references an entity carrying a
+// [ChainGeometry2D] component, so one polyline is shared by every collider that stands on it.
+// The reconciler treats the id as the geometry's identity — see ChainGeometry2D's
+// immutability contract.
 type ColliderShape struct {
 	ShapeType     ShapeType `json:"shape_type"`
 	LocalOffset   Vec2      `json:"local_offset"`
@@ -54,13 +61,13 @@ type ColliderShape struct {
 	IsSensor      bool      `json:"is_sensor"`
 
 	// Geometry (use fields matching ShapeType).
-	Radius         float64 `json:"radius,omitempty"`
-	HalfExtents    Vec2    `json:"half_extents,omitempty"`
-	Vertices       []Vec2  `json:"vertices,omitempty"`
-	ChainPoints    []Vec2  `json:"chain_points,omitempty"`
-	EdgeVertices   [2]Vec2 `json:"edge_vertices,omitempty"`
-	CapsuleCenter1 Vec2    `json:"capsule_center1,omitempty"`
-	CapsuleCenter2 Vec2    `json:"capsule_center2,omitempty"`
+	Radius         float64           `json:"radius,omitempty"`
+	HalfExtents    Vec2              `json:"half_extents,omitempty"`
+	Vertices       []Vec2            `json:"vertices,omitempty"`
+	ChainGeometry  cardinal.EntityID `json:"chain_geometry,omitempty"`
+	EdgeVertices   [2]Vec2           `json:"edge_vertices,omitempty"`
+	CapsuleCenter1 Vec2              `json:"capsule_center1,omitempty"`
+	CapsuleCenter2 Vec2              `json:"capsule_center2,omitempty"`
 
 	// Material and per-shape collision filtering (fixture-level in Box2D).
 	Friction     float64 `json:"friction"`
@@ -96,11 +103,6 @@ func (s ColliderShape) Validate() error {
 	}
 	for i, v := range s.Vertices {
 		if err := validateVec2(fmt.Sprintf("vertices[%d]", i), v); err != nil {
-			return err
-		}
-	}
-	for i, v := range s.ChainPoints {
-		if err := validateVec2(fmt.Sprintf("chain_points[%d]", i), v); err != nil {
 			return err
 		}
 	}

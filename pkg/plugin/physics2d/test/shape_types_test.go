@@ -173,21 +173,24 @@ func TestShapeType_StaticChainDetectable(t *testing.T) {
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
+		Geo   chainGeoSpawn
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
+		// Box2D v3 chains are one-sided: normal faces right of segment direction (CCW winding).
+		// Right-to-left ordering gives an upward-facing normal so a downward ray hits.
+		geoID := spawnChainGeometry(&state.Geo,
+			[]physics.Vec2{{X: 10, Y: 0}, {X: 3, Y: 0}, {X: -3, Y: 0}, {X: -10, Y: 0}})
 		id, row := state.Spawn.Create()
 		row.Tag.Set(harnessTag{Role: "chain"})
 		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: 0}})
 		row.V.Set(physics.Velocity2D{})
 		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeStaticChain,
-			// Box2D v3 chains are one-sided: normal faces right of segment direction (CCW winding).
-			// Right-to-left ordering gives an upward-facing normal so a downward ray hits.
-			ChainPoints:  []physics.Vec2{{X: 10, Y: 0}, {X: 3, Y: 0}, {X: -3, Y: 0}, {X: -10, Y: 0}},
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
+			ShapeType:     physics.ShapeTypeStaticChain,
+			ChainGeometry: geoID,
+			CategoryBits:  0xFFFF,
+			MaskBits:      0xFFFF,
 		}))
 		chainID = id
 	}, cardinal.WithHook(cardinal.Init))
@@ -216,23 +219,25 @@ func TestShapeType_ChainLoopDetectable(t *testing.T) {
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
+		Geo   chainGeoSpawn
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
+		// Box2D v3 chains are one-sided: CCW winding for inward-facing normals.
+		// This lets a ray from inside (0,0) outward (10,0) hit the boundary.
+		geoID := spawnChainGeometry(&state.Geo, []physics.Vec2{
+			{X: -5, Y: -5}, {X: -5, Y: 5}, {X: 5, Y: 5}, {X: 5, Y: -5},
+		})
 		id, row := state.Spawn.Create()
 		row.Tag.Set(harnessTag{Role: "loop"})
 		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: 0}})
 		row.V.Set(physics.Velocity2D{})
 		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeStaticChainLoop,
-			// Box2D v3 chains are one-sided: CCW winding for inward-facing normals.
-			// This lets a ray from inside (0,0) outward (10,0) hit the boundary.
-			ChainPoints: []physics.Vec2{
-				{X: -5, Y: -5}, {X: -5, Y: 5}, {X: 5, Y: 5}, {X: 5, Y: -5},
-			},
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
+			ShapeType:     physics.ShapeTypeStaticChainLoop,
+			ChainGeometry: geoID,
+			CategoryBits:  0xFFFF,
+			MaskBits:      0xFFFF,
 		}))
 		loopID = id
 	}, cardinal.WithHook(cardinal.Init))
@@ -533,23 +538,133 @@ func TestShapeType_ChainOnDynamic_NoPhysicsBody(t *testing.T) {
 	cardinal.RegisterSystem(w, func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
+		Geo   chainGeoSpawn
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
+		geoID := spawnChainGeometry(&state.Geo,
+			[]physics.Vec2{{X: -5, Y: 0}, {X: -2, Y: 0}, {X: 2, Y: 0}, {X: 5, Y: 0}})
 		_, row := state.Spawn.Create()
 		row.Tag.Set(harnessTag{Role: "dyn_chain"})
 		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: 0}})
 		row.V.Set(physics.Velocity2D{})
 		row.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeStaticChain,
-			ChainPoints:  []physics.Vec2{{X: -5, Y: 0}, {X: -2, Y: 0}, {X: 2, Y: 0}, {X: 5, Y: 0}},
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
+			ShapeType:     physics.ShapeTypeStaticChain,
+			ChainGeometry: geoID,
+			CategoryBits:  0xFFFF,
+			MaskBits:      0xFFFF,
 		}))
 	}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(w)
 	tickN(t, w, 3)
 	// No crash = test passes. Chain on dynamic body is rejected during fixture attachment.
+}
+
+// ---------------------------------------------------------------------------
+// Chain geometry entity: id swap is a structural rebuild; a dangling id fails loud
+// ---------------------------------------------------------------------------
+
+// TestChainGeometry_SwapRebuildsFixture covers the geometry-reference contract: points are
+// immutable per entity, so re-pointing a shape at a new geometry entity is the way to change
+// terrain, and the reconciler must rebuild the fixture from the id change alone.
+func TestChainGeometry_SwapRebuildsFixture(t *testing.T) {
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+
+	// Right-to-left winding: upward-facing normals, so a downward ray hits (see chain tests above).
+	lineAt := func(y float64) []physics.Vec2 {
+		return []physics.Vec2{{X: 10, Y: y}, {X: 3, Y: y}, {X: -3, Y: y}, {X: -10, Y: y}}
+	}
+
+	const swapTick = 5
+	var chainID cardinal.EntityID
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+		Geo   chainGeoSpawn
+	}) {
+		switch state.Tick() {
+		case 0:
+			geoID := spawnChainGeometry(&state.Geo, lineAt(0))
+			id, row := state.Spawn.Create()
+			row.Tag.Set(harnessTag{Role: "swap_chain"})
+			row.T.Set(physics.Transform2D{})
+			row.V.Set(physics.Velocity2D{})
+			row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+				ShapeType:     physics.ShapeTypeStaticChain,
+				ChainGeometry: geoID,
+				CategoryBits:  0xFFFF,
+				MaskBits:      0xFFFF,
+			}))
+			chainID = id
+		case swapTick:
+			newGeo := spawnChainGeometry(&state.Geo, lineAt(2))
+			for eid, row := range state.Spawn.Iter() {
+				if eid != chainID {
+					continue
+				}
+				pb := row.PB.Get()
+				pb.Shapes[0].ChainGeometry = newGeo
+				row.PB.Set(pb)
+			}
+		}
+	}, cardinal.WithHook(cardinal.Update))
+
+	initCardinalECS(w)
+	tickN(t, w, swapTick)
+
+	ray := p.Raycast(physics.RaycastRequest{
+		Origin: physics.Vec2{X: 0, Y: 5},
+		End:    physics.Vec2{X: 0, Y: -5},
+	})
+	require.True(t, ray.Hit, "raycast should hit the original chain")
+	require.Equal(t, chainID, ray.Entity)
+	require.InDelta(t, 0.0, ray.Point.Y, 1e-9, "original polyline sits at y=0")
+
+	tickN(t, w, 2) // swap tick runs, then one pipeline tick reconciles the id change
+
+	ray = p.Raycast(physics.RaycastRequest{
+		Origin: physics.Vec2{X: 0, Y: 5},
+		End:    physics.Vec2{X: 0, Y: -5},
+	})
+	require.True(t, ray.Hit, "raycast should hit the swapped chain")
+	require.Equal(t, chainID, ray.Entity)
+	require.InDelta(t, 2.0, ray.Point.Y, 1e-9, "swapped polyline sits at y=2")
+}
+
+// TestChainGeometry_MissingEntityFailsLoud: a chain shape whose ChainGeometry entity does not
+// exist must fail the body's creation (logged, no crash) and leave no fixture behind.
+func TestChainGeometry_MissingEntityFailsLoud(t *testing.T) {
+	t.Parallel()
+	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		if state.Tick() != 0 {
+			return
+		}
+		_, row := state.Spawn.Create()
+		row.Tag.Set(harnessTag{Role: "dangling_chain"})
+		row.T.Set(physics.Transform2D{})
+		row.V.Set(physics.Velocity2D{})
+		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+			ShapeType:     physics.ShapeTypeStaticChain,
+			ChainGeometry: 999_999, // no such entity
+			CategoryBits:  0xFFFF,
+			MaskBits:      0xFFFF,
+		}))
+	}, cardinal.WithHook(cardinal.Init))
+
+	initCardinalECS(w)
+	tickN(t, w, 3)
+
+	ray := p.Raycast(physics.RaycastRequest{
+		Origin: physics.Vec2{X: 0, Y: 5},
+		End:    physics.Vec2{X: 0, Y: -5},
+	})
+	require.False(t, ray.Hit, "no fixture may exist for a body whose chain geometry is missing")
 }
