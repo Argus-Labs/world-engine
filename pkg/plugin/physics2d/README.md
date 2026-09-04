@@ -91,15 +91,7 @@ func SpawnBallSystem(ctx cardinal.WorldContext) error {
         },
         physics2d.NewPhysicsBody2D(
             physics2d.BodyTypeDynamic,
-            physics2d.ColliderShape{
-                ShapeType:    physics2d.ShapeTypeCircle,
-                Radius:       0.5,
-                Density:      1.0,
-                Friction:     0.3,
-                Restitution:  0.2,
-                CategoryBits: 0x0001,
-                MaskBits:     0xFFFF,
-            },
+            physics2d.Circle(0.5).Material(0.3, 0.2, 1.0).Filter(0x0001, 0xFFFF),
         ),
     )
     _ = id
@@ -115,16 +107,20 @@ cardinal.Create(ctx,
     physics2d.Velocity2D{},
     physics2d.NewPhysicsBody2D(
         physics2d.BodyTypeStatic,
-        physics2d.ColliderShape{
-            ShapeType:    physics2d.ShapeTypeBox,
-            HalfExtents:  physics2d.Vec2{X: 25, Y: 1},
-            Friction:     0.5,
-            CategoryBits: 0x0002,
-            MaskBits:     0xFFFF,
-        },
+        physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF),
     ),
 )
 ```
+
+### Building shapes
+
+Use the constructors — `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`,
+`Capsule` — and chain options onto them: `At(offset, rotation)`, `AsSensor()`,
+`Material(friction, restitution, density)`, `Filter(category, mask)`, `Group(index)`.
+A bare constructor is already a usable shape (Box2D's default material, category 1,
+mask all). `ColliderShape` is a tagged union underneath; `Validate` rejects a shape
+carrying another type's geometry, so build through the constructors rather than
+struct literals.
 
 ### Body-type cheat sheet
 

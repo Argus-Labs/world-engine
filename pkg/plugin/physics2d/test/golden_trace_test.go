@@ -398,28 +398,16 @@ func goldenFallingCirclesFloor() goldenScenario {
 				out := []goldenEntity{{
 					role: "floor",
 					pos:  physics.Vec2{X: 0, Y: 0},
-					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType:    physics.ShapeTypeBox,
-						HalfExtents:  physics.Vec2{X: 20, Y: 0.5},
-						Friction:     0.4,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}),
+					body: newRigid(physics.BodyTypeStatic,
+						physics.Box(20, 0.5).Material(0.4, 0, 0).Filter(0xFFFF, 0xFFFF)),
 				}}
 				for i := range 8 {
 					f := float64(i)
 					out = append(out, goldenEntity{
 						role: "circle_" + strconv.Itoa(i),
 						pos:  physics.Vec2{X: -7 + 2*f, Y: 5 + 0.5*f},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.2 + 0.05*f,
-							Density:      1,
-							Friction:     0.3,
-							Restitution:  0.1 * f,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeDynamic,
+							physics.Circle(0.2+0.05*f).Material(0.3, 0.1*f, 1).Filter(0xFFFF, 0xFFFF)),
 					})
 				}
 				return out
@@ -439,13 +427,8 @@ func goldenBoxStack() goldenScenario {
 				out := []goldenEntity{{
 					role: "floor",
 					pos:  physics.Vec2{X: 0, Y: 0},
-					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType:    physics.ShapeTypeBox,
-						HalfExtents:  physics.Vec2{X: 10, Y: 0.5},
-						Friction:     0.6,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}),
+					body: newRigid(physics.BodyTypeStatic,
+						physics.Box(10, 0.5).Material(0.6, 0, 0).Filter(0xFFFF, 0xFFFF)),
 				}}
 				for i := range 5 {
 					f := float64(i)
@@ -454,15 +437,8 @@ func goldenBoxStack() goldenScenario {
 						// Small alternating X offset so the stack has to settle rather than
 						// starting in a perfectly symmetric (and less interesting) pose.
 						pos: physics.Vec2{X: 0.03 * f * float64(1-2*(i%2)), Y: 1.05 + 1.05*f},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-							Density:      1,
-							Friction:     0.6,
-							Restitution:  0,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeDynamic,
+							physics.Box(0.5, 0.5).Material(0.6, 0, 1).Filter(0xFFFF, 0xFFFF)),
 					})
 				}
 				return out
@@ -482,12 +458,9 @@ func goldenCapsuleChainGround() goldenScenario {
 				out := []goldenEntity{{
 					role: "terrain",
 					pos:  physics.Vec2{X: 0, Y: 0},
-					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType:    physics.ShapeTypeStaticChain,
-						Friction:     0.5,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}),
+					// Geometry id 0 is a placeholder: goldenSpawn spawns the entity and patches it in.
+					body: newRigid(physics.BodyTypeStatic,
+						physics.Chain(0).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF)),
 					// Box2D v3 chains are one-sided: right-to-left (decreasing X) winding
 					// gives upward-facing normals so bodies land on top.
 					chainPoints: []physics.Vec2{
@@ -500,17 +473,9 @@ func goldenCapsuleChainGround() goldenScenario {
 					out = append(out, goldenEntity{
 						role: "capsule_" + strconv.Itoa(i),
 						pos:  physics.Vec2{X: -6 + 4*f, Y: 6 + 0.7*f},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:      physics.ShapeTypeCapsule,
-							CapsuleCenter1: physics.Vec2{X: 0, Y: -0.4},
-							CapsuleCenter2: physics.Vec2{X: 0, Y: 0.4},
-							Radius:         0.25,
-							Density:        1,
-							Friction:       0.4,
-							Restitution:    0.05,
-							CategoryBits:   0xFFFF,
-							MaskBits:       0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeDynamic,
+							physics.Capsule(physics.Vec2{X: 0, Y: -0.4}, physics.Vec2{X: 0, Y: 0.4}, 0.25).
+								Material(0.4, 0.05, 1).Filter(0xFFFF, 0xFFFF)),
 					})
 				}
 				for i := range 2 {
@@ -519,16 +484,11 @@ func goldenCapsuleChainGround() goldenScenario {
 						role:     "poly_" + strconv.Itoa(i),
 						pos:      physics.Vec2{X: -4 + 8*f, Y: 10 + f},
 						rotation: 0.2 + 0.3*f,
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType: physics.ShapeTypeConvexPolygon,
-							Vertices: []physics.Vec2{
-								{X: -0.5, Y: -0.4}, {X: 0.5, Y: -0.4}, {X: 0.35, Y: 0.5}, {X: -0.35, Y: 0.5},
-							},
-							Density:      1,
-							Friction:     0.4,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeDynamic,
+							physics.Polygon(
+								physics.Vec2{X: -0.5, Y: -0.4}, physics.Vec2{X: 0.5, Y: -0.4},
+								physics.Vec2{X: 0.35, Y: 0.5}, physics.Vec2{X: -0.35, Y: 0.5},
+							).Material(0.4, 0, 1).Filter(0xFFFF, 0xFFFF)),
 					})
 				}
 				return out
@@ -550,37 +510,20 @@ func goldenSensorTrigger() goldenScenario {
 					{
 						role: "floor",
 						pos:  physics.Vec2{X: 0, Y: 0},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 8, Y: 0.5},
-							Friction:     0.3,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeStatic,
+							physics.Box(8, 0.5).Material(0.3, 0, 0).Filter(0xFFFF, 0xFFFF)),
 					},
 					{
 						role: "sensor_gate",
 						pos:  physics.Vec2{X: 0, Y: 5},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 2, Y: 0.5},
-							IsSensor:     true,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeStatic,
+							physics.Box(2, 0.5).AsSensor().Material(0, 0, 0).Filter(0xFFFF, 0xFFFF)),
 					},
 					{
 						role: "faller",
 						pos:  physics.Vec2{X: 0, Y: 10},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.3,
-							Density:      1,
-							Friction:     0.3,
-							Restitution:  0.2,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeDynamic,
+							physics.Circle(0.3).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF)),
 					},
 				}
 			})
@@ -604,29 +547,16 @@ func goldenFilterMatrix() goldenScenario {
 		return goldenEntity{
 			role: role,
 			pos:  physics.Vec2{X: x, Y: 0},
-			body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeBox,
-				HalfExtents:  physics.Vec2{X: 3, Y: 0.5},
-				Friction:     0.3,
-				CategoryBits: cat,
-				MaskBits:     mask,
-				GroupIndex:   group,
-			}),
+			body: newRigid(physics.BodyTypeStatic,
+				physics.Box(3, 0.5).Material(0.3, 0, 0).Filter(cat, mask).Group(group)),
 		}
 	}
 	ball := func(role string, x float64, cat, mask uint64, group int32) goldenEntity {
 		return goldenEntity{
 			role: role,
 			pos:  physics.Vec2{X: x, Y: 5},
-			body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.4,
-				Density:      1,
-				Friction:     0.3,
-				CategoryBits: cat,
-				MaskBits:     mask,
-				GroupIndex:   group,
-			}),
+			body: newRigid(physics.BodyTypeDynamic,
+				physics.Circle(0.4).Material(0.3, 0, 1).Filter(cat, mask).Group(group)),
 		}
 	}
 	return goldenScenario{
@@ -662,45 +592,28 @@ func goldenQueriesOverTime() goldenScenario {
 					{
 						role: "wall",
 						pos:  physics.Vec2{X: 5, Y: 0},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 0.5, Y: 2},
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeStatic,
+							physics.Box(0.5, 2).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF)),
 					},
 					{
 						role: "pillar",
 						pos:  physics.Vec2{X: -6, Y: 0},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.75,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigid(physics.BodyTypeStatic,
+							physics.Circle(0.75).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF)),
 					},
 					{
 						role: "mover",
 						pos:  physics.Vec2{X: -8, Y: 3},
 						vel:  physics.Velocity2D{Linear: physics.Vec2{X: 2, Y: 0}},
-						body: newRigidNoGravity(physics.BodyTypeKinematic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigidNoGravity(physics.BodyTypeKinematic,
+							physics.Box(0.5, 0.5).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF)),
 					},
 					{
 						role: "drifter",
 						pos:  physics.Vec2{X: -8, Y: -3},
 						vel:  physics.Velocity2D{Linear: physics.Vec2{X: 1.5, Y: 0}, Angular: 0.5},
-						body: newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.35,
-							Density:      1,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						body: newRigidNoGravity(physics.BodyTypeDynamic,
+							physics.Circle(0.35).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF)),
 					},
 				}
 			})

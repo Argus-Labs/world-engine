@@ -68,6 +68,16 @@ const (
 	ShapeTypeCapsule         = component.ShapeTypeCapsule
 )
 
+// Shape constructors: each returns a ColliderShape carrying only its own geometry, with Box2D
+// default material and filter. Chain At / AsSensor / Material / Filter / Group to adjust.
+func Circle(radius float64) ColliderShape                { return component.Circle(radius) }
+func Box(halfWidth, halfHeight float64) ColliderShape    { return component.Box(halfWidth, halfHeight) }
+func Polygon(vertices ...Vec2) ColliderShape             { return component.Polygon(vertices...) }
+func Chain(geometry cardinal.EntityID) ColliderShape     { return component.Chain(geometry) }
+func ChainLoop(geometry cardinal.EntityID) ColliderShape { return component.ChainLoop(geometry) }
+func Edge(a, b Vec2) ColliderShape                       { return component.Edge(a, b) }
+func Capsule(a, b Vec2, radius float64) ColliderShape    { return component.Capsule(a, b, radius) }
+
 // Contact / trigger system events (implement ecs.SystemEvent; register with WithSystemEventEmitter).
 type (
 	FixtureFilterBits   = physicevent.FixtureFilterBits

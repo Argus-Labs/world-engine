@@ -18,12 +18,7 @@ func sweepLine() []physics.Vec2 {
 
 // chainBody returns a static body with one chain shape referencing geoID.
 func chainBody(geoID cardinal.EntityID) physics.PhysicsBody2D {
-	return newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-		ShapeType:     physics.ShapeTypeStaticChain,
-		ChainGeometry: geoID,
-		CategoryBits:  0xFFFF,
-		MaskBits:      0xFFFF,
-	})
+	return newRigid(physics.BodyTypeStatic, physics.Chain(geoID))
 }
 
 // countGeometries registers a PostUpdate system that writes the current number of

@@ -118,11 +118,5 @@ func (s ColliderShape) Validate() error {
 		return err
 	}
 
-	switch s.ShapeType {
-	case ShapeTypeCircle, ShapeTypeBox, ShapeTypeConvexPolygon, ShapeTypeStaticChain,
-		ShapeTypeStaticChainLoop, ShapeTypeEdge, ShapeTypeCapsule:
-	default:
-		return fmt.Errorf("shape_type: unknown value %d", s.ShapeType)
-	}
-	return nil
+	return s.validateVariant()
 }

@@ -158,6 +158,65 @@ func TestValidate_ColliderShape_ValidChainLoop(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestValidate_ColliderShape_RejectsForeignGeometry pins the union discipline: a shape may
+// only carry the geometry its own type reads.
+func TestValidate_ColliderShape_RejectsForeignGeometry(t *testing.T) {
+	t.Parallel()
+
+	box := phycomp.Box(1, 1)
+	box.Radius = 0.5 // circle geometry on a box
+	err := box.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "radius: not used by shape_type")
+
+	circle := phycomp.Circle(0.5)
+	circle.ChainGeometry = 3
+	err = circle.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "chain_geometry: not used by shape_type")
+
+	// Capsule legitimately shares Radius with Circle.
+	require.NoError(t, phycomp.Capsule(phycomp.Vec2{}, phycomp.Vec2{X: 1}, 0.25).Validate())
+}
+
+// TestShapeConstructors_DefaultsAndOptions: every constructor yields a valid shape carrying
+// Box2D's default material and filter, and the options set exactly what they say.
+func TestShapeConstructors_DefaultsAndOptions(t *testing.T) {
+	t.Parallel()
+
+	shapes := []phycomp.ColliderShape{
+		phycomp.Circle(0.5),
+		phycomp.Box(1, 2),
+		phycomp.Polygon(phycomp.Vec2{}, phycomp.Vec2{X: 1}, phycomp.Vec2{Y: 1}),
+		phycomp.Chain(1),
+		phycomp.ChainLoop(1),
+		phycomp.Edge(phycomp.Vec2{}, phycomp.Vec2{X: 1}),
+		phycomp.Capsule(phycomp.Vec2{}, phycomp.Vec2{X: 1}, 0.25),
+	}
+	for _, s := range shapes {
+		require.NoError(t, s.Validate(), "shape_type %d", s.ShapeType)
+		require.InDelta(t, 0.6, s.Friction, 0)
+		require.InDelta(t, 1.0, s.Density, 0)
+		require.Equal(t, uint64(1), s.CategoryBits)
+		require.Equal(t, ^uint64(0), s.MaskBits)
+		require.False(t, s.IsSensor)
+	}
+
+	s := phycomp.Box(1, 1).
+		At(phycomp.Vec2{X: 2, Y: 3}, 0.5).
+		AsSensor().
+		Material(0.1, 0.2, 0.3).
+		Filter(0x2, 0x4).
+		Group(-1)
+	require.Equal(t, phycomp.Vec2{X: 2, Y: 3}, s.LocalOffset)
+	require.InDelta(t, 0.5, s.LocalRotation, 0)
+	require.True(t, s.IsSensor)
+	require.Equal(t, [3]float64{0.1, 0.2, 0.3}, [3]float64{s.Friction, s.Restitution, s.Density})
+	require.Equal(t, [2]uint64{0x2, 0x4}, [2]uint64{s.CategoryBits, s.MaskBits})
+	require.Equal(t, int32(-1), s.GroupIndex)
+	require.NoError(t, s.Validate())
+}
+
 func TestValidate_ColliderShape_ValidEdge(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
