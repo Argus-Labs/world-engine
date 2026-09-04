@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"sort"
+	"testing"
 	"time"
 	"unsafe"
 
@@ -100,6 +101,10 @@ type Config struct {
 	// something in the pipeline is reading wall-clock time, map order, or
 	// uninitialised memory.
 	Digest bool
+	// TB, when set, routes every check to a testing.TB as well as the report:
+	// failures through Errorf at the scenario's call site, notes and skips through
+	// Logf. The go test entry points set it; the CLI leaves it nil.
+	TB testing.TB
 }
 
 // Runner owns the scenario list, the report, and the tick loop.
@@ -133,6 +138,9 @@ func New(scenarios []Scenario, cfg Config) *Runner {
 	}
 	r.lastTick += TailTicks + cfg.ExtraTicks
 	r.digest = cfg.Digest
+	if cfg.TB != nil {
+		r.report.BindTB(cfg.TB)
+	}
 	return r
 }
 
@@ -161,6 +169,7 @@ func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
 		lane:       scenario.lane,
 		tick:       tick,
 		allowReset: r.allowWorldReset,
+		tb:         r.report.tb,
 	}
 }
 
@@ -380,8 +389,12 @@ func (r *Runner) EventsUpTo(scenario string, kind EventKind, tick uint64) int {
 func (r *Runner) Run(world *cardinal.World) int {
 	InitECS(world)
 
-	fmt.Printf("running %d scenario(s) for %d ticks at %.0f Hz\n\n",
-		len(r.scenarios), r.lastTick+1, TickRate)
+	// Bound to a testing.TB, results already reach the test log line by line;
+	// the banner and the summary table are for the CLI.
+	if !r.report.Bound() {
+		fmt.Printf("running %d scenario(s) for %d ticks at %.0f Hz\n\n",
+			len(r.scenarios), r.lastTick+1, TickRate)
+	}
 
 	// Deterministic timestamps: the physics step uses a fixed dt, so wall clock
 	// must not leak into the simulation.
@@ -391,7 +404,9 @@ func (r *Runner) Run(world *cardinal.World) int {
 		r.printDigest(world)
 	}
 
-	r.report.Print()
+	if !r.report.Bound() {
+		r.report.Print()
+	}
 	if _, fail, _ := r.report.Totals(); fail > 0 {
 		return 1
 	}

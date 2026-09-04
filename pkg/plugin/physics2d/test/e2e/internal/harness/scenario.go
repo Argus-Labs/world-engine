@@ -3,6 +3,7 @@ package harness
 import (
 	"fmt"
 	"math"
+	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
@@ -143,6 +144,9 @@ type Ctx struct {
 	scenario   string
 	lane       float64
 	tick       uint64
+	// tb, when bound, attributes failures to the scenario's own line: every
+	// assertion marks itself a helper before reporting.
+	tb testing.TB
 }
 
 // Plugin returns the physics plugin driving this world. Queries, Reset and
@@ -485,6 +489,9 @@ func (c *Ctx) EventsOnTick(kind EventKind, tick uint64) []LoggedEvent {
 
 // True asserts a condition holds.
 func (c *Ctx) True(check string, got bool, format string, args ...any) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	if got {
 		c.report.Pass(c.scenario, check, c.tick)
 		return true
@@ -495,11 +502,17 @@ func (c *Ctx) True(check string, got bool, format string, args ...any) bool {
 
 // False asserts a condition does not hold.
 func (c *Ctx) False(check string, got bool, format string, args ...any) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, !got, format, args...)
 }
 
 // Near asserts got is within tol of want.
 func (c *Ctx) Near(check string, got, want, tol float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	if !finite(got) {
 		return c.True(check, false, "got %v (not finite), want %v ±%v", got, want, tol)
 	}
@@ -509,6 +522,9 @@ func (c *Ctx) Near(check string, got, want, tol float64) bool {
 
 // NearVec asserts both components of got are within tol of want.
 func (c *Ctx) NearVec(check string, got, want physics.Vec2, tol float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	ok := finite(got.X) && finite(got.Y) &&
 		math.Abs(got.X-want.X) <= tol && math.Abs(got.Y-want.Y) <= tol
 	return c.True(check, ok, "got (%.6f, %.6f), want (%.6f, %.6f) ±%.6f",
@@ -517,60 +533,98 @@ func (c *Ctx) NearVec(check string, got, want physics.Vec2, tol float64) bool {
 
 // Greater asserts got > threshold.
 func (c *Ctx) Greater(check string, got, threshold float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, finite(got) && got > threshold, "got %.6f, want > %.6f", got, threshold)
 }
 
 // GreaterEq asserts got >= threshold.
 func (c *Ctx) GreaterEq(check string, got, threshold float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, finite(got) && got >= threshold, "got %.6f, want >= %.6f", got, threshold)
 }
 
 // Less asserts got < threshold.
 func (c *Ctx) Less(check string, got, threshold float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, finite(got) && got < threshold, "got %.6f, want < %.6f", got, threshold)
 }
 
 // LessEq asserts got <= threshold.
 func (c *Ctx) LessEq(check string, got, threshold float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, finite(got) && got <= threshold, "got %.6f, want <= %.6f", got, threshold)
 }
 
 // Between asserts lo <= got <= hi.
 func (c *Ctx) Between(check string, got, lo, hi float64) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, finite(got) && got >= lo && got <= hi,
 		"got %.6f, want within [%.6f, %.6f]", got, lo, hi)
 }
 
 // Int asserts an integer equals want.
 func (c *Ctx) Int(check string, got, want int) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, got == want, "got %d, want %d", got, want)
 }
 
 // IntAtLeast asserts an integer is at least want.
 func (c *Ctx) IntAtLeast(check string, got, want int) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, got >= want, "got %d, want >= %d", got, want)
 }
 
 // Str asserts a string equals want.
 func (c *Ctx) Str(check, got, want string) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, got == want, "got %q, want %q", got, want)
 }
 
 // NoError asserts err is nil.
 func (c *Ctx) NoError(check string, err error) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, err == nil, "unexpected error: %v", err)
 }
 
 // HasError asserts err is non-nil.
 func (c *Ctx) HasError(check string, err error) bool {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	return c.True(check, err != nil, "expected an error, got nil")
 }
 
 // Note records a diagnostic line without affecting pass/fail counts.
-func (c *Ctx) Note(format string, args ...any) { c.report.Note(c.scenario, c.tick, format, args...) }
+func (c *Ctx) Note(format string, args ...any) {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
+	c.report.Note(c.scenario, c.tick, format, args...)
+}
 
 // Skip records that a check could not run.
 func (c *Ctx) Skip(check, format string, args ...any) {
+	if c.tb != nil {
+		c.tb.Helper()
+	}
 	c.report.Skip(c.scenario, check, c.tick, format, args...)
 }
 

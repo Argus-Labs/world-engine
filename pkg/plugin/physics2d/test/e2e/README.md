@@ -5,24 +5,51 @@ and fail on anything that does not behave the way Box2D documents. No NATS, no
 Redis, no Docker; `task test` runs it with the rest of `./pkg/...`.
 
 ```sh
-go test ./pkg/plugin/physics2d/test/e2e/                          # everything
-go test ./pkg/plugin/physics2d/test/e2e/ -run TestScenarios -v     # the report, passing checks included
-go run  ./pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e -h       # the same suite as a CLI
+go test ./pkg/plugin/physics2d/test/e2e/                            # everything
+go test ./pkg/plugin/physics2d/test/e2e/ -run TestScenarios/flags -v # one scenario, passing checks included
+go run  ./pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e -h         # the same suite as a CLI
 ```
 
 ## What runs
 
 | Test | Pins |
 |---|---|
-| `TestScenarios` | Thirteen scenarios, about 400 checks, in one world with a lane each |
+| `TestScenarios` | Thirteen scripted scenarios, about 400 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
+| `TestExhaustiveBodyMatrix` | Every body type × every shape type × every combination of the five body flags (896 bodies, one world). Each flag is read back from the engine, not the component; the wire round-trip is lossless; a `Plugin.Reset` rebuild recreates the same engine state |
+| `TestRandomScenes` | Seeded random scenes of valid bodies over a static floor. Invariants: lossless wire round-trip, no solid dynamic body ends up inside the floor, and the same seed simulates identically twice and at `Workers: 4` |
 | `TestRestore` | Snapshot a world, round-trip every component through the wire format, rebuild it in a fresh world, simulate both on and compare. Once with the documented `Plugin.Reset`, once without |
-| `TestDigestIsWorkerInvariant` | The whole suite twice in the same configuration, then at `Workers: 4`. All three state hashes must match |
+| `TestDigestIsWorkerInvariant` | All scenarios together in one world, twice in the same configuration, then at `Workers: 4`. All three state hashes must match |
 | `TestHostile` | Each crash-prone shape, alone in a child process |
+
+Every check reports through the subtest's `testing.T`, attributed to the scenario's
+own line; the harness's printed report is what the CLI shows instead.
 
 `TestDigestIsWorkerInvariant` covers two different promises. Same configuration
 twice is the only check that catches a Go map iterated for its side effects; no
 worker-count or golden-file comparison can. Different worker counts pins the
 engine's promise that `Config.Workers` is a throughput knob and nothing else.
+
+### Generated coverage
+
+`TestExhaustiveBodyMatrix` is the enumerated form of the question that started this
+suite: does a Go zero value leak anywhere Box2D defaults to true? `testutils.Gen`
+walks every combination, so nothing is left to a hand-picked sample. It found one
+divergence, pinned in `knownDivergence`: the plugin accepts chains and edges on
+dynamic bodies although the component docs say static or kinematic only. Enforcing
+the rule flips that check, which is the signal to remove the entry.
+
+`TestRandomScenes` is the physics analogue of `pkg/box2d`'s op-sequence fuzz. A
+scene is a pure function of the seed in its subtest name; reproduce one with
+
+```sh
+PHYSICS2D_E2E_SCENE_SEED=<hex from the subtest name> go test ./pkg/plugin/physics2d/test/e2e/ -run TestRandomScenes -v
+```
+
+Its generator respects the documented static/kinematic-only rule for edges and
+chains because the consequence of breaking it is not subtle: a dynamic body carrying
+an edge falls straight through a 10 m static floor. Kinematic bodies collide with
+nothing there, because one moving downward can legitimately squeeze a dynamic body
+through the floor, and that would make the invariant unprovable.
 
 ### Scenarios
 
@@ -154,8 +181,10 @@ go run ./pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e -serve      # run as a 
 ## Layout
 
 ```
-e2e_test.go            go test entry points
-cmd/physics2d-e2e/     the CLI
+e2e_test.go                 scripted scenarios, restore, digest, hostile cases
+exhaustive_matrix_test.go   every body/shape/flag combination
+random_scenes_test.go       seeded random scenes and their invariants
+cmd/physics2d-e2e/          the CLI
 internal/harness/      lanes, the scenario API, the report, snapshot helpers, the runner
 internal/scenario/     the scenarios, shape builders, the hostile cases
 internal/restore/      the two-world crash-restore driver

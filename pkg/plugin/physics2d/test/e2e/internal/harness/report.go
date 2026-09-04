@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"testing"
 )
 
 // Outcome is the result of a single assertion.
@@ -35,6 +36,7 @@ type Report struct {
 	notes      []string
 	color      bool
 	verbose    bool
+	tb         testing.TB
 }
 
 type scenarioTally struct {
@@ -50,6 +52,18 @@ func NewReport(verbose bool) *Report {
 		verbose:    verbose,
 	}
 }
+
+// BindTB routes every result to a testing.TB as well as the report: failures
+// through Errorf, attributed to the scenario's own line via Helper; notes, skips
+// and (when verbose) passes through Logf. Colour is switched off because the
+// destination is a test log. The CLI never binds.
+func (r *Report) BindTB(tb testing.TB) {
+	r.tb = tb
+	r.color = false
+}
+
+// Bound reports whether results are being routed to a testing.TB.
+func (r *Report) Bound() bool { return r.tb != nil }
 
 func (r *Report) tally(scenario string) *scenarioTally {
 	t, ok := r.byScenario[scenario]
@@ -74,9 +88,15 @@ func (r *Report) Pass(scenario, check string, tick uint64) {
 	r.results = append(r.results, Result{
 		Scenario: scenario, Check: check, Tick: tick, Outcome: OutcomePass,
 	})
-	if r.verbose {
-		fmt.Printf("%s %-14s t=%-4d %s\n", r.paint("32", "PASS"), scenario, tick, check)
+	if !r.verbose {
+		return
 	}
+	if r.tb != nil {
+		r.tb.Helper()
+		r.tb.Logf("PASS t=%-4d %s", tick, check)
+		return
+	}
+	fmt.Printf("%s %-14s t=%-4d %s\n", r.paint("32", "PASS"), scenario, tick, check)
 }
 
 // Fail records a violated assertion and prints it immediately, so a run that
@@ -87,6 +107,11 @@ func (r *Report) Fail(scenario, check string, tick uint64, format string, args .
 	r.results = append(r.results, Result{
 		Scenario: scenario, Check: check, Detail: detail, Tick: tick, Outcome: OutcomeFail,
 	})
+	if r.tb != nil {
+		r.tb.Helper()
+		r.tb.Errorf("[%s] t=%d %s\n    %s", scenario, tick, check, detail)
+		return
+	}
 	fmt.Printf("%s %-14s t=%-4d %s\n       -> %s\n",
 		r.paint("31;1", "FAIL"), scenario, tick, check, detail)
 }
@@ -100,6 +125,11 @@ func (r *Report) Skip(scenario, check string, tick uint64, format string, args .
 	r.results = append(r.results, Result{
 		Scenario: scenario, Check: check, Detail: detail, Tick: tick, Outcome: OutcomeSkip,
 	})
+	if r.tb != nil {
+		r.tb.Helper()
+		r.tb.Logf("SKIP t=%-4d %s (%s)", tick, check, detail)
+		return
+	}
 	fmt.Printf("%s %-14s t=%-4d %s (%s)\n", r.paint("33", "SKIP"), scenario, tick, check, detail)
 }
 
@@ -109,6 +139,11 @@ func (r *Report) Skip(scenario, check string, tick uint64, format string, args .
 func (r *Report) Note(scenario string, tick uint64, format string, args ...any) {
 	line := fmt.Sprintf("%-14s t=%-4d %s", scenario, tick, fmt.Sprintf(format, args...))
 	r.notes = append(r.notes, line)
+	if r.tb != nil {
+		r.tb.Helper()
+		r.tb.Logf("NOTE t=%-4d %s", tick, fmt.Sprintf(format, args...))
+		return
+	}
 	fmt.Printf("%s %s\n", r.paint("36", "NOTE"), line)
 }
 

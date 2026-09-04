@@ -7,6 +7,8 @@
 package scenario
 
 import (
+	"fmt"
+
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
@@ -153,3 +155,27 @@ func ground(halfWidth float64) physics.PhysicsBody2D {
 
 // groundY is the Y a ground(...) body must be spawned at for its top to sit at y=0.
 const groundY = -1.0
+
+// SampleShape returns a small, valid collider of the given kind, for tests that
+// enumerate shape types rather than describe geometry. Chains use four points,
+// the engine's minimum.
+func SampleShape(kind physics.ShapeType) physics.ColliderShape {
+	switch kind {
+	case physics.ShapeTypeCircle:
+		return circle(0.5)
+	case physics.ShapeTypeBox:
+		return box(0.5, 0.5)
+	case physics.ShapeTypeConvexPolygon:
+		return polygon(vec(-0.5, -0.5), vec(0.5, -0.5), vec(0, 0.6))
+	case physics.ShapeTypeStaticChain:
+		return chain(vec(-1, 0), vec(-0.3, 0.2), vec(0.3, 0.2), vec(1, 0))
+	case physics.ShapeTypeStaticChainLoop:
+		return chainLoop(vec(-1, -1), vec(1, -1), vec(1, 1), vec(-1, 1))
+	case physics.ShapeTypeEdge:
+		return edge(vec(-1, 0), vec(1, 0))
+	case physics.ShapeTypeCapsule:
+		return capsule(vec(0, -0.5), vec(0, 0.5), 0.3)
+	default:
+		panic(fmt.Sprintf("SampleShape: unknown shape type %v", kind))
+	}
+}

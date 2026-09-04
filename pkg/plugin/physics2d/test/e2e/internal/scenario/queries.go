@@ -77,6 +77,7 @@ func Queries() harness.Scenario {
 			{Tick: 3, Do: func(c *harness.Ctx) {
 				checkRaycast(c, s.nearWall, s.farWall, rayLen, nearWallX, wallHalf)
 				checkRaycastSensors(c, s.sensorWall, s.solidWall, rayLen, nearWallX, farWallX, wallHalf)
+				checkOverlapAndSweepSensors(c, s.sensorWall, s.solidWall, nearWallX, farWallX, wallHalf)
 				checkOverlap(c, s.boxes)
 				checkSweep(c, s.sweepWall, s.post, rayLen, farWallX, wallHalf, sweepR, postY, postR)
 				checkOverlapNarrowPhase(c, s.plank, plankY)
@@ -167,6 +168,47 @@ func checkOverlap(c *harness.Ctx, boxes []cardinal.EntityID) {
 
 	empty := c.OverlapAABB(-5, 49, 5, 51, nil)
 	c.Int("an overlap over empty space returns nothing", len(empty.Hits), 0)
+}
+
+// checkOverlapAndSweepSensors pins the sensor rule for the other two query kinds.
+// A sensor reports overlaps without blocking anything, so every query skips sensors
+// unless Filter.IncludeSensors says otherwise — the same rule checkRaycastSensors
+// pins for rays, which is easy to implement for one query and forget for the rest.
+func checkOverlapAndSweepSensors(
+	c *harness.Ctx, sensorWall, solidWall cardinal.EntityID,
+	sensorX, solidX, wallHalf float64,
+) {
+	withSensors := &physics.Filter{
+		CategoryBits: ^uint64(0), MaskBits: ^uint64(0), IncludeSensors: true,
+	}
+
+	// A box spanning both walls: by default only the solid one comes back.
+	minX, maxX := sensorX-wallHalf-1, solidX+wallHalf+1
+	byDefault := c.OverlapAABB(minX, 8, maxX, 12, nil)
+	c.True("overlap skips sensors by default", c.OverlapHits(byDefault, solidWall),
+		"the solid wall was not returned")
+	c.False("overlap excludes the sensor by default", c.OverlapHits(byDefault, sensorWall),
+		"the sensor wall was returned without IncludeSensors")
+
+	included := c.OverlapAABB(minX, 8, maxX, 12, withSensors)
+	c.True("IncludeSensors makes an overlap see sensors", c.OverlapHits(included, sensorWall),
+		"the sensor wall was not returned with IncludeSensors")
+	c.True("IncludeSensors keeps solid hits too", c.OverlapHits(included, solidWall),
+		"the solid wall was dropped when sensors were included")
+
+	// A sweep along the same row hits the sensor first only when asked to.
+	startX := sensorX - wallHalf - 5
+	endX := solidX + wallHalf
+	plain := c.CircleSweep(startX, 10, endX, 10, 0.4, 0, nil)
+	c.True("circle sweep skips sensors by default", plain.Hit && plain.Entity == solidWall,
+		"default sweep hit entity %d; it should have passed through the sensor to %d",
+		plain.Entity, solidWall)
+
+	withSensor := c.CircleSweep(startX, 10, endX, 10, 0.4, 0, withSensors)
+	c.True("IncludeSensors makes a circle sweep see sensors",
+		withSensor.Hit && withSensor.Entity == sensorWall,
+		"sweep with IncludeSensors hit entity %d, want the sensor %d",
+		withSensor.Entity, sensorWall)
 }
 
 func checkSweep(

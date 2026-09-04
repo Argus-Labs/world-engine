@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/stretchr/testify/require"
 )
@@ -496,6 +497,17 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Component Name() methods
 // ---------------------------------------------------------------------------
+
+// Event names are a wire contract: renaming one silently breaks every consumer
+// that subscribes by name, and nothing in the simulation would fail. Kept beside
+// the component names for that reason.
+func TestEventNames(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "physics2d_contact_begin", physics.ContactBeginEvent{}.Name())
+	require.Equal(t, "physics2d_contact_end", physics.ContactEndEvent{}.Name())
+	require.Equal(t, "physics2d_trigger_begin", physics.TriggerBeginEvent{}.Name())
+	require.Equal(t, "physics2d_trigger_end", physics.TriggerEndEvent{}.Name())
+}
 
 func TestComponentNames(t *testing.T) {
 	t.Parallel()

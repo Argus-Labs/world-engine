@@ -33,6 +33,8 @@ func Sensors() harness.Scenario {
 		offBlock    cardinal.EntityID
 		gateA       cardinal.EntityID
 		gateB       cardinal.EntityID
+		doomedGate  cardinal.EntityID
+		gateSitter  cardinal.EntityID
 	}
 
 	const (
@@ -90,6 +92,15 @@ func Sensors() harness.Scenario {
 
 			// Row y=100 — sensor against sensor.
 			s.gateA = c.Spawn("sensor-a", 0, 100, sensorBody(box(2, 2)))
+
+			// Row y=120 — a sensor destroyed while something is still inside it.
+			// The engine reports the end-touch for a destroyed shape, but by the
+			// time it is drained the shape is gone and the record cannot be
+			// resolved to an entity, so the runtime has to synthesize the
+			// TriggerEnd from the persisted pair instead. Without that, anything
+			// latching state on TriggerBegin (an "in the zone" flag) would never
+			// be told the overlap ended.
+			s.doomedGate = c.Spawn("doomed-gate", 0, 120, sensorBody(box(2, 2)))
 		},
 		EachTick: func(c *harness.Ctx) {
 			tick := float64(c.Tick())
@@ -117,8 +128,22 @@ func Sensors() harness.Scenario {
 				s.offBlock = c.Spawn("disabled-gate-visitor", 1.5, 80,
 					body(physics.BodyTypeStatic, box(0.5, 0.5)))
 				s.gateB = c.Spawn("sensor-b", 1.5, 100, sensorBody(box(2, 2)))
+				// Created after the world exists, so the overlap counts as new (see
+				// the note above about build-time overlaps).
+				s.gateSitter = c.Spawn("gate-sitter", 0, 120,
+					body(physics.BodyTypeStatic, box(0.5, 0.5)))
+			}},
+			{Tick: 120, Do: func(c *harness.Ctx) {
+				c.IntAtLeast("the doomed sensor registered its visitor before being destroyed",
+					c.CountBetween(harness.TriggerBegin, s.doomedGate, s.gateSitter), 1)
+				c.True("destroying a sensor that holds a live overlap reports success",
+					c.Destroy(s.doomedGate), "Destroy returned false")
 			}},
 			{Tick: 140, Do: func(c *harness.Ctx) {
+				c.IntAtLeast("destroying a sensor mid-overlap still reports TriggerEnd",
+					c.CountBetween(harness.TriggerEnd, s.doomedGate, s.gateSitter), 1)
+			}},
+			{Tick: 141, Do: func(c *harness.Ctx) {
 				// The faller crosses the sensor between roughly t=76 and t=90.
 				begins := c.EventsBetween(harness.TriggerBegin, s.faller, s.fallSensor)
 				ends := c.EventsBetween(harness.TriggerEnd, s.faller, s.fallSensor)

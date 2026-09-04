@@ -47,6 +47,9 @@ const (
 // Run performs the check and returns the process exit code.
 func Run(cfg harness.Config, callResetRuntime bool) int {
 	report := harness.NewReport(cfg.Verbose)
+	if cfg.TB != nil {
+		report.BindTB(cfg.TB)
+	}
 	const check = "restore"
 
 	fmt.Printf("crash-restore check: settle %d ticks, snapshot, restore, "+
@@ -79,7 +82,9 @@ func Run(cfg harness.Config, callResetRuntime bool) int {
 	if err != nil {
 		report.Fail(check, "the world serializes to a snapshot", uint64(settleTicks),
 			"ToProto failed: %v", err)
-		report.Print()
+		if !report.Bound() {
+			report.Print()
+		}
 		return 1
 	}
 	report.Pass(check, "the world serializes to a snapshot", uint64(settleTicks))
@@ -108,7 +113,9 @@ func Run(cfg harness.Config, callResetRuntime bool) int {
 	if err := harness.RestoreWorld(worldB, snapshot); err != nil {
 		report.Fail(check, "the snapshot deserializes into a fresh world", 0,
 			"FromProto failed: %v", err)
-		report.Print()
+		if !report.Bound() {
+			report.Print()
+		}
 		return 1
 	}
 	report.Pass(check, "the snapshot deserializes into a fresh world", 0)
@@ -146,7 +153,9 @@ func Run(cfg harness.Config, callResetRuntime bool) int {
 				"entity for entity, which a real restore cannot rely on")
 	}
 
-	report.Print()
+	if !report.Bound() {
+		report.Print()
+	}
 	if _, fail, _ := report.Totals(); fail > 0 {
 		return 1
 	}
