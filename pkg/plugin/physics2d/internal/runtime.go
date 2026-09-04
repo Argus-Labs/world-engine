@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
@@ -55,12 +56,14 @@ type Runtime struct {
 	Chains map[cardinal.EntityID][]box2d.ChainID
 
 	// Geometries mirrors the ChainGeometry2D components: geometry entity id -> deep-copied
-	// points, so attachShape resolves ColliderShape.ChainGeometry without touching ECS and
-	// nothing here aliases component memory. The pipeline syncs it every tick (SyncGeometries)
-	// before bodies reconcile, and a full sync after Reset rebuilds it from the restored
-	// entities. Points of a known id are never re-read: geometry is immutable by contract
-	// (see component.ChainGeometry2D), so id membership is the only thing that can change.
+	// points, so attachShape resolves chain refs without touching ECS. Synced each tick before
+	// bodies reconcile; a known id's points are never re-read (immutable by contract).
 	Geometries map[cardinal.EntityID][]component.Vec2
+
+	// geometryArmed holds geometry ids seen referenced at least once; only armed ids are
+	// swept (SweepOrphanGeometries). Derived: Reset clears it, so post-restore unreferenced
+	// geometry counts as staged and is kept.
+	geometryArmed map[cardinal.EntityID]struct{}
 
 	// Gravity is the world gravity vector applied on world creation and on rebuild.
 	Gravity component.Vec2
@@ -151,10 +154,13 @@ type Runtime struct {
 	rebuildEntriesScratch []PhysicsRebuildEntry
 	writebackScratch      []WritebackEntry
 
-	// geometryEntriesScratch backs the pipeline system's per-tick chain-geometry gather
-	// (see GeometryEntriesScratch). Entries alias ECS point slices for the duration of the
-	// gather, so the tail is cleared like the other gathers.
+	// geometryEntriesScratch backs the per-tick chain-geometry gather; entries alias ECS
+	// point slices during the gather, so the tail is cleared like the other gathers.
 	geometryEntriesScratch []GeometryEntry
+
+	// geometryRefsScratch and geometrySweepScratch back SweepOrphanGeometries. Ids only.
+	geometryRefsScratch  map[cardinal.EntityID]struct{}
+	geometrySweepScratch []cardinal.EntityID
 
 	// liveContactsScratch and contactDataScratch are reused by
 	// gatherLiveContactsInto, which runs up to twice per tick.
@@ -219,6 +225,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
 		Geometries:           make(map[cardinal.EntityID][]component.Vec2),
+		geometryArmed:        make(map[cardinal.EntityID]struct{}),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -239,6 +246,7 @@ func (rt *Runtime) Reset() {
 	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
 	rt.Geometries = make(map[cardinal.EntityID][]component.Vec2)
+	rt.geometryArmed = make(map[cardinal.EntityID]struct{})
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
@@ -252,6 +260,8 @@ func (rt *Runtime) Reset() {
 	rt.rebuildEntriesScratch = nil
 	rt.writebackScratch = nil
 	rt.geometryEntriesScratch = nil
+	rt.geometryRefsScratch = nil
+	rt.geometrySweepScratch = nil
 	rt.liveContactsScratch = nil
 	rt.contactDataScratch = nil
 	rt.seenContactsScratch = nil
@@ -290,8 +300,8 @@ func (rt *Runtime) KeepWritebackScratch(entries []WritebackEntry) []WritebackEnt
 	return entries
 }
 
-// GeometryEntry is one chain-geometry entity's points as read from ECS. Points aliases the
-// live component's slice; SyncGeometries deep-copies before retaining anything.
+// GeometryEntry is one chain-geometry entity's points as read from ECS. Points aliases live
+// component memory; SyncGeometries copies before retaining.
 type GeometryEntry struct {
 	EntityID cardinal.EntityID
 	Points   []component.Vec2
@@ -311,11 +321,9 @@ func (rt *Runtime) KeepGeometryEntriesScratch(entries []GeometryEntry) []Geometr
 	return entries
 }
 
-// SyncGeometries reconciles the Geometries mirror with the chain-geometry rows gathered this
-// tick: ids new to the mirror are deep-copied in, ids no longer present are dropped. Points of
-// an already-known id are deliberately not re-read — ChainGeometry2D is immutable by contract,
-// so the only observable changes are entities appearing (spawn, restore) and disappearing
-// (despawn). In the steady state (same id set) it allocates nothing.
+// SyncGeometries reconciles the Geometries mirror with this tick's chain-geometry rows: new
+// ids are deep-copied in, missing ids are dropped, known ids keep their copy (points are
+// immutable by contract). Steady state (same id set) allocates nothing.
 func (rt *Runtime) SyncGeometries(entries []GeometryEntry) {
 	if len(entries) == len(rt.Geometries) {
 		known := true
@@ -339,6 +347,49 @@ func (rt *Runtime) SyncGeometries(entries []GeometryEntry) {
 		next[id] = cloneVec2Slice(entries[i].Points)
 	}
 	rt.Geometries = next
+}
+
+// SweepOrphanGeometries deletes chain-geometry entities whose last reference is gone.
+// Only ids referenced at least once ("armed") are eligible, so staged geometry is never
+// touched. Orphans are destroyed in ascending id order via destroy (the caller's ECS search),
+// keeping the sweep deterministic despite map iteration.
+func (rt *Runtime) SweepOrphanGeometries(entries []PhysicsRebuildEntry, destroy func(cardinal.EntityID) bool) {
+	if rt.geometryRefsScratch == nil {
+		rt.geometryRefsScratch = make(map[cardinal.EntityID]struct{})
+	}
+	refs := rt.geometryRefsScratch
+	clear(refs)
+	for i := range entries {
+		shapes := entries[i].PhysicsBody.Shapes
+		for j := range shapes {
+			t := shapes[j].ShapeType
+			if t == component.ShapeTypeStaticChain || t == component.ShapeTypeStaticChainLoop {
+				refs[shapes[j].ChainGeometry] = struct{}{}
+			}
+		}
+	}
+	for id := range refs {
+		if _, inMirror := rt.Geometries[id]; inMirror {
+			rt.geometryArmed[id] = struct{}{}
+		}
+	}
+	orphans := rt.geometrySweepScratch[:0]
+	for id := range rt.geometryArmed {
+		if _, inMirror := rt.Geometries[id]; !inMirror {
+			delete(rt.geometryArmed, id) // the game already deleted the entity itself
+			continue
+		}
+		if _, live := refs[id]; !live {
+			orphans = append(orphans, id)
+		}
+	}
+	slices.Sort(orphans)
+	for _, id := range orphans {
+		destroy(id)
+		delete(rt.Geometries, id)
+		delete(rt.geometryArmed, id)
+	}
+	rt.geometrySweepScratch = orphans
 }
 
 // WorldExists reports whether this runtime's Box2D world has been created and is alive.

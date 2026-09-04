@@ -5,10 +5,11 @@ import "fmt"
 // ChainGeometry2D holds the polyline for chain-type collider shapes, on its own entity so any
 // number of colliders can share it by id (ColliderShape.ChainGeometry).
 //
-// Points are immutable once referenced: the reconciler diffs the id, not the points, so an
-// in-place edit leaves Box2D running the old polyline. To change terrain, spawn a new
-// geometry entity and swap the id on the collider. Keep a geometry entity alive while any
-// collider references it — a dangling id fails that body's reconcile loudly.
+// Points are immutable once referenced: the reconciler diffs the id, not the points, so to
+// change terrain spawn a new geometry entity and swap the id. A dangling id fails that body's
+// reconcile loudly. Cleanup is automatic: once referenced, the entity is deleted on the tick
+// its last reference disappears — never cache a geometry id across a moment when nothing
+// references it.
 type ChainGeometry2D struct {
 	Points []Vec2 `json:"points"`
 }

@@ -69,9 +69,8 @@ type chainGeometryRow struct {
 	Geometry cardinal.Ref[physicscomp.ChainGeometry2D]
 }
 
-// syncGeometries gathers every ChainGeometry2D row and reconciles the runtime's geometry
-// mirror with it. It must run before bodies rebuild or reconcile in the same tick, so a body
-// created alongside its geometry entity (or restored with it) resolves its chain points.
+// syncGeometries reconciles the runtime's geometry mirror from ECS. Must run before bodies
+// rebuild or reconcile so chain shapes can resolve their points.
 func syncGeometries(rt *internal.Runtime, iter cardinal.SearchResult[cardinal.EntityID, chainGeometryRow]) {
 	entries := rt.GeometryEntriesScratch()
 	for eid, row := range iter {

@@ -80,8 +80,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
 		ensurePhysicsSingleton(&state.Singleton)
-		// Geometry first: bodies created or rebuilt below resolve chain points through the
-		// runtime mirror, so it must reflect this tick's ChainGeometry2D entities.
+		// Geometry before bodies: attaches below resolve chain points through the mirror.
 		syncGeometries(rt, state.Geometries.Iter())
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
@@ -95,6 +94,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		if err := rt.ReconcileFromECS(entries); err != nil {
 			state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
 		}
+		rt.SweepOrphanGeometries(entries, state.Geometries.Destroy)
 
 		// --- 2. Step + flush contacts ---
 		acRef, singletonFound := loadContactBaseline(rt, state)
