@@ -40,21 +40,23 @@ func deepCopyShapes(shapes []component.ColliderShape) []component.ColliderShape 
 
 func deepCopyColliderShape(s component.ColliderShape) component.ColliderShape {
 	return component.ColliderShape{
-		ShapeType:     s.ShapeType,
-		LocalOffset:   s.LocalOffset,
-		LocalRotation: s.LocalRotation,
-		IsSensor:      s.IsSensor,
-		Radius:        s.Radius,
-		HalfExtents:   s.HalfExtents,
-		Vertices:      cloneVec2Slice(s.Vertices),
-		ChainPoints:   cloneVec2Slice(s.ChainPoints),
-		EdgeVertices:  s.EdgeVertices,
-		Friction:      s.Friction,
-		Restitution:   s.Restitution,
-		Density:       s.Density,
-		CategoryBits:  s.CategoryBits,
-		MaskBits:      s.MaskBits,
-		GroupIndex:    s.GroupIndex,
+		ShapeType:      s.ShapeType,
+		LocalOffset:    s.LocalOffset,
+		LocalRotation:  s.LocalRotation,
+		IsSensor:       s.IsSensor,
+		Radius:         s.Radius,
+		HalfExtents:    s.HalfExtents,
+		CapsuleCenter1: s.CapsuleCenter1,
+		CapsuleCenter2: s.CapsuleCenter2,
+		Vertices:       cloneVec2Slice(s.Vertices),
+		ChainPoints:    cloneVec2Slice(s.ChainPoints),
+		EdgeVertices:   s.EdgeVertices,
+		Friction:       s.Friction,
+		Restitution:    s.Restitution,
+		Density:        s.Density,
+		CategoryBits:   s.CategoryBits,
+		MaskBits:       s.MaskBits,
+		GroupIndex:     s.GroupIndex,
 	}
 }
 
@@ -131,6 +133,8 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		a.IsSensor != b.IsSensor ||
 		a.Radius != b.Radius ||
 		!vec2Equal(a.HalfExtents, b.HalfExtents) ||
+		!vec2Equal(a.CapsuleCenter1, b.CapsuleCenter1) ||
+		!vec2Equal(a.CapsuleCenter2, b.CapsuleCenter2) ||
 		a.Friction != b.Friction ||
 		a.Restitution != b.Restitution ||
 		a.Density != b.Density ||
@@ -167,6 +171,8 @@ func colliderShapeStructuralEqual(a, b component.ColliderShape) bool {
 		a.LocalRotation == b.LocalRotation &&
 		a.Radius == b.Radius &&
 		vec2Equal(a.HalfExtents, b.HalfExtents) &&
+		vec2Equal(a.CapsuleCenter1, b.CapsuleCenter1) &&
+		vec2Equal(a.CapsuleCenter2, b.CapsuleCenter2) &&
 		vec2SliceEqual(a.Vertices, b.Vertices) &&
 		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
 		a.EdgeVertices == b.EdgeVertices

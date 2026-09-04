@@ -65,7 +65,7 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 	return fraction // keep searching for closer hits
 }
 
-// overlapCollector gathers the shapes reported by World.OverlapAABB. It is the
+// overlapCollector gathers the shapes reported by World.OverlapShape. It is the
 // struct form of what used to be a capturing closure, so the callback can be a
 // package-level function and the context a pointer into the Runtime
 // (Runtime.overlapScratch) instead of a per-call heap allocation.
@@ -140,37 +140,47 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 		minY, maxY = maxY, minY
 	}
 
-	aabb := box2d.AABB{
-		LowerBound: box2d.Vec2{X: minX, Y: minY},
-		UpperBound: box2d.Vec2{X: maxX, Y: maxY},
-	}
+	// OverlapShape narrow-phases every broad-phase candidate against this proxy; plain
+	// OverlapAABB reports fat-AABB hits whose geometry misses the box entirely.
+	// The proxy lives on the Runtime (see overlapProxyScratch) so it does not escape.
+	proxy := &rt.overlapProxyScratch
+	proxy.Points[0] = box2d.Vec2{X: minX, Y: minY}
+	proxy.Points[1] = box2d.Vec2{X: maxX, Y: minY}
+	proxy.Points[2] = box2d.Vec2{X: maxX, Y: maxY}
+	proxy.Points[3] = box2d.Vec2{X: minX, Y: maxY}
+	proxy.Count = 4
+	proxy.Radius = 0
 
-	// Non-nil so a miss marshals as [] rather than null, which is the shape the
-	// CGO backend produced and what any persisted or transmitted result expects.
-	// The collector lives on the Runtime instead of being a closure so that
-	// neither the func value nor its captures are heap allocated per call; the
-	// hits slice itself is still fresh per call because it is returned.
+	// The collector lives on the Runtime instead of being a closure so that neither
+	// the func value nor its captures are heap allocated per call; it gathers into
+	// a reused buffer, and the returned slice is copied out of it below.
 	saved := rt.overlapScratch
 	rt.overlapScratch = overlapCollector{
 		rt:             rt,
 		includeSensors: includeSensors,
-		hits:           make([]query.AABBOverlapHit, 0),
+		hits:           rt.overlapHitsScratch[:0],
 	}
 
-	rt.World.OverlapAABB(aabb, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
+	rt.World.OverlapShape(proxy, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
 		overlapCallback, &rt.overlapScratch)
 
-	hits := rt.overlapScratch.hits
+	gathered := rt.overlapScratch.hits
 	rt.overlapScratch = saved
+	rt.overlapHitsScratch = gathered // keep the grown capacity for the next call
 
-	slices.SortFunc(hits, func(a, b query.AABBOverlapHit) int {
+	slices.SortFunc(gathered, func(a, b query.AABBOverlapHit) int {
 		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
 			return c
 		}
 		return cmp.Compare(a.ShapeIndex, b.ShapeIndex)
 	})
-	hits = slices.Compact(hits)
+	gathered = slices.Compact(gathered)
 
+	// The result belongs to the caller, so it cannot alias the scratch: allocate it
+	// once at the exact final size. make never returns nil, so a miss still marshals
+	// as [] rather than null.
+	hits := make([]query.AABBOverlapHit, len(gathered))
+	copy(hits, gathered)
 	return query.AABBOverlapResult{Hits: hits}
 }
 

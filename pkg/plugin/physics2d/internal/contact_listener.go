@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"cmp"
+	"slices"
 	"sort"
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
@@ -52,8 +54,37 @@ func (rt *Runtime) Step() {
 	if rt == nil || rt.World == nil {
 		return
 	}
+	rt.wakePersistedContactEntities()
 	rt.World.Step(rt.FixedDT, rt.SubStepCount)
 	rt.bufferContactEventsFromWorld()
+}
+
+// wakePersistedContactEntities wakes, on the first step after a rebuild, every body the
+// persisted ActiveContacts baseline lists as touching. The engine never narrow-phases a
+// sleeping body's contacts, so restored sleepers would look "gone" to the post-step diff and
+// emit spurious Ends. Undisturbed bodies re-sleep after Box2D's timeout.
+//
+// Wake order is sorted by EntityID, never map order. Each restored sleeper is its own solver
+// set, and waking one appends it to the awake set at the next free localIndex; that index
+// decides move-array order, which decides the order new contact pairs are created and
+// coloured. An unordered wake therefore produces a different (still valid) float result per
+// process, which would break replay and cross-machine agreement after any restore.
+func (rt *Runtime) wakePersistedContactEntities() {
+	if !rt.SuppressContactsStep || len(rt.ActiveContacts) == 0 {
+		return
+	}
+	ids := rt.wakeOrderScratch[:0]
+	for key := range rt.ActiveContacts {
+		ids = append(ids, key.EntityA, key.EntityB)
+	}
+	slices.SortFunc(ids, cmp.Compare)
+	ids = slices.Compact(ids)
+	for _, id := range ids {
+		if bodyID, ok := rt.Bodies[id]; ok {
+			rt.World.SetBodyAwake(bodyID, true)
+		}
+	}
+	rt.wakeOrderScratch = ids
 }
 
 // bufferContactEventsFromWorld drains the world's post-step contact/sensor event buffers
@@ -149,15 +180,15 @@ func (rt *Runtime) makeBufferedEvent(
 	}
 }
 
-// applyManifold copies contact-begin manifold data into the buffered event (normal, first
-// contact point, point count), mirroring the CGO bridge.
+// applyManifold copies contact-begin manifold data into the buffered event. ClipPoint is the
+// manifold's world-space point; AnchorA/AnchorB are body-origin-relative.
 func applyManifold(buf *BufferedContactEvent, m *box2d.Manifold) {
 	if m.PointCount == 0 {
 		return
 	}
 	buf.Normal = component.Vec2{X: m.Normal.X, Y: m.Normal.Y}
 	buf.NormalValid = true
-	buf.Point = component.Vec2{X: m.Points[0].AnchorA.X, Y: m.Points[0].AnchorA.Y}
+	buf.Point = component.Vec2{X: m.Points[0].ClipPoint.X, Y: m.Points[0].ClipPoint.Y}
 	buf.PointValid = true
 	buf.ManifoldPointCount = m.PointCount
 }

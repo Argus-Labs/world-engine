@@ -165,12 +165,19 @@ func (rt *Runtime) reconcileExistingBody(
 	bodyID := rt.Bodies[e.EntityID]
 
 	if prev.BodyParamsDiffer(e.PhysicsBody) {
-		rt.applyBodyParamsInPlace(e.EntityID, e.PhysicsBody)
+		rt.applyBodyParamsInPlace(e.EntityID, e.PhysicsBody, prev.PhysicsBody.Awake)
 	}
 	if prev.TransformDiffers(e.Transform) {
 		rt.World.SetBodyTransform(bodyID,
 			box2d.Vec2{X: e.Transform.Position.X, Y: e.Transform.Position.Y},
 			box2d.MakeRot(e.Transform.Rotation))
+		// b2Body_SetTransform deliberately does not wake, so a teleport onto a sleeping
+		// island would raise no contact events. Wake the moved body — unless this same tick
+		// explicitly wrote Awake=false, which is intent and wins.
+		explicitSleep := prev.PhysicsBody.Awake && !e.PhysicsBody.Awake
+		if !explicitSleep {
+			rt.World.SetBodyAwake(bodyID, true)
+		}
 	}
 	if prev.ShapesDiffer(e.PhysicsBody) {
 		if err := rt.reconcileShapesChange(e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
@@ -228,7 +235,9 @@ func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 }
 
 // applyBodyParamsInPlace sets body type, damping, gravity scale, and body flags in place.
-func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb component.PhysicsBody2D) {
+// prevAwake is the shadow's Awake. A param change that left Awake untouched counts as a
+// disturbance and wakes the body, so the new params act instead of waiting for an impact.
+func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb component.PhysicsBody2D, prevAwake bool) {
 	bodyID, ok := rt.Bodies[entityID]
 	if !ok {
 		return
@@ -241,7 +250,11 @@ func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb compone
 	rt.World.SetBodyBullet(bodyID, pb.Bullet)
 	rt.setFixedRotation(bodyID, pb.FixedRotation)
 	rt.World.EnableBodySleep(bodyID, pb.SleepingAllowed)
-	rt.World.SetBodyAwake(bodyID, pb.Awake)
+	awake := pb.Awake
+	if pb.Awake == prevAwake {
+		awake = true
+	}
+	rt.World.SetBodyAwake(bodyID, awake)
 }
 
 // setBodyEnabled enables or disables the body only when the state actually changes,

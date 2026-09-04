@@ -674,3 +674,84 @@ func TestBodyTypeSwitch_KinematicToDynamic(t *testing.T) {
 	// After switch: dynamic body falls.
 	require.Less(t, finalPos.Y, posAtSwitch.Y-1.0, "body should fall after switching to dynamic")
 }
+
+// ---------------------------------------------------------------------------
+// Teleport + explicit Awake=false in one tick: the explicit sleep wins over the
+// reconciler's teleport disturbance-wake, and the body resumes once re-woken.
+// ---------------------------------------------------------------------------
+
+func TestBodyFlag_TeleportWithExplicitSleepStaysAsleep(t *testing.T) {
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+
+	var bodyID cardinal.EntityID
+	spawnPos := physics.Vec2{X: 0, Y: 20}
+	teleportPos := physics.Vec2{X: 5, Y: 20}
+
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		if state.Tick() != 0 {
+			return
+		}
+		id, row := state.Spawn.Create()
+		row.Tag.Set(harnessTag{Role: "teleport_sleep"})
+		row.T.Set(physics.Transform2D{Position: spawnPos})
+		row.V.Set(physics.Velocity2D{})
+		row.PB.Set(newRigid(physics.BodyTypeDynamic, circleColliderShapes()...))
+		bodyID = id
+	}, cardinal.WithHook(cardinal.Init))
+
+	// Tick 30 (falling, mirror holds Awake=true): teleport and explicitly sleep in
+	// one write. Tick 90: wake it again.
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		tick := state.Tick()
+		if tick != 30 && tick != 90 {
+			return
+		}
+		for eid, row := range state.Spawn.Iter() {
+			if eid != bodyID {
+				continue
+			}
+			pb := row.PB.Get()
+			if tick == 30 {
+				row.T.Set(physics.Transform2D{Position: teleportPos})
+				pb.Awake = false
+			} else {
+				pb.Awake = true
+			}
+			row.PB.Set(pb)
+		}
+	}, cardinal.WithHook(cardinal.Update))
+
+	var posAsleep, finalPos physics.Vec2
+	var awakeMirrorDuringSleep bool
+	cardinal.RegisterSystem(w, func(state *struct {
+		cardinal.BaseSystemState
+		Spawn spawnArchetype
+	}) {
+		for eid, row := range state.Spawn.Iter() {
+			if eid != bodyID {
+				continue
+			}
+			if state.Tick() == 89 {
+				posAsleep = row.T.Get().Position
+				awakeMirrorDuringSleep = row.PB.Get().Awake
+			}
+			if state.Tick() == 150 {
+				finalPos = row.T.Get().Position
+			}
+		}
+	}, cardinal.WithHook(cardinal.PostUpdate))
+
+	initCardinalECS(w)
+	tickN(t, w, 151)
+
+	approxVec2(t, posAsleep, teleportPos, "explicit same-tick Awake=false wins over the teleport wake")
+	require.False(t, awakeMirrorDuringSleep, "mirror must not flip an explicitly slept body back awake")
+	require.Less(t, finalPos.Y, teleportPos.Y-1.0, "body falls again after re-waking")
+}

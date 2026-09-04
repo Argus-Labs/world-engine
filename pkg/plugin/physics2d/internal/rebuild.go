@@ -32,6 +32,9 @@ type PhysicsRebuildEntry struct {
 // After a successful rebuild, Emitter is cleared and SuppressContactsStep is set true for the
 // next simulation step. The step driver must call SetStepEmitter before the step and
 // FlushBufferedContacts after; that flush clears SuppressContactsStep automatically.
+//
+// Bodies keep their component Awake value; those in the persisted ActiveContacts baseline are
+// woken before the suppressed step instead (see Runtime.wakePersistedContactEntities).
 func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) error {
 	sorted := slices.Clone(entries)
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
