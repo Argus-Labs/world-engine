@@ -211,8 +211,8 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
 	case component.ShapeTypeStaticChain, component.ShapeTypeStaticChainLoop:
-		src, ok := rt.Geometries[sh.ChainGeometry]
-		if !ok {
+		src, hasGeometry := rt.Geometries[sh.ChainGeometry]
+		if !hasGeometry {
 			return fmt.Errorf(
 				"chain geometry entity %d not found (the entity must exist and carry a ChainGeometry2D component)",
 				sh.ChainGeometry)
