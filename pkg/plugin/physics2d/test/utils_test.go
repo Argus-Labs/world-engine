@@ -83,25 +83,11 @@ func tickN(t *testing.T, w *cardinal.World, n int) {
 }
 
 func circleColliderShapes() []physics.ColliderShape {
-	return []physics.ColliderShape{{
-		ShapeType:    physics.ShapeTypeCircle,
-		Radius:       0.5,
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}}
+	return []physics.ColliderShape{physics.Circle(0.5).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF)}
 }
 
 func boxColliderShapes(hx, hy float64) []physics.ColliderShape {
-	return []physics.ColliderShape{{
-		ShapeType:    physics.ShapeTypeBox,
-		HalfExtents:  physics.Vec2{X: hx, Y: hy},
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}}
+	return []physics.ColliderShape{physics.Box(hx, hy).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF)}
 }
 
 const epsilon = 0.001
