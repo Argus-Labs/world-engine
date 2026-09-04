@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -42,6 +43,7 @@ namespace WorldEngine.Runtime.NativeAot
         private const uint AbiVersion = 1;
         private const int NameCapacity = 64;
         private const int VersionCapacity = 32;
+        private const int LastErrorCapacity = 1024;
 
         private static readonly ConcurrentDictionary<ulong, ModuleEntry> s_modules = new();
         private static long s_nextHandle;
@@ -53,10 +55,7 @@ namespace WorldEngine.Runtime.NativeAot
             CallConvs = new[] { typeof(CallConvCdecl) })]
         internal static int GetContract(NativeContract* output)
         {
-            if (output == null)
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(output != null);
 
             try
             {
@@ -88,14 +87,12 @@ namespace WorldEngine.Runtime.NativeAot
             CallConvs = new[] { typeof(CallConvCdecl) })]
         internal static int Create(
             byte* config,
-            nuint configLength,
+            ulong configLength,
             ulong* outputHandle)
         {
-            if (outputHandle == null || !TryCreateReadOnlySpan(config, configLength, out var configSpan))
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(outputHandle != null);
 
+            ReadOnlySpan<byte> configSpan = CreateReadOnlySpan(config, configLength);
             *outputHandle = 0;
 
             try
@@ -103,11 +100,8 @@ namespace WorldEngine.Runtime.NativeAot
                 IGameModule module = GameModuleFactory.Create(configSpan)
                     ?? throw new InvalidOperationException("Game module factory returned null.");
                 ulong handle = NextHandle();
-                if (!s_modules.TryAdd(handle, new ModuleEntry(module)))
-                {
-                    module.Dispose();
-                    throw new InvalidOperationException("Failed to allocate a unique module handle.");
-                }
+                bool added = s_modules.TryAdd(handle, new ModuleEntry(module));
+                Debug.Assert(added);
 
                 *outputHandle = handle;
                 SetGlobalError(null);
@@ -126,17 +120,14 @@ namespace WorldEngine.Runtime.NativeAot
         internal static int Initialize(
             ulong handle,
             byte* snapshot,
-            nuint snapshotLength)
+            ulong snapshotLength)
         {
-            if (!TryCreateReadOnlySpan(snapshot, snapshotLength, out var snapshotSpan))
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(handle != 0);
 
-            if (!s_modules.TryGetValue(handle, out ModuleEntry? entry))
-            {
-                return (int)RuntimeStatus.InvalidHandle;
-            }
+            ReadOnlySpan<byte> snapshotSpan = CreateReadOnlySpan(snapshot, snapshotLength);
+            bool found = s_modules.TryGetValue(handle, out ModuleEntry? entry);
+            Debug.Assert(found);
+            Debug.Assert(entry != null);
 
             lock (entry.Gate)
             {
@@ -162,24 +153,21 @@ namespace WorldEngine.Runtime.NativeAot
             ulong tick,
             ulong fixedDeltaNanoseconds,
             byte* input,
-            nuint inputLength,
+            ulong inputLength,
             byte* output,
-            nuint outputCapacity,
-            nuint* outputLength)
+            ulong outputCapacity,
+            ulong* outputLength)
         {
-            if (!TryCreateReadOnlySpan(input, inputLength, out var inputSpan) ||
-                !TryCreateSpan(output, outputCapacity, out var outputSpan) ||
-                outputLength == null)
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(handle != 0);
+            Debug.Assert(outputLength != null);
 
+            ReadOnlySpan<byte> inputSpan = CreateReadOnlySpan(input, inputLength);
+            Span<byte> outputSpan = CreateSpan(output, outputCapacity);
             *outputLength = 0;
             TickContext context = new TickContext(tick, fixedDeltaNanoseconds);
-            if (!s_modules.TryGetValue(handle, out ModuleEntry? entry))
-            {
-                return (int)RuntimeStatus.InvalidHandle;
-            }
+            bool found = s_modules.TryGetValue(handle, out ModuleEntry? entry);
+            Debug.Assert(found);
+            Debug.Assert(entry != null);
 
             lock (entry.Gate)
             {
@@ -212,23 +200,20 @@ namespace WorldEngine.Runtime.NativeAot
             ulong handle,
             uint kind,
             byte* input,
-            nuint inputLength,
+            ulong inputLength,
             byte* output,
-            nuint outputCapacity,
-            nuint* outputLength)
+            ulong outputCapacity,
+            ulong* outputLength)
         {
-            if (!TryCreateReadOnlySpan(input, inputLength, out var inputSpan) ||
-                !TryCreateSpan(output, outputCapacity, out var outputSpan) ||
-                outputLength == null)
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(handle != 0);
+            Debug.Assert(outputLength != null);
 
+            ReadOnlySpan<byte> inputSpan = CreateReadOnlySpan(input, inputLength);
+            Span<byte> outputSpan = CreateSpan(output, outputCapacity);
             *outputLength = 0;
-            if (!s_modules.TryGetValue(handle, out ModuleEntry? entry))
-            {
-                return (int)RuntimeStatus.InvalidHandle;
-            }
+            bool found = s_modules.TryGetValue(handle, out ModuleEntry? entry);
+            Debug.Assert(found);
+            Debug.Assert(entry != null);
 
             lock (entry.Gate)
             {
@@ -260,20 +245,17 @@ namespace WorldEngine.Runtime.NativeAot
         internal static int Snapshot(
             ulong handle,
             byte* output,
-            nuint outputCapacity,
-            nuint* outputLength)
+            ulong outputCapacity,
+            ulong* outputLength)
         {
-            if (!TryCreateSpan(output, outputCapacity, out var outputSpan) ||
-                outputLength == null)
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(handle != 0);
+            Debug.Assert(outputLength != null);
 
+            Span<byte> outputSpan = CreateSpan(output, outputCapacity);
             *outputLength = 0;
-            if (!s_modules.TryGetValue(handle, out ModuleEntry? entry))
-            {
-                return (int)RuntimeStatus.InvalidHandle;
-            }
+            bool found = s_modules.TryGetValue(handle, out ModuleEntry? entry);
+            Debug.Assert(found);
+            Debug.Assert(entry != null);
 
             lock (entry.Gate)
             {
@@ -301,17 +283,14 @@ namespace WorldEngine.Runtime.NativeAot
         internal static int Restore(
             ulong handle,
             byte* snapshot,
-            nuint snapshotLength)
+            ulong snapshotLength)
         {
-            if (!TryCreateReadOnlySpan(snapshot, snapshotLength, out var snapshotSpan))
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(handle != 0);
 
-            if (!s_modules.TryGetValue(handle, out ModuleEntry? entry))
-            {
-                return (int)RuntimeStatus.InvalidHandle;
-            }
+            ReadOnlySpan<byte> snapshotSpan = CreateReadOnlySpan(snapshot, snapshotLength);
+            bool found = s_modules.TryGetValue(handle, out ModuleEntry? entry);
+            Debug.Assert(found);
+            Debug.Assert(entry != null);
 
             lock (entry.Gate)
             {
@@ -335,15 +314,14 @@ namespace WorldEngine.Runtime.NativeAot
         internal static int LastError(
             ulong handle,
             byte* output,
-            nuint outputCapacity,
-            nuint* outputLength)
+            ulong outputCapacity,
+            ulong* outputLength)
         {
-            if (!TryCreateSpan(output, outputCapacity, out var outputSpan) ||
-                outputLength == null)
-            {
-                return (int)RuntimeStatus.InvalidArgument;
-            }
+            Debug.Assert(output != null);
+            Debug.Assert(outputCapacity == LastErrorCapacity);
+            Debug.Assert(outputLength != null);
 
+            Span<byte> outputSpan = CreateSpan(output, outputCapacity);
             try
             {
                 string error = GetError(handle) ?? string.Empty;
@@ -354,7 +332,7 @@ namespace WorldEngine.Runtime.NativeAot
                     out _,
                     out int bytesWritten,
                     out _);
-                *outputLength = (nuint)bytesWritten;
+                *outputLength = (ulong)bytesWritten;
                 return (int)RuntimeStatus.Success;
             }
             catch (Exception exception)
@@ -369,10 +347,11 @@ namespace WorldEngine.Runtime.NativeAot
             CallConvs = new[] { typeof(CallConvCdecl) })]
         internal static int Destroy(ulong handle)
         {
-            if (handle == 0 || !s_modules.TryRemove(handle, out ModuleEntry? entry))
-            {
-                return (int)RuntimeStatus.InvalidHandle;
-            }
+            Debug.Assert(handle != 0);
+
+            bool removed = s_modules.TryRemove(handle, out ModuleEntry? entry);
+            Debug.Assert(removed);
+            Debug.Assert(entry != null);
 
             try
             {
@@ -396,7 +375,7 @@ namespace WorldEngine.Runtime.NativeAot
             RuntimeStatus status,
             int outputLength,
             int outputCapacity,
-            nuint* nativeOutputLength)
+            ulong* nativeOutputLength)
         {
             if (outputLength < 0 ||
                 (status == RuntimeStatus.Success && outputLength > outputCapacity))
@@ -405,7 +384,7 @@ namespace WorldEngine.Runtime.NativeAot
                     $"Module returned invalid output length {outputLength} for capacity {outputCapacity}.");
             }
 
-            *nativeOutputLength = (nuint)outputLength;
+            *nativeOutputLength = (ulong)outputLength;
             SetModuleStatus(entry, status);
             return (int)status;
         }
@@ -444,34 +423,24 @@ namespace WorldEngine.Runtime.NativeAot
             return (ulong)handle;
         }
 
-        private static bool TryCreateReadOnlySpan(
+        private static ReadOnlySpan<byte> CreateReadOnlySpan(
             byte* data,
-            nuint length,
-            out ReadOnlySpan<byte> span)
+            ulong length)
         {
-            if (length > int.MaxValue || (data == null && length != 0))
-            {
-                span = default;
-                return false;
-            }
+            Debug.Assert(data != null || length == 0);
+            Debug.Assert(length <= int.MaxValue);
 
-            span = new ReadOnlySpan<byte>(data, checked((int)length));
-            return true;
+            return new ReadOnlySpan<byte>(data, checked((int)length));
         }
 
-        private static bool TryCreateSpan(
+        private static Span<byte> CreateSpan(
             byte* data,
-            nuint capacity,
-            out Span<byte> span)
+            ulong capacity)
         {
-            if (capacity > int.MaxValue || (data == null && capacity != 0))
-            {
-                span = default;
-                return false;
-            }
+            Debug.Assert(data != null || capacity == 0);
+            Debug.Assert(capacity <= int.MaxValue);
 
-            span = new Span<byte>(data, checked((int)capacity));
-            return true;
+            return new Span<byte>(data, checked((int)capacity));
         }
 
         private static void WriteNullTerminatedUtf8(
