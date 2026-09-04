@@ -68,7 +68,7 @@ func Open(
 	library := C.cardinal_nativeaot_library_open(
 		cPath,
 		(*C.char)(unsafe.Pointer(&loadError[0])),
-		C.size_t(len(loadError)),
+		C.uint64_t(len(loadError)),
 	)
 	if library == nil {
 		message, _, terminated := bytes.Cut(loadError[:], []byte{0})
@@ -110,7 +110,7 @@ func Open(
 	createResult := C.cardinal_nativeaot_create(
 		library,
 		bytePointer(config),
-		C.size_t(len(config)),
+		C.uint64_t(len(config)),
 	)
 	goruntime.KeepAlive(config)
 	if createResult.status != C.CARDINAL_RUNTIME_STATUS_SUCCESS {
@@ -187,7 +187,7 @@ func (r *Runner) Initialize(request cardinalruntime.InitRequest) error {
 		r.library,
 		r.handle,
 		bytePointer(request.Snapshot),
-		C.size_t(len(request.Snapshot)),
+		C.uint64_t(len(request.Snapshot)),
 	)
 	goruntime.KeepAlive(request.Snapshot)
 
@@ -207,9 +207,9 @@ func (r *Runner) Tick(request cardinalruntime.TickRequest, output []byte) (int, 
 		C.uint64_t(request.Tick),
 		C.uint64_t(request.FixedDeltaNS),
 		bytePointer(request.Input),
-		C.size_t(len(request.Input)),
+		C.uint64_t(len(request.Input)),
 		bytePointer(output),
-		C.size_t(len(output)),
+		C.uint64_t(len(output)),
 	)
 	goruntime.KeepAlive(request.Input)
 	goruntime.KeepAlive(output)
@@ -229,9 +229,9 @@ func (r *Runner) Query(request cardinalruntime.QueryRequest, output []byte) (int
 		r.handle,
 		C.uint32_t(request.Kind),
 		bytePointer(request.Input),
-		C.size_t(len(request.Input)),
+		C.uint64_t(len(request.Input)),
 		bytePointer(output),
-		C.size_t(len(output)),
+		C.uint64_t(len(output)),
 	)
 	goruntime.KeepAlive(request.Input)
 	goruntime.KeepAlive(output)
@@ -250,7 +250,7 @@ func (r *Runner) Snapshot(output []byte) (int, error) {
 		r.library,
 		r.handle,
 		bytePointer(output),
-		C.size_t(len(output)),
+		C.uint64_t(len(output)),
 	)
 	goruntime.KeepAlive(output)
 
@@ -268,7 +268,7 @@ func (r *Runner) Restore(snapshot []byte) error {
 		r.library,
 		r.handle,
 		bytePointer(snapshot),
-		C.size_t(len(snapshot)),
+		C.uint64_t(len(snapshot)),
 	)
 	goruntime.KeepAlive(snapshot)
 
@@ -308,7 +308,7 @@ func (r *Runner) outputResultLocked(
 	result C.cardinal_nativeaot_call_result_v1,
 	provided int,
 ) (int, error) {
-	outputLen, valid := sizeToInt(result.output_len)
+	outputLen, valid := uint64ToInt(result.output_len)
 	if !valid {
 		return 0, eris.Wrapf(
 			cardinalruntime.ErrExecutionFailed,
@@ -387,7 +387,7 @@ func (r *Runner) statusErrorLocked(operation string, status C.int32_t) error {
 
 	var message string
 	if result.status == C.CARDINAL_RUNTIME_STATUS_SUCCESS {
-		length, valid := sizeToInt(result.output_len)
+		length, valid := uint64ToInt(result.output_len)
 		if valid && length <= len(local) {
 			message = string(local[:length])
 		}
@@ -406,7 +406,7 @@ func bytePointer(data []byte) *C.uint8_t {
 	return (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(data)))
 }
 
-func sizeToInt(value C.size_t) (int, bool) {
+func uint64ToInt(value C.uint64_t) (int, bool) {
 	const maxInt = int(^uint(0) >> 1)
 	if uint64(value) > uint64(maxInt) {
 		return 0, false

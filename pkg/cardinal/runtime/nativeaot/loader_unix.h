@@ -7,7 +7,7 @@ typedef struct cardinal_nativeaot_library_v1 cardinal_nativeaot_library_v1;
 
 typedef struct cardinal_nativeaot_call_result_v1 {
     int32_t status;
-    size_t output_len;
+    uint64_t output_len;
 } cardinal_nativeaot_call_result_v1;
 
 typedef struct cardinal_nativeaot_create_result_v1 {
@@ -18,7 +18,7 @@ typedef struct cardinal_nativeaot_create_result_v1 {
 cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
     const char *path,
     char *error,
-    size_t error_capacity
+    uint64_t error_capacity
 );
 
 /*
@@ -35,14 +35,14 @@ int32_t cardinal_nativeaot_get_contract(
 cardinal_nativeaot_create_result_v1 cardinal_nativeaot_create(
     cardinal_nativeaot_library_v1 *library,
     const uint8_t *config,
-    size_t config_len
+    uint64_t config_len
 );
 
 int32_t cardinal_nativeaot_initialize(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 );
 
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
@@ -51,9 +51,9 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
     uint64_t tick,
     uint64_t fixed_delta_ns,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity
+    uint64_t output_capacity
 );
 
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_query(
@@ -61,23 +61,23 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_query(
     cardinal_runtime_handle_v1 handle,
     uint32_t kind,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity
+    uint64_t output_capacity
 );
 
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_snapshot(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity
+    uint64_t output_capacity
 );
 
 int32_t cardinal_nativeaot_restore(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 );
 
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_last_error(
