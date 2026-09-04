@@ -29,7 +29,7 @@ static void set_error(char *destination, const char *message) {
     (void)snprintf(destination, FIXTURE_ERROR_CAPACITY, "%s", message);
 }
 
-static bool valid_input(const uint8_t *input, size_t input_len) {
+static bool valid_input(const uint8_t *input, uint64_t input_len) {
     return input_len == 0 || input != NULL;
 }
 
@@ -41,9 +41,9 @@ static fixture_state *find_state(cardinal_runtime_handle_v1 handle) {
     return state->used ? state : NULL;
 }
 
-static uint64_t hash_bytes(const uint8_t *data, size_t data_len) {
+static uint64_t hash_bytes(const uint8_t *data, uint64_t data_len) {
     uint64_t hash = UINT64_C(1469598103934665603);
-    for (size_t index = 0; index < data_len; index++) {
+    for (uint64_t index = 0; index < data_len; index++) {
         hash ^= data[index];
         hash *= UINT64_C(1099511628211);
     }
@@ -72,9 +72,9 @@ static uint64_t read_uint64_le(const uint8_t *input) {
 
 static int32_t prepare_output(
     uint8_t *output,
-    size_t output_capacity,
-    size_t required,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t required,
+    uint64_t *output_len
 ) {
     if (output_len == NULL) {
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
@@ -111,7 +111,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
     const uint8_t *config,
-    size_t config_len,
+    uint64_t config_len,
     cardinal_runtime_handle_v1 *handle
 ) {
     if (handle == NULL || !valid_input(config, config_len)) {
@@ -148,7 +148,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_initialize(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 ) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
@@ -178,10 +178,10 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
     uint64_t tick,
     uint64_t fixed_delta_ns,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 ) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
@@ -197,7 +197,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
-    size_t required = 16 + input_len;
+    uint64_t required = 16 + input_len;
     int32_t status =
         prepare_output(output, output_capacity, required, output_len);
     if (status != CARDINAL_RUNTIME_STATUS_SUCCESS) {
@@ -219,10 +219,10 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
     cardinal_runtime_handle_v1 handle,
     uint32_t kind,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 ) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
@@ -265,7 +265,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
         );
     }
 
-    size_t required = 4 + input_len;
+    uint64_t required = 4 + input_len;
     int32_t status =
         prepare_output(output, output_capacity, required, output_len);
     if (status != CARDINAL_RUNTIME_STATUS_SUCCESS) {
@@ -283,8 +283,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 ) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
@@ -309,7 +309,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 ) {
     fixture_state *state = find_state(handle);
     if (state == NULL) {
@@ -331,8 +331,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 ) {
     fixture_state *state = find_state(handle);
     const char *message = state == NULL ? global_error : state->error;
@@ -340,7 +340,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
-    size_t written = strlen(message);
+    uint64_t written = strlen(message);
     if (written > output_capacity) {
         written = output_capacity;
     }

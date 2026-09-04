@@ -11,49 +11,49 @@
 typedef int32_t (*get_contract_fn)(cardinal_runtime_contract_v1 *contract);
 typedef int32_t (*create_fn)(
     const uint8_t *config,
-    size_t config_len,
+    uint64_t config_len,
     cardinal_runtime_handle_v1 *handle
 );
 typedef int32_t (*initialize_fn)(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 );
 typedef int32_t (*tick_fn)(
     cardinal_runtime_handle_v1 handle,
     uint64_t tick,
     uint64_t fixed_delta_ns,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 typedef int32_t (*query_fn)(
     cardinal_runtime_handle_v1 handle,
     uint32_t kind,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 typedef int32_t (*snapshot_fn)(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 typedef int32_t (*restore_fn)(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 );
 typedef int32_t (*last_error_fn)(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 typedef int32_t (*destroy_fn)(cardinal_runtime_handle_v1 handle);
 
@@ -69,7 +69,7 @@ struct cardinal_nativeaot_library_v1 {
     destroy_fn destroy;
 };
 
-static void copy_error(char *output, size_t output_capacity, const char *message) {
+static void copy_error(char *output, uint64_t output_capacity, const char *message) {
     assert(output != NULL);
     assert(output_capacity > 0);
     assert(message != NULL);
@@ -81,7 +81,7 @@ static void *load_symbol(
     void *dl_handle,
     const char *name,
     char *error,
-    size_t error_capacity
+    uint64_t error_capacity
 ) {
     (void)dlerror();
     void *symbol = dlsym(dl_handle, name);
@@ -108,7 +108,7 @@ static void *load_symbol(
 cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
     const char *path,
     char *error,
-    size_t error_capacity
+    uint64_t error_capacity
 ) {
     // The caller must validate the path before this call.
     assert(path != NULL);
@@ -232,7 +232,7 @@ int32_t cardinal_nativeaot_get_contract(
 cardinal_nativeaot_create_result_v1 cardinal_nativeaot_create(
     cardinal_nativeaot_library_v1 *library,
     const uint8_t *config,
-    size_t config_len
+    uint64_t config_len
 ) {
     assert(library != NULL);
 
@@ -250,7 +250,7 @@ int32_t cardinal_nativeaot_initialize(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 ) {
     assert(handle != 0);
     assert(library != NULL);
@@ -264,9 +264,9 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
     uint64_t tick,
     uint64_t fixed_delta_ns,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity
+    uint64_t output_capacity
 ) {
     assert(handle != 0);
     assert(library != NULL);
@@ -294,9 +294,9 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_query(
     cardinal_runtime_handle_v1 handle,
     uint32_t kind,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity
+    uint64_t output_capacity
 ) {
     assert(handle != 0);
     assert(library != NULL);
@@ -321,7 +321,7 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_snapshot(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity
+    uint64_t output_capacity
 ) {
     assert(handle != 0);
     assert(library != NULL);
@@ -344,7 +344,7 @@ int32_t cardinal_nativeaot_restore(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 ) {
     assert(handle != 0);
     assert(library != NULL);
