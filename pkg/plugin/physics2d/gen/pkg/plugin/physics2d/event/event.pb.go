@@ -384,21 +384,21 @@ var File_pkg_plugin_physics2d_event_event_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_physics2d_event_event_proto_rawDesc = "" +
 	"\n" +
-	"&pkg/plugin/physics2d/event/event.proto\x12'world_engine.pkg.plugin.physics2d.event\x1a.pkg/plugin/physics2d/component/component.proto\"\x83\x01\n" +
-	"\x11ContactBeginEvent\x12n\n" +
-	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x81\x01\n" +
-	"\x0fContactEndEvent\x12n\n" +
-	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x8f\x04\n" +
-	"\x13ContactEventPayload\x12T\n" +
-	"\aFilterA\x18\x01 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterA\x12T\n" +
-	"\aFilterB\x18\x02 \x01(\v2:.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterB\x12\x18\n" +
+	"&pkg/plugin/physics2d/event/event.proto\x12=github_com.argus_labs.world_engine.pkg.plugin.physics2d.event\x1a.pkg/plugin/physics2d/component/component.proto\"\x9a\x01\n" +
+	"\x11ContactBeginEvent\x12\x84\x01\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2R.github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x98\x01\n" +
+	"\x0fContactEndEvent\x12\x84\x01\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2R.github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\xe7\x04\n" +
+	"\x13ContactEventPayload\x12j\n" +
+	"\aFilterA\x18\x01 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterA\x12j\n" +
+	"\aFilterB\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.FixtureFilterBitsR\aFilterB\x12\x18\n" +
 	"\aEntityA\x18\x03 \x01(\rR\aEntityA\x12\x18\n" +
 	"\aEntityB\x18\x04 \x01(\rR\aEntityB\x12 \n" +
 	"\vShapeIndexA\x18\x05 \x01(\x03R\vShapeIndexA\x12 \n" +
-	"\vShapeIndexB\x18\x06 \x01(\x03R\vShapeIndexB\x12I\n" +
-	"\x06Normal\x18\a \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Normal\x12 \n" +
-	"\vNormalValid\x18\b \x01(\bR\vNormalValid\x12G\n" +
-	"\x05Point\x18\t \x01(\v21.world_engine.pkg.plugin.physics2d.component.Vec2R\x05Point\x12\x1e\n" +
+	"\vShapeIndexB\x18\x06 \x01(\x03R\vShapeIndexB\x12_\n" +
+	"\x06Normal\x18\a \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x06Normal\x12 \n" +
+	"\vNormalValid\x18\b \x01(\bR\vNormalValid\x12]\n" +
+	"\x05Point\x18\t \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x05Point\x12\x1e\n" +
 	"\n" +
 	"PointValid\x18\n" +
 	" \x01(\bR\n" +
@@ -408,11 +408,11 @@ const file_pkg_plugin_physics2d_event_event_proto_rawDesc = "" +
 	"\bMaskBits\x18\x02 \x01(\x04R\bMaskBits\x12\x1e\n" +
 	"\n" +
 	"GroupIndex\x18\x03 \x01(\x05R\n" +
-	"GroupIndex\"\x83\x01\n" +
-	"\x11TriggerBeginEvent\x12n\n" +
-	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x81\x01\n" +
-	"\x0fTriggerEndEvent\x12n\n" +
-	"\x13ContactEventPayload\x18\x01 \x01(\v2<.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayloadB\x88\x01Z\\github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event;event\xaa\x02'World_engine.Pkg.Plugin.Physics2d.Eventb\x06proto3"
+	"GroupIndex\"\x9a\x01\n" +
+	"\x11TriggerBeginEvent\x12\x84\x01\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2R.github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayload\"\x98\x01\n" +
+	"\x0fTriggerEndEvent\x12\x84\x01\n" +
+	"\x13ContactEventPayload\x18\x01 \x01(\v2R.github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayloadR\x13ContactEventPayloadB\x88\x01Z\\github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event;event\xaa\x02'World_engine.Pkg.Plugin.Physics2d.Eventb\x06proto3"
 
 var (
 	file_pkg_plugin_physics2d_event_event_proto_rawDescOnce sync.Once
@@ -428,23 +428,23 @@ func file_pkg_plugin_physics2d_event_event_proto_rawDescGZIP() []byte {
 
 var file_pkg_plugin_physics2d_event_event_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_pkg_plugin_physics2d_event_event_proto_goTypes = []any{
-	(*ContactBeginEvent)(nil),   // 0: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent
-	(*ContactEndEvent)(nil),     // 1: world_engine.pkg.plugin.physics2d.event.ContactEndEvent
-	(*ContactEventPayload)(nil), // 2: world_engine.pkg.plugin.physics2d.event.ContactEventPayload
-	(*FixtureFilterBits)(nil),   // 3: world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	(*TriggerBeginEvent)(nil),   // 4: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent
-	(*TriggerEndEvent)(nil),     // 5: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent
-	(*component.Vec2)(nil),      // 6: world_engine.pkg.plugin.physics2d.component.Vec2
+	(*ContactBeginEvent)(nil),   // 0: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactBeginEvent
+	(*ContactEndEvent)(nil),     // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEndEvent
+	(*ContactEventPayload)(nil), // 2: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	(*FixtureFilterBits)(nil),   // 3: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
+	(*TriggerBeginEvent)(nil),   // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent
+	(*TriggerEndEvent)(nil),     // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.TriggerEndEvent
+	(*component.Vec2)(nil),      // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
 }
 var file_pkg_plugin_physics2d_event_event_proto_depIdxs = []int32{
-	2, // 0: world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
-	2, // 1: world_engine.pkg.plugin.physics2d.event.ContactEndEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
-	3, // 2: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.FilterA:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	3, // 3: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.FilterB:type_name -> world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
-	6, // 4: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.Normal:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	6, // 5: world_engine.pkg.plugin.physics2d.event.ContactEventPayload.Point:type_name -> world_engine.pkg.plugin.physics2d.component.Vec2
-	2, // 6: world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
-	2, // 7: world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.ContactEventPayload:type_name -> world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	2, // 0: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactBeginEvent.ContactEventPayload:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	2, // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEndEvent.ContactEventPayload:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	3, // 2: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload.FilterA:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
+	3, // 3: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload.FilterB:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.FixtureFilterBits
+	6, // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload.Normal:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	6, // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload.Point:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2
+	2, // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.TriggerBeginEvent.ContactEventPayload:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload
+	2, // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.TriggerEndEvent.ContactEventPayload:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.event.ContactEventPayload
 	8, // [8:8] is the sub-list for method output_type
 	8, // [8:8] is the sub-list for method input_type
 	8, // [8:8] is the sub-list for extension type_name
