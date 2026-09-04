@@ -1,0 +1,118 @@
+name: Determinism (Box2D)
+
+# pkg/box2d requires bit-identical simulation results across CPU
+# architectures. The golden tests compare exact float64 bit patterns
+# committed in pkg/box2d/testdata; running them on amd64 and arm64 catches
+# FMA-contraction or libm determinism leaks (see pkg/box2d/math_fma.go).
+#
+# This is a dedicated workflow (rather than a job in common-go-ci.yaml) so
+# the cross-arch matrix only runs when pkg/box2d actually changes, and so
+# its status check is independently visible on PRs touching the engine.
+
+# Both triggers are needed. `push` covers branches in this repository, while
+# `pull_request` is what puts the status on the PR head itself -- without it a
+# later commit that misses the path filter leaves the PR with no determinism
+# result, and pull requests from forks never run it at all.
+#
+# The two path lists are duplicated rather than shared through a YAML anchor:
+# the GitHub Actions workflow parser does not support anchors or aliases.
+on:
+  push:
+    paths:
+      - 'pkg/box2d/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/box2d-determinism.yaml'
+  pull_request:
+    paths:
+      - 'pkg/box2d/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/box2d-determinism.yaml'
+
+env:
+  GO_VERSION: 1.26.5
+
+# Checkout and build only; no write access to the repository is needed.
+permissions:
+  contents: read
+
+jobs:
+  determinism:
+    name: Determinism (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      # Compiles the package for FMA-capable targets and fails on any fused
+      # multiply-add. This is the root-cause check: fusion is what makes one
+      # architecture disagree with another, so catching it here explains a
+      # failure that the golden tests can only report as "bits differ".
+      - name: Assert no fused multiply-add is emitted
+        run: go test ./pkg/box2d/ -run 'TestNoFusedMultiplyAdd' -count=1 -v
+
+      # 'TestGolden' also matches the worker-count matrix suites
+      # (golden_workers_test.go), which re-run every golden scene at
+      # WorldDef.WorkerCount 2/4/8 against the same testdata files — the
+      # byte-identical-for-every-worker-count gate. NewWorld does not clamp
+      # the worker count to GOMAXPROCS, so the w=8 rows are true 8-way
+      # partitions even on these 4-vCPU runners — every matrix row exercises
+      # the partition width it names.
+      #
+      # This is the default-build run: no profile, the codegen every consumer
+      # gets before they apply one. It must stay a step of its own — folding
+      # the profile into it would leave the no-profile build with no golden
+      # coverage on either architecture.
+      - name: Run cross-architecture golden trace tests
+        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
+
+      # Same suite again under PGO-shaped codegen. -pgo compiles it with the
+      # committed profile (pkg/box2d/default.pgo; the path is cwd-relative,
+      # and CI runs from the repository root). PGO changes inlining, inlining
+      # is what exposes new FMA fusion sites, so this run proves the golden
+      # bits also hold for the shape consumers get when they apply a profile
+      # to their game binary. The no-FMA step above scans that same codegen at
+      # the instruction level (its PGO pass activates whenever default.pgo
+      # exists).
+      - name: Run cross-architecture golden trace tests (PGO codegen)
+        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v -pgo=pkg/box2d/default.pgo
+
+      # Race-detector pass. The golden scenes are small and mostly run below
+      # the per-stage grain thresholds (inline, no pool dispatch), so the
+      # load-bearing -race targets are the TestWorkerStress* scenes. The base
+      # stress scene pushes the body-grain and heavy per-color stages past
+      # their thresholds; the light per-color stages dispatch at a much larger
+      # grain (solverLightColorGrain), so the dedicated light-stage scene
+      # exists to push a single color past that one. Together they cover every
+      # dispatch in Step, and the pool's channel/WaitGroup edges are the only
+      # synchronization there — a clean run is a genuine happens-before proof.
+      # The golden suites ride along for the serial/id-order paths. Kept
+      # scoped because -race is 5-20x slower.
+      - name: Run race-detector golden trace tests (worker matrix + stress)
+        run: go test -race -run 'TestGolden(Step|Continuous)|TestWorkerStress' ./pkg/box2d/ -count=1
+
+      - name: Run deterministic op-sequence fuzz corpus
+        run: go test ./pkg/box2d/ -run 'TestWorldOpSequenceDeterminism|FuzzWorldOps' -count=1 -v
+
+      # Full suite with the internal invariant net compiled in. The default
+      # build compiles the hundreds of assert(...) calls out (core_asserts_off.go),
+      # so without this step no build anywhere ever executes them and the
+      # cheapest defence against invariant drift in a mechanical 29k-line port
+      # is dead code. Release/consumer builds are unaffected — the tag exists
+      # only here and for local debugging. A handful of tests pin the
+      # release-build guard semantics (ignore bad input instead of panicking);
+      # those skip themselves under the tag via the buildWithAsserts mirror
+      # (asserts_tag_off_test.go).
+      - name: Run full suite with internal asserts compiled in
+        run: go test -tags box2d_asserts ./pkg/box2d/ -count=1

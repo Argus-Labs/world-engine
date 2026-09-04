@@ -13,11 +13,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// makeWorld creates a Cardinal world at 60 Hz with the physics plugin installed.
+// makeWorld creates a Cardinal world at 60 Hz with the physics plugin installed, returning the
+// world and the registered plugin instance (queries and Reset are methods on it).
 // World gravity is set from gravity; plugin tick rate matches the world tick rate.
-func makeWorld(t *testing.T, gravity physics.Vec2) *cardinal.World {
+// Workers stays at the serial default (0); use makeWorldWorkers for a parallel world.
+func makeWorld(t *testing.T, gravity physics.Vec2) (*cardinal.World, *physics.Plugin) {
 	t.Helper()
-	t.Setenv("LOG_LEVEL", "disabled")
+	return makeWorldWorkers(t, gravity, 0)
+}
+
+// makeWorldWorkers is makeWorld with an explicit physics.Config.Workers value
+// (box2d.WorldDef.WorkerCount; results are byte-identical for every value).
+func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
+	t.Helper()
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
@@ -30,11 +38,13 @@ func makeWorld(t *testing.T, gravity physics.Vec2) *cardinal.World {
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
-	cardinal.RegisterPlugin(w, physics.NewPlugin(physics.Config{
+	p := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
-	}))
-	return w
+		Workers:  workers,
+	})
+	cardinal.RegisterPlugin(w, p)
+	return w, p
 }
 
 // newRigid returns a PhysicsBody2D with Active/Awake/SleepingAllowed true and GravityScale 1.

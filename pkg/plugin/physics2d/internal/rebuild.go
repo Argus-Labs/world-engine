@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/cbridge"
 )
 
 // PhysicsRebuildEntry is one entity's authoritative physics components as read from ECS.
@@ -18,13 +18,13 @@ type PhysicsRebuildEntry struct {
 	PhysicsBody component.PhysicsBody2D
 }
 
-// FullRebuildFromECS replaces all derived physics state for the package Runtime in one
-// deterministic pass: destroys every body in the C-side world, clears maps and contact buffer,
+// FullRebuildFromECS replaces all derived physics state on this runtime in one
+// deterministic pass: destroys every body in the Box2D world, clears maps and contact buffer,
 // optionally applies gravity, recreates bodies/shapes from entries, then writes shadow
 // snapshots. Entries are sorted by EntityID before processing; creation order follows that sort.
 //
-// Requires ResetRuntime (or prior init) so Runtime() is non-nil. World is created on first
-// rebuild using gravity; later rebuilds reuse the world and call SetGravity.
+// World is created on first rebuild using gravity; later rebuilds reuse the world and call
+// SetGravity.
 //
 // On any creation error, bodies created in this pass are destroyed and runtime maps are left
 // empty (same as post-clear); the world remains allocated with no bodies.
@@ -32,9 +32,7 @@ type PhysicsRebuildEntry struct {
 // After a successful rebuild, Emitter is cleared and SuppressContactsStep is set true for the
 // next simulation step. The step driver must call SetStepEmitter before the step and
 // FlushBufferedContacts after; that flush clears SuppressContactsStep automatically.
-func FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) error {
-	rt := Runtime()
-
+func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) error {
 	sorted := slices.Clone(entries)
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
 		return cmp.Compare(a.EntityID, b.EntityID)
@@ -45,8 +43,20 @@ func FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) e
 		}
 	}
 
-	// Destroy all existing bodies on the C side.
-	cbridge.DestroyAllBodies()
+	// Destroy all existing bodies (sorted for deterministic destruction order).
+	if rt.World != nil {
+		ids := make([]cardinal.EntityID, 0, len(rt.Bodies))
+		for id := range rt.Bodies {
+			ids = append(ids, id)
+		}
+		slices.SortFunc(ids, cmp.Compare)
+		for _, id := range ids {
+			rt.DestroyEntityBody(id)
+		}
+	}
+	clear(rt.Bodies)
+	clear(rt.Shapes)
+	clear(rt.Chains)
 	clear(rt.KnownEntities)
 	clear(rt.Shadow)
 	rt.BufferedContacts = rt.BufferedContacts[:0]
@@ -61,17 +71,23 @@ func FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) e
 	// First step after rebuild: skip contact begin/end (Box2D would otherwise fire for all overlaps).
 	rt.SuppressContactsStep = true
 
-	if !cbridge.WorldExists() {
-		cbridge.CreateWorld(gravity.X, gravity.Y)
+	if rt.World == nil {
+		def := box2d.DefaultWorldDef()
+		def.Gravity = box2d.Vec2{X: gravity.X, Y: gravity.Y}
+		// Deterministic across worker counts: byte-identical results for every
+		// value, so worlds rebuilt under different Workers settings replay
+		// identically (see pkg/box2d/worker_pool.go).
+		def.WorkerCount = rt.Workers
+		rt.World = box2d.NewWorld(&def)
 	} else {
-		cbridge.SetGravity(gravity.X, gravity.Y)
+		rt.World.SetGravity(box2d.Vec2{X: gravity.X, Y: gravity.Y})
 	}
 
 	newKnown := make(map[cardinal.EntityID]struct{}, len(sorted))
 	newShadow := make(map[cardinal.EntityID]ShadowState, len(sorted))
 
 	for _, e := range sorted {
-		if err := CreateBodyWithCollider(
+		if err := rt.CreateBodyWithCollider(
 			e.EntityID,
 			e.Transform,
 			e.Velocity,
@@ -79,7 +95,7 @@ func FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) e
 		); err != nil {
 			// On error: destroy all bodies created so far and leave clean state.
 			for id := range newKnown {
-				cbridge.DestroyBody(uint32(id))
+				rt.DestroyEntityBody(id)
 			}
 			clear(newKnown)
 			clear(newShadow)

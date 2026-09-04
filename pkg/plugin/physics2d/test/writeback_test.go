@@ -17,7 +17,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestWriteback_DynamicGravity(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID cardinal.EntityID
 
@@ -67,7 +68,8 @@ func TestWriteback_DynamicGravity(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_StaticNoWriteback(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var floorID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 5, Y: -1}
@@ -113,7 +115,8 @@ func TestWriteback_StaticNoWriteback(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_KinematicVelocityIntegration(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var kinID cardinal.EntityID
 	startPos := physics.Vec2{X: 0, Y: 0}
@@ -162,7 +165,8 @@ func TestWriteback_KinematicVelocityIntegration(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_ManualNoWriteback(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var manualID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 0, Y: 5}
@@ -214,7 +218,8 @@ func TestWriteback_ManualNoWriteback(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_ManualGameplayDrivesPosition(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var manualID cardinal.EntityID
 
@@ -275,7 +280,9 @@ func TestWriteback_ManualGameplayDrivesPosition(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_ManualNoDrift(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	req := require.New(t)
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var manualID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 5, Y: 5}
@@ -305,16 +312,13 @@ func TestWriteback_ManualNoDrift(t *testing.T) {
 			if eid == manualID {
 				pos := row.T.Get().Position
 				if math.Abs(pos.X-spawnPos.X) > epsilon || math.Abs(pos.Y-spawnPos.Y) > epsilon {
-					testRequire.FailNowf("manual body drifted",
+					req.FailNowf("manual body drifted",
 						"tick %d: pos=(%f,%f) want=(%f,%f)",
 						state.Tick(), pos.X, pos.Y, spawnPos.X, spawnPos.Y)
 				}
 			}
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
-
-	testRequire = require.New(t)
-	t.Cleanup(func() { testRequire = nil })
 
 	initCardinalECS(w)
 	tickN(t, w, 120)
@@ -325,7 +329,8 @@ func TestWriteback_ManualNoDrift(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_DynamicShadowSync(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var ballID cardinal.EntityID
 
@@ -376,7 +381,8 @@ func TestWriteback_DynamicShadowSync(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_KinematicNoSnapBack(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var kinID cardinal.EntityID
 
@@ -425,7 +431,8 @@ func TestWriteback_KinematicNoSnapBack(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_ManualDynamicContact(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var manualID, dynamicID cardinal.EntityID
 	contactDetected := false
@@ -505,7 +512,8 @@ func TestWriteback_ManualDynamicContact(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_ManualToDynamic(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: -10})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 
 	var entityID cardinal.EntityID
 	spawnPos := physics.Vec2{X: 0, Y: 20}
@@ -576,7 +584,8 @@ func TestWriteback_ManualToDynamic(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_DynamicRotation(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 
@@ -623,7 +632,8 @@ func TestWriteback_DynamicRotation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWriteback_ManualRotationUnchanged(t *testing.T) {
-	w := makeWorld(t, physics.Vec2{X: 0, Y: 0})
+	t.Parallel()
+	w, _ := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
 	var entityID cardinal.EntityID
 	spawnRot := 1.5

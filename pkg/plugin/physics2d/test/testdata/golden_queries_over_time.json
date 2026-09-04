@@ -1,0 +1,1489 @@
+{
+  "scenario": "queries_over_time",
+  "tick_count": 150,
+  "frames": [
+    {
+      "tick": 0,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-7.9666666984558105",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-7.9749999046325684",
+          "pos_y": "-3",
+          "rotation": "0.0083333235234022141",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 10,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-7.633333683013916",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-7.724998950958252",
+          "pos_y": "-3",
+          "rotation": "0.091667391359806061",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 20,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-7.3000006675720215",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-7.4749979972839355",
+          "pos_y": "-3",
+          "rotation": "0.17500439286231995",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 30,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-6.966667652130127",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-7.2249970436096191",
+          "pos_y": "-3",
+          "rotation": "0.25834208726882935",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 40,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-6.6333346366882324",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-6.9749960899353027",
+          "pos_y": "-3",
+          "rotation": "0.34167343378067017",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 50,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-6.3000016212463379",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-6.7249951362609863",
+          "pos_y": "-3",
+          "rotation": "0.4249940812587738",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 60,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-5.9666686058044434",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-6.4749941825866699",
+          "pos_y": "-3",
+          "rotation": "0.50831478834152222",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 70,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-5.6333355903625488",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-6.2249932289123535",
+          "pos_y": "-3",
+          "rotation": "0.59166204929351807",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 80,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-5.3000025749206543",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-5.9749922752380371",
+          "pos_y": "-3",
+          "rotation": "0.67502254247665405",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 90,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-4.9666695594787598",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-5.7249913215637207",
+          "pos_y": "-3",
+          "rotation": "0.75830543041229248",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 100,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-4.6333365440368652",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-5.4749903678894043",
+          "pos_y": "-3",
+          "rotation": "0.84167146682739258",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 110,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-4.3000035285949707",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-5.2249894142150879",
+          "pos_y": "-3",
+          "rotation": "0.9249802827835083",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 120,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-3.9666705131530762",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-4.9749884605407715",
+          "pos_y": "-3",
+          "rotation": "1.0083450078964233",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 130,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-3.6333374977111816",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-4.7249875068664551",
+          "pos_y": "-3",
+          "rotation": "1.0916804075241089",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 140,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-3.3000044822692871",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-4.4749865531921387",
+          "pos_y": "-3",
+          "rotation": "1.17499840259552",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    },
+    {
+      "tick": 149,
+      "bodies": [
+        {
+          "entity": 1,
+          "role": "wall",
+          "pos_x": "5",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 2,
+          "role": "pillar",
+          "pos_x": "-6",
+          "pos_y": "0",
+          "rotation": "0",
+          "vel_x": "0",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 3,
+          "role": "mover",
+          "pos_x": "-3.000004768371582",
+          "pos_y": "3",
+          "rotation": "0",
+          "vel_x": "2",
+          "vel_y": "0",
+          "ang_vel": "0"
+        },
+        {
+          "entity": 4,
+          "role": "drifter",
+          "pos_x": "-4.2499856948852539",
+          "pos_y": "-3",
+          "rotation": "1.2499897480010986",
+          "vel_x": "1.5",
+          "vel_y": "0",
+          "ang_vel": "0.5"
+        }
+      ]
+    }
+  ],
+  "events": [],
+  "queries": [
+    {
+      "tick": 0,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-8.3249998092651367",
+      "point_y": "-3",
+      "normal_x": "-1.0000001192092896",
+      "normal_y": "5.5221405226291154e-09",
+      "fraction": "0.15312501788139343",
+      "hits": []
+    },
+    {
+      "tick": 0,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 0,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-8.4666671752929688",
+      "point_y": "3",
+      "normal_x": "-0.99999994039535522",
+      "normal_y": "0",
+      "fraction": "0.13076390326023102",
+      "hits": []
+    },
+    {
+      "tick": 10,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-8.0749988555908203",
+      "point_y": "-3",
+      "normal_x": "-1.0000001192092896",
+      "normal_y": "-5.8429804994375445e-08",
+      "fraction": "0.16354170441627502",
+      "hits": []
+    },
+    {
+      "tick": 10,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 10,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-8.1333332061767578",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.14465276896953583",
+      "hits": []
+    },
+    {
+      "tick": 20,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-7.8249979019165039",
+      "point_y": "-3",
+      "normal_x": "-1.0000001192092896",
+      "normal_y": "-1.7649946926212579e-07",
+      "fraction": "0.173958420753479",
+      "hits": []
+    },
+    {
+      "tick": 20,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 20,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-7.8000006675720215",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.15854164958000183",
+      "hits": []
+    },
+    {
+      "tick": 30,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-7.5749969482421875",
+      "point_y": "-3",
+      "normal_x": "-1.0000001192092896",
+      "normal_y": "1.237390989672349e-07",
+      "fraction": "0.1843751072883606",
+      "hits": []
+    },
+    {
+      "tick": 30,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 30,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-7.466667652130127",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.17243051528930664",
+      "hits": []
+    },
+    {
+      "tick": 40,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-7.3249959945678711",
+      "point_y": "-3",
+      "normal_x": "-1",
+      "normal_y": "1.1745853356615044e-07",
+      "fraction": "0.19479183852672577",
+      "hits": []
+    },
+    {
+      "tick": 40,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 40,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-7.1333346366882324",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.18631939589977264",
+      "hits": []
+    },
+    {
+      "tick": 50,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-7.0749950408935547",
+      "point_y": "-3",
+      "normal_x": "-1",
+      "normal_y": "-2.9585640959339798e-07",
+      "fraction": "0.20520856976509094",
+      "hits": []
+    },
+    {
+      "tick": 50,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 50,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-6.8000016212463379",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.20020826160907745",
+      "hits": []
+    },
+    {
+      "tick": 60,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-6.8249940872192383",
+      "point_y": "-3.0000002384185791",
+      "normal_x": "-1",
+      "normal_y": "-3.3192756632161036e-07",
+      "fraction": "0.21562524139881134",
+      "hits": []
+    },
+    {
+      "tick": 60,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 60,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-6.4666686058044434",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.21409714221954346",
+      "hits": []
+    },
+    {
+      "tick": 70,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-6.5749931335449219",
+      "point_y": "-3",
+      "normal_x": "-1",
+      "normal_y": "1.3033164236730954e-07",
+      "fraction": "0.22604195773601532",
+      "hits": []
+    },
+    {
+      "tick": 70,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 70,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-6.1333355903625488",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.22798602283000946",
+      "hits": []
+    },
+    {
+      "tick": 80,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-6.3249921798706055",
+      "point_y": "-3",
+      "normal_x": "-1.0000001192092896",
+      "normal_y": "-3.0941941986384336e-07",
+      "fraction": "0.2364586740732193",
+      "hits": []
+    },
+    {
+      "tick": 80,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 80,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-5.8000025749206543",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.24187488853931427",
+      "hits": []
+    },
+    {
+      "tick": 90,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-6.0749912261962891",
+      "point_y": "-3.0000004768371582",
+      "normal_x": "-1",
+      "normal_y": "-1.0889826853599516e-06",
+      "fraction": "0.24687536060810089",
+      "hits": []
+    },
+    {
+      "tick": 90,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 90,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-5.4666695594787598",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.25576379895210266",
+      "hits": []
+    },
+    {
+      "tick": 100,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-5.8249902725219727",
+      "point_y": "-3",
+      "normal_x": "-1",
+      "normal_y": "3.1032024594424001e-07",
+      "fraction": "0.25729212164878845",
+      "hits": []
+    },
+    {
+      "tick": 100,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 3,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 100,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-5.1333365440368652",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.26965263485908508",
+      "hits": []
+    },
+    {
+      "tick": 110,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-5.5749893188476562",
+      "point_y": "-3.0000004768371582",
+      "normal_x": "-1",
+      "normal_y": "-1.0373020131737576e-06",
+      "fraction": "0.26770880818367004",
+      "hits": []
+    },
+    {
+      "tick": 110,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 110,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-4.8000035285949707",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.28354153037071228",
+      "hits": []
+    },
+    {
+      "tick": 120,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-5.3249883651733398",
+      "point_y": "-3.0000002384185791",
+      "normal_x": "-1.0000001192092896",
+      "normal_y": "-4.4751487848770921e-07",
+      "fraction": "0.27812549471855164",
+      "hits": []
+    },
+    {
+      "tick": 120,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 120,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-4.4666705131530762",
+      "point_y": "3",
+      "normal_x": "-0.99999994039535522",
+      "normal_y": "0",
+      "fraction": "0.29743039608001709",
+      "hits": []
+    },
+    {
+      "tick": 130,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-5.0749874114990234",
+      "point_y": "-3",
+      "normal_x": "-0.99999994039535522",
+      "normal_y": "-3.3272300470343907e-07",
+      "fraction": "0.28854218125343323",
+      "hits": []
+    },
+    {
+      "tick": 130,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        },
+        {
+          "entity": 4,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 130,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-4.1333374977111816",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.31131929159164429",
+      "hits": []
+    },
+    {
+      "tick": 140,
+      "name": "ray_horizontal",
+      "hit": true,
+      "entity": 4,
+      "shape_index": 0,
+      "point_x": "-4.824986457824707",
+      "point_y": "-3.0000002384185791",
+      "normal_x": "-1",
+      "normal_y": "-5.0568110054882709e-07",
+      "fraction": "0.29895892739295959",
+      "hits": []
+    },
+    {
+      "tick": 140,
+      "name": "overlap_left_box",
+      "hit": true,
+      "entity": 0,
+      "shape_index": 0,
+      "point_x": "0",
+      "point_y": "0",
+      "normal_x": "0",
+      "normal_y": "0",
+      "fraction": "0",
+      "hits": [
+        {
+          "entity": 2,
+          "shape_index": 0
+        }
+      ]
+    },
+    {
+      "tick": 140,
+      "name": "sweep_mover_lane",
+      "hit": true,
+      "entity": 3,
+      "shape_index": 0,
+      "point_x": "-3.8000044822692871",
+      "point_y": "3",
+      "normal_x": "-1",
+      "normal_y": "0",
+      "fraction": "0.32520812749862671",
+      "hits": []
+    }
+  ]
+}
