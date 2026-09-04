@@ -1,7 +1,6 @@
 #ifndef CARDINAL_RUNTIME_V1_H
 #define CARDINAL_RUNTIME_V1_H
 
-#include <stddef.h>
 #include <stdint.h>
 
 #if defined(_WIN32)
@@ -67,14 +66,14 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
     const uint8_t *config,
-    size_t config_len,
+    uint64_t config_len,
     cardinal_runtime_handle_v1 *handle
 );
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_initialize(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 );
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
@@ -82,33 +81,33 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
     uint64_t tick,
     uint64_t fixed_delta_ns,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
     cardinal_runtime_handle_v1 handle,
     uint32_t kind,
     const uint8_t *input,
-    size_t input_len,
+    uint64_t input_len,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
     cardinal_runtime_handle_v1 handle,
     const uint8_t *snapshot,
-    size_t snapshot_len
+    uint64_t snapshot_len
 );
 
 /*
@@ -120,8 +119,8 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_last_error(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
-    size_t output_capacity,
-    size_t *output_len
+    uint64_t output_capacity,
+    uint64_t *output_len
 );
 
 /*
