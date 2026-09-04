@@ -211,8 +211,6 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
 	case component.ShapeTypeStaticChain, component.ShapeTypeStaticChainLoop:
-		// Chain polylines live on their own entity (ChainGeometry2D) and are resolved through
-		// the runtime's mirror, which the pipeline syncs from ECS before any body reconciles.
 		src, ok := rt.Geometries[sh.ChainGeometry]
 		if !ok {
 			return fmt.Errorf(

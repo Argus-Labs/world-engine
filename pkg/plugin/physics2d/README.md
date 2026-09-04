@@ -60,6 +60,13 @@ terrain, spawn a new geometry entity and swap the id (that id change is
 what triggers the fixture rebuild). Geometry entities are ordinary ECS
 state: they snapshot and restore with everything else.
 
+Cleanup is automatic: once a geometry entity has been referenced, the
+plugin deletes it on the tick its last reference disappears, so
+long-running worlds do not accumulate abandoned polylines. Geometry you
+created but have not referenced yet is never touched. The one rule this
+adds: do not hold on to a geometry id across a moment when no collider
+references it — spawn a new entity instead.
+
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
 which produces an inactive, sleeping, gravity-less body.
