@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WorldEngine.Runtime.CounterFixture</AssemblyName>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <SelfContained>true</SelfContained>
+    <WorldEngineRuntimeVersion Condition="'$(WorldEngineRuntimeVersion)' == ''">1.0.0</WorldEngineRuntimeVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WorldEngine.Runtime.NativeAot" Version="$(WorldEngineRuntimeVersion)" />
+  </ItemGroup>
+
+</Project>
