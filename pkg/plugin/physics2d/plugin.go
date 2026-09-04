@@ -36,6 +36,7 @@ type (
 	BodyType            = component.BodyType
 	ShapeType           = component.ShapeType
 	ColliderShape       = component.ColliderShape
+	ChainGeometry2D     = component.ChainGeometry2D
 	PhysicsSingletonTag = component.PhysicsSingletonTag
 	ActiveContacts      = component.ActiveContacts
 	ContactPairEntry    = component.ContactPairEntry

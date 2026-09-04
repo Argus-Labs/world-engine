@@ -59,6 +59,19 @@ func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ColliderShap
 	return r
 }
 
+// chainGeoSpawn creates chain-geometry entities: the targets of ColliderShape.ChainGeometry.
+type chainGeoSpawn = cardinal.Exact[struct {
+	Geo cardinal.Ref[physics.ChainGeometry2D]
+}]
+
+// spawnChainGeometry creates a geometry entity holding points and returns its id for a chain
+// shape's ChainGeometry field.
+func spawnChainGeometry(spawn *chainGeoSpawn, points []physics.Vec2) cardinal.EntityID {
+	id, row := spawn.Create()
+	row.Geo.Set(physics.ChainGeometry2D{Points: points})
+	return id
+}
+
 func tickN(t *testing.T, w *cardinal.World, n int) {
 	t.Helper()
 	for i := range n {

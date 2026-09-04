@@ -98,6 +98,7 @@ var testRequire *require.Assertions
 func sceneInitSystem(state *struct {
 	cardinal.BaseSystemState
 	Spawn spawnArchetype
+	Geo   chainGeoSpawn
 }) {
 	mustCreate := func(
 		role string,
@@ -193,18 +194,21 @@ func sceneInitSystem(state *struct {
 		}),
 	)
 
-	// Static chain segment (extra shape-type coverage); not referenced by assertions.
+	// Static chain segment (extra shape-type coverage); not referenced by assertions. The
+	// polyline lives on its own ChainGeometry2D entity, exercising the geometry-reference path
+	// through the scene's snapshot/restore cases too.
+	chainRampGeo := spawnChainGeometry(&state.Geo, []physics.Vec2{
+		{X: 0, Y: 0}, {X: 1.5, Y: 0.2}, {X: 3, Y: 0.4}, {X: 4, Y: 0.5},
+	})
 	_ = mustCreate("chain_ramp",
 		physics.Transform2D{Position: physics.Vec2{X: -15, Y: 0}},
 		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeStaticChain,
-			ChainPoints: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 1.5, Y: 0.2}, {X: 3, Y: 0.4}, {X: 4, Y: 0.5},
-			},
-			Friction:     0.4,
-			Density:      0,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
+			ShapeType:     physics.ShapeTypeStaticChain,
+			ChainGeometry: chainRampGeo,
+			Friction:      0.4,
+			Density:       0,
+			CategoryBits:  0x0001,
+			MaskBits:      0xFFFF,
 		}),
 	)
 

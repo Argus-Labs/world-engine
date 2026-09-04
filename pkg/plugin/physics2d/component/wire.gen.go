@@ -51,6 +51,46 @@ func (c ActiveContacts) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.ActiveContacts{}).ProtoReflect().Descriptor()
 }
 
+func (c ChainGeometry2D) ToProto() *pbcomponent.ChainGeometry2D {
+	p := &pbcomponent.ChainGeometry2D{}
+	for i := range c.Points {
+		p.Points = append(p.Points, c.Points[i].ToProto())
+	}
+	return p
+}
+
+func (c ChainGeometry2D) FromProto(p *pbcomponent.ChainGeometry2D) ChainGeometry2D {
+	if p == nil {
+		return c
+	}
+	for _, e := range p.Points {
+		var v Vec2
+		v = v.FromProto(e)
+		c.Points = append(c.Points, v)
+	}
+	return c
+}
+
+func (c ChainGeometry2D) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ChainGeometry2D: " + err.Error())
+	}
+	return data
+}
+
+func (c ChainGeometry2D) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.ChainGeometry2D
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ChainGeometry2D) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ChainGeometry2D{}).ProtoReflect().Descriptor()
+}
+
 func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
 	p := &pbcomponent.ColliderShape{}
 	p.ShapeType = uint32(c.ShapeType)
@@ -62,9 +102,7 @@ func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
 	for i := range c.Vertices {
 		p.Vertices = append(p.Vertices, c.Vertices[i].ToProto())
 	}
-	for i := range c.ChainPoints {
-		p.ChainPoints = append(p.ChainPoints, c.ChainPoints[i].ToProto())
-	}
+	p.ChainGeometry = uint32(c.ChainGeometry)
 	for i0 := range c.EdgeVertices {
 		p.EdgeVertices = append(p.EdgeVertices, c.EdgeVertices[i0].ToProto())
 	}
@@ -94,11 +132,7 @@ func (c ColliderShape) FromProto(p *pbcomponent.ColliderShape) ColliderShape {
 		v = v.FromProto(e)
 		c.Vertices = append(c.Vertices, v)
 	}
-	for _, e := range p.ChainPoints {
-		var v Vec2
-		v = v.FromProto(e)
-		c.ChainPoints = append(c.ChainPoints, v)
-	}
+	c.ChainGeometry = pkg_cardinal.EntityID(p.ChainGeometry)
 	for i, e := range p.EdgeVertices {
 		if i >= 2 {
 			break

@@ -13,6 +13,7 @@ import (
 type PhysicsPipelineSystemState struct {
 	cardinal.BaseSystemState
 	Bodies       cardinal.Contains[physicsBodyRow]
+	Geometries   cardinal.Contains[chainGeometryRow]
 	Singleton    physicsSingletonSearch
 	ContactBegin cardinal.WithSystemEventEmitter[physicevent.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventEmitter[physicevent.ContactEndEvent]
@@ -79,6 +80,8 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
 		ensurePhysicsSingleton(&state.Singleton)
+		// Geometry before bodies: attaches below resolve chain points through the mirror.
+		syncGeometries(rt, state.Geometries.Iter())
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 
@@ -91,6 +94,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		if err := rt.ReconcileFromECS(entries); err != nil {
 			state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
 		}
+		rt.SweepOrphanGeometries(entries, state.Geometries.Destroy)
 
 		// --- 2. Step + flush contacts ---
 		acRef, singletonFound := loadContactBaseline(rt, state)
