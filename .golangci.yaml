@@ -226,6 +226,16 @@ linters:
           - gosec
         text: 'G115'
         path: ^pkg/box2d/
+      # pkg/plugin/physics2d/test/e2e is the physics scenario suite: a reporting
+      # harness whose job is to print results (forbidigo), scenarios written as
+      # long declarative lists of checks (funlen), and testify-shaped assertion
+      # helpers that take a trailing message format (goprintffuncname).
+      # Correctness linters remain enabled.
+      - linters:
+          - forbidigo
+          - funlen
+          - goprintffuncname
+        path: ^pkg/plugin/physics2d/test/e2e/
     paths:
       - dagger/internal
       - third_party$

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -91,14 +92,14 @@ func restoreAndFingerprint(t *testing.T, steps int) string {
 		rt.Step() // the first call runs wakePersistedContactEntities
 	}
 
-	fp := ""
+	var fp strings.Builder
 	for i := range restoreCrateCount {
 		bodyID := rt.Bodies[restoreCrate0+cardinal.EntityID(i)]
 		p := rt.World.BodyPosition(bodyID)
 		r := rt.World.BodyRotation(bodyID)
-		fp += fmt.Sprintf("%.17g,%.17g,%.17g,%.17g;", p.X, p.Y, r.C, r.S)
+		fmt.Fprintf(&fp, "%.17g,%.17g,%.17g,%.17g;", p.X, p.Y, r.C, r.S)
 	}
-	return fp
+	return fp.String()
 }
 
 func TestRestoreIsDeterministicAcrossRepeatedRuns(t *testing.T) {

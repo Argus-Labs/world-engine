@@ -93,12 +93,6 @@ func boxColliderShapes(hx, hy float64) []physics.ColliderShape {
 
 const epsilon = 0.001
 
-func approxVec2(t *testing.T, got, want physics.Vec2, msg string) {
-	t.Helper()
-	require.InDelta(t, want.X, got.X, epsilon, "%s X", msg)
-	require.InDelta(t, want.Y, got.Y, epsilon, "%s Y", msg)
-}
-
 func pairHas(a, b, x, y cardinal.EntityID) bool {
 	return (a == x && b == y) || (a == y && b == x)
 }
