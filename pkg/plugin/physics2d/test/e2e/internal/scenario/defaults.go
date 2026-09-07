@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/goccy/go-json"
@@ -31,22 +32,22 @@ func Defaults() harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			// Built the documented way: should behave like a normal Box2D body.
 			s.constructed = c.Spawn("constructed", -6, 20,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// Built with a bare struct literal: Active/Awake/SleepingAllowed are
 			// false and GravityScale is 0, so Box2D should never simulate it.
 			s.literal = c.Spawn("struct-literal", 0, 20, physics.PhysicsBody2D{
 				BodyType: physics.BodyTypeDynamic,
-				Shapes:   []physics.ColliderShape{circle(0.5)},
+				Shapes:   []physics.ShapeSlot{circle(0.5).Spawn(c)},
 			})
 
 			// Built by decoding a payload that omits every flag, the way an old
 			// snapshot would. UnmarshalJSON must fill in the Box2D defaults, so
-			// this body must behave exactly like the constructed one.
+			// this body must behave exactly like the constructed one. The shape is
+			// an entity of its own, so the payload only names it.
+			shape := circle(0.5).Spawn(c)
 			s.roundTrip = c.Spawn("json-defaulted", 6, 20, decodeBody(
-				`{"body_type":2,"shapes":[{"shape_type":1,"radius":0.5,"density":1,`+
-					`"friction":0.3,"category_bits":18446744073709551615,`+
-					`"mask_bits":18446744073709551615}]}`))
+				fmt.Sprintf(`{"body_type":2,"shapes":[{"shape":%d}]}`, shape.Shape)))
 		},
 		Steps: []harness.Step{
 			{Tick: 2, Do: checkConstructorDefaults},
@@ -69,7 +70,7 @@ func Defaults() harness.Scenario {
 }
 
 func checkConstructorDefaults(c *harness.Ctx) {
-	pb := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
+	pb := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physics.Slot(1))
 
 	c.True("NewPhysicsBody2D sets Active=true", pb.Active, "Active=false: body would never simulate")
 	c.True("NewPhysicsBody2D sets Awake=true", pb.Awake, "Awake=false: body would spawn asleep")
@@ -92,7 +93,7 @@ func checkConstructorDefaults(c *harness.Ctx) {
 		physics.BodyTypeStatic, physics.BodyTypeDynamic,
 		physics.BodyTypeKinematic, physics.BodyTypeManual,
 	} {
-		got := physcomp.NewPhysicsBody2D(kind, circle(1))
+		got := physcomp.NewPhysicsBody2D(kind, physics.Slot(1))
 		c.True("NewPhysicsBody2D preserves the body type it was given",
 			got.BodyType == kind, "asked for %d, got %d", kind, got.BodyType)
 	}
@@ -115,7 +116,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 	// A payload with no flags at all: every defaulted field must come back as
 	// Box2D's default, not Go's zero value.
 	bare := decodeBodyInto(c, "json: minimal payload decodes",
-		`{"body_type":2,"shapes":[{"shape_type":1,"radius":1}]}`)
+		`{"body_type":2,"shapes":[{"shape":1}]}`)
 	c.True("json: absent Active defaults to true", bare.Active, "got false")
 	c.True("json: absent Awake defaults to true", bare.Awake, "got false")
 	c.True("json: absent SleepingAllowed defaults to true", bare.SleepingAllowed, "got false")
@@ -129,7 +130,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 	explicit := decodeBodyInto(c, "json: explicit-flags payload decodes",
 		`{"body_type":2,"active":false,"awake":false,"sleeping_allowed":false,`+
 			`"gravity_scale":0,"bullet":true,"fixed_rotation":true,`+
-			`"shapes":[{"shape_type":1,"radius":1}]}`)
+			`"shapes":[{"shape":1}]}`)
 	c.False("json: explicit Active=false is preserved", explicit.Active,
 		"explicit false was overwritten with the default true")
 	c.False("json: explicit Awake=false is preserved", explicit.Awake,
@@ -142,7 +143,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 
 	// Full round-trip through the component's own wire encoding.
 	original := physcomp.NewPhysicsBody2D(physics.BodyTypeKinematic,
-		withFilter(withRestitution(withFriction(circle(1.25), 0.7), 0.4), 0x0F, 0xF0, -3))
+		physics.Slot(7).At(vec(1.5, -2), 0.25))
 	original.Bullet = true
 	original.FixedRotation = true
 	original.Active = false
@@ -184,55 +185,63 @@ func checkJSONDefaults(c *harness.Ctx) {
 		return
 	}
 	o, g := original.Shapes[0], got.Shapes[0]
-	c.True("wire round-trip preserves ShapeType", g.ShapeType == o.ShapeType,
-		"got %d, want %d", g.ShapeType, o.ShapeType)
-	c.Near("wire round-trip preserves Radius", g.Radius, o.Radius, 0)
-	c.Near("wire round-trip preserves Friction", g.Friction, o.Friction, 0)
-	c.Near("wire round-trip preserves Restitution", g.Restitution, o.Restitution, 0)
-	c.True("wire round-trip preserves CategoryBits", g.CategoryBits == o.CategoryBits,
-		"got %#x, want %#x", g.CategoryBits, o.CategoryBits)
-	c.True("wire round-trip preserves MaskBits", g.MaskBits == o.MaskBits,
-		"got %#x, want %#x", g.MaskBits, o.MaskBits)
-	c.True("wire round-trip preserves GroupIndex", g.GroupIndex == o.GroupIndex,
-		"got %d, want %d", g.GroupIndex, o.GroupIndex)
+	c.True("wire round-trip preserves the slot's shape id", g.Shape == o.Shape,
+		"got %d, want %d", g.Shape, o.Shape)
+	c.NearVec("wire round-trip preserves LocalOffset", g.LocalOffset, o.LocalOffset, 0)
+	c.Near("wire round-trip preserves LocalRotation", g.LocalRotation, o.LocalRotation, 0)
+
+	// The shape entity's own components round-trip separately.
+	common := withFilter(withRestitution(withFriction(circle(1.25), 0.7), 0.4), 0x0F, 0xF0, -3).Common
+	commonAny, err := physics.ShapeCommon{}.UnmarshalWire(common.MarshalWire())
+	if c.NoError("wire: ShapeCommon.UnmarshalWire succeeds", err) {
+		gotCommon, isCommon := commonAny.(physics.ShapeCommon)
+		c.True("wire round-trip preserves ShapeCommon", isCommon && gotCommon == common,
+			"got %+v, want %+v", commonAny, common)
+	}
+	circleAny, err := physics.CircleGeom{}.UnmarshalWire(physics.CircleGeom{Radius: 1.25}.MarshalWire())
+	if c.NoError("wire: CircleGeom.UnmarshalWire succeeds", err) {
+		gotCircle, isCircle := circleAny.(physics.CircleGeom)
+		c.True("wire round-trip preserves CircleGeom", isCircle && gotCircle == physics.CircleGeom{Radius: 1.25},
+			"got %+v", circleAny)
+	}
 }
 
 func checkValidation(c *harness.Ctx) {
-	valid := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
+	slot := physics.Slot(1)
+	valid := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot)
 	c.NoError("Validate accepts a well-formed body", valid.Validate())
 
 	noShapes := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic)
 	c.HasError("Validate rejects a body with no shapes", noShapes.Validate())
 
-	badKind := physcomp.NewPhysicsBody2D(physics.BodyType(0), circle(1))
+	badKind := physcomp.NewPhysicsBody2D(physics.BodyType(0), slot)
 	c.HasError("Validate rejects body type 0", badKind.Validate())
 
-	badKind2 := physcomp.NewPhysicsBody2D(physics.BodyType(99), circle(1))
+	badKind2 := physcomp.NewPhysicsBody2D(physics.BodyType(99), slot)
 	c.HasError("Validate rejects an out-of-range body type", badKind2.Validate())
 
-	nanGravity := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
+	nanGravity := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot)
 	nanGravity.GravityScale = math.NaN()
 	c.HasError("Validate rejects NaN GravityScale", nanGravity.Validate())
 
-	infDamping := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
+	infDamping := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot)
 	infDamping.LinearDamping = math.Inf(1)
 	c.HasError("Validate rejects infinite LinearDamping", infDamping.Validate())
 
-	badShape := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physics.ColliderShape{})
-	c.HasError("Validate rejects shape type 0", badShape.Validate())
-
-	unknownShape := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic,
-		physics.ColliderShape{ShapeType: physics.ShapeType(99), Radius: 1})
-	c.HasError("Validate rejects an out-of-range shape type", unknownShape.Validate())
-
-	nanRadius := circle(math.NaN())
-	c.HasError("Validate rejects NaN radius",
-		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, nanRadius).Validate())
-
-	nanOffset := circle(1)
-	nanOffset.LocalOffset = vec(math.NaN(), 0)
 	c.HasError("Validate rejects NaN LocalOffset",
-		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, nanOffset).Validate())
+		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot.At(vec(math.NaN(), 0), 0)).Validate())
+	c.HasError("Validate rejects Inf LocalRotation",
+		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot.At(vec(0, 0), math.Inf(1))).Validate())
+
+	// The shape's own components validate themselves; the plugin runs these at
+	// fixture attach, since a body only names its shape entity.
+	c.HasError("CircleGeom.Validate rejects NaN radius", physics.CircleGeom{Radius: math.NaN()}.Validate())
+	c.HasError("ShapeCommon.Validate rejects NaN friction", physics.ShapeCommon{Friction: math.NaN()}.Validate())
+	c.HasError("PolygonGeom.Validate rejects two vertices", physics.PolygonGeom{Count: 2}.Validate())
+	c.HasError("PolygonGeom.Validate rejects nine vertices",
+		physics.PolygonGeom{Count: physics.MaxPolygonVertices + 1}.Validate())
+	c.NoError("ChainGeom.Validate accepts finite points",
+		physics.ChainGeom{Points: []physics.Vec2{vec(0, 0), vec(1, 0)}}.Validate())
 
 	c.NoError("Transform2D.Validate accepts finite values",
 		physics.Transform2D{Position: vec(1, 2), Rotation: 0.5}.Validate())
@@ -247,14 +256,6 @@ func checkValidation(c *harness.Ctx) {
 		physics.Velocity2D{Linear: vec(0, math.NaN())}.Validate())
 	c.HasError("Velocity2D.Validate rejects NaN angular velocity",
 		physics.Velocity2D{Angular: math.NaN()}.Validate())
-
-	// A shape carrying geometry for a different shape type is accepted: the tag
-	// selects which fields Box2D reads, so this documents that Validate is a
-	// finiteness guard, not a tagged-union consistency check.
-	mixed := circle(1)
-	mixed.HalfExtents = vec(5, 5)
-	c.NoError("Validate ignores geometry that does not match ShapeType",
-		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, mixed).Validate())
 }
 
 // decodeBody decodes a PhysicsBody2D payload, panicking on malformed literals in
