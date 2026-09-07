@@ -9,11 +9,6 @@ import (
 // Entity/Component Functions
 // -------------------------------------------------------------------------------------------------
 
-// Create creates an entity without any components.
-func Create(world *World) EntityID {
-	return world.state.newEntity()
-}
-
 func CreateWithArchetype(world *World, components bitmap.Bitmap) EntityID {
 	return world.state.newEntityWithArchetype(components)
 }
@@ -22,12 +17,6 @@ func CreateWithArchetype(world *World, components bitmap.Bitmap) EntityID {
 // deleted, false otherwise.
 func Destroy(world *World, eid EntityID) bool {
 	return world.state.removeEntity(eid)
-}
-
-// Alive checks if an entity exists in the world.
-func Alive(world *World, eid EntityID) bool {
-	_, exists := world.state.entityArch.get(eid)
-	return exists
 }
 
 // Set sets a component on an entity. If the entity contains the component type, it will update the
@@ -46,16 +35,6 @@ func Get[T Component](world *World, eid EntityID) (T, error) {
 // Returns an error if the entity or the component to remove doesn't exist.
 func Remove[T Component](world *World, eid EntityID) error {
 	return removeComponent[T](world.state, eid)
-}
-
-// Has checks if an entity has a specific component type.
-// Returns false if either the entity doesn't exist or doesn't have the component.
-func Has[T Component](world *World, eid EntityID) bool {
-	_, err := Get[T](world, eid)
-	if err == nil {
-		return true
-	}
-	return eris.Is(err, ErrComponentNotFound)
 }
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.
