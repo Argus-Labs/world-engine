@@ -78,7 +78,9 @@ component may hold values only:
 - Structs of those
 - Fixed-size arrays such as `[8]Vec2`, at any depth
 - `immutable.Slice[T]` for a list with no fixed bound (see below)
-- `time.Time`
+- `time.Time`, the one sanctioned exception. It carries a location pointer, but it travels as a
+  protobuf Timestamp, so a restored value comes back in UTC with no monotonic reading. Compare
+  times with `Equal`, never `==`.
 
 A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
 A plain slice inside a copy still shares its backing array with the stored component, so writing

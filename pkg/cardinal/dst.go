@@ -353,9 +353,13 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 	t := v.Type()
 	if t.PkgPath() != reflect.TypeFor[immutable.Slice[struct{}]]().PkgPath() ||
 		!strings.HasPrefix(t.Name(), "Slice[") ||
-		t.NumField() != 1 || t.Field(0).Type.Kind() != reflect.Slice ||
-		!v.CanAddr() {
+		t.NumField() != 1 || t.Field(0).Type.Kind() != reflect.Slice {
 		return false
+	}
+	// A Slice takes values only through UnmarshalJSON on its address. Falling through to the struct
+	// walk would leave it empty with no sign of it, the exact failure this function exists to prevent.
+	if !v.CanAddr() {
+		panic("dst: " + t.String() + " is not addressable, so it cannot be filled")
 	}
 
 	n := prng.IntN(5)

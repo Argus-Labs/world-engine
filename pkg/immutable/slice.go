@@ -5,6 +5,7 @@ package immutable
 
 import (
 	"iter"
+	"slices"
 
 	"github.com/goccy/go-json"
 )
@@ -26,7 +27,10 @@ import (
 //	ref.Set(inv)
 //
 // The element type must itself be value-safe: scalars, strings, fixed arrays, or structs of those.
-// The wire generator enforces that rule.
+// Slice does not check this. Slice[*T], Slice[[]T] and Slice[map[K]V] all compile, and each hands
+// the shared pointer or backing array back out of At, which defeats the guarantee the type exists
+// for. The wire generator refuses such elements in every command, event and component it generates;
+// a hand-written codec is the only way around it.
 //
 // A Slice directly inside a Slice has no protobuf form, because a repeated field cannot hold another
 // repeated field. For jagged rows, put the inner Slice in a named struct:
@@ -69,8 +73,9 @@ func (s Slice[T]) All() iter.Seq2[int, T] {
 	}
 }
 
-// Clone returns a fresh []T holding a copy of the elements. Use it when an API needs a plain slice;
-// changes to the result never reach the Slice.
+// Clone returns a fresh []T holding a copy of the elements. It is never nil: an empty Slice clones
+// to an empty slice. Use it when an API needs a plain slice; changes to the result never reach the
+// Slice.
 func (s Slice[T]) Clone() []T {
 	out := make([]T, len(s.items))
 	copy(out, s.items)
@@ -91,6 +96,7 @@ func (s Slice[T]) Append(items ...T) Slice[T] {
 // With returns a new Slice with the element at index i replaced by v. The receiver is unchanged.
 // It panics when i is out of range, like a slice.
 func (s Slice[T]) With(i int, v T) Slice[T] {
+	_ = s.items[i] // bounds-check before copying, with the runtime's own panic message
 	out := s.Clone()
 	out[i] = v
 	return Slice[T]{items: out}
@@ -108,6 +114,12 @@ func (s Slice[T]) EqualFunc(other Slice[T], eq func(a, b T) bool) bool {
 		}
 	}
 	return true
+}
+
+// Equal reports whether a and b hold the same elements in the same order. It is a function rather
+// than a method because a method cannot narrow T to comparable; use EqualFunc for other element types.
+func Equal[T comparable](a, b Slice[T]) bool {
+	return slices.Equal(a.items, b.items)
 }
 
 // MarshalJSON encodes the elements as a JSON array. An empty Slice encodes as [] rather than null.

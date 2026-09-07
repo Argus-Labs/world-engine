@@ -113,6 +113,15 @@ func TestSlice_EqualFunc(t *testing.T) {
 	require.True(t, immutable.Slice[int]{}.EqualFunc(immutable.SliceOf[int](), eq), "empty equals empty")
 }
 
+func TestEqual(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, immutable.Equal(immutable.SliceOf(1, 2, 3), immutable.SliceOf(1, 2, 3)))
+	require.False(t, immutable.Equal(immutable.SliceOf(1, 2, 3), immutable.SliceOf(1, 2)), "different length")
+	require.False(t, immutable.Equal(immutable.SliceOf(1, 2, 3), immutable.SliceOf(1, 2, 4)), "different element")
+	require.True(t, immutable.Equal(immutable.Slice[int]{}, immutable.SliceOf[int]()), "empty equals empty")
+}
+
 func TestSlice_JSONRoundTrip(t *testing.T) {
 	t.Parallel()
 
