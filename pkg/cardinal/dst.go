@@ -71,8 +71,6 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	cfg.addCommandOps(prng, cmdOps)
 	cfg.log(t)
 
-	// fix.logWorldState(t, "before")
-
 	tick := 0
 	for tick < cfg.Ticks {
 		op := testutils.RandWeightedOp(prng, cfg.OpWeights)
@@ -110,8 +108,6 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	// Ensure final world state remains serializable.
 	// Encoding asserts internally, so reaching the next line at all is the check.
 	_ = fix.world.world.ToProto()
-
-	// fix.logWorldState(t, "after")
 }
 
 // Operations.
@@ -243,23 +239,6 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 		world:    w,
 		storage:  storage,
 		cmdTypes: cmdTypes,
-	}
-}
-
-func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unused // Used
-	t.Helper()
-	ws := f.world.world.ToProto()
-	t.Logf("world state (%s):", label)
-	t.Logf("  next_entity_id: %d", ws.GetNextId())
-	t.Logf("  free_ids:       %v", ws.GetFreeIds())
-	t.Logf("  archetypes:     %d", len(ws.GetArchetypes()))
-	for _, arch := range ws.GetArchetypes() {
-		compNames := make([]string, 0, len(arch.GetColumns()))
-		for _, col := range arch.GetColumns() {
-			compNames = append(compNames, col.GetComponentName())
-		}
-		t.Logf("    archetype %d: entities=%d components=%v",
-			arch.GetId(), len(arch.GetEntities()), compNames)
 	}
 }
 
