@@ -68,6 +68,95 @@ func (Position) Name() string {
   underscores (e.g. `Health`, `player_health`).
 </Note>
 
+### What a Component May Hold
+
+Components are copied. `Get` hands you a copy and `Set` stores one, and every snapshot is built
+from what went through `Set`. That only works if a copy is independent of the original, so a
+component may hold values only:
+
+- Numbers, booleans, and strings
+- Structs of those
+- Fixed-size arrays such as `[8]Vec2`, at any depth
+- `immutable.Slice[T]` for a list with no fixed bound (see below)
+- `time.Time`
+
+A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
+A plain slice inside a copy still shares its backing array with the stored component, so writing
+through it changes the world without a `Set`. `world sdk generate` refuses such fields and prints
+the fix for each one. The same rule applies to commands and events, which cross the same generator.
+
+A list with a known upper bound is a fixed array plus a count:
+
+```go
+const MaxItems = 16
+
+type Inventory struct {
+	Items [MaxItems]Item `json:"items"`
+	Count int            `json:"count"`
+}
+```
+
+### Lists Without a Bound: `immutable.Slice`
+
+When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
+`github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same repeated field a
+`[]T` would be. The difference is that nothing can write through it: the backing array is hidden,
+every reader returns a copy, and every change produces a new value.
+
+```go
+import "github.com/argus-labs/world-engine/pkg/immutable"
+
+type Buffs struct {
+	Active immutable.Slice[Buff] `json:"active"`
+}
+
+func (Buffs) Name() string {
+	return "buffs"
+}
+```
+
+Read a Slice with `Len`, `At`, and `All`. To change it, build the next list and store it with
+`Set`:
+
+```go
+func BuffSystem(state *BuffSystemState) error {
+	for _, mob := range state.Mobs.Iter() {
+		buffs := mob.Buffs.Get()
+
+		// Drop expired buffs and add a new one.
+		next := make([]Buff, 0, buffs.Active.Len()+1)
+		for _, buff := range buffs.Active.All() {
+			if buff.ExpiresAt > state.Tick() {
+				next = append(next, buff)
+			}
+		}
+		next = append(next, Buff{Kind: Haste, ExpiresAt: state.Tick() + 60})
+
+		buffs.Active = immutable.SliceOf(next...)
+		mob.Buffs.Set(buffs)
+	}
+	return nil
+}
+```
+
+`immutable.SliceOf(items...)` copies the plain slice it is given, so later changes to `next` never
+reach the component. For a single change, `Append` and `With` derive the new Slice directly:
+
+```go
+buffs.Active = buffs.Active.Append(newBuff)
+buffs.Active = buffs.Active.With(0, updatedBuff)
+mob.Buffs.Set(buffs)
+```
+
+`Clone` returns a plain `[]T` for APIs that need one, and changes to that copy never reach the
+Slice either.
+
+<Note>
+  The element type follows the same rule as any field: values only. A Slice directly inside another
+  Slice has no protobuf form, so wrap the inner one in a named struct, for example
+  `immutable.Slice[Row]` where `Row` holds `immutable.Slice[Cell]`.
+</Note>
+
 ### Tag Components
 
 Components don't need to contain data. You can use empty structs as "tags" to mark entities:
@@ -225,7 +314,9 @@ func MobSystem(state *MobSystemState) error {
 
 ### Reading and Writing Components
 
-Use `Get` and `Set` on component references to read and write component data:
+Use `Get` and `Set` on component references to read and write component data. `Get` returns a
+copy, so nothing you do to it reaches the world until you `Set` it back (see
+[What a Component May Hold](#what-a-component-may-hold)):
 
 ```go
 func MobSystem(state *MobSystemState) error {

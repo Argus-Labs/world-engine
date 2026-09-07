@@ -143,6 +143,22 @@ func TestSlice_JSONEmptyAndNull(t *testing.T) {
 	require.Equal(t, 0, fromEmpty.Len())
 }
 
+// Every empty Slice must be the same value however it was made: reflect.DeepEqual, and so
+// require.Equal on a whole component, must not tell a decoded [] or null apart from SliceOf().
+func TestSlice_EmptyIsOneValue(t *testing.T) {
+	t.Parallel()
+
+	var fromEmpty, fromNull immutable.Slice[int]
+	require.NoError(t, json.Unmarshal([]byte(`[]`), &fromEmpty))
+	require.NoError(t, json.Unmarshal([]byte(`null`), &fromNull))
+
+	empty := immutable.SliceOf[int]()
+	require.Equal(t, immutable.Slice[int]{}, empty, "zero value")
+	require.Equal(t, empty, fromEmpty, "decoded []")
+	require.Equal(t, empty, fromNull, "decoded null")
+	require.Equal(t, empty, empty.Append(), "empty append")
+}
+
 // A Slice is a struct, so omitempty does not omit it. Pinned here because migrating a []T field
 // tagged omitempty to a Slice changes the encoded shape from absent to [].
 func TestSlice_JSONInsideStructIgnoresOmitempty(t *testing.T) {

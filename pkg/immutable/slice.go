@@ -124,6 +124,12 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &items); err != nil {
 		return err
 	}
+	if len(items) == 0 {
+		// One representation for empty. A decoded [] would otherwise hold an empty non-nil backing
+		// slice while SliceOf() holds nil, and reflect.DeepEqual (so require.Equal on a component)
+		// would call two empty Slices different.
+		items = nil
+	}
 	s.items = items
 	return nil
 }

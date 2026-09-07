@@ -28,9 +28,11 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -317,6 +319,9 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 		}
 		v.SetString(string(b))
 	case reflect.Struct:
+		if fillImmutableSlice(prng, v, liveEntityIDs) {
+			return
+		}
 		for i := range v.NumField() {
 			if v.Field(i).CanSet() {
 				fillRandom(prng, v.Field(i), liveEntityIDs)
@@ -334,6 +339,43 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 			fillRandom(prng, v.Index(i), liveEntityIDs)
 		}
 	}
+}
+
+// fillImmutableSlice fills v with random elements when it is an immutable.Slice, and reports whether
+// it was one. The struct walk in fillRandom cannot do it: a Slice's only field is unexported, so
+// CanSet is false and the Slice would stay empty, leaving every command that carries one untested.
+//
+// The element type is read off that field (reflection can read what it cannot set), a random []T is
+// built with the ordinary recursion, and the Slice takes it through UnmarshalJSON — the one way into
+// a Slice that already exists, so immutable gains no setter. The random values are finite numbers,
+// short strings and structs of those, which JSON always carries.
+func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) bool {
+	t := v.Type()
+	if t.PkgPath() != reflect.TypeFor[immutable.Slice[struct{}]]().PkgPath() ||
+		!strings.HasPrefix(t.Name(), "Slice[") ||
+		t.NumField() != 1 || t.Field(0).Type.Kind() != reflect.Slice ||
+		!v.CanAddr() {
+		return false
+	}
+
+	n := prng.IntN(5)
+	items := reflect.MakeSlice(t.Field(0).Type, n, n)
+	for i := range n {
+		fillRandom(prng, items.Index(i), liveEntityIDs)
+	}
+
+	data, err := json.Marshal(items.Interface())
+	if err != nil {
+		panic("dst: random Slice elements did not encode: " + err.Error())
+	}
+	target, ok := v.Addr().Interface().(json.Unmarshaler)
+	if !ok {
+		panic("dst: " + t.String() + " looks like an immutable.Slice but has no UnmarshalJSON")
+	}
+	if err := target.UnmarshalJSON(data); err != nil {
+		panic("dst: random Slice elements did not decode: " + err.Error())
+	}
+	return true
 }
 
 // -------------------------------------------------------------------------------------------------
