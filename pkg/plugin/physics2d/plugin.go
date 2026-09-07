@@ -34,13 +34,25 @@ import (
 type (
 	Vec2                = component.Vec2
 	BodyType            = component.BodyType
-	ShapeType           = component.ShapeType
-	ColliderShape       = component.ColliderShape
-	ChainGeometry2D     = component.ChainGeometry2D
+	ShapeSlot           = component.ShapeSlot
 	PhysicsSingletonTag = component.PhysicsSingletonTag
 	ActiveContacts      = component.ActiveContacts
 	ContactPairEntry    = component.ContactPairEntry
 )
+
+// Shape entity components: ShapeCommon plus exactly one geometry (see shape.go).
+type (
+	ShapeCommon = component.ShapeCommon
+	CircleGeom  = component.CircleGeom
+	BoxGeom     = component.BoxGeom
+	PolygonGeom = component.PolygonGeom
+	ChainGeom   = component.ChainGeom
+	EdgeGeom    = component.EdgeGeom
+	CapsuleGeom = component.CapsuleGeom
+)
+
+// MaxPolygonVertices is Box2D's convex polygon vertex limit (PolygonGeom capacity).
+const MaxPolygonVertices = component.MaxPolygonVertices
 
 // Components entities require to participate in physics simulation.
 type (
@@ -57,26 +69,10 @@ const (
 	BodyTypeManual    = component.BodyTypeManual
 )
 
-// Collider shape kinds (ColliderShape).
-const (
-	ShapeTypeCircle          = component.ShapeTypeCircle
-	ShapeTypeBox             = component.ShapeTypeBox
-	ShapeTypeConvexPolygon   = component.ShapeTypeConvexPolygon
-	ShapeTypeStaticChain     = component.ShapeTypeStaticChain
-	ShapeTypeStaticChainLoop = component.ShapeTypeStaticChainLoop
-	ShapeTypeEdge            = component.ShapeTypeEdge
-	ShapeTypeCapsule         = component.ShapeTypeCapsule
-)
-
-// Shape constructors: each returns a ColliderShape carrying only its own geometry, with Box2D
-// default material and filter. Chain At / AsSensor / Material / Filter / Group to adjust.
-func Circle(radius float64) ColliderShape                { return component.Circle(radius) }
-func Box(halfWidth, halfHeight float64) ColliderShape    { return component.Box(halfWidth, halfHeight) }
-func Polygon(vertices ...Vec2) ColliderShape             { return component.Polygon(vertices...) }
-func Chain(geometry cardinal.EntityID) ColliderShape     { return component.Chain(geometry) }
-func ChainLoop(geometry cardinal.EntityID) ColliderShape { return component.ChainLoop(geometry) }
-func Edge(a, b Vec2) ColliderShape                       { return component.Edge(a, b) }
-func Capsule(a, b Vec2, radius float64) ColliderShape    { return component.Capsule(a, b, radius) }
+// NewPhysicsBody2D returns a PhysicsBody2D with Box2D-compatible defaults and the given slots.
+func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
+	return component.NewPhysicsBody2D(bodyType, shapes...)
+}
 
 // Contact / trigger system events (implement ecs.SystemEvent; register with WithSystemEventEmitter).
 type (
@@ -204,7 +200,7 @@ func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 	return p.rt.BodyIDOf(entityID)
 }
 
-// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed by collider slot
+// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed by slot
 // (slot i is PhysicsBody2D.Shapes[i]), and whether the entity currently has any. Chain slots
 // hold a null shape id because chains are tracked separately. The caller owns the returned
 // slice; mutating it does not affect the plugin.

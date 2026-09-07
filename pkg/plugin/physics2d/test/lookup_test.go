@@ -19,10 +19,7 @@ import (
 func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 	t.Helper()
 	entityID := new(cardinal.EntityID)
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
@@ -31,21 +28,8 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
 		row.V.Set(physics.Velocity2D{})
 		row.PB.Set(newRigid(physics.BodyTypeStatic,
-			physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeBox,
-				HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-				Density:      1,
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			},
-			physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.25,
-				Density:      1,
-				LocalOffset:  physics.Vec2{X: 1, Y: 0},
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			},
+			spawnShape(state, physics.Box(0.5, 0.5).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF)),
+			spawnShape(state, physics.Circle(0.25).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF)).At(physics.Vec2{X: 1, Y: 0}, 0),
 		))
 		*entityID = id
 	}, cardinal.WithHook(cardinal.Init))
@@ -88,10 +72,7 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 	entityID := spawnTwoShapeBody(t, w)
 
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		if state.Tick() == 5 {
 			require.True(t, state.Spawn.Destroy(*entityID), "Destroy(lookup entity)")
 		}

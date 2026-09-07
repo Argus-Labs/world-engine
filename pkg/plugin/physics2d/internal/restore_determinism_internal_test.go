@@ -29,22 +29,36 @@ const (
 	restoreGravity    = -10.0
 )
 
+// Shape entity ids for the restore scene: the ground box and the crate box, mirrored into
+// the runtime by restoreShapeMirror as the pipeline's SyncShapes would.
+const (
+	restoreGroundShape = cardinal.EntityID(2)
+	restoreCrateShape  = cardinal.EntityID(3)
+)
+
+// restoreShapeMirror loads the two box shapes the scene references into rt.ShapeMirror.
+func restoreShapeMirror(rt *Runtime) {
+	box := func(hw, hh float64) ResolvedShape {
+		return Resolve(component.ShapeCommon{
+			Density: 1, Friction: 0.6, CategoryBits: 1, MaskBits: ^uint64(0),
+		}, component.BoxGeom{HalfExtents: component.Vec2{X: hw, Y: hh}})
+	}
+	rt.ShapeMirror[restoreGroundShape] = box(40, 1)
+	rt.ShapeMirror[restoreCrateShape] = box(0.5, 0.5)
+}
+
 // restoreSnapshotEntries is a ground plane plus crates that settled and fell asleep,
 // as a snapshot would hold them (Awake=false, mirrored from the solver).
 func restoreSnapshotEntries() []PhysicsRebuildEntry {
-	box := func(hw, hh float64) []component.ColliderShape {
-		return []component.ColliderShape{{
-			ShapeType: component.ShapeTypeBox, Density: 1, Friction: 0.6,
-			HalfExtents:  component.Vec2{X: hw, Y: hh},
-			CategoryBits: 1, MaskBits: ^uint64(0),
-		}}
+	slots := func(shape cardinal.EntityID) []component.ShapeSlot {
+		return []component.ShapeSlot{{Shape: shape}}
 	}
 	out := []PhysicsRebuildEntry{{
 		EntityID:  1,
 		Transform: component.Transform2D{Position: component.Vec2{Y: -1}},
 		PhysicsBody: component.PhysicsBody2D{
 			BodyType: component.BodyTypeStatic, Active: true, Awake: true,
-			SleepingAllowed: true, GravityScale: 1, Shapes: box(40, 1),
+			SleepingAllowed: true, GravityScale: 1, Shapes: slots(restoreGroundShape),
 		},
 	}}
 	for i := range restoreCrateCount {
@@ -57,7 +71,7 @@ func restoreSnapshotEntries() []PhysicsRebuildEntry {
 			PhysicsBody: component.PhysicsBody2D{
 				BodyType: component.BodyTypeDynamic, Active: true,
 				Awake:           false,
-				SleepingAllowed: true, GravityScale: 1, Shapes: box(0.5, 0.5),
+				SleepingAllowed: true, GravityScale: 1, Shapes: slots(restoreCrateShape),
 			},
 		})
 	}
@@ -83,6 +97,7 @@ func restoreAndFingerprint(t *testing.T, steps int) string {
 	t.Helper()
 	g := component.Vec2{Y: restoreGravity}
 	rt := NewRuntime(g, 1.0/60.0, 4, 0)
+	restoreShapeMirror(rt)
 	if err := rt.FullRebuildFromECS(g, restoreSnapshotEntries()); err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}

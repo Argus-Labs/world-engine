@@ -82,10 +82,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 	w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10}, workers)
 	bodyCount := n
 
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
@@ -94,13 +91,8 @@ func stepBenchScene(b *testing.B, n, workers int) {
 		row.Tag.Set(harnessTag{Role: "floor"})
 		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeBox,
-			HalfExtents:  physics.Vec2{X: 200, Y: 1},
-			Friction:     0.5,
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
-		}))
+		row.PB.Set(newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Box(200, 1).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF))))
 
 		// Spawn N dynamic circles in a grid above the floor.
 		cols := int(math.Ceil(math.Sqrt(float64(bodyCount))))
@@ -114,15 +106,8 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			r.Tag.Set(harnessTag{Role: "ball"})
 			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.5,
-				Density:      1,
-				Friction:     0.3,
-				Restitution:  0.2,
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			}))
+			r.PB.Set(newRigid(physics.BodyTypeDynamic,
+				spawnShape(state, physics.Circle(0.5).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF))))
 		}
 	}, cardinal.WithHook(cardinal.Init))
 
@@ -231,14 +216,8 @@ func BenchmarkCircleSweep(b *testing.B) {
 }
 
 // gridSpawnSystem returns a system that spawns count static circles in a grid on tick 0.
-func gridSpawnSystem(count int) func(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
-	return func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+func gridSpawnSystem(count int) func(state *spawnState) {
+	return func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
@@ -254,13 +233,8 @@ func gridSpawnSystem(count int) func(state *struct {
 			r.Tag.Set(harnessTag{Role: "grid"})
 			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       1.0,
-				Friction:     0.3,
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			}))
+			r.PB.Set(newRigid(physics.BodyTypeStatic,
+				spawnShape(state, physics.Circle(1.0).Material(0.3, 0, 0).Filter(0xFFFF, 0xFFFF))))
 		}
 	}
 }

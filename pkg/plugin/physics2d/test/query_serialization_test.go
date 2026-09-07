@@ -22,10 +22,7 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 	t.Parallel()
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
@@ -34,12 +31,8 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 		row.Tag.Set(harnessTag{Role: "far"})
 		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
 		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeBox,
-			HalfExtents:  physics.Vec2{X: 1, Y: 1},
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
-		}))
+		row.PB.Set(newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Box(1, 1).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))))
 	}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(w)
