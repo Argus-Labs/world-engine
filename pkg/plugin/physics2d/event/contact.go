@@ -6,7 +6,7 @@ import (
 )
 
 // FixtureFilterBits is the Box2D collision filter for one fixture at contact time. It matches
-// ECS ColliderShape CategoryBits/MaskBits and the fixture’s GroupIndex (non-zero group rules
+// ECS ShapeCommon CategoryBits/MaskBits and the fixture’s GroupIndex (non-zero group rules
 // override category/mask in Box2D).
 type FixtureFilterBits struct {
 	CategoryBits uint64 `json:"category_bits"`

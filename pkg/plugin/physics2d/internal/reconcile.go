@@ -16,13 +16,18 @@ import (
 //
 // Structural vs mutable changes:
 //
-//   - Structural: anything that changes shape identity -- shape count/order, per-shape type,
-//     local offset/rotation, or geometry (radius, half-extents, vertices, chain points).
-//     Handled by destroying all shapes on the body and re-attaching from ECS.
+//   - Structural: anything that changes fixture identity -- slot count/order, a slot's local
+//     offset/rotation, or the shape's kind, geometry or sensor flag (whether the slot was
+//     pointed at a different shape entity or the shape entity itself changed). Handled by
+//     destroying all shapes on the body and re-attaching.
 //
 //   - Mutable: body transform, linear/angular velocity, body type/damping/gravity scale,
-//     and per-shape sensor, friction, restitution, density, and filter category/mask/group.
+//     and per-shape friction, restitution, density, and filter category/mask/group.
 //     Applied in place without recreating shapes.
+//
+// Shape entities are read through the runtime's ShapeMirror, which SyncShapes must have
+// refreshed this tick; a body whose slots reference a shape that changed is re-diffed even
+// when its own components did not move.
 //
 // Requires a live world on this runtime (for example after an initial
 // FullRebuildFromECS). Entries are sorted by EntityID; duplicate IDs are an error. Entities
@@ -50,9 +55,9 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
 // any ID repeats. The returned slice is backed by rt.reconcileSortScratch (reused across ticks
 // to avoid re-cloning every reconcile); it is only valid until the next call. The scratch tail
-// past the new length is cleared per the Runtime scratch RULE: PhysicsRebuildEntry holds shape
-// and vertex slices, so a bare [:0] would pin component memory for destroyed entities after
-// the entity count shrinks.
+// past the new length is cleared per the Runtime scratch RULE: PhysicsRebuildEntry holds the
+// slot slice, so a bare [:0] would pin component memory for destroyed entities after the
+// entity count shrinks.
 func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 	entries []PhysicsRebuildEntry,
 ) ([]PhysicsRebuildEntry, error) {
@@ -90,7 +95,7 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 
 // sortedEntriesContainID reports whether an EntityID-sorted entries slice contains id.
 // Index-based binary search: comparisons touch only the EntityID field instead of copying
-// whole PhysicsRebuildEntry values (transform, velocity and the collider with its shape slice)
+// whole PhysicsRebuildEntry values (transform, velocity and the body with its slot slice)
 // on every step the way slices.BinarySearchFunc's by-value comparator would.
 //
 // The midpoint is lo+(hi-lo)/2 rather than (lo+hi)/2: same overflow safety, but no unsigned
@@ -118,7 +123,8 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if !hadBody {
 		return rt.createBodyForEntry(e)
 	}
-	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) {
+	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) &&
+		!rt.slotsDirty(e.PhysicsBody.Shapes) {
 		return nil
 	}
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
@@ -179,7 +185,7 @@ func (rt *Runtime) reconcileExistingBody(
 			rt.World.SetBodyAwake(bodyID, true)
 		}
 	}
-	if prev.ShapesDiffer(e.PhysicsBody) {
+	if prev.ShapesDiffer(e.PhysicsBody) || rt.slotsDirty(e.PhysicsBody.Shapes) {
 		if err := rt.reconcileShapesChange(e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
 			return err
 		}
@@ -203,13 +209,13 @@ func (rt *Runtime) reconcileExistingBody(
 	return nil
 }
 
-// reconcileShapesChange applies structural shape rebuild or in-place mutable updates when
-// shadow shapes differ from ECS.
+// reconcileShapesChange applies a structural fixture rebuild or in-place mutable updates when
+// the shadow slots differ from ECS or a referenced shape entity changed.
 func (rt *Runtime) reconcileShapesChange(
 	entityID cardinal.EntityID,
-	prev, live []component.ColliderShape,
+	prev, live []component.ShapeSlot,
 ) error {
-	if ShapesStructuralEqual(prev, live) {
+	if rt.slotsStructuralEqual(prev, live) {
 		return rt.applyMutableShapeFixtures(entityID, prev, live)
 	}
 	rt.destroyAllShapesForEntity(entityID)
@@ -275,24 +281,28 @@ func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
 	rt.World.SetBodyMotionLocks(bodyID, locks)
 }
 
-// applyMutableShapeFixtures updates sensor, friction, restitution, density, and filter per shape index in place.
+// applyMutableShapeFixtures pushes friction, restitution, density and filter into the fixture
+// of every slot whose shape entity changed or was swapped for another. Requires
+// slotsStructuralEqual(prev, live).
 func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
-	prev []component.ColliderShape,
-	live []component.ColliderShape,
+	prev []component.ShapeSlot,
+	live []component.ShapeSlot,
 ) error {
 	for i := range live {
-		if err := live[i].Validate(); err != nil {
+		if err := rt.validateSlot(live[i]); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
 	slots := rt.Shapes[entityID]
 	var densityTouched bool
 	for i := range live {
-		if ColliderShapeMutableFieldsEqual(prev[i], live[i]) {
+		_, dirty := rt.dirtyShapes[live[i].Shape]
+		if prev[i].Shape == live[i].Shape && !dirty {
 			continue
 		}
-		if prev[i].Density != live[i].Density {
+		sh := rt.ShapeMirror[live[i].Shape]
+		if old, ok := rt.ShapeMirror[prev[i].Shape]; !ok || old.Common.Density != sh.Common.Density {
 			densityTouched = true
 		}
 		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
@@ -301,14 +311,14 @@ func (rt *Runtime) applyMutableShapeFixtures(
 			continue
 		}
 		sid := slots[i]
-		sh := live[i]
-		rt.World.SetShapeFriction(sid, sh.Friction)
-		rt.World.SetShapeRestitution(sid, sh.Restitution)
-		rt.World.SetShapeDensity(sid, sh.Density, true)
+		c := sh.Common
+		rt.World.SetShapeFriction(sid, c.Friction)
+		rt.World.SetShapeRestitution(sid, c.Restitution)
+		rt.World.SetShapeDensity(sid, c.Density, true)
 		rt.World.SetShapeFilter(sid, box2d.Filter{
-			CategoryBits: sh.CategoryBits,
-			MaskBits:     sh.MaskBits,
-			GroupIndex:   int(sh.GroupIndex),
+			CategoryBits: c.CategoryBits,
+			MaskBits:     c.MaskBits,
+			GroupIndex:   int(c.GroupIndex),
 		})
 	}
 	if densityTouched {

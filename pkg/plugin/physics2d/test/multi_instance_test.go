@@ -16,10 +16,7 @@ import (
 // spawnBallAndFloor registers an Init system that creates a static floor at y=0 and a dynamic
 // ball at (x, 5) with a circle collider, and returns pointers that receive the created ids.
 func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) {
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
@@ -27,13 +24,13 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		floor.Tag.Set(harnessTag{Role: "floor"})
 		floor.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
 		floor.V.Set(physics.Velocity2D{})
-		floor.PB.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(10, 0.5)...))
+		floor.PB.Set(newRigid(physics.BodyTypeStatic, boxSlot(state, 10, 0.5)))
 
 		id, ball := state.Spawn.Create()
 		ball.Tag.Set(harnessTag{Role: "ball"})
 		ball.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 5}})
 		ball.V.Set(physics.Velocity2D{})
-		ball.PB.Set(newRigid(physics.BodyTypeDynamic, circleColliderShapes()...))
+		ball.PB.Set(newRigid(physics.BodyTypeDynamic, circleSlot(state)))
 		*ballID = id
 	}, cardinal.WithHook(cardinal.Init))
 }
@@ -41,10 +38,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 // ballY reads the ball's current Y position through the plugin's raycast-free ECS view: a
 // PostUpdate probe system copies it into out each tick.
 func trackBallY(w *cardinal.World, out *float64) {
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		for _, row := range state.Spawn.Iter() {
 			if row.Tag.Get().Role == "ball" {
 				*out = row.T.Get().Position.Y

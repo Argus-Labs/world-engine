@@ -48,30 +48,35 @@ body is created in the engine.
 |---|---|
 | [`Transform2D`](component/spatial.go) | World-space position + rotation (authoritative pose) |
 | [`Velocity2D`](component/spatial.go) | Linear + angular velocity |
-| [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the compound collider (`Shapes`) |
-
-Chain shapes (`ShapeTypeStaticChain`, `ShapeTypeStaticChainLoop`) do not
-carry their polyline inline. The points live on a separate entity holding a
-[`ChainGeometry2D`](component/chain_geometry.go) component, and the shape
-references it by entity id (`ColliderShape.ChainGeometry`), so one polyline
-is stored once no matter how many colliders use it. Create the geometry
-entity, then point shapes at it; treat its points as immutable — to change
-terrain, spawn a new geometry entity and swap the id (that id change is
-what triggers the fixture rebuild). Geometry entities are ordinary ECS
-state: they snapshot and restore with everything else.
-
-Cleanup is automatic: once a geometry entity has been referenced, the
-plugin deletes it on the tick its last reference disappears, so
-long-running worlds do not accumulate abandoned polylines. Geometry you
-created but have not referenced yet is never touched. The one rule this
-adds: do not hold on to a geometry id across a moment when no collider
-references it — spawn a new entity instead.
+| [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the list of shape slots (`Shapes`) |
 
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
 which produces an inactive, sleeping, gravity-less body.
 
-### Example: a dynamic circle
+### Shapes are entities
+
+A body does not carry its shapes inline. Each shape is its own entity with
+two components: [`ShapeCommon`](component/shape_common.go) (sensor flag,
+material, collision filter) and exactly one geometry component from
+[geometry.go](component/geometry.go) — `CircleGeom`, `BoxGeom`,
+`PolygonGeom`, `ChainGeom`, `EdgeGeom` or `CapsuleGeom`. The component
+present *is* the kind; there is no type tag. A body's `Shapes` list holds
+[`ShapeSlot`](component/shape_slot.go)s: the shape entity id plus the
+slot's `LocalOffset` and `LocalRotation` in body space.
+
+So a hundred identical crates are one shape entity and a hundred 4-byte
+references, and a circle costs one float instead of a union of every kind's
+fields.
+
+Build a shape with a constructor — `Circle`, `Box`, `Polygon`, `Chain`,
+`ChainLoop`, `Edge`, `Capsule` — chain options onto it — `AsSensor()`,
+`Material(friction, restitution, density)`, `Filter(category, mask)`,
+`Group(index)` — and `Spawn` it through a shape search on your system state.
+A bare constructor already carries Box2D's default material (friction 0.6,
+density 1, category 1, mask all). `Spawn` returns the slot; chain
+`At(offset, rotation)` onto the slot to place it, and reuse the slot (or its
+`Shape` id via `Slot(id)`) on as many bodies as you like.
 
 ```go
 import (
@@ -79,48 +84,66 @@ import (
     "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
-func SpawnBallSystem(ctx cardinal.WorldContext) error {
-    id, err := cardinal.Create(ctx,
-        physics2d.Transform2D{
-            Position: physics2d.Vec2{X: 0, Y: 10},
-            Rotation: 0,
-        },
-        physics2d.Velocity2D{
-            Linear:  physics2d.Vec2{X: 0, Y: 0},
-            Angular: 0,
-        },
-        physics2d.NewPhysicsBody2D(
-            physics2d.BodyTypeDynamic,
-            physics2d.Circle(0.5).Material(0.3, 0.2, 1.0).Filter(0x0001, 0xFFFF),
-        ),
-    )
-    _ = id
-    return err
+type ballRow struct {
+    T  cardinal.Ref[physics2d.Transform2D]
+    V  cardinal.Ref[physics2d.Velocity2D]
+    PB cardinal.Ref[physics2d.PhysicsBody2D]
+}
+
+type SpawnState struct {
+    cardinal.BaseSystemState
+    Circles physics2d.CircleShapes // one search per shape kind you spawn
+    Boxes   physics2d.BoxShapes
+    Balls   cardinal.Exact[ballRow]
+}
+
+func SpawnSystem(state *SpawnState) {
+    if state.Tick() != 0 {
+        return
+    }
+    // World geometry: a static floor box.
+    floor := physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF).Spawn(&state.Boxes)
+    _, f := state.Balls.Create()
+    f.T.Set(physics2d.Transform2D{})
+    f.V.Set(physics2d.Velocity2D{})
+    f.PB.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floor))
+
+    // One ball shape, shared by every ball.
+    ball := physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF).Spawn(&state.Circles)
+    for i := range 10 {
+        _, b := state.Balls.Create()
+        b.T.Set(physics2d.Transform2D{Position: physics2d.Vec2{X: float64(i), Y: 10}})
+        b.V.Set(physics2d.Velocity2D{})
+        b.PB.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
+    }
 }
 ```
 
-### Example: a static box (world geometry)
+The searches (`CircleShapes`, `BoxShapes`, `PolygonShapes`, `ChainShapes`,
+`EdgeShapes`, `CapsuleShapes`) are ordinary Cardinal searches over the shape
+entities: `Iter`, `GetByID` and `Destroy` work on them. Cardinal wires only
+the top-level fields of a system state, so list the searches you use
+directly on the state.
 
-```go
-cardinal.Create(ctx,
-    physics2d.Transform2D{Position: physics2d.Vec2{X: 0, Y: 0}},
-    physics2d.Velocity2D{},
-    physics2d.NewPhysicsBody2D(
-        physics2d.BodyTypeStatic,
-        physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF),
-    ),
-)
-```
+The plugin reads shape entities every tick, so editing one in place works:
+a material or filter change updates the fixtures of every body using the
+shape, a geometry or sensor-flag change rebuilds them (chain points
+excepted, see below). Swapping a slot to a
+different shape entity behaves the same way — same geometry updates in
+place, different geometry rebuilds. The plugin never deletes a shape
+entity; the game owns that. A slot whose shape entity is missing fails that
+body's reconcile loudly (logged, no fixtures). Shape entities are ordinary
+ECS state and snapshot with everything else.
 
-### Building shapes
+### Chain points
 
-Use the constructors — `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`,
-`Capsule` — and chain options onto them: `At(offset, rotation)`, `AsSensor()`,
-`Material(friction, restitution, density)`, `Filter(category, mask)`, `Group(index)`.
-A bare constructor is already a usable shape (Box2D's default material, category 1,
-mask all). `ColliderShape` is a tagged union underneath; `Validate` rejects a shape
-carrying another type's geometry, so build through the constructors rather than
-struct literals.
+Chain shapes (`Chain(points...)`, `ChainLoop(points...)`) carry their
+polyline in `ChainGeom.Points`, so one long polyline is stored once no
+matter how many bodies stand on it. Points are the one exception to
+in-place editing: the plugin copies them when it first sees the shape and
+never re-reads them, so a long polyline costs nothing per tick. To change
+terrain, spawn a new chain shape and point the slot at it (that slot change
+is what triggers the fixture rebuild).
 
 ### Body-type cheat sheet
 
@@ -131,10 +154,11 @@ struct literals.
 
 ### Compound colliders
 
-`PhysicsBody2D.Shapes` is a slice — each entry is a child fixture with its
-own `LocalOffset`, `LocalRotation`, material, and filter. Shape identity is
-by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't reorder shapes
-after creation if you care about per-shape references in contact events.
+`PhysicsBody2D.Shapes` is a slice of slots — each entry is a child fixture
+with its own shape entity, `LocalOffset` and `LocalRotation`. Fixture
+identity is by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't
+reorder slots after creation if you care about per-shape references in
+contact events.
 
 ## Built-in queries
 
@@ -279,5 +303,5 @@ Contacts and triggers flow through Cardinal's system-event bus. The plugin's
 own pipeline system sets the emitter each tick and flushes
 `ContactBeginEvent` / `ContactEndEvent` / `TriggerBeginEvent` /
 `TriggerEndEvent` each tick. The events carry both entity IDs and both
-shape indices, so you can look up the exact `ColliderShape` that produced
-the contact.
+shape indices, so you can look up the exact slot — and through it the shape
+entity — that produced the contact.
