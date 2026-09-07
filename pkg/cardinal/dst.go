@@ -345,15 +345,15 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 // it was one. The struct walk in fillRandom cannot do it: a Slice's only field is unexported, so
 // CanSet is false and the Slice would stay empty, leaving every command that carries one untested.
 //
-// The element type is read off that field (reflection can read what it cannot set), a random []T is
-// built with the ordinary recursion, and the Slice takes it through UnmarshalJSON — the one way into
-// a Slice that already exists, so immutable gains no setter. The random values are finite numbers,
-// short strings and structs of those, which JSON always carries.
+// immutable.SliceElem identifies the Slice and its element type, a random []T is built with the
+// ordinary recursion, and the Slice takes it through UnmarshalJSON — the one way into a Slice that
+// already exists, so immutable gains no setter. The random values are finite numbers, short strings
+// and structs of those, which JSON always carries. One blind spot: an element field tagged json:"-"
+// is filled and then dropped by that hop, so it is fuzzed everywhere except inside a Slice.
 func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) bool {
 	t := v.Type()
-	if t.PkgPath() != reflect.TypeFor[immutable.Slice[struct{}]]().PkgPath() ||
-		!strings.HasPrefix(t.Name(), "Slice[") ||
-		t.NumField() != 1 || t.Field(0).Type.Kind() != reflect.Slice {
+	elem, ok := immutable.SliceElem(t)
+	if !ok {
 		return false
 	}
 	// A Slice takes values only through UnmarshalJSON on its address. Falling through to the struct
@@ -363,7 +363,7 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 	}
 
 	n := prng.IntN(5)
-	items := reflect.MakeSlice(t.Field(0).Type, n, n)
+	items := reflect.MakeSlice(reflect.SliceOf(elem), n, n)
 	for i := range n {
 		fillRandom(prng, items.Index(i), liveEntityIDs)
 	}
@@ -374,7 +374,7 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 	}
 	target, ok := v.Addr().Interface().(json.Unmarshaler)
 	if !ok {
-		panic("dst: " + t.String() + " looks like an immutable.Slice but has no UnmarshalJSON")
+		panic("dst: " + t.String() + " lost UnmarshalJSON; immutable.Slice must keep it")
 	}
 	if err := target.UnmarshalJSON(data); err != nil {
 		panic("dst: random Slice elements did not decode: " + err.Error())
