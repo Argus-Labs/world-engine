@@ -159,10 +159,11 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 // LastTick returns the final tick the loop will run.
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
-func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
+func (r *Runner) ctx(scenario *Scenario, probes *Probes, shapes *ShapeSearches, tick uint64) *Ctx {
 	return &Ctx{
 		report:     r.report,
 		probes:     probes,
+		shapes:     shapes,
 		events:     r.events,
 		plugin:     r.plugin,
 		scenario:   scenario.Name,
@@ -182,7 +183,17 @@ func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
 // its first FullRebuildFromECS.
 type setupState struct {
 	cardinal.BaseSystemState
-	Probes Probes
+	Probes   Probes
+	Circles  physics.CircleShapes
+	Boxes    physics.BoxShapes
+	Polygons physics.PolygonShapes
+	Chains   physics.ChainShapes
+	Edges    physics.EdgeShapes
+	Capsules physics.CapsuleShapes
+}
+
+func (s *setupState) shapes() *ShapeSearches {
+	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
 }
 
 // preStepState runs every scenario's EachTick on PreUpdate. It is registered
@@ -190,7 +201,17 @@ type setupState struct {
 // them in the same tick.
 type preStepState struct {
 	cardinal.BaseSystemState
-	Probes Probes
+	Probes   Probes
+	Circles  physics.CircleShapes
+	Boxes    physics.BoxShapes
+	Polygons physics.PolygonShapes
+	Chains   physics.ChainShapes
+	Edges    physics.EdgeShapes
+	Capsules physics.CapsuleShapes
+}
+
+func (s *preStepState) shapes() *ShapeSearches {
+	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
 }
 
 // stepState runs scheduled steps on Update, after the physics pipeline has
@@ -199,10 +220,20 @@ type preStepState struct {
 type stepState struct {
 	cardinal.BaseSystemState
 	Probes       Probes
+	Circles      physics.CircleShapes
+	Boxes        physics.BoxShapes
+	Polygons     physics.PolygonShapes
+	Chains       physics.ChainShapes
+	Edges        physics.EdgeShapes
+	Capsules     physics.CapsuleShapes
 	ContactBegin cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
 	TriggerEnd   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
+}
+
+func (s *stepState) shapes() *ShapeSearches {
+	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
 }
 
 func (r *Runner) setup(state *setupState) {
@@ -210,7 +241,7 @@ func (r *Runner) setup(state *setupState) {
 		if s.Setup == nil {
 			continue
 		}
-		s.Setup(r.ctx(s, &state.Probes, 0))
+		s.Setup(r.ctx(s, &state.Probes, state.shapes(), 0))
 	}
 }
 
@@ -220,7 +251,7 @@ func (r *Runner) preStep(state *preStepState) {
 		if s.EachTick == nil {
 			continue
 		}
-		s.EachTick(r.ctx(s, &state.Probes, tick))
+		s.EachTick(r.ctx(s, &state.Probes, state.shapes(), tick))
 	}
 }
 
@@ -248,7 +279,7 @@ func (r *Runner) step(state *stepState) {
 			if s.Steps[i].Tick != tick || s.Steps[i].Do == nil {
 				continue
 			}
-			s.Steps[i].Do(r.ctx(s, &state.Probes, tick))
+			s.Steps[i].Do(r.ctx(s, &state.Probes, state.shapes(), tick))
 		}
 	}
 }

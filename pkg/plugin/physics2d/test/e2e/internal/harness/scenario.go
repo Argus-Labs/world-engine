@@ -3,6 +3,7 @@ package harness
 import (
 	"fmt"
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
@@ -28,6 +29,39 @@ type ProbeRow struct {
 // Probes is the search over every harness body. Contains (not Exact) so a
 // scenario is free to add extra components to an entity later on.
 type Probes = cardinal.Contains[ProbeRow]
+
+// ShapeSearches is the set of per-kind shape searches a harness system carries so
+// scenarios can spawn shape entities. Cardinal wires only a state's top-level
+// fields, so every state declares the six searches itself and hands them over
+// through this view.
+type ShapeSearches struct {
+	Circles  *physics.CircleShapes
+	Boxes    *physics.BoxShapes
+	Polygons *physics.PolygonShapes
+	Chains   *physics.ChainShapes
+	Edges    *physics.EdgeShapes
+	Capsules *physics.CapsuleShapes
+}
+
+// Shape spawns def as a shape entity through the search matching its geometry
+// kind and returns the slot that references it.
+func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlot {
+	switch d := any(def).(type) {
+	case physics.ShapeDef[physics.CircleGeom]:
+		return d.Spawn(c.shapes.Circles)
+	case physics.ShapeDef[physics.BoxGeom]:
+		return d.Spawn(c.shapes.Boxes)
+	case physics.ShapeDef[physics.PolygonGeom]:
+		return d.Spawn(c.shapes.Polygons)
+	case physics.ShapeDef[physics.ChainGeom]:
+		return d.Spawn(c.shapes.Chains)
+	case physics.ShapeDef[physics.EdgeGeom]:
+		return d.Spawn(c.shapes.Edges)
+	case physics.ShapeDef[physics.CapsuleGeom]:
+		return d.Spawn(c.shapes.Capsules)
+	}
+	panic("harness.Shape: unknown geometry kind")
+}
 
 // Step is one scheduled action or assertion, run on the given tick after the
 // physics pipeline has stepped. Steps sharing a tick run in declaration order.
@@ -138,6 +172,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 type Ctx struct {
 	report     *Report
 	probes     *Probes
+	shapes     *ShapeSearches
 	events     *eventStore
 	plugin     *physics.Plugin
 	allowReset func()
@@ -359,16 +394,11 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 // Destroy removes the entity from the world.
 func (c *Ctx) Destroy(id cardinal.EntityID) bool { return c.probes.Destroy(id) }
 
-// CloneBody deep-copies a PhysicsBody2D including its shapes and their slice
-// geometry, so edits to the copy cannot reach the original.
+// CloneBody copies a PhysicsBody2D including its slot list, so edits to the copy
+// cannot reach the original.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
 	out := pb
-	out.Shapes = make([]physics.ColliderShape, len(pb.Shapes))
-	for i, s := range pb.Shapes {
-		s.Vertices = append([]physics.Vec2(nil), s.Vertices...)
-		s.ChainPoints = append([]physics.Vec2(nil), s.ChainPoints...)
-		out.Shapes[i] = s
-	}
+	out.Shapes = slices.Clone(pb.Shapes)
 	return out
 }
 

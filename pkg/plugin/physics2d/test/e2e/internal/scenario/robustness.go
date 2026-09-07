@@ -10,7 +10,7 @@ import (
 )
 
 // Robustness holds the inputs a game can hand the plugin that are finite —
-// and so pass ColliderShape.Validate — but malformed by the engine's rules: a
+// and so pass component validation — but malformed by the engine's rules: a
 // chain with three points, a circle with no radius, a polygon with too many
 // vertices, a box with no extent. Destroying an entity that still holds a live
 // contact is here too, from a completely different direction.
@@ -107,8 +107,8 @@ func hostileDestroyDuringContact() harness.Scenario {
 	return harness.Scenario{
 		Name: "destroy-during-contact",
 		Setup: func(c *harness.Ctx) {
-			s.floor = c.Spawn("floor", 0, groundY, body(physics.BodyTypeStatic, box(5, 1)))
-			s.ball = c.Spawn("ball", 0, 3, body(physics.BodyTypeDynamic, circle(0.5)))
+			s.floor = c.Spawn("floor", 0, groundY, body(c, physics.BodyTypeStatic, box(5, 1)))
+			s.ball = c.Spawn("ball", 0, 3, body(c, physics.BodyTypeDynamic, circle(0.5)))
 		},
 		Steps: []harness.Step{
 			{Tick: 90, Do: func(c *harness.Ctx) {
@@ -131,23 +131,24 @@ func hostileDestroyDuringContact() harness.Scenario {
 	}
 }
 
-// hostileBadShape spawns one shape that ColliderShape.Validate accepts and
-// Box2D may not. The body is created mid-run rather than at Init because
-// InitPhysicsSystem panics on any FullRebuildFromECS error, which would hide
-// which shape was at fault behind a stack trace for the whole scene.
+// hostileBadShape spawns one shape that PhysicsBody2D.Validate accepts (it only
+// checks slots; the shape itself is validated at attach) and Box2D may not. The
+// body is created mid-run rather than at Init because InitPhysicsSystem panics on
+// any FullRebuildFromECS error, which would hide which shape was at fault behind
+// a stack trace for the whole scene.
 func hostileBadShape(
-	name, description string, kind physics.BodyType, shape physics.ColliderShape,
+	name, description string, kind physics.BodyType, shape ShapeSpec,
 ) harness.Scenario {
 	var victim cardinal.EntityID
 	return harness.Scenario{
 		Name: name,
 		Setup: func(c *harness.Ctx) {
-			c.Spawn("bystander", 0, 0, body(physics.BodyTypeStatic, box(5, 1)))
+			c.Spawn("bystander", 0, 0, body(c, physics.BodyTypeStatic, box(5, 1)))
 		},
 		Steps: []harness.Step{
 			{Tick: 5, Do: func(c *harness.Ctx) {
-				pb := body(kind, shape)
-				c.NoError("ColliderShape.Validate accepts "+description, pb.Validate())
+				pb := body(c, kind, shape)
+				c.NoError("PhysicsBody2D.Validate accepts "+description, pb.Validate())
 				c.Note("spawning %s", description)
 				victim = c.Spawn("victim", 0, 10, pb)
 			}},

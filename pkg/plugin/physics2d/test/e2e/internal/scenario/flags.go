@@ -59,8 +59,8 @@ func Flags() harness.Scenario {
 
 	// zeroG returns a dynamic body that ignores world gravity, so a test can
 	// isolate one effect (damping, CCD) from the fall.
-	zeroG := func(shapes ...physics.ColliderShape) physics.PhysicsBody2D {
-		pb := body(physics.BodyTypeDynamic, shapes...)
+	zeroG := func(c *harness.Ctx, shapes ...ShapeSpec) physics.PhysicsBody2D {
+		pb := body(c, physics.BodyTypeDynamic, shapes...)
 		pb.GravityScale = 0
 		return pb
 	}
@@ -68,21 +68,21 @@ func Flags() harness.Scenario {
 	return harness.Scenario{
 		Name: "flags",
 		Setup: func(c *harness.Ctx) {
-			s.floor = c.Spawn("floor", 0, groundY, ground(60))
+			s.floor = c.Spawn("floor", 0, groundY, ground(c, 60))
 
 			// Active=false must remove the body from the simulation entirely.
-			inactive := body(physics.BodyTypeDynamic, circle(0.5))
+			inactive := body(c, physics.BodyTypeDynamic, circle(0.5))
 			inactive.Active = false
 			s.inactive = c.Spawn("inactive", -26, spawnY, inactive)
 
 			// Box2D decides the initial sleep state as
 			// (isAwake || !enableSleep) && isEnabled, so these two bodies differ
 			// only in SleepingAllowed and must behave in opposite ways.
-			asleep := body(physics.BodyTypeDynamic, circle(0.5))
+			asleep := body(c, physics.BodyTypeDynamic, circle(0.5))
 			asleep.Awake = false
 			s.asleep = c.Spawn("asleep", -20, spawnY, asleep)
 
-			forced := body(physics.BodyTypeDynamic, circle(0.5))
+			forced := body(c, physics.BodyTypeDynamic, circle(0.5))
 			forced.Awake = false
 			forced.SleepingAllowed = false
 			s.forcedAwake = c.Spawn("sleep-disabled", -14, spawnY, forced)
@@ -91,22 +91,22 @@ func Flags() harness.Scenario {
 			// teleport as a disturbance and wakes the body, but a same-tick
 			// Awake=false write is explicit intent and must win over that wake.
 			s.teleSleep = c.Spawn("teleport-sleep", -29, spawnY,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// GravityScale: 0 hovers, 1 is the reference, 2 falls twice as far in
 			// the same time, -1 rises by what 1 falls.
-			g0 := body(physics.BodyTypeDynamic, circle(0.5))
+			g0 := body(c, physics.BodyTypeDynamic, circle(0.5))
 			g0.GravityScale = 0
 			s.gravity0 = c.Spawn("gravity-scale-0", -8, spawnY, g0)
 
 			s.gravity1 = c.Spawn("gravity-scale-1", -2, spawnY,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 
-			g2 := body(physics.BodyTypeDynamic, circle(0.5))
+			g2 := body(c, physics.BodyTypeDynamic, circle(0.5))
 			g2.GravityScale = 2
 			s.gravity2 = c.Spawn("gravity-scale-2", 4, spawnY, g2)
 
-			gUp := body(physics.BodyTypeDynamic, circle(0.5))
+			gUp := body(c, physics.BodyTypeDynamic, circle(0.5))
 			gUp.GravityScale = -1
 			s.gravityUp = c.Spawn("gravity-scale-negative", 10, spawnY, gUp)
 
@@ -121,55 +121,55 @@ func Flags() harness.Scenario {
 			// reachable only via the bullet path, and infinitely massive, so a
 			// projectile that detects one cannot simply shove it aside.
 			thinWall := func(kind physics.BodyType) physics.PhysicsBody2D {
-				pb := body(kind, box(0.02, 1))
+				pb := body(c, kind, box(0.02, 1))
 				pb.GravityScale = 0
 				pb.SleepingAllowed = false
 				return pb
 			}
 
 			s.staticWall = c.Spawn("static-wall", bulletWallX, staticPairY,
-				body(physics.BodyTypeStatic, box(0.02, 1)))
+				body(c, physics.BodyTypeStatic, box(0.02, 1)))
 			s.staticShot = c.SpawnMoving("shot-at-static-wall", 10, staticPairY,
-				bulletSpeed, 0, zeroG(circle(0.25)))
+				bulletSpeed, 0, zeroG(c, circle(0.25)))
 
 			s.bulletWall = c.Spawn("kinematic-wall-vs-bullet", bulletWallX, bulletPairY,
 				thinWall(physics.BodyTypeKinematic))
-			bullet := zeroG(circle(0.25))
+			bullet := zeroG(c, circle(0.25))
 			bullet.Bullet = true
 			s.bullet = c.SpawnMoving("bullet", 10, bulletPairY, bulletSpeed, 0, bullet)
 
 			s.plainWall = c.Spawn("kinematic-wall-vs-plain", bulletWallX, plainPairY,
 				thinWall(physics.BodyTypeKinematic))
 			s.notBullet = c.SpawnMoving("not-bullet", 10, plainPairY,
-				bulletSpeed, 0, zeroG(circle(0.25)))
+				bulletSpeed, 0, zeroG(c, circle(0.25)))
 
 			// FixedRotation. Both bodies are handed the same spin; only the free
 			// one may keep it. The plugin zeroes angular velocity on the Box2D
 			// side for fixed-rotation bodies, so the lock must hold even against
 			// an explicit angular velocity.
-			locked := zeroG(box(0.5, 0.5))
+			locked := zeroG(c, box(0.5, 0.5))
 			locked.FixedRotation = true
 			s.spinLocked = c.SpawnSpinning("rotation-locked", 16, 60, 5, locked)
-			s.spinFree = c.SpawnSpinning("rotation-free", 20, 64, 5, zeroG(box(0.5, 0.5)))
+			s.spinFree = c.SpawnSpinning("rotation-free", 20, 64, 5, zeroG(c, box(0.5, 0.5)))
 
 			// Damping, isolated from gravity so the only force is the damping.
 			// These two travel along +x for the whole run, so their rows are kept
 			// clear of every other body in this lane.
-			damped := zeroG(circle(0.5))
+			damped := zeroG(c, circle(0.5))
 			damped.LinearDamping = 0.5
 			s.damped = c.SpawnMoving("linear-damped", 26, 20, 5, 0, damped)
-			s.undamped = c.SpawnMoving("linear-undamped", 26, 24, 5, 0, zeroG(circle(0.5)))
+			s.undamped = c.SpawnMoving("linear-undamped", 26, 24, 5, 0, zeroG(c, circle(0.5)))
 
-			spinDamped := zeroG(circle(0.5))
+			spinDamped := zeroG(c, circle(0.5))
 			spinDamped.AngularDamping = 1.0
 			s.spinDamped = c.SpawnSpinning("angular-damped", 34, 50, 10, spinDamped)
-			s.spinKeeps = c.SpawnSpinning("angular-undamped", 34, 54, 10, zeroG(circle(0.5)))
+			s.spinKeeps = c.SpawnSpinning("angular-undamped", 34, 54, 10, zeroG(c, circle(0.5)))
 
 			// Box2D v3 clamps linear speed to b2WorldDef.maximumLinearSpeed,
 			// which defaults to 400 m/s, and the plugin exposes no way to raise
 			// it. Anything faster is silently slowed, so pin the limit: a game
 			// that ships a 600 m/s projectile needs to know it will not get one.
-			s.overspeed = c.SpawnMoving("overspeed", 0, 300, 1000, 0, zeroG(circle(0.25)))
+			s.overspeed = c.SpawnMoving("overspeed", 0, 300, 1000, 0, zeroG(c, circle(0.25)))
 		},
 		Steps: []harness.Step{
 			{Tick: gravityCheck, Do: func(c *harness.Ctx) {

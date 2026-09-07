@@ -49,12 +49,12 @@ func Reset() harness.Scenario {
 		Name: "reset",
 		Setup: func(c *harness.Ctx) {
 			// A live contact that must survive the rebuild without replaying.
-			s.pad = c.Spawn("reset-pad", 0, -1, body(physics.BodyTypeStatic, box(4, 1)))
+			s.pad = c.Spawn("reset-pad", 0, -1, body(c, physics.BodyTypeStatic, box(4, 1)))
 			s.rester = c.Spawn("reset-rester", 0, 3,
-				body(physics.BodyTypeDynamic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
 
 			// A body in motion, so the rebuild has to carry velocity across too.
-			drift := body(physics.BodyTypeDynamic, circle(0.5))
+			drift := body(c, physics.BodyTypeDynamic, circle(0.5))
 			drift.GravityScale = 0
 			drift.SleepingAllowed = false
 			s.drifter = c.SpawnMoving("reset-drifter", -40, 20, driftVX, 0, drift)
@@ -62,12 +62,12 @@ func Reset() harness.Scenario {
 			// A live sensor overlap, which the plugin tracks separately from
 			// solid contacts in its ActiveContacts baseline.
 			s.gate = c.Spawn("reset-gate", 20, 40,
-				body(physics.BodyTypeStatic, asSensor(box(3, 3))))
+				body(c, physics.BodyTypeStatic, asSensor(box(3, 3))))
 			s.visitor = c.Spawn("reset-visitor", 20, 40,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// Something to raycast at, before and after.
-			s.wall = c.Spawn("reset-wall", 10, 60, body(physics.BodyTypeStatic, box(1, 3)))
+			s.wall = c.Spawn("reset-wall", 10, 60, body(c, physics.BodyTypeStatic, box(1, 3)))
 		},
 		Steps: []harness.Step{
 			{Tick: 60, Do: func(c *harness.Ctx) {

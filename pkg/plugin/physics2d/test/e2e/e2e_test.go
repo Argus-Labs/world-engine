@@ -115,7 +115,7 @@ func TestHostile(t *testing.T) {
 	// changed instead of silently absorbing it.
 	knownFailures := map[string]string{
 		"zero-extent-box": "the engine builds a (NaN, NaN) body from zero half-extents " +
-			"instead of rejecting them as C's assert does, and ColliderShape.Validate lets " +
+			"instead of rejecting them as C's assert does, and BoxGeom.Validate lets " +
 			"them through; the reconciler then rejects the body every tick",
 	}
 

@@ -56,7 +56,7 @@ through the floor, and that would make the invariant unprovable.
 | Scenario | Pins |
 |---|---|
 | `defaults` | Constructor and wire defaults, the zero-value trap, `Validate` |
-| `shapes` | All 7 `ShapeType`s reach Box2D and collide by their geometry |
+| `shapes` | All 7 shape kinds reach Box2D and collide by their geometry |
 | `bodytypes` | Static / dynamic / kinematic / manual, and the writeback rules |
 | `flags` | Active, Awake, SleepingAllowed, Bullet, FixedRotation, gravity scale, damping; teleport with an explicit same-tick sleep |
 | `material` | Friction mixes as `sqrt(a*b)`, restitution as `max(a,b)`, density becomes mass |
@@ -95,7 +95,7 @@ process panicked (reported as FATAL).
 `knownFailures` in `e2e_test.go` lists the cases that fail today and why. A case
 that starts passing fails the test until it is removed from that map, so an
 engine change that fixes one is noticed rather than absorbed. Today that is only
-`zero-extent-box`: `ColliderShape.Validate` accepts zero half-extents, the engine
+`zero-extent-box`: `BoxGeom.Validate` accepts zero half-extents, the engine
 builds a `(NaN, NaN)` body from them where C's assert would have fired, and the
 reconciler then rejects the entity every tick for as long as it lives.
 
