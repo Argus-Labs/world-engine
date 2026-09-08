@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/goccy/go-json"
 )
 
@@ -44,7 +45,8 @@ import (
 //
 // Shapes lists the body's fixtures. Each [ShapeSlot] names a shape entity (which carries
 // [ShapeCommon] plus one geometry component) and places it in body space. Slot index i is
-// fixture i, the index contact events and query hits report.
+// fixture i, the index contact events and query hits report. The list is an immutable.Slice:
+// derive a new one (With, Append, Sub) and Set the body to change it.
 //
 // # Defaults
 //
@@ -74,7 +76,7 @@ type PhysicsBody2D struct {
 	Bullet          bool     `json:"bullet"`
 	FixedRotation   bool     `json:"fixed_rotation"`
 
-	Shapes []ShapeSlot `json:"shapes"`
+	Shapes immutable.Slice[ShapeSlot] `json:"shapes"`
 }
 
 // NewPhysicsBody2D returns a PhysicsBody2D with the given body type, Box2D-compatible defaults
@@ -86,7 +88,7 @@ func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
 		Active:          true,
 		Awake:           true,
 		SleepingAllowed: true,
-		Shapes:          shapes,
+		Shapes:          immutable.SliceOf(shapes...),
 	}
 }
 
@@ -121,7 +123,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 		SleepingAllowed: true,
 		Bullet:          aux.Bullet,
 		FixedRotation:   aux.FixedRotation,
-		Shapes:          aux.Shapes,
+		Shapes:          immutable.SliceOf(aux.Shapes...),
 	}
 	if aux.GravityScale != nil {
 		p.GravityScale = *aux.GravityScale
@@ -157,11 +159,11 @@ func (p PhysicsBody2D) Validate() error {
 	if !isFinite(p.GravityScale) {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)
 	}
-	if len(p.Shapes) == 0 {
+	if p.Shapes.Len() == 0 {
 		return errors.New("physics_body_2d.shapes: at least one shape slot is required")
 	}
-	for i := range p.Shapes {
-		if err := p.Shapes[i].Validate(); err != nil {
+	for i, s := range p.Shapes.All() {
+		if err := s.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
 	}

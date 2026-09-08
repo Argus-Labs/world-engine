@@ -3,9 +3,9 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
@@ -41,8 +41,8 @@ const (
 )
 
 // ResolvedShape is one shape entity's components as mirrored by the runtime. Only the
-// geometry field matching Kind is set; the rest stay zero. Chain points are the one slice:
-// the mirror clones them once and treats them as fixed for the entity's lifetime.
+// geometry field matching Kind is set; the rest stay zero. Chain points are the one list:
+// the mirror keeps the value it first saw and treats it as fixed for the entity's lifetime.
 type ResolvedShape struct {
 	Kind    ShapeKind
 	Common  component.ShapeCommon
@@ -108,7 +108,7 @@ func (s ResolvedShape) structuralEqual(o ResolvedShape) bool {
 		s.Box == o.Box &&
 		s.Polygon == o.Polygon &&
 		s.Chain.Loop == o.Chain.Loop &&
-		slices.Equal(s.Chain.Points, o.Chain.Points) &&
+		immutable.Equal(s.Chain.Points, o.Chain.Points) &&
 		s.Edge == o.Edge &&
 		s.Capsule == o.Capsule
 }
@@ -190,12 +190,11 @@ func (rt *Runtime) SyncShapes(entries []ShapeEntry) error {
 }
 
 // mirrorShape stores one shape entity's value, marking it dirty (material or structural)
-// when it differs from the mirrored value. Chain points alias live component memory in the
-// gathered value: a new entity's points are cloned, a known entity keeps the clone it has.
+// when it differs from the mirrored value. Chain points are immutable, so sharing them with
+// the component is safe; a known entity keeps the points it was first seen with.
 func (rt *Runtime) mirrorShape(id cardinal.EntityID, shape ResolvedShape) {
 	prev, known := rt.ShapeMirror[id]
 	if !known {
-		shape.Chain.Points = slices.Clone(shape.Chain.Points)
 		rt.ShapeMirror[id] = shape
 		return
 	}
@@ -223,12 +222,12 @@ func (rt *Runtime) resolveSlot(slot component.ShapeSlot) (ResolvedShape, error) 
 }
 
 // slotsDirty reports whether any slot references a shape entity that changed this tick.
-func (rt *Runtime) slotsDirty(slots []component.ShapeSlot) bool {
+func (rt *Runtime) slotsDirty(slots immutable.Slice[component.ShapeSlot]) bool {
 	if len(rt.dirtyShapes) == 0 {
 		return false
 	}
-	for i := range slots {
-		if _, ok := rt.dirtyShapes[slots[i].Shape]; ok {
+	for slot := range slots.Values() {
+		if _, ok := rt.dirtyShapes[slot.Shape]; ok {
 			return true
 		}
 	}
@@ -239,22 +238,23 @@ func (rt *Runtime) slotsDirty(slots []component.ShapeSlot) bool {
 // from prev without recreating them: same count, same local transforms, and per slot either
 // the same shape entity (not structurally dirty) or a different shape entity with the same
 // geometry and sensor flag. A previous shape entity that has left the mirror forces a rebuild.
-func (rt *Runtime) slotsStructuralEqual(prev, live []component.ShapeSlot) bool {
-	if len(prev) != len(live) {
+func (rt *Runtime) slotsStructuralEqual(prev, live immutable.Slice[component.ShapeSlot]) bool {
+	if prev.Len() != live.Len() {
 		return false
 	}
-	for i := range live {
-		if !vec2Equal(prev[i].LocalOffset, live[i].LocalOffset) || prev[i].LocalRotation != live[i].LocalRotation {
+	for i, l := range live.All() {
+		p := prev.At(i)
+		if !vec2Equal(p.LocalOffset, l.LocalOffset) || p.LocalRotation != l.LocalRotation {
 			return false
 		}
-		if prev[i].Shape == live[i].Shape {
-			if rt.dirtyShapes[live[i].Shape] == shapeChangeStructural {
+		if p.Shape == l.Shape {
+			if rt.dirtyShapes[l.Shape] == shapeChangeStructural {
 				return false
 			}
 			continue
 		}
-		a, okA := rt.ShapeMirror[prev[i].Shape]
-		b, okB := rt.ShapeMirror[live[i].Shape]
+		a, okA := rt.ShapeMirror[p.Shape]
+		b, okB := rt.ShapeMirror[l.Shape]
 		if !okA || !okB || !a.structuralEqual(b) {
 			return false
 		}

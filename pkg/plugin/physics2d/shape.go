@@ -1,9 +1,8 @@
 package physics2d
 
 import (
-	"slices"
-
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
 )
@@ -85,13 +84,13 @@ func Polygon(vertices ...Vec2) ShapeDef[PolygonGeom] {
 // Chain is an open polyline through points (copied) in shape space. Static or kinematic
 // bodies only.
 func Chain(points ...Vec2) ShapeDef[ChainGeom] {
-	return newShapeDef(ChainGeom{Points: slices.Clone(points)})
+	return newShapeDef(ChainGeom{Points: immutable.SliceOf(points...)})
 }
 
 // ChainLoop is a closed polyline through points (copied) in shape space. Static or kinematic
 // bodies only.
 func ChainLoop(points ...Vec2) ShapeDef[ChainGeom] {
-	return newShapeDef(ChainGeom{Points: slices.Clone(points), Loop: true})
+	return newShapeDef(ChainGeom{Points: immutable.SliceOf(points...), Loop: true})
 }
 
 // Edge is a single segment from a to b in shape space.

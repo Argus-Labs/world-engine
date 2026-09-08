@@ -7,6 +7,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
@@ -71,21 +72,23 @@ func (rt *Runtime) CreateBody(
 // AttachColliderFixtures creates one Box2D shape per slot on the body identified by
 // entityID. Slot i becomes fixture i. Each slot's shape entity is resolved through the
 // runtime's ShapeMirror; a slot whose shape entity is missing fails the whole attach.
-func (rt *Runtime) AttachColliderFixtures(entityID cardinal.EntityID, slots []component.ShapeSlot) error {
-	if len(slots) == 0 {
+func (rt *Runtime) AttachColliderFixtures(
+	entityID cardinal.EntityID, slots immutable.Slice[component.ShapeSlot],
+) error {
+	if slots.Len() == 0 {
 		return errors.New("physics2d: collider has no shapes")
 	}
-	for i := range slots {
-		if err := rt.validateSlot(slots[i]); err != nil {
+	for i, slot := range slots.All() {
+		if err := rt.validateSlot(slot); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
-	for i := range slots {
-		sh, err := rt.resolveSlot(slots[i])
+	for i, slot := range slots.All() {
+		sh, err := rt.resolveSlot(slot)
 		if err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
-		if err := rt.attachShape(entityID, i, slots[i], sh); err != nil {
+		if err := rt.attachShape(entityID, i, slot, sh); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
@@ -230,10 +233,9 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
 	case ShapeKindChain:
-		src := sh.Chain.Points
-		pts := make([]box2d.Vec2, len(src))
-		for i := range src {
-			v := shapePointToBodySpace(src[i], slot.LocalOffset, slot.LocalRotation)
+		pts := make([]box2d.Vec2, sh.Chain.Points.Len())
+		for i, p := range sh.Chain.Points.All() {
+			v := shapePointToBodySpace(p, slot.LocalOffset, slot.LocalRotation)
 			pts[i] = box2d.Vec2{X: v.X, Y: v.Y}
 		}
 		def := box2d.DefaultChainDef()

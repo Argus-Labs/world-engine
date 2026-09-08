@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
@@ -50,8 +51,8 @@ func restoreShapeMirror(rt *Runtime) {
 // restoreSnapshotEntries is a ground plane plus crates that settled and fell asleep,
 // as a snapshot would hold them (Awake=false, mirrored from the solver).
 func restoreSnapshotEntries() []PhysicsRebuildEntry {
-	slots := func(shape cardinal.EntityID) []component.ShapeSlot {
-		return []component.ShapeSlot{{Shape: shape}}
+	slots := func(shape cardinal.EntityID) immutable.Slice[component.ShapeSlot] {
+		return immutable.SliceOf(component.ShapeSlot{Shape: shape})
 	}
 	out := []PhysicsRebuildEntry{{
 		EntityID:  1,
@@ -88,7 +89,7 @@ func restoreBaseline() component.ActiveContacts {
 			FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
 		})
 	}
-	return component.ActiveContacts{Pairs: pairs}
+	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
 // restoreAndFingerprint runs the real restore path — FullRebuildFromECS,

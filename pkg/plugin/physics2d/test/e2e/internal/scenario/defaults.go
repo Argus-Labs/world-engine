@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	"github.com/goccy/go-json"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
@@ -38,7 +40,7 @@ func Defaults() harness.Scenario {
 			// false and GravityScale is 0, so Box2D should never simulate it.
 			s.literal = c.Spawn("struct-literal", 0, 20, physics.PhysicsBody2D{
 				BodyType: physics.BodyTypeDynamic,
-				Shapes:   []physics.ShapeSlot{circle(0.5).Spawn(c)},
+				Shapes:   immutable.SliceOf(circle(0.5).Spawn(c)),
 			})
 
 			// Built by decoding a payload that omits every flag, the way an old
@@ -87,7 +89,7 @@ func checkConstructorDefaults(c *harness.Ctx) {
 
 	c.Near("NewPhysicsBody2D leaves LinearDamping=0", pb.LinearDamping, 0, 0)
 	c.Near("NewPhysicsBody2D leaves AngularDamping=0", pb.AngularDamping, 0, 0)
-	c.Int("NewPhysicsBody2D keeps the shapes it was given", len(pb.Shapes), 1)
+	c.Int("NewPhysicsBody2D keeps the shapes it was given", pb.Shapes.Len(), 1)
 
 	for _, kind := range []physics.BodyType{
 		physics.BodyTypeStatic, physics.BodyTypeDynamic,
@@ -181,10 +183,10 @@ func checkJSONDefaults(c *harness.Ctx) {
 	c.Near("wire round-trip preserves LinearDamping", got.LinearDamping, original.LinearDamping, 0)
 	c.Near("wire round-trip preserves AngularDamping", got.AngularDamping, original.AngularDamping, 0)
 
-	if !c.Int("wire round-trip preserves shape count", len(got.Shapes), len(original.Shapes)) {
+	if !c.Int("wire round-trip preserves shape count", got.Shapes.Len(), original.Shapes.Len()) {
 		return
 	}
-	o, g := original.Shapes[0], got.Shapes[0]
+	o, g := original.Shapes.At(0), got.Shapes.At(0)
 	c.True("wire round-trip preserves the slot's shape id", g.Shape == o.Shape,
 		"got %d, want %d", g.Shape, o.Shape)
 	c.NearVec("wire round-trip preserves LocalOffset", g.LocalOffset, o.LocalOffset, 0)
@@ -241,7 +243,7 @@ func checkValidation(c *harness.Ctx) {
 	c.HasError("PolygonGeom.Validate rejects nine vertices",
 		physics.PolygonGeom{Count: physics.MaxPolygonVertices + 1}.Validate())
 	c.NoError("ChainGeom.Validate accepts finite points",
-		physics.ChainGeom{Points: []physics.Vec2{vec(0, 0), vec(1, 0)}}.Validate())
+		physics.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0))}.Validate())
 
 	c.NoError("Transform2D.Validate accepts finite values",
 		physics.Transform2D{Position: vec(1, 2), Rotation: 0.5}.Validate())
