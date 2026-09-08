@@ -31,7 +31,7 @@ on:
       - '.github/workflows/box2d-determinism.yaml'
 
 env:
-  GO_VERSION: 1.26.5
+  GO_VERSION: 1.27.1
 
 # Checkout and build only; no write access to the repository is needed.
 permissions:
