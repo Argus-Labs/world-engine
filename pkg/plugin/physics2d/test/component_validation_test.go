@@ -5,6 +5,8 @@ import (
 	"math"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/stretchr/testify/require"
@@ -174,7 +176,9 @@ func TestValidate_Geometry_Valid(t *testing.T) {
 		Vertices: [phycomp.MaxPolygonVertices]phycomp.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0.5, Y: 1}},
 		Count:    3,
 	}.Validate())
-	require.NoError(t, phycomp.ChainGeom{Points: []phycomp.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}}, Loop: true}.Validate())
+	require.NoError(t, phycomp.ChainGeom{
+		Points: immutable.SliceOf(phycomp.Vec2{}, phycomp.Vec2{X: 1}), Loop: true,
+	}.Validate())
 	require.NoError(t, phycomp.ChainGeom{}.Validate(), "point-count rules are Box2D's, at attach")
 	require.NoError(t, phycomp.EdgeGeom{A: phycomp.Vec2{X: 0, Y: 0}, B: phycomp.Vec2{X: 3, Y: 0}}.Validate())
 	require.NoError(t, phycomp.CapsuleGeom{A: phycomp.Vec2{}, B: phycomp.Vec2{X: 1}, Radius: 0.25}.Validate())
@@ -245,7 +249,7 @@ func TestValidate_CapsuleGeom_NaNRadius(t *testing.T) {
 func TestValidate_ChainGeom_NaNPoint(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ChainGeom{
-		Points: []phycomp.Vec2{{X: 0, Y: 0}, {X: 0, Y: math.Inf(1)}},
+		Points: immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 0, Y: math.Inf(1)}),
 	}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "points[1]")
@@ -273,7 +277,7 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.PhysicsBody2D{
 		BodyType: 99,
-		Shapes:   []phycomp.ShapeSlot{phycomp.Slot(3)},
+		Shapes:   immutable.SliceOf(phycomp.Slot(3)),
 	}
 	err := pb.Validate()
 	require.Error(t, err)
@@ -344,15 +348,15 @@ func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	require.False(t, pb.FixedRotation)
 	require.InDelta(t, 0.0, pb.LinearDamping, 1e-12)
 	require.InDelta(t, 0.0, pb.AngularDamping, 1e-12)
-	require.Len(t, pb.Shapes, 1)
+	require.Equal(t, 1, pb.Shapes.Len())
 }
 
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic,
 		phycomp.Slot(3), phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0))
-	require.Len(t, pb.Shapes, 2)
-	require.Equal(t, phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0), pb.Shapes[1])
+	require.Equal(t, 2, pb.Shapes.Len())
+	require.Equal(t, phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0), pb.Shapes.At(1))
 }
 
 // ---------------------------------------------------------------------------
@@ -375,7 +379,7 @@ func TestUnmarshalPhysicsBody2D_MissingFieldsGetDefaults(t *testing.T) {
 	require.True(t, pb.SleepingAllowed, "missing sleeping_allowed defaults to true")
 	require.False(t, pb.Bullet)
 	require.False(t, pb.FixedRotation)
-	require.Equal(t, []phycomp.ShapeSlot{phycomp.Slot(7)}, pb.Shapes)
+	require.Equal(t, immutable.SliceOf(phycomp.Slot(7)), pb.Shapes)
 }
 
 func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
@@ -423,8 +427,8 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 	require.False(t, pb.SleepingAllowed)
 	require.True(t, pb.Bullet)
 	require.True(t, pb.FixedRotation)
-	require.Len(t, pb.Shapes, 1)
-	require.Equal(t, phycomp.Slot(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5), pb.Shapes[0])
+	require.Equal(t, 1, pb.Shapes.Len())
+	require.Equal(t, phycomp.Slot(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5), pb.Shapes.At(0))
 }
 
 // ---------------------------------------------------------------------------

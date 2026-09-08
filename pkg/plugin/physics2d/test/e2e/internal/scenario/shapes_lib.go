@@ -8,8 +8,8 @@ package scenario
 
 import (
 	"fmt"
-	"slices"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
@@ -96,12 +96,12 @@ func capsule(c1, c2 physics.Vec2, radius float64) ShapeSpec {
 
 // chain builds an open static chain collider through the given points.
 func chain(points ...physics.Vec2) ShapeSpec {
-	return spec(physics.ChainGeom{Points: slices.Clone(points)})
+	return spec(physics.ChainGeom{Points: immutable.SliceOf(points...)})
 }
 
 // chainLoop builds a closed static chain collider; the last point joins the first.
 func chainLoop(points ...physics.Vec2) ShapeSpec {
-	return spec(physics.ChainGeom{Points: slices.Clone(points), Loop: true})
+	return spec(physics.ChainGeom{Points: immutable.SliceOf(points...), Loop: true})
 }
 
 // edge builds a single static line-segment collider.

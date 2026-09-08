@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
@@ -142,7 +144,7 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 
 			for i, s := range specs {
 				pb := s.pb
-				pb.Shapes = []physics.ShapeSlot{s.shape.Spawn(c)}
+				pb.Shapes = immutable.SliceOf(s.shape.Spawn(c))
 				// The wire format must carry every field of every generated body.
 				decoded, err := physics.PhysicsBody2D{}.UnmarshalWire(pb.MarshalWire())
 				if c.NoError("wire decodes: "+s.label, err) {

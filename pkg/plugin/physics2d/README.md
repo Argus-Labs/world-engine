@@ -154,11 +154,12 @@ is what triggers the fixture rebuild).
 
 ### Compound colliders
 
-`PhysicsBody2D.Shapes` is a slice of slots — each entry is a child fixture
-with its own shape entity, `LocalOffset` and `LocalRotation`. Fixture
-identity is by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't
-reorder slots after creation if you care about per-shape references in
-contact events.
+`PhysicsBody2D.Shapes` is an `immutable.Slice` of slots — each entry is a
+child fixture with its own shape entity, `LocalOffset` and `LocalRotation`.
+To change the list, derive a new one (`With`, `Append`, `Sub`) and `Set` the
+body. Fixture identity is by index (slot `i` in `Shapes` ↔ fixture slot
+`i`), so don't reorder slots after creation if you care about per-shape
+references in contact events.
 
 ## Built-in queries
 

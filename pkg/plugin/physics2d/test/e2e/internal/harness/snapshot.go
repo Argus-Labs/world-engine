@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-	"slices"
 	"sort"
 	"strconv"
 	"unsafe"
@@ -59,7 +58,6 @@ func resolveShape(sh *ShapeSearches, slot physics.ShapeSlot) CapturedShape {
 	}
 	if row, err := sh.Chains.GetByID(id); err == nil {
 		out.Kind, out.Common, out.Chain = "chain", row.Common.Get(), row.Geom.Get()
-		out.Chain.Points = slices.Clone(out.Chain.Points)
 		return out
 	}
 	if row, err := sh.Edges.GetByID(id); err == nil {
@@ -150,8 +148,8 @@ func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains
 	for eid, row := range probes.Iter() {
 		p := row.Probe.Get()
 		body := CloneBody(row.Body.Get())
-		resolved := make([]CapturedShape, len(body.Shapes))
-		for i, slot := range body.Shapes {
+		resolved := make([]CapturedShape, body.Shapes.Len())
+		for i, slot := range body.Shapes.All() {
 			resolved[i] = resolveShape(shapes, slot)
 		}
 		rows[p.Label] = CaptureRow{
@@ -167,7 +165,7 @@ func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains
 	count := 0
 	for _, row := range singleton.Iter() {
 		count++
-		pairs = append(pairs, row.ActiveContacts.Get().Pairs...)
+		pairs = append(pairs, row.ActiveContacts.Get().Pairs.Clone()...)
 	}
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.
@@ -435,11 +433,11 @@ func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
 	if g.Chain.Loop != w.Chain.Loop {
 		add("Loop", g.Chain.Loop, w.Chain.Loop)
 	}
-	if len(g.Chain.Points) != len(w.Chain.Points) {
-		add("ChainPoints<len>", len(g.Chain.Points), len(w.Chain.Points))
+	if g.Chain.Points.Len() != w.Chain.Points.Len() {
+		add("ChainPoints<len>", g.Chain.Points.Len(), w.Chain.Points.Len())
 	} else {
-		for k := range w.Chain.Points {
-			pt(fmt.Sprintf("ChainPoints[%d]", k), g.Chain.Points[k], w.Chain.Points[k])
+		for k, wp := range w.Chain.Points.All() {
+			pt(fmt.Sprintf("ChainPoints[%d]", k), g.Chain.Points.At(k), wp)
 		}
 	}
 	pt("Edge.A", g.Edge.A, w.Edge.A)

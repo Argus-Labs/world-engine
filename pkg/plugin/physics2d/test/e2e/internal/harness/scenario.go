@@ -3,7 +3,6 @@ package harness
 import (
 	"fmt"
 	"math"
-	"slices"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
@@ -394,12 +393,11 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 // Destroy removes the entity from the world.
 func (c *Ctx) Destroy(id cardinal.EntityID) bool { return c.probes.Destroy(id) }
 
-// CloneBody copies a PhysicsBody2D including its slot list, so edits to the copy
-// cannot reach the original.
+// CloneBody copies a PhysicsBody2D. Every field is a value (the slot list is an
+// immutable.Slice), so the copy is the clone; it exists so call sites say what
+// they mean.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
-	out := pb
-	out.Shapes = slices.Clone(pb.Shapes)
-	return out
+	return pb
 }
 
 // -----------------------------------------------------------------------------

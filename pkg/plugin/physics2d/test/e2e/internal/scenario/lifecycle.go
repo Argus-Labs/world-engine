@@ -172,25 +172,25 @@ func Lifecycle() harness.Scenario {
 				// Shapes are entities: a slot is re-pointed at a new shape rather
 				// than edited in place. Same geometry kind with new numbers.
 				c.EditBody(s.growCircle, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = circle(2).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, circle(2).Spawn(c))
 				})
 				c.EditBody(s.growBox, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = box(2, 0.5).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, box(2, 0.5).Spawn(c))
 				})
 				c.EditBody(s.growCapsule, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = capsule(vec(-3, 0), vec(3, 0), 0.3).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, capsule(vec(-3, 0), vec(3, 0), 0.3).Spawn(c))
 				})
 				c.EditBody(s.fatCapsule, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = capsule(vec(-0.5, 0), vec(0.5, 0), 1.8).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, capsule(vec(-0.5, 0), vec(0.5, 0), 1.8).Spawn(c))
 				})
 
 				// Same geometry, new filter or sensor flag: the swap must update
 				// the fixture in place (filter) or rebuild it (sensor).
 				c.EditBody(s.filterWall, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = withFilter(box(0.5, 2), 0x4, 0x4, 0).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, withFilter(box(0.5, 2), 0x4, 0x4, 0).Spawn(c))
 				})
 				c.EditBody(s.sensorWall, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = asSensor(box(0.5, 2)).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, asSensor(box(0.5, 2)).Spawn(c))
 				})
 				c.EditBody(s.freezer, func(pb *physics.PhysicsBody2D) {
 					pb.BodyType = physics.BodyTypeStatic
@@ -199,10 +199,10 @@ func Lifecycle() harness.Scenario {
 					pb.BodyType = physics.BodyTypeDynamic
 				})
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = append(pb.Shapes, atOffset(box(0.5, 0.5), 3, 0).Spawn(c))
+					pb.Shapes = pb.Shapes.Append(atOffset(box(0.5, 0.5), 3, 0).Spawn(c))
 				})
 				c.EditBody(s.gripLater, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0] = withFriction(box(0.5, 0.5), 0.9).Spawn(c)
+					pb.Shapes = pb.Shapes.With(0, withFriction(box(0.5, 0.5), 0.9).Spawn(c))
 				})
 			}},
 			{Tick: earlyCheck, Do: func(c *harness.Ctx) {
@@ -244,7 +244,7 @@ func Lifecycle() harness.Scenario {
 			{Tick: removeTick, Do: func(c *harness.Ctx) {
 				frozenY := c.Pos(s.freezer).Y
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = pb.Shapes[:1]
+					pb.Shapes = pb.Shapes.Sub(0, 1)
 				})
 				c.SetVel(s.mover, crossSpeed, 0)
 				s.freezerY = frozenY

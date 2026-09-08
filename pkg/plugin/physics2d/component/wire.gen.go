@@ -6,6 +6,7 @@ package component
 
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
+	pkg_immutable "github.com/argus-labs/world-engine/pkg/immutable"
 	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -13,8 +14,8 @@ import (
 
 func (c ActiveContacts) ToProto() *pbcomponent.ActiveContacts {
 	p := &pbcomponent.ActiveContacts{}
-	for i := range c.Pairs {
-		p.Pairs = append(p.Pairs, c.Pairs[i].ToProto())
+	for v := range c.Pairs.Values() {
+		p.Pairs = append(p.Pairs, v.ToProto())
 	}
 	return p
 }
@@ -23,11 +24,13 @@ func (c ActiveContacts) FromProto(p *pbcomponent.ActiveContacts) ActiveContacts 
 	if p == nil {
 		return c
 	}
+	itemsPairs := make([]ContactPairEntry, 0, len(p.Pairs))
 	for _, e := range p.Pairs {
 		var v ContactPairEntry
 		v = v.FromProto(e)
-		c.Pairs = append(c.Pairs, v)
+		itemsPairs = append(itemsPairs, v)
 	}
+	c.Pairs = pkg_immutable.SliceOf(itemsPairs...)
 	return c
 }
 
@@ -125,8 +128,8 @@ func (c CapsuleGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
 
 func (c ChainGeom) ToProto() *pbcomponent.ChainGeom {
 	p := &pbcomponent.ChainGeom{}
-	for i := range c.Points {
-		p.Points = append(p.Points, c.Points[i].ToProto())
+	for v := range c.Points.Values() {
+		p.Points = append(p.Points, v.ToProto())
 	}
 	p.Loop = bool(c.Loop)
 	return p
@@ -136,11 +139,13 @@ func (c ChainGeom) FromProto(p *pbcomponent.ChainGeom) ChainGeom {
 	if p == nil {
 		return c
 	}
+	itemsPoints := make([]Vec2, 0, len(p.Points))
 	for _, e := range p.Points {
 		var v Vec2
 		v = v.FromProto(e)
-		c.Points = append(c.Points, v)
+		itemsPoints = append(itemsPoints, v)
 	}
+	c.Points = pkg_immutable.SliceOf(itemsPoints...)
 	c.Loop = bool(p.Loop)
 	return c
 }
@@ -280,8 +285,8 @@ func (c PhysicsBody2D) ToProto() *pbcomponent.PhysicsBody2D {
 	p.SleepingAllowed = bool(c.SleepingAllowed)
 	p.Bullet = bool(c.Bullet)
 	p.FixedRotation = bool(c.FixedRotation)
-	for i := range c.Shapes {
-		p.Shapes = append(p.Shapes, c.Shapes[i].ToProto())
+	for v := range c.Shapes.Values() {
+		p.Shapes = append(p.Shapes, v.ToProto())
 	}
 	return p
 }
@@ -299,11 +304,13 @@ func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 	c.SleepingAllowed = bool(p.SleepingAllowed)
 	c.Bullet = bool(p.Bullet)
 	c.FixedRotation = bool(p.FixedRotation)
+	itemsShapes := make([]ShapeSlot, 0, len(p.Shapes))
 	for _, e := range p.Shapes {
 		var v ShapeSlot
 		v = v.FromProto(e)
-		c.Shapes = append(c.Shapes, v)
+		itemsShapes = append(itemsShapes, v)
 	}
+	c.Shapes = pkg_immutable.SliceOf(itemsShapes...)
 	return c
 }
 

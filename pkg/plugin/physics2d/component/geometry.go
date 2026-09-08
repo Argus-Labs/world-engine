@@ -1,6 +1,10 @@
 package component
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/argus-labs/world-engine/pkg/immutable"
+)
 
 // Geometry components: a shape entity carries [ShapeCommon] plus exactly one of these. The
 // component present is the shape's kind; there is no type tag. All coordinates are in shape
@@ -69,8 +73,8 @@ func (g PolygonGeom) Validate() error {
 // terrain, spawn a new chain shape and point the slot at it. Box2D requires at least 4 points
 // and enforces that at fixture creation, like the other kinds' geometry rules.
 type ChainGeom struct {
-	Points []Vec2 `json:"points"`
-	Loop   bool   `json:"loop"`
+	Points immutable.Slice[Vec2] `json:"points"`
+	Loop   bool                  `json:"loop"`
 }
 
 // Name returns the ECS component name.
@@ -78,7 +82,7 @@ func (ChainGeom) Name() string { return "chain_geom_2d" }
 
 // Validate checks every point for NaN/Inf.
 func (g ChainGeom) Validate() error {
-	for i, v := range g.Points {
+	for i, v := range g.Points.All() {
 		if err := validateVec2(fmt.Sprintf("points[%d]", i), v); err != nil {
 			return err
 		}

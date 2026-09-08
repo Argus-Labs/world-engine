@@ -8,6 +8,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
@@ -115,7 +116,7 @@ func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) 
 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
 func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
-	if len(e.PhysicsBody.Shapes) == 0 {
+	if e.PhysicsBody.Shapes.Len() == 0 {
 		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
 	}
 	prev, hadPrev := rt.Shadow[e.EntityID]
@@ -213,7 +214,7 @@ func (rt *Runtime) reconcileExistingBody(
 // the shadow slots differ from ECS or a referenced shape entity changed.
 func (rt *Runtime) reconcileShapesChange(
 	entityID cardinal.EntityID,
-	prev, live []component.ShapeSlot,
+	prev, live immutable.Slice[component.ShapeSlot],
 ) error {
 	if rt.slotsStructuralEqual(prev, live) {
 		return rt.applyMutableShapeFixtures(entityID, prev, live)
@@ -286,23 +287,23 @@ func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
 // slotsStructuralEqual(prev, live).
 func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
-	prev []component.ShapeSlot,
-	live []component.ShapeSlot,
+	prev, live immutable.Slice[component.ShapeSlot],
 ) error {
-	for i := range live {
-		if err := rt.validateSlot(live[i]); err != nil {
+	for i, slot := range live.All() {
+		if err := rt.validateSlot(slot); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
 	slots := rt.Shapes[entityID]
 	var densityTouched bool
-	for i := range live {
-		_, dirty := rt.dirtyShapes[live[i].Shape]
-		if prev[i].Shape == live[i].Shape && !dirty {
+	for i, l := range live.All() {
+		p := prev.At(i)
+		_, dirty := rt.dirtyShapes[l.Shape]
+		if p.Shape == l.Shape && !dirty {
 			continue
 		}
-		sh := rt.ShapeMirror[live[i].Shape]
-		if old, ok := rt.ShapeMirror[prev[i].Shape]; !ok || old.Common.Density != sh.Common.Density {
+		sh := rt.ShapeMirror[l.Shape]
+		if old, ok := rt.ShapeMirror[p.Shape]; !ok || old.Common.Density != sh.Common.Density {
 			densityTouched = true
 		}
 		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge

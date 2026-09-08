@@ -3,6 +3,8 @@ package physics2d_test
 import (
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
@@ -39,10 +41,10 @@ func TestShapeDef_Geometry(t *testing.T) {
 	require.Equal(t, physics.CircleGeom{Radius: 0.5}, physics.Circle(0.5).Geom)
 	line := []physics.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}}
 	chain := physics.Chain(line...).Geom
-	require.Equal(t, physics.ChainGeom{Points: line}, chain)
-	require.Equal(t, physics.ChainGeom{Points: line, Loop: true}, physics.ChainLoop(line...).Geom)
+	require.Equal(t, physics.ChainGeom{Points: immutable.SliceOf(line...)}, chain)
+	require.Equal(t, physics.ChainGeom{Points: immutable.SliceOf(line...), Loop: true}, physics.ChainLoop(line...).Geom)
 	line[0].X = 99
-	require.InDelta(t, 0.0, chain.Points[0].X, 0, "constructor copies the points")
+	require.InDelta(t, 0.0, chain.Points.At(0).X, 0, "constructor copies the points")
 	require.Equal(t, physics.EdgeGeom{A: physics.Vec2{}, B: physics.Vec2{X: 1}},
 		physics.Edge(physics.Vec2{}, physics.Vec2{X: 1}).Geom)
 	require.Equal(t, physics.CapsuleGeom{A: physics.Vec2{}, B: physics.Vec2{X: 1}, Radius: 0.25},

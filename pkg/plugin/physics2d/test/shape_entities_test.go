@@ -9,6 +9,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
@@ -102,7 +103,7 @@ func TestShapeEntity_SlotSwapSameGeometryInPlace(t *testing.T) {
 			for eid, row := range state.Spawn.Iter() {
 				if eid == bodyID {
 					pb := row.PB.Get()
-					pb.Shapes[0] = spawnShape(state, physics.Box(1, 1).Material(0.9, 0.5, 0).Filter(0xFFFF, 0xFFFF))
+					pb.Shapes = pb.Shapes.With(0, spawnShape(state, physics.Box(1, 1).Material(0.9, 0.5, 0).Filter(0xFFFF, 0xFFFF)))
 					row.PB.Set(pb)
 				}
 			}
@@ -136,7 +137,7 @@ func TestShapeEntity_SlotSwapNewGeometryRebuilds(t *testing.T) {
 			for eid, row := range state.Spawn.Iter() {
 				if eid == bodyID {
 					pb := row.PB.Get()
-					pb.Shapes[0] = spawnShape(state, physics.Circle(5).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))
+					pb.Shapes = pb.Shapes.With(0, spawnShape(state, physics.Circle(5).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF)))
 					row.PB.Set(pb)
 				}
 			}
@@ -308,7 +309,7 @@ func TestChainShape_SwapRebuildsFixture(t *testing.T) {
 					continue
 				}
 				pb := row.PB.Get()
-				pb.Shapes[0] = spawnShape(state, physics.Chain(lineAt(2)...))
+				pb.Shapes = pb.Shapes.With(0, spawnShape(state, physics.Chain(lineAt(2)...)))
 				row.PB.Set(pb)
 			}
 		}
@@ -360,7 +361,7 @@ func TestChainShape_PointsFixedOnceUsed(t *testing.T) {
 		case editTick:
 			shape, err := state.Chains.GetByID(slot.Shape)
 			require.NoError(t, err)
-			shape.Geom.Set(physics.ChainGeom{Points: lineAt(2)})
+			shape.Geom.Set(physics.ChainGeom{Points: immutable.SliceOf(lineAt(2)...)})
 		}
 	}, cardinal.WithHook(cardinal.Update))
 

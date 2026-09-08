@@ -5,6 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
@@ -345,8 +346,8 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 // LoadActiveContactsFromComponent populates the in-memory working map from the persisted
 // ECS component. Called by the step system after a restore when ActiveContacts is nil.
 func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
-	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, len(ac.Pairs))
-	for _, p := range ac.Pairs {
+	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, ac.Pairs.Len())
+	for p := range ac.Pairs.Values() {
 		key := ContactPairKey{
 			EntityA:     p.EntityA,
 			ShapeIndexA: p.ShapeIndexA,
@@ -393,7 +394,7 @@ func (rt *Runtime) ActiveContactsToComponent() component.ActiveContacts {
 		})
 	}
 	sortContactPairEntries(pairs)
-	return component.ActiveContacts{Pairs: pairs}
+	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
 // sortContactPairEntries sorts by (EntityA, ShapeIndexA, EntityB, ShapeIndexB) for

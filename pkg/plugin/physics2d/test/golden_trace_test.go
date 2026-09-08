@@ -375,7 +375,7 @@ func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 		for _, p := range patches {
 			body := p.pb.Get()
 			for _, sh := range p.e.shapes {
-				body.Shapes = append(body.Shapes, sh(state))
+				body.Shapes = body.Shapes.Append(sh(state))
 			}
 			p.pb.Set(body)
 		}
