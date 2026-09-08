@@ -122,11 +122,15 @@ func (Buffs) Name() string {
 }
 ```
 
-The API mirrors Go's `slices` package in full. Reads such as `At`, `All`, `IndexFunc`, and
-`MinFunc` are methods, and so are derivations such as `Append`, `Insert`, `With`, `Without`, `Sub`,
-`Filter`, `Delete`, `Reversed`, and `SortedFunc`. Anything that needs a type constraint is a package
-function, for example `Equal`, `Contains`, `Sorted`, `Min`, `Map`, and `Concat`. Every derivation
-returns a new Slice. Derive, then `Set` the component that holds it:
+The API follows Go's `slices` package closely, with one difference: nothing mutates in place, so an
+operation that would rewrite a slice returns a new Slice and is named for the result — `Reverse`
+becomes `Reversed`, and `Sort` and `SortFunc` become `Sorted` and `SortedFunc`.
+
+Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are derivations such as
+`Append`, `Insert`, `With`, `Without`, `Sub`, `Filter`, `Delete`, `Reversed`, and `SortedFunc`.
+Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
+`Sorted`, `Min`, `Map`, and `Concat`. Every derivation returns a new Slice. Derive, then `Set` the
+component that holds it:
 
 ```go
 func BuffSystem(state *BuffSystemState) error {
@@ -150,8 +154,11 @@ that slice never reach the component. `Clone` goes the other way: a plain `[]T` 
 one, and changes to it never reach the Slice.
 
 <Note>
-  A Slice is a struct, so a JSON tag of `omitempty` no longer omits an empty list: it encodes as
-  `[]`. This only matters if something reads your components as JSON; the wire format is protobuf.
+  `immutable.Slice` needs a World CLI new enough to generate it. An older one reports the field as an
+  unsupported type when you run `world sdk generate`.
+
+  A Slice is also a struct, so a JSON tag of `omitempty` no longer omits an empty list: it encodes as
+  `[]`. That only matters if something reads your components as JSON; the wire format is protobuf.
 </Note>
 
 <Note>

@@ -17,37 +17,20 @@ import (
 // Slice is an immutable sequence for component fields whose length is genuinely unbounded. It is
 // the only variable-length collection a component may hold.
 //
-// A component column stores values, and Get hands back a copy, but a raw []T inside that copy still
-// shares its backing array with the column. Writing through it changes the live world without a Set,
-// which breaks the rule that snapshots only ever see state that went through Set. Slice closes that
-// hole by construction: the backing array is unexported, every constructor copies its input, every
-// reader returns a copy, and nothing mutates in place. Sharing the backing array between copies is
-// therefore safe, so Get stays zero-copy.
-//
-// To change a Slice, derive a new one and Set the component that holds it:
+// A component column stores values and Get hands back a copy, but a raw []T inside that copy still
+// shares its backing array with the column: writing through it changes the live world without a Set,
+// and a snapshot only ever holds what went through Set. Slice closes that hole by construction — the
+// backing array is unexported and nothing mutates in place — so sharing it between copies is safe,
+// and Get stays zero-copy. To change one, derive a new one and Set the component that holds it:
 //
 //	inv := ref.Get()
 //	inv.Items = inv.Items.With(0, item)
 //	ref.Set(inv)
 //
-// The element type must itself be value-safe: scalars, strings, fixed arrays, or structs of those.
-// Slice does not check this. Slice[*T], Slice[[]T] and Slice[map[K]V] all compile, and each hands
-// the shared pointer or backing array back out of At, which defeats the guarantee the type exists
-// for. The wire generator refuses such elements in every command, event and component it generates;
-// a hand-written codec is the only way around it.
-//
-// A Slice directly inside a Slice has no protobuf form, because a repeated field cannot hold another
-// repeated field. For jagged rows, put the inner Slice in a named struct:
-//
-//	type Row struct{ Cells Slice[int32] }
-//	type Board struct{ Rows Slice[Row] }
-//
-// The API mirrors the standard slices package in full, apart from the helpers that only make sense
-// in place (Sort, Clip, Grow). Reads and derivations that work for any element type are methods;
-// the ones that need a constraint or a second type parameter (Equal, Compare, Index, Contains,
-// Sorted, IsSorted, Min, Max, BinarySearch, Compact, Map, Concat, Collect and their Func forms) are
-// package functions, since a method cannot add either. Every derivation returns a new Slice and
-// leaves the receiver as it was.
+// The element type must be value-safe too: scalars, strings, fixed arrays, or structs of those.
+// Slice does not check this — Slice[*T] compiles, and hands the pointer straight back out of At —
+// but the wire generator refuses such an element, and refuses a Slice directly inside a Slice, which
+// protobuf cannot carry (wrap the inner one in a named struct).
 type Slice[T any] struct {
 	items []T
 }
@@ -60,6 +43,18 @@ type Slice[T any] struct {
 // reach the returned value.
 func SliceOf[T any](items ...T) Slice[T] {
 	return wrap(slices.Clone(items))
+}
+
+// clonedWithRoom copies the elements into a slice with capacity for extra more, so an in-place
+// stdlib helper can finish the job without allocating a second time. Clone alone would return
+// capacity equal to length, forcing a grow. A negative extra means the caller is shrinking.
+func (s Slice[T]) clonedWithRoom(extra int) []T {
+	if extra < 0 {
+		extra = 0
+	}
+	out := make([]T, len(s.items), len(s.items)+extra)
+	copy(out, s.items)
+	return out
 }
 
 // wrap adopts a freshly built slice as a Slice, keeping empty canonical. Callers pass a slice no one
@@ -186,7 +181,7 @@ func (s Slice[T]) Filter(keep func(T) bool) Slice[T] {
 // Insert returns a new Slice with items inserted at index i, which may equal Len. The receiver is
 // unchanged. It panics when i is out of range, like slices.Insert.
 func (s Slice[T]) Insert(i int, items ...T) Slice[T] {
-	return wrap(slices.Insert(s.Clone(), i, items...))
+	return wrap(slices.Insert(s.clonedWithRoom(len(items)), i, items...))
 }
 
 // Sub returns a new Slice holding the elements in [lo, hi). The receiver is unchanged. It panics
@@ -225,7 +220,7 @@ func (s Slice[T]) Delete(i, j int) Slice[T] {
 // Replace returns a new Slice with the elements in [i, j) replaced by items. The receiver is
 // unchanged. It panics when the range is out of bounds, like slices.Replace.
 func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
-	return wrap(slices.Replace(s.Clone(), i, j, items...))
+	return wrap(slices.Replace(s.clonedWithRoom(len(items)-(j-i)), i, j, items...))
 }
 
 // CompactFunc returns a new Slice with runs of consecutive elements that eq reports equal collapsed
