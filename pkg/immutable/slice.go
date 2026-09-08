@@ -50,7 +50,7 @@ func SliceOf[T any](items ...T) Slice[T] {
 // backing array and cannot be changed, so nil is what "empty" has to look like — but slices.Clone,
 // Delete, DeleteFunc, Replace and the rest all hand back an empty slice that is NOT nil. Without
 // this, a component restored from a snapshot with an empty list would not compare equal to the same
-// component freshly built. Ten tests fail if it goes.
+// component freshly built.
 func wrap[T any](items []T) Slice[T] {
 	if len(items) == 0 {
 		return Slice[T]{}
