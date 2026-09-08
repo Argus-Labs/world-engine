@@ -1,0 +1,9 @@
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127GameplaySemantics
+    go127_gameplay_eval_test.go:231: observed Get/Set, absent and unregistered Has, registration requirement, Remove idempotence, archetype moves, query match, destroyed entity errors, early break
+BenchmarkGo127GameplaySemantics-18    	       1	    413000 ns/op
+PASS

@@ -1,0 +1,109 @@
+package cardinal
+
+import (
+	"fmt"
+	"testing"
+)
+
+type evalRow struct {
+	Position Ref[Position3D]
+	Velocity Ref[Velocity3D]
+}
+
+type evalProjection struct {
+	X, Y float64
+}
+
+func evalProject(_ EntityID, row evalRow) evalProjection {
+	p, v := row.Position.Get(), row.Velocity.Get()
+	return evalProjection{X: p.X + v.X, Y: p.Y + v.Y}
+}
+
+func evalMap[E EntityID, C, U any](s SearchResult[E, C], project func(E, C) U) SearchResult[E, U] {
+	return func(yield func(E, U) bool) {
+		for e, c := range s {
+			if !yield(e, project(e, c)) {
+				return
+			}
+		}
+	}
+}
+
+func evalQuery(b *testing.B, n int) *Contains[evalRow] {
+	b.Helper()
+	w := newBenchWorld()
+	state := &struct{ Query Contains[evalRow] }{}
+	mustInitSystemFields(b, w, state)
+	for i := 0; i < n; i++ {
+		_, row := state.Query.Create()
+		row.Position.Set(Position3D{X: float64(i), Y: 2})
+		row.Velocity.Set(Velocity3D{X: 1, Y: 3})
+	}
+	return &state.Query
+}
+
+func evalCheck(b *testing.B, n int, sum float64) {
+	b.Helper()
+	want := float64(n*(n+1)/2 + 5*n)
+	if sum != want {
+		b.Fatalf("projection checksum = %g, want %g", sum, want)
+	}
+}
+
+func BenchmarkGo127Projection(b *testing.B) {
+	for _, n := range []int{100, 1000, 10000} {
+		b.Run(fmt.Sprintf("entities=%d", n), func(b *testing.B) {
+			b.Run("api=inline", func(b *testing.B) {
+				q := evalQuery(b, n)
+				var sum float64
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					sum = 0
+					for id, row := range q.Iter() {
+						p := evalProject(id, row)
+						sum += p.X + p.Y
+					}
+				}
+				b.StopTimer()
+				evalCheck(b, n, sum)
+			})
+			b.Run("api=function", func(b *testing.B) {
+				q := evalQuery(b, n)
+				var sum float64
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					sum = 0
+					for _, p := range evalMap(q.Iter(), evalProject) {
+						sum += p.X + p.Y
+					}
+				}
+				b.StopTimer()
+				evalCheck(b, n, sum)
+			})
+		})
+	}
+}
+
+func BenchmarkGo127Component(b *testing.B) {
+	q := evalQuery(b, 1)
+	_, row, err := q.Iter().Single()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Run("api=ref", func(b *testing.B) {
+		row.Position.Set(Position3D{})
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			p := row.Position.Get()
+			p.X++
+			row.Position.Set(p)
+		}
+		b.StopTimer()
+		if got := row.Position.Get().X; got != float64(b.N) {
+			b.Fatalf("update = %g, want %d", got, b.N)
+		}
+	})
+}

@@ -1,0 +1,130 @@
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   93673	      2423 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   93558	      2488 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	   10000	     24828 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9886	     24420 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1011	    236402 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     976	    245781 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13078188	        18.33 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   98858	      2412 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   95535	      2725 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	   10000	     23571 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9807	     24018 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1050	    229207 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     991	    240216 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13497174	        17.78 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   97938	      2411 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   95800	      2488 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	   10000	     23033 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	   10000	     23657 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1030	    228526 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     960	    242943 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	14534150	        17.31 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   98780	      2450 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   95200	      2564 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	    9391	     23891 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9699	     24826 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1032	    233399 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     919	    255188 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13404170	        17.73 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   97978	      2390 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   95838	      2458 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	    9498	     23331 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	   10000	     24184 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1041	    235961 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     994	    241676 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13062794	        17.63 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   99193	      2341 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   96670	      2547 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	   10000	     23335 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9670	     24270 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1035	    232066 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     998	    244073 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13876875	        17.56 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   96877	      2412 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   95592	      2541 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	   10000	     23791 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9480	     25010 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1041	    238109 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     956	    246368 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13219620	        18.43 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	  101151	      2366 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   93187	      2441 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	    9931	     23450 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	   10000	     25000 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	    1036	    231855 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     987	    240993 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13876942	        17.35 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   96870	      2481 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   95521	      2490 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	    9826	     23282 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9890	     24817 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	     996	    233052 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     950	    244589 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13379044	        18.37 ns/op	       0 B/op	       0 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Projection/entities=100/api=inline         	   96890	      2419 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=100/api=function       	   94971	      2522 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=inline        	   10000	     24207 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=1000/api=function      	    9988	     24662 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=inline       	     964	    232174 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Projection/entities=10000/api=function     	     986	    241868 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Component/api=ref                          	13008570	        18.10 ns/op	       0 B/op	       0 allocs/op
+PASS

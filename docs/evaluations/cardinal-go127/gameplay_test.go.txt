@@ -1,0 +1,232 @@
+//go:build go1.27
+
+package cardinal
+
+import (
+	"fmt"
+	"iter"
+	"testing"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+)
+
+func (b *BaseSystemState) Get[T ecs.Component](id EntityID) (T, error) {
+	return ecs.Get[T](b.world.world, id)
+}
+func (b *BaseSystemState) Set[T ecs.Component](id EntityID, value T) error {
+	return ecs.Set(b.world.world, id, value)
+}
+func (b *BaseSystemState) Has[T ecs.Component](id EntityID) bool {
+	_, err := b.Get[T](id)
+	return err == nil
+}
+func (b *BaseSystemState) Remove[T ecs.Component](id EntityID) error {
+	return ecs.Remove[T](b.world.world, id)
+}
+
+type gameplayEntity struct {
+	world *ecs.World
+	id    EntityID
+}
+
+func (e gameplayEntity) Get[T ecs.Component]() (T, error)   { return ecs.Get[T](e.world, e.id) }
+func (e gameplayEntity) Set[T ecs.Component](value T) error { return ecs.Set(e.world, e.id, value) }
+
+func (q *Contains[T]) IDs() iter.Seq[EntityID] {
+	return func(yield func(EntityID) bool) {
+		if err := ecs.IterEntities(q.world, q.components, ecs.MatchContains, yield); err != nil {
+			panic(err)
+		}
+	}
+}
+func (q *Contains[T]) EntityIter() iter.Seq[gameplayEntity] {
+	return func(yield func(gameplayEntity) bool) {
+		if err := ecs.IterEntities(q.world, q.components, ecs.MatchContains, func(id EntityID) bool {
+			return yield(gameplayEntity{world: q.world, id: id})
+		}); err != nil {
+			panic(err)
+		}
+	}
+}
+func (q *Contains[T]) Entity(id EntityID) (gameplayEntity, error) {
+	if err := ecs.MatchArchetype(q.world, id, q.components, ecs.MatchContains); err != nil {
+		return gameplayEntity{}, err
+	}
+	return gameplayEntity{world: q.world, id: id}, nil
+}
+
+func gameplayValue[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+func gameplayOK(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func BenchmarkGo127Gameplay(b *testing.B) {
+	for _, n := range []int{100, 1000, 10000} {
+		for _, workload := range []string{"iterate", "lookup"} {
+			for _, api := range []string{"ref", "system", "entity"} {
+				b.Run(fmt.Sprintf("entities=%d/work=%s/api=%s", n, workload, api), func(b *testing.B) {
+					q := evalQuery(b, n)
+					state := &BaseSystemState{world: &World{world: q.world}}
+					ids := make([]EntityID, 0, n)
+					for id := range q.IDs() {
+						ids = append(ids, id)
+					}
+					var run func() float64
+					switch workload + "/" + api {
+					case "iterate/ref":
+						run = func() float64 {
+							var sum float64
+							for _, row := range q.Iter() {
+								p, v := row.Position.Get(), row.Velocity.Get()
+								p.X += v.X
+								p.Y += v.Y
+								row.Position.Set(p)
+								sum += p.X + p.Y
+							}
+							return sum
+						}
+					case "iterate/system":
+						run = func() float64 {
+							var sum float64
+							for id := range q.IDs() {
+								p, v := gameplayValue(state.Get[Position3D](id)), gameplayValue(state.Get[Velocity3D](id))
+								p.X += v.X
+								p.Y += v.Y
+								gameplayOK(state.Set(id, p))
+								sum += p.X + p.Y
+							}
+							return sum
+						}
+					case "iterate/entity":
+						run = func() float64 {
+							var sum float64
+							for entity := range q.EntityIter() {
+								p, v := gameplayValue(entity.Get[Position3D]()), gameplayValue(entity.Get[Velocity3D]())
+								p.X += v.X
+								p.Y += v.Y
+								gameplayOK(entity.Set(p))
+								sum += p.X + p.Y
+							}
+							return sum
+						}
+					case "lookup/ref":
+						run = func() float64 {
+							var sum float64
+							for _, id := range ids {
+								row := gameplayValue(q.GetByID(id))
+								p, v := row.Position.Get(), row.Velocity.Get()
+								p.X += v.X
+								p.Y += v.Y
+								row.Position.Set(p)
+								sum += p.X + p.Y
+							}
+							return sum
+						}
+					case "lookup/system":
+						run = func() float64 {
+							var sum float64
+							for _, id := range ids {
+								gameplayOK(ecs.MatchArchetype(q.world, id, q.components, ecs.MatchContains))
+								p, v := gameplayValue(state.Get[Position3D](id)), gameplayValue(state.Get[Velocity3D](id))
+								p.X += v.X
+								p.Y += v.Y
+								gameplayOK(state.Set(id, p))
+								sum += p.X + p.Y
+							}
+							return sum
+						}
+					case "lookup/entity":
+						run = func() float64 {
+							var sum float64
+							for _, id := range ids {
+								entity := gameplayValue(q.Entity(id))
+								p, v := gameplayValue(entity.Get[Position3D]()), gameplayValue(entity.Get[Velocity3D]())
+								p.X += v.X
+								p.Y += v.Y
+								gameplayOK(entity.Set(p))
+								sum += p.X + p.Y
+							}
+							return sum
+						}
+					}
+					var sum float64
+					b.ReportAllocs()
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						sum = run()
+					}
+					b.StopTimer()
+					want := float64(n*(n-1)/2) + float64(n)*(2+4*float64(b.N))
+					if sum != want {
+						b.Fatalf("movement checksum=%g, want %g", sum, want)
+					}
+				})
+			}
+		}
+	}
+}
+
+func BenchmarkGo127GameplaySemantics(b *testing.B) {
+	q := evalQuery(b, 2)
+	state := &BaseSystemState{world: &World{world: q.world}}
+	ids := make([]EntityID, 0, 2)
+	for id := range q.IDs() {
+		ids = append(ids, id)
+	}
+	id := ids[0]
+	if !state.Has[Position3D](id) {
+		b.Fatal("present component not found")
+	}
+	if state.Has[Health2](id) {
+		b.Fatal("unregistered component must be absent")
+	}
+	if err := state.Set(id, Health2{}); err == nil {
+		b.Fatal("Set must require prior registration")
+	}
+	entity := gameplayValue(q.Entity(id))
+	gameplayOK(state.Remove[Velocity3D](id))
+	if state.Has[Velocity3D](id) {
+		b.Fatal("removed component still present")
+	}
+	if _, err := state.Get[Velocity3D](id); err == nil {
+		b.Fatal("missing component must return an error")
+	}
+	if _, err := q.Entity(id); err == nil {
+		b.Fatal("query lookup must enforce archetype membership")
+	}
+	if err := state.Remove[Velocity3D](id); err != nil {
+		b.Fatal("removing absent registered component should be a no-op")
+	}
+	gameplayOK(state.Set(id, Velocity3D{X: 7}))
+	if v := gameplayValue(entity.Get[Velocity3D]()); v.X != 7 {
+		b.Fatal("handle must follow archetype moves")
+	}
+	if !q.Destroy(id) {
+		b.Fatal("destroy failed")
+	}
+	if _, err := entity.Get[Position3D](); err == nil {
+		b.Fatal("destroyed entity must return error")
+	}
+	if err := state.Set(id, Position3D{}); err == nil {
+		b.Fatal("write to destroyed entity must return error")
+	}
+	if state.Has[Position3D](id) {
+		b.Fatal("destroyed entity must not have components")
+	}
+	visits := 0
+	for range q.EntityIter() {
+		visits++
+		break
+	}
+	if visits != 1 {
+		b.Fatalf("early break visits=%d", visits)
+	}
+	b.Log("observed Get/Set, absent and unregistered Has, registration requirement, Remove idempotence, archetype moves, query match, destroyed entity errors, early break")
+}

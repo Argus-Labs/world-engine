@@ -1,0 +1,40 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+                                            │ docs/evaluations/cardinal-go127/results/go1.26.5.txt │ docs/evaluations/cardinal-go127/results/go1.27.1.txt │
+                                            │                        sec/op                        │            sec/op              vs base               │
+Go127Projection/entities=100/api=inline                                                2.412µ ± 2%                     2.436µ ± 3%       ~ (p=0.225 n=10)
+Go127Projection/entities=100/api=function                                              2.506µ ± 2%                     2.563µ ± 3%       ~ (p=0.196 n=10)
+Go127Projection/entities=1000/api=inline                                               23.51µ ± 3%                     23.93µ ± 6%       ~ (p=0.063 n=10)
+Go127Projection/entities=1000/api=function                                             24.54µ ± 2%                     24.85µ ± 4%       ~ (p=0.063 n=10)
+Go127Projection/entities=10000/api=inline                                              232.6µ ± 2%                     241.5µ ± 2%  +3.81% (p=0.000 n=10)
+Go127Projection/entities=10000/api=function                                            243.5µ ± 1%                     253.0µ ± 5%  +3.89% (p=0.001 n=10)
+Go127Component/api=ref                                                                 17.76n ± 3%                     18.57n ± 7%  +4.59% (p=0.005 n=10)
+geomean                                                                                8.610µ                          8.838µ       +2.65%
+
+                                            │ docs/evaluations/cardinal-go127/results/go1.26.5.txt │ docs/evaluations/cardinal-go127/results/go1.27.1.txt │
+                                            │                         B/op                         │            B/op              vs base                 │
+Go127Projection/entities=100/api=inline                                               16.00 ± 0%                      16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=100/api=function                                             16.00 ± 0%                      16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=1000/api=inline                                              16.00 ± 0%                      16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=1000/api=function                                            16.00 ± 0%                      16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=10000/api=inline                                             17.00 ± 0%                      17.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=10000/api=function                                           16.00 ± 0%                      16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Component/api=ref                                                                0.000 ± 0%                      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+geomean                                                                                          ²                                +0.00%                ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean
+
+                                            │ docs/evaluations/cardinal-go127/results/go1.26.5.txt │ docs/evaluations/cardinal-go127/results/go1.27.1.txt │
+                                            │                      allocs/op                       │          allocs/op           vs base                 │
+Go127Projection/entities=100/api=inline                                               2.000 ± 0%                      2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=100/api=function                                             2.000 ± 0%                      2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=1000/api=inline                                              2.000 ± 0%                      2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=1000/api=function                                            2.000 ± 0%                      2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=10000/api=inline                                             2.000 ± 0%                      2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=10000/api=function                                           2.000 ± 0%                      2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Component/api=ref                                                                0.000 ± 0%                      0.000 ± 0%       ~ (p=1.000 n=10) ¹
+geomean                                                                                          ²                                +0.00%                ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean

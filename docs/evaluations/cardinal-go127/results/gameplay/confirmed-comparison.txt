@@ -1,0 +1,23 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+                                         │      ref      │                system                │                entity                │
+                                         │    sec/op     │    sec/op     vs base                │    sec/op     vs base                │
+Go127Gameplay/entities=1000/work=iterate   33.99µ ± 214%   30.27µ ± 28%  -10.94% (p=0.007 n=10)   29.71µ ±  8%  -12.60% (p=0.000 n=10)
+Go127Gameplay/entities=1000/work=lookup    55.21µ ± 136%   48.15µ ± 77%  -12.79% (p=0.009 n=10)   50.38µ ± 17%   -8.74% (p=0.015 n=10)
+geomean                                    43.32µ          38.17µ        -11.87%                  38.69µ        -10.69%
+
+                                         │     ref      │                system                 │                entity                 │
+                                         │     B/op     │     B/op      vs base                 │     B/op      vs base                 │
+Go127Gameplay/entities=1000/work=iterate     16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=1000/work=lookup    7.812Ki ± 0%   7.812Ki ± 0%       ~ (p=1.000 n=10) ¹   7.812Ki ± 0%       ~ (p=1.000 n=10) ¹
+geomean                                      357.8          357.8       +0.00%                      357.8       +0.00%
+¹ all samples are equal
+
+                                         │     ref     │                system                │                entity                │
+                                         │  allocs/op  │  allocs/op   vs base                 │  allocs/op   vs base                 │
+Go127Gameplay/entities=1000/work=iterate    2.000 ± 0%    2.000 ± 0%       ~ (p=1.000 n=10) ¹    2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=1000/work=lookup    1.000k ± 0%   1.000k ± 0%       ~ (p=1.000 n=10) ¹   1.000k ± 0%       ~ (p=1.000 n=10) ¹
+geomean                                     44.72         44.72       +0.00%                     44.72       +0.00%
+¹ all samples are equal

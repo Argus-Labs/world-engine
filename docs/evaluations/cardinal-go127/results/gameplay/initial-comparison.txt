@@ -1,0 +1,35 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+                                          │      ref      │                system                │                entity                │
+                                          │    sec/op     │    sec/op     vs base                │    sec/op      vs base               │
+Go127Gameplay/entities=100/work=iterate     3.739µ ± 117%   3.258µ ± 13%  -12.87% (p=0.011 n=10)   3.391µ ± 234%       ~ (p=0.190 n=10)
+Go127Gameplay/entities=100/work=lookup      5.671µ ±  74%   5.272µ ± 19%        ~ (p=0.089 n=10)   5.131µ ± 780%       ~ (p=0.436 n=10)
+Go127Gameplay/entities=1000/work=iterate    36.51µ ±  89%   33.71µ ± 36%        ~ (p=0.165 n=10)   34.22µ ± 499%       ~ (p=0.529 n=10)
+Go127Gameplay/entities=1000/work=lookup     58.95µ ±  49%   52.90µ ± 24%  -10.26% (p=0.015 n=10)   53.28µ ± 341%       ~ (p=0.143 n=10)
+Go127Gameplay/entities=10000/work=iterate   369.9µ ± 146%   322.7µ ± 75%  -12.76% (p=0.011 n=10)   371.0µ ± 246%       ~ (p=0.912 n=10)
+Go127Gameplay/entities=10000/work=lookup    556.4µ ±   8%   520.5µ ± 38%        ~ (p=0.218 n=10)   524.1µ ±  34%       ~ (p=0.315 n=10)
+geomean                                     45.93µ          41.55µ         -9.55%                  42.82µ         -6.77%
+
+                                          │     ref      │                system                 │                entity                 │
+                                          │     B/op     │     B/op      vs base                 │     B/op      vs base                 │
+Go127Gameplay/entities=100/work=iterate       16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=100/work=lookup        800.0 ± 0%     800.0 ± 0%       ~ (p=1.000 n=10) ¹     800.0 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=1000/work=iterate      16.00 ± 0%     16.00 ± 0%       ~ (p=1.000 n=10) ¹     16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=1000/work=lookup     7.812Ki ± 0%   7.812Ki ± 0%       ~ (p=1.000 n=10) ¹   7.812Ki ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=10000/work=iterate     17.00 ± 6%     17.00 ± 6%       ~ (p=1.000 n=10)       17.00 ± 6%       ~ (p=1.000 n=10)
+Go127Gameplay/entities=10000/work=lookup    78.12Ki ± 0%   78.12Ki ± 0%       ~ (p=1.000 n=10) ¹   78.12Ki ± 0%       ~ (p=1.000 n=10) ¹
+geomean                                       361.4          361.4       +0.00%                      361.4       +0.00%
+¹ all samples are equal
+
+                                          │     ref     │                system                │                entity                │
+                                          │  allocs/op  │  allocs/op   vs base                 │  allocs/op   vs base                 │
+Go127Gameplay/entities=100/work=iterate      2.000 ± 0%    2.000 ± 0%       ~ (p=1.000 n=10) ¹    2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=100/work=lookup       100.0 ± 0%    100.0 ± 0%       ~ (p=1.000 n=10) ¹    100.0 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=1000/work=iterate     2.000 ± 0%    2.000 ± 0%       ~ (p=1.000 n=10) ¹    2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=1000/work=lookup     1.000k ± 0%   1.000k ± 0%       ~ (p=1.000 n=10) ¹   1.000k ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=10000/work=iterate    2.000 ± 0%    2.000 ± 0%       ~ (p=1.000 n=10) ¹    2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Gameplay/entities=10000/work=lookup    10.00k ± 0%   10.00k ± 0%       ~ (p=1.000 n=10) ¹   10.00k ± 0%       ~ (p=1.000 n=10) ¹
+geomean                                      44.72         44.72       +0.00%                     44.72       +0.00%
+¹ all samples are equal

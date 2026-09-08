@@ -1,0 +1,5 @@
+pkg/assert/assert_dev.go:5:8: could not import fmt (/Users/smsunarto/.local/share/mise/installs/go/1.27.1/src/fmt/errors.go:8:2: could not import errors (/Users/smsunarto/.local/share/mise/installs/go/1.27.1/src/errors/wrap.go:8:2: could not import internal/reflectlite (/Users/smsunarto/.local/share/mise/installs/go/1.27.1/src/internal/reflectlite/swapper.go:8:2: could not import internal/goarch (-: could not load export data: internal error in importing "internal/goarch" (cannot decode "internal/goarch", export data version 4 is greater than maximum supported version 2); please report an issue)))) (typecheck)
+import "fmt"
+       ^
+1 issues:
+* typecheck: 1

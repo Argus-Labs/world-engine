@@ -1,0 +1,114 @@
+//go:build go1.27
+
+package cardinal
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/argus-labs/world-engine/pkg/assert"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+)
+
+func (s SearchResult[E, C]) Map[U any](project func(E, C) U) SearchResult[E, U] {
+	return func(yield func(E, U) bool) {
+		for e, c := range s {
+			if !yield(e, project(e, c)) {
+				return
+			}
+		}
+	}
+}
+
+type evalEntity struct {
+	world *ecs.World
+	id    EntityID
+}
+
+func (e evalEntity) Get[T ecs.Component]() T {
+	value, err := ecs.Get[T](e.world, e.id)
+	assert.That(err == nil, "entity doesn't exist or doesn't contain the component")
+	return value
+}
+
+func (e evalEntity) Set[T ecs.Component](value T) {
+	err := ecs.Set(e.world, e.id, value)
+	assert.That(err == nil, "entity doesn't exist")
+}
+
+func BenchmarkGo127ProjectionMethod(b *testing.B) {
+	for _, n := range []int{100, 1000, 10000} {
+		b.Run(fmt.Sprintf("entities=%d/api=method", n), func(b *testing.B) {
+			q := evalQuery(b, n)
+			var sum float64
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				sum = 0
+				for _, p := range q.Iter().Map(evalProject) {
+					sum += p.X + p.Y
+				}
+			}
+			b.StopTimer()
+			evalCheck(b, n, sum)
+		})
+	}
+}
+
+func BenchmarkGo127ComponentMethod(b *testing.B) {
+	q := evalQuery(b, 1)
+	id, row, err := q.Iter().Single()
+	if err != nil {
+		b.Fatal(err)
+	}
+	entity := evalEntity{world: q.world, id: id}
+	b.Run("api=entity", func(b *testing.B) {
+		row.Position.Set(Position3D{})
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			p := entity.Get[Position3D]()
+			p.X++
+			entity.Set(p)
+		}
+		b.StopTimer()
+		if got := entity.Get[Position3D]().X; got != float64(b.N) {
+			b.Fatalf("update = %g, want %d", got, b.N)
+		}
+	})
+}
+
+func BenchmarkGo127Semantics(b *testing.B) {
+	q := evalQuery(b, 10)
+	calls := 0
+	project := func(id EntityID, row evalRow) evalProjection { calls++; return evalProject(id, row) }
+	mapped := q.Iter().Map(project)
+	if calls != 0 {
+		b.Fatal("Map must be lazy")
+	}
+	for range mapped {
+		break
+	}
+	if calls != 1 {
+		b.Fatalf("break visited %d entities", calls)
+	}
+	calls = 0
+	_, _, err := mapped.Single()
+	if err != ErrSingleMultipleResult || calls != 2 {
+		b.Fatalf("Single: %v, visits=%d", err, calls)
+	}
+	id, got, err := mapped.Filter(func(_ EntityID, p evalProjection) bool { return p.X == 5 }).Single()
+	if err != nil || got.X != 5 || got.Y != 5 {
+		b.Fatalf("chain: id=%d value=%v error=%v", id, got, err)
+	}
+	row, err := q.GetByID(id)
+	if err != nil || row.Position.Get().X != 4 {
+		b.Fatal("Map must preserve entity IDs")
+	}
+	empty := evalQuery(b, 0)
+	_, _, err = empty.Iter().Map(evalProject).Single()
+	if err != ErrSingleNoResult {
+		b.Fatalf("empty: %v", err)
+	}
+	b.Log("observed lazy evaluation, break after one visit, Single stops at two, Filter/Single chaining, ID preservation, empty result")
+}

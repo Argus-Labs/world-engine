@@ -1,0 +1,9 @@
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Semantics
+    go127_methods_eval_test.go:113: observed lazy evaluation, break after one visit, Single stops at two, Filter/Single chaining, ID preservation, empty result
+BenchmarkGo127Semantics-18    	       1	   1130625 ns/op
+PASS

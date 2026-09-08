@@ -1,0 +1,71 @@
+level=warning msg="The linter 'gomodguard' is deprecated (since v2.12.0) due to: new major version. Replaced by gomodguard_v2."
+level=warning msg="Suggested new configuration:\nlinters:\n  enable:\n    - gomodguard_v2\n  settings:\n    gomodguard_v2:\n      blocked:\n        - module: github.com/golang/protobuf\n          recommendations:\n            - google.golang.org/protobuf\n          reason: see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules\n        - module: github.com/satori/go.uuid\n          recommendations:\n            - github.com/google/uuid\n          reason: satori's package is not maintained\n        - module: github.com/gofrs/uuid\n          recommendations:\n            - github.com/gofrs/uuid/v5\n          reason: gofrs' package was not go module before v5\n"
+pkg/cardinal/dst.go:195:24: string `dst` has 3 occurrences, make it a constant (goconst)
+		Region:              "dst",
+		                     ^
+pkg/plugin/lobby/system/lobby.go:1590:16: string `player not in a lobby` has 11 occurrences, make it a constant (goconst)
+				Message:   "player not in a lobby",
+				           ^
+pkg/plugin/lobby/system/lobby.go:1810:16: string `player entity not found` has 5 occurrences, make it a constant (goconst)
+				Message:   "player entity not found",
+				           ^
+pkg/plugin/physics2d/test/e2e/internal/harness/snapshot.go:127:57: string `missing` has 4 occurrences, make it a constant (goconst)
+			diffs = append(diffs, Diff{"<active-contacts>", key, "missing", "present"})
+			                                                     ^
+pkg/box2d/distance.go:108:27: G602: slice index out of range (gosec)
+		proxy.Points[i] = points[i]
+		                        ^
+pkg/box2d/dynamic_tree.go:1536:39: G602: slice index out of range (gosec)
+		lowerBound = Min(lowerBound, centers[i])
+		                                    ^
+pkg/box2d/dynamic_tree.go:1538:39: G602: slice index out of range (gosec)
+		upperBound = Max(upperBound, centers[i])
+		                                    ^
+pkg/box2d/dynamic_tree.go:1653:24: G602: slice index out of range (gosec)
+			parentItem := &stack[top-1]
+			                    ^
+pkg/box2d/dynamic_tree.go:1715:22: G602: slice index out of range (gosec)
+				newItem := &stack[top]
+				                 ^
+pkg/box2d/dynamic_tree.go:1812:20: G602: slice index out of range (gosec)
+		nodeIndex = stack[stackCount]
+		                 ^
+pkg/box2d/hull.go:157:13: G602: slice index out of range (gosec)
+	ps[f1] = ps[n-1]
+	           ^
+pkg/box2d/hull.go:172:13: G602: slice index out of range (gosec)
+	ps[f2] = ps[n-1]
+	           ^
+pkg/box2d/manifold.go:1529:18: G602: slice index out of range (gosec)
+			a1 := vertices[ia1]
+			              ^
+pkg/box2d/manifold.go:1532:16: G602: slice index out of range (gosec)
+			n := normals[ia1]
+			            ^
+pkg/box2d/manifold.go:1549:51: G602: slice index out of range (gosec)
+			manifold = clipSegments(a1, a2, p1, p2, normals[ia1], radiusB, 0.0, makeID(ia1, 1), makeID(ia2, 0))
+			                                               ^
+pkg/box2d/manifold.go:1553:54: G602: slice index out of range (gosec)
+				manifold.Normal = RotateVector(xfA.Q, Neg(normals[ia1]))
+				                                                 ^
+pkg/box2d/manifold.go:1589:16: G602: slice index out of range (gosec)
+		b1 = vertices[ib1]
+		             ^
+pkg/box2d/manifold.go:1598:29: G602: slice index out of range (gosec)
+		d2 := Dot(normal1, normals[i2])
+		                          ^
+pkg/box2d/manifold.go:1602:17: G602: slice index out of range (gosec)
+			b2 = vertices[ib2]
+			             ^
+pkg/box2d/manifold.go:1610:17: G602: slice index out of range (gosec)
+			b1 = vertices[ib1]
+			             ^
+pkg/box2d/shape.go:732:17: G602: slice index out of range (gosec)
+		prev := points[count-1]
+		              ^
+pkg/box2d/shape.go:1842:17: G602: slice index out of range (gosec)
+		v1 := vertices[count-1]
+		              ^
+22 issues:
+* goconst: 4
+* gosec: 18

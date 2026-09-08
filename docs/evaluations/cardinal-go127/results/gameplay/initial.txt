@@ -1,0 +1,360 @@
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   52790	     15345 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   15132	     18977 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    3840	    582812 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    1064	    768359 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     116	   5614183 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     100	   6972703 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   10000	     41308 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   10000	     74580 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    1590	    287042 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    3819	    591222 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     100	   3735518 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     100	   2134613 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   51217	     11317 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   22261	     19555 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    4354	    205051 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    3373	    234830 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     100	   5661411 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     100	   4381670 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   10000	     24133 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   10000	     55171 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    6475	    149972 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    3931	     84962 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     580	    638475 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     387	    699703 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   63256	      3325 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   44245	      5260 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    5979	     34880 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    4903	     52918 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     712	    324824 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     483	    551530 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   65970	      3658 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   42433	      5819 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    6860	     37830 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4513	     60075 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     658	    375167 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     420	    550030 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   63487	      3782 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   40702	      6118 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    6723	     37226 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4810	     55961 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     608	    379960 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     454	    573169 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   68979	      3234 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   46462	      5364 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    6738	     34899 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    4758	     52936 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     748	    325995 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     478	    496518 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   64000	      3510 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   46441	      4955 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    7966	     31519 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    4946	     53196 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     711	    340668 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     452	    541722 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   66104	      3691 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   39278	      6577 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    5826	     42027 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    3692	     56886 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     662	    657843 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     364	    574250 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   74607	      3487 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   45291	      6248 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    5288	     45770 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    3992	     65739 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     549	    564549 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     476	    715862 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   49113	      5527 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   32636	      7077 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    6033	     37407 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4351	     59667 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     681	    388998 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     337	    599794 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   65005	      3837 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   42194	      5449 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    6230	     35785 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4744	     58230 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     642	    364703 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     454	    553417 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   75914	      3180 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   48063	      5283 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    7683	     32536 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    5061	     50501 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     776	    317183 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     482	    505020 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   78333	      3135 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   47245	      4897 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    8348	     31228 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    5208	     49648 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     771	    368907 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     519	    500645 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   65262	      4801 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   21354	     45134 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	     903	    302842 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    2899	    376928 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     434	   1284862 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     429	    598840 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   62678	      3668 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   42224	      5717 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    6400	     37330 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    4669	     52882 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     745	    329912 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     358	    647224 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   55274	      8126 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   31645	      9883 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    4909	     68988 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    3780	     87989 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     543	    911249 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     375	    559315 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   67176	      3695 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   42492	      5523 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    7262	     35003 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    5108	     54898 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     726	    334045 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     476	    529818 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   77396	      3074 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   49674	      4867 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    7920	     31379 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    5151	     54396 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     800	    312012 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     428	    535927 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   71358	      3182 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   49089	      5304 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    6519	     35537 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    4824	     51085 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     777	    331583 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     524	    480145 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   74232	      3271 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   47455	      4958 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    7761	     32846 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    4916	     50444 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     634	    358886 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     501	    491983 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   77878	      3281 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   45544	      5086 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    7935	     32419 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    4899	     49344 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     828	    314158 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     514	    481617 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   69535	      3385 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   45248	      5279 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    7321	     33563 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4896	     53317 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     687	    355618 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     428	    593043 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   61635	      3662 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   45117	      5370 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    7348	     34055 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4922	     60017 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     704	    336659 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     468	    511856 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   77491	      3086 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   46452	      4951 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    6925	     31693 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    5306	     52375 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     738	    320649 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     427	    470906 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   81805	      3010 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   50223	      4817 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    7483	     32904 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    4555	     53362 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     741	    373184 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     484	    506462 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=entity         	   81111	      2941 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=entity          	   51706	      4677 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=entity        	    8599	     29706 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=entity         	    5425	     50430 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=entity       	     847	    308448 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=entity        	     470	    465116 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=system         	   78835	      3073 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=system          	   47770	      4776 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=system        	    8145	     29103 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=system         	    5571	     52555 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=system       	     822	    289116 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=system        	     507	    466122 ns/op	   80000 B/op	   10000 allocs/op
+PASS
+to reproduce: TEST_SEED=0x135282b
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+BenchmarkGo127Gameplay/entities=100/work=iterate/api=ref         	   70508	      3324 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=100/work=lookup/api=ref          	   46539	      5153 ns/op	     800 B/op	     100 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=iterate/api=ref        	    7467	     31954 ns/op	      16 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=1000/work=lookup/api=ref         	    4855	     57315 ns/op	    8000 B/op	    1000 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=iterate/api=ref       	     703	    336423 ns/op	      17 B/op	       2 allocs/op
+BenchmarkGo127Gameplay/entities=10000/work=lookup/api=ref        	     475	    539544 ns/op	   80000 B/op	   10000 allocs/op
+PASS

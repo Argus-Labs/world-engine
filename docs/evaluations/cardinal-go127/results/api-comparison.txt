@@ -1,0 +1,26 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+                               │  function   │               method               │               inline               │
+                               │   sec/op    │   sec/op     vs base               │   sec/op     vs base               │
+Go127Projection/entities=100     2.563µ ± 3%   2.560µ ± 4%       ~ (p=0.810 n=10)   2.436µ ± 3%  -4.97% (p=0.003 n=10)
+Go127Projection/entities=1000    24.85µ ± 4%   24.87µ ± 5%       ~ (p=0.684 n=10)   23.93µ ± 6%       ~ (p=0.063 n=10)
+Go127Projection/entities=10000   253.0µ ± 5%   249.5µ ± 5%       ~ (p=0.353 n=10)   241.5µ ± 2%  -4.54% (p=0.002 n=10)
+geomean                          25.26µ        25.14µ       -0.47%                  24.14µ       -4.41%
+
+                               │  function  │               method                │               inline                │
+                               │    B/op    │    B/op     vs base                 │    B/op     vs base                 │
+Go127Projection/entities=100     16.00 ± 0%   16.00 ± 0%       ~ (p=1.000 n=10) ¹   16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=1000    16.00 ± 0%   16.00 ± 0%       ~ (p=1.000 n=10) ¹   16.00 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=10000   16.00 ± 0%   16.00 ± 0%       ~ (p=1.000 n=10) ¹   17.00 ± 0%  +6.25% (p=0.000 n=10)
+geomean                          16.00        16.00       +0.00%                    16.33       +2.04%
+¹ all samples are equal
+
+                               │  function  │               method                │               inline                │
+                               │ allocs/op  │ allocs/op   vs base                 │ allocs/op   vs base                 │
+Go127Projection/entities=100     2.000 ± 0%   2.000 ± 0%       ~ (p=1.000 n=10) ¹   2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=1000    2.000 ± 0%   2.000 ± 0%       ~ (p=1.000 n=10) ¹   2.000 ± 0%       ~ (p=1.000 n=10) ¹
+Go127Projection/entities=10000   2.000 ± 0%   2.000 ± 0%       ~ (p=1.000 n=10) ¹   2.000 ± 0%       ~ (p=1.000 n=10) ¹
+geomean                          2.000        2.000       +0.00%                    2.000       +0.00%
+¹ all samples are equal

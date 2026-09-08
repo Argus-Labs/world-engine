@@ -1,0 +1,17 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/argus-labs/world-engine/pkg/cardinal
+cpu: Apple M5 Max
+               │     ref     │            entity             │
+               │   sec/op    │   sec/op     vs base          │
+Go127Component   18.57n ± 7%   18.40n ± 2%  ~ (p=0.543 n=10)
+
+               │    ref     │             entity             │
+               │    B/op    │    B/op     vs base            │
+Go127Component   0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10) ¹
+¹ all samples are equal
+
+               │    ref     │             entity             │
+               │ allocs/op  │ allocs/op   vs base            │
+Go127Component   0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10) ¹
+¹ all samples are equal

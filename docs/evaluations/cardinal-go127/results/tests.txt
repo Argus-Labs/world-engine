@@ -1,0 +1,75 @@
+mise WARN  failed to write cache file: /Users/smsunarto/Library/Caches/mise/neovim/0.12.4/exec_env_b3575526a39c4597-a8d5d.msgpack.z Operation not permitted (os error 1)
+?   	github.com/argus-labs/world-engine/pkg/assert	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/box2d	7.810s
+ok  	github.com/argus-labs/world-engine/pkg/cardinal	0.854s
+ok  	github.com/argus-labs/world-engine/pkg/cardinal/internal/command	0.991s
+ok  	github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs	2.019s
+ok  	github.com/argus-labs/world-engine/pkg/cardinal/internal/event	2.221s
+ok  	github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect	1.280s
+ok  	github.com/argus-labs/world-engine/pkg/cardinal/internal/performance	1.498s
+?   	github.com/argus-labs/world-engine/pkg/cardinal/internal/schema	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/cardinal/snapshot	2.064s
+ok  	github.com/argus-labs/world-engine/pkg/micro	3.604s
+ok  	github.com/argus-labs/world-engine/pkg/plugin/data	3.171s
+?   	github.com/argus-labs/world-engine/pkg/plugin/data/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/data/gen	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/data/system	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/plugin/lobby	4.436s
+ok  	github.com/argus-labs/world-engine/pkg/plugin/lobby/component	4.825s
+?   	github.com/argus-labs/world-engine/pkg/plugin/lobby/gen	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/system	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/plugin/lobby/system	3.600s
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal	4.775s
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/system	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/query	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test	5.322s
+ok  	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e	5.655s
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/restore	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/telemetry	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/telemetry/posthog	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/telemetry/sentry	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/bare-bone/shards/game	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/pkg/other_worlds	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/template/basic/shards/game	6.896s
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system_event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system_event	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/template/multi-shard	49.169s
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/pkg/other_world	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat	16.775s
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/command	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/system	[no test files]
+ok  	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game	7.582s
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/command	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/command	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/component	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/event	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/system	[no test files]
+?   	github.com/argus-labs/world-engine/pkg/testutils	[no test files]
