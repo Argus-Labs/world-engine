@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/require"
 )
 
@@ -156,68 +155,25 @@ func TestEqual(t *testing.T) {
 	require.True(t, immutable.Equal(immutable.Slice[int]{}, immutable.SliceOf[int]()), "empty equals empty")
 }
 
-func TestSlice_JSONRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	s := immutable.SliceOf(point{X: 1, Y: 2}, point{X: 3, Y: 4})
-
-	data, err := json.Marshal(s)
-	require.NoError(t, err)
-	require.JSONEq(t, `[{"X":1,"Y":2},{"X":3,"Y":4}]`, string(data))
-
-	var back immutable.Slice[point]
-	require.NoError(t, json.Unmarshal(data, &back))
-	require.Equal(t, s.Clone(), back.Clone())
-}
-
-func TestSlice_JSONEmptyAndNull(t *testing.T) {
-	t.Parallel()
-
-	data, err := json.Marshal(immutable.Slice[int]{})
-	require.NoError(t, err)
-	require.JSONEq(t, `[]`, string(data), "empty encodes as [] not null")
-
-	var fromNull immutable.Slice[int]
-	require.NoError(t, json.Unmarshal([]byte(`null`), &fromNull))
-	require.Equal(t, 0, fromNull.Len())
-
-	var fromEmpty immutable.Slice[int]
-	require.NoError(t, json.Unmarshal([]byte(`[]`), &fromEmpty))
-	require.Equal(t, 0, fromEmpty.Len())
-}
-
-// Every empty Slice must be the same value however it was made: reflect.DeepEqual, and so
-// require.Equal on a whole component, must not tell a decoded [] or null apart from SliceOf().
+// Every empty Slice must be the same value however it was produced: reflect.DeepEqual, and so
+// require.Equal on a whole component, must not tell them apart. Only the zero value is naturally
+// nil — the stdlib helpers behind these derivations all hand back an empty but non-nil slice, so
+// each one relies on wrap to canonicalise it.
 func TestSlice_EmptyIsOneValue(t *testing.T) {
 	t.Parallel()
 
-	var fromEmpty, fromNull immutable.Slice[int]
-	require.NoError(t, json.Unmarshal([]byte(`[]`), &fromEmpty))
-	require.NoError(t, json.Unmarshal([]byte(`null`), &fromNull))
-
 	empty := immutable.SliceOf[int]()
+	full := immutable.SliceOf(1, 2, 3)
+
 	require.Equal(t, immutable.Slice[int]{}, empty, "zero value")
-	require.Equal(t, empty, fromEmpty, "decoded []")
-	require.Equal(t, empty, fromNull, "decoded null")
+	require.Equal(t, empty, immutable.SliceOf([]int{}...), "built from an empty non-nil slice")
 	require.Equal(t, empty, empty.Append(), "empty append")
-}
-
-// A Slice is a struct, so omitempty does not omit it. Pinned here because migrating a []T field
-// tagged omitempty to a Slice changes the encoded shape from absent to [].
-func TestSlice_JSONInsideStructIgnoresOmitempty(t *testing.T) {
-	t.Parallel()
-
-	type holder struct {
-		Points immutable.Slice[point] `json:"points,omitempty"`
-	}
-
-	data, err := json.Marshal(holder{})
-	require.NoError(t, err)
-	require.JSONEq(t, `{"points":[]}`, string(data))
-
-	var back holder
-	require.NoError(t, json.Unmarshal([]byte(`{"points":[{"X":5,"Y":6}]}`), &back))
-	require.Equal(t, []point{{X: 5, Y: 6}}, back.Points.Clone())
+	require.Equal(t, empty, full.Filter(func(int) bool { return false }), "filtered to nothing")
+	require.Equal(t, empty, full.Delete(0, 3), "deleted everything")
+	require.Equal(t, empty, full.Without(0).Without(0).Without(0), "removed one at a time")
+	require.Equal(t, empty, full.Sub(1, 1), "empty range")
+	require.Equal(t, empty, immutable.Compact(empty), "compacted")
+	require.Equal(t, empty, immutable.Collect(empty.Values()), "collected from an empty iterator")
 }
 
 // Slice copies the engine type's name and layout but lives in this package, so SliceElem must
@@ -400,7 +356,8 @@ func TestSlice_DeleteReplaceRepeatChunkCompactFunc(t *testing.T) {
 
 	require.Equal(t, []int{1, 9, 9, 4}, s.Replace(1, 3, 9, 9).Clone())
 	require.Equal(t, []int{1, 4}, s.Replace(1, 3).Clone(), "replace with nothing deletes")
-	require.Equal(t, immutable.SliceOf[int](), s.Replace(0, 4), "replacing all with nothing gives the one empty value")
+	require.Equal(t, immutable.SliceOf[int](), s.Replace(0, 4),
+		"replacing all with nothing gives the one empty value")
 
 	require.Equal(t, []int{1, 2, 1, 2}, immutable.SliceOf(1, 2).Repeat(2).Clone())
 	require.Equal(t, immutable.SliceOf[int](), s.Repeat(0))

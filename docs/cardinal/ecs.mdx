@@ -157,8 +157,8 @@ one, and changes to it never reach the Slice.
   `immutable.Slice` needs a World CLI new enough to generate it. An older one reports the field as an
   unsupported type when you run `world sdk generate`.
 
-  A Slice is also a struct, so a JSON tag of `omitempty` no longer omits an empty list: it encodes as
-  `[]`. That only matters if something reads your components as JSON; the wire format is protobuf.
+  A Slice has no JSON form of its own — the wire format is protobuf. Keep a `json` tag on the field if
+  you like, but do not expect a Slice to survive `encoding/json`.
 </Note>
 
 <Note>

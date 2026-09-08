@@ -5,13 +5,12 @@ package immutable
 
 import (
 	"cmp"
-	"fmt"
 	"iter"
 	"reflect"
 	"slices"
 	"strings"
 
-	"github.com/goccy/go-json"
+	"github.com/argus-labs/world-engine/pkg/assert"
 )
 
 // Slice is an immutable sequence for component fields whose length is genuinely unbounded. It is
@@ -45,20 +44,13 @@ func SliceOf[T any](items ...T) Slice[T] {
 	return wrap(slices.Clone(items))
 }
 
-// clonedWithRoom copies the elements into a slice with capacity for extra more, so an in-place
-// stdlib helper can finish the job without allocating a second time. Clone alone would return
-// capacity equal to length, forcing a grow. A negative extra means the caller is shrinking.
-func (s Slice[T]) clonedWithRoom(extra int) []T {
-	if extra < 0 {
-		extra = 0
-	}
-	out := make([]T, len(s.items), len(s.items)+extra)
-	copy(out, s.items)
-	return out
-}
-
-// wrap adopts a freshly built slice as a Slice, keeping empty canonical. Callers pass a slice no one
-// else holds.
+// wrap adopts a freshly built slice as a Slice. Callers pass a slice no one else holds.
+//
+// The empty case is what keeps every empty Slice equal to every other one. Go's zero value has a nil
+// backing array and cannot be changed, so nil is what "empty" has to look like — but slices.Clone,
+// Delete, DeleteFunc, Replace and the rest all hand back an empty slice that is NOT nil. Without
+// this, a component restored from a snapshot with an empty list would not compare equal to the same
+// component freshly built. Ten tests fail if it goes.
 func wrap[T any](items []T) Slice[T] {
 	if len(items) == 0 {
 		return Slice[T]{}
@@ -77,6 +69,7 @@ func (s Slice[T]) Len() int {
 
 // At returns a copy of the element at index i. It panics when i is out of range, like a slice.
 func (s Slice[T]) At(i int) T {
+	assert.That(i >= 0 && i < len(s.items), "immutable: At(%d) out of range, length %d", i, len(s.items))
 	return s.items[i]
 }
 
@@ -125,11 +118,12 @@ func (s Slice[T]) IsSortedFunc(compare func(a, b T) int) bool {
 // Chunk returns an iterator over consecutive sub-Slices of up to n elements. It panics when n is
 // less than one, like slices.Chunk.
 func (s Slice[T]) Chunk(n int) iter.Seq[Slice[T]] {
-	if n < 1 {
-		panic("immutable: Chunk size must be at least one")
-	}
+	assert.That(n >= 1, "immutable: Chunk(%d) size must be at least one", n)
+	// Called here rather than inside the closure so its own size check runs now, not on the first
+	// range — that is the check that survives a release build, where assert.That compiles away.
+	parts := slices.Chunk(s.items, n)
 	return func(yield func(Slice[T]) bool) {
-		for part := range slices.Chunk(s.items, n) {
+		for part := range parts {
 			if !yield(Slice[T]{items: slices.Clone(part)}) {
 				return
 			}
@@ -160,7 +154,7 @@ func (s Slice[T]) Append(items ...T) Slice[T] {
 // With returns a new Slice with the element at index i replaced by v. The receiver is unchanged.
 // It panics when i is out of range, like a slice.
 func (s Slice[T]) With(i int, v T) Slice[T] {
-	_ = s.items[i] // bounds-check before copying, with the runtime's own panic message
+	assert.That(i >= 0 && i < len(s.items), "immutable: With(%d) out of range, length %d", i, len(s.items))
 	out := s.Clone()
 	out[i] = v
 	return Slice[T]{items: out}
@@ -169,6 +163,7 @@ func (s Slice[T]) With(i int, v T) Slice[T] {
 // Without returns a new Slice with the element at index i removed. The receiver is unchanged.
 // It panics when i is out of range, like a slice.
 func (s Slice[T]) Without(i int) Slice[T] {
+	assert.That(i >= 0 && i < len(s.items), "immutable: Without(%d) out of range, length %d", i, len(s.items))
 	return wrap(slices.Delete(s.Clone(), i, i+1))
 }
 
@@ -181,7 +176,11 @@ func (s Slice[T]) Filter(keep func(T) bool) Slice[T] {
 // Insert returns a new Slice with items inserted at index i, which may equal Len. The receiver is
 // unchanged. It panics when i is out of range, like slices.Insert.
 func (s Slice[T]) Insert(i int, items ...T) Slice[T] {
-	return wrap(slices.Insert(s.clonedWithRoom(len(items)), i, items...))
+	assert.That(i >= 0 && i <= len(s.items), "immutable: Insert(%d) out of range, length %d", i, len(s.items))
+	// The clone is sized for the result, so slices.Insert finishes in place instead of growing.
+	out := make([]T, len(s.items), len(s.items)+len(items))
+	copy(out, s.items)
+	return wrap(slices.Insert(out, i, items...))
 }
 
 // Sub returns a new Slice holding the elements in [lo, hi). The receiver is unchanged. It panics
@@ -190,10 +189,12 @@ func (s Slice[T]) Insert(i int, items ...T) Slice[T] {
 // The bounds are checked against Len explicitly: a derived Slice can have spare capacity, and a
 // plain slice expression would read past the end into it.
 func (s Slice[T]) Sub(lo, hi int) Slice[T] {
-	if lo < 0 || hi > len(s.items) || lo > hi {
-		panic(fmt.Sprintf("immutable: Sub bounds out of range [%d:%d] with length %d", lo, hi, len(s.items)))
-	}
-	return wrap(slices.Clone(s.items[lo:hi]))
+	assert.That(0 <= lo && lo <= hi && hi <= len(s.items),
+		"immutable: Sub(%d, %d) out of range, length %d", lo, hi, len(s.items))
+	// Three-index, so the runtime bounds the range by LENGTH rather than capacity. A derived Slice can
+	// carry spare capacity, and a plain s.items[lo:hi] would happily read into it. This check is the one
+	// that has to survive a release build, where assert.That compiles away.
+	return wrap(slices.Clone(s.items[lo:hi:len(s.items)]))
 }
 
 // Reversed returns a new Slice with the elements in reverse order. The receiver is unchanged.
@@ -214,13 +215,20 @@ func (s Slice[T]) SortedFunc(compare func(a, b T) int) Slice[T] {
 // Delete returns a new Slice with the elements in [i, j) removed. The receiver is unchanged. It
 // panics when the range is out of bounds, like slices.Delete.
 func (s Slice[T]) Delete(i, j int) Slice[T] {
+	assert.That(0 <= i && i <= j && j <= len(s.items),
+		"immutable: Delete(%d, %d) out of range, length %d", i, j, len(s.items))
 	return wrap(slices.Delete(s.Clone(), i, j))
 }
 
 // Replace returns a new Slice with the elements in [i, j) replaced by items. The receiver is
 // unchanged. It panics when the range is out of bounds, like slices.Replace.
 func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
-	return wrap(slices.Replace(s.clonedWithRoom(len(items)-(j-i)), i, j, items...))
+	assert.That(0 <= i && i <= j && j <= len(s.items),
+		"immutable: Replace(%d, %d) out of range, length %d", i, j, len(s.items))
+	// The clone is sized for the result, so slices.Replace finishes in place instead of growing.
+	out := make([]T, len(s.items), len(s.items)+max(len(items)-(j-i), 0))
+	copy(out, s.items)
+	return wrap(slices.Replace(out, i, j, items...))
 }
 
 // CompactFunc returns a new Slice with runs of consecutive elements that eq reports equal collapsed
@@ -232,6 +240,7 @@ func (s Slice[T]) CompactFunc(eq func(a, b T) bool) Slice[T] {
 // Repeat returns a new Slice holding the elements count times over. It panics when count is
 // negative or the result would overflow, like slices.Repeat.
 func (s Slice[T]) Repeat(count int) Slice[T] {
+	assert.That(count >= 0, "immutable: Repeat(%d) must not be negative", count)
 	return wrap(slices.Repeat(s.items, count))
 }
 
@@ -352,32 +361,8 @@ func Collect[T any](seq iter.Seq[T]) Slice[T] {
 }
 
 // -------------------------------------------------------------------------------------------------
-// JSON and reflection
+// Reflection
 // -------------------------------------------------------------------------------------------------
-
-// MarshalJSON encodes the elements as a JSON array. An empty Slice encodes as [] rather than null.
-func (s Slice[T]) MarshalJSON() ([]byte, error) {
-	if len(s.items) == 0 {
-		return []byte("[]"), nil
-	}
-	return json.Marshal(s.items)
-}
-
-// UnmarshalJSON decodes a JSON array into the Slice. JSON null decodes to an empty Slice.
-func (s *Slice[T]) UnmarshalJSON(data []byte) error {
-	var items []T
-	if err := json.Unmarshal(data, &items); err != nil {
-		return err
-	}
-	if len(items) == 0 {
-		// One representation for empty. A decoded [] would otherwise hold an empty non-nil backing
-		// slice while SliceOf() holds nil, and reflect.DeepEqual (so require.Equal on a component)
-		// would call two empty Slices different.
-		items = nil
-	}
-	s.items = items
-	return nil
-}
 
 // SliceElem reports whether t is an instantiation of Slice and, if so, returns its element type.
 // It exists so tooling that works through reflection, such as the DST random filler, can recognise

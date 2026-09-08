@@ -32,7 +32,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -346,20 +345,18 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 // CanSet is false and the Slice would stay empty, leaving every command that carries one untested.
 //
 // immutable.SliceElem identifies the Slice and its element type, a random []T is built with the
-// ordinary recursion, and the Slice takes it through UnmarshalJSON — the one way into a Slice that
-// already exists, so immutable gains no setter. The random values are finite numbers, short strings
-// and structs of those, which JSON always carries. One blind spot: an element field tagged json:"-"
-// is filled and then dropped by that hop, so it is fuzzed everywhere except inside a Slice.
+// ordinary recursion, and Append takes it in one call — Append is variadic, so CallSlice hands it the
+// whole slice at once. That is the Slice's own API, so immutable needs no setter and no codec.
 func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) bool {
 	t := v.Type()
 	elem, ok := immutable.SliceElem(t)
 	if !ok {
 		return false
 	}
-	// A Slice takes values only through UnmarshalJSON on its address. Falling through to the struct
-	// walk would leave it empty with no sign of it, the exact failure this function exists to prevent.
-	if !v.CanAddr() {
-		panic("dst: " + t.String() + " is not addressable, so it cannot be filled")
+	// A Slice has no settable field, so the struct walk would pass it by in silence — the exact
+	// failure this function exists to prevent.
+	if !v.CanSet() {
+		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
 	}
 
 	n := prng.IntN(5)
@@ -367,18 +364,7 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 	for i := range n {
 		fillRandom(prng, items.Index(i), liveEntityIDs)
 	}
-
-	data, err := json.Marshal(items.Interface())
-	if err != nil {
-		panic("dst: random Slice elements did not encode: " + err.Error())
-	}
-	target, ok := v.Addr().Interface().(json.Unmarshaler)
-	if !ok {
-		panic("dst: " + t.String() + " lost UnmarshalJSON; immutable.Slice must keep it")
-	}
-	if err := target.UnmarshalJSON(data); err != nil {
-		panic("dst: random Slice elements did not decode: " + err.Error())
-	}
+	v.Set(v.MethodByName("Append").CallSlice([]reflect.Value{items})[0])
 	return true
 }
 
