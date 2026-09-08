@@ -191,11 +191,12 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	// Suppress world logs during DST to reduce noise.
 	t.Setenv("LOG_LEVEL", "disabled")
 
+	const dstNamespace = "dst"
 	debug := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "dst",
-		Organization:        "dst",
-		Project:             "dst",
+		Region:              dstNamespace,
+		Organization:        dstNamespace,
+		Project:             dstNamespace,
 		ShardID:             "0",
 		TickRate:            1,
 		SnapshotStorageType: snapshot.StorageTypeNop,

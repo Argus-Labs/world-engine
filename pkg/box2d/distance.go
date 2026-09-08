@@ -103,10 +103,11 @@ func SegmentDistance(p1, q1, p2, q2 Vec2) SegmentDistanceResult {
 // functions (upstream b2MakeProxy). This is a deep copy of the points.
 func MakeProxy(points []Vec2, count int, radius float64) ShapeProxy {
 	count = minInt(count, MaxPolygonVertices)
-	var proxy ShapeProxy
-	for i := range count {
-		proxy.Points[i] = points[i]
+	if count < 0 || count > len(points) {
+		panic("box2d: proxy point count is outside the input slice")
 	}
+	var proxy ShapeProxy
+	copy(proxy.Points[:count], points[:count])
 	proxy.Count = count
 	proxy.Radius = radius
 	return proxy

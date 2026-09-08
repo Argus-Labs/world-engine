@@ -1651,6 +1651,7 @@ func (tree *DynamicTree) buildTree(leafCount int) int {
 				break
 			}
 
+			//nolint:gosec // G602: top starts at zero; the top == 0 branch above exits before this pop.
 			parentItem := &stack[top-1]
 			parentNode := &nodes[parentItem.nodeIndex]
 
@@ -1710,7 +1711,9 @@ func (tree *DynamicTree) buildTree(leafCount int) int {
 				childNode.Parent = int32(item.nodeIndex)
 			} else {
 				assert(count > 0)
-				assert(top < treeStackSize)
+				if top >= len(stack)-1 {
+					panic("box2d: tree rebuild stack overflow")
+				}
 
 				top++
 				newItem := &stack[top]
@@ -1810,6 +1813,7 @@ func (tree *DynamicTree) Rebuild(fullBuild bool) int {
 		}
 
 		stackCount--
+		//nolint:gosec // G602: pushes are bounded by treeStackSize; the zero-count branch exits before decrement.
 		nodeIndex = stack[stackCount]
 		node = &nodes[nodeIndex]
 	}

@@ -729,6 +729,7 @@ func getShapePerimeter(s *shape) float64 {
 		count := s.polygon.Count
 		perimeter := 2.0 * Pi * s.polygon.Radius
 		assert(count > 0)
+		//nolint:gosec // G602: shape creation and SetShapePolygon validate the stored polygon count.
 		prev := points[count-1]
 		for i := range count {
 			next := points[i]
@@ -1839,6 +1840,7 @@ func (w *World) ApplyShapeWind(shapeID ShapeID, wind Vec2, drag, lift float64, w
 		count := s.polygon.Count
 		vertices := s.polygon.Vertices
 
+		//nolint:gosec // G602: shape creation and SetShapePolygon validate the stored polygon count.
 		v1 := vertices[count-1]
 		for i := range count {
 			v2 := vertices[i]
