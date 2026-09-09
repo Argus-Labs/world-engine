@@ -6,12 +6,10 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 )
 
-// ShapeSweep covers automatic shape cleanup: a shape entity is deleted on the tick its last
-// body reference goes away, and only after being used once. Staged shapes are never touched,
-// a slot swap releases the old shape, a shape traded between two bodies in one tick survives,
-// and a Reset starts the counts over so an unreferenced shape is kept. References follow what
-// a body declares in ECS rather than what it attached, so a body that stops attaching keeps
-// its shapes and only releases them when the entity itself leaves.
+// ShapeSweep covers automatic shape cleanup: a shape entity lives exactly as long as some body
+// names it. One spawned without a body is gone after the next reconcile, a body's death or a
+// slot swap releases its shape, a shape traded between two bodies in one tick survives, and a
+// Reset starts the counts over under the same rule.
 //
 // The Reset happens on the same tick the reset scenario uses, so a run that puts every
 // scenario in one world sees one rebuild, not two.
@@ -61,7 +59,7 @@ func ShapeSweep() harness.Scenario {
 			s.first = wall(c, "shared-first", -5, 20, shared)
 			s.second = wall(c, "shared-second", 5, 20, shared)
 
-			// A shape no body ever uses.
+			// A shape no body ever uses: swept by the first reconcile.
 			s.staged = box(1, 1).Spawn(c).Shape
 
 			// Row y=30 — two bodies trade shapes in one tick.
@@ -84,11 +82,13 @@ func ShapeSweep() harness.Scenario {
 		},
 		Steps: []harness.Step{
 			{Tick: 2, Do: func(c *harness.Ctx) {
-				for _, id := range []cardinal.EntityID{s.loneShape, s.swapOld.Shape, s.shared, s.staged,
-					s.shapeA.Shape, s.shapeB.Shape, s.survivorSlot, s.brokenKeep.Shape} {
-					c.True("every shape exists before anything is released", c.ShapeAlive(id),
+				for _, id := range []cardinal.EntityID{s.loneShape, s.swapOld.Shape, s.shared,
+					s.shapeA.Shape, s.shapeB.Shape, s.survivorSlot} {
+					c.True("every used shape exists before anything is released", c.ShapeAlive(id),
 						"shape entity %d is missing", id)
 				}
+				c.False("a shape spawned with no body is swept by the next reconcile", c.ShapeAlive(s.staged),
+					"shape entity %d still exists", s.staged)
 			}},
 			{Tick: brokenShapeGone, Do: func(c *harness.Ctx) {
 				c.True("deleting one of the broken body's shapes succeeds",
@@ -136,21 +136,17 @@ func ShapeSweep() harness.Scenario {
 					c.OverlapHits(c.OverlapAABB(-5.5, 29.5, -4.5, 30.5, nil), s.a) &&
 						c.OverlapHits(c.OverlapAABB(4.5, 29.5, 5.5, 30.5, nil), s.b), "a traded body lost its fixture")
 			}},
-			{Tick: 100, Do: func(c *harness.Ctx) {
-				c.True("a shape no body has used is never swept", c.ShapeAlive(s.staged),
-					"shape entity %d was swept without ever being used", s.staged)
-			}},
 			{Tick: resetTick, Do: func(c *harness.Ctx) {
-				// Destroy the body and drop the runtime in one tick: the next reconcile
-				// never sees the body go, it rebuilds from the bodies that remain.
+				// Destroy the body and drop the runtime in one tick: the rebuild counts from
+				// the bodies that remain, and this shape has none.
 				c.True("destroying the reset orphan's body succeeds", c.Destroy(s.survivor),
 					"Destroy returned false")
 				c.ExpectWorldReset()
 				c.Plugin().Reset()
 			}},
 			{Tick: resetTick + 10, Do: func(c *harness.Ctx) {
-				c.True("after a Reset an unreferenced shape counts as never used and is kept",
-					c.ShapeAlive(s.survivorSlot), "shape entity %d was swept after the rebuild", s.survivorSlot)
+				c.False("after a Reset a shape no body names is swept like any other",
+					c.ShapeAlive(s.survivorSlot), "shape entity %d survived the rebuild", s.survivorSlot)
 			}},
 		},
 	}

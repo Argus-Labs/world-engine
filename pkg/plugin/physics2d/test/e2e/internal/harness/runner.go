@@ -161,11 +161,15 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 // LastTick returns the final tick the loop will run.
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
-func (r *Runner) ctx(scenario *Scenario, probes *Probes, shapes *ShapeSearches, tick uint64) *Ctx {
+func (r *Runner) ctx(
+	scenario *Scenario, probes *Probes, shapes *ShapeSearches,
+	entity func(cardinal.EntityID) cardinal.Entity, tick uint64,
+) *Ctx {
 	return &Ctx{
 		report:     r.report,
 		probes:     probes,
 		shapes:     shapes,
+		entity:     entity,
 		events:     r.events,
 		plugin:     r.plugin,
 		scenario:   scenario.Name,
@@ -257,7 +261,7 @@ func (r *Runner) setup(state *setupState) {
 		if s.Setup == nil {
 			continue
 		}
-		s.Setup(r.ctx(s, &state.Probes, state.shapes(), 0))
+		s.Setup(r.ctx(s, &state.Probes, state.shapes(), state.Entity, 0))
 	}
 }
 
@@ -267,7 +271,7 @@ func (r *Runner) preStep(state *preStepState) {
 		if s.EachTick == nil {
 			continue
 		}
-		s.EachTick(r.ctx(s, &state.Probes, state.shapes(), tick))
+		s.EachTick(r.ctx(s, &state.Probes, state.shapes(), state.Entity, tick))
 	}
 }
 
@@ -298,7 +302,7 @@ func (r *Runner) step(state *stepState) {
 			if s.Steps[i].Tick != tick || s.Steps[i].Do == nil {
 				continue
 			}
-			s.Steps[i].Do(r.ctx(s, &state.Probes, state.shapes(), tick))
+			s.Steps[i].Do(r.ctx(s, &state.Probes, state.shapes(), state.Entity, tick))
 		}
 	}
 }

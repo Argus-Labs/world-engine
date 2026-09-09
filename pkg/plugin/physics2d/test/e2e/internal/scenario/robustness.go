@@ -186,10 +186,11 @@ func hostileFailingBodyBlocksShapeEdit() harness.Scenario {
 					"Destroy returned false")
 			}},
 			{Tick: 10, Do: func(c *harness.Ctx) {
-				c.True("editing the shared shape succeeds",
-					harness.EditShape(c, shared, func(common *physics.ShapeCommon, _ *physics.BoxGeom) {
-						common.Friction = editedFriction
-					}), "EditShape found no box behind the slot")
+				// Shapes are never edited in place: fork the shared one and re-point the body.
+				mine, ok := harness.ForkShape(c, shared, func(d *physics.BoxDef) { d.Common.Friction = editedFriction })
+				if c.True("forking the shared shape succeeds", ok, "ForkShape found no box behind the slot") {
+					c.EditBody(healthy, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, mine) })
+				}
 			}},
 			{Tick: 15, Do: func(c *harness.Ctx) {
 				ids, ok := c.Plugin().ShapeIDs(healthy)

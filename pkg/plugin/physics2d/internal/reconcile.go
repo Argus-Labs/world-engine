@@ -58,6 +58,8 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	// deletes it. Each entity's failure path already leaves that entity in a clean state.
 	var errs []error
 	for _, e := range sorted {
+		// Counted before the attempt, so a body that fails to attach still holds its shapes.
+		rt.noteDeclared(e.EntityID, e.PhysicsBody.Shapes)
 		if err := rt.reconcileOneEntry(e); err != nil {
 			errs = append(errs, err)
 		}
