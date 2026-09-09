@@ -10,6 +10,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,41 +32,40 @@ type CaptureRow struct {
 type CapturedShape struct {
 	Slot    physics.ShapeSlot
 	Kind    string
-	Common  physics.ShapeCommon
-	Circle  physics.CircleGeom
-	Box     physics.BoxGeom
-	Polygon physics.PolygonGeom
-	Chain   physics.ChainGeom
-	Edge    physics.EdgeGeom
-	Capsule physics.CapsuleGeom
+	Common  physcomp.ShapeCommon
+	Circle  physcomp.CircleGeom
+	Box     physcomp.BoxGeom
+	Polygon physcomp.PolygonGeom
+	Chain   physcomp.ChainGeom
+	Edge    physcomp.EdgeGeom
+	Capsule physcomp.CapsuleGeom
 }
 
 // resolveShape looks the slot's shape entity up through the six searches.
 func resolveShape(sh *ShapeSearches, slot physics.ShapeSlot) CapturedShape {
 	out := CapturedShape{Slot: slot}
-	id := slot.Shape
-	if row, err := sh.Circles.GetByID(id); err == nil {
-		out.Kind, out.Common, out.Circle = "circle", row.Common.Get(), row.Geom.Get()
+	if d, ok := sh.Circles.Read(slot); ok {
+		out.Kind, out.Common, out.Circle = "circle", d.Common, d.Geom
 		return out
 	}
-	if row, err := sh.Boxes.GetByID(id); err == nil {
-		out.Kind, out.Common, out.Box = "box", row.Common.Get(), row.Geom.Get()
+	if d, ok := sh.Boxes.Read(slot); ok {
+		out.Kind, out.Common, out.Box = "box", d.Common, d.Geom
 		return out
 	}
-	if row, err := sh.Polygons.GetByID(id); err == nil {
-		out.Kind, out.Common, out.Polygon = "polygon", row.Common.Get(), row.Geom.Get()
+	if d, ok := sh.Polygons.Read(slot); ok {
+		out.Kind, out.Common, out.Polygon = "polygon", d.Common, d.Geom
 		return out
 	}
-	if row, err := sh.Chains.GetByID(id); err == nil {
-		out.Kind, out.Common, out.Chain = "chain", row.Common.Get(), row.Geom.Get()
+	if d, ok := sh.Chains.Read(slot); ok {
+		out.Kind, out.Common, out.Chain = "chain", d.Common, d.Geom
 		return out
 	}
-	if row, err := sh.Edges.GetByID(id); err == nil {
-		out.Kind, out.Common, out.Edge = "edge", row.Common.Get(), row.Geom.Get()
+	if d, ok := sh.Edges.Read(slot); ok {
+		out.Kind, out.Common, out.Edge = "edge", d.Common, d.Geom
 		return out
 	}
-	if row, err := sh.Capsules.GetByID(id); err == nil {
-		out.Kind, out.Common, out.Capsule = "capsule", row.Common.Get(), row.Geom.Get()
+	if d, ok := sh.Capsules.Read(slot); ok {
+		out.Kind, out.Common, out.Capsule = "capsule", d.Common, d.Geom
 	}
 	return out
 }
@@ -76,8 +76,8 @@ func resolveShape(sh *ShapeSearches, slot physics.ShapeSlot) CapturedShape {
 // if it does not survive a restore the rebuilt world replays every existing
 // overlap as a new contact.
 type SingletonRow struct {
-	Tag            cardinal.Ref[physics.PhysicsSingletonTag]
-	ActiveContacts cardinal.Ref[physics.ActiveContacts]
+	Tag            cardinal.Ref[physcomp.PhysicsSingletonTag]
+	ActiveContacts cardinal.Ref[physcomp.ActiveContacts]
 }
 
 // Capture is every body in a world, keyed by its probe label, plus the plugin's
@@ -86,7 +86,7 @@ type SingletonRow struct {
 type Capture struct {
 	Rows map[string]CaptureRow
 	// Contacts is the singleton's ActiveContacts, normalised and sorted.
-	Contacts []physics.ContactPairEntry
+	Contacts []physcomp.ContactPairEntry
 	// Singletons is how many physics singleton entities exist. Anything but one
 	// is a bug: the plugin panics on two and loses its dedupe baseline on none.
 	Singletons int
@@ -167,7 +167,7 @@ func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains
 		}
 	}
 
-	var pairs []physics.ContactPairEntry
+	var pairs []physcomp.ContactPairEntry
 	count := 0
 	for _, row := range singleton.Iter() {
 		count++
@@ -183,7 +183,7 @@ func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains
 }
 
 // contactKey renders a contact pair as a sortable, comparable string.
-func contactKey(p physics.ContactPairEntry) string {
+func contactKey(p physcomp.ContactPairEntry) string {
 	return fmt.Sprintf("%d/%d-%d/%d:%v", p.EntityA, p.ShapeIndexA, p.EntityB, p.ShapeIndexB, p.IsSensor)
 }
 

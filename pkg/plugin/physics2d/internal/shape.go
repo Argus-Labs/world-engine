@@ -157,10 +157,11 @@ func (rt *Runtime) KeepShapeEntriesScratch(entries []ShapeEntry) []ShapeEntry {
 }
 
 // SyncShapes reconciles the ShapeMirror with this tick's shape entities and records which
-// mirrored shapes changed (dirtyShapes) so the bodies using them get re-diffed once. Ids no
-// longer present are dropped and marked structural: a body still naming one must lose its
-// fixtures now and fail loudly, the same as it would after a restore, instead of keeping a
-// fixture built from a shape that no longer exists.
+// mirrored shapes changed (dirtyShapes) so the bodies using them get re-diffed once. Ids first
+// seen this tick are queued for the sweep, which keeps them only if a body names them by the
+// end of the reconcile pass. Ids no longer present are dropped and marked structural: a body
+// still naming one must lose its fixtures now and fail loudly, the same as it would after a
+// restore, instead of keeping a fixture built from a shape that no longer exists.
 //
 // A shape entity carrying two geometry components is an invariant violation, not a runtime
 // condition: Spawn creates exactly one, and once the components move behind the plugin's
@@ -201,6 +202,7 @@ func (rt *Runtime) mirrorShape(id cardinal.EntityID, shape ResolvedShape) {
 	prev, known := rt.ShapeMirror[id]
 	if !known {
 		rt.ShapeMirror[id] = shape
+		rt.shapeSweepScratch = append(rt.shapeSweepScratch, id)
 		return
 	}
 	shape.Chain.Points = prev.Chain.Points

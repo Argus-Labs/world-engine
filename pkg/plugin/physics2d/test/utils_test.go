@@ -76,17 +76,17 @@ type spawnState struct {
 // spawnShape spawns def through the search matching its geometry kind and returns the slot.
 func spawnShape[G physics.Geometry](s *spawnState, def physics.ShapeDef[G]) physics.ShapeSlot {
 	switch d := any(def).(type) {
-	case physics.ShapeDef[physics.CircleGeom]:
+	case physics.CircleDef:
 		return d.Spawn(&s.Circles)
-	case physics.ShapeDef[physics.BoxGeom]:
+	case physics.BoxDef:
 		return d.Spawn(&s.Boxes)
-	case physics.ShapeDef[physics.PolygonGeom]:
+	case physics.PolygonDef:
 		return d.Spawn(&s.Polygons)
-	case physics.ShapeDef[physics.ChainGeom]:
+	case physics.ChainDef:
 		return d.Spawn(&s.Chains)
-	case physics.ShapeDef[physics.EdgeGeom]:
+	case physics.EdgeDef:
 		return d.Spawn(&s.Edges)
-	case physics.ShapeDef[physics.CapsuleGeom]:
+	case physics.CapsuleDef:
 		return d.Spawn(&s.Capsules)
 	}
 	panic("spawnShape: unknown geometry kind")

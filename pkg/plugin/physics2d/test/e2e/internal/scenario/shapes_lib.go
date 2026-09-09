@@ -9,7 +9,6 @@ package scenario
 import (
 	"fmt"
 
-	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
@@ -37,10 +36,10 @@ func vec(x, y float64) physics.Vec2 { return physics.Vec2{X: x, Y: y} }
 // plugin, so nothing is created until Spawn runs inside a system; the helpers
 // below build specs, the modifiers adjust them, and body spawns them.
 type ShapeSpec struct {
-	Common   physics.ShapeCommon
+	Common   physcomp.ShapeCommon
 	Offset   physics.Vec2
 	Rotation float64
-	spawn    func(c *harness.Ctx, common physics.ShapeCommon) physics.ShapeSlot
+	spawn    func(c *harness.Ctx, common physcomp.ShapeCommon) physics.ShapeSlot
 }
 
 // Spawn creates the shape entity and returns its slot, placed at the spec's
@@ -50,8 +49,8 @@ func (s ShapeSpec) Spawn(c *harness.Ctx) physics.ShapeSlot {
 }
 
 // baseCommon is the default material with an all-layers filter.
-func baseCommon() physics.ShapeCommon {
-	return physics.ShapeCommon{
+func baseCommon() physcomp.ShapeCommon {
+	return physcomp.ShapeCommon{
 		Density:      defaultDensity,
 		Friction:     defaultFriction,
 		Restitution:  defaultRestitution,
@@ -64,7 +63,7 @@ func baseCommon() physics.ShapeCommon {
 func spec[G physics.Geometry](geom G) ShapeSpec {
 	return ShapeSpec{
 		Common: baseCommon(),
-		spawn: func(c *harness.Ctx, common physics.ShapeCommon) physics.ShapeSlot {
+		spawn: func(c *harness.Ctx, common physcomp.ShapeCommon) physics.ShapeSlot {
 			return harness.Shape(c, physics.ShapeDef[G]{Common: common, Geom: geom})
 		},
 	}
@@ -72,12 +71,12 @@ func spec[G physics.Geometry](geom G) ShapeSpec {
 
 // circle builds a circle collider of the given radius.
 func circle(radius float64) ShapeSpec {
-	return spec(physics.CircleGeom{Radius: radius})
+	return spec(physics.Circle(radius).Geom)
 }
 
 // box builds an axis-aligned box collider from half-extents.
 func box(halfWidth, halfHeight float64) ShapeSpec {
-	return spec(physics.BoxGeom{HalfExtents: vec(halfWidth, halfHeight)})
+	return spec(physics.Box(halfWidth, halfHeight).Geom)
 }
 
 // Box is box for callers outside the package.
@@ -91,22 +90,22 @@ func polygon(vertices ...physics.Vec2) ShapeSpec {
 
 // capsule builds a capsule collider between two local centers.
 func capsule(c1, c2 physics.Vec2, radius float64) ShapeSpec {
-	return spec(physics.CapsuleGeom{A: c1, B: c2, Radius: radius})
+	return spec(physics.Capsule(c1, c2, radius).Geom)
 }
 
 // chain builds an open static chain collider through the given points.
 func chain(points ...physics.Vec2) ShapeSpec {
-	return spec(physics.ChainGeom{Points: immutable.SliceOf(points...)})
+	return spec(physics.Chain(points...).Geom)
 }
 
 // chainLoop builds a closed static chain collider; the last point joins the first.
 func chainLoop(points ...physics.Vec2) ShapeSpec {
-	return spec(physics.ChainGeom{Points: immutable.SliceOf(points...), Loop: true})
+	return spec(physics.ChainLoop(points...).Geom)
 }
 
 // edge builds a single static line-segment collider.
 func edge(a, b physics.Vec2) ShapeSpec {
-	return spec(physics.EdgeGeom{A: a, B: b})
+	return spec(physics.Edge(a, b).Geom)
 }
 
 // -----------------------------------------------------------------------------

@@ -195,16 +195,16 @@ func checkJSONDefaults(c *harness.Ctx) {
 
 	// The shape entity's own components round-trip separately.
 	common := withFilter(withRestitution(withFriction(circle(1.25), 0.7), 0.4), 0x0F, 0xF0, -3).Common
-	commonAny, err := physics.ShapeCommon{}.UnmarshalWire(common.MarshalWire())
+	commonAny, err := physcomp.ShapeCommon{}.UnmarshalWire(common.MarshalWire())
 	if c.NoError("wire: ShapeCommon.UnmarshalWire succeeds", err) {
-		gotCommon, isCommon := commonAny.(physics.ShapeCommon)
+		gotCommon, isCommon := commonAny.(physcomp.ShapeCommon)
 		c.True("wire round-trip preserves ShapeCommon", isCommon && gotCommon == common,
 			"got %+v, want %+v", commonAny, common)
 	}
-	circleAny, err := physics.CircleGeom{}.UnmarshalWire(physics.CircleGeom{Radius: 1.25}.MarshalWire())
+	circleAny, err := physcomp.CircleGeom{}.UnmarshalWire(physcomp.CircleGeom{Radius: 1.25}.MarshalWire())
 	if c.NoError("wire: CircleGeom.UnmarshalWire succeeds", err) {
-		gotCircle, isCircle := circleAny.(physics.CircleGeom)
-		c.True("wire round-trip preserves CircleGeom", isCircle && gotCircle == physics.CircleGeom{Radius: 1.25},
+		gotCircle, isCircle := circleAny.(physcomp.CircleGeom)
+		c.True("wire round-trip preserves CircleGeom", isCircle && gotCircle == physcomp.CircleGeom{Radius: 1.25},
 			"got %+v", circleAny)
 	}
 }
@@ -238,13 +238,13 @@ func checkValidation(c *harness.Ctx) {
 
 	// The shape's own components validate themselves; the plugin runs these at
 	// fixture attach, since a body only names its shape entity.
-	c.HasError("CircleGeom.Validate rejects NaN radius", physics.CircleGeom{Radius: math.NaN()}.Validate())
-	c.HasError("ShapeCommon.Validate rejects NaN friction", physics.ShapeCommon{Friction: math.NaN()}.Validate())
-	c.HasError("PolygonGeom.Validate rejects two vertices", physics.PolygonGeom{Count: 2}.Validate())
+	c.HasError("CircleGeom.Validate rejects NaN radius", physcomp.CircleGeom{Radius: math.NaN()}.Validate())
+	c.HasError("ShapeCommon.Validate rejects NaN friction", physcomp.ShapeCommon{Friction: math.NaN()}.Validate())
+	c.HasError("PolygonGeom.Validate rejects two vertices", physcomp.PolygonGeom{Count: 2}.Validate())
 	c.HasError("PolygonGeom.Validate rejects nine vertices",
-		physics.PolygonGeom{Count: physics.MaxPolygonVertices + 1}.Validate())
+		physcomp.PolygonGeom{Count: physics.MaxPolygonVertices + 1}.Validate())
 	c.NoError("ChainGeom.Validate accepts finite points",
-		physics.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0))}.Validate())
+		physcomp.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0))}.Validate())
 
 	c.NoError("Transform2D.Validate accepts finite values",
 		physics.Transform2D{Position: vec(1, 2), Rotation: 0.5}.Validate())
@@ -282,8 +282,8 @@ func decodeBodyInto(c *harness.Ctx, check, payload string) physics.PhysicsBody2D
 // checkShapeConstructors pins the shape constructors: each carries Box2D's default material
 // and filter, the options set exactly what they say, and geometry lands in the right fields.
 func checkShapeConstructors(c *harness.Ctx) {
-	defaults := physics.ShapeCommon{Friction: 0.6, Density: 1, CategoryBits: 1, MaskBits: ^uint64(0)}
-	commons := map[string]physics.ShapeCommon{
+	defaults := physcomp.ShapeCommon{Friction: 0.6, Density: 1, CategoryBits: 1, MaskBits: ^uint64(0)}
+	commons := map[string]physcomp.ShapeCommon{
 		"Circle":    physics.Circle(0.5).Common,
 		"Box":       physics.Box(1, 2).Common,
 		"Polygon":   physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1)).Common,
@@ -298,16 +298,17 @@ func checkShapeConstructors(c *harness.Ctx) {
 	}
 
 	d := physics.Box(1, 1).AsSensor().Material(0.1, 0.2, 0.3).Filter(0x2, 0x4).Group(-1)
-	c.True("the options set exactly what they say", d.Common == physics.ShapeCommon{
+	c.True("the options set exactly what they say", d.Common == physcomp.ShapeCommon{
 		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
 		CategoryBits: 0x2, MaskBits: 0x4, GroupIndex: -1,
 	}, "got %+v", d.Common)
-	c.True("Box stores its half extents", d.Geom == physics.BoxGeom{HalfExtents: vec(1, 1)}, "got %+v", d.Geom)
-	c.True("Circle stores its radius", physics.Circle(0.5).Geom == physics.CircleGeom{Radius: 0.5}, "")
+	c.True("Box stores its half extents", d.Geom == physcomp.BoxGeom{HalfExtents: vec(1, 1)}, "got %+v", d.Geom)
+	c.True("Circle stores its radius", physics.Circle(0.5).Geom == physcomp.CircleGeom{Radius: 0.5}, "")
 	c.True("Edge stores its endpoints",
-		physics.Edge(vec(0, 0), vec(1, 0)).Geom == physics.EdgeGeom{A: vec(0, 0), B: vec(1, 0)}, "")
+		physics.Edge(vec(0, 0), vec(1, 0)).Geom == physcomp.EdgeGeom{A: vec(0, 0), B: vec(1, 0)}, "")
 	c.True("Capsule stores its endpoints and radius",
-		physics.Capsule(vec(0, 0), vec(1, 0), 0.25).Geom == physics.CapsuleGeom{A: vec(0, 0), B: vec(1, 0), Radius: 0.25}, "")
+		physics.Capsule(vec(0, 0), vec(1, 0), 0.25).Geom ==
+			physcomp.CapsuleGeom{A: vec(0, 0), B: vec(1, 0), Radius: 0.25}, "")
 
 	line := []physics.Vec2{vec(0, 0), vec(1, 0)}
 	chain := physics.Chain(line...).Geom

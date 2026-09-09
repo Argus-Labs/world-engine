@@ -1,6 +1,8 @@
 // Package physics2d is a Box2D-backed 2D physics plugin for Cardinal (pure-Go Box2D port in
-// pkg/box2d). ECS components live in component; simulation and reconciliation systems are
-// plugin-internal (internal/system) and are registered for you by Plugin.Register. All derived
+// pkg/box2d). ECS components live in component; the shape components are deliberately not
+// re-exported here, use the shape searches in shape.go instead. Simulation and reconciliation
+// systems are plugin-internal (internal/system) and are registered for you by Plugin.Register.
+// All derived
 // physics state is owned by the Plugin instance (see Plugin.Reset); the package holds no
 // runtime state.
 //
@@ -30,25 +32,13 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// Re-export component types for callers that import the plugin root only.
+// Re-exported component types, for callers that import the plugin root only. The plugin's own
+// bookkeeping is not here: the physics singleton and its contact list are plugin state, and the
+// components a shape entity carries are reached through the shape searches in shape.go.
 type (
-	Vec2                = component.Vec2
-	BodyType            = component.BodyType
-	ShapeSlot           = component.ShapeSlot
-	PhysicsSingletonTag = component.PhysicsSingletonTag
-	ActiveContacts      = component.ActiveContacts
-	ContactPairEntry    = component.ContactPairEntry
-)
-
-// Shape entity components: ShapeCommon plus exactly one geometry (see shape.go).
-type (
-	ShapeCommon = component.ShapeCommon
-	CircleGeom  = component.CircleGeom
-	BoxGeom     = component.BoxGeom
-	PolygonGeom = component.PolygonGeom
-	ChainGeom   = component.ChainGeom
-	EdgeGeom    = component.EdgeGeom
-	CapsuleGeom = component.CapsuleGeom
+	Vec2      = component.Vec2
+	BodyType  = component.BodyType
+	ShapeSlot = component.ShapeSlot
 )
 
 // MaxPolygonVertices is Box2D's convex polygon vertex limit (PolygonGeom capacity).

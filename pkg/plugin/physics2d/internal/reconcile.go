@@ -46,6 +46,8 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	}
 	rt.destroyOrphanBodies(sorted)
 	for _, e := range sorted {
+		// Counted before the attempt, so a body that fails to attach still holds its shapes.
+		rt.noteDeclared(e.EntityID, e.PhysicsBody.Shapes)
 		if err := rt.reconcileOneEntry(e); err != nil {
 			return err
 		}
@@ -89,7 +91,8 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	for _, id := range orphans {
 		rt.DestroyEntityBody(id)
 		delete(rt.KnownEntities, id)
-		rt.dropShadow(id)
+		delete(rt.Shadow, id)
+		rt.forgetDeclared(id)
 		rt.PruneActiveContactsInvolvingEntity(id)
 	}
 }
@@ -131,7 +134,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
-	rt.setShadow(e.EntityID, NewShadowState(e.Transform, e.Velocity, e.PhysicsBody))
+	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
@@ -146,7 +149,7 @@ func (rt *Runtime) createBodyForEntry(e PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.KnownEntities[e.EntityID] = struct{}{}
-	rt.setShadow(e.EntityID, NewShadowState(e.Transform, e.Velocity, e.PhysicsBody))
+	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
@@ -160,7 +163,7 @@ func (rt *Runtime) reconcileExistingBody(
 		// No shadow: treat as inconsistent; rebuild this body from scratch.
 		rt.DestroyEntityBody(e.EntityID)
 		delete(rt.KnownEntities, e.EntityID)
-		rt.dropShadow(e.EntityID)
+		delete(rt.Shadow, e.EntityID)
 		rt.PruneActiveContactsInvolvingEntity(e.EntityID)
 		return rt.createBodyForEntry(e)
 	}
@@ -225,7 +228,7 @@ func (rt *Runtime) reconcileShapesChange(
 		// as new, retries the attach, and logs the same failure until the game fixes it.
 		rt.DestroyEntityBody(entityID)
 		delete(rt.KnownEntities, entityID)
-		rt.dropShadow(entityID)
+		delete(rt.Shadow, entityID)
 		rt.PruneActiveContactsInvolvingEntity(entityID)
 		return err
 	}

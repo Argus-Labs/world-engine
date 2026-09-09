@@ -62,12 +62,14 @@ type Runtime struct {
 	// Bodies whose slots reference one are re-diffed once; cleared by the next SyncShapes.
 	dirtyShapes map[cardinal.EntityID]shapeChange
 
-	// shapeRefs counts, per shape entity, the attached bodies (shadows) whose slots reference
-	// it. Maintained by setShadow / dropShadow; see shape_sweep.go.
-	shapeRefs map[cardinal.EntityID]int
+	// declaredSlots is the slot list each body entity last declared in ECS, attached or not,
+	// and shapeRefs counts, per shape entity, how many of those lists name it. Maintained by
+	// noteDeclared / forgetDeclared; see shape_sweep.go.
+	declaredSlots map[cardinal.EntityID]immutable.Slice[component.ShapeSlot]
+	shapeRefs     map[cardinal.EntityID]int
 
-	// shapeSweepScratch queues shape ids whose count reached zero this tick, for
-	// SweepUnusedShapes. Ids only.
+	// shapeSweepScratch queues sweep candidates: shape ids that lost their last reference or
+	// were first seen this tick. Ids only.
 	shapeSweepScratch []cardinal.EntityID
 
 	// resolvedScratch holds one body's resolved slots between validation and attach, so each
@@ -236,6 +238,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
 		ShapeMirror:          make(map[cardinal.EntityID]ResolvedShape),
 		dirtyShapes:          make(map[cardinal.EntityID]shapeChange),
+		declaredSlots:        make(map[cardinal.EntityID]immutable.Slice[component.ShapeSlot]),
 		shapeRefs:            make(map[cardinal.EntityID]int),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
@@ -258,6 +261,7 @@ func (rt *Runtime) Reset() {
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
 	rt.ShapeMirror = make(map[cardinal.EntityID]ResolvedShape)
 	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
+	rt.declaredSlots = make(map[cardinal.EntityID]immutable.Slice[component.ShapeSlot])
 	rt.shapeRefs = make(map[cardinal.EntityID]int)
 	rt.shapeSweepScratch = nil
 	rt.resolvedScratch = nil

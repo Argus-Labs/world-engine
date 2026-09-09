@@ -125,27 +125,47 @@ func SpawnSystem(state *SpawnState) {
 ```
 
 The searches (`CircleShapes`, `BoxShapes`, `PolygonShapes`, `ChainShapes`,
-`EdgeShapes`, `CapsuleShapes`) are ordinary Cardinal searches over the shape
-entities: `Iter`, `GetByID` and `Destroy` work on them. Cardinal wires only
-the top-level fields of a system state, so list the searches you use
-directly on the state.
+`EdgeShapes`, `CapsuleShapes`) are the way to reach a shape. They hand out
+plain `ShapeDef` values (`CircleDef`, `BoxDef`, ...), never a `Ref`, and the
+root package does not re-export the components a shape entity carries. What
+a search offers:
 
-The plugin reads shape entities every tick, so editing one in place works:
-a material or filter change updates the fixtures of every body using the
-shape, a geometry or sensor-flag change rebuilds them (chain points
-excepted, see below). Swapping a slot to a
-different shape entity behaves the same way — same geometry updates in
+| Call | Touches |
+|---|---|
+| `Create(def)` / `def.Spawn(&search)` | spawns a new shape entity, returns its slot |
+| `Read(slot)` | a copy of the definition |
+| `Fork(slot, func(*ShapeDef))` | a copy with your edit applied; point the bodies that should change at it |
+| `Clone(slot)` | `Fork` with no edit |
+| `Iter()` | every shape of the kind, as definitions |
+
+There is no delete. The plugin removes a shape entity itself after the first
+reconcile in which no body names it.
+
+Cardinal wires only the top-level fields of a system state, so list the
+searches you use directly on the state. Don't declare your own search over
+the shape components in `component/`: that bypasses the API and edits every
+body sharing the shape without saying so.
+
+A shape is never changed in place. `Fork` gives you a copy with your change
+applied, and only the bodies you point at the new slot change; every body
+still on the original keeps what it had. To change many bodies, `Fork` once
+and re-point each of them at the same new slot. The next tick, a slot whose
+new shape has the same geometry gets its fixture updated in place (material,
+filter), and one whose geometry differs gets its fixture rebuilt. Swapping a
+slot to a different shape entity behaves the same way — same geometry updates in
 place, different geometry rebuilds. A slot whose shape entity is missing
 fails that body's reconcile loudly (logged, no fixtures), and deleting a shape
 entity that a body still uses drops that body's fixtures on the next tick the
 same way. Shape entities are ordinary ECS state and snapshot with everything
 else.
 
-Cleanup is automatic: once a body has used a shape, the plugin deletes the
-shape entity on the tick its last such use goes away, so long-running
-worlds do not accumulate abandoned shapes. A shape you spawned but have not
-used yet is never touched. The one rule this adds: do not hold on to a shape
-id across a moment when no body uses it — spawn a new one instead.
+A shape entity lives exactly as long as some body names it. After each
+tick's reconcile the plugin deletes every shape no body names, including
+one you spawned that tick and never put on a body. So spawn a shape in the
+same tick as the first body that uses it, and keep a `ShapeDef` (plain
+data) rather than a slot for shapes you will need later. Sharing still
+works: put the slot the first body got on the others while that body is
+alive.
 
 ### Chain points
 

@@ -45,79 +45,113 @@ type ShapeSearches struct {
 // ShapeAlive reports whether a shape entity of any kind still exists.
 func (c *Ctx) ShapeAlive(id cardinal.EntityID) bool {
 	sh := c.shapes
-	if _, err := sh.Circles.GetByID(id); err == nil {
+	if _, ok := sh.Circles.GetByID(id); ok {
 		return true
 	}
-	if _, err := sh.Boxes.GetByID(id); err == nil {
+	if _, ok := sh.Boxes.GetByID(id); ok {
 		return true
 	}
-	if _, err := sh.Polygons.GetByID(id); err == nil {
+	if _, ok := sh.Polygons.GetByID(id); ok {
 		return true
 	}
-	if _, err := sh.Chains.GetByID(id); err == nil {
+	if _, ok := sh.Chains.GetByID(id); ok {
 		return true
 	}
-	if _, err := sh.Edges.GetByID(id); err == nil {
+	if _, ok := sh.Edges.GetByID(id); ok {
 		return true
 	}
-	_, err := sh.Capsules.GetByID(id)
-	return err == nil
+	_, ok := sh.Capsules.GetByID(id)
+	return ok
 }
 
-// DestroyShape removes a shape entity, as a game that stops using one would.
-func (c *Ctx) DestroyShape(id cardinal.EntityID) bool { return c.shapes.Circles.Destroy(id) }
+// DestroyShape deletes a shape entity through Cardinal's generic destroy on an unrelated
+// search. The shape API offers no delete; this is the bypass a game could still reach, and
+// the hostile deleted-shape case pins what the plugin does about it.
+func (c *Ctx) DestroyShape(id cardinal.EntityID) bool { return c.probes.Destroy(id) }
 
-// EditShape reads the shape entity behind slot, hands its components to edit, and writes
-// them back. It reports false when no shape of geometry kind G has that id.
-func EditShape[G physics.Geometry](
-	c *Ctx, slot physics.ShapeSlot, edit func(common *physics.ShapeCommon, geom *G),
-) bool {
+// ForkShape forks the shape behind slot through the search for D's kind, where D is one of
+// the per-kind definitions (physics.CircleDef, ...), and returns the new slot. Like the
+// plugin's Fork, the shape behind slot is untouched.
+func ForkShape[D any](c *Ctx, slot physics.ShapeSlot, edit func(*D)) (physics.ShapeSlot, bool) {
 	switch e := any(edit).(type) {
-	case func(*physics.ShapeCommon, *physics.CircleGeom):
-		return editShapeIn(c.shapes.Circles, slot.Shape, e)
-	case func(*physics.ShapeCommon, *physics.BoxGeom):
-		return editShapeIn(c.shapes.Boxes, slot.Shape, e)
-	case func(*physics.ShapeCommon, *physics.PolygonGeom):
-		return editShapeIn(c.shapes.Polygons, slot.Shape, e)
-	case func(*physics.ShapeCommon, *physics.ChainGeom):
-		return editShapeIn(c.shapes.Chains, slot.Shape, e)
-	case func(*physics.ShapeCommon, *physics.EdgeGeom):
-		return editShapeIn(c.shapes.Edges, slot.Shape, e)
-	case func(*physics.ShapeCommon, *physics.CapsuleGeom):
-		return editShapeIn(c.shapes.Capsules, slot.Shape, e)
+	case func(*physics.CircleDef):
+		return c.shapes.Circles.Fork(slot, e)
+	case func(*physics.BoxDef):
+		return c.shapes.Boxes.Fork(slot, e)
+	case func(*physics.PolygonDef):
+		return c.shapes.Polygons.Fork(slot, e)
+	case func(*physics.ChainDef):
+		return c.shapes.Chains.Fork(slot, e)
+	case func(*physics.EdgeDef):
+		return c.shapes.Edges.Fork(slot, e)
+	case func(*physics.CapsuleDef):
+		return c.shapes.Capsules.Fork(slot, e)
 	}
-	panic("harness.EditShape: unknown geometry kind")
+	panic("harness.ForkShape: D is not a per-kind shape definition")
 }
 
-func editShapeIn[G physics.Geometry](
-	search *physics.ShapeSearch[G], id cardinal.EntityID, edit func(*physics.ShapeCommon, *G),
-) bool {
-	row, err := search.GetByID(id)
-	if err != nil {
-		return false
+// ReadShape returns a copy of the definition of the shape behind slot, for definition kind D.
+func ReadShape[D any](c *Ctx, slot physics.ShapeSlot) (D, bool) {
+	var def any
+	var ok bool
+	switch any(*new(D)).(type) {
+	case physics.CircleDef:
+		def, ok = c.shapes.Circles.Read(slot)
+	case physics.BoxDef:
+		def, ok = c.shapes.Boxes.Read(slot)
+	case physics.PolygonDef:
+		def, ok = c.shapes.Polygons.Read(slot)
+	case physics.ChainDef:
+		def, ok = c.shapes.Chains.Read(slot)
+	case physics.EdgeDef:
+		def, ok = c.shapes.Edges.Read(slot)
+	case physics.CapsuleDef:
+		def, ok = c.shapes.Capsules.Read(slot)
+	default:
+		panic("harness.ReadShape: D is not a per-kind shape definition")
 	}
-	common, geom := row.Common.Get(), row.Geom.Get()
-	edit(&common, &geom)
-	row.Common.Set(common)
-	row.Geom.Set(geom)
-	return true
+	if !ok {
+		return *new(D), false
+	}
+	typed, isD := def.(D)
+	return typed, isD
+}
+
+// CloneShape copies the shape behind slot through the search for definition kind D and
+// returns a slot for the copy.
+func CloneShape[D any](c *Ctx, slot physics.ShapeSlot) (physics.ShapeSlot, bool) {
+	switch any(*new(D)).(type) {
+	case physics.CircleDef:
+		return c.shapes.Circles.Clone(slot)
+	case physics.BoxDef:
+		return c.shapes.Boxes.Clone(slot)
+	case physics.PolygonDef:
+		return c.shapes.Polygons.Clone(slot)
+	case physics.ChainDef:
+		return c.shapes.Chains.Clone(slot)
+	case physics.EdgeDef:
+		return c.shapes.Edges.Clone(slot)
+	case physics.CapsuleDef:
+		return c.shapes.Capsules.Clone(slot)
+	}
+	panic("harness.CloneShape: D is not a per-kind shape definition")
 }
 
 // Shape spawns def as a shape entity through the search matching its geometry
 // kind and returns the slot that references it.
 func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlot {
 	switch d := any(def).(type) {
-	case physics.ShapeDef[physics.CircleGeom]:
+	case physics.CircleDef:
 		return d.Spawn(c.shapes.Circles)
-	case physics.ShapeDef[physics.BoxGeom]:
+	case physics.BoxDef:
 		return d.Spawn(c.shapes.Boxes)
-	case physics.ShapeDef[physics.PolygonGeom]:
+	case physics.PolygonDef:
 		return d.Spawn(c.shapes.Polygons)
-	case physics.ShapeDef[physics.ChainGeom]:
+	case physics.ChainDef:
 		return d.Spawn(c.shapes.Chains)
-	case physics.ShapeDef[physics.EdgeGeom]:
+	case physics.EdgeDef:
 		return d.Spawn(c.shapes.Edges)
-	case physics.ShapeDef[physics.CapsuleGeom]:
+	case physics.CapsuleDef:
 		return d.Spawn(c.shapes.Capsules)
 	}
 	panic("harness.Shape: unknown geometry kind")
