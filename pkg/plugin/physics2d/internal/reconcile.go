@@ -221,6 +221,12 @@ func (rt *Runtime) reconcileShapesChange(
 	}
 	rt.destroyAllShapesForEntity(entityID)
 	if err := rt.AttachColliderFixtures(entityID, live); err != nil {
+		// Half a body is worse than none: drop it entirely so the next tick treats the entity
+		// as new, retries the attach, and logs the same failure until the game fixes it.
+		rt.DestroyEntityBody(entityID)
+		delete(rt.KnownEntities, entityID)
+		rt.dropShadow(entityID)
+		rt.PruneActiveContactsInvolvingEntity(entityID)
 		return err
 	}
 	rt.PruneActiveContactsInvolvingEntity(entityID)
@@ -289,11 +295,15 @@ func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
 	prev, live immutable.Slice[component.ShapeSlot],
 ) error {
+	resolved := rt.resolvedScratch[:0]
 	for i, slot := range live.All() {
-		if err := rt.validateSlot(slot); err != nil {
+		sh, err := rt.validateSlot(slot)
+		if err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
+		resolved = append(resolved, sh)
 	}
+	rt.resolvedScratch = resolved
 	slots := rt.Shapes[entityID]
 	var densityTouched bool
 	for i, l := range live.All() {
@@ -302,7 +312,7 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		if p.Shape == l.Shape && !dirty {
 			continue
 		}
-		sh := rt.ShapeMirror[l.Shape]
+		sh := resolved[i]
 		if old, ok := rt.ShapeMirror[p.Shape]; !ok || old.Common.Density != sh.Common.Density {
 			densityTouched = true
 		}

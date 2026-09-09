@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
@@ -157,9 +158,15 @@ func (rt *Runtime) KeepShapeEntriesScratch(entries []ShapeEntry) []ShapeEntry {
 
 // SyncShapes reconciles the ShapeMirror with this tick's shape entities and records which
 // mirrored shapes changed (dirtyShapes) so the bodies using them get re-diffed once. Ids no
-// longer present are dropped. A shape entity carrying two geometry components is mirrored
-// with the first one gathered and reported as an error.
-func (rt *Runtime) SyncShapes(entries []ShapeEntry) error {
+// longer present are dropped and marked structural: a body still naming one must lose its
+// fixtures now and fail loudly, the same as it would after a restore, instead of keeping a
+// fixture built from a shape that no longer exists.
+//
+// A shape entity carrying two geometry components is an invariant violation, not a runtime
+// condition: Spawn creates exactly one, and once the components move behind the plugin's
+// API nothing else can. It is asserted (dev builds panic, release builds keep the first
+// kind gathered, which is deterministic).
+func (rt *Runtime) SyncShapes(entries []ShapeEntry) {
 	clear(rt.dirtyShapes)
 	if rt.shapeSeenScratch == nil {
 		rt.shapeSeenScratch = make(map[cardinal.EntityID]struct{}, len(entries))
@@ -167,13 +174,11 @@ func (rt *Runtime) SyncShapes(entries []ShapeEntry) error {
 	seen := rt.shapeSeenScratch
 	clear(seen)
 
-	var dup error
 	for i := range entries {
 		e := &entries[i]
-		if _, twice := seen[e.EntityID]; twice {
-			if dup == nil {
-				dup = fmt.Errorf("physics2d: shape entity %d carries more than one geometry component", e.EntityID)
-			}
+		_, twice := seen[e.EntityID]
+		assert.That(!twice, "physics2d: shape entity %d carries more than one geometry component", e.EntityID)
+		if twice {
 			continue
 		}
 		seen[e.EntityID] = struct{}{}
@@ -183,10 +188,10 @@ func (rt *Runtime) SyncShapes(entries []ShapeEntry) error {
 		for id := range rt.ShapeMirror {
 			if _, ok := seen[id]; !ok {
 				delete(rt.ShapeMirror, id)
+				rt.dirtyShapes[id] = shapeChangeStructural
 			}
 		}
 	}
-	return dup
 }
 
 // mirrorShape stores one shape entity's value, marking it dirty (material or structural)

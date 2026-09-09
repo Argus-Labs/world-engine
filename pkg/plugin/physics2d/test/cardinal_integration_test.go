@@ -159,7 +159,8 @@ func sceneInitSystem(state *spawnState) {
 	)
 
 	// Static chain segment (extra shape-type coverage); not referenced by assertions. Its points
-	// ride on the chain shape entity through the scene's snapshot/restore cases too.
+	// ride on the chain shape entity through the scene's Plugin.Reset rebuilds (this test
+	// never restores a snapshot); chain_ramp itself is not asserted.
 	_ = mustCreate("chain_ramp",
 		physics.Transform2D{Position: physics.Vec2{X: -15, Y: 0}},
 		newRigid(physics.BodyTypeStatic,

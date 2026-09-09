@@ -63,9 +63,7 @@ func (s *InitPhysicsSystemState) shapes() shapeSearches {
 func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
 		ensurePhysicsSingleton(&state.Singleton)
-		if err := syncShapes(rt, state.shapes()); err != nil {
-			state.Logger().Error().Err(err).Msg("physics2d: shape entity sync")
-		}
+		syncShapes(rt, state.shapes())
 
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
@@ -118,9 +116,8 @@ type shapeSearches struct {
 }
 
 // syncShapes refreshes the runtime's shape mirror from every shape entity. Must run before
-// bodies rebuild or reconcile so slots can resolve. The returned error reports a shape entity
-// carrying two geometry components; the mirror is still updated with the first one gathered.
-func syncShapes(rt *internal.Runtime, s shapeSearches) error {
+// bodies rebuild or reconcile so slots can resolve.
+func syncShapes(rt *internal.Runtime, s shapeSearches) {
 	entries := rt.ShapeEntriesScratch()
 	for eid, row := range s.Circles.Iter() {
 		entries = append(entries, shapeEntry(eid, row.Common, row.Geom))
@@ -140,7 +137,7 @@ func syncShapes(rt *internal.Runtime, s shapeSearches) error {
 	for eid, row := range s.Capsules.Iter() {
 		entries = append(entries, shapeEntry(eid, row.Common, row.Geom))
 	}
-	return rt.SyncShapes(rt.KeepShapeEntriesScratch(entries))
+	rt.SyncShapes(rt.KeepShapeEntriesScratch(entries))
 }
 
 // shapeEntry reads one shape entity's two components into a mirror entry.

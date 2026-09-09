@@ -12,10 +12,6 @@ func (PhysicsSingletonTag) Name() string { return "physics_singleton_tag" }
 
 // ContactPairEntry is one active contact pair tracked by the physics engine. Entries are
 // normalized: EntityA < EntityB (or if equal, ShapeIndexA <= ShapeIndexB).
-//
-// Only the pair's identity and sensor flag are stored. The filter bits an End event carries
-// after a restore are looked up from the shapes the two slots reference, which still exist
-// then, so they need not be copied here.
 type ContactPairEntry struct {
 	EntityA     cardinal.EntityID `json:"a"`
 	ShapeIndexA int               `json:"sa"`
