@@ -130,10 +130,15 @@ a material or filter change updates the fixtures of every body using the
 shape, a geometry or sensor-flag change rebuilds them (chain points
 excepted, see below). Swapping a slot to a
 different shape entity behaves the same way — same geometry updates in
-place, different geometry rebuilds. The plugin never deletes a shape
-entity; the game owns that. A slot whose shape entity is missing fails that
-body's reconcile loudly (logged, no fixtures). Shape entities are ordinary
-ECS state and snapshot with everything else.
+place, different geometry rebuilds. A slot whose shape entity is missing
+fails that body's reconcile loudly (logged, no fixtures). Shape entities are
+ordinary ECS state and snapshot with everything else.
+
+Cleanup is automatic: once a body has used a shape, the plugin deletes the
+shape entity on the tick its last such use goes away, so long-running
+worlds do not accumulate abandoned shapes. A shape you spawned but have not
+used yet is never touched. The one rule this adds: do not hold on to a shape
+id across a moment when no body uses it — spawn a new one instead.
 
 ### Chain points
 

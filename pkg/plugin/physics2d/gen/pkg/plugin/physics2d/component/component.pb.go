@@ -273,20 +273,14 @@ func (x *CircleGeom) GetRadius() float64 {
 }
 
 type ContactPairEntry struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	EntityA             uint32                 `protobuf:"varint,1,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
-	ShapeIndexA         int64                  `protobuf:"varint,2,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
-	EntityB             uint32                 `protobuf:"varint,3,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
-	ShapeIndexB         int64                  `protobuf:"varint,4,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
-	IsSensor            bool                   `protobuf:"varint,5,opt,name=IsSensor,proto3" json:"IsSensor,omitempty"`
-	FilterACategoryBits uint64                 `protobuf:"varint,6,opt,name=FilterACategoryBits,proto3" json:"FilterACategoryBits,omitempty"`
-	FilterAMaskBits     uint64                 `protobuf:"varint,7,opt,name=FilterAMaskBits,proto3" json:"FilterAMaskBits,omitempty"`
-	FilterAGroupIndex   int32                  `protobuf:"varint,8,opt,name=FilterAGroupIndex,proto3" json:"FilterAGroupIndex,omitempty"`
-	FilterBCategoryBits uint64                 `protobuf:"varint,9,opt,name=FilterBCategoryBits,proto3" json:"FilterBCategoryBits,omitempty"`
-	FilterBMaskBits     uint64                 `protobuf:"varint,10,opt,name=FilterBMaskBits,proto3" json:"FilterBMaskBits,omitempty"`
-	FilterBGroupIndex   int32                  `protobuf:"varint,11,opt,name=FilterBGroupIndex,proto3" json:"FilterBGroupIndex,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntityA       uint32                 `protobuf:"varint,1,opt,name=EntityA,proto3" json:"EntityA,omitempty"`
+	ShapeIndexA   int64                  `protobuf:"varint,2,opt,name=ShapeIndexA,proto3" json:"ShapeIndexA,omitempty"`
+	EntityB       uint32                 `protobuf:"varint,3,opt,name=EntityB,proto3" json:"EntityB,omitempty"`
+	ShapeIndexB   int64                  `protobuf:"varint,4,opt,name=ShapeIndexB,proto3" json:"ShapeIndexB,omitempty"`
+	IsSensor      bool                   `protobuf:"varint,5,opt,name=IsSensor,proto3" json:"IsSensor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ContactPairEntry) Reset() {
@@ -352,48 +346,6 @@ func (x *ContactPairEntry) GetIsSensor() bool {
 		return x.IsSensor
 	}
 	return false
-}
-
-func (x *ContactPairEntry) GetFilterACategoryBits() uint64 {
-	if x != nil {
-		return x.FilterACategoryBits
-	}
-	return 0
-}
-
-func (x *ContactPairEntry) GetFilterAMaskBits() uint64 {
-	if x != nil {
-		return x.FilterAMaskBits
-	}
-	return 0
-}
-
-func (x *ContactPairEntry) GetFilterAGroupIndex() int32 {
-	if x != nil {
-		return x.FilterAGroupIndex
-	}
-	return 0
-}
-
-func (x *ContactPairEntry) GetFilterBCategoryBits() uint64 {
-	if x != nil {
-		return x.FilterBCategoryBits
-	}
-	return 0
-}
-
-func (x *ContactPairEntry) GetFilterBMaskBits() uint64 {
-	if x != nil {
-		return x.FilterBMaskBits
-	}
-	return 0
-}
-
-func (x *ContactPairEntry) GetFilterBGroupIndex() int32 {
-	if x != nil {
-		return x.FilterBGroupIndex
-	}
-	return 0
 }
 
 // wire name: "edge_geom_2d"
@@ -986,20 +938,13 @@ const file_pkg_plugin_physics2d_component_component_proto_rawDesc = "" +
 	"\x04Loop\x18\x02 \x01(\bR\x04Loop\"$\n" +
 	"\n" +
 	"CircleGeom\x12\x16\n" +
-	"\x06Radius\x18\x01 \x01(\x01R\x06Radius\"\xba\x03\n" +
+	"\x06Radius\x18\x01 \x01(\x01R\x06Radius\"\xa6\x01\n" +
 	"\x10ContactPairEntry\x12\x18\n" +
 	"\aEntityA\x18\x01 \x01(\rR\aEntityA\x12 \n" +
 	"\vShapeIndexA\x18\x02 \x01(\x03R\vShapeIndexA\x12\x18\n" +
 	"\aEntityB\x18\x03 \x01(\rR\aEntityB\x12 \n" +
 	"\vShapeIndexB\x18\x04 \x01(\x03R\vShapeIndexB\x12\x1a\n" +
-	"\bIsSensor\x18\x05 \x01(\bR\bIsSensor\x120\n" +
-	"\x13FilterACategoryBits\x18\x06 \x01(\x04R\x13FilterACategoryBits\x12(\n" +
-	"\x0fFilterAMaskBits\x18\a \x01(\x04R\x0fFilterAMaskBits\x12,\n" +
-	"\x11FilterAGroupIndex\x18\b \x01(\x05R\x11FilterAGroupIndex\x120\n" +
-	"\x13FilterBCategoryBits\x18\t \x01(\x04R\x13FilterBCategoryBits\x12(\n" +
-	"\x0fFilterBMaskBits\x18\n" +
-	" \x01(\x04R\x0fFilterBMaskBits\x12,\n" +
-	"\x11FilterBGroupIndex\x18\v \x01(\x05R\x11FilterBGroupIndex\"\xb8\x01\n" +
+	"\bIsSensor\x18\x05 \x01(\bR\bIsSensor\"\xb8\x01\n" +
 	"\bEdgeGeom\x12U\n" +
 	"\x01A\x18\x01 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x01A\x12U\n" +
 	"\x01B\x18\x02 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\x01B\"\x99\x03\n" +

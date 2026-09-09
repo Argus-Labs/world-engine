@@ -85,6 +85,8 @@ func hostileCases() []harness.Scenario {
 			"a capsule whose two centers are the same point",
 			physics.BodyTypeDynamic,
 			capsule(vec(0, 0), vec(0, 0), 0.5)),
+		hostileMissingShape(),
+		hostileDeletedShape(),
 		hostileBadShape("chain-on-dynamic-body",
 			"a chain fixture on a dynamic body, which has no mass",
 			physics.BodyTypeDynamic,
@@ -162,6 +164,71 @@ func hostileBadShape(
 						"body, and the plugin logs the failure once per tick "+
 						"for as long as the entity lives", description)
 				}
+			}},
+		},
+	}
+}
+
+// hostileMissingShape spawns a body whose slot names a shape entity that does not exist. The
+// body must fail loudly (no fixture) without taking the shard down, and it keeps failing every
+// tick, which is why it runs alone.
+func hostileMissingShape() harness.Scenario {
+	var victim cardinal.EntityID
+	return harness.Scenario{
+		Name: "missing-shape-entity",
+		Setup: func(c *harness.Ctx) {
+			c.Spawn("bystander", 0, 0, body(c, physics.BodyTypeStatic, box(5, 1)))
+		},
+		Steps: []harness.Step{
+			{Tick: 5, Do: func(c *harness.Ctx) {
+				pb := physics.NewPhysicsBody2D(physics.BodyTypeStatic, physics.Slot(999_999))
+				c.NoError("PhysicsBody2D.Validate accepts an unresolved slot", pb.Validate())
+				c.Note("spawning a body whose slot names shape entity 999999, which does not exist")
+				victim = c.Spawn("victim", 0, 10, pb)
+			}},
+			{Tick: 20, Do: func(c *harness.Ctx) {
+				c.True("the shard survives a body with a missing shape entity", true, "unreachable")
+				_, ok := c.Plugin().ShapeIDs(victim)
+				c.False("a body whose shape entity is missing gets no fixtures", ok,
+					"fixtures exist for a slot that resolves to nothing")
+				c.False("nothing is queryable where the body would be",
+					c.Raycast(0, 14, 0, 6, nil).Hit, "a ray hit the unresolvable body")
+			}},
+		},
+	}
+}
+
+// hostileDeletedShape deletes a shape entity out from under a body that uses it. The body
+// keeps its fixtures until the next full rebuild, which then cannot resolve the slot and fails
+// that body loudly, every tick from then on.
+func hostileDeletedShape() harness.Scenario {
+	var (
+		victim cardinal.EntityID
+		slot   physics.ShapeSlot
+	)
+	return harness.Scenario{
+		Name: "deleted-shape-entity",
+		Setup: func(c *harness.Ctx) {
+			slot = box(1, 1).Spawn(c)
+			victim = c.Spawn("victim", 0, 10, physics.NewPhysicsBody2D(physics.BodyTypeStatic, slot))
+		},
+		Steps: []harness.Step{
+			{Tick: 5, Do: func(c *harness.Ctx) {
+				c.Note("deleting shape entity %d while a body still uses it", slot.Shape)
+				c.True("deleting a used shape entity succeeds", c.DestroyShape(slot.Shape),
+					"Destroy returned false")
+			}},
+			{Tick: 10, Do: func(c *harness.Ctx) {
+				c.True("the body keeps its fixtures until the next rebuild",
+					c.Raycast(0, 14, 0, 6, nil).Hit, "the fixture vanished without a rebuild")
+				c.ExpectWorldReset()
+				c.Plugin().Reset()
+			}},
+			{Tick: 15, Do: func(c *harness.Ctx) {
+				c.True("the shard survives rebuilding a body whose shape entity is gone", true, "unreachable")
+				_, ok := c.Plugin().ShapeIDs(victim)
+				c.False("the rebuild cannot resolve the deleted shape entity", ok,
+					"fixtures exist for a slot whose shape entity was deleted")
 			}},
 		},
 	}

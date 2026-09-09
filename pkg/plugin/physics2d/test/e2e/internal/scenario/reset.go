@@ -28,6 +28,8 @@ func Reset() harness.Scenario {
 		gate        cardinal.EntityID
 		visitor     cardinal.EntityID
 		wall        cardinal.EntityID
+		liftPad     cardinal.EntityID
+		lifter      cardinal.EntityID
 		restPos     physics.Vec2
 		driftPos    physics.Vec2
 		driftVel    physics.Vec2
@@ -43,6 +45,8 @@ func Reset() harness.Scenario {
 		afterTick = 451
 		lateTick  = 520
 		driftVX   = 1.0
+		padCat    = uint64(0x0010)
+		lifterCat = uint64(0x0020)
 	)
 
 	return harness.Scenario{
@@ -68,6 +72,15 @@ func Reset() harness.Scenario {
 
 			// Something to raycast at, before and after.
 			s.wall = c.Spawn("reset-wall", 10, 60, body(c, physics.BodyTypeStatic, box(1, 3)))
+
+			// Row y=80 — a resting pair that is pulled apart in the reset tick. The
+			// rebuild finds no overlap while the persisted contact list still holds
+			// the pair, so it must synthesize an End — and that End must carry the
+			// shapes' filter bits, which are no longer stored with the pair.
+			s.liftPad = c.Spawn("reset-lift-pad", 0, 79,
+				body(c, physics.BodyTypeStatic, withFilter(box(3, 1), padCat, maskAll, 0)))
+			s.lifter = c.Spawn("reset-lifter", 0, 80.55,
+				body(c, physics.BodyTypeDynamic, withFilter(box(0.5, 0.5), lifterCat, maskAll, 0)))
 		},
 		Steps: []harness.Step{
 			{Tick: 60, Do: func(c *harness.Ctx) {
@@ -96,6 +109,11 @@ func Reset() harness.Scenario {
 					s.beginsAtCut, 1)
 				c.IntAtLeast("the sensor pair had a trigger before the reset",
 					s.trigsAtCut, 1)
+				c.IntAtLeast("the lifted pair had a contact before the reset",
+					c.CountBetween(harness.ContactBegin, s.lifter, s.liftPad), 1)
+				c.Int("the lifted pair had no End before the reset",
+					c.CountBetween(harness.ContactEnd, s.lifter, s.liftPad), 0)
+				c.SetPos(s.lifter, 0, 95)
 
 				// Announce the reset so the runner's world watchdog does not
 				// report the missing world as a failure.
@@ -165,6 +183,18 @@ func Reset() harness.Scenario {
 					s.driftPos.X+driftVX*float64(lateTick-resetTick-1)/harness.TickRate, 0.05)
 				c.Int("the rebuild does not leak repeated contact events",
 					c.CountBetween(harness.ContactBegin, s.rester, s.pad), s.beginsAtCut)
+
+				ends := c.EventsBetween(harness.ContactEnd, s.lifter, s.liftPad)
+				if c.Int("a pair pulled apart across the rebuild gets one synthetic End", len(ends), 1) {
+					if lf, ok := ends[0].FilterFor(s.lifter); c.True("the synthetic End names the lifter", ok, "") {
+						c.True("the synthetic End carries the lifter's category bits",
+							lf.CategoryBits == lifterCat, "got %#x, want %#x", lf.CategoryBits, lifterCat)
+					}
+					if pf, ok := ends[0].FilterFor(s.liftPad); c.True("the synthetic End names the pad", ok, "") {
+						c.True("the synthetic End carries the pad's category bits",
+							pf.CategoryBits == padCat, "got %#x, want %#x", pf.CategoryBits, padCat)
+					}
+				}
 			}},
 		},
 	}

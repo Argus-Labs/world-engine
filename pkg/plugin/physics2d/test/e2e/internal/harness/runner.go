@@ -183,17 +183,21 @@ func (r *Runner) ctx(scenario *Scenario, probes *Probes, shapes *ShapeSearches, 
 // its first FullRebuildFromECS.
 type setupState struct {
 	cardinal.BaseSystemState
-	Probes   Probes
-	Circles  physics.CircleShapes
-	Boxes    physics.BoxShapes
-	Polygons physics.PolygonShapes
-	Chains   physics.ChainShapes
-	Edges    physics.EdgeShapes
-	Capsules physics.CapsuleShapes
+	Probes    Probes
+	Circles   physics.CircleShapes
+	Boxes     physics.BoxShapes
+	Polygons  physics.PolygonShapes
+	Chains    physics.ChainShapes
+	Edges     physics.EdgeShapes
+	Capsules  physics.CapsuleShapes
+	Ambiguous cardinal.Exact[AmbiguousShapeRow]
 }
 
 func (s *setupState) shapes() *ShapeSearches {
-	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules, Ambiguous: &s.Ambiguous,
+	}
 }
 
 // preStepState runs every scenario's EachTick on PreUpdate. It is registered
@@ -201,17 +205,21 @@ func (s *setupState) shapes() *ShapeSearches {
 // them in the same tick.
 type preStepState struct {
 	cardinal.BaseSystemState
-	Probes   Probes
-	Circles  physics.CircleShapes
-	Boxes    physics.BoxShapes
-	Polygons physics.PolygonShapes
-	Chains   physics.ChainShapes
-	Edges    physics.EdgeShapes
-	Capsules physics.CapsuleShapes
+	Probes    Probes
+	Circles   physics.CircleShapes
+	Boxes     physics.BoxShapes
+	Polygons  physics.PolygonShapes
+	Chains    physics.ChainShapes
+	Edges     physics.EdgeShapes
+	Capsules  physics.CapsuleShapes
+	Ambiguous cardinal.Exact[AmbiguousShapeRow]
 }
 
 func (s *preStepState) shapes() *ShapeSearches {
-	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules, Ambiguous: &s.Ambiguous,
+	}
 }
 
 // stepState runs scheduled steps on Update, after the physics pipeline has
@@ -226,6 +234,7 @@ type stepState struct {
 	Chains       physics.ChainShapes
 	Edges        physics.EdgeShapes
 	Capsules     physics.CapsuleShapes
+	Ambiguous    cardinal.Exact[AmbiguousShapeRow]
 	ContactBegin cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -233,7 +242,10 @@ type stepState struct {
 }
 
 func (s *stepState) shapes() *ShapeSearches {
-	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules, Ambiguous: &s.Ambiguous,
+	}
 }
 
 func (r *Runner) setup(state *setupState) {
