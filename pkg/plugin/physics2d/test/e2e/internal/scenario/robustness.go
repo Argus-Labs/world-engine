@@ -198,9 +198,9 @@ func hostileMissingShape() harness.Scenario {
 	}
 }
 
-// hostileDeletedShape deletes a shape entity out from under a body that uses it. The body
-// keeps its fixtures until the next full rebuild, which then cannot resolve the slot and fails
-// that body loudly, every tick from then on.
+// hostileDeletedShape deletes a shape entity out from under a body that uses it. The next
+// reconcile sees the shape gone, drops the body's fixtures and fails it loudly, every tick
+// from then on — the same state a restore would produce, so live and restored worlds agree.
 func hostileDeletedShape() harness.Scenario {
 	var (
 		victim cardinal.EntityID
@@ -218,17 +218,17 @@ func hostileDeletedShape() harness.Scenario {
 				c.True("deleting a used shape entity succeeds", c.DestroyShape(slot.Shape),
 					"Destroy returned false")
 			}},
-			{Tick: 10, Do: func(c *harness.Ctx) {
-				c.True("the body keeps its fixtures until the next rebuild",
-					c.Raycast(0, 14, 0, 6, nil).Hit, "the fixture vanished without a rebuild")
-				c.ExpectWorldReset()
-				c.Plugin().Reset()
+			{Tick: 4, Do: func(c *harness.Ctx) {
+				c.True("the body has fixtures while its shape entity exists",
+					c.Raycast(0, 14, 0, 6, nil).Hit, "no fixture before the deletion")
 			}},
-			{Tick: 15, Do: func(c *harness.Ctx) {
-				c.True("the shard survives rebuilding a body whose shape entity is gone", true, "unreachable")
+			{Tick: 8, Do: func(c *harness.Ctx) {
+				c.True("the shard survives a body whose shape entity was deleted", true, "unreachable")
 				_, ok := c.Plugin().ShapeIDs(victim)
-				c.False("the rebuild cannot resolve the deleted shape entity", ok,
+				c.False("the next reconcile drops fixtures built from a deleted shape entity", ok,
 					"fixtures exist for a slot whose shape entity was deleted")
+				c.False("nothing is queryable where the body was",
+					c.Raycast(0, 14, 0, 6, nil).Hit, "a ray hit a fixture whose shape entity is gone")
 			}},
 		},
 	}

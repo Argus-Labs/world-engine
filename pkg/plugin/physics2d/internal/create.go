@@ -70,41 +70,43 @@ func (rt *Runtime) CreateBody(
 }
 
 // AttachColliderFixtures creates one Box2D shape per slot on the body identified by
-// entityID. Slot i becomes fixture i. Each slot's shape entity is resolved through the
-// runtime's ShapeMirror; a slot whose shape entity is missing fails the whole attach.
+// entityID. Slot i becomes fixture i. Every slot is resolved through the runtime's
+// ShapeMirror and validated before the first fixture is created, so a bad slot rejects the
+// whole list and leaves Box2D untouched.
 func (rt *Runtime) AttachColliderFixtures(
 	entityID cardinal.EntityID, slots immutable.Slice[component.ShapeSlot],
 ) error {
 	if slots.Len() == 0 {
 		return errors.New("physics2d: collider has no shapes")
 	}
+	resolved := rt.resolvedScratch[:0]
 	for i, slot := range slots.All() {
-		if err := rt.validateSlot(slot); err != nil {
-			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
-		}
-	}
-	for i, slot := range slots.All() {
-		sh, err := rt.resolveSlot(slot)
+		sh, err := rt.validateSlot(slot)
 		if err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
-		if err := rt.attachShape(entityID, i, slot, sh); err != nil {
+		resolved = append(resolved, sh)
+	}
+	rt.resolvedScratch = resolved
+	for i, slot := range slots.All() {
+		if err := rt.attachShape(entityID, i, slot, resolved[i]); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
 	return nil
 }
 
-// validateSlot checks the slot's own fields and, once resolved, the shape entity's components.
-func (rt *Runtime) validateSlot(slot component.ShapeSlot) error {
+// validateSlot checks the slot's own fields, resolves its shape entity, and validates that
+// shape's components. It returns the resolved shape so callers do not look it up twice.
+func (rt *Runtime) validateSlot(slot component.ShapeSlot) (ResolvedShape, error) {
 	if err := slot.Validate(); err != nil {
-		return err
+		return ResolvedShape{}, err
 	}
 	sh, err := rt.resolveSlot(slot)
 	if err != nil {
-		return err
+		return ResolvedShape{}, err
 	}
-	return sh.validate()
+	return sh, sh.validate()
 }
 
 // CreateBodyWithCollider creates a body and attaches all shapes. If shape attachment

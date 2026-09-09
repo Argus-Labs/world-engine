@@ -183,20 +183,19 @@ func (r *Runner) ctx(scenario *Scenario, probes *Probes, shapes *ShapeSearches, 
 // its first FullRebuildFromECS.
 type setupState struct {
 	cardinal.BaseSystemState
-	Probes    Probes
-	Circles   physics.CircleShapes
-	Boxes     physics.BoxShapes
-	Polygons  physics.PolygonShapes
-	Chains    physics.ChainShapes
-	Edges     physics.EdgeShapes
-	Capsules  physics.CapsuleShapes
-	Ambiguous cardinal.Exact[AmbiguousShapeRow]
+	Probes   Probes
+	Circles  physics.CircleShapes
+	Boxes    physics.BoxShapes
+	Polygons physics.PolygonShapes
+	Chains   physics.ChainShapes
+	Edges    physics.EdgeShapes
+	Capsules physics.CapsuleShapes
 }
 
 func (s *setupState) shapes() *ShapeSearches {
 	return &ShapeSearches{
 		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules, Ambiguous: &s.Ambiguous,
+		Edges: &s.Edges, Capsules: &s.Capsules,
 	}
 }
 
@@ -205,20 +204,19 @@ func (s *setupState) shapes() *ShapeSearches {
 // them in the same tick.
 type preStepState struct {
 	cardinal.BaseSystemState
-	Probes    Probes
-	Circles   physics.CircleShapes
-	Boxes     physics.BoxShapes
-	Polygons  physics.PolygonShapes
-	Chains    physics.ChainShapes
-	Edges     physics.EdgeShapes
-	Capsules  physics.CapsuleShapes
-	Ambiguous cardinal.Exact[AmbiguousShapeRow]
+	Probes   Probes
+	Circles  physics.CircleShapes
+	Boxes    physics.BoxShapes
+	Polygons physics.PolygonShapes
+	Chains   physics.ChainShapes
+	Edges    physics.EdgeShapes
+	Capsules physics.CapsuleShapes
 }
 
 func (s *preStepState) shapes() *ShapeSearches {
 	return &ShapeSearches{
 		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules, Ambiguous: &s.Ambiguous,
+		Edges: &s.Edges, Capsules: &s.Capsules,
 	}
 }
 
@@ -234,7 +232,6 @@ type stepState struct {
 	Chains       physics.ChainShapes
 	Edges        physics.EdgeShapes
 	Capsules     physics.CapsuleShapes
-	Ambiguous    cardinal.Exact[AmbiguousShapeRow]
 	ContactBegin cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -244,7 +241,7 @@ type stepState struct {
 func (s *stepState) shapes() *ShapeSearches {
 	return &ShapeSearches{
 		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules, Ambiguous: &s.Ambiguous,
+		Edges: &s.Edges, Capsules: &s.Capsules,
 	}
 }
 

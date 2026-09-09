@@ -70,6 +70,10 @@ type Runtime struct {
 	// SweepUnusedShapes. Ids only.
 	shapeSweepScratch []cardinal.EntityID
 
+	// resolvedScratch holds one body's resolved slots between validation and attach, so each
+	// slot is looked up once. Valid only within one call.
+	resolvedScratch []ResolvedShape
+
 	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
 	Chains map[cardinal.EntityID][]box2d.ChainID
 
@@ -256,6 +260,7 @@ func (rt *Runtime) Reset() {
 	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
 	rt.shapeRefs = make(map[cardinal.EntityID]int)
 	rt.shapeSweepScratch = nil
+	rt.resolvedScratch = nil
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)

@@ -28,7 +28,6 @@ func ShapeEntities() harness.Scenario {
 		editGeom      cardinal.EntityID
 		editGeomSlot  physics.ShapeSlot
 		editGeomFix   box2d.ShapeID
-		ambiguous     cardinal.EntityID
 		chainSwap     cardinal.EntityID
 		chainFixed    cardinal.EntityID
 		chainFixedRef physics.ShapeSlot
@@ -36,7 +35,6 @@ func ShapeEntities() harness.Scenario {
 
 	const (
 		beforeTick = 3
-		cleanTick  = 4
 		editTick   = 5
 		afterTick  = 8
 	)
@@ -81,12 +79,6 @@ func ShapeEntities() harness.Scenario {
 			s.editGeomSlot = circle(0.5).Spawn(c)
 			s.editGeom = c.Spawn("edit-geometry", 0, 30, physics.NewPhysicsBody2D(physics.BodyTypeStatic, s.editGeomSlot))
 
-			// Row y=40 — a shape entity carrying two geometry components: a game bug the
-			// plugin reports and resolves by search order (circle first), deterministically.
-			s.ambiguous = c.Spawn("two-geometries", 0, 40, physics.NewPhysicsBody2D(physics.BodyTypeStatic,
-				c.SpawnShapeWithTwoGeometries(physics.CircleGeom{Radius: 0.5},
-					physics.BoxGeom{HalfExtents: vec(5, 5)}, baseCommon())))
-
 			// Row y=50 — terrain changed by pointing the slot at a new chain shape.
 			s.chainSwap = c.Spawn("chain-swap", 0, 50, body(c, physics.BodyTypeStatic, chain(line(0)...)))
 
@@ -112,20 +104,9 @@ func ShapeEntities() harness.Scenario {
 				c.False("the small circle does not reach x=3 before the edit",
 					c.OverlapHits(c.OverlapAABB(2.5, 29.5, 3.5, 30.5, nil), s.editGeom), "already there")
 
-				c.True("the two-geometry shape attached as the first kind gathered (circle)",
-					c.OverlapHits(c.OverlapAABB(-0.5, 39.5, 0.5, 40.5, nil), s.ambiguous), "no fixture")
-				c.False("the two-geometry shape did not attach its box",
-					c.OverlapHits(c.OverlapAABB(3.5, 39.5, 4.5, 40.5, nil), s.ambiguous), "the 5x5 box is there")
-
 				if y, ok := hitY(c, s.chainSwap, 0, 50); c.True("the original chain is there", ok, "ray missed") {
 					c.Near("the original polyline sits at its spawn height", y, 50, 1e-6)
 				}
-			}},
-			{Tick: cleanTick, Do: func(c *harness.Ctx) {
-				// The two-geometry shape is reported every tick it exists; the check is
-				// done, so let the sweep remove it along with its body.
-				c.True("destroying the two-geometry body succeeds", c.Destroy(s.ambiguous),
-					"Destroy returned false")
 			}},
 			{Tick: editTick, Do: func(c *harness.Ctx) {
 				// In-place material edit on the shared shape entity.

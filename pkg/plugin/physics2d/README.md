@@ -56,6 +56,11 @@ which produces an inactive, sleeping, gravity-less body.
 
 ### Shapes are entities
 
+> **Breaking change.** Shapes used to live inline on `PhysicsBody2D` and are not
+> migrated. A snapshot taken before this change does not load: its bodies name no
+> shape entities and its chain points are gone. Purge such worlds and rebuild
+> their shapes as entities.
+
 A body does not carry its shapes inline. Each shape is its own entity with
 two components: [`ShapeCommon`](component/shape_common.go) (sensor flag,
 material, collision filter) and exactly one geometry component from
@@ -131,8 +136,10 @@ shape, a geometry or sensor-flag change rebuilds them (chain points
 excepted, see below). Swapping a slot to a
 different shape entity behaves the same way — same geometry updates in
 place, different geometry rebuilds. A slot whose shape entity is missing
-fails that body's reconcile loudly (logged, no fixtures). Shape entities are
-ordinary ECS state and snapshot with everything else.
+fails that body's reconcile loudly (logged, no fixtures), and deleting a shape
+entity that a body still uses drops that body's fixtures on the next tick the
+same way. Shape entities are ordinary ECS state and snapshot with everything
+else.
 
 Cleanup is automatic: once a body has used a shape, the plugin deletes the
 shape entity on the tick its last such use goes away, so long-running

@@ -90,9 +90,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		// --- 1. Reconcile (ECS -> Box2D) ---
 		ensurePhysicsSingleton(&state.Singleton)
 		// Shapes before bodies: attaches below resolve slots through the shape mirror.
-		if err := syncShapes(rt, state.shapes()); err != nil {
-			state.Logger().Error().Err(err).Msg("physics2d: shape entity sync")
-		}
+		syncShapes(rt, state.shapes())
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 

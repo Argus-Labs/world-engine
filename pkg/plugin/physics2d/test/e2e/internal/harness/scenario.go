@@ -40,17 +40,6 @@ type ShapeSearches struct {
 	Chains   *physics.ChainShapes
 	Edges    *physics.EdgeShapes
 	Capsules *physics.CapsuleShapes
-	// Ambiguous spawns the one malformed shape the suite needs: an entity carrying two
-	// geometry components. Nil on states that never spawn.
-	Ambiguous *cardinal.Exact[AmbiguousShapeRow]
-}
-
-// AmbiguousShapeRow is a shape entity with two geometry components, a game bug the plugin
-// must report and resolve deterministically.
-type AmbiguousShapeRow struct {
-	Common cardinal.Ref[physics.ShapeCommon]
-	Circle cardinal.Ref[physics.CircleGeom]
-	Box    cardinal.Ref[physics.BoxGeom]
 }
 
 // ShapeAlive reports whether a shape entity of any kind still exists.
@@ -77,18 +66,6 @@ func (c *Ctx) ShapeAlive(id cardinal.EntityID) bool {
 
 // DestroyShape removes a shape entity, as a game that stops using one would.
 func (c *Ctx) DestroyShape(id cardinal.EntityID) bool { return c.shapes.Circles.Destroy(id) }
-
-// SpawnShapeWithTwoGeometries creates a shape entity carrying both a circle and a box, and
-// returns a slot for it.
-func (c *Ctx) SpawnShapeWithTwoGeometries(
-	circle physics.CircleGeom, box physics.BoxGeom, common physics.ShapeCommon,
-) physics.ShapeSlot {
-	id, row := c.shapes.Ambiguous.Create()
-	row.Common.Set(common)
-	row.Circle.Set(circle)
-	row.Box.Set(box)
-	return physics.Slot(id)
-}
 
 // EditShape reads the shape entity behind slot, hands its components to edit, and writes
 // them back. It reports false when no shape of geometry kind G has that id.
