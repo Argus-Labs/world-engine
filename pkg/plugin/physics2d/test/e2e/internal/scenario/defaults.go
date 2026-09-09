@@ -56,6 +56,7 @@ func Defaults() harness.Scenario {
 			{Tick: 2, Do: checkZeroValueDefaults},
 			{Tick: 2, Do: checkJSONDefaults},
 			{Tick: 2, Do: checkValidation},
+			{Tick: 2, Do: checkShapeConstructors},
 			{Tick: 90, Do: func(c *harness.Ctx) {
 				// 90 ticks at 60 Hz is 1.5 s: free fall covers ~11 m, so a live
 				// body is well clear of its spawn height and a disabled one has
@@ -276,4 +277,53 @@ func decodeBodyInto(c *harness.Ctx, check, payload string) physics.PhysicsBody2D
 	err := json.Unmarshal([]byte(payload), &pb)
 	c.NoError(check, err)
 	return pb
+}
+
+// checkShapeConstructors pins the shape constructors: each carries Box2D's default material
+// and filter, the options set exactly what they say, and geometry lands in the right fields.
+func checkShapeConstructors(c *harness.Ctx) {
+	defaults := physics.ShapeCommon{Friction: 0.6, Density: 1, CategoryBits: 1, MaskBits: ^uint64(0)}
+	commons := map[string]physics.ShapeCommon{
+		"Circle":    physics.Circle(0.5).Common,
+		"Box":       physics.Box(1, 2).Common,
+		"Polygon":   physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1)).Common,
+		"Chain":     physics.Chain(vec(0, 0), vec(1, 0)).Common,
+		"ChainLoop": physics.ChainLoop(vec(0, 0), vec(1, 0)).Common,
+		"Edge":      physics.Edge(vec(0, 0), vec(1, 0)).Common,
+		"Capsule":   physics.Capsule(vec(0, 0), vec(1, 0), 0.25).Common,
+	}
+	for name, common := range commons {
+		c.True(name+" carries Box2D's default material and filter", common == defaults,
+			"got %+v, want %+v", common, defaults)
+	}
+
+	d := physics.Box(1, 1).AsSensor().Material(0.1, 0.2, 0.3).Filter(0x2, 0x4).Group(-1)
+	c.True("the options set exactly what they say", d.Common == physics.ShapeCommon{
+		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
+		CategoryBits: 0x2, MaskBits: 0x4, GroupIndex: -1,
+	}, "got %+v", d.Common)
+	c.True("Box stores its half extents", d.Geom == physics.BoxGeom{HalfExtents: vec(1, 1)}, "got %+v", d.Geom)
+	c.True("Circle stores its radius", physics.Circle(0.5).Geom == physics.CircleGeom{Radius: 0.5}, "")
+	c.True("Edge stores its endpoints",
+		physics.Edge(vec(0, 0), vec(1, 0)).Geom == physics.EdgeGeom{A: vec(0, 0), B: vec(1, 0)}, "")
+	c.True("Capsule stores its endpoints and radius",
+		physics.Capsule(vec(0, 0), vec(1, 0), 0.25).Geom == physics.CapsuleGeom{A: vec(0, 0), B: vec(1, 0), Radius: 0.25}, "")
+
+	line := []physics.Vec2{vec(0, 0), vec(1, 0)}
+	chain := physics.Chain(line...).Geom
+	c.True("Chain copies its points", immutable.Equal(chain.Points, immutable.SliceOf(line...)) && !chain.Loop, "")
+	c.True("ChainLoop closes the polyline", physics.ChainLoop(line...).Geom.Loop, "Loop is false")
+
+	tri := physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1)).Geom
+	c.Int("Polygon counts its vertices", int(tri.Count), 3)
+	c.NoError("Polygon of three vertices validates", tri.Validate())
+	nine := make([]physics.Vec2, 9)
+	for i := range nine {
+		nine[i] = vec(float64(i), 0)
+	}
+	c.HasError("Polygon of nine vertices fails validation", physics.Polygon(nine...).Geom.Validate())
+
+	slot := physics.Slot(9).At(vec(2, 3), 0.5)
+	c.True("Slot.At places the slot",
+		slot == physics.ShapeSlot{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5}, "got %+v", slot)
 }

@@ -120,7 +120,10 @@ type preCaptureState struct {
 }
 
 func (s *preCaptureState) shapes() *ShapeSearches {
-	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules,
+	}
 }
 
 type postCaptureState struct {
@@ -136,7 +139,10 @@ type postCaptureState struct {
 }
 
 func (s *postCaptureState) shapes() *ShapeSearches {
-	return &ShapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules,
+	}
 }
 
 // capture copies every body's components (and the shape entities its slots
@@ -178,10 +184,7 @@ func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains
 
 // contactKey renders a contact pair as a sortable, comparable string.
 func contactKey(p physics.ContactPairEntry) string {
-	return fmt.Sprintf("%d:%d/%d:%d/sensor=%v/fa=%#x:%#x:%d/fb=%#x:%#x:%d",
-		p.EntityA, p.ShapeIndexA, p.EntityB, p.ShapeIndexB, p.IsSensor,
-		p.FilterACategoryBits, p.FilterAMaskBits, p.FilterAGroupIndex,
-		p.FilterBCategoryBits, p.FilterBMaskBits, p.FilterBGroupIndex)
+	return fmt.Sprintf("%d/%d-%d/%d:%v", p.EntityA, p.ShapeIndexA, p.EntityB, p.ShapeIndexB, p.IsSensor)
 }
 
 // CompareContacts reports differences between two worlds' ActiveContacts.

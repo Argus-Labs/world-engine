@@ -69,7 +69,9 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			e.PhysicsBody.Set(pb)
 		}
 
-		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
+		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Written
+		// directly rather than through setShadow: the slots do not change here, so the shape
+		// reference counts need no adjustment.
 		if shadow, exists := rt.Shadow[e.EntityID]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v

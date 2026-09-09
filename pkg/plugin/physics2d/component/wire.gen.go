@@ -211,12 +211,6 @@ func (c ContactPairEntry) ToProto() *pbcomponent.ContactPairEntry {
 	p.EntityB = uint32(c.EntityB)
 	p.ShapeIndexB = int64(c.ShapeIndexB)
 	p.IsSensor = bool(c.IsSensor)
-	p.FilterACategoryBits = uint64(c.FilterACategoryBits)
-	p.FilterAMaskBits = uint64(c.FilterAMaskBits)
-	p.FilterAGroupIndex = int32(c.FilterAGroupIndex)
-	p.FilterBCategoryBits = uint64(c.FilterBCategoryBits)
-	p.FilterBMaskBits = uint64(c.FilterBMaskBits)
-	p.FilterBGroupIndex = int32(c.FilterBGroupIndex)
 	return p
 }
 
@@ -229,12 +223,6 @@ func (c ContactPairEntry) FromProto(p *pbcomponent.ContactPairEntry) ContactPair
 	c.EntityB = pkg_cardinal.EntityID(p.EntityB)
 	c.ShapeIndexB = int(p.ShapeIndexB)
 	c.IsSensor = bool(p.IsSensor)
-	c.FilterACategoryBits = uint64(p.FilterACategoryBits)
-	c.FilterAMaskBits = uint64(p.FilterAMaskBits)
-	c.FilterAGroupIndex = int32(p.FilterAGroupIndex)
-	c.FilterBCategoryBits = uint64(p.FilterBCategoryBits)
-	c.FilterBMaskBits = uint64(p.FilterBMaskBits)
-	c.FilterBGroupIndex = int32(p.FilterBGroupIndex)
 	return c
 }
 

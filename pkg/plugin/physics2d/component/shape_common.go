@@ -9,7 +9,11 @@ import "fmt"
 //
 // The plugin reads shape entities every tick, so editing one in place works: a material or
 // filter change updates the fixtures of every body using the shape, a geometry or IsSensor
-// change rebuilds them. The plugin never deletes a shape entity; the game owns that.
+// change rebuilds them.
+//
+// Cleanup is automatic: once a body has used a shape, the plugin deletes the shape entity on
+// the tick its last such use goes away. A shape spawned but never used is left alone. So don't
+// hold on to a shape id across a moment when no body uses it — spawn a new one instead.
 type ShapeCommon struct {
 	IsSensor     bool    `json:"is_sensor"`
 	Friction     float64 `json:"friction"`

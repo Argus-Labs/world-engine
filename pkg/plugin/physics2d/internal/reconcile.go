@@ -89,7 +89,7 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	for _, id := range orphans {
 		rt.DestroyEntityBody(id)
 		delete(rt.KnownEntities, id)
-		delete(rt.Shadow, id)
+		rt.dropShadow(id)
 		rt.PruneActiveContactsInvolvingEntity(id)
 	}
 }
@@ -131,7 +131,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
-	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
+	rt.setShadow(e.EntityID, NewShadowState(e.Transform, e.Velocity, e.PhysicsBody))
 	return nil
 }
 
@@ -146,7 +146,7 @@ func (rt *Runtime) createBodyForEntry(e PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.KnownEntities[e.EntityID] = struct{}{}
-	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
+	rt.setShadow(e.EntityID, NewShadowState(e.Transform, e.Velocity, e.PhysicsBody))
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (rt *Runtime) reconcileExistingBody(
 		// No shadow: treat as inconsistent; rebuild this body from scratch.
 		rt.DestroyEntityBody(e.EntityID)
 		delete(rt.KnownEntities, e.EntityID)
-		delete(rt.Shadow, e.EntityID)
+		rt.dropShadow(e.EntityID)
 		rt.PruneActiveContactsInvolvingEntity(e.EntityID)
 		return rt.createBodyForEntry(e)
 	}

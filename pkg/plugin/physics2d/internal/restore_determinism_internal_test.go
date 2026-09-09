@@ -85,8 +85,6 @@ func restoreBaseline() component.ActiveContacts {
 	for i := 0; i+1 < restoreCrateCount; i++ {
 		pairs = append(pairs, component.ContactPairEntry{
 			EntityA: restoreCrate0 + cardinal.EntityID(i), EntityB: restoreCrate0 + cardinal.EntityID(i+1),
-			FilterACategoryBits: 1, FilterAMaskBits: ^uint64(0),
-			FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
 		})
 	}
 	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}

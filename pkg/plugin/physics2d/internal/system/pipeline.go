@@ -105,6 +105,10 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		if err := rt.ReconcileFromECS(entries); err != nil {
 			state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
 		}
+		// Cardinal's search.Destroy deletes any entity regardless of the search's components,
+		// so one search field serves as the plain "destroy entity" call the sweep needs.
+		destroyEntity := state.Circles.Destroy
+		rt.SweepUnusedShapes(destroyEntity)
 
 		// --- 2. Step + flush contacts ---
 		acRef, singletonFound := loadContactBaseline(rt, state)
