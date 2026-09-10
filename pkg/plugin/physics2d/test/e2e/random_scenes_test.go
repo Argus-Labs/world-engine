@@ -167,7 +167,7 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 						c.Note("%s spawned at (%.2f, %.2f) v=(%.2f, %.2f) bullet=%v gravityScale=%.2f "+
 							"density=%.2f restitution=%.2f, ended at (%.2f, %.2f)",
 							s.label, s.x, s.y, s.vx, s.vy, s.pb.Bullet, s.pb.GravityScale,
-							s.pb.Shapes[0].Density, s.pb.Shapes[0].Restitution,
+							s.pb.Shapes.At(0).Density, s.pb.Shapes.At(0).Restitution,
 							c.Pos(ids[i]).X, c.Pos(ids[i]).Y)
 					}
 				}

@@ -1,12 +1,21 @@
 package internal
 
 import (
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
+// ShapeSlice is the compound collider list carried by PhysicsBody2D, named here so the
+// reconciler's signatures read as shapes rather than as their generic spelling.
+type ShapeSlice = immutable.Slice[component.ColliderShape]
+
 // ShadowState is a deep snapshot of the ECS physics components last applied to Box2D for one
-// entity. It must not share slice backing with live ECS data so in-place component edits do
+// entity. It must not share backing storage with live ECS data so in-place component edits do
 // not corrupt the snapshot.
+//
+// An immutable.Slice is not that protection on its own: it hides its array from indexing, but
+// its derivations write straight through it, so a system that does Shapes.With(0, sh) edits the
+// very array a shadow taken earlier would still be reading. Hence the copies below.
 type ShadowState struct {
 	Transform   component.Transform2D
 	Velocity    component.Velocity2D
@@ -14,7 +23,7 @@ type ShadowState struct {
 }
 
 // NewShadowState returns a shadow snapshot with deep-copied shapes (Shapes and per-shape
-// Vertices / ChainPoints are cloned).
+// ChainPoints are cloned; Vertices is a fixed array and copies with the struct).
 func NewShadowState(
 	t component.Transform2D,
 	v component.Velocity2D,
@@ -29,47 +38,18 @@ func NewShadowState(
 	}
 }
 
-// deepCopyShapes clones the shapes slice, including each shape's slice geometry.
-func deepCopyShapes(shapes []component.ColliderShape) []component.ColliderShape {
-	out := make([]component.ColliderShape, len(shapes))
-	for i := range shapes {
-		out[i] = deepCopyColliderShape(shapes[i])
-	}
-	return out
+// deepCopyShapes clones the shape list, including each shape's chain geometry. immutable.Map
+// allocates a fresh array rather than deriving in place, which is what makes the result
+// independent of the component the caller passed in.
+func deepCopyShapes(shapes ShapeSlice) ShapeSlice {
+	return immutable.Map(shapes, deepCopyColliderShape)
 }
 
 func deepCopyColliderShape(s component.ColliderShape) component.ColliderShape {
-	return component.ColliderShape{
-		ShapeType:      s.ShapeType,
-		LocalOffset:    s.LocalOffset,
-		LocalRotation:  s.LocalRotation,
-		IsSensor:       s.IsSensor,
-		Radius:         s.Radius,
-		HalfExtents:    s.HalfExtents,
-		CapsuleCenter1: s.CapsuleCenter1,
-		CapsuleCenter2: s.CapsuleCenter2,
-		Vertices:       cloneVec2Slice(s.Vertices),
-		ChainPoints:    cloneVec2Slice(s.ChainPoints),
-		EdgeVertices:   s.EdgeVertices,
-		Friction:       s.Friction,
-		Restitution:    s.Restitution,
-		Density:        s.Density,
-		CategoryBits:   s.CategoryBits,
-		MaskBits:       s.MaskBits,
-		GroupIndex:     s.GroupIndex,
-	}
-}
-
-func cloneVec2Slice(src []component.Vec2) []component.Vec2 {
-	if src == nil {
-		return nil
-	}
-	if len(src) == 0 {
-		return make([]component.Vec2, 0)
-	}
-	out := make([]component.Vec2, len(src))
-	copy(out, src)
-	return out
+	// ChainPoints is the only field that still points at shared storage; everything else,
+	// Vertices included, is a value that copied with the struct.
+	s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
+	return s
 }
 
 // TransformDiffers reports whether the live transform differs from the shadow.
@@ -113,17 +93,9 @@ func (s ShadowState) PhysicsDiffers(
 		s.ShapesDiffer(p)
 }
 
-// shapesDeepEqual compares shape slices including shape order and slice geometry.
-func shapesDeepEqual(a, b []component.ColliderShape) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !colliderShapeDeepEqual(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
+// shapesDeepEqual compares shape lists including shape order and chain geometry.
+func shapesDeepEqual(a, b ShapeSlice) bool {
+	return a.EqualFunc(b, colliderShapeDeepEqual)
 }
 
 func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
@@ -143,25 +115,34 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		a.GroupIndex != b.GroupIndex {
 		return false
 	}
-	return vec2SliceEqual(a.Vertices, b.Vertices) &&
-		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
+	return polygonVerticesEqual(a, b) &&
+		immutable.Equal(a.ChainPoints, b.ChainPoints) &&
 		a.EdgeVertices == b.EdgeVertices
 }
 
-// ShapesStructuralEqual reports whether two shape slices match for Box2D fixture shape
-// definition: shape count/order (topology) and, per index, shape type, local transform, and
-// geometry. Differences confined to sensor flag, friction, restitution, density, or filter
-// (category, mask, group) are not structural and can be applied with fixture setters.
-func ShapesStructuralEqual(a, b []component.ColliderShape) bool {
-	if len(a) != len(b) {
+// polygonVerticesEqual compares the live polygon prefix, Vertices[:VertexCount], and nothing past
+// it. Slots beyond the count are not geometry — a shape narrowed from four vertices to three still
+// carries whatever the fourth held — so comparing the whole array would report a fixture change
+// that Box2D would not see. The count is clamped because this runs before Validate on the
+// reconcile path, where an out-of-range count is still possible.
+func polygonVerticesEqual(a, b component.ColliderShape) bool {
+	if a.VertexCount != b.VertexCount {
 		return false
 	}
-	for i := range a {
-		if !colliderShapeStructuralEqual(a[i], b[i]) {
+	for i := range min(a.VertexCount, component.MaxPolygonVertices) {
+		if !vec2Equal(a.Vertices[i], b.Vertices[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+// ShapesStructuralEqual reports whether two shape lists match for Box2D fixture shape
+// definition: shape count/order (topology) and, per index, shape type, local transform, and
+// geometry. Differences confined to sensor flag, friction, restitution, density, or filter
+// (category, mask, group) are not structural and can be applied with fixture setters.
+func ShapesStructuralEqual(a, b ShapeSlice) bool {
+	return a.EqualFunc(b, colliderShapeStructuralEqual)
 }
 
 func colliderShapeStructuralEqual(a, b component.ColliderShape) bool {
@@ -173,8 +154,8 @@ func colliderShapeStructuralEqual(a, b component.ColliderShape) bool {
 		vec2Equal(a.HalfExtents, b.HalfExtents) &&
 		vec2Equal(a.CapsuleCenter1, b.CapsuleCenter1) &&
 		vec2Equal(a.CapsuleCenter2, b.CapsuleCenter2) &&
-		vec2SliceEqual(a.Vertices, b.Vertices) &&
-		vec2SliceEqual(a.ChainPoints, b.ChainPoints) &&
+		polygonVerticesEqual(a, b) &&
+		immutable.Equal(a.ChainPoints, b.ChainPoints) &&
 		a.EdgeVertices == b.EdgeVertices
 }
 
@@ -191,16 +172,4 @@ func ColliderShapeMutableFieldsEqual(a, b component.ColliderShape) bool {
 
 func vec2Equal(a, b component.Vec2) bool {
 	return a.X == b.X && a.Y == b.Y
-}
-
-func vec2SliceEqual(a, b []component.Vec2) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !vec2Equal(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
 }

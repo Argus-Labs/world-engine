@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/stretchr/testify/require"
@@ -126,13 +127,12 @@ func TestValidate_ColliderShape_ValidBox(t *testing.T) {
 func TestValidate_ColliderShape_ValidPolygon(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
-		ShapeType: phycomp.ShapeTypeConvexPolygon,
-		Vertices: []phycomp.Vec2{
-			{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0.5, Y: 1},
-		},
+		ShapeType:    phycomp.ShapeTypeConvexPolygon,
 		CategoryBits: 0xFFFF,
 		MaskBits:     0xFFFF,
-	}.Validate()
+	}.WithVertices(
+		phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 1, Y: 0}, phycomp.Vec2{X: 0.5, Y: 1},
+	).Validate()
 	require.NoError(t, err)
 }
 
@@ -140,7 +140,7 @@ func TestValidate_ColliderShape_ValidChain(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeStaticChain,
-		ChainPoints:  []phycomp.Vec2{{X: 0, Y: 0}, {X: 5, Y: 1}},
+		ChainPoints:  immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 5, Y: 1}),
 		CategoryBits: 0xFFFF,
 		MaskBits:     0xFFFF,
 	}.Validate()
@@ -150,8 +150,11 @@ func TestValidate_ColliderShape_ValidChain(t *testing.T) {
 func TestValidate_ColliderShape_ValidChainLoop(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeStaticChainLoop,
-		ChainPoints:  []phycomp.Vec2{{X: 0, Y: 0}, {X: 5, Y: 0}, {X: 5, Y: 5}, {X: 0, Y: 5}},
+		ShapeType: phycomp.ShapeTypeStaticChainLoop,
+		ChainPoints: immutable.SliceOf(
+			phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 5, Y: 0},
+			phycomp.Vec2{X: 5, Y: 5}, phycomp.Vec2{X: 0, Y: 5},
+		),
 		CategoryBits: 0xFFFF,
 		MaskBits:     0xFFFF,
 	}.Validate()
@@ -236,14 +239,60 @@ func TestValidate_ColliderShape_InfLocalRotation(t *testing.T) {
 	require.Contains(t, err.Error(), "local_rotation")
 }
 
+// A polygon's vertex count is bounded by the Vertices array rather than by a runtime check, so
+// the only way to claim more vertices than a shape holds is to set VertexCount by hand — which is
+// what a corrupt wire payload decodes to, since VertexCount arrives verbatim while the repeated
+// Vertices field is truncated to the array's slots.
+func TestValidate_ColliderShape_VertexCountPastBound(t *testing.T) {
+	t.Parallel()
+	shape := phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(
+		phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 1, Y: 0}, phycomp.Vec2{X: 0.5, Y: 1},
+	)
+	shape.VertexCount = phycomp.MaxPolygonVertices + 1
+
+	err := shape.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "vertex_count")
+	require.Nil(t, shape.PolygonVertices(), "an out-of-range count yields no vertices to hand Box2D")
+}
+
+func TestValidate_ColliderShape_NegativeVertexCount(t *testing.T) {
+	t.Parallel()
+	shape := phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon, VertexCount: -1}
+	err := shape.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "vertex_count")
+}
+
+func TestWithVertices_PanicsPastBound(t *testing.T) {
+	t.Parallel()
+	tooMany := make([]phycomp.Vec2, phycomp.MaxPolygonVertices+1)
+	require.Panics(t, func() {
+		_ = phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(tooMany...)
+	}, "truncating would hand Box2D a different polygon than the caller described")
+}
+
+func TestWithVertices_ZeroesTheUnusedTail(t *testing.T) {
+	t.Parallel()
+	four := phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(
+		phycomp.Vec2{X: -1, Y: -1}, phycomp.Vec2{X: 1, Y: -1},
+		phycomp.Vec2{X: 1, Y: 1}, phycomp.Vec2{X: -1, Y: 1},
+	)
+	three := four.WithVertices(
+		phycomp.Vec2{X: -1, Y: -1}, phycomp.Vec2{X: 1, Y: -1}, phycomp.Vec2{X: 0, Y: 1},
+	)
+	require.Equal(t, 3, three.VertexCount)
+	require.Len(t, three.PolygonVertices(), 3)
+	require.Equal(t, phycomp.Vec2{}, three.Vertices[3], "the fourth vertex must not survive the narrowing")
+}
+
 func TestValidate_ColliderShape_NaNVertex(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
 		ShapeType: phycomp.ShapeTypeConvexPolygon,
-		Vertices: []phycomp.Vec2{
-			{X: 0, Y: 0}, {X: math.NaN(), Y: 0}, {X: 0, Y: 1},
-		},
-	}.Validate()
+	}.WithVertices(
+		phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: math.NaN(), Y: 0}, phycomp.Vec2{X: 0, Y: 1},
+	).Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "vertices[1]")
 }
@@ -252,7 +301,7 @@ func TestValidate_ColliderShape_NaNChainPoint(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ColliderShape{
 		ShapeType:   phycomp.ShapeTypeStaticChain,
-		ChainPoints: []phycomp.Vec2{{X: 0, Y: 0}, {X: 0, Y: math.Inf(1)}},
+		ChainPoints: immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 0, Y: math.Inf(1)}),
 	}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "chain_points[1]")
@@ -306,12 +355,12 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.PhysicsBody2D{
 		BodyType: 99,
-		Shapes: []phycomp.ColliderShape{{
+		Shapes: immutable.SliceOf(phycomp.ColliderShape{
 			ShapeType:    phycomp.ShapeTypeCircle,
 			Radius:       1,
 			CategoryBits: 0xFFFF,
 			MaskBits:     0xFFFF,
-		}},
+		}),
 	}
 	err := pb.Validate()
 	require.Error(t, err)
@@ -410,7 +459,7 @@ func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	require.False(t, pb.FixedRotation)
 	require.InDelta(t, 0.0, pb.LinearDamping, 1e-12)
 	require.InDelta(t, 0.0, pb.AngularDamping, 1e-12)
-	require.Len(t, pb.Shapes, 1)
+	require.Equal(t, 1, pb.Shapes.Len())
 }
 
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
@@ -420,7 +469,7 @@ func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 		{ShapeType: phycomp.ShapeTypeBox, HalfExtents: phycomp.Vec2{X: 1, Y: 1}, CategoryBits: 0xFFFF, MaskBits: 0xFFFF},
 	}
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic, shapes...)
-	require.Len(t, pb.Shapes, 2)
+	require.Equal(t, 2, pb.Shapes.Len())
 }
 
 // ---------------------------------------------------------------------------
@@ -490,8 +539,8 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 	require.False(t, pb.SleepingAllowed)
 	require.True(t, pb.Bullet)
 	require.True(t, pb.FixedRotation)
-	require.Len(t, pb.Shapes, 1)
-	require.InDelta(t, 2.0, pb.Shapes[0].Density, 1e-12)
+	require.Equal(t, 1, pb.Shapes.Len())
+	require.InDelta(t, 2.0, pb.Shapes.At(0).Density, 1e-12)
 }
 
 // ---------------------------------------------------------------------------

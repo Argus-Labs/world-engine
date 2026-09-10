@@ -101,7 +101,7 @@ reconciler then rejects the entity every tick for as long as it lives.
 
 The rest reject cleanly or simulate: `destroy-during-contact`, `short-chain`,
 `short-chain-loop`, `zero-radius-circle`, `negative-radius-circle`,
-`polygon-no-vertices`, `polygon-two-vertices`, `polygon-too-many-vertices`,
+`polygon-no-vertices`, `polygon-two-vertices`,
 `degenerate-capsule`, `chain-on-dynamic-body`. Note that a rejected shape retries
 forever: the entity stays in ECS with no body and `ReconcileFromECS` logs the same
 failure every tick.

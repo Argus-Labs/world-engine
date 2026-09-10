@@ -46,6 +46,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
@@ -468,10 +469,10 @@ func goldenCapsuleChainGround() goldenScenario {
 						ShapeType: physics.ShapeTypeStaticChain,
 						// Box2D v3 chains are one-sided: right-to-left (decreasing X) winding
 						// gives upward-facing normals so bodies land on top.
-						ChainPoints: []physics.Vec2{
-							{X: 14, Y: 1}, {X: 7, Y: -1}, {X: 0, Y: -2},
-							{X: -7, Y: -1}, {X: -14, Y: 1},
-						},
+						ChainPoints: immutable.SliceOf(
+							physics.Vec2{X: 14, Y: 1}, physics.Vec2{X: 7, Y: -1}, physics.Vec2{X: 0, Y: -2},
+							physics.Vec2{X: -7, Y: -1}, physics.Vec2{X: -14, Y: 1},
+						),
 						Friction:     0.5,
 						CategoryBits: 0xFFFF,
 						MaskBits:     0xFFFF,
@@ -502,15 +503,15 @@ func goldenCapsuleChainGround() goldenScenario {
 						pos:      physics.Vec2{X: -4 + 8*f, Y: 10 + f},
 						rotation: 0.2 + 0.3*f,
 						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType: physics.ShapeTypeConvexPolygon,
-							Vertices: []physics.Vec2{
-								{X: -0.5, Y: -0.4}, {X: 0.5, Y: -0.4}, {X: 0.35, Y: 0.5}, {X: -0.35, Y: 0.5},
-							},
+							ShapeType:    physics.ShapeTypeConvexPolygon,
 							Density:      1,
 							Friction:     0.4,
 							CategoryBits: 0xFFFF,
 							MaskBits:     0xFFFF,
-						}),
+						}.WithVertices(
+							physics.Vec2{X: -0.5, Y: -0.4}, physics.Vec2{X: 0.5, Y: -0.4},
+							physics.Vec2{X: 0.35, Y: 0.5}, physics.Vec2{X: -0.35, Y: 0.5},
+						)),
 					})
 				}
 				return out

@@ -110,7 +110,7 @@ func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) 
 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
 func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
-	if len(e.PhysicsBody.Shapes) == 0 {
+	if e.PhysicsBody.Shapes.Len() == 0 {
 		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
 	}
 	prev, hadPrev := rt.Shadow[e.EntityID]
@@ -207,7 +207,7 @@ func (rt *Runtime) reconcileExistingBody(
 // shadow shapes differ from ECS.
 func (rt *Runtime) reconcileShapesChange(
 	entityID cardinal.EntityID,
-	prev, live []component.ColliderShape,
+	prev, live ShapeSlice,
 ) error {
 	if ShapesStructuralEqual(prev, live) {
 		return rt.applyMutableShapeFixtures(entityID, prev, live)
@@ -278,21 +278,22 @@ func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
 // applyMutableShapeFixtures updates sensor, friction, restitution, density, and filter per shape index in place.
 func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
-	prev []component.ColliderShape,
-	live []component.ColliderShape,
+	prev ShapeSlice,
+	live ShapeSlice,
 ) error {
-	for i := range live {
-		if err := live[i].Validate(); err != nil {
+	for i, sh := range live.All() {
+		if err := sh.Validate(); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
 	slots := rt.Shapes[entityID]
 	var densityTouched bool
-	for i := range live {
-		if ColliderShapeMutableFieldsEqual(prev[i], live[i]) {
+	for i, sh := range live.All() {
+		prevShape := prev.At(i)
+		if ColliderShapeMutableFieldsEqual(prevShape, sh) {
 			continue
 		}
-		if prev[i].Density != live[i].Density {
+		if prevShape.Density != sh.Density {
 			densityTouched = true
 		}
 		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
@@ -301,7 +302,6 @@ func (rt *Runtime) applyMutableShapeFixtures(
 			continue
 		}
 		sid := slots[i]
-		sh := live[i]
 		rt.World.SetShapeFriction(sid, sh.Friction)
 		rt.World.SetShapeRestitution(sid, sh.Restitution)
 		rt.World.SetShapeDensity(sid, sh.Density, true)
