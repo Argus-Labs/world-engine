@@ -41,8 +41,8 @@ func Filtering() harness.Scenario {
 	// mover builds a zero-gravity box that slides along its row toward the other
 	// side of the pair. FixedRotation keeps a glancing hit from spinning it out
 	// of its row and into a neighbouring test.
-	mover := func(cat, mask uint64, group int32) physics.PhysicsBody2D {
-		pb := body(physics.BodyTypeDynamic, withFilter(box(0.5, 0.5), cat, mask, group))
+	mover := func(c *harness.Ctx, cat, mask uint64, group int32) physics.PhysicsBody2D {
+		pb := body(c, physics.BodyTypeDynamic, withFilter(box(0.5, 0.5), cat, mask, group))
 		pb.GravityScale = 0
 		pb.FixedRotation = true
 		return pb
@@ -112,16 +112,16 @@ func Filtering() harness.Scenario {
 			for i, spec := range pairsSpec {
 				p := pairs[i]
 				p.left = c.SpawnMoving(spec.name+"/left", 0, spec.row, closing, 0,
-					mover(spec.lCat, spec.lMask, spec.lGroup))
+					mover(c, spec.lCat, spec.lMask, spec.lGroup))
 				p.right = c.SpawnMoving(spec.name+"/right", gap, spec.row, -closing, 0,
-					mover(spec.rCat, spec.rMask, spec.rGroup))
+					mover(c, spec.rCat, spec.rMask, spec.rGroup))
 			}
 
 			// Query filtering targets, parked well away from the moving pairs.
 			queryWall = c.Spawn("query-wall", 0, 100,
-				body(physics.BodyTypeStatic, withFilter(box(1, 1), queryCat, maskAll, 0)))
+				body(c, physics.BodyTypeStatic, withFilter(box(1, 1), queryCat, maskAll, 0)))
 			groupedWall = c.Spawn("grouped-wall", 10, 100,
-				body(physics.BodyTypeStatic, withFilter(box(1, 1), queryCat, maskAll, -5)))
+				body(c, physics.BodyTypeStatic, withFilter(box(1, 1), queryCat, maskAll, -5)))
 		},
 		Steps: []harness.Step{
 			{Tick: 3, Do: func(c *harness.Ctx) {

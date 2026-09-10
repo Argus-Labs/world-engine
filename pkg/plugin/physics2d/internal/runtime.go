@@ -5,6 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
@@ -19,9 +20,10 @@ type ContactPairKey struct {
 	ShapeIndexB int
 }
 
-// ContactPairInfo stores metadata for an active contact pair. FilterA/FilterB correspond to
-// (EntityA, ShapeIndexA) and (EntityB, ShapeIndexB) after normalization. Manifold fields are
-// best-effort from the last live sample (not serialized to snapshots).
+// ContactPairInfo stores metadata for an active contact pair. Only IsSensor is persisted:
+// FilterA/FilterB (the filter bits of (EntityA, ShapeIndexA) and (EntityB, ShapeIndexB) after
+// normalization) come from the live contact, or are looked up from the shapes when the pair
+// is loaded after a rebuild. Manifold fields are best-effort from the last live sample.
 type ContactPairInfo struct {
 	IsSensor           bool
 	FilterA            event.FixtureFilterBits
@@ -46,10 +48,36 @@ type Runtime struct {
 	// Bodies maps Cardinal entity ids to their Box2D body ids in World.
 	Bodies map[cardinal.EntityID]box2d.BodyID
 
-	// Shapes maps entity ids to per-collider-slot Box2D shape ids: slot i corresponds to
-	// ColliderShape index i. Chain slots hold a null ShapeID (chains are tracked in Chains)
+	// Shapes maps entity ids to per-slot Box2D shape ids: slot i corresponds to
+	// PhysicsBody2D.Shapes[i]. Chain slots hold a null ShapeID (chains are tracked in Chains)
 	// so per-shape mutable setters skip them, matching the CGO bridge behavior.
 	Shapes map[cardinal.EntityID][]box2d.ShapeID
+
+	// ShapeMirror mirrors the shape entities (ShapeCommon plus one geometry component):
+	// shape entity id -> resolved value, so attach and diff never touch ECS. Refreshed every
+	// tick by SyncShapes, which also fills dirtyShapes.
+	ShapeMirror map[cardinal.EntityID]ResolvedShape
+
+	// dirtyShapes lists the shape entities whose mirrored value changed this tick, with how.
+	// Bodies whose slots reference one are re-diffed once; cleared by the next SyncShapes.
+	dirtyShapes map[cardinal.EntityID]shapeChange
+
+	// shapeRefs counts, per shape entity, the attached bodies (shadows) whose slots reference
+	// it. Maintained by noteDeclared / forgetDeclared; see shape_sweep.go.
+	shapeRefs map[cardinal.EntityID]int
+
+	// declaredSlots is the slot list each body entity last declared in ECS, whether or not the
+	// body attached. shapeRefs is derived from these, so a body whose attach fails still holds
+	// its shapes and a tick that fails partway through releases nothing it did not reach.
+	declaredSlots map[cardinal.EntityID]immutable.Slice[component.ShapeSlot]
+
+	// shapeSweepScratch queues shape ids whose count reached zero this tick, for
+	// SweepUnusedShapes. Ids only.
+	shapeSweepScratch []cardinal.EntityID
+
+	// resolvedScratch holds one body's resolved slots between validation and attach, so each
+	// slot is looked up once. Valid only within one call.
+	resolvedScratch []ResolvedShape
 
 	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
 	Chains map[cardinal.EntityID][]box2d.ChainID
@@ -143,6 +171,12 @@ type Runtime struct {
 	rebuildEntriesScratch []PhysicsRebuildEntry
 	writebackScratch      []WritebackEntry
 
+	// shapeEntriesScratch backs the per-tick shape-entity gather; entries alias ECS chain
+	// point slices during the gather, so the tail is cleared like the other gathers.
+	// shapeSeenScratch is SyncShapes' presence set for detecting dropped and duplicated ids.
+	shapeEntriesScratch []ShapeEntry
+	shapeSeenScratch    map[cardinal.EntityID]struct{}
+
 	// liveContactsScratch and contactDataScratch are reused by
 	// gatherLiveContactsInto, which runs up to twice per tick.
 	liveContactsScratch map[ContactPairKey]ContactPairInfo
@@ -205,6 +239,10 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Bodies:               make(map[cardinal.EntityID]box2d.BodyID),
 		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
+		ShapeMirror:          make(map[cardinal.EntityID]ResolvedShape),
+		dirtyShapes:          make(map[cardinal.EntityID]shapeChange),
+		shapeRefs:            make(map[cardinal.EntityID]int),
+		declaredSlots:        make(map[cardinal.EntityID]immutable.Slice[component.ShapeSlot]),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -224,6 +262,12 @@ func (rt *Runtime) Reset() {
 	rt.Bodies = make(map[cardinal.EntityID]box2d.BodyID)
 	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
+	rt.ShapeMirror = make(map[cardinal.EntityID]ResolvedShape)
+	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
+	rt.shapeRefs = make(map[cardinal.EntityID]int)
+	rt.declaredSlots = make(map[cardinal.EntityID]immutable.Slice[component.ShapeSlot])
+	rt.shapeSweepScratch = nil
+	rt.resolvedScratch = nil
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
@@ -236,6 +280,8 @@ func (rt *Runtime) Reset() {
 	rt.reconcileSortScratch = nil
 	rt.rebuildEntriesScratch = nil
 	rt.writebackScratch = nil
+	rt.shapeEntriesScratch = nil
+	rt.shapeSeenScratch = nil
 	rt.liveContactsScratch = nil
 	rt.contactDataScratch = nil
 	rt.seenContactsScratch = nil
@@ -286,7 +332,7 @@ func (rt *Runtime) BodyIDOf(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 	return bodyID, ok
 }
 
-// ShapeIDsOf returns a copy of the per-collider-slot shape ids tracked for entityID and whether
+// ShapeIDsOf returns a copy of the per-slot shape ids tracked for entityID and whether
 // any exist. The copy keeps callers from mutating the runtime's own slice.
 func (rt *Runtime) ShapeIDsOf(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
 	shapes, ok := rt.Shapes[entityID]
@@ -322,10 +368,13 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 }
 
 // LoadActiveContactsFromComponent populates the in-memory working map from the persisted
-// ECS component. Called by the step system after a restore when ActiveContacts is nil.
+// ECS component. Called by the step system after a restore when ActiveContacts is nil, once
+// the bodies have been rebuilt: each pair's filter bits are looked up from the shape its slot
+// references, so an End event synthesized for it carries them. A pair whose body or shape
+// cannot be resolved keeps zero filter bits.
 func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
-	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, len(ac.Pairs))
-	for _, p := range ac.Pairs {
+	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, ac.Pairs.Len())
+	for p := range ac.Pairs.Values() {
 		key := ContactPairKey{
 			EntityA:     p.EntityA,
 			ShapeIndexA: p.ShapeIndexA,
@@ -334,19 +383,29 @@ func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) 
 		}
 		rt.ActiveContacts[key] = ContactPairInfo{
 			IsSensor: p.IsSensor,
-			FilterA: event.FixtureFilterBits{
-				CategoryBits: p.FilterACategoryBits,
-				MaskBits:     p.FilterAMaskBits,
-				GroupIndex:   p.FilterAGroupIndex,
-			},
-			FilterB: event.FixtureFilterBits{
-				CategoryBits: p.FilterBCategoryBits,
-				MaskBits:     p.FilterBMaskBits,
-				GroupIndex:   p.FilterBGroupIndex,
-			},
+			FilterA:  rt.slotFilterBits(p.EntityA, p.ShapeIndexA),
+			FilterB:  rt.slotFilterBits(p.EntityB, p.ShapeIndexB),
 		}
 	}
 	rt.ActiveContactsDirty = false
+}
+
+// slotFilterBits returns the collision filter of the shape behind slot shapeIndex of entityID,
+// from the body's shadow and the shape mirror, or zero bits when either is missing.
+func (rt *Runtime) slotFilterBits(entityID cardinal.EntityID, shapeIndex int) event.FixtureFilterBits {
+	shadow, ok := rt.Shadow[entityID]
+	if !ok || shapeIndex < 0 || shapeIndex >= shadow.PhysicsBody.Shapes.Len() {
+		return event.FixtureFilterBits{}
+	}
+	sh, ok := rt.ShapeMirror[shadow.PhysicsBody.Shapes.At(shapeIndex).Shape]
+	if !ok {
+		return event.FixtureFilterBits{}
+	}
+	return event.FixtureFilterBits{
+		CategoryBits: sh.Common.CategoryBits,
+		MaskBits:     sh.Common.MaskBits,
+		GroupIndex:   sh.Common.GroupIndex,
+	}
 }
 
 // ActiveContactsToComponent converts the working map to the ECS component format (sorted
@@ -358,21 +417,15 @@ func (rt *Runtime) ActiveContactsToComponent() component.ActiveContacts {
 	pairs := make([]component.ContactPairEntry, 0, len(rt.ActiveContacts))
 	for key, info := range rt.ActiveContacts {
 		pairs = append(pairs, component.ContactPairEntry{
-			EntityA:             key.EntityA,
-			ShapeIndexA:         key.ShapeIndexA,
-			EntityB:             key.EntityB,
-			ShapeIndexB:         key.ShapeIndexB,
-			IsSensor:            info.IsSensor,
-			FilterACategoryBits: info.FilterA.CategoryBits,
-			FilterAMaskBits:     info.FilterA.MaskBits,
-			FilterAGroupIndex:   info.FilterA.GroupIndex,
-			FilterBCategoryBits: info.FilterB.CategoryBits,
-			FilterBMaskBits:     info.FilterB.MaskBits,
-			FilterBGroupIndex:   info.FilterB.GroupIndex,
+			EntityA:     key.EntityA,
+			ShapeIndexA: key.ShapeIndexA,
+			EntityB:     key.EntityB,
+			ShapeIndexB: key.ShapeIndexB,
+			IsSensor:    info.IsSensor,
 		})
 	}
 	sortContactPairEntries(pairs)
-	return component.ActiveContacts{Pairs: pairs}
+	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
 // sortContactPairEntries sorts by (EntityA, ShapeIndexA, EntityB, ShapeIndexB) for

@@ -6,6 +6,7 @@ package component
 
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
+	pkg_immutable "github.com/argus-labs/world-engine/pkg/immutable"
 	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -13,8 +14,8 @@ import (
 
 func (c ActiveContacts) ToProto() *pbcomponent.ActiveContacts {
 	p := &pbcomponent.ActiveContacts{}
-	for i := range c.Pairs {
-		p.Pairs = append(p.Pairs, c.Pairs[i].ToProto())
+	for v := range c.Pairs.Values() {
+		p.Pairs = append(p.Pairs, v.ToProto())
 	}
 	return p
 }
@@ -23,11 +24,13 @@ func (c ActiveContacts) FromProto(p *pbcomponent.ActiveContacts) ActiveContacts 
 	if p == nil {
 		return c
 	}
+	itemsPairs := make([]ContactPairEntry, 0, len(p.Pairs))
 	for _, e := range p.Pairs {
 		var v ContactPairEntry
 		v = v.FromProto(e)
-		c.Pairs = append(c.Pairs, v)
+		itemsPairs = append(itemsPairs, v)
 	}
+	c.Pairs = pkg_immutable.SliceOf(itemsPairs...)
 	return c
 }
 
@@ -51,70 +54,154 @@ func (c ActiveContacts) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.ActiveContacts{}).ProtoReflect().Descriptor()
 }
 
-func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
-	p := &pbcomponent.ColliderShape{}
-	p.ShapeType = uint32(c.ShapeType)
-	p.LocalOffset = c.LocalOffset.ToProto()
-	p.LocalRotation = float64(c.LocalRotation)
-	p.IsSensor = bool(c.IsSensor)
-	p.Radius = float64(c.Radius)
+func (c BoxGeom) ToProto() *pbcomponent.BoxGeom {
+	p := &pbcomponent.BoxGeom{}
 	p.HalfExtents = c.HalfExtents.ToProto()
-	for i := range c.Vertices {
-		p.Vertices = append(p.Vertices, c.Vertices[i].ToProto())
-	}
-	for i := range c.ChainPoints {
-		p.ChainPoints = append(p.ChainPoints, c.ChainPoints[i].ToProto())
-	}
-	for i0 := range c.EdgeVertices {
-		p.EdgeVertices = append(p.EdgeVertices, c.EdgeVertices[i0].ToProto())
-	}
-	p.CapsuleCenter1 = c.CapsuleCenter1.ToProto()
-	p.CapsuleCenter2 = c.CapsuleCenter2.ToProto()
-	p.Friction = float64(c.Friction)
-	p.Restitution = float64(c.Restitution)
-	p.Density = float64(c.Density)
-	p.CategoryBits = uint64(c.CategoryBits)
-	p.MaskBits = uint64(c.MaskBits)
-	p.GroupIndex = int32(c.GroupIndex)
 	return p
 }
 
-func (c ColliderShape) FromProto(p *pbcomponent.ColliderShape) ColliderShape {
+func (c BoxGeom) FromProto(p *pbcomponent.BoxGeom) BoxGeom {
 	if p == nil {
 		return c
 	}
-	c.ShapeType = ShapeType(p.ShapeType)
-	c.LocalOffset = c.LocalOffset.FromProto(p.LocalOffset)
-	c.LocalRotation = float64(p.LocalRotation)
-	c.IsSensor = bool(p.IsSensor)
-	c.Radius = float64(p.Radius)
 	c.HalfExtents = c.HalfExtents.FromProto(p.HalfExtents)
-	for _, e := range p.Vertices {
-		var v Vec2
-		v = v.FromProto(e)
-		c.Vertices = append(c.Vertices, v)
-	}
-	for _, e := range p.ChainPoints {
-		var v Vec2
-		v = v.FromProto(e)
-		c.ChainPoints = append(c.ChainPoints, v)
-	}
-	for i, e := range p.EdgeVertices {
-		if i >= 2 {
-			break
-		}
-		var v Vec2
-		c.EdgeVertices[i] = v.FromProto(e)
-	}
-	c.CapsuleCenter1 = c.CapsuleCenter1.FromProto(p.CapsuleCenter1)
-	c.CapsuleCenter2 = c.CapsuleCenter2.FromProto(p.CapsuleCenter2)
-	c.Friction = float64(p.Friction)
-	c.Restitution = float64(p.Restitution)
-	c.Density = float64(p.Density)
-	c.CategoryBits = uint64(p.CategoryBits)
-	c.MaskBits = uint64(p.MaskBits)
-	c.GroupIndex = int32(p.GroupIndex)
 	return c
+}
+
+func (c BoxGeom) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal BoxGeom: " + err.Error())
+	}
+	return data
+}
+
+func (c BoxGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.BoxGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c BoxGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.BoxGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c CapsuleGeom) ToProto() *pbcomponent.CapsuleGeom {
+	p := &pbcomponent.CapsuleGeom{}
+	p.A = c.A.ToProto()
+	p.B = c.B.ToProto()
+	p.Radius = float64(c.Radius)
+	return p
+}
+
+func (c CapsuleGeom) FromProto(p *pbcomponent.CapsuleGeom) CapsuleGeom {
+	if p == nil {
+		return c
+	}
+	c.A = c.A.FromProto(p.A)
+	c.B = c.B.FromProto(p.B)
+	c.Radius = float64(p.Radius)
+	return c
+}
+
+func (c CapsuleGeom) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal CapsuleGeom: " + err.Error())
+	}
+	return data
+}
+
+func (c CapsuleGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.CapsuleGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c CapsuleGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.CapsuleGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c ChainGeom) ToProto() *pbcomponent.ChainGeom {
+	p := &pbcomponent.ChainGeom{}
+	for v := range c.Points.Values() {
+		p.Points = append(p.Points, v.ToProto())
+	}
+	p.Loop = bool(c.Loop)
+	return p
+}
+
+func (c ChainGeom) FromProto(p *pbcomponent.ChainGeom) ChainGeom {
+	if p == nil {
+		return c
+	}
+	itemsPoints := make([]Vec2, 0, len(p.Points))
+	for _, e := range p.Points {
+		var v Vec2
+		v = v.FromProto(e)
+		itemsPoints = append(itemsPoints, v)
+	}
+	c.Points = pkg_immutable.SliceOf(itemsPoints...)
+	c.Loop = bool(p.Loop)
+	return c
+}
+
+func (c ChainGeom) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ChainGeom: " + err.Error())
+	}
+	return data
+}
+
+func (c ChainGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.ChainGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ChainGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ChainGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c CircleGeom) ToProto() *pbcomponent.CircleGeom {
+	p := &pbcomponent.CircleGeom{}
+	p.Radius = float64(c.Radius)
+	return p
+}
+
+func (c CircleGeom) FromProto(p *pbcomponent.CircleGeom) CircleGeom {
+	if p == nil {
+		return c
+	}
+	c.Radius = float64(p.Radius)
+	return c
+}
+
+func (c CircleGeom) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal CircleGeom: " + err.Error())
+	}
+	return data
+}
+
+func (c CircleGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.CircleGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c CircleGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.CircleGeom{}).ProtoReflect().Descriptor()
 }
 
 func (c ContactPairEntry) ToProto() *pbcomponent.ContactPairEntry {
@@ -124,12 +211,6 @@ func (c ContactPairEntry) ToProto() *pbcomponent.ContactPairEntry {
 	p.EntityB = uint32(c.EntityB)
 	p.ShapeIndexB = int64(c.ShapeIndexB)
 	p.IsSensor = bool(c.IsSensor)
-	p.FilterACategoryBits = uint64(c.FilterACategoryBits)
-	p.FilterAMaskBits = uint64(c.FilterAMaskBits)
-	p.FilterAGroupIndex = int32(c.FilterAGroupIndex)
-	p.FilterBCategoryBits = uint64(c.FilterBCategoryBits)
-	p.FilterBMaskBits = uint64(c.FilterBMaskBits)
-	p.FilterBGroupIndex = int32(c.FilterBGroupIndex)
 	return p
 }
 
@@ -142,13 +223,43 @@ func (c ContactPairEntry) FromProto(p *pbcomponent.ContactPairEntry) ContactPair
 	c.EntityB = pkg_cardinal.EntityID(p.EntityB)
 	c.ShapeIndexB = int(p.ShapeIndexB)
 	c.IsSensor = bool(p.IsSensor)
-	c.FilterACategoryBits = uint64(p.FilterACategoryBits)
-	c.FilterAMaskBits = uint64(p.FilterAMaskBits)
-	c.FilterAGroupIndex = int32(p.FilterAGroupIndex)
-	c.FilterBCategoryBits = uint64(p.FilterBCategoryBits)
-	c.FilterBMaskBits = uint64(p.FilterBMaskBits)
-	c.FilterBGroupIndex = int32(p.FilterBGroupIndex)
 	return c
+}
+
+func (c EdgeGeom) ToProto() *pbcomponent.EdgeGeom {
+	p := &pbcomponent.EdgeGeom{}
+	p.A = c.A.ToProto()
+	p.B = c.B.ToProto()
+	return p
+}
+
+func (c EdgeGeom) FromProto(p *pbcomponent.EdgeGeom) EdgeGeom {
+	if p == nil {
+		return c
+	}
+	c.A = c.A.FromProto(p.A)
+	c.B = c.B.FromProto(p.B)
+	return c
+}
+
+func (c EdgeGeom) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal EdgeGeom: " + err.Error())
+	}
+	return data
+}
+
+func (c EdgeGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.EdgeGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c EdgeGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.EdgeGeom{}).ProtoReflect().Descriptor()
 }
 
 func (c PhysicsBody2D) ToProto() *pbcomponent.PhysicsBody2D {
@@ -162,8 +273,8 @@ func (c PhysicsBody2D) ToProto() *pbcomponent.PhysicsBody2D {
 	p.SleepingAllowed = bool(c.SleepingAllowed)
 	p.Bullet = bool(c.Bullet)
 	p.FixedRotation = bool(c.FixedRotation)
-	for i := range c.Shapes {
-		p.Shapes = append(p.Shapes, c.Shapes[i].ToProto())
+	for v := range c.Shapes.Values() {
+		p.Shapes = append(p.Shapes, v.ToProto())
 	}
 	return p
 }
@@ -181,11 +292,13 @@ func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 	c.SleepingAllowed = bool(p.SleepingAllowed)
 	c.Bullet = bool(p.Bullet)
 	c.FixedRotation = bool(p.FixedRotation)
+	itemsShapes := make([]ShapeSlot, 0, len(p.Shapes))
 	for _, e := range p.Shapes {
-		var v ColliderShape
+		var v ShapeSlot
 		v = v.FromProto(e)
-		c.Shapes = append(c.Shapes, v)
+		itemsShapes = append(itemsShapes, v)
 	}
+	c.Shapes = pkg_immutable.SliceOf(itemsShapes...)
 	return c
 }
 
@@ -239,6 +352,114 @@ func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (any, error) {
 
 func (c PhysicsSingletonTag) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.PhysicsSingletonTag{}).ProtoReflect().Descriptor()
+}
+
+func (c PolygonGeom) ToProto() *pbcomponent.PolygonGeom {
+	p := &pbcomponent.PolygonGeom{}
+	for i0 := range c.Vertices {
+		p.Vertices = append(p.Vertices, c.Vertices[i0].ToProto())
+	}
+	p.Count = uint32(c.Count)
+	return p
+}
+
+func (c PolygonGeom) FromProto(p *pbcomponent.PolygonGeom) PolygonGeom {
+	if p == nil {
+		return c
+	}
+	for i, e := range p.Vertices {
+		if i >= 8 {
+			break
+		}
+		var v Vec2
+		c.Vertices[i] = v.FromProto(e)
+	}
+	c.Count = uint8(p.Count)
+	return c
+}
+
+func (c PolygonGeom) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal PolygonGeom: " + err.Error())
+	}
+	return data
+}
+
+func (c PolygonGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.PolygonGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c PolygonGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.PolygonGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c ShapeCommon) ToProto() *pbcomponent.ShapeCommon {
+	p := &pbcomponent.ShapeCommon{}
+	p.IsSensor = bool(c.IsSensor)
+	p.Friction = float64(c.Friction)
+	p.Restitution = float64(c.Restitution)
+	p.Density = float64(c.Density)
+	p.CategoryBits = uint64(c.CategoryBits)
+	p.MaskBits = uint64(c.MaskBits)
+	p.GroupIndex = int32(c.GroupIndex)
+	return p
+}
+
+func (c ShapeCommon) FromProto(p *pbcomponent.ShapeCommon) ShapeCommon {
+	if p == nil {
+		return c
+	}
+	c.IsSensor = bool(p.IsSensor)
+	c.Friction = float64(p.Friction)
+	c.Restitution = float64(p.Restitution)
+	c.Density = float64(p.Density)
+	c.CategoryBits = uint64(p.CategoryBits)
+	c.MaskBits = uint64(p.MaskBits)
+	c.GroupIndex = int32(p.GroupIndex)
+	return c
+}
+
+func (c ShapeCommon) MarshalWire() []byte {
+	data, err := proto.Marshal(c.ToProto())
+	if err != nil {
+		panic("failed to marshal ShapeCommon: " + err.Error())
+	}
+	return data
+}
+
+func (c ShapeCommon) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.ShapeCommon
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ShapeCommon) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ShapeCommon{}).ProtoReflect().Descriptor()
+}
+
+func (c ShapeSlot) ToProto() *pbcomponent.ShapeSlot {
+	p := &pbcomponent.ShapeSlot{}
+	p.Shape = uint32(c.Shape)
+	p.LocalOffset = c.LocalOffset.ToProto()
+	p.LocalRotation = float64(c.LocalRotation)
+	return p
+}
+
+func (c ShapeSlot) FromProto(p *pbcomponent.ShapeSlot) ShapeSlot {
+	if p == nil {
+		return c
+	}
+	c.Shape = pkg_cardinal.EntityID(p.Shape)
+	c.LocalOffset = c.LocalOffset.FromProto(p.LocalOffset)
+	c.LocalRotation = float64(p.LocalRotation)
+	return c
 }
 
 func (c Transform2D) ToProto() *pbcomponent.Transform2D {

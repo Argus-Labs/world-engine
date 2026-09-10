@@ -7,7 +7,7 @@ import (
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
-// Shapes exercises all seven ColliderShape kinds end to end: each one must reach
+// Shapes exercises all seven shape kinds end to end: each one must reach
 // the C side (a query finds it), and each must actually collide the way its
 // geometry says it should.
 //
@@ -45,47 +45,47 @@ func Shapes() harness.Scenario {
 	return harness.Scenario{
 		Name: "shapes",
 		Setup: func(c *harness.Ctx) {
-			s.floor = c.Spawn("floor", 0, groundY, ground(60))
+			s.floor = c.Spawn("floor", 0, groundY, ground(c, 60))
 
 			// Mass-bearing shapes, dropped onto the floor at y=0.
 			s.ball = c.Spawn("circle", -24, dropY,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 			s.crate = c.Spawn("box", -18, dropY,
-				body(physics.BodyTypeDynamic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
 			s.wedge = c.Spawn("convex-polygon", -12, dropY,
-				body(physics.BodyTypeDynamic, polygon(
+				body(c, physics.BodyTypeDynamic, polygon(
 					vec(-0.5, -0.5), vec(0.5, -0.5), vec(0, 0.5))))
 			s.pill = c.Spawn("capsule", -6, dropY,
-				body(physics.BodyTypeDynamic, capsule(vec(-0.5, 0), vec(0.5, 0), 0.3)))
+				body(c, physics.BodyTypeDynamic, capsule(vec(-0.5, 0), vec(0.5, 0), 0.3)))
 
 			// Open chain rail at y=3, points right-to-left for an upward normal.
 			// Box2D asserts count >= 4 on any chain, loop or not.
 			s.chainRail = c.Spawn("chain-rail", 8, 3,
-				body(physics.BodyTypeStatic, chain(
+				body(c, physics.BodyTypeStatic, chain(
 					vec(3, 0), vec(1, 0), vec(-1, 0), vec(-3, 0))))
 			s.chainBall = c.Spawn("chain-ball", 8, 9,
-				body(physics.BodyTypeDynamic, circle(0.3)))
+				body(c, physics.BodyTypeDynamic, circle(0.3)))
 
 			// Single edge segment at y=3. Segments are two-sided, so winding is free.
 			s.edgeRail = c.Spawn("edge-rail", 16, 3,
-				body(physics.BodyTypeStatic, edge(vec(-3, 0), vec(3, 0))))
+				body(c, physics.BodyTypeStatic, edge(vec(-3, 0), vec(3, 0))))
 			s.edgeBall = c.Spawn("edge-ball", 16, 9,
-				body(physics.BodyTypeDynamic, circle(0.3)))
+				body(c, physics.BodyTypeDynamic, circle(0.3)))
 
 			// Closed loop: a sealed 6x6 box centred at (26,4), so its floor is at
 			// y=1. A ball started inside must land on that floor and stay inside;
 			// if the loop behaved like an open chain it would fall straight out.
 			s.loop = c.Spawn("chain-loop", 26, 4,
-				body(physics.BodyTypeStatic, chainLoop(
+				body(c, physics.BodyTypeStatic, chainLoop(
 					vec(-3, -3), vec(-3, 3), vec(3, 3), vec(3, -3))))
 			s.loopBall = c.Spawn("loop-ball", 26, 6,
-				body(physics.BodyTypeDynamic, circle(0.3)))
+				body(c, physics.BodyTypeDynamic, circle(0.3)))
 
 			// Capsule as static world geometry, not just as a dynamic body.
 			s.capRail = c.Spawn("capsule-rail", 34, 3,
-				body(physics.BodyTypeStatic, capsule(vec(-2, 0), vec(2, 0), 0.5)))
+				body(c, physics.BodyTypeStatic, capsule(vec(-2, 0), vec(2, 0), 0.5)))
 			s.capRailBall = c.Spawn("capsule-rail-ball", 34, 9,
-				body(physics.BodyTypeDynamic, circle(0.3)))
+				body(c, physics.BodyTypeDynamic, circle(0.3)))
 		},
 		Steps: []harness.Step{
 			{Tick: 3, Do: func(c *harness.Ctx) {

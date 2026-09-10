@@ -66,8 +66,8 @@ func Lifecycle() harness.Scenario {
 		return res.Hit && res.Entity == id
 	}
 
-	zeroG := func(shapes ...physics.ColliderShape) physics.PhysicsBody2D {
-		pb := body(physics.BodyTypeDynamic, shapes...)
+	zeroG := func(c *harness.Ctx, shapes ...ShapeSpec) physics.PhysicsBody2D {
+		pb := body(c, physics.BodyTypeDynamic, shapes...)
 		pb.GravityScale = 0
 		pb.FixedRotation = true
 		return pb
@@ -80,66 +80,66 @@ func Lifecycle() harness.Scenario {
 			// destroying a body that holds a live contact is its own case (see
 			// the robustness scenario).
 			s.doomedWall = c.Spawn("doomed-wall", 0, 10,
-				body(physics.BodyTypeStatic, box(1, 1)))
+				body(c, physics.BodyTypeStatic, box(1, 1)))
 
 			// Row y=20 — pose and velocity written straight from gameplay.
-			s.mover = c.Spawn("teleporter", 0, 20, zeroG(box(0.5, 0.5)))
+			s.mover = c.Spawn("teleporter", 0, 20, zeroG(c, box(0.5, 0.5)))
 
-			// Rows y=30..50 — geometry edited in place. Each starts too small to
-			// reach the probe point and is grown into it.
+			// Rows y=30..50 — geometry replaced mid-run. Each starts too small to
+			// reach the probe point; its slot is then pointed at a bigger shape.
 			s.growCircle = c.Spawn("growing-circle", 0, 30,
-				body(physics.BodyTypeStatic, circle(0.5)))
+				body(c, physics.BodyTypeStatic, circle(0.5)))
 			s.growBox = c.Spawn("growing-box", 0, 40,
-				body(physics.BodyTypeStatic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
 			s.growCapsule = c.Spawn("lengthening-capsule", 0, 50,
-				body(physics.BodyTypeStatic, capsule(vec(-0.5, 0), vec(0.5, 0), 0.3)))
+				body(c, physics.BodyTypeStatic, capsule(vec(-0.5, 0), vec(0.5, 0), 0.3)))
 			// Control for the capsule: growing the radius, which the reconciler's
 			// structural diff does compare.
 			s.fatCapsule = c.Spawn("fattening-capsule", 10, 50,
-				body(physics.BodyTypeStatic, capsule(vec(-0.5, 0), vec(0.5, 0), 0.3)))
+				body(c, physics.BodyTypeStatic, capsule(vec(-0.5, 0), vec(0.5, 0), 0.3)))
 
 			// Row y=60 — a wall whose filter is changed so it stops colliding.
 			s.filterWall = c.Spawn("refiltered-wall", 5, 60,
-				body(physics.BodyTypeStatic, box(0.5, 2)))
+				body(c, physics.BodyTypeStatic, box(0.5, 2)))
 			s.filterBox = c.SpawnMoving("refilter-probe", 0, 60, crossSpeed, 0,
-				zeroG(withFilter(box(0.5, 0.5), 0x1, 0x1, 0)))
+				zeroG(c, withFilter(box(0.5, 0.5), 0x1, 0x1, 0)))
 
 			// Row y=70 — the control: same geometry, filter left alone.
 			s.controlWall = c.Spawn("control-wall", 5, 70,
-				body(physics.BodyTypeStatic, withFilter(box(0.5, 2), 0x1, 0x1, 0)))
+				body(c, physics.BodyTypeStatic, withFilter(box(0.5, 2), 0x1, 0x1, 0)))
 			s.controlBox = c.SpawnMoving("control-probe", 0, 70, crossSpeed, 0,
-				zeroG(withFilter(box(0.5, 0.5), 0x1, 0x1, 0)))
+				zeroG(c, withFilter(box(0.5, 0.5), 0x1, 0x1, 0)))
 
 			// Row y=80 — a solid wall turned into a sensor mid-run.
 			s.sensorWall = c.Spawn("wall-turned-sensor", 5, 80,
-				body(physics.BodyTypeStatic, box(0.5, 2)))
+				body(c, physics.BodyTypeStatic, box(0.5, 2)))
 			s.sensorBox = c.SpawnMoving("sensor-probe", 0, 80, crossSpeed, 0,
-				zeroG(box(0.5, 0.5)))
+				zeroG(c, box(0.5, 0.5)))
 
 			// Row y=90 — a falling body frozen by turning it static.
 			s.freezer = c.Spawn("frozen-mid-fall", 0, 90,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// Row y=100 — a static body thawed into a dynamic one, with a pad to
 			// land on so it does not fall out of the scene.
-			s.thawFloor = c.Spawn("thaw-pad", 20, 70, body(physics.BodyTypeStatic, box(3, 1)))
+			s.thawFloor = c.Spawn("thaw-pad", 20, 70, body(c, physics.BodyTypeStatic, box(3, 1)))
 			s.thawed = c.Spawn("thawed-body", 20, 100,
-				body(physics.BodyTypeStatic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
 
 			// Row y=110 — a body that gains and then loses a second fixture.
 			s.multiShape = c.Spawn("growing-compound", 0, 110,
-				body(physics.BodyTypeStatic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
 
 			// Rows y=120/130 — friction retuned on a body that is already sliding.
 			s.slickPad = c.Spawn("retune-pad", 0, 119,
-				body(physics.BodyTypeStatic, withFriction(box(30, 1), 0.6)))
+				body(c, physics.BodyTypeStatic, withFriction(box(30, 1), 0.6)))
 			s.gripLater = c.SpawnMoving("gains-friction", -20, 120.5, slideSpeed, 0,
-				body(physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0)))
+				body(c, physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0)))
 
 			s.slickPad2 = c.Spawn("retune-control-pad", 0, 129,
-				body(physics.BodyTypeStatic, withFriction(box(30, 1), 0.6)))
+				body(c, physics.BodyTypeStatic, withFriction(box(30, 1), 0.6)))
 			s.gripControl = c.SpawnMoving("keeps-no-friction", -20, 130.5, slideSpeed, 0,
-				body(physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0)))
+				body(c, physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0)))
 		},
 		Steps: []harness.Step{
 			{Tick: 3, Do: func(c *harness.Ctx) {
@@ -163,32 +163,34 @@ func Lifecycle() harness.Scenario {
 				s.freezerY = c.Pos(s.freezer).Y
 			}},
 			{Tick: mutateTick, Do: func(c *harness.Ctx) {
-				s.lateWall = c.Spawn("late-wall", 0, 0, body(physics.BodyTypeStatic, box(1, 1)))
+				s.lateWall = c.Spawn("late-wall", 0, 0, body(c, physics.BodyTypeStatic, box(1, 1)))
 				c.True("destroying an uncontacted entity reports success",
 					c.Destroy(s.doomedWall), "Destroy returned false")
 
 				c.SetPos(s.mover, 8, 20)
 
+				// Shapes are entities: a slot is re-pointed at a new shape rather
+				// than edited in place. Same geometry kind with new numbers.
 				c.EditBody(s.growCircle, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].Radius = 2
+					pb.Shapes = pb.Shapes.With(0, circle(2).Spawn(c))
 				})
 				c.EditBody(s.growBox, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].HalfExtents = vec(2, 0.5)
+					pb.Shapes = pb.Shapes.With(0, box(2, 0.5).Spawn(c))
 				})
 				c.EditBody(s.growCapsule, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].CapsuleCenter1 = vec(-3, 0)
-					pb.Shapes[0].CapsuleCenter2 = vec(3, 0)
+					pb.Shapes = pb.Shapes.With(0, capsule(vec(-3, 0), vec(3, 0), 0.3).Spawn(c))
 				})
 				c.EditBody(s.fatCapsule, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].Radius = 1.8
+					pb.Shapes = pb.Shapes.With(0, capsule(vec(-0.5, 0), vec(0.5, 0), 1.8).Spawn(c))
 				})
 
+				// Same geometry, new filter or sensor flag: the swap must update
+				// the fixture in place (filter) or rebuild it (sensor).
 				c.EditBody(s.filterWall, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].CategoryBits = 0x4
-					pb.Shapes[0].MaskBits = 0x4
+					pb.Shapes = pb.Shapes.With(0, withFilter(box(0.5, 2), 0x4, 0x4, 0).Spawn(c))
 				})
 				c.EditBody(s.sensorWall, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].IsSensor = true
+					pb.Shapes = pb.Shapes.With(0, asSensor(box(0.5, 2)).Spawn(c))
 				})
 				c.EditBody(s.freezer, func(pb *physics.PhysicsBody2D) {
 					pb.BodyType = physics.BodyTypeStatic
@@ -197,10 +199,10 @@ func Lifecycle() harness.Scenario {
 					pb.BodyType = physics.BodyTypeDynamic
 				})
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = append(pb.Shapes, atOffset(box(0.5, 0.5), 3, 0))
+					pb.Shapes = pb.Shapes.Append(atOffset(box(0.5, 0.5), 3, 0).Spawn(c))
 				})
 				c.EditBody(s.gripLater, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].Friction = 0.9
+					pb.Shapes = pb.Shapes.With(0, withFriction(box(0.5, 0.5), 0.9).Spawn(c))
 				})
 			}},
 			{Tick: earlyCheck, Do: func(c *harness.Ctx) {
@@ -224,9 +226,7 @@ func Lifecycle() harness.Scenario {
 				c.True("moving a capsule's end centers updates its geometry",
 					hits(c, s.growCapsule, 2, 50),
 					"the capsule was lengthened from +/-0.5 to +/-3 but a ray at "+
-						"x=2 still misses it. The reconciler's structural shape "+
-						"comparison does not include CapsuleCenter1/CapsuleCenter2, "+
-						"so the change is silently dropped and no error is reported")
+						"x=2 still misses it")
 
 				c.True("appending a shape adds a fixture", hits(c, s.multiShape, 3, 110),
 					"the appended shape is not there")
@@ -244,7 +244,7 @@ func Lifecycle() harness.Scenario {
 			{Tick: removeTick, Do: func(c *harness.Ctx) {
 				frozenY := c.Pos(s.freezer).Y
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = pb.Shapes[:1]
+					pb.Shapes = pb.Shapes.Sub(0, 1)
 				})
 				c.SetVel(s.mover, crossSpeed, 0)
 				s.freezerY = frozenY

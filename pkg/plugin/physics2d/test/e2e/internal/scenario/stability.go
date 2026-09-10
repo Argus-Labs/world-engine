@@ -53,48 +53,48 @@ func Stability() harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			// Row y=0 — a ten-box stack, each box dropped a hair above the last.
 			s.floor = c.Spawn("stack-floor", 0, groundY,
-				body(physics.BodyTypeStatic, withFriction(box(10, 1), 0.6)))
+				body(c, physics.BodyTypeStatic, withFriction(box(10, 1), 0.6)))
 			for i := range stackCount {
 				y := boxHalf + float64(i)*(2*boxHalf+stackGap)
 				s.stack = append(s.stack, c.Spawn("stack-box", 0, y,
-					body(physics.BodyTypeDynamic, withFriction(box(boxHalf, boxHalf), 0.6))))
+					body(c, physics.BodyTypeDynamic, withFriction(box(boxHalf, boxHalf), 0.6))))
 			}
 
 			// Row y=30 — two boxes spawned almost entirely inside each other.
 			// Box2D pushes overlap out at a bounded speed; a port that solved
 			// this as a spring would fire them across the map.
 			s.jamFloor = c.Spawn("jam-floor", 30, 29,
-				body(physics.BodyTypeStatic, box(10, 1)))
-			s.jamA = c.Spawn("jammed-a", 30, 30.5, body(physics.BodyTypeDynamic, box(0.5, 0.5)))
-			s.jamB = c.Spawn("jammed-b", 30.1, 30.5, body(physics.BodyTypeDynamic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeStatic, box(10, 1)))
+			s.jamA = c.Spawn("jammed-a", 30, 30.5, body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
+			s.jamB = c.Spawn("jammed-b", 30.1, 30.5, body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
 
 			// Row y=60 — a 2 cm ball. Small shapes are where Box2D's linear slop
 			// and speculative margins start to matter.
-			s.tinyFloor = c.Spawn("tiny-floor", 0, 59, body(physics.BodyTypeStatic, box(2, 1)))
-			s.tiny = c.Spawn("tiny-ball", 0, 62, body(physics.BodyTypeDynamic, circle(0.01)))
+			s.tinyFloor = c.Spawn("tiny-floor", 0, 59, body(c, physics.BodyTypeStatic, box(2, 1)))
+			s.tiny = c.Spawn("tiny-ball", 0, 62, body(c, physics.BodyTypeDynamic, circle(0.01)))
 
 			// Row y=100 — a 10 m box, the top of the size range Box2D is tuned
 			// for, and the one this scenario holds to a real tolerance.
-			s.bigFloor = c.Spawn("big-floor", 0, 99, body(physics.BodyTypeStatic, box(20, 1)))
-			s.big = c.Spawn("big-box", 0, 108, body(physics.BodyTypeDynamic, box(5, 5)))
+			s.bigFloor = c.Spawn("big-floor", 0, 99, body(c, physics.BodyTypeStatic, box(20, 1)))
+			s.big = c.Spawn("big-box", 0, 108, body(c, physics.BodyTypeDynamic, box(5, 5)))
 
 			// Row y=300 — a 100 m box, well outside the range Box2D is tuned for
 			// and two orders of magnitude larger than the stack boxes, on its own
 			// floor with nothing else within a hundred metres.
-			s.hugeFloor = c.Spawn("huge-floor", 0, 299, body(physics.BodyTypeStatic, box(80, 1)))
-			s.huge = c.Spawn("huge-box", 0, 355, body(physics.BodyTypeDynamic, box(50, 50)))
+			s.hugeFloor = c.Spawn("huge-floor", 0, 299, body(c, physics.BodyTypeStatic, box(80, 1)))
+			s.huge = c.Spawn("huge-box", 0, 355, body(c, physics.BodyTypeDynamic, box(50, 50)))
 
 			// Row y=0, far away — the same drop several kilometres from the
 			// origin, where float32 has about a millimetre of resolution left.
 			s.farFloor = c.Spawn("far-floor", farX, groundY,
-				body(physics.BodyTypeStatic, box(10, 1)))
-			s.farBody = c.Spawn("far-ball", farX, 8, body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeStatic, box(10, 1)))
+			s.farBody = c.Spawn("far-ball", farX, 8, body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// Row y=200 — a body that starts at rest and must stay at rest. Any
 			// drift here is energy appearing from nowhere.
-			s.restPad = c.Spawn("rest-pad", 0, 199, body(physics.BodyTypeStatic, box(3, 1)))
+			s.restPad = c.Spawn("rest-pad", 0, 199, body(c, physics.BodyTypeStatic, box(3, 1)))
 			s.rester = c.Spawn("resting-box", 0, 200.5,
-				body(physics.BodyTypeDynamic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
 		},
 		EachTick: func(c *harness.Ctx) {
 			// The jammed pair's separation speed, sampled every tick: the peak is

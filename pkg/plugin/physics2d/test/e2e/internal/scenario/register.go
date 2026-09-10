@@ -18,6 +18,10 @@ func All() []harness.Scenario {
 		Queries(),
 		Lifecycle(),
 		Stability(),
+		ShapeEntities(),
 		Reset(),
+		// After Reset(): its reset-tick step calls Plugin.Reset too, and must run after the
+		// reset scenario's own "before" checks when every scenario shares one world.
+		ShapeSweep(),
 	}
 }

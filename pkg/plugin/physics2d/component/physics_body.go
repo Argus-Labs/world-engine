@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/goccy/go-json"
 )
 
@@ -42,9 +43,10 @@ import (
 //
 // # Shapes
 //
-// Shapes holds the compound collider description. Cardinal allows one instance per component
-// type per entity, so compound colliders are modeled as multiple ColliderShape entries.
-// Shape identity (v1): index i in Shapes identifies fixture slot i.
+// Shapes lists the body's fixtures. Each [ShapeSlot] names a shape entity (which carries
+// [ShapeCommon] plus one geometry component) and places it in body space. Slot index i is
+// fixture i, the index contact events and query hits report. The list is an immutable.Slice:
+// derive a new one (With, Append, Sub) and Set the body to change it.
 //
 // # Defaults
 //
@@ -74,19 +76,19 @@ type PhysicsBody2D struct {
 	Bullet          bool     `json:"bullet"`
 	FixedRotation   bool     `json:"fixed_rotation"`
 
-	Shapes []ColliderShape `json:"shapes"`
+	Shapes immutable.Slice[ShapeSlot] `json:"shapes"`
 }
 
 // NewPhysicsBody2D returns a PhysicsBody2D with the given body type, Box2D-compatible defaults
-// (Active=true, Awake=true, SleepingAllowed=true, GravityScale=1), and the provided shapes.
-func NewPhysicsBody2D(bodyType BodyType, shapes ...ColliderShape) PhysicsBody2D {
+// (Active=true, Awake=true, SleepingAllowed=true, GravityScale=1), and the provided shape slots.
+func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
 	return PhysicsBody2D{
 		BodyType:        bodyType,
 		GravityScale:    1,
 		Active:          true,
 		Awake:           true,
 		SleepingAllowed: true,
-		Shapes:          shapes,
+		Shapes:          immutable.SliceOf(shapes...),
 	}
 }
 
@@ -96,16 +98,16 @@ func NewPhysicsBody2D(bodyType BodyType, shapes ...ColliderShape) PhysicsBody2D 
 // preserving explicitly serialized values including false.
 func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 	type raw struct {
-		BodyType        BodyType        `json:"body_type"`
-		LinearDamping   float64         `json:"linear_damping"`
-		AngularDamping  float64         `json:"angular_damping"`
-		GravityScale    *float64        `json:"gravity_scale"`
-		Active          *bool           `json:"active"`
-		Awake           *bool           `json:"awake"`
-		SleepingAllowed *bool           `json:"sleeping_allowed"`
-		Bullet          bool            `json:"bullet"`
-		FixedRotation   bool            `json:"fixed_rotation"`
-		Shapes          []ColliderShape `json:"shapes"`
+		BodyType        BodyType    `json:"body_type"`
+		LinearDamping   float64     `json:"linear_damping"`
+		AngularDamping  float64     `json:"angular_damping"`
+		GravityScale    *float64    `json:"gravity_scale"`
+		Active          *bool       `json:"active"`
+		Awake           *bool       `json:"awake"`
+		SleepingAllowed *bool       `json:"sleeping_allowed"`
+		Bullet          bool        `json:"bullet"`
+		FixedRotation   bool        `json:"fixed_rotation"`
+		Shapes          []ShapeSlot `json:"shapes"`
 	}
 	var aux raw
 	if err := json.Unmarshal(data, &aux); err != nil {
@@ -121,7 +123,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 		SleepingAllowed: true,
 		Bullet:          aux.Bullet,
 		FixedRotation:   aux.FixedRotation,
-		Shapes:          aux.Shapes,
+		Shapes:          immutable.SliceOf(aux.Shapes...),
 	}
 	if aux.GravityScale != nil {
 		p.GravityScale = *aux.GravityScale
@@ -141,7 +143,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 // Name returns the ECS component name.
 func (PhysicsBody2D) Name() string { return "physics_body_2d" }
 
-// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid shapes.
+// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid slots.
 func (p PhysicsBody2D) Validate() error {
 	switch p.BodyType {
 	case BodyTypeStatic, BodyTypeDynamic, BodyTypeKinematic, BodyTypeManual:
@@ -157,11 +159,11 @@ func (p PhysicsBody2D) Validate() error {
 	if !isFinite(p.GravityScale) {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)
 	}
-	if len(p.Shapes) == 0 {
-		return errors.New("physics_body_2d.shapes: at least one ColliderShape is required")
+	if p.Shapes.Len() == 0 {
+		return errors.New("physics_body_2d.shapes: at least one shape slot is required")
 	}
-	for i := range p.Shapes {
-		if err := p.Shapes[i].Validate(); err != nil {
+	for i, s := range p.Shapes.All() {
+		if err := s.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
 	}

@@ -113,11 +113,7 @@ func TestHostile(t *testing.T) {
 	// Cases that fail today for a documented reason. A case that starts passing must
 	// be removed from here, which is the point: the test then reports that the engine
 	// changed instead of silently absorbing it.
-	knownFailures := map[string]string{
-		"zero-extent-box": "the engine builds a (NaN, NaN) body from zero half-extents " +
-			"instead of rejecting them as C's assert does, and ColliderShape.Validate lets " +
-			"them through; the reconciler then rejects the body every tick",
-	}
+	knownFailures := map[string]string{}
 
 	for _, name := range scenario.HostileNames() {
 		t.Run(name, func(t *testing.T) {

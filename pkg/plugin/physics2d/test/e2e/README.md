@@ -56,7 +56,7 @@ through the floor, and that would make the invariant unprovable.
 | Scenario | Pins |
 |---|---|
 | `defaults` | Constructor and wire defaults, the zero-value trap, `Validate` |
-| `shapes` | All 7 `ShapeType`s reach Box2D and collide by their geometry |
+| `shapes` | All 7 shape kinds reach Box2D and collide by their geometry |
 | `bodytypes` | Static / dynamic / kinematic / manual, and the writeback rules |
 | `flags` | Active, Awake, SleepingAllowed, Bullet, FixedRotation, gravity scale, damping; teleport with an explicit same-tick sleep |
 | `material` | Friction mixes as `sqrt(a*b)`, restitution as `max(a,b)`, density becomes mass |
@@ -66,6 +66,8 @@ through the floor, and that would make the invariant unprovable.
 | `compound` | Child offsets and rotations, slot identity, combined centre of mass |
 | `queries` | Raycast, OverlapAABB (narrow-phase), CircleSweep, plus every documented edge case |
 | `lifecycle` | Create, destroy, teleport, retype, resize (capsules included), add/remove shapes, refilter, retune |
+| `shape-entities` | One shape entity on many bodies, in-place edits, slot swaps (material vs geometry), fixed chain points |
+| `shape-sweep` | Automatic shape cleanup: last reference, slot swap, shared, staged, same-tick trade, Reset |
 | `stability` | 10-box stack, deep overlap recovery, 2 cm to 100 m shapes, 5 km from origin |
 | `reset` | `Plugin.Reset` rebuild: poses, velocities, no replayed events, queries |
 
@@ -95,14 +97,15 @@ process panicked (reported as FATAL).
 `knownFailures` in `e2e_test.go` lists the cases that fail today and why. A case
 that starts passing fails the test until it is removed from that map, so an
 engine change that fixes one is noticed rather than absorbed. Today that is only
-`zero-extent-box`: `ColliderShape.Validate` accepts zero half-extents, the engine
+`zero-extent-box`: `BoxGeom.Validate` accepts zero half-extents, the engine
 builds a `(NaN, NaN)` body from them where C's assert would have fired, and the
 reconciler then rejects the entity every tick for as long as it lives.
 
 The rest reject cleanly or simulate: `destroy-during-contact`, `short-chain`,
 `short-chain-loop`, `zero-radius-circle`, `negative-radius-circle`,
 `polygon-no-vertices`, `polygon-two-vertices`, `polygon-too-many-vertices`,
-`degenerate-capsule`, `chain-on-dynamic-body`. Note that a rejected shape retries
+`degenerate-capsule`, `chain-on-dynamic-body`, `missing-shape-entity`,
+`deleted-shape-entity`. Note that a rejected shape retries
 forever: the entity stays in ECS with no body and `ReconcileFromECS` logs the same
 failure every tick.
 

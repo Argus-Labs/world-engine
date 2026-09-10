@@ -95,10 +95,7 @@ var testRequire *require.Assertions
 // sceneInitSystem runs on [cardinal.Init]. It spawns the harness scene so the plugin’s Init
 // FullRebuildFromECS sees all bodies: floor, falling ball, sensor, layered wall, triangle, chain,
 // zero-gravity second ball, and a static compound collider (box + offset sensor circle).
-func sceneInitSystem(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
+func sceneInitSystem(state *spawnState) {
 	mustCreate := func(
 		role string,
 		t physics.Transform2D,
@@ -128,121 +125,64 @@ func sceneInitSystem(state *struct {
 	// Static floor (wide box), top at y=0.
 	harness.Floor = mustCreate("floor",
 		physics.Transform2D{Position: physics.Vec2{X: 0, Y: -0.25}},
-		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeBox,
-			HalfExtents:  physics.Vec2{X: 20, Y: 0.25},
-			Friction:     0.6,
-			Density:      0,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
-		}),
+		newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Box(20, 0.25).Material(0.6, 0, 0).Filter(0x0001, 0xFFFF))),
 	)
 
 	// Dynamic ball; starts above sensor path so TriggerBegin fires after a few steps (not at t=0 overlap).
 	harness.Ball = mustCreate("ball",
 		physics.Transform2D{Position: physics.Vec2{X: 0, Y: 5.2}},
-		newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeCircle,
-			Radius:       0.4,
-			Friction:     0.3,
-			Restitution:  0.05,
-			Density:      1,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
-		}),
+		newRigid(physics.BodyTypeDynamic,
+			spawnShape(state, physics.Circle(0.4).Material(0.3, 0.05, 1).Filter(0x0001, 0xFFFF))),
 	)
 
 	// Large sensor on ball’s fall line (trigger overlap tests).
 	harness.Sensor = mustCreate("sensor",
 		physics.Transform2D{Position: physics.Vec2{X: 0, Y: 2}},
-		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeCircle,
-			Radius:       2.5,
-			IsSensor:     true,
-			Density:      0,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
-		}),
+		newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Circle(2.5).AsSensor().Material(0, 0, 0).Filter(0x0001, 0xFFFF))),
 	)
 
 	// Solid wall on category 0x0002 for raycast / sweep filter tests.
 	harness.FilterWall = mustCreate("filter_wall",
 		physics.Transform2D{Position: physics.Vec2{X: 15, Y: 0.5}},
-		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeBox,
-			HalfExtents:  physics.Vec2{X: 0.2, Y: 2},
-			Friction:     0.5,
-			Density:      0,
-			CategoryBits: 0x0002,
-			MaskBits:     0xFFFF,
-		}),
+		newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Box(0.2, 2).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF))),
 	)
 
 	// Convex polygon; destroyed mid-scenario to test orphan body cleanup.
 	harness.Triangle = mustCreate("triangle",
 		physics.Transform2D{Position: physics.Vec2{X: -8, Y: 1}},
-		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeConvexPolygon,
-			Vertices: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 2, Y: 0}, {X: 1, Y: 1.5},
-			},
-			Friction:     0.5,
-			Density:      0,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
-		}),
+		newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Polygon(physics.Vec2{X: 0, Y: 0}, physics.Vec2{X: 2, Y: 0}, physics.Vec2{X: 1, Y: 1.5}).
+				Material(0.5, 0, 0).Filter(0x0001, 0xFFFF))),
 	)
 
-	// Static chain segment (extra shape-type coverage); not referenced by assertions.
+	// Static chain segment (extra shape-type coverage); not referenced by assertions. Its points
+	// ride on the chain shape entity through the scene's Plugin.Reset rebuilds (this test
+	// never restores a snapshot); chain_ramp itself is not asserted.
 	_ = mustCreate("chain_ramp",
 		physics.Transform2D{Position: physics.Vec2{X: -15, Y: 0}},
-		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeStaticChain,
-			ChainPoints: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 1.5, Y: 0.2}, {X: 3, Y: 0.4}, {X: 4, Y: 0.5},
-			},
-			Friction:     0.4,
-			Density:      0,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
-		}),
+		newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Chain(
+				physics.Vec2{X: 0, Y: 0}, physics.Vec2{X: 1.5, Y: 0.2}, physics.Vec2{X: 3, Y: 0.4}, physics.Vec2{X: 4, Y: 0.5},
+			).Material(0.4, 0, 0).Filter(0x0001, 0xFFFF))),
 	)
 
 	// Extra dynamic body, no gravity (scene filler; main ball drives contact tests).
 	harness.SecondBall = mustCreate("second_ball",
 		physics.Transform2D{Position: physics.Vec2{X: 5, Y: 20}},
-		newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeCircle,
-			Radius:       0.4,
-			Friction:     0.3,
-			Restitution:  0.05,
-			Density:      1,
-			CategoryBits: 0x0001,
-			MaskBits:     0xFFFF,
-		}),
+		newRigidNoGravity(physics.BodyTypeDynamic,
+			spawnShape(state, physics.Circle(0.4).Material(0.3, 0.05, 1).Filter(0x0001, 0xFFFF))),
 	)
 
 	// Two fixtures: solid box + offset sensor circle (compound + query IncludeSensors tests).
 	harness.CompoundBody = mustCreate("compound_body",
 		physics.Transform2D{Position: physics.Vec2{X: -12, Y: 1}},
 		newRigid(physics.BodyTypeStatic,
-			physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeBox,
-				HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-				Friction:     0.5,
-				Density:      0,
-				CategoryBits: 0x0001,
-				MaskBits:     0xFFFF,
-			},
-			physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.3,
-				IsSensor:     true,
-				LocalOffset:  physics.Vec2{X: 0, Y: 1.5},
-				Density:      0,
-				CategoryBits: 0x0001,
-				MaskBits:     0xFFFF,
-			},
+			spawnShape(state, physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF)),
+			spawnShape(state, physics.Circle(0.3).AsSensor().
+				Material(0, 0, 0).Filter(0x0001, 0xFFFF)).At(physics.Vec2{X: 0, Y: 1.5}, 0),
 		),
 	)
 
@@ -252,36 +192,21 @@ func sceneInitSystem(state *struct {
 	harness.KinematicMover = mustCreateWithVel("kinematic_mover",
 		physics.Transform2D{Position: physics.Vec2{X: 20, Y: 5}},
 		physics.Velocity2D{Linear: physics.Vec2{X: 3, Y: 0}},
-		newRigidNoGravity(physics.BodyTypeKinematic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeCircle,
-			Radius:       0.3,
-			Density:      0,
-			CategoryBits: 0x0004,
-			MaskBits:     0x0004,
-		}),
+		newRigidNoGravity(physics.BodyTypeKinematic,
+			spawnShape(state, physics.Circle(0.3).Material(0, 0, 0).Filter(0x0004, 0x0004))),
 	)
 
 	// Manual player: ECS-driven position; writeback must be skipped (no gravity fall, no drift).
 	manualSpawnPos = physics.Vec2{X: 30, Y: 5}
 	harness.ManualPlayer = mustCreate("manual_player",
 		physics.Transform2D{Position: manualSpawnPos},
-		newRigid(physics.BodyTypeManual, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeCircle,
-			Radius:       0.5,
-			Density:      1,
-			CategoryBits: 0x0004,
-			MaskBits:     0x0004,
-		}),
+		newRigid(physics.BodyTypeManual,
+			spawnShape(state, physics.Circle(0.5).Material(0, 0, 1).Filter(0x0004, 0x0004))),
 	)
 
 	// Spinner: dynamic body, zero gravity, angular velocity 2 rad/s; tests rotation writeback.
-	spinnerBody := newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
-		ShapeType:    physics.ShapeTypeCircle,
-		Radius:       0.3,
-		Density:      1,
-		CategoryBits: 0x0004,
-		MaskBits:     0x0004,
-	})
+	spinnerBody := newRigidNoGravity(physics.BodyTypeDynamic,
+		spawnShape(state, physics.Circle(0.3).Material(0, 0, 1).Filter(0x0004, 0x0004)))
 	spinnerBody.SleepingAllowed = false
 	harness.Spinner = mustCreateWithVel("spinner",
 		physics.Transform2D{Position: physics.Vec2{X: 25, Y: 10}},
@@ -320,6 +245,7 @@ func manualMoveSystem(state *struct {
 func newVerifySystem(p *physics.Plugin) func(state *struct {
 	cardinal.BaseSystemState
 	Spawn          spawnArchetype
+	Boxes          physics.BoxShapes
 	ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -328,6 +254,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 	return func(state *struct {
 		cardinal.BaseSystemState
 		Spawn          spawnArchetype
+		Boxes          physics.BoxShapes
 		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 		TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -513,14 +440,8 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				row.Tag.Set(harnessTag{Role: "new_box"})
 				row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
 				row.V.Set(physics.Velocity2D{})
-				row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-					ShapeType:    physics.ShapeTypeBox,
-					HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-					Friction:     0.5,
-					Density:      0,
-					CategoryBits: 0x0001,
-					MaskBits:     0xFFFF,
-				}))
+				row.PB.Set(newRigid(physics.BodyTypeStatic,
+					mustSpawn(physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF).Spawn(&state.Boxes))))
 				harness.NewBox = id
 			}
 		}

@@ -327,29 +327,57 @@ func goldenOverlap(name string, r physics.AABBOverlapResult) goldenQuery {
 // Entity construction helper
 // ---------------------------------------------------------------------------
 
-// goldenSpawn registers an Init-hook system that creates the described entities once.
+// goldenEntity describes one physics entity of a scenario. Shapes are entities too, and they
+// are spawned only after every body has been created: that keeps the body entity ids — which
+// the committed CGO-era fixtures pin exactly — unchanged by the shape refactor.
 type goldenEntity struct {
-	role     string
-	pos      physics.Vec2
-	rotation float64
-	vel      physics.Velocity2D
-	body     physics.PhysicsBody2D
+	role      string
+	pos       physics.Vec2
+	rotation  float64
+	vel       physics.Velocity2D
+	bodyType  physics.BodyType
+	noGravity bool
+	shapes    []goldenShape
 }
 
+// goldenShape spawns one shape entity for a goldenEntity and returns its slot.
+type goldenShape func(s *spawnState) physics.ShapeSlot
+
+// gShape wraps a ready shape definition.
+func gShape[G physics.Geometry](def physics.ShapeDef[G]) goldenShape {
+	return func(s *spawnState) physics.ShapeSlot { return spawnShape(s, def) }
+}
+
+// goldenSpawn registers an Init-hook system that creates the described entities once: all
+// bodies first (with empty slot lists), then each body's shapes, patched in.
 func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+	cardinal.RegisterSystem(w, func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
+		type pending struct {
+			pb cardinal.Ref[physics.PhysicsBody2D]
+			e  goldenEntity
+		}
+		var patches []pending
 		for _, e := range entities() {
 			_, row := state.Spawn.Create()
 			row.Tag.Set(harnessTag{Role: e.role})
 			row.T.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
 			row.V.Set(e.vel)
-			row.PB.Set(e.body)
+			body := newRigid(e.bodyType)
+			if e.noGravity {
+				body.GravityScale = 0
+			}
+			row.PB.Set(body)
+			patches = append(patches, pending{pb: row.PB, e: e})
+		}
+		for _, p := range patches {
+			body := p.pb.Get()
+			for _, sh := range p.e.shapes {
+				body.Shapes = body.Shapes.Append(sh(state))
+			}
+			p.pb.Set(body)
 		}
 	}, cardinal.WithHook(cardinal.Init))
 }
@@ -378,30 +406,18 @@ func goldenFallingCirclesFloor() goldenScenario {
 		setup: func(w *cardinal.World) {
 			goldenSpawn(w, func() []goldenEntity {
 				out := []goldenEntity{{
-					role: "floor",
-					pos:  physics.Vec2{X: 0, Y: 0},
-					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType:    physics.ShapeTypeBox,
-						HalfExtents:  physics.Vec2{X: 20, Y: 0.5},
-						Friction:     0.4,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}),
+					role:     "floor",
+					pos:      physics.Vec2{X: 0, Y: 0},
+					bodyType: physics.BodyTypeStatic,
+					shapes:   []goldenShape{gShape(physics.Box(20, 0.5).Material(0.4, 0, 0).Filter(0xFFFF, 0xFFFF))},
 				}}
 				for i := range 8 {
 					f := float64(i)
 					out = append(out, goldenEntity{
-						role: "circle_" + strconv.Itoa(i),
-						pos:  physics.Vec2{X: -7 + 2*f, Y: 5 + 0.5*f},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.2 + 0.05*f,
-							Density:      1,
-							Friction:     0.3,
-							Restitution:  0.1 * f,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:     "circle_" + strconv.Itoa(i),
+						pos:      physics.Vec2{X: -7 + 2*f, Y: 5 + 0.5*f},
+						bodyType: physics.BodyTypeDynamic,
+						shapes:   []goldenShape{gShape(physics.Circle(0.2+0.05*f).Material(0.3, 0.1*f, 1).Filter(0xFFFF, 0xFFFF))},
 					})
 				}
 				return out
@@ -419,15 +435,10 @@ func goldenBoxStack() goldenScenario {
 		setup: func(w *cardinal.World) {
 			goldenSpawn(w, func() []goldenEntity {
 				out := []goldenEntity{{
-					role: "floor",
-					pos:  physics.Vec2{X: 0, Y: 0},
-					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType:    physics.ShapeTypeBox,
-						HalfExtents:  physics.Vec2{X: 10, Y: 0.5},
-						Friction:     0.6,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}),
+					role:     "floor",
+					pos:      physics.Vec2{X: 0, Y: 0},
+					bodyType: physics.BodyTypeStatic,
+					shapes:   []goldenShape{gShape(physics.Box(10, 0.5).Material(0.6, 0, 0).Filter(0xFFFF, 0xFFFF))},
 				}}
 				for i := range 5 {
 					f := float64(i)
@@ -435,16 +446,9 @@ func goldenBoxStack() goldenScenario {
 						role: "box_" + strconv.Itoa(i),
 						// Small alternating X offset so the stack has to settle rather than
 						// starting in a perfectly symmetric (and less interesting) pose.
-						pos: physics.Vec2{X: 0.03 * f * float64(1-2*(i%2)), Y: 1.05 + 1.05*f},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-							Density:      1,
-							Friction:     0.6,
-							Restitution:  0,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						pos:      physics.Vec2{X: 0.03 * f * float64(1-2*(i%2)), Y: 1.05 + 1.05*f},
+						bodyType: physics.BodyTypeDynamic,
+						shapes:   []goldenShape{gShape(physics.Box(0.5, 0.5).Material(0.6, 0, 1).Filter(0xFFFF, 0xFFFF))},
 					})
 				}
 				return out
@@ -462,37 +466,24 @@ func goldenCapsuleChainGround() goldenScenario {
 		setup: func(w *cardinal.World) {
 			goldenSpawn(w, func() []goldenEntity {
 				out := []goldenEntity{{
-					role: "terrain",
-					pos:  physics.Vec2{X: 0, Y: 0},
-					body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-						ShapeType: physics.ShapeTypeStaticChain,
-						// Box2D v3 chains are one-sided: right-to-left (decreasing X) winding
-						// gives upward-facing normals so bodies land on top.
-						ChainPoints: []physics.Vec2{
-							{X: 14, Y: 1}, {X: 7, Y: -1}, {X: 0, Y: -2},
-							{X: -7, Y: -1}, {X: -14, Y: 1},
-						},
-						Friction:     0.5,
-						CategoryBits: 0xFFFF,
-						MaskBits:     0xFFFF,
-					}),
+					role:     "terrain",
+					pos:      physics.Vec2{X: 0, Y: 0},
+					bodyType: physics.BodyTypeStatic,
+					// Box2D v3 chains are one-sided: right-to-left (decreasing X) winding
+					// gives upward-facing normals so bodies land on top.
+					shapes: []goldenShape{gShape(physics.Chain(
+						physics.Vec2{X: 14, Y: 1}, physics.Vec2{X: 7, Y: -1}, physics.Vec2{X: 0, Y: -2},
+						physics.Vec2{X: -7, Y: -1}, physics.Vec2{X: -14, Y: 1},
+					).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF))},
 				}}
 				for i := range 4 {
 					f := float64(i)
 					out = append(out, goldenEntity{
-						role: "capsule_" + strconv.Itoa(i),
-						pos:  physics.Vec2{X: -6 + 4*f, Y: 6 + 0.7*f},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:      physics.ShapeTypeCapsule,
-							CapsuleCenter1: physics.Vec2{X: 0, Y: -0.4},
-							CapsuleCenter2: physics.Vec2{X: 0, Y: 0.4},
-							Radius:         0.25,
-							Density:        1,
-							Friction:       0.4,
-							Restitution:    0.05,
-							CategoryBits:   0xFFFF,
-							MaskBits:       0xFFFF,
-						}),
+						role:     "capsule_" + strconv.Itoa(i),
+						pos:      physics.Vec2{X: -6 + 4*f, Y: 6 + 0.7*f},
+						bodyType: physics.BodyTypeDynamic,
+						shapes: []goldenShape{gShape(physics.Capsule(physics.Vec2{X: 0, Y: -0.4}, physics.Vec2{X: 0, Y: 0.4}, 0.25).
+							Material(0.4, 0.05, 1).Filter(0xFFFF, 0xFFFF))},
 					})
 				}
 				for i := range 2 {
@@ -501,16 +492,11 @@ func goldenCapsuleChainGround() goldenScenario {
 						role:     "poly_" + strconv.Itoa(i),
 						pos:      physics.Vec2{X: -4 + 8*f, Y: 10 + f},
 						rotation: 0.2 + 0.3*f,
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType: physics.ShapeTypeConvexPolygon,
-							Vertices: []physics.Vec2{
-								{X: -0.5, Y: -0.4}, {X: 0.5, Y: -0.4}, {X: 0.35, Y: 0.5}, {X: -0.35, Y: 0.5},
-							},
-							Density:      1,
-							Friction:     0.4,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						bodyType: physics.BodyTypeDynamic,
+						shapes: []goldenShape{gShape(physics.Polygon(
+							physics.Vec2{X: -0.5, Y: -0.4}, physics.Vec2{X: 0.5, Y: -0.4},
+							physics.Vec2{X: 0.35, Y: 0.5}, physics.Vec2{X: -0.35, Y: 0.5},
+						).Material(0.4, 0, 1).Filter(0xFFFF, 0xFFFF))},
 					})
 				}
 				return out
@@ -530,39 +516,22 @@ func goldenSensorTrigger() goldenScenario {
 			goldenSpawn(w, func() []goldenEntity {
 				return []goldenEntity{
 					{
-						role: "floor",
-						pos:  physics.Vec2{X: 0, Y: 0},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 8, Y: 0.5},
-							Friction:     0.3,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:     "floor",
+						pos:      physics.Vec2{X: 0, Y: 0},
+						bodyType: physics.BodyTypeStatic,
+						shapes:   []goldenShape{gShape(physics.Box(8, 0.5).Material(0.3, 0, 0).Filter(0xFFFF, 0xFFFF))},
 					},
 					{
-						role: "sensor_gate",
-						pos:  physics.Vec2{X: 0, Y: 5},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 2, Y: 0.5},
-							IsSensor:     true,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:     "sensor_gate",
+						pos:      physics.Vec2{X: 0, Y: 5},
+						bodyType: physics.BodyTypeStatic,
+						shapes:   []goldenShape{gShape(physics.Box(2, 0.5).AsSensor().Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
 					},
 					{
-						role: "faller",
-						pos:  physics.Vec2{X: 0, Y: 10},
-						body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.3,
-							Density:      1,
-							Friction:     0.3,
-							Restitution:  0.2,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:     "faller",
+						pos:      physics.Vec2{X: 0, Y: 10},
+						bodyType: physics.BodyTypeDynamic,
+						shapes:   []goldenShape{gShape(physics.Circle(0.3).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF))},
 					},
 				}
 			})
@@ -584,31 +553,18 @@ func goldenFilterMatrix() goldenScenario {
 	)
 	floor := func(role string, x float64, cat, mask uint64, group int32) goldenEntity {
 		return goldenEntity{
-			role: role,
-			pos:  physics.Vec2{X: x, Y: 0},
-			body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeBox,
-				HalfExtents:  physics.Vec2{X: 3, Y: 0.5},
-				Friction:     0.3,
-				CategoryBits: cat,
-				MaskBits:     mask,
-				GroupIndex:   group,
-			}),
+			role:     role,
+			pos:      physics.Vec2{X: x, Y: 0},
+			bodyType: physics.BodyTypeStatic,
+			shapes:   []goldenShape{gShape(physics.Box(3, 0.5).Material(0.3, 0, 0).Filter(cat, mask).Group(group))},
 		}
 	}
 	ball := func(role string, x float64, cat, mask uint64, group int32) goldenEntity {
 		return goldenEntity{
-			role: role,
-			pos:  physics.Vec2{X: x, Y: 5},
-			body: newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.4,
-				Density:      1,
-				Friction:     0.3,
-				CategoryBits: cat,
-				MaskBits:     mask,
-				GroupIndex:   group,
-			}),
+			role:     role,
+			pos:      physics.Vec2{X: x, Y: 5},
+			bodyType: physics.BodyTypeDynamic,
+			shapes:   []goldenShape{gShape(physics.Circle(0.4).Material(0.3, 0, 1).Filter(cat, mask).Group(group))},
 		}
 	}
 	return goldenScenario{
@@ -642,47 +598,32 @@ func goldenQueriesOverTime() goldenScenario {
 			goldenSpawn(w, func() []goldenEntity {
 				return []goldenEntity{
 					{
-						role: "wall",
-						pos:  physics.Vec2{X: 5, Y: 0},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 0.5, Y: 2},
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:     "wall",
+						pos:      physics.Vec2{X: 5, Y: 0},
+						bodyType: physics.BodyTypeStatic,
+						shapes:   []goldenShape{gShape(physics.Box(0.5, 2).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
 					},
 					{
-						role: "pillar",
-						pos:  physics.Vec2{X: -6, Y: 0},
-						body: newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.75,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:     "pillar",
+						pos:      physics.Vec2{X: -6, Y: 0},
+						bodyType: physics.BodyTypeStatic,
+						shapes:   []goldenShape{gShape(physics.Circle(0.75).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
 					},
 					{
-						role: "mover",
-						pos:  physics.Vec2{X: -8, Y: 3},
-						vel:  physics.Velocity2D{Linear: physics.Vec2{X: 2, Y: 0}},
-						body: newRigidNoGravity(physics.BodyTypeKinematic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeBox,
-							HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:      "mover",
+						pos:       physics.Vec2{X: -8, Y: 3},
+						vel:       physics.Velocity2D{Linear: physics.Vec2{X: 2, Y: 0}},
+						bodyType:  physics.BodyTypeKinematic,
+						noGravity: true,
+						shapes:    []goldenShape{gShape(physics.Box(0.5, 0.5).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
 					},
 					{
-						role: "drifter",
-						pos:  physics.Vec2{X: -8, Y: -3},
-						vel:  physics.Velocity2D{Linear: physics.Vec2{X: 1.5, Y: 0}, Angular: 0.5},
-						body: newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
-							ShapeType:    physics.ShapeTypeCircle,
-							Radius:       0.35,
-							Density:      1,
-							CategoryBits: 0xFFFF,
-							MaskBits:     0xFFFF,
-						}),
+						role:      "drifter",
+						pos:       physics.Vec2{X: -8, Y: -3},
+						vel:       physics.Velocity2D{Linear: physics.Vec2{X: 1.5, Y: 0}, Angular: 0.5},
+						bodyType:  physics.BodyTypeDynamic,
+						noGravity: true,
+						shapes:    []goldenShape{gShape(physics.Circle(0.35).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF))},
 					},
 				}
 			})

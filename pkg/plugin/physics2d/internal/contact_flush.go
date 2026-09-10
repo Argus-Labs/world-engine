@@ -305,9 +305,10 @@ func (rt *Runtime) refreshActiveContactsFromLive() {
 	}
 }
 
-// contactPairInfoPersistedFieldsDiffer is true when sensor or filter bits differ between two snapshots of same pair.
+// contactPairInfoPersistedFieldsDiffer is true when the persisted part of a pair (its sensor
+// flag) differs between two snapshots of the same pair. Filter bits are not persisted.
 func contactPairInfoPersistedFieldsDiffer(a, b ContactPairInfo) bool {
-	return a.IsSensor != b.IsSensor || a.FilterA != b.FilterA || a.FilterB != b.FilterB
+	return a.IsSensor != b.IsSensor
 }
 
 // makeContactEvent builds a BufferedContactEvent for diffActiveContactsAfterRebuild using normalized key and live info.

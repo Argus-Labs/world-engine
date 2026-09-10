@@ -69,7 +69,9 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			e.PhysicsBody.Set(pb)
 		}
 
-		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
+		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Shape
+		// reference counts are not touched here: they follow what a body declares in ECS
+		// (declaredSlots), and writeback never changes a slot list.
 		if shadow, exists := rt.Shadow[e.EntityID]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v

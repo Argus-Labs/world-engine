@@ -76,14 +76,8 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 // a 1.0 gap, so no collider ever touches another. The entity count, archetype layout and component
 // payloads — everything the snapshot path costs money on — are unchanged by that; what changes is
 // that the scene stops evolving, which is what makes the benchmark reproducible.
-func restingBodiesSystem(count int) func(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
-	return func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
+func restingBodiesSystem(count int) func(state *spawnState) {
+	return func(state *spawnState) {
 		if state.Tick() != 0 {
 			return
 		}
@@ -91,13 +85,8 @@ func restingBodiesSystem(count int) func(state *struct {
 		floor.Tag.Set(harnessTag{Role: "floor"})
 		floor.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		floor.V.Set(physics.Velocity2D{})
-		floor.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeBox,
-			HalfExtents:  physics.Vec2{X: 200, Y: 1},
-			Friction:     0.5,
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
-		}))
+		floor.PB.Set(newRigid(physics.BodyTypeStatic,
+			spawnShape(state, physics.Box(200, 1).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF))))
 
 		cols := int(math.Ceil(math.Sqrt(float64(count))))
 		for i := range count {
@@ -110,15 +99,8 @@ func restingBodiesSystem(count int) func(state *struct {
 				Y: float64(rowIdx)*2.0 + 5.0,
 			}})
 			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.5,
-				Density:      1,
-				Friction:     0.3,
-				Restitution:  0.2,
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			}))
+			r.PB.Set(newRigidNoGravity(physics.BodyTypeDynamic,
+				spawnShape(state, physics.Circle(0.5).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF))))
 		}
 	}
 }

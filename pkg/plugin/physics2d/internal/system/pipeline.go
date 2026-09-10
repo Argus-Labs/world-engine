@@ -13,11 +13,21 @@ import (
 type PhysicsPipelineSystemState struct {
 	cardinal.BaseSystemState
 	Bodies       cardinal.Contains[physicsBodyRow]
+	Circles      cardinal.Contains[circleShapeRow]
+	Boxes        cardinal.Contains[boxShapeRow]
+	Polygons     cardinal.Contains[polygonShapeRow]
+	Chains       cardinal.Contains[chainShapeRow]
+	Edges        cardinal.Contains[edgeShapeRow]
+	Capsules     cardinal.Contains[capsuleShapeRow]
 	Singleton    physicsSingletonSearch
 	ContactBegin cardinal.WithSystemEventEmitter[physicevent.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventEmitter[physicevent.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventEmitter[physicevent.TriggerBeginEvent]
 	TriggerEnd   cardinal.WithSystemEventEmitter[physicevent.TriggerEndEvent]
+}
+
+func (s *PhysicsPipelineSystemState) shapes() shapeSearches {
+	return shapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
 }
 
 type contactEmitterBridge struct {
@@ -79,6 +89,8 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
 		ensurePhysicsSingleton(&state.Singleton)
+		// Shapes before bodies: attaches below resolve slots through the shape mirror.
+		syncShapes(rt, state.shapes())
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 
@@ -91,6 +103,10 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		if err := rt.ReconcileFromECS(entries); err != nil {
 			state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
 		}
+		// Cardinal's search.Destroy deletes any entity regardless of the search's components,
+		// so one search field serves as the plain "destroy entity" call the sweep needs.
+		destroyEntity := state.Circles.Destroy
+		rt.SweepUnusedShapes(destroyEntity)
 
 		// --- 2. Step + flush contacts ---
 		acRef, singletonFound := loadContactBaseline(rt, state)

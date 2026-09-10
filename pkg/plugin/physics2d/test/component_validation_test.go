@@ -5,6 +5,8 @@ import (
 	"math"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/stretchr/testify/require"
@@ -95,187 +97,162 @@ func TestValidate_Velocity2D_InfAngular(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ColliderShape.Validate
+// ShapeSlot.Validate
 // ---------------------------------------------------------------------------
 
-func TestValidate_ColliderShape_ValidCircle(t *testing.T) {
+func TestValidate_ShapeSlot_Valid(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       0.5,
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}.Validate()
-	require.NoError(t, err)
+	require.NoError(t, phycomp.Slot(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5).Validate())
+	require.NoError(t, phycomp.ShapeSlot{}.Validate(), "resolvability is checked at attach, not here")
 }
 
-func TestValidate_ColliderShape_ValidBox(t *testing.T) {
+func TestValidate_ShapeSlot_NaNLocalOffset(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeBox,
-		HalfExtents:  phycomp.Vec2{X: 1, Y: 0.5},
-		Density:      1,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_ColliderShape_ValidPolygon(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType: phycomp.ShapeTypeConvexPolygon,
-		Vertices: []phycomp.Vec2{
-			{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0.5, Y: 1},
-		},
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_ColliderShape_ValidChain(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeStaticChain,
-		ChainPoints:  []phycomp.Vec2{{X: 0, Y: 0}, {X: 5, Y: 1}},
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_ColliderShape_ValidChainLoop(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeStaticChainLoop,
-		ChainPoints:  []phycomp.Vec2{{X: 0, Y: 0}, {X: 5, Y: 0}, {X: 5, Y: 5}, {X: 0, Y: 5}},
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_ColliderShape_ValidEdge(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeEdge,
-		EdgeVertices: [2]phycomp.Vec2{{X: 0, Y: 0}, {X: 3, Y: 0}},
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_ColliderShape_InvalidShapeType(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{ShapeType: 99}.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "shape_type")
-}
-
-func TestValidate_ColliderShape_NaNRadius(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType: phycomp.ShapeTypeCircle,
-		Radius:    math.NaN(),
-	}.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "radius")
-}
-
-func TestValidate_ColliderShape_NaNFriction(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType: phycomp.ShapeTypeCircle,
-		Friction:  math.NaN(),
-	}.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "friction")
-}
-
-func TestValidate_ColliderShape_InfRestitution(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:   phycomp.ShapeTypeCircle,
-		Restitution: math.Inf(1),
-	}.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "restitution")
-}
-
-func TestValidate_ColliderShape_InfDensity(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType: phycomp.ShapeTypeCircle,
-		Density:   math.Inf(-1),
-	}.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "density")
-}
-
-func TestValidate_ColliderShape_NaNLocalOffset(t *testing.T) {
-	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:   phycomp.ShapeTypeCircle,
-		LocalOffset: phycomp.Vec2{X: math.NaN(), Y: 0},
-	}.Validate()
+	err := phycomp.Slot(1).At(phycomp.Vec2{X: math.NaN(), Y: 0}, 0).Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "local_offset")
 }
 
-func TestValidate_ColliderShape_InfLocalRotation(t *testing.T) {
+func TestValidate_ShapeSlot_InfLocalRotation(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:     phycomp.ShapeTypeCircle,
-		LocalRotation: math.Inf(1),
-	}.Validate()
+	err := phycomp.Slot(1).At(phycomp.Vec2{}, math.Inf(1)).Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "local_rotation")
 }
 
-func TestValidate_ColliderShape_NaNVertex(t *testing.T) {
+// ---------------------------------------------------------------------------
+// ShapeCommon.Validate
+// ---------------------------------------------------------------------------
+
+func TestShapeCommon_Defaults(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType: phycomp.ShapeTypeConvexPolygon,
-		Vertices: []phycomp.Vec2{
-			{X: 0, Y: 0}, {X: math.NaN(), Y: 0}, {X: 0, Y: 1},
-		},
-	}.Validate()
+	c := phycomp.DefaultShapeCommon()
+	require.NoError(t, c.Validate())
+	require.False(t, c.IsSensor)
+	require.InDelta(t, 0.6, c.Friction, 0)
+	require.InDelta(t, 0.0, c.Restitution, 0)
+	require.InDelta(t, 1.0, c.Density, 0)
+	require.Equal(t, uint64(1), c.CategoryBits)
+	require.Equal(t, ^uint64(0), c.MaskBits)
+	require.Equal(t, int32(0), c.GroupIndex)
+}
+
+func TestValidate_ShapeCommon_NaNFriction(t *testing.T) {
+	t.Parallel()
+	c := phycomp.DefaultShapeCommon()
+	c.Friction = math.NaN()
+	err := c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "friction")
+}
+
+func TestValidate_ShapeCommon_InfRestitution(t *testing.T) {
+	t.Parallel()
+	c := phycomp.DefaultShapeCommon()
+	c.Restitution = math.Inf(1)
+	err := c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "restitution")
+}
+
+func TestValidate_ShapeCommon_InfDensity(t *testing.T) {
+	t.Parallel()
+	c := phycomp.DefaultShapeCommon()
+	c.Density = math.Inf(-1)
+	err := c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "density")
+}
+
+// ---------------------------------------------------------------------------
+// Geometry components
+// ---------------------------------------------------------------------------
+
+func TestValidate_Geometry_Valid(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, phycomp.CircleGeom{Radius: 0.5}.Validate())
+	require.NoError(t, phycomp.BoxGeom{HalfExtents: phycomp.Vec2{X: 1, Y: 0.5}}.Validate())
+	require.NoError(t, phycomp.PolygonGeom{
+		Vertices: [phycomp.MaxPolygonVertices]phycomp.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0.5, Y: 1}},
+		Count:    3,
+	}.Validate())
+	require.NoError(t, phycomp.ChainGeom{
+		Points: immutable.SliceOf(phycomp.Vec2{}, phycomp.Vec2{X: 1}), Loop: true,
+	}.Validate())
+	require.NoError(t, phycomp.ChainGeom{}.Validate(), "point-count rules are Box2D's, at attach")
+	require.NoError(t, phycomp.EdgeGeom{A: phycomp.Vec2{X: 0, Y: 0}, B: phycomp.Vec2{X: 3, Y: 0}}.Validate())
+	require.NoError(t, phycomp.CapsuleGeom{A: phycomp.Vec2{}, B: phycomp.Vec2{X: 1}, Radius: 0.25}.Validate())
+}
+
+func TestValidate_CircleGeom_NaNRadius(t *testing.T) {
+	t.Parallel()
+	err := phycomp.CircleGeom{Radius: math.NaN()}.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "radius")
+}
+
+func TestValidate_BoxGeom_InfHalfExtents(t *testing.T) {
+	t.Parallel()
+	err := phycomp.BoxGeom{HalfExtents: phycomp.Vec2{X: math.Inf(1), Y: 1}}.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "half_extents")
+}
+
+func TestValidate_PolygonGeom_CountBounds(t *testing.T) {
+	t.Parallel()
+	var g phycomp.PolygonGeom
+	g.Count = 2
+	err := g.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "count")
+
+	g.Count = phycomp.MaxPolygonVertices + 1
+	err = g.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "count")
+}
+
+func TestValidate_PolygonGeom_NaNVertex(t *testing.T) {
+	t.Parallel()
+	g := phycomp.PolygonGeom{
+		Vertices: [phycomp.MaxPolygonVertices]phycomp.Vec2{{X: 0, Y: 0}, {X: math.NaN(), Y: 0}, {X: 0, Y: 1}},
+		Count:    3,
+	}
+	err := g.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "vertices[1]")
 }
 
-func TestValidate_ColliderShape_NaNChainPoint(t *testing.T) {
+func TestValidate_PolygonGeom_UnusedSlotsIgnored(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:   phycomp.ShapeTypeStaticChain,
-		ChainPoints: []phycomp.Vec2{{X: 0, Y: 0}, {X: 0, Y: math.Inf(1)}},
-	}.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "chain_points[1]")
+	g := phycomp.PolygonGeom{
+		Vertices: [phycomp.MaxPolygonVertices]phycomp.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0, Y: 1}, {X: math.NaN()}},
+		Count:    3,
+	}
+	require.NoError(t, g.Validate(), "slots past Count are not part of the polygon")
 }
 
-func TestValidate_ColliderShape_NaNEdgeVertex(t *testing.T) {
+func TestValidate_EdgeGeom_NaNEndpoint(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeEdge,
-		EdgeVertices: [2]phycomp.Vec2{{X: math.NaN(), Y: 0}, {X: 1, Y: 0}},
-	}.Validate()
+	err := phycomp.EdgeGeom{A: phycomp.Vec2{X: math.NaN(), Y: 0}, B: phycomp.Vec2{X: 1, Y: 0}}.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "edge_vertices[0]")
+	require.Contains(t, err.Error(), "a:")
 }
 
-func TestValidate_ColliderShape_NaNHalfExtents(t *testing.T) {
+func TestValidate_CapsuleGeom_NaNRadius(t *testing.T) {
 	t.Parallel()
-	err := phycomp.ColliderShape{
-		ShapeType:   phycomp.ShapeTypeBox,
-		HalfExtents: phycomp.Vec2{X: math.Inf(1), Y: 1},
+	err := phycomp.CapsuleGeom{B: phycomp.Vec2{X: 1}, Radius: math.NaN()}.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "radius")
+}
+
+func TestValidate_ChainGeom_NaNPoint(t *testing.T) {
+	t.Parallel()
+	err := phycomp.ChainGeom{
+		Points: immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 0, Y: math.Inf(1)}),
 	}.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "half_extents")
+	require.Contains(t, err.Error(), "points[1]")
 }
 
 // ---------------------------------------------------------------------------
@@ -284,13 +261,7 @@ func TestValidate_ColliderShape_NaNHalfExtents(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_Valid(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       0.5,
-		Density:      1,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	})
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
 	require.NoError(t, pb.Validate())
 }
 
@@ -306,12 +277,7 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.PhysicsBody2D{
 		BodyType: 99,
-		Shapes: []phycomp.ColliderShape{{
-			ShapeType:    phycomp.ShapeTypeCircle,
-			Radius:       1,
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
-		}},
+		Shapes:   immutable.SliceOf(phycomp.Slot(3)),
 	}
 	err := pb.Validate()
 	require.Error(t, err)
@@ -320,12 +286,7 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_NaNLinearDamping(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       0.5,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	})
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
 	pb.LinearDamping = math.NaN()
 	err := pb.Validate()
 	require.Error(t, err)
@@ -334,12 +295,7 @@ func TestValidate_PhysicsBody2D_NaNLinearDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       0.5,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	})
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
 	pb.AngularDamping = math.Inf(1)
 	err := pb.Validate()
 	require.Error(t, err)
@@ -348,23 +304,17 @@ func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InfGravityScale(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       0.5,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	})
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
 	pb.GravityScale = math.Inf(-1)
 	err := pb.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "gravity_scale")
 }
 
-func TestValidate_PhysicsBody2D_InvalidShape(t *testing.T) {
+func TestValidate_PhysicsBody2D_InvalidSlot(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
-		ShapeType: 99,
-	})
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic,
+		phycomp.Slot(3).At(phycomp.Vec2{X: math.NaN()}, 0))
 	err := pb.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "shapes[0]")
@@ -372,19 +322,13 @@ func TestValidate_PhysicsBody2D_InvalidShape(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_AllBodyTypes(t *testing.T) {
 	t.Parallel()
-	shape := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       0.5,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}
 	for _, bt := range []phycomp.BodyType{
 		phycomp.BodyTypeStatic,
 		phycomp.BodyTypeDynamic,
 		phycomp.BodyTypeKinematic,
 		phycomp.BodyTypeManual,
 	} {
-		require.NoError(t, phycomp.NewPhysicsBody2D(bt, shape).Validate(), "body type %d", bt)
+		require.NoError(t, phycomp.NewPhysicsBody2D(bt, phycomp.Slot(3)).Validate(), "body type %d", bt)
 	}
 }
 
@@ -394,13 +338,7 @@ func TestValidate_PhysicsBody2D_AllBodyTypes(t *testing.T) {
 
 func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	t.Parallel()
-	shape := phycomp.ColliderShape{
-		ShapeType:    phycomp.ShapeTypeCircle,
-		Radius:       1,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, shape)
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
 	require.Equal(t, phycomp.BodyTypeDynamic, pb.BodyType)
 	require.InDelta(t, 1.0, pb.GravityScale, 1e-12)
 	require.True(t, pb.Active)
@@ -410,17 +348,15 @@ func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	require.False(t, pb.FixedRotation)
 	require.InDelta(t, 0.0, pb.LinearDamping, 1e-12)
 	require.InDelta(t, 0.0, pb.AngularDamping, 1e-12)
-	require.Len(t, pb.Shapes, 1)
+	require.Equal(t, 1, pb.Shapes.Len())
 }
 
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 	t.Parallel()
-	shapes := []phycomp.ColliderShape{
-		{ShapeType: phycomp.ShapeTypeCircle, Radius: 0.5, CategoryBits: 0xFFFF, MaskBits: 0xFFFF},
-		{ShapeType: phycomp.ShapeTypeBox, HalfExtents: phycomp.Vec2{X: 1, Y: 1}, CategoryBits: 0xFFFF, MaskBits: 0xFFFF},
-	}
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic, shapes...)
-	require.Len(t, pb.Shapes, 2)
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic,
+		phycomp.Slot(3), phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0))
+	require.Equal(t, 2, pb.Shapes.Len())
+	require.Equal(t, phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0), pb.Shapes.At(1))
 }
 
 // ---------------------------------------------------------------------------
@@ -432,7 +368,7 @@ func TestUnmarshalPhysicsBody2D_MissingFieldsGetDefaults(t *testing.T) {
 	// Minimal JSON: only body_type and shapes
 	data := `{
 		"body_type": 2,
-		"shapes": [{"shape_type": 1, "radius": 0.5, "category_bits": 65535, "mask_bits": 65535}]
+		"shapes": [{"shape": 7}]
 	}`
 	var pb phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal([]byte(data), &pb))
@@ -443,6 +379,7 @@ func TestUnmarshalPhysicsBody2D_MissingFieldsGetDefaults(t *testing.T) {
 	require.True(t, pb.SleepingAllowed, "missing sleeping_allowed defaults to true")
 	require.False(t, pb.Bullet)
 	require.False(t, pb.FixedRotation)
+	require.Equal(t, immutable.SliceOf(phycomp.Slot(7)), pb.Shapes)
 }
 
 func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
@@ -453,7 +390,7 @@ func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
 		"awake": false,
 		"sleeping_allowed": false,
 		"gravity_scale": 0,
-		"shapes": [{"shape_type": 1, "radius": 0.5, "category_bits": 65535, "mask_bits": 65535}]
+		"shapes": [{"shape": 7}]
 	}`
 	var pb phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal([]byte(data), &pb))
@@ -476,7 +413,7 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 		"bullet": true,
 		"fixed_rotation": true,
 		"shapes": [
-			{"shape_type": 1, "radius": 1.0, "density": 2.0, "friction": 0.5, "category_bits": 1, "mask_bits": 65535}
+			{"shape": 7, "local_offset": {"x": 1, "y": 2}, "local_rotation": 0.5}
 		]
 	}`
 	var pb phycomp.PhysicsBody2D
@@ -490,8 +427,8 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 	require.False(t, pb.SleepingAllowed)
 	require.True(t, pb.Bullet)
 	require.True(t, pb.FixedRotation)
-	require.Len(t, pb.Shapes, 1)
-	require.InDelta(t, 2.0, pb.Shapes[0].Density, 1e-12)
+	require.Equal(t, 1, pb.Shapes.Len())
+	require.Equal(t, phycomp.Slot(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5), pb.Shapes.At(0))
 }
 
 // ---------------------------------------------------------------------------
@@ -516,4 +453,11 @@ func TestComponentNames(t *testing.T) {
 	require.Equal(t, "physics_body_2d", phycomp.PhysicsBody2D{}.Name())
 	require.Equal(t, "physics_singleton_tag", phycomp.PhysicsSingletonTag{}.Name())
 	require.Equal(t, "active_contacts", phycomp.ActiveContacts{}.Name())
+	require.Equal(t, "shape_common_2d", phycomp.ShapeCommon{}.Name())
+	require.Equal(t, "circle_geom_2d", phycomp.CircleGeom{}.Name())
+	require.Equal(t, "box_geom_2d", phycomp.BoxGeom{}.Name())
+	require.Equal(t, "polygon_geom_2d", phycomp.PolygonGeom{}.Name())
+	require.Equal(t, "chain_geom_2d", phycomp.ChainGeom{}.Name())
+	require.Equal(t, "edge_geom_2d", phycomp.EdgeGeom{}.Name())
+	require.Equal(t, "capsule_geom_2d", phycomp.CapsuleGeom{}.Name())
 }
