@@ -151,8 +151,10 @@ func BuffSystem(state *BuffSystemState) error {
 ```
 
 `immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later changes to
-that slice never reach the component. `Clone` goes the other way: a plain `[]T` for APIs that need
-one, and changes to it never reach the Slice.
+that slice never reach the component. To go the other way — a plain `[]T` for an API that needs one —
+range over `Values`, or use `immutable.Collect` to build a fresh Slice from the result: there is no
+`Clone` method, since a copy taken that way could look like it protects the original while
+derivations write through it regardless.
 
 <Warning>
   **Derivations do not copy, so the `Set` is not optional.** Most of them edit the hidden array in
@@ -167,7 +169,7 @@ one, and changes to it never reach the Slice.
 
   Two rules follow. Call `Set` after every derivation, even one you think is read-only:
   `s.SortedFunc(cmp).At(0)` reorders the stored list. And when the original has to survive, derive
-  from a copy with `immutable.SliceOf(s.Clone()...)`.
+  from a copy instead: `immutable.SliceOf(slices.Collect(s.Values())...)`.
 
   Each method's Go doc says whether it writes through.
 </Warning>

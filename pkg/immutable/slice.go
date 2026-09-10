@@ -38,7 +38,8 @@ import (
 //	ref.Set(inv)                        // this republishes what is already true
 //
 // Deriving and dropping the result does not leave the world untouched — it leaves the world holding
-// an edit no snapshot recorded. Clone first when the original has to survive. Each derivation's doc
+// an edit no snapshot recorded. Copy the elements out first (Values, or immutable.Collect) when the
+// original has to survive. Each derivation's doc
 // says whether it writes through.
 //
 // Two empty Slices are not always reflect.DeepEqual. A derivation that empties one leaves its backing
@@ -141,17 +142,6 @@ func (s Slice[T]) Chunk(n int) iter.Seq[Slice[T]] {
 	}
 }
 
-// Clone returns a fresh []T holding a copy of the elements, for an API that needs a plain slice.
-// Changes to the result never reach the Slice. It is never nil, even for an empty Slice.
-//
-// Because derivations edit in place, this is also how a caller keeps the original: deriving from
-// SliceOf(s.Clone()...) cannot reach s.
-func (s Slice[T]) Clone() []T {
-	out := make([]T, len(s.items))
-	copy(out, s.items)
-	return out
-}
-
 // -------------------------------------------------------------------------------------------------
 // Deriving
 // -------------------------------------------------------------------------------------------------
@@ -163,7 +153,8 @@ func (s Slice[T]) Clone() []T {
 // Two consequences worth stating plainly. Deriving and discarding the result still changes the
 // world. And the ones that shrink (Without, Filter, Delete, CompactFunc) leave the receiver at its
 // old length over a shifted, zero-filled tail, so the receiver is not merely reordered but wrong.
-// Set the component after every derivation, and Clone first when the original has to survive.
+// Set the component after every derivation, and copy the elements out first (immutable.Collect) when
+// the original has to survive.
 
 // Append returns a Slice with items added at the end. It allocates a new array, so the receiver is
 // unchanged.
