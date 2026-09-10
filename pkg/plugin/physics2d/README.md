@@ -158,8 +158,11 @@ tri := physics2d.ColliderShape{
 )
 ```
 
-`WithVertices` panics past `MaxPolygonVertices` rather than truncating, and
-`PolygonVertices()` reads back the live prefix. A chain has no such bound, so
+Past `MaxPolygonVertices`, `WithVertices` returns a shape that fails `Validate`
+(`vertex_count: must be between 0 and 8`) rather than truncating or panicking —
+an over-long polygon is a bad asset, and the reconciler refuses the fixture the
+same way it refuses any other bad geometry. `PolygonVertices()` reads back the
+live prefix. A chain has no such bound, so
 `ChainPoints` is an `immutable.Slice[Vec2]`; build one with
 `immutable.SliceOf(pts...)`.
 

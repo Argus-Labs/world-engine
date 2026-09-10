@@ -357,7 +357,7 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 	c.SetBody(id, pb)
 }
 
-// EditShape applies edit to one shape of the entity.s body and writes the body back. Shapes hands
+// EditShape applies edit to one shape of the entity's body and writes the body back. Shapes hands
 // out element copies, so a shape changes by being read out, edited, and put back with With —
 // there is no index to assign through.
 func (c *Ctx) EditShape(id cardinal.EntityID, i int, edit func(sh *physics.ColliderShape)) {

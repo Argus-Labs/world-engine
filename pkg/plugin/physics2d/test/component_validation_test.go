@@ -264,12 +264,24 @@ func TestValidate_ColliderShape_NegativeVertexCount(t *testing.T) {
 	require.Contains(t, err.Error(), "vertex_count")
 }
 
-func TestWithVertices_PanicsPastBound(t *testing.T) {
+// An over-long vertex list is a bad asset, not a bug, so it has to reach Validate rather than end
+// the tick. WithVertices records the count it was asked for; the array holds fewer, and that
+// mismatch is what Validate reports.
+func TestWithVertices_ReportsPastBoundInsteadOfPanicking(t *testing.T) {
 	t.Parallel()
 	tooMany := make([]phycomp.Vec2, phycomp.MaxPolygonVertices+1)
-	require.Panics(t, func() {
-		_ = phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(tooMany...)
-	}, "truncating would hand Box2D a different polygon than the caller described")
+
+	var shape phycomp.ColliderShape
+	require.NotPanics(t, func() {
+		shape = phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(tooMany...)
+	}, "a bad polygon must not take the shard down with it")
+
+	require.Equal(t, phycomp.MaxPolygonVertices+1, shape.VertexCount,
+		"the count the caller asked for is what makes the shape reportable; truncating it would hide the problem")
+	err := shape.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "vertex_count")
+	require.Nil(t, shape.PolygonVertices(), "no vertices are handed to Box2D")
 }
 
 func TestWithVertices_ZeroesTheUnusedTail(t *testing.T) {

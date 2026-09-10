@@ -98,17 +98,9 @@ type ColliderShape struct {
 // WithVertices returns a copy of s carrying vertices as its convex-polygon geometry, with
 // VertexCount set to match. Slots past VertexCount are zeroed, so a shape reused with fewer
 // vertices carries no leftovers from the longer one.
-//
-// It panics when given more than MaxPolygonVertices, matching how Box2D itself treats a polygon
-// count it cannot hold: truncating instead would silently hand the solver a different shape than
-// the caller described.
 func (s ColliderShape) WithVertices(vertices ...Vec2) ColliderShape {
-	if len(vertices) > MaxPolygonVertices {
-		panic(fmt.Sprintf("physics2d: %d vertices exceeds MaxPolygonVertices (%d)",
-			len(vertices), MaxPolygonVertices))
-	}
 	s.Vertices = [MaxPolygonVertices]Vec2{}
-	copy(s.Vertices[:], vertices)
+	copy(s.Vertices[:], vertices) // copies MaxPolygonVertices at most; the count below records the rest
 	s.VertexCount = len(vertices)
 	return s
 }
